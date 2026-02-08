@@ -1,0 +1,31 @@
+{
+  "name": "@substrate/forge",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@google/generative-ai": "^0.21.0",
+    "@fastify/cors": "^10.0.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "bullmq": "^5.0.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.2.0",
+    "ioredis": "^5.4.0",
+    "openai": "^4.77.0",
+    "pg": "^8.11.3",
+    "ulid": "^2.3.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

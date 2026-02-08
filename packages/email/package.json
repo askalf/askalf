@@ -1,0 +1,21 @@
+{
+  "name": "@substrate/email",
+  "version": "1.0.0",
+  "description": "Email service with provider abstraction for SUBSTRATE",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@substrate/core": "workspace:*",
+    "@substrate/observability": "workspace:*",
+    "nodemailer": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^6.4.17",
+    "typescript": "^5.7.2"
+  }
+}

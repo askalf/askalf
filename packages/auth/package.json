@@ -1,0 +1,49 @@
+{
+  "name": "@substrate/auth",
+  "version": "1.0.0",
+  "description": "Authentication, sessions, and API key management for SUBSTRATE",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./api-keys": {
+      "types": "./dist/api-keys.d.ts",
+      "import": "./dist/api-keys.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./password": {
+      "types": "./dist/password.d.ts",
+      "import": "./dist/password.js"
+    },
+    "./usage": {
+      "types": "./dist/usage.d.ts",
+      "import": "./dist/usage.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@substrate/core": "workspace:*",
+    "@substrate/database": "workspace:*",
+    "bcrypt": "^5.1.1",
+    "zod": "^3.24.0",
+    "ulid": "^2.3.0"
+  },
+  "devDependencies": {
+    "@fastify/cookie": "^11.0.0",
+    "@types/bcrypt": "^5.0.2",
+    "fastify": "^5.2.0",
+    "typescript": "^5.7.0"
+  }
+}

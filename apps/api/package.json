@@ -1,0 +1,38 @@
+{
+  "name": "@substrate/api",
+  "version": "1.0.0",
+  "description": "REST API server for SUBSTRATE",
+  "main": "./dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.0",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/csrf-protection": "^7.1.0",
+    "@substrate/ai": "workspace:*",
+    "@substrate/auth": "workspace:*",
+    "@substrate/core": "workspace:*",
+    "@substrate/database": "workspace:*",
+    "@substrate/email": "workspace:*",
+    "@substrate/events": "workspace:*",
+    "@substrate/memory": "workspace:*",
+    "@substrate/metabolic": "workspace:*",
+    "@substrate/observability": "workspace:*",
+    "@substrate/sandbox": "workspace:*",
+    "@substrate/stripe": "workspace:*",
+    "bcrypt": "^5.1.1",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.2.0",
+    "ulid": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

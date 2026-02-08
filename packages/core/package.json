@@ -1,0 +1,21 @@
+{
+  "name": "@substrate/core",
+  "version": "1.0.0",
+  "description": "Core types, utilities, and validation for SUBSTRATE",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.24.0",
+    "ulid": "^2.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

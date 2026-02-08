@@ -1,0 +1,242 @@
+/* Bug Report Modal */
+.bug-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.bug-modal {
+  background: var(--surface, #1a1a2e);
+  border: 1px solid var(--border, #2a2a4a);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.bug-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border, #2a2a4a);
+}
+
+.bug-modal-header h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text, #fff);
+}
+
+.bug-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bug-modal-close:hover {
+  background: var(--elevated, #252540);
+  color: var(--text, #fff);
+}
+
+.bug-modal-body {
+  padding: 1.5rem;
+}
+
+.bug-form-group {
+  margin-bottom: 1.25rem;
+}
+
+.bug-form-group:last-child {
+  margin-bottom: 0;
+}
+
+.bug-form-group label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary, #aaa);
+  margin-bottom: 0.5rem;
+}
+
+.bug-form-group .required {
+  color: #ef4444;
+}
+
+.bug-form-group .optional {
+  color: var(--text-muted, #666);
+  font-weight: 400;
+}
+
+.bug-type-chips {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.bug-type-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--deep, #0d0d1a);
+  border: 1px solid var(--border, #2a2a4a);
+  border-radius: 8px;
+  color: var(--text-secondary, #aaa);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bug-type-chip:hover {
+  border-color: var(--text-muted, #666);
+}
+
+.bug-type-chip.active {
+  background: var(--crystal-dim, rgba(16, 185, 129, 0.1));
+  border-color: var(--crystal, #10b981);
+  color: var(--crystal, #10b981);
+}
+
+.bug-type-chip .chip-icon {
+  font-size: 1rem;
+}
+
+.bug-form-group input,
+.bug-form-group textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--deep, #0d0d1a);
+  border: 1px solid var(--border, #2a2a4a);
+  border-radius: 8px;
+  color: var(--text, #fff);
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.bug-form-group input:focus,
+.bug-form-group textarea:focus {
+  outline: none;
+  border-color: var(--crystal, #10b981);
+}
+
+.bug-form-group input::placeholder,
+.bug-form-group textarea::placeholder {
+  color: var(--text-muted, #666);
+}
+
+.bug-form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.bug-form-error {
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.8125rem;
+  margin-top: 1rem;
+}
+
+.bug-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid var(--border, #2a2a4a);
+}
+
+.bug-modal-btn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bug-modal-btn.secondary {
+  background: transparent;
+  border: 1px solid var(--border, #2a2a4a);
+  color: var(--text-secondary, #aaa);
+}
+
+.bug-modal-btn.secondary:hover {
+  background: var(--elevated, #252540);
+  color: var(--text, #fff);
+}
+
+.bug-modal-btn.primary {
+  background: var(--crystal, #10b981);
+  border: none;
+  color: #000;
+  font-weight: 600;
+}
+
+.bug-modal-btn.primary:hover:not(:disabled) {
+  background: #0ea572;
+}
+
+.bug-modal-btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Success state */
+.bug-modal-success {
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.bug-modal-success .success-icon {
+  color: var(--crystal, #10b981);
+  margin-bottom: 1.5rem;
+}
+
+.bug-modal-success h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text, #fff);
+}
+
+.bug-modal-success p {
+  margin: 0 0 1.5rem;
+  color: var(--text-secondary, #aaa);
+  font-size: 0.875rem;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .bug-modal {
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .bug-type-chips {
+    grid-template-columns: 1fr;
+  }
+}
