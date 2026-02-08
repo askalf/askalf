@@ -1,0 +1,21 @@
+{
+  "name": "@substrate/observability",
+  "version": "1.0.0",
+  "description": "Structured logging, metrics, and tracing for SUBSTRATE",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

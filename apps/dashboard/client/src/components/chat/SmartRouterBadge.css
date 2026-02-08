@@ -1,0 +1,230 @@
+/* ===========================================
+   SMART ROUTER BADGE
+   Shows which model was selected by Smart Router
+   =========================================== */
+
+.smart-router-badge-container {
+  position: relative;
+  display: inline-block;
+}
+
+.smart-router-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.smart-router-badge:hover {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.smart-router-badge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--tier-color, #3b82f6);
+}
+
+.smart-router-badge-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.smart-router-badge-tier {
+  font-weight: 600;
+  color: var(--tier-color, #3b82f6);
+  text-transform: capitalize;
+}
+
+.smart-router-badge-model {
+  color: var(--text-secondary);
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+/* ===========================================
+   DETAILS POPUP
+   =========================================== */
+
+.smart-router-details {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: 280px;
+  max-width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  animation: slideUp 0.15s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.smart-router-details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.smart-router-details-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.smart-router-details-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.smart-router-details-close:hover {
+  background: var(--elevated);
+  color: var(--text);
+}
+
+.smart-router-details-content {
+  padding: 12px 16px;
+}
+
+.smart-router-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.smart-router-detail-row.muted {
+  opacity: 0.6;
+}
+
+.smart-router-detail-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.smart-router-detail-value {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.smart-router-detail-value.tier-value {
+  font-weight: 600;
+}
+
+.smart-router-detail-value.reason {
+  max-width: 180px;
+  text-align: right;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Complexity Bar */
+.smart-router-complexity-bar {
+  position: relative;
+  width: 100px;
+  height: 6px;
+  background: var(--elevated);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.smart-router-complexity-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.smart-router-complexity-text {
+  position: absolute;
+  right: -35px;
+  top: -2px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Footer */
+.smart-router-details-footer {
+  padding: 10px 16px;
+  background: var(--deep);
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 12px 12px;
+}
+
+.smart-router-details-footer p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ===========================================
+   MOBILE
+   =========================================== */
+
+@media (max-width: 480px) {
+  .smart-router-badge {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
+  .smart-router-badge-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .smart-router-details {
+    position: fixed;
+    bottom: 60px;
+    left: 16px;
+    right: 16px;
+    min-width: auto;
+    max-width: none;
+  }
+
+  .smart-router-complexity-bar {
+    width: 80px;
+  }
+
+  .smart-router-complexity-text {
+    right: -30px;
+  }
+}

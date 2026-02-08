@@ -1,0 +1,18 @@
+{
+  "name": "@substrate/metacognition",
+  "version": "1.0.0",
+  "description": "SUBSTRATE Metacognition - Self-reflective AI capabilities",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@substrate/database": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

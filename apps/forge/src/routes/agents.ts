@@ -1,0 +1,445 @@
+/**
+ * Forge Agent Routes
+ * CRUD operations for AI agents
+ */
+
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { ulid } from 'ulid';
+import { query, queryOne } from '../database.js';
+import { authMiddleware } from '../middleware/auth.js';
+import { logAudit } from '../observability/audit.js';
+
+interface AgentRow {
+  id: string;
+  owner_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  system_prompt: string;
+  model_id: string | null;
+  provider_config: Record<string, unknown>;
+  autonomy_level: number;
+  enabled_tools: string[];
+  mcp_servers: unknown[];
+  memory_config: Record<string, unknown>;
+  max_iterations: number;
+  max_tokens_per_turn: number;
+  max_cost_per_execution: string;
+  is_public: boolean;
+  is_template: boolean;
+  forked_from: string | null;
+  version: number;
+  status: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AgentCountRow {
+  total: string;
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+export async function agentRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * POST /api/v1/forge/agents - Create a new agent
+   */
+  app.post(
+    '/api/v1/forge/agents',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const body = request.body as {
+        name: string;
+        description?: string;
+        systemPrompt?: string;
+        modelId?: string;
+        providerConfig?: Record<string, unknown>;
+        autonomyLevel?: number;
+        enabledTools?: string[];
+        mcpServers?: unknown[];
+        memoryConfig?: Record<string, unknown>;
+        maxIterations?: number;
+        maxTokensPerTurn?: number;
+        maxCostPerExecution?: number;
+        isPublic?: boolean;
+        isTemplate?: boolean;
+        metadata?: Record<string, unknown>;
+      };
+
+      if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: 'Agent name is required',
+        });
+      }
+
+      const id = ulid();
+      const slug = slugify(body.name);
+
+      // Check for slug collision
+      const existing = await queryOne<{ id: string }>(
+        `SELECT id FROM forge_agents WHERE owner_id = $1 AND slug = $2`,
+        [userId, slug],
+      );
+
+      const finalSlug = existing ? `${slug}-${id.slice(-6).toLowerCase()}` : slug;
+
+      try {
+        const agent = await queryOne<AgentRow>(
+          `INSERT INTO forge_agents (
+            id, owner_id, name, slug, description, system_prompt, model_id,
+            provider_config, autonomy_level, enabled_tools, mcp_servers,
+            memory_config, max_iterations, max_tokens_per_turn,
+            max_cost_per_execution, is_public, is_template, metadata, status
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'draft'
+          ) RETURNING *`,
+          [
+            id,
+            userId,
+            body.name.trim(),
+            finalSlug,
+            body.description ?? null,
+            body.systemPrompt ?? 'You are a helpful assistant.',
+            body.modelId ?? null,
+            JSON.stringify(body.providerConfig ?? { temperature: 0.7, maxTokens: 4096 }),
+            body.autonomyLevel ?? 2,
+            body.enabledTools ?? [],
+            JSON.stringify(body.mcpServers ?? []),
+            JSON.stringify(body.memoryConfig ?? { enableWorking: true, enableSemantic: false, enableEpisodic: false, enableProcedural: false, semanticSearchK: 5 }),
+            body.maxIterations ?? 10,
+            body.maxTokensPerTurn ?? 8192,
+            body.maxCostPerExecution ?? 1.0,
+            body.isPublic ?? false,
+            body.isTemplate ?? false,
+            JSON.stringify(body.metadata ?? {}),
+          ],
+        );
+
+        void logAudit({
+          ownerId: userId,
+          action: 'agent.create',
+          resourceType: 'agent',
+          resourceId: id,
+          details: { name: body.name },
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        }).catch(() => {});
+
+        return reply.status(201).send({ agent });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to create agent');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to create agent: ${message}`,
+        });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/agents - List agents for the authenticated owner
+   */
+  app.get(
+    '/api/v1/forge/agents',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const qs = request.query as {
+        status?: string;
+        limit?: string;
+        offset?: string;
+        search?: string;
+      };
+
+      const conditions: string[] = ['owner_id = $1', "status != 'archived'"];
+      const params: unknown[] = [userId];
+      let paramIndex = 2;
+
+      if (qs.status) {
+        conditions.push(`status = $${paramIndex}`);
+        params.push(qs.status);
+        paramIndex++;
+      }
+
+      if (qs.search) {
+        conditions.push(`(name ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+        params.push(`%${qs.search}%`);
+        paramIndex++;
+      }
+
+      const limit = Math.min(parseInt(qs.limit ?? '50', 10) || 50, 100);
+      const offset = parseInt(qs.offset ?? '0', 10) || 0;
+
+      const whereClause = conditions.join(' AND ');
+
+      const [agents, countResult] = await Promise.all([
+        query<AgentRow>(
+          `SELECT * FROM forge_agents
+           WHERE ${whereClause}
+           ORDER BY updated_at DESC
+           LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+          [...params, limit, offset],
+        ),
+        queryOne<AgentCountRow>(
+          `SELECT COUNT(*) AS total FROM forge_agents WHERE ${whereClause}`,
+          params,
+        ),
+      ]);
+
+      return reply.send({
+        agents,
+        total: countResult ? parseInt(countResult.total, 10) : 0,
+        limit,
+        offset,
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/agents/:id - Get a single agent
+   */
+  app.get(
+    '/api/v1/forge/agents/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+
+      const agent = await queryOne<AgentRow>(
+        `SELECT * FROM forge_agents WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
+        [id, userId],
+      );
+
+      if (!agent) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Agent not found',
+        });
+      }
+
+      return reply.send({ agent });
+    },
+  );
+
+  /**
+   * PUT /api/v1/forge/agents/:id - Update an agent
+   */
+  app.put(
+    '/api/v1/forge/agents/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+
+      // Verify ownership
+      const existing = await queryOne<AgentRow>(
+        `SELECT id FROM forge_agents WHERE id = $1 AND owner_id = $2`,
+        [id, userId],
+      );
+
+      if (!existing) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Agent not found or not owned by you',
+        });
+      }
+
+      const body = request.body as {
+        name?: string;
+        description?: string;
+        systemPrompt?: string;
+        modelId?: string;
+        providerConfig?: Record<string, unknown>;
+        autonomyLevel?: number;
+        enabledTools?: string[];
+        mcpServers?: unknown[];
+        memoryConfig?: Record<string, unknown>;
+        maxIterations?: number;
+        maxTokensPerTurn?: number;
+        maxCostPerExecution?: number;
+        isPublic?: boolean;
+        isTemplate?: boolean;
+        status?: string;
+        metadata?: Record<string, unknown>;
+      };
+
+      // Build dynamic SET clause
+      const sets: string[] = [];
+      const params: unknown[] = [];
+      let paramIndex = 1;
+
+      const addParam = (column: string, value: unknown): void => {
+        sets.push(`${column} = $${paramIndex}`);
+        params.push(value);
+        paramIndex++;
+      };
+
+      if (body.name !== undefined) addParam('name', body.name);
+      if (body.description !== undefined) addParam('description', body.description);
+      if (body.systemPrompt !== undefined) addParam('system_prompt', body.systemPrompt);
+      if (body.modelId !== undefined) addParam('model_id', body.modelId);
+      if (body.providerConfig !== undefined) addParam('provider_config', JSON.stringify(body.providerConfig));
+      if (body.autonomyLevel !== undefined) addParam('autonomy_level', body.autonomyLevel);
+      if (body.enabledTools !== undefined) addParam('enabled_tools', body.enabledTools);
+      if (body.mcpServers !== undefined) addParam('mcp_servers', JSON.stringify(body.mcpServers));
+      if (body.memoryConfig !== undefined) addParam('memory_config', JSON.stringify(body.memoryConfig));
+      if (body.maxIterations !== undefined) addParam('max_iterations', body.maxIterations);
+      if (body.maxTokensPerTurn !== undefined) addParam('max_tokens_per_turn', body.maxTokensPerTurn);
+      if (body.maxCostPerExecution !== undefined) addParam('max_cost_per_execution', body.maxCostPerExecution);
+      if (body.isPublic !== undefined) addParam('is_public', body.isPublic);
+      if (body.isTemplate !== undefined) addParam('is_template', body.isTemplate);
+      if (body.status !== undefined) addParam('status', body.status);
+      if (body.metadata !== undefined) addParam('metadata', JSON.stringify(body.metadata));
+
+      if (sets.length === 0) {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: 'No fields to update',
+        });
+      }
+
+      // Bump version
+      sets.push(`version = version + 1`);
+
+      const agent = await queryOne<AgentRow>(
+        `UPDATE forge_agents SET ${sets.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+        [...params, id],
+      );
+
+      void logAudit({
+        ownerId: userId,
+        action: 'agent.update',
+        resourceType: 'agent',
+        resourceId: id,
+        details: { fields: Object.keys(body) },
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+      }).catch(() => {});
+
+      return reply.send({ agent });
+    },
+  );
+
+  /**
+   * DELETE /api/v1/forge/agents/:id - Soft delete (archive) an agent
+   */
+  app.delete(
+    '/api/v1/forge/agents/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+
+      const agent = await queryOne<AgentRow>(
+        `UPDATE forge_agents
+         SET status = 'archived'
+         WHERE id = $1 AND owner_id = $2
+         RETURNING id, name, status`,
+        [id, userId],
+      );
+
+      if (!agent) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Agent not found or not owned by you',
+        });
+      }
+
+      void logAudit({
+        ownerId: userId,
+        action: 'agent.archive',
+        resourceType: 'agent',
+        resourceId: id,
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+      }).catch(() => {});
+
+      return reply.send({
+        message: 'Agent archived successfully',
+        agent: { id: agent.id, name: agent.name, status: agent.status },
+      });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/agents/:id/fork - Fork an agent
+   */
+  app.post(
+    '/api/v1/forge/agents/:id/fork',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+
+      // Load the source agent (must be owned by user or public)
+      const source = await queryOne<AgentRow>(
+        `SELECT * FROM forge_agents WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
+        [id, userId],
+      );
+
+      if (!source) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Agent not found or not accessible',
+        });
+      }
+
+      const body = request.body as { name?: string } | undefined;
+      const newId = ulid();
+      const newName = body?.name ?? `${source.name} (fork)`;
+      const newSlug = `${slugify(newName)}-${newId.slice(-6).toLowerCase()}`;
+
+      const forked = await queryOne<AgentRow>(
+        `INSERT INTO forge_agents (
+          id, owner_id, name, slug, description, system_prompt, model_id,
+          provider_config, autonomy_level, enabled_tools, mcp_servers,
+          memory_config, max_iterations, max_tokens_per_turn,
+          max_cost_per_execution, is_public, is_template, forked_from,
+          metadata, status
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, false, false, $16, $17, 'draft'
+        ) RETURNING *`,
+        [
+          newId,
+          userId,
+          newName,
+          newSlug,
+          source.description,
+          source.system_prompt,
+          source.model_id,
+          JSON.stringify(source.provider_config),
+          source.autonomy_level,
+          source.enabled_tools,
+          JSON.stringify(source.mcp_servers),
+          JSON.stringify(source.memory_config),
+          source.max_iterations,
+          source.max_tokens_per_turn,
+          source.max_cost_per_execution,
+          id,
+          JSON.stringify({ forkedFrom: id, originalName: source.name }),
+        ],
+      );
+
+      void logAudit({
+        ownerId: userId,
+        action: 'agent.fork',
+        resourceType: 'agent',
+        resourceId: newId,
+        details: { forkedFrom: id, sourceName: source.name },
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+      }).catch(() => {});
+
+      return reply.status(201).send({ agent: forked });
+    },
+  );
+}

@@ -1,0 +1,813 @@
+name: substrate-prod
+
+services:
+  # ===========================================
+  # DATABASE LAYER
+  # ===========================================
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17-bookworm
+    container_name: substrate-prod-postgres
+    ports:
+      - "127.0.0.1:5432:5432"  # Local access for MCP
+    environment:
+      POSTGRES_USER: substrate
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: substrate
+      # Enable data checksums for corruption detection (new DBs only)
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - substrate_prod_postgres:/var/lib/postgresql/data
+      - ./packages/database/src/migrations:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    # Shared memory for PostgreSQL (matches shared_buffers)
+    shm_size: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U substrate"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    # Allow clean shutdown
+    stop_grace_period: 30s
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: substrate-prod-redis
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - substrate_prod_redis:/data
+      - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # ===========================================
+  # APPLICATION LAYER
+  # ===========================================
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: substrate-prod-api
+    ports:
+      - "127.0.0.1:3000:3000"  # Local access for development dashboard
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_URL: ${APP_URL:-https://askalf.org}
+      DASHBOARD_URL: ${DASHBOARD_URL:-https://app.askalf.org}
+      # Database (via pgbouncer for connection pooling)
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      # AI Providers
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_ORG_ID: ${OPENAI_ORG_ID}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Auth
+      SESSION_SECRET: ${SESSION_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      # Stripe
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      # Email (SendGrid)
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-sendgrid}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Ask ALF}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@askalf.org}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-support@askalf.org}
+      # Admin Assistant
+      ADMIN_ASSISTANT_KEY: ${ADMIN_ASSISTANT_KEY}
+      # Backup service internal API
+      BACKUP_API_URL: http://backup:8080
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"const http=require('http');http.get('http://127.0.0.1:3000/health',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Scheduler - singleton that manages job schedules (only one should run)
+  scheduler:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: substrate-prod-scheduler
+    environment:
+      NODE_ENV: production
+      WORKER_ROLE: scheduler
+      WORKER_ID: scheduler-primary
+      HEALTH_PORT: 8081
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Database (via pgbouncer for connection pooling)
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_ORG_ID: ${OPENAI_ORG_ID}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # Configurable schedules (cron format) - defaults shown
+      # SCHEDULE_CRYSTALLIZE: "*/15 * * * *"
+      # SCHEDULE_PROMOTE: "*/30 * * * *"
+      # SCHEDULE_DECAY: "0 */12 * * *"
+      # SCHEDULE_METACOGNITION: "0 * * * *"
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Healthcheck: verify scheduler has lock, DB connected, recent heartbeat
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8081/health').then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{if(d.status!=='healthy')throw new Error(d.status);process.exit(0)}).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # Worker - processes jobs (can scale horizontally)
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: substrate-prod-worker
+    environment:
+      NODE_ENV: production
+      WORKER_ROLE: worker
+      WORKER_ID: worker-primary
+      HEALTH_PORT: 8081
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Concurrency settings (tune based on load)
+      CONCURRENCY_CRYSTALLIZE: ${CONCURRENCY_CRYSTALLIZE:-2}
+      CONCURRENCY_PROMOTE: ${CONCURRENCY_PROMOTE:-2}
+      CONCURRENCY_DECAY: ${CONCURRENCY_DECAY:-1}
+      CONCURRENCY_TRACE: ${CONCURRENCY_TRACE:-10}
+      CONCURRENCY_EXECUTE: ${CONCURRENCY_EXECUTE:-20}
+      # Rate limits (configurable)
+      RATE_LIMIT_CRYSTALLIZE: ${RATE_LIMIT_CRYSTALLIZE:-10}
+      # Job timeouts (milliseconds)
+      # TIMEOUT_CRYSTALLIZE: 300000
+      # TIMEOUT_PROMOTE: 120000
+      # Database (via pgbouncer for connection pooling)
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_ORG_ID: ${OPENAI_ORG_ID}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      scheduler:
+        condition: service_healthy
+    # Healthcheck: verify worker health via HTTP endpoint
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8081/health').then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{if(d.status!=='healthy')throw new Error(d.status);process.exit(0)}).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    deploy:
+      # Scale workers horizontally as needed:
+      # docker-compose -f docker-compose.prod.yml up -d --scale worker=3
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+    container_name: substrate-prod-dashboard
+    # NO PUBLIC PORTS - dashboard is only accessible via cloudflared tunnel
+    expose:
+      - "3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      # Database (via pgbouncer for connection pooling)
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
+      SESSION_SECRET: ${SESSION_SECRET}
+      # Encryption key for API keys (shared with API)
+      JWT_SECRET: ${JWT_SECRET}
+      # Agent Forge proxy
+      FORGE_URL: http://forge:3005
+      FORGE_API_KEY: ${FORGE_API_KEY:-}
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      forge:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  mcp:
+    build:
+      context: .
+      dockerfile: apps/mcp/Dockerfile
+    container_name: substrate-prod-mcp
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      # Database (via pgbouncer for connection pooling)
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
+      # Redis for session coordination (horizontal scaling)
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_ORG_ID: ${OPENAI_ORG_ID}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Agent Forge - Advanced AI Agent Creation Platform
+  forge:
+    build:
+      context: .
+      dockerfile: apps/forge/Dockerfile
+    container_name: substrate-prod-forge
+    expose:
+      - "3005"
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      # Direct connection to postgres (not via pgbouncer - separate database)
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      # AI Providers
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_API_KEY_FALLBACK: ${ANTHROPIC_API_KEY_FALLBACK:-}
+      GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
+      # Auth
+      JWT_SECRET: ${JWT_SECRET}
+      # Substrate DB access for cross-database queries
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
+      REPO_ROOT: /workspace
+      WORKSPACE_ROOT: /workspace
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace
+    group_add:
+      - "0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=128m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # ===========================================
+  # INFRASTRUCTURE LAYER
+  # ===========================================
+  nginx:
+    image: nginx:1.28.1-alpine
+    container_name: substrate-prod-nginx
+    # NO PUBLIC PORTS - nginx is only accessible via cloudflared tunnel
+    # This ensures all traffic must go through Cloudflare's security layer
+    expose:
+      - "80"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # For cloudflared: use cloudflared.conf (HTTP only, cloudflare handles SSL)
+      - ./infrastructure/nginx/conf.d/cloudflared.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./infrastructure/nginx/static:/usr/share/nginx/static:ro
+      - nginx_cache:/var/cache/nginx
+    depends_on:
+      - api
+      - dashboard
+      - mcp
+      - self
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+      - /var/run:mode=755,size=8m
+      - /var/log/nginx:mode=755,size=50m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - SETUID
+      - SETGID
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # Database connection pooler
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.25.1-p0
+    container_name: substrate-prod-pgbouncer
+    environment:
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 20
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      # Authentication for PostgreSQL 17 SCRAM
+      AUTH_TYPE: scram-sha-256
+      STATS_USERS: substrate
+      # Connection hygiene
+      SERVER_RESET_QUERY: DISCARD ALL
+      SERVER_LIFETIME: 3600
+      SERVER_IDLE_TIMEOUT: 600
+      # TCP keepalive for connection stability
+      TCP_KEEPALIVE: 1
+      TCP_KEEPIDLE: 60
+      TCP_KEEPINTVL: 10
+      TCP_KEEPCNT: 6
+      # Reduce log noise (stats still logged)
+      LOG_CONNECTIONS: 0
+      LOG_DISCONNECTIONS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U substrate || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    read_only: true
+    tmpfs:
+      - /var/run/pgbouncer:size=10M,mode=1777
+      - /etc/pgbouncer:size=10M,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+
+  # Unified Backup Service (HTTP API + scheduled backups)
+  # Replaces both backup and user-backup containers
+  backup:
+    build:
+      context: .
+      dockerfile: scripts/Dockerfile.backup
+    container_name: substrate-prod-backup
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: substrate
+      DB_USER: substrate
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: 30
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+      BACKUP_SCHEDULE: "0 4 * * *"
+      API_PORT: 8080
+      RUN_ON_STARTUP: "false"
+    volumes:
+      - ./backups:/backups
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # Cloudflare Tunnel for Zero Trust access (managed via Cloudflare dashboard)
+  cloudflared:
+    # Pinned to version tag for stability with easy updates
+    image: cloudflare/cloudflared:2026.2.0
+    container_name: substrate-prod-cloudflared
+    # QUIC protocol preferred for better performance, metrics enabled for healthcheck
+    command: tunnel --metrics localhost:2000 --protocol quic run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - nginx
+    # Healthcheck using cloudflared version (distroless image has no shell/curl)
+    healthcheck:
+      test: ["CMD", "cloudflared", "version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    stop_grace_period: 30s
+    labels:
+      - "autoheal=true"
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # Auto-heal for container recovery
+  # Only restarts containers with label "autoheal=true" that become unhealthy
+  # Excluded: postgres, redis (stateful - prefer manual intervention)
+  # Included: api, dashboard, mcp, nginx, pgbouncer, cloudflared
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: substrate-prod-autoheal
+    environment:
+      # Label-based scope: only restart containers with autoheal=true label
+      AUTOHEAL_CONTAINER_LABEL: autoheal
+      AUTOHEAL_INTERVAL: 60
+      AUTOHEAL_START_PERIOD: 300
+      AUTOHEAL_DEFAULT_STOP_TIMEOUT: 10
+    volumes:
+      # Docker socket access required for container restart
+      - /var/run/docker.sock:/var/run/docker.sock
+    # No network needed - only accesses Docker socket
+    network_mode: none
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          cpus: '0.05'
+          memory: 16M
+
+  # ============================================
+  # SELF AI — Your AI That Lives and Breathes
+  # ============================================
+  self:
+    build:
+      context: .
+      dockerfile: apps/self/Dockerfile
+    container_name: substrate-prod-self
+    expose:
+      - "3006"
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      # Main substrate database (shared with API for auth/memory)
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
+      # Forge database (separate, for agent execution records)
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      # Auth
+      SESSION_SECRET: ${SESSION_SECRET}
+      # AI Providers
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
+      # Google OAuth (for Gmail/Calendar integrations)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      OAUTH_REDIRECT_BASE: ${OAUTH_REDIRECT_BASE:-https://self.askalf.org}
+      # Email notifications (SendGrid)
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-self@askalf.org}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=128m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+# Production volumes (isolated from dev)
+volumes:
+  substrate_prod_postgres:
+    name: substrate_prod_postgres
+  substrate_prod_redis:
+    name: substrate_prod_redis
+  nginx_cache:
+    name: substrate_prod_nginx_cache
+
+networks:
+  substrate-prod-net:
+    name: substrate-prod-net
+    driver: bridge
