@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment (NEVER commit secrets)
+.env
+.env.local
+.env.*.local
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Docker
+*.pem
+
+# Cloudflare credentials (secret - never commit)
+infrastructure/cloudflared/credentials.json
+
+# Claude Desktop MCP config (contains API keys)
+apps/mcp/claude_desktop_config.json
+
+# Backups (too large for git)
+backups/
+
+# Claude Code temp files
+tmpclaude-*
+
+# Old planning docs (archived)
+MASTER_PRODUCTION_PLAN.md
+PRODUCTION_PLAN.md
+SUBSTRATE_PROJECT_STATUS.md

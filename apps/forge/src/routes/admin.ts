@@ -1,0 +1,223 @@
+/**
+ * Forge Admin Routes
+ * Cost tracking, audit logs, and guardrail management
+ */
+
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { ulid } from 'ulid';
+import { query, queryOne } from '../database.js';
+import { authMiddleware } from '../middleware/auth.js';
+import { getCostSummary, getDailyCosts } from '../observability/cost-tracker.js';
+import { getAuditLog, logAudit } from '../observability/audit.js';
+
+interface GuardrailRow {
+  id: string;
+  owner_id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  config: Record<string, unknown>;
+  is_enabled: boolean;
+  is_global: boolean;
+  agent_ids: string[];
+  priority: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function adminRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * GET /api/v1/forge/admin/costs - Cost tracking summary
+   */
+  app.get(
+    '/api/v1/forge/admin/costs',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const qs = request.query as {
+        startDate?: string;
+        endDate?: string;
+        agentId?: string;
+        days?: string;
+      };
+
+      const [summary, dailyCosts] = await Promise.all([
+        getCostSummary(userId, {
+          startDate: qs.startDate,
+          endDate: qs.endDate,
+          agentId: qs.agentId,
+        }),
+        getDailyCosts(userId, parseInt(qs.days ?? '30', 10) || 30),
+      ]);
+
+      return reply.send({ summary, dailyCosts });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/admin/audit - Audit log
+   */
+  app.get(
+    '/api/v1/forge/admin/audit',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const qs = request.query as {
+        action?: string;
+        resourceType?: string;
+        limit?: string;
+        offset?: string;
+      };
+
+      const result = await getAuditLog(userId, {
+        action: qs.action,
+        resourceType: qs.resourceType,
+        limit: qs.limit ? parseInt(qs.limit, 10) : undefined,
+        offset: qs.offset ? parseInt(qs.offset, 10) : undefined,
+      });
+
+      return reply.send({
+        entries: result.entries,
+        total: result.total,
+        limit: qs.limit ? parseInt(qs.limit, 10) : 50,
+        offset: qs.offset ? parseInt(qs.offset, 10) : 0,
+      });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/admin/guardrails - Create or update a guardrail
+   */
+  app.post(
+    '/api/v1/forge/admin/guardrails',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const body = request.body as {
+        id?: string;
+        name: string;
+        description?: string;
+        type: string;
+        config: Record<string, unknown>;
+        isEnabled?: boolean;
+        isGlobal?: boolean;
+        agentIds?: string[];
+        priority?: number;
+      };
+
+      if (!body.name || !body.type || !body.config) {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: 'name, type, and config are required',
+        });
+      }
+
+      const validTypes = ['content_filter', 'cost_limit', 'rate_limit', 'tool_restriction', 'output_filter', 'custom'];
+      if (!validTypes.includes(body.type)) {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: `type must be one of: ${validTypes.join(', ')}`,
+        });
+      }
+
+      if (body.id) {
+        // Update existing guardrail
+        const existing = await queryOne<GuardrailRow>(
+          `SELECT id FROM forge_guardrails WHERE id = $1 AND owner_id = $2`,
+          [body.id, userId],
+        );
+
+        if (!existing) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: 'Guardrail not found or not owned by you',
+          });
+        }
+
+        const guardrail = await queryOne<GuardrailRow>(
+          `UPDATE forge_guardrails
+           SET name = $1, description = $2, type = $3, config = $4,
+               is_enabled = $5, is_global = $6, agent_ids = $7, priority = $8
+           WHERE id = $9
+           RETURNING *`,
+          [
+            body.name,
+            body.description ?? null,
+            body.type,
+            JSON.stringify(body.config),
+            body.isEnabled ?? true,
+            body.isGlobal ?? false,
+            body.agentIds ?? [],
+            body.priority ?? 100,
+            body.id,
+          ],
+        );
+
+        void logAudit({
+          ownerId: userId,
+          action: 'guardrail.update',
+          resourceType: 'guardrail',
+          resourceId: body.id,
+          details: { name: body.name, type: body.type },
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        }).catch(() => {});
+
+        return reply.send({ guardrail });
+      } else {
+        // Create new guardrail
+        const id = ulid();
+
+        const guardrail = await queryOne<GuardrailRow>(
+          `INSERT INTO forge_guardrails (id, owner_id, name, description, type, config, is_enabled, is_global, agent_ids, priority)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           RETURNING *`,
+          [
+            id,
+            userId,
+            body.name,
+            body.description ?? null,
+            body.type,
+            JSON.stringify(body.config),
+            body.isEnabled ?? true,
+            body.isGlobal ?? false,
+            body.agentIds ?? [],
+            body.priority ?? 100,
+          ],
+        );
+
+        void logAudit({
+          ownerId: userId,
+          action: 'guardrail.create',
+          resourceType: 'guardrail',
+          resourceId: id,
+          details: { name: body.name, type: body.type },
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        }).catch(() => {});
+
+        return reply.status(201).send({ guardrail });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/admin/guardrails - List guardrails for the owner
+   */
+  app.get(
+    '/api/v1/forge/admin/guardrails',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+
+      const guardrails = await query<GuardrailRow>(
+        `SELECT * FROM forge_guardrails
+         WHERE owner_id = $1 OR is_global = true
+         ORDER BY priority ASC, created_at DESC`,
+        [userId],
+      );
+
+      return reply.send({ guardrails });
+    },
+  );
+}

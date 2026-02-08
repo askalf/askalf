@@ -1,0 +1,39 @@
+{
+  "name": "@substrate/mcp",
+  "version": "1.0.0",
+  "description": "SUBSTRATE MCP Server for Claude Desktop",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "substrate-mcp": "./dist/index.js",
+    "substrate-mcp-http": "./dist/http.js"
+  },
+  "scripts": {
+    "build": "tsc && cp src/bootstrap.cjs dist/",
+    "build:http": "tsc",
+    "start": "node dist/bootstrap.cjs",
+    "start:http": "node dist/http.js",
+    "dev": "LOG_LEVEL=silent tsx src/index.ts",
+    "dev:http": "tsx src/http.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@substrate/core": "workspace:*",
+    "@substrate/database": "workspace:*",
+    "@substrate/memory": "workspace:*",
+    "@substrate/ai": "workspace:*",
+    "@substrate/sandbox": "workspace:*",
+    "@substrate/observability": "workspace:*",
+    "@substrate/auth": "workspace:*",
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/express": "^5.0.0",
+    "@types/cors": "^2.8.17",
+    "typescript": "^5.3.0",
+    "tsx": "^4.7.0"
+  }
+}
