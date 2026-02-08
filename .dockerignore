@@ -1,0 +1,48 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build artifacts (we rebuild in Docker)
+**/dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment files (passed via docker-compose)
+.env
+.env.*
+!.env.example
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+**/test
+**/tests
+**/__tests__
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Archive
+archive
+
+# Logs
+*.log
+logs
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug files
+debug-*.cjs
+test-*.cjs

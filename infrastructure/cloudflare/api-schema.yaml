@@ -1,0 +1,674 @@
+openapi: 3.0.3
+info:
+  title: SUBSTRATE API
+  description: Cognitive Memory System API for AI Agents
+  version: 1.0.0
+  contact:
+    name: SUBSTRATE
+    url: https://askalf.org
+
+servers:
+  - url: https://api.askalf.org
+    description: Production API
+  - url: https://mcp.askalf.org
+    description: MCP Server
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: "API key in format: sk_live_* or sk_test_*"
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+      required:
+        - error
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        service:
+          type: string
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Trace:
+      type: object
+      properties:
+        id:
+          type: string
+        input:
+          type: string
+          maxLength: 50000
+        output:
+          type: string
+          maxLength: 50000
+        reasoning:
+          type: string
+          maxLength: 100000
+        tokens_used:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        execution_ms:
+          type: integer
+          minimum: 0
+        model:
+          type: string
+          maxLength: 64
+        timestamp:
+          type: string
+          format: date-time
+
+    TraceCreate:
+      type: object
+      properties:
+        content:
+          type: string
+          maxLength: 100000
+        context:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+      required:
+        - content
+
+    Shard:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 1000
+        code:
+          type: string
+          maxLength: 100000
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        status:
+          type: string
+          enum: [candidate, promoted, deprecated]
+        execution_count:
+          type: integer
+        success_count:
+          type: integer
+
+    ExecuteRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          maxLength: 10000
+        context:
+          type: object
+          additionalProperties: true
+        max_shards:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 3
+      required:
+        - query
+
+    ExecuteResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+        tokens_saved:
+          type: integer
+        execution_ms:
+          type: integer
+
+    Episode:
+      type: object
+      properties:
+        id:
+          type: string
+        situation:
+          type: string
+        action:
+          type: string
+        outcome:
+          type: string
+        success:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Fact:
+      type: object
+      properties:
+        id:
+          type: string
+        subject:
+          type: string
+          maxLength: 255
+        predicate:
+          type: string
+          maxLength: 255
+        object:
+          type: string
+          maxLength: 1000
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    ContextWrite:
+      type: object
+      properties:
+        session:
+          type: string
+          maxLength: 100
+          pattern: "^[a-zA-Z0-9_-]+$"
+        key:
+          type: string
+          maxLength: 100
+        value:
+          type: object
+          additionalProperties: true
+        ttl:
+          type: integer
+          minimum: 60
+          maximum: 86400
+      required:
+        - session
+        - key
+        - value
+
+    PaginationParams:
+      type: object
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+
+paths:
+  # Health endpoints
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # Auth endpoints
+  /api/v1/auth/register:
+    post:
+      summary: Register new user
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                name:
+                  type: string
+                  maxLength: 100
+              required:
+                - email
+                - password
+      responses:
+        '201':
+          description: User registered
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/auth/login:
+    post:
+      summary: Login
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
+                password:
+                  type: string
+                  maxLength: 128
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+
+  /api/v1/auth/forgot-password:
+    post:
+      summary: Request password reset
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
+              required:
+                - email
+      responses:
+        '200':
+          description: Reset email sent if account exists
+
+  # Traces endpoints
+  /api/v1/traces:
+    get:
+      summary: List traces
+      operationId: listTraces
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: synthesized
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of traces
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  traces:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Trace'
+                  total:
+                    type: integer
+        '401':
+          description: Unauthorized
+
+    post:
+      summary: Create trace
+      operationId: createTrace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TraceCreate'
+      responses:
+        '201':
+          description: Trace created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trace'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+
+  /api/v1/traces/{id}:
+    get:
+      summary: Get trace by ID
+      operationId: getTrace
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^trace_[a-zA-Z0-9]+$"
+      responses:
+        '200':
+          description: Trace details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Trace'
+        '404':
+          description: Trace not found
+
+  # Shards endpoints
+  /api/v1/shards:
+    get:
+      summary: List shards
+      operationId: listShards
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [candidate, promoted, deprecated]
+      responses:
+        '200':
+          description: List of shards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Shard'
+
+  /api/v1/shards/{id}:
+    get:
+      summary: Get shard by ID
+      operationId: getShard
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^shard_[a-zA-Z0-9]+$"
+      responses:
+        '200':
+          description: Shard details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Shard'
+        '404':
+          description: Shard not found
+
+  # Execute endpoint
+  /api/v1/execute:
+    post:
+      summary: Execute relevant shards
+      operationId: execute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteRequest'
+      responses:
+        '200':
+          description: Execution results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecuteResponse'
+        '400':
+          description: Invalid request
+        '401':
+          description: Unauthorized
+
+  # Episodes endpoints
+  /api/v1/episodes:
+    get:
+      summary: List episodes
+      operationId: listEpisodes
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: success
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of episodes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  episodes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Episode'
+
+  # Facts endpoints
+  /api/v1/facts:
+    get:
+      summary: List facts
+      operationId: listFacts
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: subject
+          in: query
+          schema:
+            type: string
+            maxLength: 255
+      responses:
+        '200':
+          description: List of facts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  facts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Fact'
+
+    post:
+      summary: Create fact
+      operationId: createFact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subject:
+                  type: string
+                  maxLength: 255
+                predicate:
+                  type: string
+                  maxLength: 255
+                object:
+                  type: string
+                  maxLength: 1000
+                confidence:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                  default: 1.0
+              required:
+                - subject
+                - predicate
+                - object
+      responses:
+        '201':
+          description: Fact created
+        '400':
+          description: Invalid input
+
+  # Context endpoints (Working Memory)
+  /api/v1/context/write:
+    post:
+      summary: Write to working context
+      operationId: contextWrite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextWrite'
+      responses:
+        '200':
+          description: Context written
+        '400':
+          description: Invalid input
+
+  /api/v1/context/read/{session}:
+    get:
+      summary: Read working context
+      operationId: contextRead
+      parameters:
+        - name: session
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[a-zA-Z0-9_-]+$"
+            maxLength: 100
+      responses:
+        '200':
+          description: Context data
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  # Stripe webhook
+  /api/v1/stripe/webhook:
+    post:
+      summary: Stripe webhook
+      operationId: stripeWebhook
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook processed
+
+  # MCP endpoints
+  /sse:
+    get:
+      summary: MCP SSE endpoint
+      operationId: mcpSSE
+      description: Server-Sent Events endpoint for MCP protocol
+      responses:
+        '200':
+          description: SSE stream established
+        '401':
+          description: Unauthorized
+
+  /message:
+    post:
+      summary: MCP message endpoint
+      operationId: mcpMessage
+      description: Message endpoint for MCP protocol requests
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                jsonrpc:
+                  type: string
+                  enum: ["2.0"]
+                id:
+                  oneOf:
+                    - type: string
+                    - type: integer
+                method:
+                  type: string
+                  maxLength: 100
+                params:
+                  type: object
+                  additionalProperties: true
+              required:
+                - jsonrpc
+                - method
+      responses:
+        '200':
+          description: Message processed
+        '401':
+          description: Unauthorized

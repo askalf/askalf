@@ -1,0 +1,28 @@
+{
+  "name": "@substrate/database",
+  "version": "1.0.0",
+  "description": "PostgreSQL database client, migrations, and repositories for SUBSTRATE",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && cp -r src/migrations dist/",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "migrate": "node --loader ts-node/esm src/migrate.ts",
+    "migrate:up": "node --loader ts-node/esm src/migrate.ts up",
+    "migrate:status": "node --loader ts-node/esm src/migrate.ts status",
+    "migrate:down": "node --loader ts-node/esm src/migrate.ts down"
+  },
+  "dependencies": {
+    "@substrate/core": "workspace:*",
+    "pg": "^8.13.0",
+    "postgres-migrations": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "typescript": "^5.7.0",
+    "ts-node": "^10.9.0"
+  }
+}
