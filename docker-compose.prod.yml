@@ -442,6 +442,10 @@ services:
       SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
       REPO_ROOT: /workspace
       WORKSPACE_ROOT: /workspace
+      # Git safe directory config (read-only FS, no gitconfig file)
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /workspace
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - .:/workspace
