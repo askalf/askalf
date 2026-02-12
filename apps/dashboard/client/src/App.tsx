@@ -1,36 +1,39 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/auth';
 import Layout from './components/layout/Layout';
 import Landing from './pages/Landing';
-import Chat from './pages/Chat';
-import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import VerifyEmail from './pages/VerifyEmail';
-import PlatformAnalytics from './pages/PlatformAnalytics';
-import Memory from './pages/Memory';
-import Integrations from './pages/Integrations';
-import UserAdmin from './pages/UserAdmin';
-import BackupAdmin from './pages/BackupAdmin';
-import ShardLibrary from './pages/ShardLibrary';
-import ShardPacks from './pages/ShardPacks';
-import ShardStats from './pages/ShardStats';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
-
-import OurSolution from './pages/OurSolution';
-import About from './pages/About';
-import Help from './pages/Help';
-import Convergence from './pages/Convergence';
-import Tickets from './pages/Tickets';
-import Agents from './pages/Agents';
-import Reports from './pages/Reports';
-import Tasks from './pages/Tasks';
-import AdminLayout from './components/admin/AdminLayout';
 import { ComingSoon } from './components/ComingSoon';
+
+// Lazy-loaded: auth pages (low traffic)
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+
+// Lazy-loaded: authenticated app pages
+const Chat = lazy(() => import('./pages/Chat'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Brain = lazy(() => import('./pages/Brain'));
+const Integrations = lazy(() => import('./pages/Integrations'));
+
+// Lazy-loaded: public info pages
+const OurSolution = lazy(() => import('./pages/OurSolution'));
+const About = lazy(() => import('./pages/About'));
+const Help = lazy(() => import('./pages/Help'));
+
+// Lazy-loaded: admin-only pages
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
+const PlatformAnalytics = lazy(() => import('./pages/PlatformAnalytics'));
+const Memory = lazy(() => import('./pages/Memory'));
+const UserAdmin = lazy(() => import('./pages/UserAdmin'));
+const BackupAdmin = lazy(() => import('./pages/BackupAdmin'));
+const Convergence = lazy(() => import('./pages/Convergence'));
+const OrchestrationHub = lazy(() => import('./pages/OrchestrationHub'));
+const CodeReview = lazy(() => import('./pages/CodeReview'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -127,10 +130,22 @@ function ProRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function LazyFallback() {
+  return (
+    <div className="loading-screen" role="status" aria-live="polite" aria-label="Loading page">
+      <div className="loading-logo">
+        <span className="animate-ufo-float" style={{ fontSize: '3rem' }} aria-hidden="true">👽</span>
+        <span className="sr-only">Loading...</span>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <ComingSoon>
     <ScrollToTop />
+    <Suspense fallback={<LazyFallback />}>
     <Routes>
       {/* Public landing */}
       <Route path="/" element={<Landing />} />
@@ -161,10 +176,15 @@ export default function App() {
         <Route path="analytics" element={<PlatformAnalytics />} />
         <Route path="users" element={<UserAdmin />} />
         <Route path="backups" element={<BackupAdmin />} />
-        <Route path="hub/tickets" element={<Tickets />} />
-        <Route path="hub/agents" element={<Agents />} />
-        <Route path="hub/reports" element={<Reports />} />
-        <Route path="hub/tasks" element={<Tasks />} />
+        <Route path="hub" element={<OrchestrationHub />} />
+        <Route path="code-review" element={<CodeReview />} />
+        <Route path="memory" element={<Memory />} />
+        <Route path="convergence" element={<Convergence />} />
+        {/* Legacy redirects for old bookmarks */}
+        <Route path="hub/agents" element={<Navigate to="/admin/hub" replace />} />
+        <Route path="hub/tasks" element={<Navigate to="/admin/hub" replace />} />
+        <Route path="hub/reports" element={<Navigate to="/admin/hub" replace />} />
+        <Route path="hub/tickets" element={<Navigate to="/admin/hub" replace />} />
       </Route>
 
       {/* Authenticated app with layout */}
@@ -181,15 +201,13 @@ export default function App() {
         <Route path="chat/:conversationId" element={<Chat />} />
         <Route path="settings" element={<Settings />} />
         <Route path="settings/:tab" element={<Settings />} />
-        {/* Library, Packs & Stats - visible to all for transparency */}
-        <Route path="library" element={<ShardLibrary />} />
-        <Route path="packs" element={<ShardPacks />} />
-        <Route path="shard-stats" element={<ShardStats />} />
-        <Route path="convergence" element={<AdminRoute><Convergence /></AdminRoute>} />
+        {/* My Brain - unified hub for Library, Packs & Stats */}
+        <Route path="brain" element={<Brain />} />
+        <Route path="library" element={<Navigate to="/app/brain?tab=browse" replace />} />
+        <Route path="packs" element={<Navigate to="/app/brain?tab=packs" replace />} />
+        <Route path="shard-stats" element={<Navigate to="/app/brain" replace />} />
         {/* Pro+ features - hidden from free tier */}
         <Route path="integrations" element={<ProRoute><Integrations /></ProRoute>} />
-        {/* Admin-only route */}
-        <Route path="memory" element={<AdminRoute><Memory /></AdminRoute>} />
       </Route>
 
       {/* Legacy routes - redirect to new structure */}
@@ -197,10 +215,11 @@ export default function App() {
       <Route path="/chat/:conversationId" element={<ProtectedRoute><Navigate to="/app/chat" replace /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Navigate to="/app/settings" replace /></ProtectedRoute>} />
       <Route path="/settings/:tab" element={<ProtectedRoute><Navigate to="/app/settings" replace /></ProtectedRoute>} />
-      <Route path="/library" element={<ProtectedRoute><Navigate to="/app/library" replace /></ProtectedRoute>} />
+      <Route path="/library" element={<ProtectedRoute><Navigate to="/app/brain?tab=browse" replace /></ProtectedRoute>} />
       <Route path="/integrations" element={<ProtectedRoute><Navigate to="/app/integrations" replace /></ProtectedRoute>} />
-      <Route path="/memory" element={<AdminRoute><Navigate to="/app/memory" replace /></AdminRoute>} />
+      <Route path="/memory" element={<AdminRoute><Navigate to="/admin/memory" replace /></AdminRoute>} />
     </Routes>
+    </Suspense>
     </ComingSoon>
   );
 }
