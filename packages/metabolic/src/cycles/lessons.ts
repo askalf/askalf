@@ -68,7 +68,7 @@ export async function runLessonExtractionCycle(
      WHERE valence = 'negative'
        AND success = false
        AND importance >= $1
-       AND (lessons_extracted IS NULL OR lessons_extracted = false)
+       AND COALESCE((metadata->>'lessons_extracted')::boolean, false) = false
      ORDER BY importance DESC, timestamp DESC
      LIMIT $2`,
     [cfg.minImportance, cfg.maxEpisodesToProcess]
@@ -140,9 +140,9 @@ export async function runLessonExtractionCycle(
         }
       }
 
-      // Mark episode as processed
+      // Mark episode as processed (store flag in metadata JSONB)
       await query(
-        `UPDATE episodes SET lessons_extracted = true WHERE id = $1`,
+        `UPDATE episodes SET metadata = COALESCE(metadata, '{}'::jsonb) || '{"lessons_extracted": true}'::jsonb WHERE id = $1`,
         [episode.id]
       );
 
