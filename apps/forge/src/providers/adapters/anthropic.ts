@@ -55,7 +55,9 @@ export class AnthropicAdapter implements IProviderAdapter {
   async initialize(config: Record<string, unknown>): Promise<void> {
     const apiKey = config['apiKey'] as string | undefined;
     if (!apiKey) {
-      throw new Error('Anthropic API key is required');
+      // CLI execution uses OAuth — SDK adapter is optional
+      console.warn('[Anthropic] No API key configured — SDK execution unavailable, CLI mode only');
+      return;
     }
     this.client = new Anthropic({ apiKey });
 
