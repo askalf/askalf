@@ -5,8 +5,9 @@
 
 import 'dotenv/config';
 import Fastify from 'fastify';
+import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
-import { initializeDatabase, closeDatabase } from './database.js';
+import { initializeDatabase, initializeSubstrateDatabase, closeDatabase } from './database.js';
 import { loadConfig } from './config.js';
 import { agentRoutes } from './routes/agents.js';
 import { executionRoutes } from './routes/executions.js';
@@ -19,6 +20,8 @@ import { assistantRoutes } from './routes/assistant.js';
 import { adminRoutes } from './routes/admin.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { gitReviewRoutes } from './routes/git-review.js';
+import { authRoutes } from './routes/auth.js';
+import { platformAdminRoutes } from './routes/platform-admin.js';
 import { initializeWorker } from './runtime/worker.js';
 
 const app = Fastify({
@@ -41,6 +44,9 @@ await app.register(cors, {
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
 });
+
+// Register Cookie parser (for session auth)
+await app.register(cookie);
 
 // ============================================
 // RATE LIMITING
@@ -101,6 +107,7 @@ app.get('/health', async () => {
 // REGISTER ROUTES
 // ============================================
 
+await authRoutes(app);
 await agentRoutes(app);
 await executionRoutes(app);
 await sessionRoutes(app);
@@ -112,6 +119,7 @@ await assistantRoutes(app);
 await adminRoutes(app);
 await webhookRoutes(app);
 await gitReviewRoutes(app);
+await platformAdminRoutes(app);
 
 // ============================================
 // START SERVER
@@ -120,9 +128,14 @@ await gitReviewRoutes(app);
 async function start(): Promise<void> {
   const config = loadConfig();
 
-  // Initialize database
+  // Initialize databases
   initializeDatabase(config.databaseUrl);
-  console.log('[Forge] Database connection initialized');
+  console.log('[Forge] Forge database connection initialized');
+
+  if (config.substrateDatabaseUrl) {
+    initializeSubstrateDatabase(config.substrateDatabaseUrl);
+    console.log('[Forge] Substrate database connection initialized');
+  }
 
   try {
     // Initialize execution worker (provider + tools)

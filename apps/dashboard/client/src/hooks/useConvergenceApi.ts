@@ -2,7 +2,7 @@
 
 const API_BASE = window.location.hostname.includes('askalf.org')
   ? 'https://api.askalf.org'
-  : 'http://localhost:3000';
+  : 'http://localhost:3005';
 
 async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
