@@ -26,7 +26,7 @@ function mapAgentType(metadata: Record<string, unknown> | null): string {
     development: 'dev', dev: 'dev', research: 'research',
     support: 'support', content: 'content', monitoring: 'monitor', monitor: 'monitor',
   };
-  const raw = (metadata?.type as string) || '';
+  const raw = (metadata?.['type'] as string) || '';
   return typeMap[raw.toLowerCase()] || 'custom';
 }
 
