@@ -278,4 +278,300 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
       }
     },
   );
+
+  // ============================================================
+  // FLEET MEMORY ENDPOINTS (admin - no per-agent ownership check)
+  // ============================================================
+
+  /**
+   * GET /api/v1/forge/fleet/stats - Fleet memory statistics
+   */
+  app.get(
+    '/api/v1/forge/fleet/stats',
+    { preHandler: [authMiddleware] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const [semCount, epiCount, procCount, sem24, epi24, proc24] = await Promise.all([
+        queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_semantic_memories`),
+        queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_episodic_memories`),
+        queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_procedural_memories`),
+        queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_semantic_memories WHERE created_at > NOW() - INTERVAL '24 hours'`),
+        queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_episodic_memories WHERE created_at > NOW() - INTERVAL '24 hours'`),
+        queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_procedural_memories WHERE created_at > NOW() - INTERVAL '24 hours'`),
+      ]);
+
+      const semantic = parseInt(semCount?.count ?? '0', 10);
+      const episodic = parseInt(epiCount?.count ?? '0', 10);
+      const procedural = parseInt(procCount?.count ?? '0', 10);
+
+      return reply.send({
+        tiers: { semantic, episodic, procedural },
+        total: semantic + episodic + procedural,
+        recent24h: {
+          semantic: parseInt(sem24?.count ?? '0', 10),
+          episodic: parseInt(epi24?.count ?? '0', 10),
+          procedural: parseInt(proc24?.count ?? '0', 10),
+        },
+        recalls24h: 0,
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/fleet/recent - Recent fleet memories across all tiers
+   */
+  app.get(
+    '/api/v1/forge/fleet/recent',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const qs = request.query as {
+        limit?: string;
+        page?: string;
+        agent_id?: string;
+        tier?: string;
+        source_type?: string;
+        dateFrom?: string;
+        dateTo?: string;
+      };
+
+      const limit = Math.min(parseInt(qs.limit ?? '30', 10) || 30, 100);
+      const page = parseInt(qs.page ?? '1', 10) || 1;
+      const offset = (page - 1) * limit;
+
+      const memories: Array<Record<string, unknown>> = [];
+
+      // Build agent filter
+      const agentFilter = qs.agent_id ? `AND agent_id = '${qs.agent_id.replace(/'/g, "''")}'` : '';
+      const dateFromFilter = qs.dateFrom ? `AND created_at >= '${qs.dateFrom.replace(/'/g, "''")}'` : '';
+      const dateToFilter = qs.dateTo ? `AND created_at <= '${qs.dateTo.replace(/'/g, "''")}'` : '';
+      const dateFilters = `${dateFromFilter} ${dateToFilter}`;
+
+      if (!qs.tier || qs.tier === 'semantic') {
+        const rows = await query<SemanticMemoryRow>(
+          `SELECT id, agent_id, content, importance as score, source, metadata, created_at
+           FROM forge_semantic_memories
+           WHERE 1=1 ${agentFilter} ${dateFilters}
+           ORDER BY created_at DESC LIMIT ${limit}`,
+        );
+        for (const r of rows) {
+          memories.push({
+            id: r.id, tier: 'semantic', agent_id: r.agent_id,
+            content: r.content, preview: r.content?.substring(0, 200),
+            score: parseFloat(String(r.importance)) || 0.5,
+            created_at: r.created_at, metadata: r.metadata,
+          });
+        }
+      }
+
+      if (!qs.tier || qs.tier === 'episodic') {
+        const rows = await query<EpisodicMemoryRow>(
+          `SELECT id, agent_id, situation, action, outcome, outcome_quality, metadata, created_at
+           FROM forge_episodic_memories
+           WHERE 1=1 ${agentFilter} ${dateFilters}
+           ORDER BY created_at DESC LIMIT ${limit}`,
+        );
+        for (const r of rows) {
+          memories.push({
+            id: r.id, tier: 'episodic', agent_id: r.agent_id,
+            content: r.situation, preview: r.situation?.substring(0, 200),
+            situation: r.situation, action: r.action, outcome: r.outcome,
+            outcome_quality: parseFloat(String(r.outcome_quality)) || 0.5,
+            score: parseFloat(String(r.outcome_quality)) || 0.5,
+            created_at: r.created_at, metadata: r.metadata,
+          });
+        }
+      }
+
+      if (!qs.tier || qs.tier === 'procedural') {
+        const rows = await query<ProceduralMemoryRow>(
+          `SELECT id, agent_id, trigger_pattern, tool_sequence, confidence, metadata, created_at
+           FROM forge_procedural_memories
+           WHERE 1=1 ${agentFilter} ${dateFilters}
+           ORDER BY created_at DESC LIMIT ${limit}`,
+        );
+        for (const r of rows) {
+          memories.push({
+            id: r.id, tier: 'procedural', agent_id: r.agent_id,
+            content: r.trigger_pattern, preview: r.trigger_pattern?.substring(0, 200),
+            trigger_pattern: r.trigger_pattern, tool_sequence: r.tool_sequence,
+            confidence: parseFloat(String(r.confidence)) || 0.5,
+            score: parseFloat(String(r.confidence)) || 0.5,
+            created_at: r.created_at, metadata: r.metadata,
+          });
+        }
+      }
+
+      // Sort combined by created_at desc and paginate
+      memories.sort((a, b) => new Date(b['created_at'] as string).getTime() - new Date(a['created_at'] as string).getTime());
+      const paged = memories.slice(offset, offset + limit);
+      const total = memories.length;
+
+      return reply.send({
+        memories: paged,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1,
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/fleet/search - Search fleet memories
+   */
+  app.get(
+    '/api/v1/forge/fleet/search',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const qs = request.query as {
+        q: string;
+        tier?: string;
+        agent_id?: string;
+        source_type?: string;
+        limit?: string;
+        page?: string;
+      };
+
+      if (!qs.q || qs.q.trim() === '') {
+        return reply.status(400).send({ error: 'q parameter required' });
+      }
+
+      const limit = Math.min(parseInt(qs.limit ?? '20', 10) || 20, 100);
+      const page = parseInt(qs.page ?? '1', 10) || 1;
+      const offset = (page - 1) * limit;
+      const searchTerm = `%${qs.q}%`;
+      const agentFilter = qs.agent_id ? `AND agent_id = '${qs.agent_id.replace(/'/g, "''")}'` : '';
+
+      const memories: Array<Record<string, unknown>> = [];
+
+      if (!qs.tier || qs.tier === 'semantic') {
+        const rows = await query<SemanticMemoryRow>(
+          `SELECT id, agent_id, content, importance as score, source, metadata, created_at
+           FROM forge_semantic_memories
+           WHERE content ILIKE $1 ${agentFilter}
+           ORDER BY importance DESC, created_at DESC LIMIT ${limit}`,
+          [searchTerm],
+        );
+        for (const r of rows) {
+          memories.push({
+            id: r.id, tier: 'semantic', agent_id: r.agent_id,
+            content: r.content, preview: r.content?.substring(0, 200),
+            score: parseFloat(String(r.importance)) || 0.5,
+            created_at: r.created_at, metadata: r.metadata,
+          });
+        }
+      }
+
+      if (!qs.tier || qs.tier === 'episodic') {
+        const rows = await query<EpisodicMemoryRow>(
+          `SELECT id, agent_id, situation, action, outcome, outcome_quality, metadata, created_at
+           FROM forge_episodic_memories
+           WHERE (situation ILIKE $1 OR action ILIKE $1 OR outcome ILIKE $1) ${agentFilter}
+           ORDER BY outcome_quality DESC, created_at DESC LIMIT ${limit}`,
+          [searchTerm],
+        );
+        for (const r of rows) {
+          memories.push({
+            id: r.id, tier: 'episodic', agent_id: r.agent_id,
+            content: r.situation, preview: r.situation?.substring(0, 200),
+            situation: r.situation, action: r.action, outcome: r.outcome,
+            outcome_quality: parseFloat(String(r.outcome_quality)) || 0.5,
+            score: parseFloat(String(r.outcome_quality)) || 0.5,
+            created_at: r.created_at, metadata: r.metadata,
+          });
+        }
+      }
+
+      if (!qs.tier || qs.tier === 'procedural') {
+        const rows = await query<ProceduralMemoryRow>(
+          `SELECT id, agent_id, trigger_pattern, tool_sequence, confidence, metadata, created_at
+           FROM forge_procedural_memories
+           WHERE trigger_pattern ILIKE $1 ${agentFilter}
+           ORDER BY confidence DESC, created_at DESC LIMIT ${limit}`,
+          [searchTerm],
+        );
+        for (const r of rows) {
+          memories.push({
+            id: r.id, tier: 'procedural', agent_id: r.agent_id,
+            content: r.trigger_pattern, preview: r.trigger_pattern?.substring(0, 200),
+            trigger_pattern: r.trigger_pattern, tool_sequence: r.tool_sequence,
+            confidence: parseFloat(String(r.confidence)) || 0.5,
+            score: parseFloat(String(r.confidence)) || 0.5,
+            created_at: r.created_at, metadata: r.metadata,
+          });
+        }
+      }
+
+      memories.sort((a, b) => (b['score'] as number) - (a['score'] as number));
+      const paged = memories.slice(offset, offset + limit);
+      const total = memories.length;
+
+      return reply.send({
+        memories: paged,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1,
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/fleet/recalls - Recent recall events (from execution logs)
+   */
+  app.get(
+    '/api/v1/forge/fleet/recalls',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const qs = request.query as { limit?: string; page?: string };
+      const limit = Math.min(parseInt(qs.limit ?? '30', 10) || 30, 100);
+      const page = parseInt(qs.page ?? '1', 10) || 1;
+      const offset = (page - 1) * limit;
+
+      // Recalls are logged in execution metadata — pull recent executions with memory context
+      interface RecallExecRow {
+        id: string;
+        agent_id: string;
+        metadata: Record<string, unknown>;
+        created_at: string;
+      }
+
+      const rows = await query<RecallExecRow>(
+        `SELECT e.id, e.agent_id, e.metadata, e.created_at
+         FROM forge_executions e
+         WHERE e.metadata IS NOT NULL
+         ORDER BY e.created_at DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset],
+      );
+
+      // Look up agent names
+      interface AgentNameRow { id: string; name: string }
+      const agentIds = [...new Set(rows.map(r => r.agent_id))];
+      const agentNames: Record<string, string> = {};
+      if (agentIds.length > 0) {
+        const agents = await query<AgentNameRow>(
+          `SELECT id, name FROM forge_agents WHERE id = ANY($1)`,
+          [agentIds],
+        );
+        for (const a of agents) agentNames[a.id] = a.name;
+      }
+
+      const recalls = rows.map(r => ({
+        executionId: r.id,
+        agentId: r.agent_id,
+        agentName: agentNames[r.agent_id] ?? 'Unknown',
+        memoriesCount: (r.metadata as Record<string, unknown>)?.['memory_count'] as number ?? 0,
+        runtimeMode: (r.metadata as Record<string, unknown>)?.['runtime_mode'] as string ?? 'cli',
+        timestamp: r.created_at,
+      }));
+
+      return reply.send({
+        recalls,
+        total: recalls.length,
+        page,
+        limit,
+        totalPages: 1,
+      });
+    },
+  );
 }

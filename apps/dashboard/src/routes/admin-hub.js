@@ -1163,6 +1163,175 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     return { success: true, id, soft_deleted: true };
   });
 
+  // ============================================================
+  // FLEET MEMORY ENDPOINTS (4)
+  // ============================================================
+
+  // 28a. GET /api/v1/admin/memory/stats - Fleet memory statistics
+  fastify.get('/api/v1/admin/memory/stats', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/fleet/stats');
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Fleet memory unavailable', message: res.message });
+    return res;
+  });
+
+  // 28b. GET /api/v1/admin/memory/search - Search fleet memories
+  fastify.get('/api/v1/admin/memory/search', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { q, tier, agent_id, source_type, limit = '20', page = '1' } = request.query;
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (tier) params.set('tier', tier);
+    if (agent_id) params.set('agent_id', agent_id);
+    if (source_type) params.set('source_type', source_type);
+    params.set('limit', limit);
+    params.set('page', page);
+
+    const res = await callForge(`/fleet/search?${params.toString()}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Fleet memory unavailable', message: res.message });
+    return res;
+  });
+
+  // 28c. GET /api/v1/admin/memory/recent - Recent fleet memories
+  fastify.get('/api/v1/admin/memory/recent', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { limit = '30', page = '1', agent_id, source_type, tier, dateFrom, dateTo } = request.query;
+    const params = new URLSearchParams();
+    params.set('limit', limit);
+    params.set('page', page);
+    if (agent_id) params.set('agent_id', agent_id);
+    if (source_type) params.set('source_type', source_type);
+    if (tier) params.set('tier', tier);
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    if (dateTo) params.set('dateTo', dateTo);
+
+    const res = await callForge(`/fleet/recent?${params.toString()}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Fleet memory unavailable', message: res.message });
+    return res;
+  });
+
+  // 28d. GET /api/v1/admin/memory/recalls - Fleet recall events
+  fastify.get('/api/v1/admin/memory/recalls', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { limit = '30', page = '1' } = request.query;
+    const params = new URLSearchParams();
+    params.set('limit', limit);
+    params.set('page', page);
+
+    const res = await callForge(`/fleet/recalls?${params.toString()}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Fleet memory unavailable', message: res.message });
+    return res;
+  });
+
+  // ============================================================
+  // GIT REVIEW PROXY ENDPOINTS (6)
+  // ============================================================
+
+  // 29a. GET /api/v1/admin/git-space/branches - List agent branches
+  fastify.get('/api/v1/admin/git-space/branches', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/git/branches');
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Git review unavailable', message: res.message });
+    return res;
+  });
+
+  // 29b. GET /api/v1/admin/git-space/diff/:branch - Get branch diff
+  fastify.get('/api/v1/admin/git-space/diff/:branch', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { branch } = request.params;
+    const res = await callForge(`/git/diff/${encodeURIComponent(branch)}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Git review unavailable', message: res.message });
+    return res;
+  });
+
+  // 29c. GET /api/v1/admin/git-space/health/:service - Service health
+  fastify.get('/api/v1/admin/git-space/health/:service', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { service } = request.params;
+    const res = await callForge(`/git/health/${encodeURIComponent(service)}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Health check failed', message: res.message });
+    return res;
+  });
+
+  // 29d. POST /api/v1/admin/git-space/merge - Merge branch
+  fastify.post('/api/v1/admin/git-space/merge', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/git/merge', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Git merge failed', message: res.message });
+    return res;
+  });
+
+  // 29e. POST /api/v1/admin/git-space/deploy - Deploy services
+  fastify.post('/api/v1/admin/git-space/deploy', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/git/deploy', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Deploy failed', message: res.message });
+    return res;
+  });
+
+  // 29f. POST /api/v1/admin/git-space/rebuild - Start rebuild
+  fastify.post('/api/v1/admin/git-space/rebuild', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/git/rebuild', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Rebuild failed', message: res.message });
+    return res;
+  });
+
+  // 29g. GET /api/v1/admin/git-space/rebuild/:builderId - Poll rebuild status
+  fastify.get('/api/v1/admin/git-space/rebuild/:builderId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { builderId } = request.params;
+    const res = await callForge(`/git/rebuild/${encodeURIComponent(builderId)}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Rebuild status unavailable', message: res.message });
+    return res;
+  });
+
+  // 29h. POST /api/v1/admin/git-space/ai-review - AI code review (stub)
+  fastify.post('/api/v1/admin/git-space/ai-review', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    return { review_id: ulid(), status: 'pending', message: 'AI review initiated' };
+  });
+
+  // 29i. GET /api/v1/admin/git-space/review-result/:id - Get AI review result (stub)
+  fastify.get('/api/v1/admin/git-space/review-result/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    return { status: 'completed', summary: 'No AI review service configured yet.', issues: [], suggestions: [] };
+  });
+
+  // 29j. POST /api/v1/admin/git-space/ai-review/chat - AI review chat (stub)
+  fastify.post('/api/v1/admin/git-space/ai-review/chat', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    return { response: 'AI review chat not yet configured.' };
+  });
+
   // 28. GET /api/v1/admin/audit - View audit trail
   fastify.get('/api/v1/admin/audit', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
