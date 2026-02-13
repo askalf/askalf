@@ -33,7 +33,7 @@ const UserAdmin = lazy(() => import('./pages/UserAdmin'));
 const BackupAdmin = lazy(() => import('./pages/BackupAdmin'));
 const Convergence = lazy(() => import('./pages/Convergence'));
 const OrchestrationHub = lazy(() => import('./pages/OrchestrationHub'));
-const CodeReview = lazy(() => import('./pages/CodeReview'));
+const GitSpace = lazy(() => import('./pages/GitSpace'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -177,7 +177,7 @@ export default function App() {
         <Route path="users" element={<UserAdmin />} />
         <Route path="backups" element={<BackupAdmin />} />
         <Route path="hub" element={<OrchestrationHub />} />
-        <Route path="code-review" element={<CodeReview />} />
+        <Route path="git-space" element={<GitSpace />} />
         <Route path="memory" element={<Memory />} />
         <Route path="convergence" element={<Convergence />} />
         {/* Legacy redirects for old bookmarks */}

@@ -18,6 +18,7 @@ import { providerRoutes } from './routes/providers.js';
 import { assistantRoutes } from './routes/assistant.js';
 import { adminRoutes } from './routes/admin.js';
 import { webhookRoutes } from './routes/webhooks.js';
+import { gitReviewRoutes } from './routes/git-review.js';
 import { initializeWorker } from './runtime/worker.js';
 
 const app = Fastify({
@@ -110,6 +111,7 @@ await providerRoutes(app);
 await assistantRoutes(app);
 await adminRoutes(app);
 await webhookRoutes(app);
+await gitReviewRoutes(app);
 
 // ============================================
 // START SERVER
