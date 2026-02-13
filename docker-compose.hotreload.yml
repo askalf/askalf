@@ -1,0 +1,300 @@
+# Hot-Reload Override — layers on top of docker-compose.prod.yml
+#
+# Usage:
+#   docker-compose -f docker-compose.prod.yml -f docker-compose.hotreload.yml \
+#     --env-file .env.production up -d api forge dashboard
+#
+# Back to production (just drop the override):
+#   docker-compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Only overrides application services. Infrastructure services (postgres, redis,
+# pgbouncer, nginx, cloudflared, autoheal, backup) stay production as-is.
+#
+# Anonymous volumes mask host's Windows-built node_modules so pnpm can
+# install fresh Linux deps inside the container. They persist across restarts.
+
+# Shared build config and volume list (YAML anchors for DRY)
+x-dev-build: &dev-build
+  context: .
+  dockerfile: Dockerfile.dev
+
+x-dev-volumes: &dev-volumes
+  - .:/app
+  # pnpm content-addressable store (named volume, NOT on bind mount — avoids ENOMEM)
+  - pnpm_store:/pnpm-store
+  # Root pnpm virtual store
+  - /app/node_modules
+  # Packages — anonymous volumes mask host's Windows symlinks/junctions
+  - /app/packages/ai/node_modules
+  - /app/packages/auth/node_modules
+  - /app/packages/cognition/node_modules
+  - /app/packages/core/node_modules
+  - /app/packages/database/node_modules
+  - /app/packages/email/node_modules
+  - /app/packages/events/node_modules
+  - /app/packages/memory/node_modules
+  - /app/packages/metabolic/node_modules
+  - /app/packages/metacognition/node_modules
+  - /app/packages/observability/node_modules
+  - /app/packages/sandbox/node_modules
+  - /app/packages/sdk/node_modules
+  - /app/packages/self-core/node_modules
+  - /app/packages/sigil/node_modules
+  - /app/packages/stripe/node_modules
+  # Apps
+  - /app/apps/api/node_modules
+  - /app/apps/dashboard/node_modules
+  - /app/apps/forge/node_modules
+  - /app/apps/mcp/node_modules
+  - /app/apps/self/node_modules
+  - /app/apps/self-ui/node_modules
+  - /app/apps/worker/node_modules
+
+x-dev-env: &dev-env
+  NODE_ENV: development
+
+# Dev health check: longer start_period for first-time dep install + package build
+# First run on Windows takes ~5-10 min (pnpm install + build). Subsequent restarts are fast.
+x-dev-healthcheck: &dev-healthcheck
+  start_period: 600s
+  interval: 30s
+  timeout: 10s
+  retries: 5
+
+services:
+  # ===========================================
+  # API — tsx watch, ~1s reload
+  # ===========================================
+  api:
+    build: *dev-build
+    volumes: *dev-volumes
+    entrypoint: /app/scripts/dev-entrypoint.sh
+    command: ["pnpm", "--filter", "@substrate/api", "dev"]
+    environment:
+      <<: *dev-env
+      DEV_SERVICE: api
+      COOKIE_PRODUCTION_MODE: "true"
+    healthcheck:
+      <<: *dev-healthcheck
+      test: ["CMD-SHELL", "node -e \"const http=require('http');http.get('http://127.0.0.1:3000/health',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))\""]
+    labels:
+      - "autoheal=false"
+    read_only: false
+    cap_add:
+      - ALL
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ===========================================
+  # SCHEDULER — tsx watch
+  # ===========================================
+  scheduler:
+    build: *dev-build
+    volumes: *dev-volumes
+    entrypoint: /app/scripts/dev-entrypoint.sh
+    command: ["pnpm", "--filter", "@substrate/worker", "dev"]
+    environment:
+      <<: *dev-env
+      DEV_SERVICE: scheduler
+    healthcheck:
+      <<: *dev-healthcheck
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8081/health').then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{if(d.status!=='healthy')throw new Error(d.status);process.exit(0)}).catch(()=>process.exit(1))\""]
+    labels:
+      - "autoheal=false"
+    read_only: false
+    cap_add:
+      - ALL
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ===========================================
+  # WORKER — tsx watch
+  # ===========================================
+  worker:
+    build: *dev-build
+    volumes: *dev-volumes
+    entrypoint: /app/scripts/dev-entrypoint.sh
+    command: ["pnpm", "--filter", "@substrate/worker", "dev"]
+    environment:
+      <<: *dev-env
+      DEV_SERVICE: worker
+    healthcheck:
+      <<: *dev-healthcheck
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:8081/health').then(r=>{if(!r.ok)throw new Error();return r.json()}).then(d=>{if(d.status!=='healthy')throw new Error(d.status);process.exit(0)}).catch(()=>process.exit(1))\""]
+    labels:
+      - "autoheal=false"
+    read_only: false
+    cap_add:
+      - ALL
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ===========================================
+  # DASHBOARD — node --watch (plain JS, no tsx)
+  # Client HMR: run `cd apps/dashboard/client && npm run dev` on host
+  # ===========================================
+  dashboard:
+    build: *dev-build
+    volumes: *dev-volumes
+    entrypoint: /app/scripts/dev-entrypoint.sh
+    command: ["node", "--watch", "apps/dashboard/src/server.js"]
+    environment:
+      <<: *dev-env
+      DEV_SERVICE: dashboard
+    healthcheck:
+      <<: *dev-healthcheck
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+    labels:
+      - "autoheal=false"
+    read_only: false
+    cap_add:
+      - ALL
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ===========================================
+  # MCP — tsx watch
+  # ===========================================
+  mcp:
+    build: *dev-build
+    volumes: *dev-volumes
+    entrypoint: /app/scripts/dev-entrypoint.sh
+    command: ["pnpm", "--filter", "@substrate/mcp", "dev:http"]
+    environment:
+      <<: *dev-env
+      DEV_SERVICE: mcp
+    healthcheck:
+      <<: *dev-healthcheck
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+    labels:
+      - "autoheal=false"
+    read_only: false
+    cap_add:
+      - ALL
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ===========================================
+  # FORGE — tsx watch + Docker socket + workspace
+  # ===========================================
+  forge:
+    build: *dev-build
+    # SYNC WARNING: This list must match x-dev-volumes above, plus forge-specific mounts.
+    # YAML anchors can't extend sequences, so this is manually maintained.
+    # If you add a package/app above, add it here too.
+    volumes:
+      - .:/app
+      # pnpm content-addressable store (named volume, NOT on bind mount)
+      - pnpm_store:/pnpm-store
+      # Root pnpm virtual store
+      - /app/node_modules
+      # Packages (keep in sync with x-dev-volumes)
+      - /app/packages/ai/node_modules
+      - /app/packages/auth/node_modules
+      - /app/packages/cognition/node_modules
+      - /app/packages/core/node_modules
+      - /app/packages/database/node_modules
+      - /app/packages/email/node_modules
+      - /app/packages/events/node_modules
+      - /app/packages/memory/node_modules
+      - /app/packages/metabolic/node_modules
+      - /app/packages/metacognition/node_modules
+      - /app/packages/observability/node_modules
+      - /app/packages/sandbox/node_modules
+      - /app/packages/sdk/node_modules
+      - /app/packages/self-core/node_modules
+      - /app/packages/sigil/node_modules
+      - /app/packages/stripe/node_modules
+      # Apps (keep in sync with x-dev-volumes)
+      - /app/apps/api/node_modules
+      - /app/apps/dashboard/node_modules
+      - /app/apps/forge/node_modules
+      - /app/apps/mcp/node_modules
+      - /app/apps/self/node_modules
+      - /app/apps/self-ui/node_modules
+      - /app/apps/worker/node_modules
+      # Forge-specific: Docker socket (agents need container access)
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: /app/scripts/dev-entrypoint.sh
+    command: ["pnpm", "--filter", "@substrate/forge", "dev"]
+    environment:
+      <<: *dev-env
+      DEV_SERVICE: forge
+      REPO_ROOT: /app
+      WORKSPACE_ROOT: /app
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /app
+    healthcheck:
+      <<: *dev-healthcheck
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+    labels:
+      - "autoheal=false"
+    read_only: false
+    cap_add:
+      - ALL
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  # ===========================================
+  # SELF — tsx watch
+  # ===========================================
+  self:
+    build: *dev-build
+    volumes: *dev-volumes
+    entrypoint: /app/scripts/dev-entrypoint.sh
+    command: ["pnpm", "--filter", "@substrate/self", "dev"]
+    environment:
+      <<: *dev-env
+      DEV_SERVICE: self
+    healthcheck:
+      <<: *dev-healthcheck
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+    labels:
+      - "autoheal=false"
+    read_only: false
+    cap_add:
+      - ALL
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+# Named volume for pnpm store — shared across all dev services.
+# Lives on Docker's overlay2 filesystem (fast), not the bind mount (slow on Windows).
+volumes:
+  pnpm_store:
+    name: substrate_dev_pnpm_store

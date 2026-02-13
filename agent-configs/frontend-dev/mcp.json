@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "workflow": {
+      "type": "http",
+      "url": "http://mcp-workflow:3010/mcp",
+      "tools": [
+        "ticket_ops",
+        "finding_ops",
+        "intervention_ops"
+      ]
+    },
+    "infra": {
+      "type": "http",
+      "url": "http://mcp-infra:3012/mcp",
+      "tools": [
+        "code_analysis"
+      ]
+    },
+    "data": {
+      "type": "http",
+      "url": "http://mcp-data:3011/mcp",
+      "tools": [
+        "memory_search",
+        "memory_store"
+      ]
+    }
+  }
+}

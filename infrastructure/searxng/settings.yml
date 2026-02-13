@@ -1,0 +1,98 @@
+# SearXNG Settings — Agent Forge search backend
+# Docs: https://docs.searxng.org/admin/settings/
+
+use_default_settings:
+  engines:
+    remove:
+      - ahmia
+      - torch
+      - radio browser
+      - wikidata
+
+general:
+  instance_name: "substrate-search"
+  debug: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "en"
+  formats:
+    - html
+    - json
+
+server:
+  bind_address: "0.0.0.0"
+  port: 8080
+  secret_key: "substrate-searxng-internal-only"
+  limiter: false
+  image_proxy: false
+  base_url: false
+
+ui:
+  static_use_hash: true
+  default_theme: simple
+  results_on_new_tab: false
+
+outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 15.0
+  useragent_suffix: ""
+  pool_connections: 100
+  pool_maxsize: 20
+
+# Override specific engines from defaults
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+    disabled: false
+    timeout: 10.0
+
+  - name: bing
+    engine: bing
+    shortcut: b
+    disabled: false
+    timeout: 10.0
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: true          # Frequently CAPTCHA-blocked from server IPs
+
+  - name: startpage
+    engine: startpage
+    shortcut: sp
+    disabled: true          # Frequent timeouts, unreliable from servers
+
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    disabled: false
+
+  - name: github
+    engine: github
+    shortcut: gh
+    disabled: false
+
+  - name: google news
+    engine: google_news
+    shortcut: gn
+    disabled: false
+
+  # stackoverflow engine removed — not available in this SearXNG version
+
+  - name: brave
+    disabled: true
+
+  - name: qwant
+    engine: qwant
+    shortcut: qw
+    disabled: false
+    timeout: 10.0
+
+  - name: mojeek
+    engine: mojeek
+    shortcut: mj
+    disabled: false
+    timeout: 10.0
