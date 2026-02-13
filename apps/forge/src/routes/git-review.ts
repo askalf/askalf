@@ -17,7 +17,7 @@ const BUILDER_IMAGE = 'docker:27-cli';
 
 // Service dependency order for recreating containers
 const RECREATE_ORDER = [
-  'mcp', 'mcp-tools', 'mcp-alf',                                  // MCP servers first
+  'mcp', 'mcp-tools',                                              // MCP servers first
   'api', 'forge',                                                  // Backend depends on MCP
   'dashboard',                                                     // Frontend depends on API
   'nginx',                                                         // Reverse proxy last

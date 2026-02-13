@@ -26,6 +26,7 @@ import { TOOLS as WORKFLOW_TOOLS, handleTool as handleWorkflowTool } from './wor
 import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';
 import { TOOLS as INFRA_TOOLS, handleTool as handleInfraTool } from './infra.js';
 import { TOOLS as AGENT_TOOLS, handleTool as handleAgentTool } from './agent-tools.js';
+import { TOOLS as ALF_TOOLS, handleTool as handleAlfTool } from './alf-tools.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
@@ -34,18 +35,20 @@ const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()
 // All Tools
 // ============================================
 
-const ALL_TOOLS = [...WORKFLOW_TOOLS, ...DATA_TOOLS, ...INFRA_TOOLS, ...AGENT_TOOLS];
+const ALL_TOOLS = [...WORKFLOW_TOOLS, ...DATA_TOOLS, ...INFRA_TOOLS, ...AGENT_TOOLS, ...ALF_TOOLS];
 
 const WORKFLOW_TOOL_NAMES = new Set(WORKFLOW_TOOLS.map((t) => t.name));
 const DATA_TOOL_NAMES = new Set(DATA_TOOLS.map((t) => t.name));
 const INFRA_TOOL_NAMES = new Set(INFRA_TOOLS.map((t) => t.name));
 const AGENT_TOOL_NAMES = new Set(AGENT_TOOLS.map((t) => t.name));
+const ALF_TOOL_NAMES = new Set(ALF_TOOLS.map((t) => t.name));
 
 async function dispatchTool(name: string, args: Record<string, unknown>): Promise<string> {
   if (WORKFLOW_TOOL_NAMES.has(name)) return handleWorkflowTool(name, args);
   if (DATA_TOOL_NAMES.has(name)) return handleDataTool(name, args);
   if (INFRA_TOOL_NAMES.has(name)) return handleInfraTool(name, args);
   if (AGENT_TOOL_NAMES.has(name)) return handleAgentTool(name, args);
+  if (ALF_TOOL_NAMES.has(name)) return handleAlfTool(name, args);
   throw new Error(`Unknown tool: ${name}`);
 }
 
