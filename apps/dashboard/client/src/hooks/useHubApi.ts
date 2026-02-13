@@ -3,7 +3,7 @@
 
 const getApiBase = () => {
   if (window.location.hostname.includes('askalf.org')) return '';
-  return 'http://localhost:3001';
+  return 'http://localhost:3005';
 };
 
 const API_BASE = getApiBase();
