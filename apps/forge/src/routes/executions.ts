@@ -9,7 +9,7 @@ import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails } from '../observability/guardrails.js';
-import { runExecution, runBatchExecution } from '../runtime/worker.js';
+import { runExecution, runDirectCliExecution, runBatchExecution } from '../runtime/worker.js';
 
 interface ExecutionRow {
   id: string;
@@ -43,6 +43,8 @@ interface AgentCheckRow {
   owner_id: string;
   status: string;
   max_cost_per_execution: string;
+  model_id: string | null;
+  system_prompt: string | null;
 }
 
 export async function executionRoutes(app: FastifyInstance): Promise<void> {
@@ -70,7 +72,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
 
       // Verify agent exists and is accessible
       const agent = await queryOne<AgentCheckRow>(
-        `SELECT id, owner_id, status, max_cost_per_execution
+        `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt
          FROM forge_agents
          WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
         [body.agentId, userId],
@@ -131,15 +133,20 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         userAgent: request.headers['user-agent'],
       }).catch(() => {});
 
-      // Fire execution asynchronously — return immediately, engine runs in background
-      void runExecution(
+      // Fire CLI execution asynchronously — return immediately, CLI runs in background
+      void runDirectCliExecution(
         executionId,
         body.agentId,
         body.input,
         userId,
-        body.sessionId,
+        {
+          modelId: agent.model_id ?? undefined,
+          systemPrompt: agent.system_prompt ?? undefined,
+          sessionId: body.sessionId,
+          maxBudgetUsd: agent.max_cost_per_execution,
+        },
       ).catch((err) => {
-        console.error(`[Executions] Async execution failed for ${executionId}:`, err);
+        console.error(`[Executions] Async CLI execution failed for ${executionId}:`, err);
       });
 
       return reply.status(201).send({ execution });

@@ -31,23 +31,31 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
 # Production stage
 FROM node:20-slim AS runner
 
-# Install git for git_ops tool + pnpm for code_analysis
+# Install git for git_ops tool + pnpm for code_analysis + procps for pgrep (process tree kill)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
+    apt-get install -y --no-install-recommends git procps && \
     rm -rf /var/lib/apt/lists/* && \
     corepack enable && corepack prepare pnpm@9.15.0 --activate
 
+# Install Claude Code CLI globally for agent execution
+RUN npm install -g @anthropic-ai/claude-code
+
 # Security: create non-root user
 RUN groupadd -g 1001 substrate && \
-    useradd -u 1001 -g substrate -s /bin/false substrate
+    useradd -u 1001 -g substrate -s /bin/false -m substrate
 
 WORKDIR /app
 
 # Copy the deployed app
 COPY --from=builder --chown=substrate:substrate /app/deploy ./
 
+# Pre-create CLI directories owned by substrate user
+RUN mkdir -p /tmp/claude-home/.claude /tmp/agent-workspace && \
+    chown -R substrate:substrate /tmp/claude-home /tmp/agent-workspace
+
 ENV NODE_ENV=production
 ENV PORT=3005
+ENV HOME=/tmp/claude-home
 
 USER substrate
 
