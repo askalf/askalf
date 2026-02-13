@@ -46,3 +46,6 @@ Thumbs.db
 # Debug files
 debug-*.cjs
 test-*.cjs
+
+# Packages not in lockfile (used by MCP apps with their own builds)
+packages/db

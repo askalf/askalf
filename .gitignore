@@ -50,3 +50,21 @@ tmpclaude-*
 MASTER_PRODUCTION_PLAN.md
 PRODUCTION_PLAN.md
 SUBSTRATE_PROJECT_STATUS.md
+
+# Build/cache artifacts
+.cache/
+.npm/
+
+# Credentials (NEVER commit)
+.claude-credentials.json
+
+# Windows artifacts
+nul
+
+# Temp workspace scripts
+workspace/
+
+# Agent-generated docs (may be stale)
+DOCKERFILE_SECURITY_AUDIT.md
+FORGE_API_DOCUMENTATION.md
+FORGE_API_ENDPOINTS.md

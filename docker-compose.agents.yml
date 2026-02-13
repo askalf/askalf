@@ -1,0 +1,335 @@
+# Docker Compose overlay for persistent agent containers (Phase 3)
+#
+# Usage:
+#   # Generate per-agent configs first:
+#   docker exec substrate-prod-backup node /workspace/scripts/generate-agent-config.js
+#
+#   # Start all agents:
+#   docker-compose -f docker-compose.prod.yml -f docker-compose.agents.yml --env-file .env.production up -d
+#
+#   # Start specific agents (pilot):
+#   docker-compose -f docker-compose.prod.yml -f docker-compose.agents.yml --env-file .env.production up -d agent-sentinel agent-overseer
+
+x-agent-common: &agent-common
+  build:
+    context: .
+    dockerfile: apps/agent-container/Dockerfile
+  networks:
+    - substrate-prod-net
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp:mode=1777,size=64m
+    - /home/agent:uid=1001,gid=1001,mode=0755,size=32m
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  depends_on:
+    redis:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD-SHELL", "node -e \"const{Redis}=require('ioredis');const r=new Redis(process.env.REDIS_URL);r.ping().then(()=>{r.quit();process.exit(0)}).catch(()=>process.exit(1))\""]
+    interval: 60s
+    timeout: 10s
+    retries: 3
+    start_period: 60s
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "20m"
+      max-file: "3"
+
+x-agent-resources-ops: &agent-resources-ops
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 384M
+      reservations:
+        cpus: '0.1'
+        memory: 64M
+
+x-agent-resources-dev: &agent-resources-dev
+  deploy:
+    resources:
+      limits:
+        cpus: '1.0'
+        memory: 384M
+      reservations:
+        cpus: '0.1'
+        memory: 64M
+
+x-agent-env: &agent-env
+  # OAuth credentials mounted at /home/agent/.claude/.credentials.json
+  # No ANTHROPIC_API_KEY — Claude Code CLI uses subscription auth
+  REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+
+services:
+  # ============================================
+  # Ops Agents (9)
+  # ============================================
+
+  agent-sentinel:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-sentinel
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXG4SNRAAGWE0F4Z44NXB5S
+      AGENT_NAME: Sentinel
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/sentinel/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/sentinel/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-nightwatch:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-nightwatch
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXG4SRNPS9XT49VR1N8FSMB
+      AGENT_NAME: Nightwatch
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/nightwatch/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/nightwatch/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-forge-smith:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-forge-smith
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXG4SS55GBA5SRZBVV8E1NR
+      AGENT_NAME: Forge Smith
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace  # rw: system maintainer — code review gated
+      - ./agent-configs/forge-smith/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/forge-smith/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-librarian:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-librarian
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXG4SSG50D7HRJ811F6XZ3X
+      AGENT_NAME: Librarian
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/librarian/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/librarian/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-concierge:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-concierge
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXG4ST1DR9KPM6S4EB56A6G
+      AGENT_NAME: Concierge
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/concierge/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/concierge/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-quartermaster:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-quartermaster
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXG4STMCPSY1F60ZX5TBZFX
+      AGENT_NAME: Quartermaster
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/quartermaster/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/quartermaster/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-herald:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-herald
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXG4SV2ZQH936ZQVJ81JP9M
+      AGENT_NAME: Herald
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/herald/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/herald/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-overseer:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-overseer
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXG4SVERD6E8BHKVMK6JTBY
+      AGENT_NAME: Overseer
+      MAX_BUDGET_USD: "0.75"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/overseer/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/overseer/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-shard-curator:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-shard-curator
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KH295596E1CVNTRQDHWZXKEB
+      AGENT_NAME: Shard Curator
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/shard-curator/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/shard-curator/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  # ============================================
+  # Dev Agents (8)
+  # ============================================
+
+  agent-architect:
+    <<: [*agent-common, *agent-resources-dev]
+    container_name: substrate-agent-architect
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXGV6QBPG0S0VGRY64T7D1W
+      AGENT_NAME: Architect
+      MAX_BUDGET_USD: "1.00"
+    volumes:
+      - .:/workspace  # rw: code writer — code review gated
+      - ./agent-configs/architect/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/architect/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-frontend-dev:
+    <<: [*agent-common, *agent-resources-dev]
+    container_name: substrate-agent-frontend-dev
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXGV6R7KD6F3WD0MGASRHYY
+      AGENT_NAME: Frontend Dev
+      MAX_BUDGET_USD: "1.00"
+    volumes:
+      - .:/workspace  # rw: code writer — code review gated
+      - ./agent-configs/frontend-dev/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/frontend-dev/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-backend-dev:
+    <<: [*agent-common, *agent-resources-dev]
+    container_name: substrate-agent-backend-dev
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXGV6RSSKVXEF8X2S79R3KR
+      AGENT_NAME: Backend Dev
+      MAX_BUDGET_USD: "1.00"
+    volumes:
+      - .:/workspace  # rw: code writer — code review gated
+      - ./agent-configs/backend-dev/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/backend-dev/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-qa-engineer:
+    <<: [*agent-common, *agent-resources-dev]
+    container_name: substrate-agent-qa-engineer
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXGV6S74J5BKEZHDJ8Q672K
+      AGENT_NAME: QA Engineer
+      MAX_BUDGET_USD: "0.75"
+    volumes:
+      - .:/workspace  # rw: test writer — code review gated
+      - ./agent-configs/qa-engineer/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/qa-engineer/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-devops:
+    <<: [*agent-common, *agent-resources-dev]
+    container_name: substrate-agent-devops
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXGV6SKXJKJMF3K4HQSQ8VB
+      AGENT_NAME: DevOps
+      MAX_BUDGET_USD: "0.75"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/devops/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/devops/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-api-tester:
+    <<: [*agent-common, *agent-resources-dev]
+    container_name: substrate-agent-api-tester
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXGV6T1N9RJMHF44MFX6WA3
+      AGENT_NAME: API Tester
+      MAX_BUDGET_USD: "0.75"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/api-tester/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/api-tester/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-data-engineer:
+    <<: [*agent-common, *agent-resources-dev]
+    container_name: substrate-agent-data-engineer
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXGV6TD7REMT407ZV7QTSB6
+      AGENT_NAME: Data Engineer
+      MAX_BUDGET_USD: "0.75"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/data-engineer/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/data-engineer/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  agent-doc-writer:
+    <<: [*agent-common, *agent-resources-dev]
+    container_name: substrate-agent-doc-writer
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KGXGV6TY5VJ7GAK9JW1T79SZ
+      AGENT_NAME: Doc Writer
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/doc-writer/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/doc-writer/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+  # ============================================
+  # Special Agents (1)
+  # ============================================
+
+  agent-metabolist:
+    <<: [*agent-common, *agent-resources-ops]
+    container_name: substrate-agent-metabolist
+    environment:
+      <<: *agent-env
+      AGENT_ID: 01KH1ZKR0001CONVERGENCEOP01
+      AGENT_NAME: Metabolist
+      MAX_BUDGET_USD: "0.50"
+    volumes:
+      - .:/workspace:ro
+      - ./agent-configs/metabolist/CLAUDE.md:/app/CLAUDE.md:ro
+      - ./agent-configs/metabolist/mcp.json:/app/mcp.json:ro
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
+
+networks:
+  substrate-prod-net:
+    external: true

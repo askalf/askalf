@@ -1,0 +1,1 @@
+"substrate" "SCRAM-SHA-256$4096:${POSTGRES_PASSWORD}"
