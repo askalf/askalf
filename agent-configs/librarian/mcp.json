@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "data": {
+      "type": "http",
+      "url": "http://mcp-data:3011/mcp",
+      "tools": [
+        "db_query",
+        "substrate_db_query",
+        "memory_search",
+        "memory_store"
+      ]
+    },
+    "workflow": {
+      "type": "http",
+      "url": "http://mcp-workflow:3010/mcp",
+      "tools": [
+        "ticket_ops",
+        "finding_ops",
+        "intervention_ops",
+        "agent_call"
+      ]
+    }
+  }
+}
