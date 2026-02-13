@@ -12,10 +12,15 @@ const ADMIN_NAV_ITEMS = [
   {
     section: 'Agent Hub',
     items: [
-      { path: '/admin/hub/agents', label: 'Agents', icon: '🤖' },
-      { path: '/admin/hub/tasks', label: 'Tasks', icon: '📋' },
-      { path: '/admin/hub/reports', label: 'Reports', icon: '📈' },
-      { path: '/admin/hub/tickets', label: 'Tickets', icon: '🎫' },
+      { path: '/admin/hub', label: 'Orchestration Hub', icon: '🤖' },
+      { path: '/admin/git-space', label: 'Git Space', icon: '🔀' },
+    ],
+  },
+  {
+    section: 'Knowledge',
+    items: [
+      { path: '/admin/memory', label: 'Memory Tiers', icon: '🧠' },
+      { path: '/admin/convergence', label: 'Convergence', icon: '🔮' },
     ],
   },
   {
@@ -23,13 +28,6 @@ const ADMIN_NAV_ITEMS = [
     items: [
       { path: '/admin/users', label: 'Users', icon: '👥' },
       { path: '/admin/backups', label: 'Backups', icon: '💾' },
-    ],
-  },
-  {
-    section: 'Memory',
-    items: [
-      { path: '/app/memory', label: 'Knowledge Layers', icon: '🧠' },
-      { path: '/app/convergence', label: 'Convergence', icon: '🔮' },
     ],
   },
 ];

@@ -431,9 +431,9 @@ services:
       # Direct connection to postgres (not via pgbouncer - separate database)
       FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      # AI Providers
+      # AI Providers — ANTHROPIC_API_KEY intentionally empty to force OAuth subscription
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_API_KEY: ''
       ANTHROPIC_API_KEY_FALLBACK: ${ANTHROPIC_API_KEY_FALLBACK:-}
       GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
       # Auth
@@ -442,6 +442,8 @@ services:
       SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
       REPO_ROOT: /workspace
       WORKSPACE_ROOT: /workspace
+      # CLI execution environment
+      HOME: /tmp/claude-home
       # Git safe directory config (read-only FS, no gitconfig file)
       GIT_CONFIG_COUNT: "1"
       GIT_CONFIG_KEY_0: safe.directory
@@ -449,6 +451,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - .:/workspace
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
     group_add:
       - "0"
     depends_on:
@@ -473,7 +476,7 @@ services:
       - ALL
     read_only: true
     tmpfs:
-      - /tmp:mode=1777,size=128m
+      - /tmp:mode=1777,size=512m
     logging:
       driver: "json-file"
       options:
@@ -483,10 +486,10 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 1G
+          memory: 2G
         reservations:
           cpus: '0.5'
-          memory: 256M
+          memory: 512M
 
   # ===========================================
   # INFRASTRUCTURE LAYER

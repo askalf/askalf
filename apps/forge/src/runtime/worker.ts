@@ -1,9 +1,12 @@
 /**
  * Forge Execution Worker
  * Wires together provider adapters, tool registry, and the execution engine.
- * Provides `runExecution()` which is called asynchronously when POST /executions fires.
+ * Provides `runDirectCliExecution()` for CLI-based agent execution (Phase 7).
+ * Also retains `runExecution()` for SDK-based execution as fallback.
  */
 
+import { spawn, execSync } from 'child_process';
+import { readFile, writeFile, access, copyFile, mkdir, unlink } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
 import { AnthropicAdapter } from '../providers/adapters/anthropic.js';
 import type { IProviderAdapter } from '../providers/interface.js';
@@ -11,6 +14,7 @@ import { ToolRegistry } from '../tools/registry.js';
 import { executeTools, type ToolCall as ExecutorToolCall } from '../tools/executor.js';
 import { execute, type ExecutionContext, type ExecutionDeps } from './engine.js';
 import { executeBatch, type BatchAgentExecution, type BatchExecutionResult } from './batch-engine.js';
+import { query } from '../database.js';
 
 // Built-in tools
 import { apiCall } from '../tools/built-in/api-call.js';
@@ -522,4 +526,397 @@ export async function runBatchExecution(
  */
 export function getRegistry(): ToolRegistry {
   return registry;
+}
+
+// ============================================
+// CLI Execution (Phase 7 — Direct CLI Spawn)
+// ============================================
+
+let cliEnvironmentReady = false;
+let cliConcurrent = 0;
+const cliQueue: Array<() => void> = [];
+
+const MCP_CONFIG_PATH = '/tmp/claude-home/mcp.json';
+const CLAUDE_DIR = '/tmp/claude-home/.claude';
+const WORKSPACE_DIR = '/tmp/agent-workspace';
+
+/**
+ * One-time CLI environment setup.
+ * Creates credential files, settings.json, and MCP config.
+ */
+async function setupCliEnvironment(): Promise<void> {
+  if (cliEnvironmentReady) return;
+
+  const cfg = config ?? loadConfig();
+
+  // Create directories
+  await mkdir(`${CLAUDE_DIR}/debug`, { recursive: true });
+  await mkdir(`${CLAUDE_DIR}/cache`, { recursive: true });
+  await mkdir(WORKSPACE_DIR, { recursive: true });
+
+  // Copy OAuth credentials if available
+  try {
+    await access('/tmp/claude-credentials.json');
+    await copyFile('/tmp/claude-credentials.json', `${CLAUDE_DIR}/.credentials.json`);
+    console.log('[CLI] OAuth credentials installed');
+  } catch {
+    console.warn('[CLI] No OAuth credentials found at /tmp/claude-credentials.json');
+  }
+
+  // Write settings.json — auto-accept all permissions
+  const settings = {
+    permissions: {
+      allow: [
+        'Bash(*)', 'Read(*)', 'Write(*)', 'Edit(*)',
+        'Glob(*)', 'Grep(*)', 'WebFetch(*)', 'WebSearch(*)',
+        'NotebookEdit(*)', 'Task(*)',
+      ],
+      deny: [],
+    },
+    hasCompletedOnboarding: true,
+  };
+  await writeFile(`${CLAUDE_DIR}/settings.json`, JSON.stringify(settings, null, 2));
+  console.log('[CLI] Settings.json written');
+
+  // Write MCP config with streamable HTTP transport
+  const mcpConfig = {
+    mcpServers: {
+      'mcp-tools': {
+        type: 'http',
+        url: 'http://mcp-tools:3010/mcp',
+      },
+      'mcp-alf': {
+        type: 'http',
+        url: 'http://mcp-alf:3013/mcp',
+      },
+    },
+  };
+  await writeFile(MCP_CONFIG_PATH, JSON.stringify(mcpConfig, null, 2));
+  console.log('[CLI] MCP config written');
+
+  cliEnvironmentReady = true;
+}
+
+/**
+ * Semaphore: acquire a CLI execution slot.
+ * Blocks if MAX_CLI_CONCURRENCY is reached.
+ */
+function acquireCliSlot(): Promise<void> {
+  const cfg = config ?? loadConfig();
+  if (cliConcurrent < cfg.maxCliConcurrency) {
+    cliConcurrent++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    cliQueue.push(() => {
+      cliConcurrent++;
+      resolve();
+    });
+  });
+}
+
+/** Release a CLI execution slot. */
+function releaseCliSlot(): void {
+  cliConcurrent--;
+  if (cliQueue.length > 0) {
+    const next = cliQueue.shift()!;
+    next();
+  }
+}
+
+/**
+ * Refresh OAuth credentials before execution.
+ * Copies fresher token from mount if available.
+ */
+async function refreshCredentials(): Promise<void> {
+  const credsPath = `${CLAUDE_DIR}/.credentials.json`;
+  try {
+    await access('/tmp/claude-credentials.json');
+    const mountRaw = await readFile('/tmp/claude-credentials.json', 'utf8');
+    const mountCreds = JSON.parse(mountRaw);
+    let currentExpiry = 0;
+    try {
+      const curRaw = await readFile(credsPath, 'utf8');
+      const cur = JSON.parse(curRaw);
+      currentExpiry = cur.claudeAiOauth?.expiresAt || 0;
+    } catch { /* no current file */ }
+    if ((mountCreds.claudeAiOauth?.expiresAt || 0) > currentExpiry) {
+      await copyFile('/tmp/claude-credentials.json', credsPath);
+      console.log('[CLI] Refreshed credentials from mount');
+    }
+  } catch { /* mount may not exist */ }
+}
+
+/**
+ * Execute Claude Code CLI with the given arguments.
+ * Returns exit code, stdout, and stderr.
+ */
+function executeClaudeCode(
+  args: string[],
+  cwd = '/workspace',
+  timeout = 900_000,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    // Write prompt to temp file to avoid shell escaping issues
+    const promptIdx = args.indexOf('-p');
+    let promptFile: string | null = null;
+    const filteredArgs = [...args];
+
+    const run = async () => {
+      if (promptIdx >= 0 && promptIdx + 1 < args.length) {
+        promptFile = `/tmp/prompt-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`;
+        await writeFile(promptFile, filteredArgs[promptIdx + 1]!);
+        filteredArgs.splice(promptIdx, 2); // remove -p and prompt
+      }
+
+      const escapedArgs = filteredArgs.map(a => "'" + a.replace(/'/g, "'\\''") + "'").join(' ');
+      const shellCmd = promptFile
+        ? `claude -p "$(cat '${promptFile}')" ${escapedArgs}`
+        : `claude ${escapedArgs}`;
+
+      const proc = spawn('sh', ['-c', shellCmd], {
+        cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          ANTHROPIC_API_KEY: '', // Force OAuth subscription
+          HOME: '/tmp/claude-home',
+        },
+      });
+
+      let stdout = '';
+      let stderr = '';
+      let killed = false;
+
+      proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+      proc.stderr.on('data', (chunk: Buffer) => {
+        const text = chunk.toString();
+        stderr += text;
+        // Log first few lines in real-time for diagnostics
+        const lines = text.trim().split('\n');
+        for (const line of lines.slice(0, 3)) {
+          if (line.trim()) console.log(`[CLI:stderr] ${line.substring(0, 200)}`);
+        }
+      });
+
+      const cleanup = async () => {
+        if (promptFile) {
+          try { await unlink(promptFile); } catch { /* ignore */ }
+        }
+      };
+
+      const killTree = () => {
+        killed = true;
+        try {
+          proc.kill('SIGTERM');
+          try {
+            execSync(`kill -TERM $(pgrep -P ${proc.pid}) 2>/dev/null || true`, { stdio: 'ignore' });
+          } catch { /* no children or already dead */ }
+        } catch { /* already dead */ }
+        setTimeout(() => {
+          try { proc.kill('SIGKILL'); } catch { /* already dead */ }
+        }, 5000);
+      };
+
+      proc.on('close', async (code) => {
+        await cleanup();
+        const cleanStdout = stdout.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
+        resolve({
+          exitCode: killed ? 124 : (code ?? 1),
+          stdout: cleanStdout,
+          stderr: stderr.trim(),
+        });
+      });
+
+      proc.on('error', async (err) => {
+        await cleanup();
+        resolve({ exitCode: 1, stdout: '', stderr: err.message });
+      });
+
+      setTimeout(killTree, timeout);
+    };
+
+    run().catch((err) => {
+      resolve({ exitCode: 1, stdout: '', stderr: `Setup error: ${err}` });
+    });
+  });
+}
+
+/**
+ * Parse Claude Code CLI JSON output.
+ */
+function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
+  output: string;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  numTurns: number;
+  isError: boolean;
+} {
+  let output = stdout;
+  let costUsd = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let numTurns = 0;
+  let isError = false;
+
+  try {
+    let jsonStr = stdout;
+    // Remove control characters except newline
+    jsonStr = jsonStr.replace(/[\x00-\x09\x0b-\x1f\x7f]/g, '');
+    // Extract JSON object
+    const firstBrace = jsonStr.indexOf('{');
+    const lastBrace = jsonStr.lastIndexOf('}');
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+    }
+
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+    output = (parsed['result'] as string) ?? stdout;
+    costUsd = (parsed['total_cost_usd'] as number) ?? 0;
+    numTurns = (parsed['num_turns'] as number) ?? 0;
+
+    const usage = parsed['usage'] as Record<string, number> | undefined;
+    if (usage) {
+      inputTokens = usage['input_tokens'] ?? 0;
+      outputTokens = usage['output_tokens'] ?? 0;
+    }
+
+    // Only mark as error if explicitly errored AND no useful output
+    if (parsed['is_error'] === true && outputTokens === 0) {
+      isError = true;
+    } else if (!parsed['type'] && exitCode !== 0) {
+      isError = true;
+    }
+  } catch {
+    console.error(`[CLI] JSON parse failed for stdout (first 200): ${stdout.substring(0, 200)}`);
+    if (stderr) console.error(`[CLI] stderr (first 500): ${stderr.substring(0, 500)}`);
+    if (exitCode !== 0) isError = true;
+  }
+
+  return { output, costUsd, inputTokens, outputTokens, numTurns, isError };
+}
+
+/**
+ * Run an agent execution via Claude Code CLI (Phase 7).
+ * Spawns the CLI as a child process with OAuth credentials and MCP tools.
+ * This is the primary execution path — agents use Claude Max subscription.
+ */
+export async function runDirectCliExecution(
+  executionId: string,
+  agentId: string,
+  input: string,
+  ownerId: string,
+  options?: {
+    modelId?: string;
+    systemPrompt?: string;
+    sessionId?: string;
+    maxBudgetUsd?: string;
+  },
+): Promise<void> {
+  if (!initialized) {
+    await initializeWorker();
+  }
+
+  const cfg = config ?? loadConfig();
+
+  // One-time CLI environment setup
+  await setupCliEnvironment();
+
+  // Wait for concurrency slot
+  await acquireCliSlot();
+
+  const startTime = Date.now();
+  console.log(`[CLI] Processing execution ${executionId} for agent ${agentId}`);
+
+  try {
+    // Update execution status to running
+    await query(
+      `UPDATE forge_executions SET status = 'running', started_at = NOW() WHERE id = $1`,
+      [executionId],
+    );
+
+    // Refresh OAuth credentials
+    await refreshCredentials();
+
+    // Copy agent's system prompt as CLAUDE.md in workspace
+    if (options?.systemPrompt) {
+      try {
+        await writeFile(`${WORKSPACE_DIR}/CLAUDE.md`, options.systemPrompt);
+      } catch {
+        console.warn('[CLI] Could not write CLAUDE.md to workspace');
+      }
+    }
+
+    // Build CLI arguments
+    const args: string[] = [
+      '-p', input,
+      '--output-format', 'json',
+      '--max-turns', String(cfg.cliMaxTurns),
+      '--max-budget-usd', options?.maxBudgetUsd ?? cfg.cliBudgetUsd,
+      '--dangerously-skip-permissions',
+      '--add-dir', '/workspace',
+      '--mcp-config', MCP_CONFIG_PATH,
+    ];
+
+    // Use agent's configured model
+    if (options?.modelId) {
+      args.push('--model', options.modelId);
+      console.log(`[CLI] Using model: ${options.modelId}`);
+    }
+
+    // Execute CLI
+    const result = await executeClaudeCode(args, WORKSPACE_DIR, cfg.cliTimeout);
+    const durationMs = Date.now() - startTime;
+
+    // Parse result
+    const parsed = parseCliOutput(result.stdout, result.stderr, result.exitCode);
+
+    console.log(
+      `[CLI] Execution ${executionId} ${parsed.isError ? 'FAILED' : 'completed'} ` +
+      `in ${durationMs}ms — cost=$${parsed.costUsd.toFixed(4)} ` +
+      `tokens=${parsed.inputTokens}/${parsed.outputTokens} turns=${parsed.numTurns}`,
+    );
+
+    // Update execution record
+    await query(
+      `UPDATE forge_executions
+       SET status = $1,
+           output = $2,
+           error = $3,
+           cost = $4,
+           input_tokens = $5,
+           output_tokens = $6,
+           total_tokens = $7,
+           iterations = $8,
+           duration_ms = $9,
+           completed_at = NOW()
+       WHERE id = $10`,
+      [
+        parsed.isError ? 'failed' : 'completed',
+        parsed.output,
+        parsed.isError ? (result.stderr || 'CLI execution failed') : null,
+        parsed.costUsd,
+        parsed.inputTokens,
+        parsed.outputTokens,
+        parsed.inputTokens + parsed.outputTokens,
+        parsed.numTurns,
+        durationMs,
+        executionId,
+      ],
+    );
+  } catch (err) {
+    const durationMs = Date.now() - startTime;
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[CLI] Execution ${executionId} error: ${errorMsg}`);
+
+    await query(
+      `UPDATE forge_executions
+       SET status = 'failed', error = $1, duration_ms = $2, completed_at = NOW()
+       WHERE id = $3`,
+      [errorMsg, durationMs, executionId],
+    ).catch(() => {});
+  } finally {
+    releaseCliSlot();
+  }
 }
