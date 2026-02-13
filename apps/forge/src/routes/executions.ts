@@ -9,7 +9,7 @@ import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails } from '../observability/guardrails.js';
-import { runExecution, runDirectCliExecution, runBatchExecution } from '../runtime/worker.js';
+import { runDirectCliExecution } from '../runtime/worker.js';
 
 interface ExecutionRow {
   id: string;
@@ -307,8 +307,9 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
-   * POST /api/v1/forge/executions/batch - Run multiple agents as a batch (50% cost reduction)
-   * Accepts an array of {agentId, input} and runs them through the Anthropic Batches API.
+   * POST /api/v1/forge/executions/batch - Run multiple agents via individual CLI executions.
+   * Accepts an array of {agentId, input} and dispatches each as a CLI execution.
+   * (Batch API is deprecated — CLI uses OAuth subscription, not prepaid credits.)
    */
   app.post(
     '/api/v1/forge/executions/batch',
@@ -333,27 +334,41 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      const batchAgents = body.agents.map((a) => ({
-        agentId: a.agentId,
-        input: a.input,
-        ownerId: userId,
-      }));
+      // Dispatch each agent as an individual CLI execution
+      const executionIds: string[] = [];
+      for (const a of body.agents) {
+        const execId = ulid();
+        const agent = await queryOne<AgentCheckRow>(
+          `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt
+           FROM forge_agents WHERE id = $1`,
+          [a.agentId],
+        );
+        if (!agent || agent.status === 'archived') continue;
 
-      // Fire batch asynchronously
-      void runBatchExecution(batchAgents).then((results) => {
-        const completed = results.filter((r) => r.status === 'completed').length;
-        const failed = results.filter((r) => r.status === 'failed').length;
-        const totalCost = results.reduce((s, r) => s + r.cost, 0);
-        console.log(`[Batch] Complete: ${completed} succeeded, ${failed} failed, $${totalCost.toFixed(4)} cost`);
-      }).catch((err) => {
-        console.error('[Batch] Batch execution failed:', err);
-      });
+        await queryOne<ExecutionRow>(
+          `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
+           VALUES ($1, $2, $3, $4, 'pending', '{}', NOW()) RETURNING *`,
+          [execId, a.agentId, userId, a.input],
+        );
+
+        void runDirectCliExecution(execId, a.agentId, a.input, userId, {
+          modelId: agent.model_id ?? undefined,
+          systemPrompt: agent.system_prompt ?? undefined,
+          maxBudgetUsd: agent.max_cost_per_execution,
+        }).catch((err) => {
+          console.error(`[Batch→CLI] Execution ${execId} failed:`, err);
+        });
+
+        executionIds.push(execId);
+      }
+
+      console.log(`[Batch→CLI] Dispatched ${executionIds.length} individual CLI executions`);
 
       return reply.status(202).send({
-        message: 'Batch execution started',
-        agentCount: batchAgents.length,
-        mode: 'batch',
-        costReduction: '50%',
+        message: `${executionIds.length} CLI executions started`,
+        agentCount: executionIds.length,
+        executionIds,
+        mode: 'cli',
       });
     },
   );
