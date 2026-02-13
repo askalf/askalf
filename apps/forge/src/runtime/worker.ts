@@ -585,10 +585,6 @@ async function setupCliEnvironment(): Promise<void> {
         type: 'http',
         url: 'http://mcp-tools:3010/mcp',
       },
-      'mcp-alf': {
-        type: 'http',
-        url: 'http://mcp-alf:3013/mcp',
-      },
     },
   };
   await writeFile(MCP_CONFIG_PATH, JSON.stringify(mcpConfig, null, 2));

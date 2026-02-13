@@ -12,7 +12,6 @@ const SERVICES = [
   { id: 'nginx', label: 'Nginx', desc: 'substrate-prod-nginx' },
   { id: 'mcp', label: 'MCP', desc: 'substrate-prod-mcp' },
   { id: 'mcp-tools', label: 'MCP Tools', desc: 'substrate-prod-mcp-tools' },
-  { id: 'mcp-alf', label: 'MCP ALF', desc: 'substrate-prod-mcp-alf' },
   { id: 'scheduler', label: 'Scheduler', desc: 'substrate-prod-scheduler' },
   { id: 'worker', label: 'Worker', desc: 'substrate-prod-worker' },
 ];
@@ -20,7 +19,7 @@ const SERVICES = [
 const SERVICE_GROUPS = [
   { id: 'frontend', label: 'Frontend', services: ['dashboard', 'nginx'] },
   { id: 'backend', label: 'Backend', services: ['api', 'forge'] },
-  { id: 'mcp', label: 'MCP Servers', services: ['mcp', 'mcp-tools', 'mcp-alf'] },
+  { id: 'mcp', label: 'MCP Servers', services: ['mcp', 'mcp-tools'] },
   { id: 'workers', label: 'Workers', services: ['scheduler', 'worker'] },
   { id: 'all', label: 'All', services: SERVICES.map((s) => s.id) },
 ];
@@ -32,9 +31,8 @@ const SERVICE_PATH_MAP: Record<string, string[]> = {
   'apps/forge/': ['forge'],
   'apps/mcp/': ['mcp'],
   'apps/mcp-tools/': ['mcp-tools'],
-  'apps/mcp-alf/': ['mcp-alf'],
   'apps/worker/': ['scheduler', 'worker'],
-  'packages/': ['api', 'dashboard', 'forge', 'mcp', 'mcp-tools', 'mcp-alf'],
+  'packages/': ['api', 'dashboard', 'forge', 'mcp', 'mcp-tools'],
   'infrastructure/nginx/': ['nginx'],
 };
 

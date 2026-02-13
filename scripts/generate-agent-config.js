@@ -25,20 +25,15 @@ const FORGE_DB_URL = process.env.FORGE_DATABASE_URL
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || join(process.cwd(), 'agent-configs');
 
-// MCP server URLs
+// MCP server URL (unified — all 19 tools)
 const MCP_TOOLS_URL = process.env.MCP_TOOLS_URL || 'http://mcp-tools:3010';
-const MCP_ALF_URL = process.env.MCP_ALF_URL || 'http://mcp-alf:3013';
 
-// Unified MCP tools server (15 tools)
+// Unified MCP tools server (19 tools — includes former mcp-alf tools)
 const MCP_TOOL_NAMES = new Set([
   'ticket_ops', 'finding_ops', 'intervention_ops', 'agent_call',
   'db_query', 'substrate_db_query', 'memory_search', 'memory_store',
   'docker_api', 'deploy_ops', 'security_scan', 'code_analysis',
   'web_search', 'web_browse', 'team_coordinate',
-]);
-
-// ALF MCP server (4 tools)
-const MCP_ALF_TOOL_NAMES = new Set([
   'alf_profile_read', 'alf_profile_update', 'shard_search', 'convergence_stats',
 ]);
 
@@ -115,9 +110,8 @@ function generateClaudeMd(agent) {
   if (tools.length > 0) {
     for (const tool of tools) {
       const isMcp = MCP_TOOL_NAMES.has(tool);
-      const isAlf = MCP_ALF_TOOL_NAMES.has(tool);
       const native = NATIVE_TOOLS.has(tool);
-      const source = native ? '(native)' : isMcp ? '(mcp-tools)' : isAlf ? '(mcp-alf)' : '(unknown)';
+      const source = native ? '(native)' : isMcp ? '(mcp-tools)' : '(unknown)';
       lines.push(`- ${tool} ${source}`);
     }
   } else {
@@ -140,20 +134,16 @@ function generateClaudeMd(agent) {
 
 function generateMcpJson(enabledTools) {
   const mcpTools = enabledTools.filter(t => MCP_TOOL_NAMES.has(t));
-  const alfTools = enabledTools.filter(t => MCP_ALF_TOOL_NAMES.has(t));
 
-  if (mcpTools.length === 0 && alfTools.length === 0) {
+  if (mcpTools.length === 0) {
     return { mcpServers: {} };
   }
 
-  const servers = {};
-  if (mcpTools.length > 0) {
-    servers.tools = { type: 'http', url: `${MCP_TOOLS_URL}/mcp` };
-  }
-  if (alfTools.length > 0) {
-    servers.alf = { type: 'http', url: `${MCP_ALF_URL}/mcp` };
-  }
-  return { mcpServers: servers };
+  return {
+    mcpServers: {
+      tools: { type: 'http', url: `${MCP_TOOLS_URL}/mcp` },
+    },
+  };
 }
 
 main().catch((err) => {
