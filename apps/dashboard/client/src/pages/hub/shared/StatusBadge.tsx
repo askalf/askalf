@@ -34,13 +34,14 @@ interface StatusBadgeProps {
 }
 
 export default function StatusBadge({ status, className = '' }: StatusBadgeProps) {
-  const color = STATUS_COLORS[status] || '#6b7280';
+  const s = status || 'unknown';
+  const color = STATUS_COLORS[s] || '#6b7280';
   return (
     <span
       className={`hub-badge ${className}`}
       style={{ background: `${color}20`, color }}
     >
-      {status.replace(/_/g, ' ')}
+      {s.replace(/_/g, ' ')}
     </span>
   );
 }

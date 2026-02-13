@@ -19,6 +19,12 @@ export interface ForgeConfig {
   workingMemoryTtlSeconds: number;
   semanticSearchK: number;
   embeddingDimensions: number;
+  // CLI execution settings
+  maxCliConcurrency: number;
+  cliTimeout: number;
+  cliMaxTurns: number;
+  cliBudgetUsd: string;
+  substrateDatabaseUrl?: string;
 }
 
 export function loadConfig(): ForgeConfig {
@@ -53,5 +59,11 @@ export function loadConfig(): ForgeConfig {
     workingMemoryTtlSeconds: parseInt(process.env['WORKING_MEMORY_TTL_SECONDS'] ?? '3600', 10),
     semanticSearchK: parseInt(process.env['SEMANTIC_SEARCH_K'] ?? '5', 10),
     embeddingDimensions: parseInt(process.env['EMBEDDING_DIMENSIONS'] ?? '1536', 10),
+    // CLI execution
+    maxCliConcurrency: parseInt(process.env['MAX_CLI_CONCURRENCY'] ?? '2', 10),
+    cliTimeout: parseInt(process.env['CLI_TIMEOUT'] ?? '900000', 10),
+    cliMaxTurns: parseInt(process.env['CLI_MAX_TURNS'] ?? '5', 10),
+    cliBudgetUsd: process.env['CLI_BUDGET_USD'] ?? '0.50',
+    substrateDatabaseUrl: process.env['SUBSTRATE_DATABASE_URL'],
   };
 }
