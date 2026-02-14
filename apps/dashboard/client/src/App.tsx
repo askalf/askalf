@@ -18,7 +18,6 @@ const OrchestrationHub = lazy(() => import('./pages/OrchestrationHub'));
 const GitSpace = lazy(() => import('./pages/GitSpace'));
 const Memory = lazy(() => import('./pages/Memory'));
 const Convergence = lazy(() => import('./pages/Convergence'));
-const PlatformAnalytics = lazy(() => import('./pages/PlatformAnalytics'));
 const Settings = lazy(() => import('./pages/Settings'));
 
 // Lazy-loaded: admin-only pages
@@ -95,7 +94,6 @@ export default function App() {
         <Route path="/convergence" element={<Convergence />} />
 
         {/* Platform */}
-        <Route path="/analytics" element={<PlatformAnalytics />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/:tab" element={<Settings />} />
 
