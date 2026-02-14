@@ -15,7 +15,7 @@ interface CLILine {
 export default function MasterCLI() {
   const [input, setInput] = useState('');
   const [lines, setLines] = useState<CLILine[]>([
-    { type: 'system', text: 'Agent Forge CLI v1.0 — Type a command to interact with your agent fleet.', timestamp: Date.now() },
+    { type: 'system', text: 'Orgi CLI v1.0 — Agent orchestration terminal', timestamp: Date.now() },
     { type: 'system', text: 'Examples: "show agent status", "run sentinel", "list open tickets"', timestamp: Date.now() },
   ]);
   const [running, setRunning] = useState(false);
@@ -151,7 +151,7 @@ export default function MasterCLI() {
   return (
     <div className="cli-container">
       <div className="cli-header">
-        <span className="cli-title">Master CLI</span>
+        <span className="cli-title">Orgi Terminal</span>
         {running && <span className="cli-status cli-status--running">Running...</span>}
       </div>
       <div className="cli-output" ref={outputRef}>

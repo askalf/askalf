@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
-import AdminAssistantPanel from '../components/admin/AdminAssistantPanel';
 import './UserAdmin.css';
 
 interface User {
@@ -21,25 +20,9 @@ interface User {
 interface UserDetails extends User {
   failedLoginAttempts: number;
   lockedUntil: string | null;
-  subscription: {
-    planName: string;
-    planDisplayName: string;
-    status: string;
-    currentPeriodEnd: string | null;
-  } | null;
   stats: {
-    shards: number;
-    traces: number;
     executions: number;
   };
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  display_name: string;
-  price_monthly: number;
-  price_yearly: number;
 }
 
 interface AdminStats {
@@ -49,11 +32,9 @@ interface AdminStats {
     suspended: number;
     today: number;
   };
-  content: {
-    shards: number;
-    traces: number;
-    executions: number;
-    executionsToday: number;
+  executions: {
+    total: number;
+    today: number;
   };
 }
 
@@ -63,18 +44,15 @@ export default function UserAdmin() {
 
   // State
   const [users, setUsers] = useState<User[]>([]);
-  const [plans, setPlans] = useState<Plan[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [assistantOpen, setAssistantOpen] = useState(false);
 
   // Filters
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [planFilter, setPlanFilter] = useState('');
 
   // Pagination
   const [total, setTotal] = useState(0);
@@ -87,13 +65,13 @@ export default function UserAdmin() {
 
   // Edit modal
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState({ status: '', plan: '', display_name: '', role: '' });
+  const [editForm, setEditForm] = useState({ status: '', display_name: '', role: '' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Create user modal
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState({ email: '', display_name: '', password: '', role: 'user', plan: 'free' });
+  const [createForm, setCreateForm] = useState({ email: '', display_name: '', password: '', role: 'user' });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -111,11 +89,10 @@ export default function UserAdmin() {
       if (search) params.append('search', search);
       if (roleFilter) params.append('role', roleFilter);
       if (statusFilter) params.append('status', statusFilter);
-      if (planFilter) params.append('plan', planFilter);
       params.append('limit', limit.toString());
       params.append('offset', (page * limit).toString());
 
-      const response = await fetch(`/api/admin/users?${params}`, {
+      const response = await fetch(`/api/v1/admin/users?${params}`, {
         credentials: 'include',
       });
 
@@ -129,26 +106,11 @@ export default function UserAdmin() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load users');
     }
-  }, [search, roleFilter, statusFilter, planFilter, page]);
-
-  const fetchPlans = useCallback(async () => {
-    try {
-      const response = await fetch('/api/admin/plans', {
-        credentials: 'include',
-      });
-
-      if (!response.ok) return;
-
-      const data = await response.json();
-      setPlans(data.plans);
-    } catch {
-      // Plans are optional, don't fail
-    }
-  }, []);
+  }, [search, roleFilter, statusFilter, page]);
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/stats', {
+      const response = await fetch('/api/v1/admin/users/stats', {
         credentials: 'include',
       });
 
@@ -164,7 +126,7 @@ export default function UserAdmin() {
   const fetchUserDetails = async (userId: string) => {
     setDetailLoading(true);
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/v1/admin/users/${userId}`, {
         credentials: 'include',
       });
 
@@ -175,8 +137,7 @@ export default function UserAdmin() {
       const data = await response.json();
       setSelectedUser({
         ...data.user,
-        subscription: data.subscription,
-        stats: data.stats,
+        stats: data.stats || { executions: 0 },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load user');
@@ -188,11 +149,11 @@ export default function UserAdmin() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchUsers(), fetchPlans(), fetchStats()]);
+      await Promise.all([fetchUsers(), fetchStats()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchUsers, fetchPlans, fetchStats]);
+  }, [fetchUsers, fetchStats]);
 
   // Debounced search
   useEffect(() => {
@@ -201,14 +162,13 @@ export default function UserAdmin() {
       fetchUsers();
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, roleFilter, statusFilter, planFilter, fetchUsers]);
+  }, [search, roleFilter, statusFilter, fetchUsers]);
 
   const handleEditUser = (user: User) => {
     setEditingUser(user);
     setSaveError(null);
     setEditForm({
       status: user.status,
-      plan: user.plan || 'free',
       display_name: user.name || '',
       role: user.role,
     });
@@ -232,20 +192,13 @@ export default function UserAdmin() {
       if (editForm.role !== editingUser.role) {
         payload.role = editForm.role;
       }
-      if (editForm.plan !== (editingUser.plan || 'free')) {
-        if (!confirm(`Changing tier will cancel the current subscription and create a new one. Continue?`)) {
-          setSaving(false);
-          return;
-        }
-        payload.plan = editForm.plan;
-      }
 
       if (Object.keys(payload).length === 0) {
         setEditingUser(null);
         return;
       }
 
-      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+      const response = await fetch(`/api/v1/admin/users/${editingUser.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -276,7 +229,7 @@ export default function UserAdmin() {
     }
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/v1/admin/users/${userId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -305,7 +258,7 @@ export default function UserAdmin() {
     setCreating(true);
     setCreateError(null);
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetch('/api/v1/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -319,7 +272,7 @@ export default function UserAdmin() {
 
       setSuccessMsg(`Created user ${createForm.email}`);
       setShowCreateModal(false);
-      setCreateForm({ email: '', display_name: '', password: '', role: 'user', plan: 'free' });
+      setCreateForm({ email: '', display_name: '', password: '', role: 'user' });
       fetchUsers();
       fetchStats();
     } catch (err) {
@@ -370,19 +323,19 @@ export default function UserAdmin() {
   }
 
   return (
-    <div className={`admin-page ${assistantOpen ? 'panel-open' : ''}`}>
+    <div className="admin-page">
      <div className="admin-main">
       {/* Header */}
       <div className="admin-header">
-        <button className="admin-back-btn" onClick={() => navigate('/app/chat')}>
+        <button className="admin-back-btn" onClick={() => navigate('/command-center')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Back
         </button>
         <div className="admin-title-group">
-          <h1>ALF Users</h1>
-          <p>Manage users, roles, and tiers</p>
+          <h1>User Management</h1>
+          <p>Manage users and roles</p>
         </div>
         <div className="admin-header-actions">
           <button className="admin-create-btn" onClick={() => { setShowCreateModal(true); setCreateError(null); }}>
@@ -396,15 +349,6 @@ export default function UserAdmin() {
               <path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5" />
             </svg>
             Refresh
-          </button>
-          <button className={`admin-assistant-toggle ${assistantOpen ? 'active' : ''}`} onClick={() => setAssistantOpen(!assistantOpen)}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-              <path d="M19 10H5a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2Z" />
-              <path d="M12 15v4" />
-              <path d="M8 19h8" />
-            </svg>
-            Assistant
           </button>
         </div>
       </div>
@@ -450,16 +394,9 @@ export default function UserAdmin() {
             </div>
           </div>
           <div className="ua-stat-card">
-            <div className="ua-stat-dot shards" />
-            <div className="ua-stat-content">
-              <div className="ua-stat-value">{stats.content.shards}</div>
-              <div className="ua-stat-label">Total Shards</div>
-            </div>
-          </div>
-          <div className="ua-stat-card">
             <div className="ua-stat-dot executions" />
             <div className="ua-stat-content">
-              <div className="ua-stat-value">{stats.content.executionsToday}</div>
+              <div className="ua-stat-value">{stats.executions?.today || 0}</div>
               <div className="ua-stat-label">Exec Today</div>
             </div>
           </div>
@@ -491,12 +428,6 @@ export default function UserAdmin() {
           <option value="active">Active</option>
           <option value="suspended">Suspended</option>
           <option value="deleted">Deleted</option>
-        </select>
-        <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}>
-          <option value="">All Tiers</option>
-          {plans.map(plan => (
-            <option key={plan.id} value={plan.name}>{plan.display_name}</option>
-          ))}
         </select>
       </div>
 
@@ -647,32 +578,10 @@ export default function UserAdmin() {
                 </div>
 
                 <div className="detail-section">
-                  <h4>Tier</h4>
-                  <div className="detail-row">
-                    <span>Plan</span>
-                    <span>{selectedUser.subscription?.planDisplayName || 'Free'}</span>
-                  </div>
-                  {selectedUser.subscription?.currentPeriodEnd && (
-                    <div className="detail-row">
-                      <span>Expires</span>
-                      <span>{formatDate(selectedUser.subscription.currentPeriodEnd)}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="detail-section">
-                  <h4>Usage Statistics</h4>
+                  <h4>Usage</h4>
                   <div className="detail-stats">
                     <div className="detail-stat">
-                      <div className="detail-stat-value">{selectedUser.stats.shards}</div>
-                      <div className="detail-stat-label">Shards</div>
-                    </div>
-                    <div className="detail-stat">
-                      <div className="detail-stat-value">{selectedUser.stats.traces}</div>
-                      <div className="detail-stat-label">Traces</div>
-                    </div>
-                    <div className="detail-stat">
-                      <div className="detail-stat-value">{selectedUser.stats.executions}</div>
+                      <div className="detail-stat-value">{selectedUser.stats?.executions || 0}</div>
                       <div className="detail-stat-label">Executions</div>
                     </div>
                   </div>
@@ -785,22 +694,6 @@ export default function UserAdmin() {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label>Tier</label>
-                <select
-                  value={editForm.plan}
-                  onChange={e => setEditForm(f => ({ ...f, plan: e.target.value }))}
-                  disabled={plans.length === 0}
-                >
-                  {plans.length > 0 ? (
-                    plans.map(plan => (
-                      <option key={plan.id} value={plan.name}>{plan.display_name}</option>
-                    ))
-                  ) : (
-                    <option value={editForm.plan}>Loading plans...</option>
-                  )}
-                </select>
-              </div>
             </div>
             <div className="modal-footer">
               <button className="btn-cancel" onClick={() => setEditingUser(null)}>
@@ -868,21 +761,6 @@ export default function UserAdmin() {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label>Tier</label>
-                <select
-                  value={createForm.plan}
-                  onChange={e => setCreateForm(f => ({ ...f, plan: e.target.value }))}
-                >
-                  {plans.length > 0 ? (
-                    plans.map(plan => (
-                      <option key={plan.id} value={plan.name}>{plan.display_name}</option>
-                    ))
-                  ) : (
-                    <option value="free">Free</option>
-                  )}
-                </select>
-              </div>
             </div>
             <div className="modal-footer">
               <button className="btn-cancel" onClick={() => setShowCreateModal(false)}>
@@ -896,13 +774,6 @@ export default function UserAdmin() {
         </div>
       )}
      </div>
-
-      <AdminAssistantPanel
-        isOpen={assistantOpen}
-        onToggle={() => setAssistantOpen(!assistantOpen)}
-        activeTier="procedural"
-        pageContext="users"
-      />
     </div>
   );
 }

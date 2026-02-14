@@ -98,7 +98,7 @@ export default function CommandCenter() {
   // Compute success rate from taskStats
   const successRate = useMemo(() => {
     if (!taskStats?.recentByAgent?.length) return null;
-    const rates = taskStats.recentByAgent.map((a) => parseFloat(a.success_rate));
+    const rates = taskStats.recentByAgent.map((a: Record<string, unknown>) => Number(a.successRate ?? a.success_rate ?? 0)).filter((r: number) => !isNaN(r));
     const avg = rates.reduce((sum, r) => sum + r, 0) / rates.length;
     return Math.round(avg);
   }, [taskStats]);
