@@ -26,7 +26,6 @@ const NAV_ITEMS = [
   {
     section: 'Platform',
     items: [
-      { path: '/analytics', label: 'Analytics', icon: 'P' },
       { path: '/settings', label: 'Settings', icon: 'S' },
     ],
   },
