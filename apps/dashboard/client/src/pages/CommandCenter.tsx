@@ -6,6 +6,7 @@ import StatCard from './hub/shared/StatCard';
 import StatusBadge from './hub/shared/StatusBadge';
 import AgentIcon from './hub/shared/AgentIcon';
 import MasterCLI from '../components/MasterCLI';
+import './hub/shared/hub-shared.css';
 import './CommandCenter.css';
 
 const relativeTime = (iso: string | null) => {
