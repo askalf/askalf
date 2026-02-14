@@ -266,32 +266,7 @@ services:
         reservations:
           memory: 512M
 
-  # ===========================================
-  # SELF — tsx watch
-  # ===========================================
-  self:
-    build: *dev-build
-    volumes: *dev-volumes
-    entrypoint: /app/scripts/dev-entrypoint.sh
-    command: ["pnpm", "--filter", "@substrate/self", "dev"]
-    environment:
-      <<: *dev-env
-      DEV_SERVICE: self
-    healthcheck:
-      <<: *dev-healthcheck
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-    labels:
-      - "autoheal=false"
-    read_only: false
-    cap_add:
-      - ALL
-    tmpfs: []
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 512M
+  # SELF — REMOVED (Feb 13 2026). Service fully retired.
 
 # Named volume for pnpm store — shared across all dev services.
 # Lives on Docker's overlay2 filesystem (fast), not the bind mount (slow on Windows).
