@@ -1490,95 +1490,6 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // ------------------------------------------
-  // BACKUP ADMIN (proxy to backup:3003)
-  // ------------------------------------------
-
-  const BACKUP_URL = 'http://backup:3003';
-
-  async function proxyToBackup(method: string, path: string, body?: unknown): Promise<{ status: number; data: unknown }> {
-    try {
-      const opts: RequestInit = {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-      };
-      if (body && method !== 'GET') opts.body = JSON.stringify(body);
-      const res = await fetch(`${BACKUP_URL}${path}`, opts);
-      const data = await res.json().catch(() => ({}));
-      return { status: res.status, data };
-    } catch {
-      return { status: 503, data: { error: 'Backup service unavailable' } };
-    }
-  }
-
-  app.get(
-    '/api/v1/admin/backups',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const qs = request.query as Record<string, string>;
-      const params = new URLSearchParams();
-      for (const [k, v] of Object.entries(qs)) { if (v) params.set(k, v); }
-      const { status, data } = await proxyToBackup('GET', `/api/backups?${params.toString()}`);
-      return reply.code(status).send(data);
-    },
-  );
-
-  app.get(
-    '/api/v1/admin/backups/stats',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
-      const { status, data } = await proxyToBackup('GET', '/api/backups/stats');
-      return reply.code(status).send(data);
-    },
-  );
-
-  app.get(
-    '/api/v1/admin/backups/config',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
-      const { status, data } = await proxyToBackup('GET', '/api/backups/config');
-      return reply.code(status).send(data);
-    },
-  );
-
-  app.patch(
-    '/api/v1/admin/backups/config',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const { status, data } = await proxyToBackup('PATCH', '/api/backups/config', request.body);
-      return reply.code(status).send(data);
-    },
-  );
-
-  app.post(
-    '/api/v1/admin/backups/trigger',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const { status, data } = await proxyToBackup('POST', '/api/backups/trigger', request.body);
-      return reply.code(status).send(data);
-    },
-  );
-
-  app.post(
-    '/api/v1/admin/backups/:jobId/restore',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const { jobId } = request.params as { jobId: string };
-      const { status, data } = await proxyToBackup('POST', `/api/backups/${jobId}/restore`, request.body);
-      return reply.code(status).send(data);
-    },
-  );
-
-  app.delete(
-    '/api/v1/admin/backups/:jobId',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const { jobId } = request.params as { jobId: string };
-      const { status, data } = await proxyToBackup('DELETE', `/api/backups/${jobId}`);
-      return reply.code(status).send(data);
-    },
-  );
-
-  // ------------------------------------------
   // SCHEDULER DAEMON + INTERVENTION AUTO-HANDLER
   // ------------------------------------------
 
@@ -1598,7 +1509,6 @@ const AUTO_APPROVE_PATTERNS = [
   /create.*index/i,
   /enable.*monitoring/i,
   /update.*schedule/i,
-  /run.*backup/i,
 ];
 
 async function processInterventions(): Promise<void> {

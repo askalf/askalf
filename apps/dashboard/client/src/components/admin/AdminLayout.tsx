@@ -29,7 +29,6 @@ const ADMIN_NAV_ITEMS = [
     section: 'Admin',
     items: [
       { path: '/users', label: 'Users', icon: 'U' },
-      { path: '/backups', label: 'Backups', icon: 'B' },
     ],
   },
 ];

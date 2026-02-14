@@ -20,7 +20,6 @@ const Settings = lazy(() => import('./pages/Settings'));
 
 // Lazy-loaded: admin-only pages
 const UserAdmin = lazy(() => import('./pages/UserAdmin'));
-const BackupAdmin = lazy(() => import('./pages/BackupAdmin'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -93,7 +92,6 @@ export default function App() {
 
         {/* Admin-only */}
         <Route path="/users" element={<AdminRoute><UserAdmin /></AdminRoute>} />
-        <Route path="/backups" element={<AdminRoute><BackupAdmin /></AdminRoute>} />
       </Route>
 
       {/* Root redirect */}

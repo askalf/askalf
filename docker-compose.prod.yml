@@ -546,53 +546,6 @@ services:
           cpus: '0.1'
           memory: 32M
 
-  # Unified Backup Service (HTTP API + scheduled backups)
-  # Replaces both backup and user-backup containers
-  backup:
-    build:
-      context: .
-      dockerfile: scripts/Dockerfile.backup
-    container_name: substrate-prod-backup
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: substrate
-      DB_USER: substrate
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      BACKUP_DIR: /backups
-      RETENTION_DAYS: 30
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
-      BACKUP_SCHEDULE: "0 4 * * *"
-      API_PORT: 8080
-      RUN_ON_STARTUP: "false"
-    volumes:
-      - ./backups:/backups
-    expose:
-      - "8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    networks:
-      - substrate-prod-net
-    restart: unless-stopped
-    labels:
-      - "autoheal=true"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "20m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
         reservations:
           cpus: '0.1'
           memory: 64M
