@@ -175,13 +175,6 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       ],
     );
 
-    // Create default free subscription
-    await substrateQuery(
-      `INSERT INTO subscriptions (id, tenant_id, plan_id, status, created_at, updated_at)
-       VALUES ($1, $2, 'plan_free', 'active', NOW(), NOW())`,
-      [`sub_${ulid()}`, tenantId],
-    );
-
     // Audit log
     await substrateQuery(
       `INSERT INTO audit_logs (id, tenant_id, user_id, action, resource_type, resource_id, ip_address, user_agent, success, created_at)
@@ -344,12 +337,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     const session = await substrateQueryOne<Record<string, unknown>>(
       `SELECT s.*, u.id as user_id, u.email, u.email_verified, u.display_name, u.avatar_url, u.role, u.tenant_id, u.timezone,
-              p.name as plan_name, p.display_name as plan_display_name, t.tier as tenant_tier
+              t.tier as tenant_tier
        FROM sessions s
        JOIN users u ON s.user_id = u.id
        JOIN tenants t ON u.tenant_id = t.id
-       LEFT JOIN subscriptions sub ON u.tenant_id = sub.tenant_id AND sub.status = 'active'
-       LEFT JOIN plans p ON sub.plan_id = p.id
        WHERE s.token_hash = $1 AND s.expires_at > NOW() AND s.revoked = false AND u.status = 'active'`,
       [tokenHash],
     );
@@ -370,7 +361,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       [session['id']],
     ).catch(() => {});
 
-    const plan = session['plan_name'] || session['tenant_tier'] || 'free';
+    const plan = session['tenant_tier'] || 'free';
 
     return {
       user: {
@@ -383,7 +374,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         tenantId: session['tenant_id'],
         timezone: session['timezone'],
         plan: plan,
-        planDisplayName: session['plan_display_name'] || (plan === 'free' ? 'Free Starter' : plan),
+        planDisplayName: plan,
       },
       session: {
         id: session['id'],

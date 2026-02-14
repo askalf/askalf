@@ -64,12 +64,10 @@ export async function resolveSession(token: string): Promise<SessionUser | null>
 
   const session = await substrateQueryOne<SessionRow>(
     `SELECT s.user_id, u.email, u.role, u.tenant_id, u.display_name,
-            p.name as plan_name, t.tier as tenant_tier
+            t.tier as tenant_tier
      FROM sessions s
      JOIN users u ON s.user_id = u.id
      JOIN tenants t ON u.tenant_id = t.id
-     LEFT JOIN subscriptions sub ON u.tenant_id = sub.tenant_id AND sub.status = 'active'
-     LEFT JOIN plans p ON sub.plan_id = p.id
      WHERE s.token_hash = $1 AND s.expires_at > NOW() AND s.revoked = false AND u.status = 'active'`,
     [tokenHash],
   );
@@ -88,7 +86,7 @@ export async function resolveSession(token: string): Promise<SessionUser | null>
     role: session.role as SessionUser['role'],
     tenantId: session.tenant_id,
     displayName: session.display_name,
-    plan: session.plan_name || session.tenant_tier || 'free',
+    plan: session.tenant_tier || 'free',
   };
 }
 
