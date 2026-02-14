@@ -546,10 +546,6 @@ services:
           cpus: '0.1'
           memory: 32M
 
-        reservations:
-          cpus: '0.1'
-          memory: 64M
-
   # Cloudflare Tunnel for Zero Trust access (managed via Cloudflare dashboard)
   cloudflared:
     # Pinned to version tag for stability with easy updates
