@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import { usersApi, type User, type UserDetails, type Plan, type AdminStats } from '../hooks/useUsersApi';
+import { usersApi, type User, type UserDetails, type AdminStats } from '../hooks/useUsersApi';
 
-type SortColumn = 'name' | 'role' | 'status' | 'plan' | 'createdAt' | 'lastLoginAt';
+type SortColumn = 'name' | 'role' | 'status' | 'createdAt' | 'lastLoginAt';
 type SortDirection = 'asc' | 'desc';
 
 interface ConfirmAction {
-  type: 'delete' | 'plan-change' | 'bulk-delete' | 'bulk-suspend' | 'bulk-activate';
+  type: 'delete' | 'bulk-delete' | 'bulk-suspend' | 'bulk-activate';
   userId?: string;
   label: string;
   onConfirm: () => void;
@@ -14,7 +14,6 @@ interface ConfirmAction {
 interface UsersState {
   // Data
   users: User[];
-  plans: Plan[];
   stats: AdminStats | null;
   total: number;
 
@@ -22,13 +21,11 @@ interface UsersState {
   search: string;
   roleFilter: string;
   statusFilter: string;
-  planFilter: string;
   sortColumn: SortColumn;
   sortDirection: SortDirection;
   setSearch: (s: string) => void;
   setRoleFilter: (s: string) => void;
   setStatusFilter: (s: string) => void;
-  setPlanFilter: (s: string) => void;
   toggleSort: (col: SortColumn) => void;
 
   // Pagination
@@ -63,10 +60,9 @@ interface UsersState {
 
   // Actions
   fetchUsers: () => Promise<void>;
-  fetchPlans: () => Promise<void>;
   fetchStats: () => Promise<void>;
   fetchUserDetails: (userId: string) => Promise<void>;
-  createUser: (form: { email: string; display_name: string; password: string; role: string; plan: string }) => Promise<boolean>;
+  createUser: (form: { email: string; display_name: string; password: string; role: string }) => Promise<boolean>;
   updateUser: (userId: string, payload: Record<string, string>) => Promise<boolean>;
   deleteUser: (userId: string) => Promise<void>;
   bulkUpdateStatus: (status: string) => Promise<void>;
@@ -76,7 +72,6 @@ interface UsersState {
 export const useUsersStore = create<UsersState>((set, get) => ({
   // Data
   users: [],
-  plans: [],
   stats: null,
   total: 0,
 
@@ -84,13 +79,11 @@ export const useUsersStore = create<UsersState>((set, get) => ({
   search: '',
   roleFilter: '',
   statusFilter: '',
-  planFilter: '',
   sortColumn: 'createdAt',
   sortDirection: 'desc',
   setSearch: (s) => set({ search: s }),
   setRoleFilter: (s) => { set({ roleFilter: s, page: 0 }); },
   setStatusFilter: (s) => { set({ statusFilter: s, page: 0 }); },
-  setPlanFilter: (s) => { set({ planFilter: s, page: 0 }); },
   toggleSort: (col) => {
     const { sortColumn, sortDirection } = get();
     if (sortColumn === col) {
@@ -146,14 +139,13 @@ export const useUsersStore = create<UsersState>((set, get) => ({
 
   // Actions
   fetchUsers: async () => {
-    const { search, roleFilter, statusFilter, planFilter, page, limit } = get();
+    const { search, roleFilter, statusFilter, page, limit } = get();
     set((s) => ({ loading: { ...s.loading, users: true } }));
     try {
       const data = await usersApi.list({
         search: search || undefined,
         role: roleFilter || undefined,
         status: statusFilter || undefined,
-        plan: planFilter || undefined,
         limit,
         offset: page * limit,
       });
@@ -162,15 +154,6 @@ export const useUsersStore = create<UsersState>((set, get) => ({
       set({ error: err instanceof Error ? err.message : 'Failed to load users' });
     } finally {
       set((s) => ({ loading: { ...s.loading, users: false } }));
-    }
-  },
-
-  fetchPlans: async () => {
-    try {
-      const data = await usersApi.getPlans();
-      set({ plans: data.plans });
-    } catch {
-      // Plans are optional
     }
   },
 
@@ -190,7 +173,6 @@ export const useUsersStore = create<UsersState>((set, get) => ({
       set({
         selectedUser: {
           ...data.user,
-          subscription: data.subscription,
           stats: data.stats,
         } as UserDetails,
       });

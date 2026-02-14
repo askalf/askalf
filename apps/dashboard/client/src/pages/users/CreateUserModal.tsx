@@ -6,7 +6,6 @@ export default function CreateUserModal() {
   const showCreateModal = useUsersStore((s) => s.showCreateModal);
   const setShowCreateModal = useUsersStore((s) => s.setShowCreateModal);
   const createUser = useUsersStore((s) => s.createUser);
-  const plans = useUsersStore((s) => s.plans);
   const creating = useUsersStore((s) => s.loading.create);
 
   const [form, setForm] = useState({
@@ -14,7 +13,6 @@ export default function CreateUserModal() {
     display_name: '',
     password: '',
     role: 'user',
-    plan: 'free',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -40,7 +38,7 @@ export default function CreateUserModal() {
     if (!validate()) return;
     const ok = await createUser(form);
     if (ok) {
-      setForm({ email: '', display_name: '', password: '', role: 'user', plan: 'free' });
+      setForm({ email: '', display_name: '', password: '', role: 'user' });
       setErrors({});
     }
   };
@@ -100,22 +98,6 @@ export default function CreateUserModal() {
         >
           <option value="user">User</option>
           <option value="admin">Admin</option>
-        </select>
-      </div>
-
-      <div className="users-form-group">
-        <label>Tier</label>
-        <select
-          value={form.plan}
-          onChange={(e) => setForm((f) => ({ ...f, plan: e.target.value }))}
-        >
-          {plans.length > 0 ? (
-            plans.map((plan) => (
-              <option key={plan.id} value={plan.name}>{plan.display_name}</option>
-            ))
-          ) : (
-            <option value="free">Free</option>
-          )}
         </select>
       </div>
 

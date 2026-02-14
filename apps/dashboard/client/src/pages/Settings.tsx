@@ -78,7 +78,7 @@ export default function SettingsPage() {
 const getApiUrl = () => {
   const host = window.location.hostname;
   if (host.includes('askalf.org')) return 'https://api.askalf.org';
-  if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3000';
+  if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3005';
   return '';
 };
 

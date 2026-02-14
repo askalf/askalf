@@ -39,18 +39,6 @@ export interface User {
   emailVerified?: boolean;
   displayName?: string;
   role: 'user' | 'admin' | 'super_admin';
-  tenantId: string;
-  // Plan tiers matching pricing page
-  plan?: 'free' | 'basic' | 'pro' | 'team' | 'enterprise' | 'lifetime';
-  // Display name for the plan (e.g., "Pro", "Free Starter")
-  planDisplayName?: string;
-  // Legacy field - still supported for backwards compatibility
-  tier?: 'free' | 'pro' | 'enterprise';
-  // Credit balance (daily allowance for plan, or purchased bundle)
-  credits?: number;
-  creditsUsedToday?: number;
-  // ALF preferred name - what ALF calls the user
-  preferredName?: string;
 }
 
 interface AuthState {

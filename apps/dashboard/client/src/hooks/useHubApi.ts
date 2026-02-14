@@ -513,31 +513,19 @@ export const hubApi = {
 
     feedCategories: () =>
       apiFetch<{ categories: string[] }>('/api/v1/admin/reports/feed/categories'),
-
-    promoteFinding: (id: string, body: { namespace?: string; tags?: string[] } = {}) =>
-      apiFetch<{ success: boolean; factId: string; alreadyExists?: boolean }>(`/api/v1/admin/reports/findings/${id}/promote`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
   },
 
   content: {
     feed: (params: { agent?: string; source?: string; severity?: string; category?: string; dateFrom?: string; dateTo?: string; search?: string; page?: number; limit?: number } = {}) =>
       apiFetch<{ items: ContentFeedItem[]; pagination: Pagination }>(
-        `/api/v1/admin/content/feed?${buildParams({ agent: params.agent, source: params.source, severity: params.severity, category: params.category, dateFrom: params.dateFrom, dateTo: params.dateTo, search: params.search, page: params.page, limit: params.limit || 20 })}`
+        `/api/v1/admin/reports/feed?${buildParams({ agent: params.agent, source: params.source, severity: params.severity, category: params.category, dateFrom: params.dateFrom, dateTo: params.dateTo, search: params.search, page: params.page, limit: params.limit || 20 })}`
       ),
 
     feedAgents: () =>
-      apiFetch<{ agents: string[] }>('/api/v1/admin/content/feed/agents'),
+      apiFetch<{ agents: string[] }>('/api/v1/admin/reports/feed/agents'),
 
     feedCategories: () =>
-      apiFetch<{ categories: string[] }>('/api/v1/admin/content/feed/categories'),
-
-    promoteFinding: (id: string, body: { namespace?: string; tags?: string[] } = {}) =>
-      apiFetch<{ success: boolean; factId: string; alreadyExists?: boolean }>(`/api/v1/admin/reports/findings/${id}/promote`, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
+      apiFetch<{ categories: string[] }>('/api/v1/admin/reports/feed/categories'),
   },
 
   memory: {
