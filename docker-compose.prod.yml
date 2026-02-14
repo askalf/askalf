@@ -447,7 +447,6 @@ services:
     depends_on:
       - dashboard
       - forge
-      - self
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
       interval: 30s
@@ -715,73 +714,7 @@ services:
           cpus: '0.1'
           memory: 128M
 
-  # ============================================
-  # SELF AI — Your AI That Lives and Breathes
-  # ============================================
-  self:
-    build:
-      context: .
-      dockerfile: apps/self/Dockerfile
-    container_name: substrate-prod-self
-    expose:
-      - "3006"
-    environment:
-      NODE_ENV: production
-      PORT: 3006
-      # Main substrate database (shared with API for auth/memory)
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
-      # Forge database (separate, for agent execution records)
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      # Auth
-      SESSION_SECRET: ${SESSION_SECRET}
-      # AI Providers
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
-      # Google OAuth (for Gmail/Calendar integrations)
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      OAUTH_REDIRECT_BASE: ${OAUTH_REDIRECT_BASE:-https://self.askalf.org}
-      # Email notifications (SendGrid)
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
-      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-self@askalf.org}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - substrate-prod-net
-    restart: unless-stopped
-    labels:
-      - "autoheal=true"
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777,size=128m
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+  # SELF AI — REMOVED (Feb 13 2026). Service fully retired.
 
 # Production volumes (isolated from dev)
 volumes:
