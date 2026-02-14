@@ -1,0 +1,262 @@
+/* Command Center — Home Page */
+.cc-page {
+  padding: 1.5rem 2rem;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.cc-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.cc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.cc-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.cc-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cc-batch-result {
+  padding: 0.625rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--crystal-dim);
+  border: 1px solid var(--crystal);
+  border-radius: var(--radius-sm);
+  color: var(--crystal-light);
+  font-size: 0.8125rem;
+}
+
+/* KPI Strip */
+.cc-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+  .cc-kpi-strip { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .cc-kpi-strip { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Two-column layout */
+.cc-columns {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+  .cc-columns { grid-template-columns: 1fr; }
+}
+
+.cc-col-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cc-col-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Card */
+.cc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.cc-card h3 {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.75rem;
+}
+
+.cc-empty {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+/* Fleet Grid */
+.cc-fleet-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.cc-fleet-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  border-left: 3px solid var(--border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.cc-fleet-tile:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cc-fleet-tile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cc-fleet-tile-info strong {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-fleet-tile-info span {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+/* Timeline */
+.cc-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cc-timeline-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0;
+  font-size: 0.8125rem;
+}
+
+.cc-timeline-item strong {
+  color: var(--text);
+}
+
+.cc-timeline-countdown {
+  color: var(--crystal);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Alert List */
+.cc-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.cc-alert-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.cc-alert-row:hover {
+  color: var(--text);
+}
+
+.cc-alert-row span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Interventions */
+.cc-intervention-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cc-intervention-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.cc-intervention-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.cc-intervention-info strong {
+  font-size: 0.8125rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-intervention-meta {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+
+.cc-intervention-actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .cc-page {
+    padding: 1rem;
+  }
+
+  .cc-header {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+
+  .cc-header h1 {
+    font-size: 1.25rem;
+  }
+}

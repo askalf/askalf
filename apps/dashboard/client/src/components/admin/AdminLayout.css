@@ -37,7 +37,16 @@
 }
 
 .admin-logo-icon {
-  font-size: 1.5rem;
+  font-size: 1.125rem;
+  font-weight: 800;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-radius: 6px;
 }
 
 .admin-logo-text {
@@ -94,9 +103,22 @@
 }
 
 .admin-nav-icon {
-  font-size: 1rem;
-  width: 24px;
-  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.admin-nav-item.active .admin-nav-icon {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
 }
 
 .admin-nav-label {

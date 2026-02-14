@@ -1,0 +1,120 @@
+/* Master CLI Terminal */
+.cli-container {
+  background: #0a0a0e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  height: 320px;
+  overflow: hidden;
+}
+
+.cli-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cli-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--crystal);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cli-status {
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+.cli-status--running {
+  color: var(--crystal);
+  animation: subtle-pulse 2s infinite;
+}
+
+.cli-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Menlo', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.cli-line pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+}
+
+.cli-line--input pre {
+  color: var(--crystal-light);
+}
+
+.cli-line--output pre {
+  color: var(--text-secondary);
+}
+
+.cli-line--error pre {
+  color: var(--danger-light);
+}
+
+.cli-line--system pre {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.cli-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cli-prompt {
+  color: var(--crystal);
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-weight: 700;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.cli-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  font-size: 0.8125rem;
+  caret-color: var(--crystal);
+}
+
+.cli-input::placeholder {
+  color: var(--text-muted);
+}
+
+.cli-input:disabled {
+  opacity: 0.5;
+}
+
+/* Scrollbar */
+.cli-output::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cli-output::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cli-output::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
