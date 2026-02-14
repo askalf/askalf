@@ -2,52 +2,65 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth';
 import './AdminLayout.css';
 
-const ADMIN_NAV_ITEMS = [
+const NAV_ITEMS = [
   {
-    section: 'Overview',
+    section: 'Command',
     items: [
-      { path: '/admin/analytics', label: 'Analytics', icon: '📊' },
+      { path: '/command-center', label: 'Command Center', icon: 'C' },
     ],
   },
   {
-    section: 'Agent Hub',
+    section: 'Orchestration',
     items: [
-      { path: '/admin/hub', label: 'Orchestration Hub', icon: '🤖' },
-      { path: '/admin/git-space', label: 'Git Space', icon: '🔀' },
+      { path: '/agents', label: 'Agent Fleet', icon: 'A' },
+      { path: '/git-space', label: 'Git Space', icon: 'G' },
     ],
   },
   {
     section: 'Knowledge',
     items: [
-      { path: '/admin/memory', label: 'Memory Tiers', icon: '🧠' },
-      { path: '/admin/convergence', label: 'Convergence', icon: '🔮' },
+      { path: '/memory', label: 'Memory Tiers', icon: 'M' },
+      { path: '/convergence', label: 'Convergence', icon: 'V' },
     ],
   },
   {
-    section: 'Management',
+    section: 'Platform',
     items: [
-      { path: '/admin/users', label: 'Users', icon: '👥' },
-      { path: '/admin/backups', label: 'Backups', icon: '💾' },
+      { path: '/analytics', label: 'Analytics', icon: 'P' },
+      { path: '/settings', label: 'Settings', icon: 'S' },
+    ],
+  },
+];
+
+const ADMIN_NAV_ITEMS = [
+  {
+    section: 'Admin',
+    items: [
+      { path: '/users', label: 'Users', icon: 'U' },
+      { path: '/backups', label: 'Backups', icon: 'B' },
     ],
   },
 ];
 
 export default function AdminLayout() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
+  const allSections = isAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
 
   return (
     <div className="admin-layout">
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
-          <div className="admin-logo" onClick={() => navigate('/app/chat')}>
-            <span className="admin-logo-icon">👽</span>
-            <span className="admin-logo-text">Admin</span>
+          <div className="admin-logo" onClick={() => navigate('/command-center')}>
+            <span className="admin-logo-icon">F</span>
+            <span className="admin-logo-text">Forge</span>
           </div>
         </div>
 
         <nav className="admin-nav">
-          {ADMIN_NAV_ITEMS.map((section) => (
+          {allSections.map((section) => (
             <div key={section.section} className="admin-nav-section">
               <div className="admin-nav-section-title">{section.section}</div>
               {section.items.map((item) => (
@@ -76,8 +89,8 @@ export default function AdminLayout() {
               <span className="admin-user-role">{user?.role}</span>
             </div>
           </div>
-          <button className="admin-back-btn" onClick={() => navigate('/app/chat')}>
-            ← Back to App
+          <button className="admin-back-btn" onClick={() => { logout(); navigate('/login'); }}>
+            Sign Out
           </button>
         </div>
       </aside>
