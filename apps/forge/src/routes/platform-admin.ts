@@ -1487,6 +1487,267 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // ------------------------------------------
+  // USER MANAGEMENT
+  // ------------------------------------------
+
+  app.get(
+    '/api/v1/admin/users',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const qs = request.query as { search?: string; role?: string; status?: string; limit?: string; offset?: string };
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+      const limit = Math.min(parseInt(qs.limit ?? '25'), 100);
+      const offset = parseInt(qs.offset ?? '0') || 0;
+
+      if (qs.search) {
+        params.push(`%${qs.search}%`);
+        conditions.push(`(u.email ILIKE $${params.length} OR u.display_name ILIKE $${params.length})`);
+      }
+      if (qs.role) { params.push(qs.role); conditions.push(`u.role = $${params.length}`); }
+      if (qs.status) { params.push(qs.status); conditions.push(`u.status = $${params.length}`); }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const [users, countResult] = await Promise.all([
+        substrateQuery<Record<string, unknown>>(
+          `SELECT u.id, u.email, u.display_name as name, u.role, u.status,
+                  u.email_verified as "emailVerified", u.created_at as "createdAt",
+                  u.last_login_at as "lastLoginAt", u.tenant_id as "tenantId",
+                  t.tier as plan, t.tier as "planDisplayName"
+           FROM users u
+           LEFT JOIN tenants t ON u.tenant_id = t.id
+           ${where}
+           ORDER BY u.created_at DESC
+           LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+          [...params, limit, offset],
+        ),
+        substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM users u ${where}`, params),
+      ]);
+
+      return { users, total: parseInt(countResult?.count || '0') };
+    },
+  );
+
+  app.get(
+    '/api/v1/admin/users/stats',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const [total, active, suspended, today, execTotal, execToday] = await Promise.all([
+        substrateQueryOne<{ count: string }>('SELECT COUNT(*)::text as count FROM users'),
+        substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM users WHERE status = 'active'`),
+        substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM users WHERE status = 'suspended'`),
+        substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM users WHERE created_at > NOW() - INTERVAL '24 hours'`),
+        queryOne<{ count: string }>('SELECT COUNT(*)::text as count FROM forge_executions'),
+        queryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM forge_executions WHERE created_at > NOW() - INTERVAL '24 hours'`),
+      ]);
+      return {
+        users: {
+          total: parseInt(total?.count || '0'),
+          active: parseInt(active?.count || '0'),
+          suspended: parseInt(suspended?.count || '0'),
+          today: parseInt(today?.count || '0'),
+        },
+        executions: {
+          total: parseInt(execTotal?.count || '0'),
+          today: parseInt(execToday?.count || '0'),
+        },
+      };
+    },
+  );
+
+  app.get(
+    '/api/v1/admin/users/:userId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { userId } = request.params as { userId: string };
+      const user = await substrateQueryOne<Record<string, unknown>>(
+        `SELECT u.id, u.email, u.display_name as name, u.role, u.status,
+                u.email_verified as "emailVerified", u.created_at as "createdAt",
+                u.last_login_at as "lastLoginAt", u.tenant_id as "tenantId",
+                u.failed_login_attempts as "failedLoginAttempts",
+                u.locked_until as "lockedUntil",
+                t.tier as plan, t.tier as "planDisplayName"
+         FROM users u
+         LEFT JOIN tenants t ON u.tenant_id = t.id
+         WHERE u.id = $1`,
+        [userId],
+      );
+      if (!user) return reply.code(404).send({ error: 'User not found' });
+
+      const execCount = await queryOne<{ count: string }>(
+        `SELECT COUNT(*)::text as count FROM forge_executions WHERE owner_id = $1`,
+        [userId],
+      ).catch(() => ({ count: '0' }));
+
+      return { user, stats: { executions: parseInt(execCount?.count || '0') } };
+    },
+  );
+
+  app.patch(
+    '/api/v1/admin/users/:userId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { userId } = request.params as { userId: string };
+      const body = request.body as Record<string, unknown>;
+      const fields: string[] = [];
+      const params: unknown[] = [];
+
+      if (body['display_name'] !== undefined) { params.push(body['display_name']); fields.push(`display_name = $${params.length}`); }
+      if (body['status'] !== undefined) { params.push(body['status']); fields.push(`status = $${params.length}`); }
+      if (body['role'] !== undefined) { params.push(body['role']); fields.push(`role = $${params.length}`); }
+
+      if (fields.length === 0) return reply.code(400).send({ error: 'No fields to update' });
+
+      params.push(userId);
+      const result = await substrateQueryOne(
+        `UPDATE users SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${params.length} RETURNING id`,
+        params,
+      );
+      if (!result) return reply.code(404).send({ error: 'User not found' });
+      return { success: true };
+    },
+  );
+
+  app.post(
+    '/api/v1/admin/users',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as { email: string; password: string; display_name?: string; role?: string };
+      if (!body.email || !body.password) return reply.code(400).send({ error: 'Email and password required' });
+
+      // Check if user exists
+      const existing = await substrateQueryOne<{ id: string }>('SELECT id FROM users WHERE email = $1', [body.email]);
+      if (existing) return reply.code(409).send({ error: 'User already exists' });
+
+      // Hash password using Node crypto (bcrypt not available, use simple hash for admin-created accounts)
+      const { createHash: makeHash, randomBytes } = await import('crypto');
+      const salt = randomBytes(16).toString('hex');
+      const hash = makeHash('sha256').update(body.password + salt).digest('hex');
+
+      const userId = ulid();
+      const tenantId = ulid();
+
+      // Create tenant first
+      await substrateQuery(
+        `INSERT INTO tenants (id, name, tier, created_at) VALUES ($1, $2, 'free', NOW())`,
+        [tenantId, body.email],
+      );
+
+      await substrateQuery(
+        `INSERT INTO users (id, email, password_hash, display_name, role, status, email_verified, tenant_id, created_at)
+         VALUES ($1, $2, $3, $4, $5, 'active', true, $6, NOW())`,
+        [userId, body.email, `sha256:${salt}:${hash}`, body.display_name || null, body.role || 'user', tenantId],
+      );
+
+      return reply.code(201).send({ success: true, userId });
+    },
+  );
+
+  app.delete(
+    '/api/v1/admin/users/:userId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { userId } = request.params as { userId: string };
+      const result = await substrateQueryOne<{ id: string }>(
+        `UPDATE users SET status = 'deleted', updated_at = NOW() WHERE id = $1 RETURNING id`,
+        [userId],
+      );
+      if (!result) return reply.code(404).send({ error: 'User not found' });
+      return { success: true };
+    },
+  );
+
+  // ------------------------------------------
+  // BACKUP ADMIN (proxy to backup:3003)
+  // ------------------------------------------
+
+  const BACKUP_URL = 'http://backup:3003';
+
+  async function proxyToBackup(method: string, path: string, body?: unknown): Promise<{ status: number; data: unknown }> {
+    try {
+      const opts: RequestInit = {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+      };
+      if (body && method !== 'GET') opts.body = JSON.stringify(body);
+      const res = await fetch(`${BACKUP_URL}${path}`, opts);
+      const data = await res.json().catch(() => ({}));
+      return { status: res.status, data };
+    } catch {
+      return { status: 503, data: { error: 'Backup service unavailable' } };
+    }
+  }
+
+  app.get(
+    '/api/v1/admin/backups',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const qs = request.query as Record<string, string>;
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(qs)) { if (v) params.set(k, v); }
+      const { status, data } = await proxyToBackup('GET', `/api/backups?${params.toString()}`);
+      return reply.code(status).send(data);
+    },
+  );
+
+  app.get(
+    '/api/v1/admin/backups/stats',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const { status, data } = await proxyToBackup('GET', '/api/backups/stats');
+      return reply.code(status).send(data);
+    },
+  );
+
+  app.get(
+    '/api/v1/admin/backups/config',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const { status, data } = await proxyToBackup('GET', '/api/backups/config');
+      return reply.code(status).send(data);
+    },
+  );
+
+  app.patch(
+    '/api/v1/admin/backups/config',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { status, data } = await proxyToBackup('PATCH', '/api/backups/config', request.body);
+      return reply.code(status).send(data);
+    },
+  );
+
+  app.post(
+    '/api/v1/admin/backups/trigger',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { status, data } = await proxyToBackup('POST', '/api/backups/trigger', request.body);
+      return reply.code(status).send(data);
+    },
+  );
+
+  app.post(
+    '/api/v1/admin/backups/:jobId/restore',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { jobId } = request.params as { jobId: string };
+      const { status, data } = await proxyToBackup('POST', `/api/backups/${jobId}/restore`, request.body);
+      return reply.code(status).send(data);
+    },
+  );
+
+  app.delete(
+    '/api/v1/admin/backups/:jobId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { jobId } = request.params as { jobId: string };
+      const { status, data } = await proxyToBackup('DELETE', `/api/backups/${jobId}`);
+      return reply.code(status).send(data);
+    },
+  );
+
+  // ------------------------------------------
   // SCHEDULER DAEMON + INTERVENTION AUTO-HANDLER
   // ------------------------------------------
 
