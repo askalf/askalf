@@ -100,78 +100,8 @@ services:
   # ===========================================
   # APPLICATION LAYER
   # ===========================================
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    container_name: substrate-prod-api
-    ports:
-      - "127.0.0.1:3000:3000"  # Local access for development dashboard
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      APP_URL: ${APP_URL:-https://askalf.org}
-      DASHBOARD_URL: ${DASHBOARD_URL:-https://app.askalf.org}
-      # Database (via pgbouncer for connection pooling)
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      # AI Providers
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_ORG_ID: ${OPENAI_ORG_ID}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      # Auth
-      SESSION_SECRET: ${SESSION_SECRET}
-      JWT_SECRET: ${JWT_SECRET}
-      # Stripe
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
-      # Email (SendGrid)
-      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-sendgrid}
-      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Ask ALF}
-      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@askalf.org}
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-support@askalf.org}
-      # Admin Assistant
-      ADMIN_ASSISTANT_KEY: ${ADMIN_ASSISTANT_KEY}
-      # Backup service internal API
-      BACKUP_API_URL: http://backup:8080
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"const http=require('http');http.get('http://127.0.0.1:3000/health',r=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - substrate-prod-net
-    restart: unless-stopped
-    labels:
-      - "autoheal=true"
-    # Security hardening
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777,size=64m
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 256M
+  # API service RETIRED — all endpoints migrated to Forge (Phase 2)
+  # Container can be stopped: docker stop substrate-prod-api && docker rm substrate-prod-api
 
   # Scheduler - singleton that manages job schedules (only one should run)
   scheduler:
@@ -364,58 +294,8 @@ services:
           cpus: '0.25'
           memory: 128M
 
-  mcp:
-    build:
-      context: .
-      dockerfile: apps/mcp/Dockerfile
-    container_name: substrate-prod-mcp
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      # Database (via pgbouncer for connection pooling)
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
-      # Redis for session coordination (horizontal scaling)
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_ORG_ID: ${OPENAI_ORG_ID}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - substrate-prod-net
-    restart: unless-stopped
-    labels:
-      - "autoheal=true"
-    # Security hardening
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777,size=64m
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "20m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
+  # MCP (legacy) service RETIRED — replaced by unified mcp-tools (Phase 3)
+  # Container can be stopped: docker stop substrate-prod-mcp && docker rm substrate-prod-mcp
 
   # Unified MCP Tools Server — 19 tools (workflow, data, infra, agent, alf)
   mcp-tools:
@@ -565,9 +445,8 @@ services:
       - ./infrastructure/nginx/static:/usr/share/nginx/static:ro
       - nginx_cache:/var/cache/nginx
     depends_on:
-      - api
       - dashboard
-      - mcp
+      - forge
       - self
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
@@ -759,7 +638,7 @@ services:
   # Auto-heal for container recovery
   # Only restarts containers with label "autoheal=true" that become unhealthy
   # Excluded: postgres, redis (stateful - prefer manual intervention)
-  # Included: api, dashboard, mcp, nginx, pgbouncer, cloudflared
+  # Included: forge, dashboard, mcp-tools, nginx, pgbouncer, cloudflared, self, searxng
   autoheal:
     image: willfarrell/autoheal:latest
     container_name: substrate-prod-autoheal
@@ -793,6 +672,48 @@ services:
         reservations:
           cpus: '0.05'
           memory: 16M
+
+  # ============================================
+  # SEARCH — SearXNG Meta-Search Engine
+  # ============================================
+  searxng:
+    image: searxng/searxng:latest
+    container_name: substrate-prod-searxng
+    volumes:
+      - ./infrastructure/searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - searxng_cache:/var/cache/searxng
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
 
   # ============================================
   # SELF AI — Your AI That Lives and Breathes
@@ -870,6 +791,8 @@ volumes:
     name: substrate_prod_redis
   nginx_cache:
     name: substrate_prod_nginx_cache
+  searxng_cache:
+    name: substrate_prod_searxng_cache
 
 networks:
   substrate-prod-net:
