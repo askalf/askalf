@@ -417,6 +417,63 @@ services:
           cpus: '0.25'
           memory: 128M
 
+  # Unified MCP Tools Server — 19 tools (workflow, data, infra, agent, alf)
+  mcp-tools:
+    build:
+      context: .
+      dockerfile: apps/mcp-tools/Dockerfile
+    container_name: substrate-prod-mcp-tools
+    environment:
+      NODE_ENV: production
+      PORT: 3010
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/forge
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      SEARXNG_URL: http://searxng:8080
+      FORGE_URL: http://forge:3005
+      FORGE_API_KEY: ${FORGE_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      REPO_ROOT: /workspace
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace:ro
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - substrate-prod-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
   # Agent Forge - Advanced AI Agent Creation Platform
   forge:
     build:

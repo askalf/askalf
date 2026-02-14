@@ -45,11 +45,11 @@ function getCookieDomain(host: string): string | undefined {
 // Helpers
 // ============================================
 
-let bcryptMod: typeof import('bcrypt');
+let bcryptMod: typeof import('bcryptjs');
 
 async function loadBcrypt() {
   if (!bcryptMod) {
-    bcryptMod = await import('bcrypt');
+    bcryptMod = await import('bcryptjs');
   }
   return bcryptMod;
 }
