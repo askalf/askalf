@@ -121,7 +121,7 @@ export async function cliRoutes(app: FastifyInstance): Promise<void> {
         // Dispatch
         try {
           const { runDirectCliExecution } = await import('../runtime/worker.js');
-          void runDirectCliExecution(execId, agent.id);
+          void runDirectCliExecution(execId, agent.id, 'Scheduled run triggered via CLI', 'cli-user');
         } catch {
           // Worker not available, execution will stay pending
         }
