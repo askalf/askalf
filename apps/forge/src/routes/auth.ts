@@ -45,11 +45,13 @@ function getCookieDomain(host: string): string | undefined {
 // Helpers
 // ============================================
 
-let bcryptMod: typeof import('bcryptjs');
+let bcryptMod: { hash: (data: string, salt: number) => Promise<string>; compare: (data: string, hash: string) => Promise<boolean> };
 
 async function loadBcrypt() {
   if (!bcryptMod) {
-    bcryptMod = await import('bcryptjs');
+    const mod = await import('bcryptjs');
+    // CJS→ESM interop: bcryptjs exports on .default when imported via ESM
+    bcryptMod = (mod as unknown as { default?: typeof mod }).default || mod;
   }
   return bcryptMod;
 }
