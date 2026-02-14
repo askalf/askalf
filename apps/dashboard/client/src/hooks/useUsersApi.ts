@@ -61,10 +61,6 @@ export interface AdminStats {
     suspended: number;
     today: number;
   };
-  content: {
-    executions: number;
-    executionsToday: number;
-  };
 }
 
 export interface CreateUserPayload {
@@ -109,7 +105,7 @@ export const usersApi = {
     apiFetch<void>(`/api/admin/users/${userId}`, { method: 'DELETE' }),
 
   getStats: () =>
-    apiFetch<AdminStats>('/api/admin/stats'),
+    apiFetch<AdminStats>('/api/v1/admin/users/stats'),
 };
 
 // ============================

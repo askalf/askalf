@@ -13,9 +13,8 @@ export default function UserStatsBar() {
     <div className="users-stats-grid">
       <StatCard icon="👤" value={stats.users.total} label="Total Users" />
       <StatCard icon="✓" value={stats.users.active} label="Active" variant="success" />
+      <StatCard icon="⏸" value={stats.users.suspended} label="Suspended" />
       <StatCard icon="+" value={stats.users.today} label="New Today" />
-      <StatCard icon="⚡" value={stats.content.executions} label="Executions" />
-      <StatCard icon="+" value={stats.content.executionsToday} label="Exec Today" />
     </div>
   );
 }

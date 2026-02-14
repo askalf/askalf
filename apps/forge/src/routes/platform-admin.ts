@@ -1379,13 +1379,11 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/admin/users/stats',
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
-      const [total, active, suspended, today, execTotal, execToday] = await Promise.all([
+      const [total, active, suspended, today] = await Promise.all([
         substrateQueryOne<{ count: string }>('SELECT COUNT(*)::text as count FROM users'),
         substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM users WHERE status = 'active'`),
         substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM users WHERE status = 'suspended'`),
         substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM users WHERE created_at > NOW() - INTERVAL '24 hours'`),
-        queryOne<{ count: string }>('SELECT COUNT(*)::text as count FROM forge_executions'),
-        queryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM forge_executions WHERE created_at > NOW() - INTERVAL '24 hours'`),
       ]);
       return {
         users: {
@@ -1393,10 +1391,6 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
           active: parseInt(active?.count || '0'),
           suspended: parseInt(suspended?.count || '0'),
           today: parseInt(today?.count || '0'),
-        },
-        executions: {
-          total: parseInt(execTotal?.count || '0'),
-          today: parseInt(execToday?.count || '0'),
         },
       };
     },
