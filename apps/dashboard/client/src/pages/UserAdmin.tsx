@@ -29,10 +29,6 @@ interface AdminStats {
     suspended: number;
     today: number;
   };
-  executions: {
-    total: number;
-    today: number;
-  };
 }
 
 export default function UserAdmin() {
@@ -384,17 +380,17 @@ export default function UserAdmin() {
             </div>
           </div>
           <div className="ua-stat-card">
+            <div className="ua-stat-dot suspended" />
+            <div className="ua-stat-content">
+              <div className="ua-stat-value">{stats.users.suspended}</div>
+              <div className="ua-stat-label">Suspended</div>
+            </div>
+          </div>
+          <div className="ua-stat-card">
             <div className="ua-stat-dot today" />
             <div className="ua-stat-content">
               <div className="ua-stat-value">{stats.users.today}</div>
               <div className="ua-stat-label">New Today</div>
-            </div>
-          </div>
-          <div className="ua-stat-card">
-            <div className="ua-stat-dot executions" />
-            <div className="ua-stat-content">
-              <div className="ua-stat-value">{stats.executions?.today || 0}</div>
-              <div className="ua-stat-label">Exec Today</div>
             </div>
           </div>
         </div>
