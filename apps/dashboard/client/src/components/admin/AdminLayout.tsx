@@ -6,7 +6,7 @@ const NAV_ITEMS = [
   {
     section: 'Command',
     items: [
-      { path: '/command-center', label: 'Command Center', icon: 'C' },
+      { path: '/command-center', label: 'Orgi', icon: 'O' },
     ],
   },
   {
@@ -46,8 +46,8 @@ export default function AdminLayout() {
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
           <div className="admin-logo" onClick={() => navigate('/command-center')}>
-            <span className="admin-logo-icon">F</span>
-            <span className="admin-logo-text">Forge</span>
+            <span className="admin-logo-icon">O</span>
+            <span className="admin-logo-text">Orgi</span>
           </div>
         </div>
 
