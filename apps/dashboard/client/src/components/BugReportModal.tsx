@@ -4,7 +4,7 @@ import './BugReportModal.css';
 
 const API_BASE = window.location.hostname.includes('askalf.org')
   ? 'https://api.askalf.org'
-  : 'http://localhost:3000';
+  : 'http://localhost:3005';
 
 interface BugReportModalProps {
   isOpen: boolean;

@@ -6,7 +6,7 @@ import './Login.css';
 function getApiUrl() {
   const host = window.location.hostname;
   if (host.includes('askalf.org')) return 'https://api.askalf.org';
-  return 'http://localhost:3000';
+  return 'http://localhost:3005';
 }
 
 const API_BASE = getApiUrl();
@@ -22,7 +22,7 @@ export default function ForgotPasswordPage() {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     root.setAttribute('data-theme', 'dark');
-    document.title = 'Forgot Password — Ask ALF';
+    document.title = 'Forgot Password — Orgi';
     return () => {
       if (previousTheme) {
         root.setAttribute('data-theme', previousTheme);
@@ -63,10 +63,9 @@ export default function ForgotPasswordPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-icon">👽</span>
+            <span className="auth-logo-icon" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)' }}>O</span>
             <span className="auth-logo-text">
-              <span className="auth-logo-ask">Ask</span>
-              <span className="auth-logo-alf animate-gradient-text">ALF</span>
+              <span className="auth-logo-alf animate-gradient-text">Orgi</span>
             </span>
           </div>
           <p className="auth-subtitle">Reset your password</p>

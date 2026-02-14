@@ -35,7 +35,7 @@ interface Submission {
 
 const API_BASE = window.location.hostname.includes('askalf.org')
   ? 'https://api.askalf.org'
-  : 'http://localhost:3000';
+  : 'http://localhost:3005';
 
 const CATEGORIES = [
   { value: 'general', label: 'General' },

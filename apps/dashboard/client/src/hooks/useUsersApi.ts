@@ -44,33 +44,14 @@ export interface User {
   emailVerified: boolean;
   createdAt: string;
   lastLoginAt: string | null;
-  tenantId: string;
-  plan: string;
-  planDisplayName: string;
 }
 
 export interface UserDetails extends User {
   failedLoginAttempts: number;
   lockedUntil: string | null;
-  subscription: {
-    planName: string;
-    planDisplayName: string;
-    status: string;
-    currentPeriodEnd: string | null;
-  } | null;
   stats: {
-    shards: number;
-    traces: number;
     executions: number;
   };
-}
-
-export interface Plan {
-  id: string;
-  name: string;
-  display_name: string;
-  price_monthly: number;
-  price_yearly: number;
 }
 
 export interface AdminStats {
@@ -81,8 +62,6 @@ export interface AdminStats {
     today: number;
   };
   content: {
-    shards: number;
-    traces: number;
     executions: number;
     executionsToday: number;
   };
@@ -93,14 +72,12 @@ export interface CreateUserPayload {
   display_name: string;
   password: string;
   role: string;
-  plan: string;
 }
 
 export interface UpdateUserPayload {
   display_name?: string;
   status?: string;
   role?: string;
-  plan?: string;
 }
 
 // ============================
@@ -108,13 +85,13 @@ export interface UpdateUserPayload {
 // ============================
 
 export const usersApi = {
-  list: (params: { search?: string; role?: string; status?: string; plan?: string; limit: number; offset: number }) => {
+  list: (params: { search?: string; role?: string; status?: string; limit: number; offset: number }) => {
     const q = buildParams(params);
     return apiFetch<{ users: User[]; total: number }>(`/api/admin/users?${q}`);
   },
 
   getDetails: (userId: string) =>
-    apiFetch<{ user: User; subscription: UserDetails['subscription']; stats: UserDetails['stats'] }>(`/api/admin/users/${userId}`),
+    apiFetch<{ user: User; stats: UserDetails['stats'] }>(`/api/admin/users/${userId}`),
 
   create: (payload: CreateUserPayload) =>
     apiFetch<{ user: User }>('/api/admin/users', {
@@ -130,9 +107,6 @@ export const usersApi = {
 
   delete: (userId: string) =>
     apiFetch<void>(`/api/admin/users/${userId}`, { method: 'DELETE' }),
-
-  getPlans: () =>
-    apiFetch<{ plans: Plan[] }>('/api/admin/plans'),
 
   getStats: () =>
     apiFetch<AdminStats>('/api/admin/stats'),
