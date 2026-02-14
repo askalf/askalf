@@ -1,15 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
-import AdminAssistantPanel from '../components/admin/AdminAssistantPanel';
 import './BackupAdmin.css';
-
-// Get API URL based on environment
-function getApiUrl(): string {
-  const host = typeof window !== 'undefined' ? window.location.hostname : '';
-  if (host.includes('askalf.org')) return 'https://api.askalf.org';
-  return ''; // Local development uses proxy
-}
 
 interface BackupJob {
   id: string;
@@ -96,7 +88,6 @@ export default function BackupAdmin() {
   const [config, setConfig] = useState<BackupConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [assistantOpen, setAssistantOpen] = useState(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState('');
@@ -132,7 +123,7 @@ export default function BackupAdmin() {
       params.append('limit', limit.toString());
       params.append('offset', (page * limit).toString());
 
-      const response = await fetch(`${getApiUrl()}/api/admin/backups?${params}`, {
+      const response = await fetch(`/api/v1/admin/backups?${params}`, {
         credentials: 'include',
       });
 
@@ -148,7 +139,7 @@ export default function BackupAdmin() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/admin/backups/stats`, {
+      const response = await fetch(`/api/v1/admin/backups/stats`, {
         credentials: 'include',
       });
       if (!response.ok) return;
@@ -161,7 +152,7 @@ export default function BackupAdmin() {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/admin/backups/config`, {
+      const response = await fetch(`/api/v1/admin/backups/config`, {
         credentials: 'include',
       });
       if (!response.ok) return;
@@ -191,7 +182,7 @@ export default function BackupAdmin() {
   const handleTriggerBackup = async (type: string = 'full') => {
     setTriggering(true);
     try {
-      const response = await fetch(`${getApiUrl()}/api/admin/backups/trigger`, {
+      const response = await fetch(`/api/v1/admin/backups/trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -214,7 +205,7 @@ export default function BackupAdmin() {
     if (!restoreJobId) return;
     setRestoring(true);
     try {
-      const response = await fetch(`${getApiUrl()}/api/admin/backups/${restoreJobId}/restore`, {
+      const response = await fetch(`/api/v1/admin/backups/${restoreJobId}/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -236,7 +227,7 @@ export default function BackupAdmin() {
   const handleSaveConfig = async () => {
     setSavingConfig(true);
     try {
-      const response = await fetch(`${getApiUrl()}/api/admin/backups/config`, {
+      const response = await fetch(`/api/v1/admin/backups/config`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -258,7 +249,7 @@ export default function BackupAdmin() {
     if (!confirm('Are you sure you want to delete this backup record?')) return;
 
     try {
-      const response = await fetch(`${getApiUrl()}/api/admin/backups/${jobId}`, {
+      const response = await fetch(`/api/v1/admin/backups/${jobId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -301,11 +292,11 @@ export default function BackupAdmin() {
   }
 
   return (
-    <div className={`admin-page backup-admin ${assistantOpen ? 'panel-open' : ''}`}>
+    <div className="admin-page backup-admin">
      <div className="admin-main">
       {/* Header */}
       <div className="admin-header">
-        <button className="admin-back-btn" onClick={() => navigate('/app/chat')}>
+        <button className="admin-back-btn" onClick={() => navigate('/command-center')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
@@ -326,15 +317,6 @@ export default function BackupAdmin() {
             <path d="M4 4v5h5M20 20v-5h-5M4.9 15.5A8 8 0 1 0 5 9" />
           </svg>
           Refresh
-        </button>
-        <button className={`admin-assistant-toggle ${assistantOpen ? 'active' : ''}`} onClick={() => setAssistantOpen(!assistantOpen)}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-            <path d="M19 10H5a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2Z" />
-            <path d="M12 15v4" />
-            <path d="M8 19h8" />
-          </svg>
-          Assistant
         </button>
       </div>
 
@@ -749,13 +731,6 @@ export default function BackupAdmin() {
         </div>
       )}
      </div>
-
-      <AdminAssistantPanel
-        isOpen={assistantOpen}
-        onToggle={() => setAssistantOpen(!assistantOpen)}
-        activeTier="procedural"
-        pageContext="backups"
-      />
     </div>
   );
 }
