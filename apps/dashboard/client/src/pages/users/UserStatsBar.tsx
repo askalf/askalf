@@ -14,8 +14,8 @@ export default function UserStatsBar() {
       <StatCard icon="👤" value={stats.users.total} label="Total Users" />
       <StatCard icon="✓" value={stats.users.active} label="Active" variant="success" />
       <StatCard icon="+" value={stats.users.today} label="New Today" />
-      <StatCard icon="📦" value={stats.content.shards} label="Total Shards" />
-      <StatCard icon="⚡" value={stats.content.executionsToday} label="Exec Today" />
+      <StatCard icon="⚡" value={stats.content.executions} label="Executions" />
+      <StatCard icon="+" value={stats.content.executionsToday} label="Exec Today" />
     </div>
   );
 }

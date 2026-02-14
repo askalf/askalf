@@ -45,30 +45,8 @@ export default function UserDetailPanel() {
           </div>
 
           <div className="users-detail-section">
-            <h4>Tier</h4>
-            <div className="users-detail-row">
-              <span>Plan</span>
-              <span>{selectedUser.subscription?.planDisplayName || 'Free'}</span>
-            </div>
-            {selectedUser.subscription?.currentPeriodEnd && (
-              <div className="users-detail-row">
-                <span>Expires</span>
-                <span>{formatDate(selectedUser.subscription.currentPeriodEnd)}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="users-detail-section">
             <h4>Usage Statistics</h4>
             <div className="users-detail-stats-grid">
-              <div className="users-detail-stat">
-                <div className="users-detail-stat-value">{selectedUser.stats.shards}</div>
-                <div className="users-detail-stat-label">Shards</div>
-              </div>
-              <div className="users-detail-stat">
-                <div className="users-detail-stat-value">{selectedUser.stats.traces}</div>
-                <div className="users-detail-stat-label">Traces</div>
-              </div>
               <div className="users-detail-stat">
                 <div className="users-detail-stat-value">{selectedUser.stats.executions}</div>
                 <div className="users-detail-stat-label">Executions</div>

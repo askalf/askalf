@@ -12,9 +12,6 @@ interface User {
   emailVerified: boolean;
   createdAt: string;
   lastLoginAt: string | null;
-  tenantId: string;
-  plan: string;
-  planDisplayName: string;
 }
 
 interface UserDetails extends User {
@@ -441,7 +438,6 @@ export default function UserAdmin() {
                 <th>User</th>
                 <th>Role</th>
                 <th>Status</th>
-                <th>Tier</th>
                 <th>Created</th>
                 <th>Last Login</th>
                 <th>Actions</th>
@@ -450,7 +446,7 @@ export default function UserAdmin() {
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="empty-cell">No users found</td>
+                  <td colSpan={6} className="empty-cell">No users found</td>
                 </tr>
               ) : (
                 users.map(user => (
@@ -486,9 +482,6 @@ export default function UserAdmin() {
                       <span className={getStatusBadge(user.status)}>
                         {user.status}
                       </span>
-                    </td>
-                    <td>
-                      <span className="plan-badge">{user.planDisplayName}</span>
                     </td>
                     <td className="date-cell">{formatDate(user.createdAt)}</td>
                     <td className="date-cell">{formatDate(user.lastLoginAt)}</td>

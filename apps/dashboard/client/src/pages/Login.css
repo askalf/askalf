@@ -283,24 +283,6 @@
   line-height: 1.6;
 }
 
-.auth-waitlist-btn {
-  display: inline-block;
-  margin-top: var(--space-lg);
-  padding: var(--space-md) var(--space-xl);
-  background: var(--crystal);
-  color: var(--void);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  text-decoration: none;
-  border-radius: var(--radius-lg);
-  transition: all var(--transition-fast);
-}
-
-.auth-waitlist-btn:hover {
-  background: var(--crystal-light);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
-}
 
 /* Blurred state for form behind overlay */
 .auth-container.auth-blurred {
@@ -353,7 +335,7 @@
   margin-bottom: var(--space-md);
 }
 
-/* Waitlist Success Box */
+/* Success Box */
 .auth-success-box {
   text-align: center;
   padding: var(--space-2xl);
@@ -388,53 +370,6 @@
   font-size: 0.9375rem;
 }
 
-/* Waitlist Note */
-.auth-waitlist-note {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.8125rem;
-  margin-top: var(--space-sm);
-}
-
-.auth-waitlist-note strong {
-  color: var(--crystal);
-}
-
-/* Waitlist Success Card */
-.auth-success-card {
-  text-align: center;
-  padding: var(--space-2xl);
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(52, 211, 153, 0.04) 100%);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: var(--radius-xl);
-}
-
-.auth-success-card .auth-success-icon {
-  font-size: 3rem;
-  margin-bottom: var(--space-lg);
-}
-
-.auth-success-card h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: var(--space-sm);
-}
-
-.auth-success-card p {
-  color: var(--text-secondary);
-  font-size: 0.9375rem;
-  margin-bottom: var(--space-md);
-}
-
-.auth-success-card .auth-waitlist-position {
-  color: var(--text-muted);
-  font-size: 0.875rem;
-}
-
-.auth-success-card .auth-waitlist-position strong {
-  color: var(--crystal);
-}
 
 .auth-back-link {
   display: inline-block;

@@ -59,9 +59,6 @@ export default function UserTable() {
             <th className="users-th-sortable" onClick={() => toggleSort('status')}>
               Status <SortIcon col="status" />
             </th>
-            <th className="users-th-sortable" onClick={() => toggleSort('plan')}>
-              Tier <SortIcon col="plan" />
-            </th>
             <th className="users-th-sortable" onClick={() => toggleSort('createdAt')}>
               Created <SortIcon col="createdAt" />
             </th>
@@ -74,7 +71,7 @@ export default function UserTable() {
         <tbody>
           {sorted.length === 0 ? (
             <tr>
-              <td colSpan={8} className="users-empty">No users found</td>
+              <td colSpan={7} className="users-empty">No users found</td>
             </tr>
           ) : (
             sorted.map((user) => (
@@ -118,7 +115,6 @@ export default function UserTable() {
                     {user.status}
                   </span>
                 </td>
-                <td><span className="users-badge users-badge--plan">{user.planDisplayName}</span></td>
                 <td className="users-muted">{formatDate(user.createdAt)}</td>
                 <td className="users-muted">{formatDate(user.lastLoginAt)}</td>
                 <td>

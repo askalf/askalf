@@ -18,7 +18,7 @@ export default function LoginPage() {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     root.setAttribute('data-theme', 'dark');
-    document.title = 'Log In — Ask ALF';
+    document.title = 'Log In — Orgi';
     return () => {
       if (previousTheme) {
         root.setAttribute('data-theme', previousTheme);
@@ -35,7 +35,7 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      navigate('/app');
+      navigate('/command-center');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -48,13 +48,12 @@ export default function LoginPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-icon">👽</span>
+            <span className="auth-logo-icon" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)' }}>O</span>
             <span className="auth-logo-text">
-              <span className="auth-logo-ask">Ask</span>
-              <span className="auth-logo-alf animate-gradient-text">ALF</span>
+              <span className="auth-logo-alf animate-gradient-text">Orgi</span>
             </span>
           </div>
-          <p className="auth-subtitle">Sign in to continue your journey</p>
+          <p className="auth-subtitle">Sign in to your orchestration platform</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>

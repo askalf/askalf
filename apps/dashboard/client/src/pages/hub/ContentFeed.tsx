@@ -180,12 +180,8 @@ export default function ContentFeed() {
   const fetchContentFeed = useHubStore((s) => s.fetchContentFeed);
   const fetchContentAgents = useHubStore((s) => s.fetchContentAgents);
   const fetchContentCategories = useHubStore((s) => s.fetchContentCategories);
-  const promoteContentFinding = useHubStore((s) => s.promoteContentFinding);
-
   const [searchInput, setSearchInput] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [promoting, setPromoting] = useState<string | null>(null);
-  const [promoteResult, setPromoteResult] = useState<{ id: string; msg: string } | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -209,18 +205,6 @@ export default function ContentFeed() {
     fetchContentFeed();
   }, [fetchContentFeed]);
   usePolling(poll, 30000);
-
-  const handlePromote = async (item: ContentFeedItem) => {
-    setPromoting(item.id);
-    setPromoteResult(null);
-    const result = await promoteContentFinding(item.id);
-    if (result.success) {
-      setPromoteResult({ id: item.id, msg: result.alreadyExists ? 'Already in Knowledge Base' : 'Promoted to Knowledge Base' });
-    } else {
-      setPromoteResult({ id: item.id, msg: 'Failed to promote' });
-    }
-    setPromoting(null);
-  };
 
   const hasActiveFilters = contentAgentFilter || contentSourceFilter || contentSeverityFilter || contentCategoryFilter || contentDateFrom || contentDateTo;
 
@@ -503,23 +487,6 @@ export default function ContentFeed() {
               </div>
             )}
 
-            {/* Promote to Knowledge (findings only) */}
-            {selectedContentItem.source === 'finding' && (
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--space-md)', display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                <button
-                  className="hub-btn hub-btn--primary"
-                  onClick={() => handlePromote(selectedContentItem)}
-                  disabled={promoting === selectedContentItem.id}
-                >
-                  {promoting === selectedContentItem.id ? 'Promoting...' : 'Promote to Knowledge Base'}
-                </button>
-                {promoteResult && promoteResult.id === selectedContentItem.id && (
-                  <span style={{ fontSize: '0.85rem', color: promoteResult.msg.includes('Failed') ? 'var(--color-error)' : 'var(--color-success, #4ade80)' }}>
-                    {promoteResult.msg}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         </Modal>
       )}

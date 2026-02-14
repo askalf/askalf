@@ -772,8 +772,6 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
       const [
         agents, executions,
         userCount, activeUsers, newUsers,
-        shardCount, highConfShards,
-        chatSessions, chatMessages,
         ticketCount, openTickets,
       ] = await Promise.all([
         query<Record<string, unknown>>('SELECT id, status FROM forge_agents'),
@@ -781,10 +779,6 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
         substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM users'),
         substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE last_login_at > NOW() - INTERVAL '24 hours'`),
         substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE created_at > NOW() - INTERVAL '7 days'`),
-        substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM procedural_shards').catch(() => ({ count: '0' })),
-        substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM procedural_shards WHERE confidence >= 0.8').catch(() => ({ count: '0' })),
-        substrateQueryOne<{ count: string }>('SELECT COUNT(DISTINCT session_id) as count FROM chat_messages').catch(() => ({ count: '0' })),
-        substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM chat_messages').catch(() => ({ count: '0' })),
         substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM agent_tickets'),
         substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM agent_tickets WHERE status IN ('open', 'in_progress')`),
       ]);
@@ -795,17 +789,13 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
           active_24h: parseInt(activeUsers?.count || '0'),
           new_7d: parseInt(newUsers?.count || '0'),
         },
-        shards: {
-          total: parseInt(shardCount?.count || '0'),
-          high_confidence: parseInt(highConfShards?.count || '0'),
-        },
-        chat: {
-          sessions: parseInt(chatSessions?.count || '0'),
-          messages: parseInt(chatMessages?.count || '0'),
-        },
         agents: {
           total: agents.length,
           active: agents.filter((a) => a['status'] === 'active').length,
+          tasks_today: executions.filter((e) => {
+            const d = new Date(e['created_at'] as string);
+            return d.toDateString() === new Date().toDateString();
+          }).length,
         },
         executions: {
           total: executions.length,
@@ -1263,31 +1253,6 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // Promote finding to fact
-  app.post(
-    '/api/v1/admin/reports/findings/:id/promote',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const { id } = request.params as { id: string };
-      const finding = await substrateQueryOne<Record<string, unknown>>(
-        `SELECT * FROM agent_findings WHERE id = $1`, [id],
-      );
-      if (!finding) return reply.code(404).send({ error: 'Finding not found' });
-
-      const factId = ulid();
-      try {
-        await substrateQuery(
-          `INSERT INTO facts (id, content, source, confidence, metadata, created_at)
-           VALUES ($1, $2, $3, 0.9, $4, NOW())
-           ON CONFLICT DO NOTHING`,
-          [factId, finding['finding'] || finding['details'], `finding:${id}`, JSON.stringify({ promoted_from: 'finding', finding_id: id, severity: finding['severity'], agent: finding['agent_name'] })],
-        );
-        return { success: true, factId };
-      } catch {
-        return { success: true, factId, alreadyExists: true };
-      }
-    },
-  );
 
   // Reports activity — recent executions as activity feed
   app.get(
@@ -1316,62 +1281,6 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // Content feed — same as reports feed (unified in Phase 5)
-  app.get(
-    '/api/v1/admin/content/feed',
-    { preHandler: [authMiddleware] },
-    async (request: FastifyRequest) => {
-      const qs = request.query as Record<string, string>;
-      const page = parseInt(qs['page'] ?? '1');
-      const limit = parseInt(qs['limit'] ?? '20');
-      const offset = (page - 1) * limit;
-
-      const conditions: string[] = [];
-      const params: unknown[] = [];
-
-      if (qs['agent']) { params.push(qs['agent']); conditions.push(`agent_name = $${params.length}`); }
-      if (qs['severity']) { params.push(qs['severity']); conditions.push(`severity = $${params.length}`); }
-      if (qs['category']) { params.push(qs['category']); conditions.push(`category = $${params.length}`); }
-      if (qs['search']) { params.push(`%${qs['search']}%`); conditions.push(`(finding ILIKE $${params.length} OR details ILIKE $${params.length})`); }
-      if (qs['dateFrom']) { params.push(qs['dateFrom']); conditions.push(`created_at >= $${params.length}`); }
-      if (qs['dateTo']) { params.push(qs['dateTo']); conditions.push(`created_at <= $${params.length}`); }
-
-      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-      const [items, countResult] = await Promise.all([
-        substrateQuery<Record<string, unknown>>(
-          `SELECT * FROM agent_findings ${where} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-          [...params, limit, offset],
-        ),
-        substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM agent_findings ${where}`, params),
-      ]);
-
-      const total = parseInt(countResult?.count || '0');
-      return { items, total, page, limit, pagination: paginationResponse(total, page, limit) };
-    },
-  );
-
-  app.get(
-    '/api/v1/admin/content/feed/agents',
-    { preHandler: [authMiddleware] },
-    async () => {
-      const rows = await substrateQuery<{ agent_name: string }>(
-        `SELECT DISTINCT agent_name FROM agent_findings WHERE agent_name IS NOT NULL ORDER BY agent_name`,
-      );
-      return { agents: rows.map((r) => r.agent_name) };
-    },
-  );
-
-  app.get(
-    '/api/v1/admin/content/feed/categories',
-    { preHandler: [authMiddleware] },
-    async () => {
-      const rows = await substrateQuery<{ category: string }>(
-        `SELECT DISTINCT category FROM agent_findings WHERE category IS NOT NULL ORDER BY category`,
-      );
-      return { categories: rows.map((r) => r.category) };
-    },
-  );
 
   // ------------------------------------------
   // TICKET NOTES
@@ -1413,78 +1322,17 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/admin/metrics',
     { preHandler: [authMiddleware] },
     async () => {
-      const [userCount, shardCount, chatCount, agentCount] = await Promise.all([
+      const [userCount, agentCount] = await Promise.all([
         substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM users`).catch(() => ({ count: '0' })),
-        substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM shards`).catch(() => ({ count: '0' })),
-        substrateQueryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM chat_messages`).catch(() => ({ count: '0' })),
         queryOne<{ count: string }>(`SELECT COUNT(*)::text as count FROM forge_agents WHERE status = 'active'`).catch(() => ({ count: '0' })),
       ]);
       return {
         users: { total: parseInt(userCount?.count || '0') },
-        shards: { total: parseInt(shardCount?.count || '0') },
-        chat: { messages: parseInt(chatCount?.count || '0') },
         agents: { active: parseInt(agentCount?.count || '0') },
       };
     },
   );
 
-  app.get(
-    '/api/v1/admin/waitlist',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async () => {
-      const entries = await substrateQuery<Record<string, unknown>>(
-        `SELECT * FROM waitlist ORDER BY created_at DESC LIMIT 100`,
-      ).catch(() => [] as Record<string, unknown>[]);
-      return { entries };
-    },
-  );
-
-  app.post(
-    '/api/v1/admin/waitlist/:entryId/send-invite',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (request: FastifyRequest) => {
-      const { entryId } = request.params as { entryId: string };
-      await substrateQuery(`UPDATE waitlist SET invited_at = NOW() WHERE id = $1`, [entryId]).catch(() => {});
-      return { success: true };
-    },
-  );
-
-  app.post(
-    '/api/v1/admin/waitlist/:entryId/send-rejection',
-    { preHandler: [authMiddleware, requireAdmin] },
-    async (request: FastifyRequest) => {
-      const { entryId } = request.params as { entryId: string };
-      await substrateQuery(`UPDATE waitlist SET rejected_at = NOW() WHERE id = $1`, [entryId]).catch(() => {});
-      return { success: true };
-    },
-  );
-
-  app.get(
-    '/api/v1/admin/cycle-history',
-    { preHandler: [authMiddleware] },
-    async () => {
-      const runs = await substrateQuery<Record<string, unknown>>(
-        `SELECT * FROM convergence_runs ORDER BY created_at DESC LIMIT 20`,
-      ).catch(() => [] as Record<string, unknown>[]);
-      return { runs };
-    },
-  );
-
-  app.get(
-    '/api/v1/admin/worker-health',
-    { preHandler: [authMiddleware] },
-    async () => {
-      // Check BullMQ worker health by querying Redis or just return basic status
-      return {
-        status: 'healthy',
-        workers: {
-          crystallize: { status: 'active', lastRun: null },
-          promote: { status: 'active', lastRun: null },
-          decay: { status: 'active', lastRun: null },
-        },
-      };
-    },
-  );
 
   // ------------------------------------------
   // USER MANAGEMENT
@@ -1513,10 +1361,8 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
         substrateQuery<Record<string, unknown>>(
           `SELECT u.id, u.email, u.display_name as name, u.role, u.status,
                   u.email_verified as "emailVerified", u.created_at as "createdAt",
-                  u.last_login_at as "lastLoginAt", u.tenant_id as "tenantId",
-                  t.tier as plan, t.tier as "planDisplayName"
+                  u.last_login_at as "lastLoginAt"
            FROM users u
-           LEFT JOIN tenants t ON u.tenant_id = t.id
            ${where}
            ORDER BY u.created_at DESC
            LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -1564,12 +1410,10 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
       const user = await substrateQueryOne<Record<string, unknown>>(
         `SELECT u.id, u.email, u.display_name as name, u.role, u.status,
                 u.email_verified as "emailVerified", u.created_at as "createdAt",
-                u.last_login_at as "lastLoginAt", u.tenant_id as "tenantId",
+                u.last_login_at as "lastLoginAt",
                 u.failed_login_attempts as "failedLoginAttempts",
-                u.locked_until as "lockedUntil",
-                t.tier as plan, t.tier as "planDisplayName"
+                u.locked_until as "lockedUntil"
          FROM users u
-         LEFT JOIN tenants t ON u.tenant_id = t.id
          WHERE u.id = $1`,
         [userId],
       );
@@ -1626,18 +1470,11 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
       const hash = makeHash('sha256').update(body.password + salt).digest('hex');
 
       const userId = ulid();
-      const tenantId = ulid();
-
-      // Create tenant first
-      await substrateQuery(
-        `INSERT INTO tenants (id, name, tier, created_at) VALUES ($1, $2, 'free', NOW())`,
-        [tenantId, body.email],
-      );
 
       await substrateQuery(
-        `INSERT INTO users (id, email, password_hash, display_name, role, status, email_verified, tenant_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, 'active', true, $6, NOW())`,
-        [userId, body.email, `sha256:${salt}:${hash}`, body.display_name || null, body.role || 'user', tenantId],
+        `INSERT INTO users (id, email, password_hash, display_name, role, status, email_verified, created_at)
+         VALUES ($1, $2, $3, $4, $5, 'active', true, NOW())`,
+        [userId, body.email, `sha256:${salt}:${hash}`, body.display_name || null, body.role || 'user'],
       );
 
       return reply.code(201).send({ success: true, userId });

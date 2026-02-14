@@ -7,7 +7,7 @@ import './Login.css';
 function getApiUrl() {
   const host = window.location.hostname;
   if (host.includes('askalf.org')) return 'https://api.askalf.org';
-  return 'http://localhost:3000';
+  return 'http://localhost:3005';
 }
 
 const API_BASE = getApiUrl();
@@ -29,7 +29,7 @@ export default function VerifyEmailPage() {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     root.setAttribute('data-theme', 'dark');
-    document.title = 'Verify Email — Ask ALF';
+    document.title = 'Verify Email — Orgi';
     return () => {
       if (previousTheme) {
         root.setAttribute('data-theme', previousTheme);
@@ -43,7 +43,7 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     if (user && user.emailVerified === true) {
       sessionStorage.removeItem('just_registered');
-      navigate('/app', { replace: true });
+      navigate('/command-center', { replace: true });
     }
   }, [user, navigate]);
 
@@ -125,10 +125,9 @@ export default function VerifyEmailPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-icon">👽</span>
+            <span className="auth-logo-icon" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)' }}>O</span>
             <span className="auth-logo-text">
-              <span className="auth-logo-ask">Ask</span>
-              <span className="auth-logo-alf animate-gradient-text">ALF</span>
+              <span className="auth-logo-alf animate-gradient-text">Orgi</span>
             </span>
           </div>
         </div>
@@ -152,7 +151,7 @@ export default function VerifyEmailPage() {
             <h3>Email Verified</h3>
             <p>Your email has been verified successfully.</p>
             <div style={{ marginTop: '1.5rem' }}>
-              <Link to="/app" className="auth-submit" style={{ display: 'inline-block', textDecoration: 'none', padding: '0.75rem 2rem' }}>
+              <Link to="/command-center" className="auth-submit" style={{ display: 'inline-block', textDecoration: 'none', padding: '0.75rem 2rem' }}>
                 Go to Dashboard
               </Link>
             </div>

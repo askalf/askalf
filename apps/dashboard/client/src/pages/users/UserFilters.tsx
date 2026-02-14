@@ -7,9 +7,6 @@ export default function UserFilters() {
   const setRoleFilter = useUsersStore((s) => s.setRoleFilter);
   const statusFilter = useUsersStore((s) => s.statusFilter);
   const setStatusFilter = useUsersStore((s) => s.setStatusFilter);
-  const planFilter = useUsersStore((s) => s.planFilter);
-  const setPlanFilter = useUsersStore((s) => s.setPlanFilter);
-  const plans = useUsersStore((s) => s.plans);
   const selectedIds = useUsersStore((s) => s.selectedIds);
   const setConfirmAction = useUsersStore((s) => s.setConfirmAction);
   const bulkUpdateStatus = useUsersStore((s) => s.bulkUpdateStatus);
@@ -55,13 +52,6 @@ export default function UserFilters() {
         <option value="active">Active</option>
         <option value="suspended">Suspended</option>
         <option value="deleted">Deleted</option>
-      </select>
-
-      <select value={planFilter} onChange={(e) => { setPlanFilter(e.target.value); fetchUsers(); }}>
-        <option value="">All Tiers</option>
-        {plans.map((plan) => (
-          <option key={plan.id} value={plan.name}>{plan.display_name}</option>
-        ))}
       </select>
 
       {hasBulk && (

@@ -221,13 +221,11 @@ interface HubState {
   fetchFeed: () => Promise<void>;
   fetchFeedAgents: () => Promise<void>;
   fetchFeedCategories: () => Promise<void>;
-  promoteFinding: (id: string) => Promise<{ success: boolean; alreadyExists?: boolean }>;
   fetchSchedules: () => Promise<void>;
   fetchSchedulerStatus: () => Promise<void>;
   fetchContentFeed: () => Promise<void>;
   fetchContentAgents: () => Promise<void>;
   fetchContentCategories: () => Promise<void>;
-  promoteContentFinding: (id: string) => Promise<{ success: boolean; alreadyExists?: boolean }>;
   fetchMemoryStats: () => Promise<void>;
   searchMemory: (q: string) => Promise<void>;
   fetchMemoryRecent: () => Promise<void>;
@@ -614,16 +612,6 @@ export const useHubStore = create<HubState>((set, get) => ({
     }
   },
 
-  promoteFinding: async (id: string) => {
-    try {
-      const result = await hubApi.reports.promoteFinding(id);
-      return { success: result.success, alreadyExists: result.alreadyExists };
-    } catch (err) {
-      console.error('Failed to promote finding:', err);
-      return { success: false };
-    }
-  },
-
   fetchSchedules: async () => {
     try {
       const data = await hubApi.reports.schedules();
@@ -682,15 +670,6 @@ export const useHubStore = create<HubState>((set, get) => ({
     }
   },
 
-  promoteContentFinding: async (id: string) => {
-    try {
-      const result = await hubApi.content.promoteFinding(id);
-      return { success: result.success, alreadyExists: result.alreadyExists };
-    } catch (err) {
-      console.error('Failed to promote finding:', err);
-      return { success: false };
-    }
-  },
 
   fetchMemoryStats: async () => {
     try {
