@@ -30,9 +30,4 @@ export const ids = {
   fork: () => generateId('fork'),
   usage: () => generateId('usg'),
   error: () => generateId('err'),
-  // ALFSpace entities
-  post: () => generateId('pst'),
-  comment: () => generateId('cmt'),
-  reaction: () => generateId('rxn'),
-  space: () => generateId('spc'),
 } as const;
