@@ -1025,8 +1025,25 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { branch } = request.params as { branch: string };
-      const res = await app.inject({ method: 'GET', url: `/api/v1/forge/git/diff/${encodeURIComponent(branch)}`, headers: { authorization: request.headers.authorization || '', cookie: request.headers.cookie || '' } });
-      reply.code(res.statusCode).send(res.json());
+      const headers = { authorization: request.headers.authorization || '', cookie: request.headers.cookie || '' };
+      const encoded = encodeURIComponent(branch);
+      // Dashboard expects diff + commits + files in one response
+      const [diffRes, logRes, filesRes] = await Promise.all([
+        app.inject({ method: 'GET', url: `/api/v1/forge/git/diff/${encoded}`, headers }),
+        app.inject({ method: 'GET', url: `/api/v1/forge/git/log/${encoded}`, headers }),
+        app.inject({ method: 'GET', url: `/api/v1/forge/git/files/${encoded}`, headers }),
+      ]);
+      if (diffRes.statusCode !== 200) {
+        return reply.code(diffRes.statusCode).send(diffRes.json());
+      }
+      const diff = diffRes.json() as Record<string, unknown>;
+      const log = logRes.statusCode === 200 ? (logRes.json() as Record<string, unknown>) : {};
+      const files = filesRes.statusCode === 200 ? (filesRes.json() as Record<string, unknown>) : {};
+      return reply.send({
+        ...diff,
+        commits: log['commits'] || [],
+        files: files['files'] || [],
+      });
     },
   );
 
