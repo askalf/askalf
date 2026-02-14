@@ -4,9 +4,9 @@ import './AdminLayout.css';
 
 const NAV_ITEMS = [
   {
-    section: 'Command',
+    section: 'Platform',
     items: [
-      { path: '/command-center', label: 'Orgi', icon: 'O' },
+      { path: '/command-center', label: 'Forge', icon: 'F' },
     ],
   },
   {
@@ -16,18 +16,13 @@ const NAV_ITEMS = [
       { path: '/git-space', label: 'Git Space', icon: 'G' },
     ],
   },
-  {
-    section: 'Platform',
-    items: [
-      { path: '/settings', label: 'Settings', icon: 'S' },
-    ],
-  },
 ];
 
 const ADMIN_NAV_ITEMS = [
   {
     section: 'Admin',
     items: [
+      { path: '/settings', label: 'Settings', icon: 'S' },
       { path: '/users', label: 'Users', icon: 'U' },
     ],
   },
@@ -45,8 +40,8 @@ export default function AdminLayout() {
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
           <div className="admin-logo" onClick={() => navigate('/command-center')}>
-            <span className="admin-logo-icon">O</span>
-            <span className="admin-logo-text">Orgi</span>
+            <span className="admin-logo-icon">F</span>
+            <span className="admin-logo-text">Forge</span>
           </div>
         </div>
 
