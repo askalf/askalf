@@ -17,13 +17,6 @@ const NAV_ITEMS = [
     ],
   },
   {
-    section: 'Knowledge',
-    items: [
-      { path: '/memory', label: 'Memory Tiers', icon: 'M' },
-      { path: '/convergence', label: 'Convergence', icon: 'V' },
-    ],
-  },
-  {
     section: 'Platform',
     items: [
       { path: '/settings', label: 'Settings', icon: 'S' },
