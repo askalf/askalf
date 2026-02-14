@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
-import { useChatStore } from '../stores/chat';
 import './Settings.css';
 
 type SettingsTab = 'profile' | 'billing' | 'appearance' | 'security';
@@ -21,11 +20,11 @@ export default function SettingsPage() {
   return (
     <div className="settings-page">
       <div className="settings-header">
-        <button className="settings-back-btn" onClick={() => navigate('/app/chat')}>
+        <button className="settings-back-btn" onClick={() => navigate('/command-center')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
-          Back to Chat
+          Back
         </button>
         <h1>Settings</h1>
         <p>Manage your account, billing, and preferences</p>
@@ -521,9 +520,6 @@ function SecurityTab() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [isClearing, setIsClearing] = useState(false);
-  const { clearAllConversations, conversations } = useChatStore();
-
   // ALF Memory state
   const [memoryStats, setMemoryStats] = useState<MemoryStats | null>(null);
   const [memoryLoading, setMemoryLoading] = useState(true);
@@ -775,36 +771,6 @@ function SecurityTab() {
           Your data stays with you across plan changes — downgrade to Free and keep everything.
           You're always in control: delete anything below whenever you want.
         </p>
-
-        {/* Chat History */}
-        <div className="settings-data-item">
-          <div>
-            <p className="settings-data-label">Chat History</p>
-            <p className="settings-data-desc">
-              {conversations.length} conversation{conversations.length !== 1 ? 's' : ''} stored
-            </p>
-          </div>
-          <button
-            className="settings-clear-btn"
-            onClick={async () => {
-              if (window.confirm('Delete all conversations? This cannot be undone.')) {
-                setIsClearing(true);
-                try {
-                  const result = await clearAllConversations();
-                  if (result.deleted > 0) {
-                    alert(`Deleted ${result.deleted} conversation${result.deleted !== 1 ? 's' : ''}`);
-                  }
-                } catch {
-                  alert('Failed to delete conversations');
-                }
-                setIsClearing(false);
-              }
-            }}
-            disabled={isClearing || conversations.length === 0}
-          >
-            {isClearing ? 'Deleting...' : 'Delete All'}
-          </button>
-        </div>
 
         {/* ALF Memory Section */}
         <div className="settings-memory-section">

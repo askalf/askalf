@@ -16,8 +16,6 @@ const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
 const OrchestrationHub = lazy(() => import('./pages/OrchestrationHub'));
 const GitSpace = lazy(() => import('./pages/GitSpace'));
-const Memory = lazy(() => import('./pages/Memory'));
-const Convergence = lazy(() => import('./pages/Convergence'));
 const Settings = lazy(() => import('./pages/Settings'));
 
 // Lazy-loaded: admin-only pages
@@ -88,10 +86,6 @@ export default function App() {
         {/* Orchestration */}
         <Route path="/agents" element={<OrchestrationHub />} />
         <Route path="/git-space" element={<GitSpace />} />
-
-        {/* Knowledge */}
-        <Route path="/memory" element={<Memory />} />
-        <Route path="/convergence" element={<Convergence />} />
 
         {/* Platform */}
         <Route path="/settings" element={<Settings />} />
