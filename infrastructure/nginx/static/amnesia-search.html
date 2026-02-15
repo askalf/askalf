@@ -7,8 +7,21 @@
   <meta name="description" content="World's fastest aggregated search engine - powered by Sprayberry Labs">
   <meta name="robots" content="noindex, nofollow">
   <meta property="og:title" content="amnesia.tax">
-  <meta property="og:description" content="World's fastest aggregated search engine - powered by Sprayberry Labs">
+  <meta property="og:description" content="Every engine at once. No AI. No memory.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://amnesia.tax">
+  <meta property="og:site_name" content="amnesia.tax">
+  <meta property="og:image" content="https://amnesia.tax/og.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="amnesia.tax — aggregated search engine">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="amnesia.tax">
+  <meta name="twitter:description" content="Every engine at once. No AI. No memory.">
+  <meta name="twitter:image" content="https://amnesia.tax/og.png">
+  <meta name="twitter:image:alt" content="amnesia.tax — aggregated search engine">
+  <meta name="theme-color" content="#0c0c14">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%230a0a0f'/><text x='50' y='68' text-anchor='middle' font-size='56' font-family='system-ui' font-weight='700' fill='%238b5cf6'>a</text></svg>">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
@@ -344,6 +357,77 @@
       margin-top: 2rem;
       letter-spacing: 0.15em;
       text-transform: uppercase;
+    }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      .search-header {
+        padding: 0 1rem;
+      }
+
+      .results-mode .search-header {
+        padding: 1rem;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .results-mode .logo {
+        font-size: 1rem;
+      }
+
+      .search-box input {
+        padding: 0.85rem 1rem;
+        font-size: 16px; /* prevents iOS zoom on focus */
+      }
+
+      .search-box button {
+        padding: 0.85rem 1rem;
+      }
+
+      .landing .subtitle {
+        font-size: 0.6rem;
+        letter-spacing: 0.1em;
+        padding: 0 0.5rem;
+      }
+
+      .results-area {
+        padding: 1rem;
+      }
+
+      .result-title {
+        font-size: 0.95rem;
+      }
+
+      .result-snippet {
+        font-size: 0.8rem;
+      }
+
+      .result-url {
+        font-size: 0.65rem;
+      }
+
+      .results-meta {
+        gap: 0.5rem;
+      }
+
+      .suggestions {
+        padding: 0 1rem;
+      }
+
+      .footer {
+        padding: 1.5rem 1rem;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .landing .subtitle {
+        font-size: 0.55rem;
+        letter-spacing: 0.06em;
+      }
+
+      .search-box input {
+        padding: 0.75rem 0.8rem;
+      }
     }
 
     /* Flicker on landing */
