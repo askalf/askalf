@@ -15,10 +15,11 @@ function toAnthropicMessages(messages: ChatMessage[]): Anthropic.MessageParam[] 
 export const claudeProvider: LLMProvider = {
   id: 'claude',
   name: 'Claude',
-  defaultModel: 'claude-sonnet-4-5-20250929',
+  defaultModel: 'claude-sonnet-4-5',
   models: [
-    'claude-sonnet-4-5-20250929',
-    'claude-haiku-4-5-20251001',
+    'claude-opus-4-6',
+    'claude-sonnet-4-5',
+    'claude-haiku-4-5',
   ],
 
   async streamChat(apiKey: string, params: StreamParams): Promise<StreamResult> {
