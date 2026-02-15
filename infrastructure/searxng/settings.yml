@@ -24,8 +24,8 @@ search:
 server:
   bind_address: "0.0.0.0"
   port: 8080
-  secret_key: "substrate-searxng-internal-only"
-  limiter: false
+  secret_key: "cd0d9894fb473c59ce622e5a4f3df75264869345d480a0017e5201803ae62367"
+  limiter: true
   image_proxy: false
   base_url: false
 
@@ -33,6 +33,9 @@ ui:
   static_use_hash: true
   default_theme: simple
   results_on_new_tab: false
+
+valkey:
+  url: false  # Overridden by SEARXNG_VALKEY_URL env var in docker-compose
 
 outgoing:
   request_timeout: 6.0
@@ -85,11 +88,6 @@ engines:
 
   - name: brave
     disabled: false
-
-  - name: qwant
-    engine: qwant
-    shortcut: qw
-    disabled: true          # Suspended: access denied
 
   - name: mojeek
     engine: mojeek
