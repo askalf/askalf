@@ -36,7 +36,7 @@ class ErrorBoundary extends Component<Props, State> {
   private async reportError(error: Error, errorInfo: ErrorInfo) {
     try {
       const apiBase = window.location.hostname.includes('askalf.org')
-        ? 'https://api.askalf.org'
+        ? ''
         : 'http://localhost:3005';
 
       await fetch(`${apiBase}/api/v1/errors/report`, {

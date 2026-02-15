@@ -1,6 +1,7 @@
 /**
- * Forge Personal Assistant Routes
- * Personal cloud assistant message handling
+ * Forge Assistant Routes
+ * - Personal assistant (existing)
+ * - System Assistant CLI query (new — used by dashboard admin panel)
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -8,6 +9,7 @@ import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { checkGuardrails } from '../observability/guardrails.js';
+import { runCliQuery } from '../runtime/worker.js';
 
 interface UserAssistantRow {
   id: string;
@@ -177,6 +179,48 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
           agentName: agent.name,
         },
       });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/assistant/query - System Assistant CLI query
+   * Used by the dashboard admin panel. Spawns CLI with OAuth + MCP tools.
+   */
+  app.post(
+    '/api/v1/forge/assistant/query',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as {
+        prompt: string;
+        systemPrompt?: string;
+        model?: string;
+        maxTurns?: number;
+      };
+
+      if (!body.prompt || typeof body.prompt !== 'string') {
+        return reply.status(400).send({ error: 'prompt is required' });
+      }
+
+      try {
+        const result = await runCliQuery(body.prompt, {
+          systemPrompt: body.systemPrompt,
+          model: body.model || 'claude-sonnet-4-5-20250929',
+          maxTurns: body.maxTurns || 10,
+          timeout: 120000, // 2 minute timeout for assistant queries
+        });
+
+        return {
+          output: result.output,
+          costUsd: result.costUsd,
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+          numTurns: result.numTurns,
+          isError: result.isError,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('[assistant/query] CLI error:', message);
+        return reply.status(500).send({ error: `Assistant query failed: ${message}` });
+      }
     },
   );
 }

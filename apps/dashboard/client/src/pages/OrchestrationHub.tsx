@@ -4,30 +4,27 @@ import { usePolling } from '../hooks/usePolling';
 import AdminAssistantPanel from '../components/admin/AdminAssistantPanel';
 import CommandCenter from './hub/CommandCenter';
 import AgentFleet from './hub/AgentFleet';
-import InterventionGateway from './hub/InterventionGateway';
+import Tickets from './hub/Tickets';
 import FleetMemory from './hub/FleetMemory';
-import SchedulerControl from './hub/SchedulerControl';
-import FleetCoordination from './hub/FleetCoordination';
+import Threads from './hub/Threads';
 import Modal from './hub/shared/Modal';
 import { AGENT_TYPE_INFO } from './hub/shared/AgentIcon';
 import './OrchestrationHub.css';
 
 const TABS: { key: HubTab; label: string }[] = [
   { key: 'command', label: 'Command Center' },
-  { key: 'fleet', label: 'Agent Fleet' },
-  { key: 'gateway', label: 'Interventions' },
-  { key: 'memory', label: 'Agent Memory' },
-  { key: 'scheduler', label: 'Scheduler' },
-  { key: 'coordination', label: 'Coordination' },
+  { key: 'fleet', label: 'Agents' },
+  { key: 'tickets', label: 'Tickets' },
+  { key: 'memory', label: 'Memory' },
+  { key: 'threads', label: 'Threads' },
 ];
 
 const PANEL_MAP: Record<HubTab, React.FC> = {
   command: CommandCenter,
   fleet: AgentFleet,
-  gateway: InterventionGateway,
+  tickets: Tickets,
   memory: FleetMemory,
-  scheduler: SchedulerControl,
-  coordination: FleetCoordination,
+  threads: Threads,
 };
 
 export default function OrchestrationHub() {
@@ -87,8 +84,8 @@ export default function OrchestrationHub() {
       {/* Header */}
       <header className="hub-header">
         <div className="hub-header__left">
-          <h1>Orchestration Hub</h1>
-          <p>All-in-one agent management and monitoring</p>
+          <h1>Agent Fleet</h1>
+          <p>Fleet management and monitoring</p>
         </div>
         <div className="hub-header__right">
           <button
@@ -133,7 +130,7 @@ export default function OrchestrationHub() {
             onClick={() => setActiveTab(tab.key)}
           >
             {tab.label}
-            {tab.key === 'gateway' && interventions.length > 0 && (
+            {tab.key === 'tickets' && interventions.length > 0 && (
               <span className="hub-nav-badge">{interventions.length}</span>
             )}
           </button>

@@ -12,7 +12,8 @@ const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 // Lazy-loaded: app layout (shared sidebar)
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 
-// Lazy-loaded: orchestration pages
+// Lazy-loaded: app pages
+const Self = lazy(() => import('./pages/Self'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
 const OrchestrationHub = lazy(() => import('./pages/OrchestrationHub'));
 const GitSpace = lazy(() => import('./pages/GitSpace'));
@@ -42,7 +43,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'admin' && user.role !== 'super_admin') return <Navigate to="/command-center" replace />;
+  if (user.role !== 'admin' && user.role !== 'super_admin') return <Navigate to="/self" replace />;
 
   return <>{children}</>;
 }
@@ -79,7 +80,10 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        {/* Home */}
+        {/* Self — conversation-first AI */}
+        <Route path="/self" element={<Self />} />
+
+        {/* Forge — agent orchestration */}
         <Route path="/command-center" element={<CommandCenter />} />
 
         {/* Orchestration */}
@@ -95,16 +99,16 @@ export default function App() {
       </Route>
 
       {/* Root redirect */}
-      <Route path="/" element={<Navigate to="/command-center" replace />} />
+      <Route path="/" element={<Navigate to="/self" replace />} />
 
       {/* Legacy redirects */}
-      <Route path="/app/*" element={<Navigate to="/command-center" replace />} />
-      <Route path="/admin/*" element={<Navigate to="/command-center" replace />} />
-      <Route path="/chat" element={<Navigate to="/command-center" replace />} />
-      <Route path="/chat/*" element={<Navigate to="/command-center" replace />} />
+      <Route path="/app/*" element={<Navigate to="/self" replace />} />
+      <Route path="/admin/*" element={<Navigate to="/self" replace />} />
+      <Route path="/chat" element={<Navigate to="/self" replace />} />
+      <Route path="/chat/*" element={<Navigate to="/self" replace />} />
 
       {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/command-center" replace />} />
+      <Route path="*" element={<Navigate to="/self" replace />} />
     </Routes>
     </Suspense>
     </>

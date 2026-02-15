@@ -60,6 +60,7 @@ export default function CommandCenter() {
   const fetchTickets = useHubStore((s) => s.fetchTickets);
   const fetchFindings = useHubStore((s) => s.fetchFindings);
   const batchProcessAgents = useHubStore((s) => s.batchProcessAgents);
+  const batchPauseAgents = useHubStore((s) => s.batchPauseAgents);
   const respondToIntervention = useHubStore((s) => s.respondToIntervention);
 
   const pollCritical = useCallback(() => {
@@ -79,6 +80,7 @@ export default function CommandCenter() {
   usePolling(pollSecondary, 30000);
 
   const activeAgents = useMemo(() => agents.filter((a) => !a.is_decommissioned), [agents]);
+  const fleetRunning = useMemo(() => activeAgents.some((a) => a.status === 'running' || a.status === 'idle'), [activeAgents]);
 
   const successRate = useMemo(() => {
     if (!taskStats?.recentByAgent?.length) return null;
@@ -118,10 +120,10 @@ export default function CommandCenter() {
       <div className="cc-topbar">
         <div className="cc-topbar-left">
           <div className="cc-brand">
-            <div className="cc-brand-logo">O</div>
+            <div className="cc-brand-logo">F</div>
             <div>
-              <div className="cc-brand-title">Orgi</div>
-              <div className="cc-brand-subtitle">Agent Orchestration</div>
+              <div className="cc-brand-title">Forge</div>
+              <div className="cc-brand-subtitle">Command Center</div>
             </div>
           </div>
           <div className={`cc-cluster-status ${clusterHealthy ? '' : 'cc-cluster-status--degraded'}`}>
@@ -132,15 +134,15 @@ export default function CommandCenter() {
         <div className="cc-topbar-actions">
           {batchResult && (
             <div className="cc-batch-result">
-              Started {batchResult.started} agents: {batchResult.agents.join(', ') || 'None'}
+              {batchResult.started > 0 ? `Started ${batchResult.started}` : `Paused ${batchResult.agents.length}`} agents: {batchResult.agents.join(', ') || 'None'}
             </div>
           )}
           <button
-            className={`hub-btn hub-btn--primary ${batchRunning ? 'running' : ''}`}
-            onClick={batchProcessAgents}
+            className={`hub-btn ${fleetRunning ? 'hub-btn--danger' : 'hub-btn--primary'} ${batchRunning ? 'running' : ''}`}
+            onClick={fleetRunning ? batchPauseAgents : batchProcessAgents}
             disabled={batchRunning}
           >
-            {batchRunning ? 'Deploying...' : 'Deploy All'}
+            {batchRunning ? (fleetRunning ? 'Pausing...' : 'Deploying...') : (fleetRunning ? 'Pause All' : 'Deploy All')}
           </button>
           <button className="hub-btn" onClick={() => navigate('/agents')}>
             Fleet Manager

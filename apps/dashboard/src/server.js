@@ -174,7 +174,7 @@ fastify.addHook('onSend', async (request, reply) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: https:; " +
-    "connect-src 'self' https://api.askalf.org wss://app.askalf.org ws://localhost:* http://localhost:*; " +
+    "connect-src 'self' wss://app.askalf.org ws://localhost:* http://localhost:*; " +
     "frame-ancestors 'none';"
   );
   // Other security headers
@@ -1937,6 +1937,10 @@ fastify.get('/api/admin/plans', async (request, reply) => {
 // Agent Hub admin routes
 import { registerAdminHubRoutes } from './routes/admin-hub.js';
 await registerAdminHubRoutes(fastify, requireAdmin, query, queryOne);
+
+// System Assistant (agentic AI for fleet management)
+import { registerAssistantRoutes } from './routes/admin-assistant.js';
+await registerAssistantRoutes(fastify, requireAdmin, query, queryOne);
 
 // ===========================================
 // SPA FALLBACK - Serve index.html for client routes

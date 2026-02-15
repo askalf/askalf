@@ -9,7 +9,7 @@ const getApiUrl = () => {
     return import.meta.env.VITE_API_URL as string;
   }
   const host = window.location.hostname;
-  if (host.includes('askalf.org')) return 'https://api.askalf.org';
+  if (host.includes('askalf.org')) return '';
   if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3005';
   return ''; // Fallback to relative URLs
 };
