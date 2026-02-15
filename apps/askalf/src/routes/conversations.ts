@@ -115,6 +115,39 @@ export async function conversationRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
+   * PUT /api/v1/askalf/conversations/:id — Rename conversation
+   */
+  app.put(
+    '/api/v1/askalf/conversations/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+      const { title } = request.body as { title: string };
+
+      if (!title || typeof title !== 'string' || !title.trim()) {
+        return reply.status(400).send({ error: 'title is required' });
+      }
+
+      const convo = await askalfQueryOne<{ id: string }>(
+        `SELECT id FROM askalf_conversations WHERE id = $1 AND user_id = $2`,
+        [id, userId],
+      );
+
+      if (!convo) {
+        return reply.status(404).send({ error: 'Conversation not found' });
+      }
+
+      await askalfQuery(
+        `UPDATE askalf_conversations SET title = $1, updated_at = now() WHERE id = $2`,
+        [title.trim(), id],
+      );
+
+      return reply.send({ id, title: title.trim() });
+    },
+  );
+
+  /**
    * DELETE /api/v1/askalf/conversations/:id — Delete conversation
    */
   app.delete(
