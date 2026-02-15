@@ -39,6 +39,7 @@ export default function AskAlf() {
     fetchConversations,
     createConversation,
     setActiveConversation,
+    renameConversation,
     deleteConversation,
     sendMessage,
     stopGeneration,
@@ -51,6 +52,8 @@ export default function AskAlf() {
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -138,6 +141,26 @@ export default function AskAlf() {
     deleteConversation(id);
   };
 
+  const startRename = (e: React.MouseEvent, id: string, title: string | null) => {
+    e.stopPropagation();
+    setEditingId(id);
+    setEditingTitle(title || '');
+  };
+
+  const commitRename = (id: string) => {
+    const trimmed = editingTitle.trim();
+    if (trimmed) {
+      renameConversation(id, trimmed);
+    }
+    setEditingId(null);
+    setEditingTitle('');
+  };
+
+  const cancelRename = () => {
+    setEditingId(null);
+    setEditingTitle('');
+  };
+
   const handleRegenerate = useCallback(() => {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
     if (lastUserMsg && !isStreaming) {
@@ -174,9 +197,29 @@ export default function AskAlf() {
             <div
               key={c.id}
               className={`aa-sidebar-item ${c.id === activeConversationId ? 'active' : ''}`}
-              onClick={() => setActiveConversation(c.id)}
+              onClick={() => editingId !== c.id && setActiveConversation(c.id)}
             >
-              <span className="aa-sidebar-item-title">{c.title || 'New Chat'}</span>
+              {editingId === c.id ? (
+                <input
+                  className="aa-sidebar-rename-input"
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRename(c.id);
+                    if (e.key === 'Escape') cancelRename();
+                  }}
+                  onBlur={() => commitRename(c.id)}
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <span
+                  className="aa-sidebar-item-title"
+                  onDoubleClick={(e) => startRename(e, c.id, c.title)}
+                >
+                  {c.title || 'New Chat'}
+                </span>
+              )}
               <button
                 className="aa-sidebar-item-delete"
                 onClick={(e) => handleDelete(e, c.id)}

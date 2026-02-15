@@ -82,6 +82,13 @@ export function useAskAlfApi() {
       return data.messages;
     },
 
+    async renameConversation(conversationId: string, title: string): Promise<{ id: string; title: string }> {
+      return apiFetch<{ id: string; title: string }>(`/api/v1/askalf/conversations/${conversationId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title }),
+      });
+    },
+
     async deleteConversation(conversationId: string): Promise<void> {
       await apiFetch(`/api/v1/askalf/conversations/${conversationId}`, { method: 'DELETE' });
     },

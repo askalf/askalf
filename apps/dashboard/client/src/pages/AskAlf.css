@@ -106,6 +106,19 @@
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+  cursor: default;
+}
+
+.aa-sidebar-rename-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--deep);
+  border: 1px solid var(--crystal);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  outline: none;
 }
 
 .aa-sidebar-item-delete {
