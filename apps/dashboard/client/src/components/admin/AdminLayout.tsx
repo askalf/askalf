@@ -4,6 +4,13 @@ import './AdminLayout.css';
 
 const NAV_ITEMS = [
   {
+    section: 'Ask Alf',
+    items: [
+      { path: '/ask-alf', label: 'Chat', icon: 'A' },
+      { path: '/ask-alf/integrations', label: 'Integrations', icon: 'I' },
+    ],
+  },
+  {
     section: 'Self',
     items: [
       { path: '/self', label: 'Chat', icon: 'S' },
@@ -15,7 +22,12 @@ const NAV_ITEMS = [
     items: [
       { path: '/command-center', label: 'Command Center', icon: 'C' },
       { path: '/agents', label: 'Agent Fleet', icon: 'A' },
-      { path: '/git-space', label: 'Git Space', icon: 'G' },
+    ],
+  },
+  {
+    section: 'Just Push',
+    items: [
+      { path: '/repos', label: 'My Repos', icon: 'R' },
     ],
   },
 ];
