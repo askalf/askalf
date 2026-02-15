@@ -1,6 +1,6 @@
 -- Agent Hub tables for substrate database
--- Run via: docker exec substrate-prod-postgres psql -U substrate -d substrate -f /tmp/agent-hub-tables.sql
--- Or paste into: docker exec -it substrate-prod-postgres psql -U substrate -d substrate
+-- Run via: docker exec sprayberry-labs-postgres psql -U substrate -d substrate -f /tmp/agent-hub-tables.sql
+-- Or paste into: docker exec -it sprayberry-labs-postgres psql -U substrate -d substrate
 
 CREATE TABLE IF NOT EXISTS agent_interventions (
   id TEXT PRIMARY KEY,

@@ -421,7 +421,7 @@ export async function backupRoutes(app: FastifyInstance): Promise<void> {
       type: job.type,
       createdAt: job.createdAt,
       message:
-        'Access this file from the backup container: docker exec substrate-prod-backup cat ' +
+        'Access this file from the backup container: docker exec sprayberry-labs-backup cat ' +
         job.filePath,
     };
   });

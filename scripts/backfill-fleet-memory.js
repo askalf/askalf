@@ -8,9 +8,9 @@
  *   3. Resolved tickets → Episodic memories
  *
  * Usage: Run inside the forge container or a container with access to forge API
- *   docker exec substrate-prod-forge node /tmp/backfill-fleet-memory.js
+ *   docker exec sprayberry-labs-forge node /tmp/backfill-fleet-memory.js
  *   — or —
- *   Copy to forge container: docker cp scripts/backfill-fleet-memory.js substrate-prod-forge:/tmp/
+ *   Copy to forge container: docker cp scripts/backfill-fleet-memory.js sprayberry-labs-forge:/tmp/
  */
 
 const FORGE_URL = process.env.FORGE_URL || 'http://forge:3005';

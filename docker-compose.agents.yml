@@ -2,7 +2,7 @@
 #
 # Usage:
 #   # Generate per-agent configs first:
-#   docker exec substrate-prod-backup node /workspace/scripts/generate-agent-config.js
+#   docker exec sprayberry-labs-backup node /workspace/scripts/generate-agent-config.js
 #
 #   # Start all agents:
 #   docker-compose -f docker-compose.prod.yml -f docker-compose.agents.yml --env-file .env.production up -d
@@ -15,7 +15,7 @@ x-agent-common: &agent-common
     context: .
     dockerfile: apps/agent-container/Dockerfile
   networks:
-    - substrate-prod-net
+    - sprayberry-labs-net
   restart: unless-stopped
   read_only: true
   tmpfs:
@@ -331,5 +331,5 @@ services:
       - ./.claude-credentials.json:/tmp/claude-credentials.json:ro
 
 networks:
-  substrate-prod-net:
+  sprayberry-labs-net:
     external: true

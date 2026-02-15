@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Tighten all agent schedules for 24/7 overnight operation.
- * Run: cat scripts/tighten-schedules.js | docker exec -i substrate-prod-api node -
+ * Run: cat scripts/tighten-schedules.js | docker exec -i sprayberry-labs-api node -
  */
 
 const http = require('http');

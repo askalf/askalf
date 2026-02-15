@@ -227,7 +227,7 @@ export async function securityScan(input: SecurityScanInput): Promise<ToolResult
 
         const prodContainers = containers.filter((c) => {
           const name = ((c['Names'] as string[]) ?? [])[0]?.replace(/^\//, '') ?? '';
-          return name.startsWith('substrate-prod-');
+          return name.startsWith('sprayberry-labs-');
         });
 
         const securityReport: Array<Record<string, unknown>> = [];

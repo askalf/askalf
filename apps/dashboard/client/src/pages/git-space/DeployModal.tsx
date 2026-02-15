@@ -6,14 +6,14 @@ import { useGitSpaceStore } from '../../stores/git-space';
 // ============================================
 
 const SERVICES = [
-  { id: 'api', label: 'API Server', desc: 'substrate-prod-api' },
-  { id: 'dashboard', label: 'Dashboard', desc: 'substrate-prod-dashboard' },
-  { id: 'forge', label: 'Forge', desc: 'substrate-prod-forge' },
-  { id: 'nginx', label: 'Nginx', desc: 'substrate-prod-nginx' },
-  { id: 'mcp', label: 'MCP', desc: 'substrate-prod-mcp' },
-  { id: 'mcp-tools', label: 'MCP Tools', desc: 'substrate-prod-mcp-tools' },
-  { id: 'scheduler', label: 'Scheduler', desc: 'substrate-prod-scheduler' },
-  { id: 'worker', label: 'Worker', desc: 'substrate-prod-worker' },
+  { id: 'api', label: 'API Server', desc: 'sprayberry-labs-api' },
+  { id: 'dashboard', label: 'Dashboard', desc: 'sprayberry-labs-dashboard' },
+  { id: 'forge', label: 'Forge', desc: 'sprayberry-labs-forge' },
+  { id: 'nginx', label: 'Nginx', desc: 'sprayberry-labs-nginx' },
+  { id: 'mcp', label: 'MCP', desc: 'sprayberry-labs-mcp' },
+  { id: 'mcp-tools', label: 'MCP Tools', desc: 'sprayberry-labs-mcp-tools' },
+  { id: 'scheduler', label: 'Scheduler', desc: 'sprayberry-labs-scheduler' },
+  { id: 'worker', label: 'Worker', desc: 'sprayberry-labs-worker' },
 ];
 
 const SERVICE_GROUPS = [

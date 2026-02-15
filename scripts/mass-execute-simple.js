@@ -1,6 +1,6 @@
 /**
  * Mass Execution Harness - Simple version using pg directly
- * Run: docker exec substrate-prod-api sh -c 'cat > /dev/shm/m.js && node /dev/shm/m.js' < scripts/mass-execute-simple.js
+ * Run: docker exec sprayberry-labs-api sh -c 'cat > /dev/shm/m.js && node /dev/shm/m.js' < scripts/mass-execute-simple.js
  */
 
 const { Pool } = require('pg');

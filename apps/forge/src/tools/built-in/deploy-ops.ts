@@ -31,14 +31,14 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_SIZE = 512_000;
 
 const SERVICE_MAP: Record<string, string> = {
-  api: 'substrate-prod-api',
-  dashboard: 'substrate-prod-dashboard',
-  forge: 'substrate-prod-forge',
-  worker: 'substrate-prod-worker',
-  scheduler: 'substrate-prod-scheduler',
-  nginx: 'substrate-prod-nginx',
-  mcp: 'substrate-prod-mcp',
-  self: 'substrate-prod-self',
+  api: 'sprayberry-labs-api',
+  dashboard: 'sprayberry-labs-dashboard',
+  forge: 'sprayberry-labs-forge',
+  worker: 'sprayberry-labs-worker',
+  scheduler: 'sprayberry-labs-scheduler',
+  nginx: 'sprayberry-labs-nginx',
+  mcp: 'sprayberry-labs-mcp',
+  self: 'sprayberry-labs-self',
 };
 
 const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
@@ -119,7 +119,7 @@ export async function deployOps(input: DeployOpsInput): Promise<ToolResult> {
         const prodContainers = containers
           .filter((c) => {
             const name = ((c['Names'] as string[]) ?? [])[0]?.replace(/^\//, '') ?? '';
-            return name.startsWith('substrate-prod-');
+            return name.startsWith('sprayberry-labs-');
           })
           .map((c) => ({
             name: ((c['Names'] as string[]) ?? [])[0]?.replace(/^\//, ''),

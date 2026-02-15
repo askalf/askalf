@@ -4,7 +4,7 @@ import https from 'https';
 const { Pool } = pg;
 
 const pool = new Pool({
-  host: 'substrate-prod-postgres',
+  host: 'sprayberry-labs-postgres',
   port: 5432,
   database: 'substrate',
   user: 'substrate',

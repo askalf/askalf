@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Batch update agent prompts to fix overlaps and add autonomous behavior.
- * Run: cat scripts/update-agent-prompts.js | docker exec -i substrate-prod-api node -
+ * Run: cat scripts/update-agent-prompts.js | docker exec -i sprayberry-labs-api node -
  */
 
 const http = require('http');
@@ -264,7 +264,7 @@ When you have no assigned tickets, perform these backend maintenance duties:
    - A few shard/chat endpoints
    File findings for any failures or slow responses.
 
-2. **Error log scan**: Use docker_api to check recent logs for substrate-prod-api and substrate-prod-forge. Look for:
+2. **Error log scan**: Use docker_api to check recent logs for sprayberry-labs-api and sprayberry-labs-forge. Look for:
    - Unhandled promise rejections
    - Database connection errors
    - Repeated error patterns

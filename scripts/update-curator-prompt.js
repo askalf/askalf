@@ -2,7 +2,7 @@
 /**
  * Update Shard Curator prompt via Forge API.
  * Run inside a container with network access to forge:3005
- * e.g.: docker exec substrate-prod-api node /app/scripts/update-curator-prompt.js
+ * e.g.: docker exec sprayberry-labs-api node /app/scripts/update-curator-prompt.js
  */
 
 const http = require('http');
