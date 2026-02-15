@@ -102,15 +102,6 @@ services:
   # ===========================================
   # APPLICATION LAYER
   # ===========================================
-  # API service RETIRED — all endpoints migrated to Forge (Phase 2)
-  # Container can be stopped: docker stop substrate-prod-api && docker rm substrate-prod-api
-
-  # Metabolic scheduler + worker DECOMMISSIONED
-  # Old 4-tier memory jobs (crystallize, promote, decay, etc.) targeted tables
-  # that were never created in substrate DB. Fleet memory now lives in Forge
-  # (forge_semantic_memories, forge_episodic_memories, forge_procedural_memories).
-  # Code preserved in apps/worker/, packages/metabolic/, packages/memory/ for reference.
-
   dashboard:
     build:
       context: .
@@ -136,7 +127,7 @@ services:
       forge:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3001/health"]
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -169,10 +160,7 @@ services:
           cpus: '0.25'
           memory: 128M
 
-  # MCP (legacy) service RETIRED — replaced by unified mcp-tools (Phase 3)
-  # Container can be stopped: docker stop substrate-prod-mcp && docker rm substrate-prod-mcp
-
-  # Unified MCP Tools Server — 19 tools (workflow, data, infra, agent, alf)
+  # Unified MCP Tools Server — 15 tools (workflow, data, infra, agent)
   mcp-tools:
     build:
       context: .
@@ -208,6 +196,7 @@ services:
     restart: unless-stopped
     labels:
       - "autoheal=true"
+    stop_grace_period: 15s
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -431,8 +420,10 @@ services:
       - ./infrastructure/nginx/static:/usr/share/nginx/static:ro
       - nginx_cache:/var/cache/nginx
     depends_on:
-      - dashboard
-      - forge
+      dashboard:
+        condition: service_healthy
+      forge:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
       interval: 30s
@@ -444,6 +435,7 @@ services:
     restart: unless-stopped
     labels:
       - "autoheal=true"
+    stop_grace_period: 15s
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=16m
@@ -503,6 +495,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
@@ -511,6 +504,7 @@ services:
     restart: unless-stopped
     labels:
       - "autoheal=true"
+    stop_grace_period: 15s
     read_only: true
     tmpfs:
       - /var/run/pgbouncer:size=10M,mode=1777
@@ -561,6 +555,11 @@ services:
     cap_drop:
       - ALL
     read_only: true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -636,6 +635,7 @@ services:
     restart: unless-stopped
     labels:
       - "autoheal=true"
+    stop_grace_period: 15s
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -657,8 +657,6 @@ services:
         reservations:
           cpus: '0.1'
           memory: 128M
-
-  # SELF AI — REMOVED (Feb 13 2026). Service fully retired.
 
 # Production volumes (isolated from dev)
 volumes:
