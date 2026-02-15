@@ -1893,3 +1893,87 @@
   display: inline-flex;
   align-items: center;
 }
+
+/* ---- AI Keys Tab ---- */
+.settings-ai-key-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 1rem 1.25rem;
+  margin-bottom: var(--space-md);
+}
+
+.settings-ai-key-header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.75rem;
+}
+
+.settings-ai-key-header strong {
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.settings-ai-key-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.settings-ai-key-active {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.settings-ai-key-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.settings-ai-key-btn {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.settings-ai-key-btn:hover {
+  border-color: var(--text-tertiary);
+  color: var(--text);
+}
+
+.settings-ai-key-btn--danger:hover {
+  color: #ef4444;
+  border-color: #ef444433;
+}
+
+.settings-ai-key-input {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.settings-ai-key-input input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--void, #0f0f1a);
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.settings-ai-key-input input:focus {
+  outline: none;
+  border-color: var(--crystal, #6366f1);
+}

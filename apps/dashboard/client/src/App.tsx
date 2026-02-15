@@ -14,6 +14,7 @@ const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 
 // Lazy-loaded: app pages
 const Self = lazy(() => import('./pages/Self'));
+const Integrations = lazy(() => import('./pages/Integrations'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
 const OrchestrationHub = lazy(() => import('./pages/OrchestrationHub'));
 const GitSpace = lazy(() => import('./pages/GitSpace'));
@@ -82,6 +83,7 @@ export default function App() {
       >
         {/* Self — conversation-first AI */}
         <Route path="/self" element={<Self />} />
+        <Route path="/integrations" element={<Integrations />} />
 
         {/* Forge — agent orchestration */}
         <Route path="/command-center" element={<CommandCenter />} />

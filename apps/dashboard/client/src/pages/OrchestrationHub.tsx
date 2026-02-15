@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { useHubStore, type HubTab } from '../stores/hub';
 import { usePolling } from '../hooks/usePolling';
 import AdminAssistantPanel from '../components/admin/AdminAssistantPanel';
-import CommandCenter from './hub/CommandCenter';
 import AgentFleet from './hub/AgentFleet';
 import Tickets from './hub/Tickets';
 import FleetMemory from './hub/FleetMemory';
@@ -12,7 +11,6 @@ import { AGENT_TYPE_INFO } from './hub/shared/AgentIcon';
 import './OrchestrationHub.css';
 
 const TABS: { key: HubTab; label: string }[] = [
-  { key: 'command', label: 'Command Center' },
   { key: 'fleet', label: 'Agents' },
   { key: 'tickets', label: 'Tickets' },
   { key: 'memory', label: 'Memory' },
@@ -20,7 +18,6 @@ const TABS: { key: HubTab; label: string }[] = [
 ];
 
 const PANEL_MAP: Record<HubTab, React.FC> = {
-  command: CommandCenter,
   fleet: AgentFleet,
   tickets: Tickets,
   memory: FleetMemory,

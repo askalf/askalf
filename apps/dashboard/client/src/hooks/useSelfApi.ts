@@ -3,9 +3,8 @@
  * Handles communication with the Self service.
  */
 
-const API_BASE = window.location.hostname.includes('askalf.org')
-  ? 'https://app.askalf.org'
-  : 'http://localhost:3006';
+// Use relative URLs — nginx proxies /api/v1/self/ to the self service
+const API_BASE = '';
 
 export interface Conversation {
   id: string;
