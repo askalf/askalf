@@ -31,14 +31,11 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
     rm -rf /app/deploy/node_modules/.cache 2>/dev/null || true
 
 # Production stage
-FROM node:20-slim AS runner
-
-# Install pnpm (needed for dependency_check/code_analysis tools)
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+FROM node:20-alpine AS runner
 
 # Security: create non-root user
-RUN groupadd -g 1001 substrate && \
-    useradd -u 1001 -g substrate -s /bin/false substrate
+RUN addgroup -g 1001 substrate && \
+    adduser -u 1001 -G substrate -s /bin/false -D substrate
 
 WORKDIR /app
 

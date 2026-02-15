@@ -116,7 +116,7 @@ export const TOOLS = [
       type: 'object' as const,
       properties: {
         action: { type: 'string', enum: ['status', 'logs', 'restart', 'build'] },
-        service: { type: 'string', description: 'Service name: api, dashboard, forge, worker, scheduler, nginx, mcp, self' },
+        service: { type: 'string', description: 'Service name: dashboard, forge, nginx, self, mcp-tools, searxng, askalf' },
         tail: { type: 'number' },
         intervention_id: { type: 'string', description: 'Approved intervention ID for restart/build' },
         agent_name: { type: 'string' },
@@ -160,10 +160,10 @@ export const TOOLS = [
 // ============================================
 
 const PROTECTED_CONTAINERS = [
-  'substrate-prod-api', 'substrate-prod-dashboard', 'substrate-prod-forge',
+  'substrate-prod-dashboard', 'substrate-prod-forge',
   'substrate-prod-nginx', 'substrate-prod-postgres', 'substrate-prod-redis',
-  'substrate-prod-pgbouncer', 'substrate-prod-cloudflared', 'substrate-prod-worker',
-  'substrate-prod-scheduler', 'substrate-prod-mcp', 'substrate-prod-self',
+  'substrate-prod-pgbouncer', 'substrate-prod-cloudflared', 'substrate-prod-self',
+  'substrate-prod-mcp-tools', 'substrate-prod-searxng', 'substrate-prod-askalf',
 ];
 
 async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
@@ -263,10 +263,10 @@ async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
 // ============================================
 
 const SERVICE_MAP: Record<string, string> = {
-  api: 'substrate-prod-api', dashboard: 'substrate-prod-dashboard',
-  forge: 'substrate-prod-forge', worker: 'substrate-prod-worker',
-  scheduler: 'substrate-prod-scheduler', nginx: 'substrate-prod-nginx',
-  mcp: 'substrate-prod-mcp', self: 'substrate-prod-self',
+  dashboard: 'substrate-prod-dashboard', forge: 'substrate-prod-forge',
+  nginx: 'substrate-prod-nginx', self: 'substrate-prod-self',
+  'mcp-tools': 'substrate-prod-mcp-tools', searxng: 'substrate-prod-searxng',
+  askalf: 'substrate-prod-askalf',
 };
 const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
 
