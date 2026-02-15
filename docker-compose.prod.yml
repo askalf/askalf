@@ -306,8 +306,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3010
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/forge
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       SEARXNG_URL: http://searxng:8080
       FORGE_URL: http://forge:3005
@@ -318,7 +318,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - .:/workspace:ro
     depends_on:
-      pgbouncer:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -599,8 +599,7 @@ services:
     image: edoburu/pgbouncer:v1.25.1-p0
     container_name: substrate-prod-pgbouncer
     environment:
-      # Comma-separated: pools both substrate and forge databases
-      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate,postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 1000
       DEFAULT_POOL_SIZE: 20
