@@ -32,6 +32,7 @@ interface AskAlfState {
   fetchConversations: () => Promise<void>;
   createConversation: () => Promise<string>;
   setActiveConversation: (id: string) => Promise<void>;
+  renameConversation: (id: string, title: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
   sendMessage: (message: string) => Promise<void>;
   stopGeneration: () => void;
@@ -103,6 +104,19 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
         set({ messages, isLoading: false });
       } catch (err) {
         set({ isLoading: false, error: err instanceof Error ? err.message : 'Failed to load messages' });
+      }
+    },
+
+    renameConversation: async (id: string, title: string) => {
+      try {
+        await api.renameConversation(id, title);
+        set((state) => ({
+          conversations: state.conversations.map(c =>
+            c.id === id ? { ...c, title } : c
+          ),
+        }));
+      } catch (err) {
+        set({ error: err instanceof Error ? err.message : 'Failed to rename conversation' });
       }
     },
 
