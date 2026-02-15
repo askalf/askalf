@@ -146,6 +146,7 @@ services:
     restart: unless-stopped
     labels:
       - "autoheal=true"
+    stop_grace_period: 15s
     # Security hardening
     security_opt:
       - no-new-privileges:true

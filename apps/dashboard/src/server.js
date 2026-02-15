@@ -201,7 +201,7 @@ async function getUserFromSession(request) {
 }
 
 // Health check endpoint for container orchestration
-fastify.get('/health', async () => {
+fastify.get('/health', { logLevel: 'silent' }, async () => {
   // Validate database connectivity
   try {
     await queryOne('SELECT 1');
