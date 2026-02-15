@@ -26,7 +26,7 @@ import {
   type CoordinationStats,
 } from '../hooks/useHubApi';
 
-export type HubTab = 'command' | 'fleet' | 'gateway' | 'memory' | 'scheduler' | 'coordination';
+export type HubTab = 'command' | 'fleet' | 'tickets' | 'memory' | 'threads';
 
 export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural' | 'workqueue';
 
@@ -250,6 +250,7 @@ interface HubState {
   recommissionAgent: (id: string) => Promise<void>;
   deleteAgent: (id: string) => Promise<void>;
   batchProcessAgents: () => Promise<void>;
+  batchPauseAgents: () => Promise<void>;
   processAgent: (id: string) => Promise<void>;
 
   // Intervention actions
@@ -885,6 +886,19 @@ export const useHubStore = create<HubState>((set, get) => ({
       await get().fetchAgents();
     } catch (err) {
       console.error('Failed to batch process:', err);
+    } finally {
+      set({ batchRunning: false });
+    }
+  },
+
+  batchPauseAgents: async () => {
+    set({ batchRunning: true, batchResult: null });
+    try {
+      const result = await hubApi.agents.batchPause();
+      set({ batchResult: { started: 0, agents: result.agents } });
+      await get().fetchAgents();
+    } catch (err) {
+      console.error('Failed to batch pause:', err);
     } finally {
       set({ batchRunning: false });
     }

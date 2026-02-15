@@ -66,6 +66,7 @@ export default function CommandCenter() {
   const fetchTickets = useHubStore((s) => s.fetchTickets);
   const fetchFindings = useHubStore((s) => s.fetchFindings);
   const batchProcessAgents = useHubStore((s) => s.batchProcessAgents);
+  const batchPauseAgents = useHubStore((s) => s.batchPauseAgents);
   const respondToIntervention = useHubStore((s) => s.respondToIntervention);
   const setActiveTab = useHubStore((s) => s.setActiveTab);
   const setShowAgentDetail = useHubStore((s) => s.setShowAgentDetail);
@@ -94,6 +95,7 @@ export default function CommandCenter() {
   usePolling(pollSecondary, 30000);
 
   const activeAgents = useMemo(() => agents.filter((a) => !a.is_decommissioned), [agents]);
+  const fleetRunning = useMemo(() => activeAgents.some((a) => a.status === 'running' || a.status === 'idle'), [activeAgents]);
 
   // Compute success rate from taskStats
   const successRate = useMemo(() => {
@@ -110,12 +112,6 @@ export default function CommandCenter() {
     return 'danger' as const;
   }, [successRate]);
 
-  // Compute 24h cost from activity
-  const cost24h = useMemo(() => {
-    // Activity doesn't include cost directly — use tasks if available
-    // For now show tasks_today metric as proxy
-    return null;
-  }, []);
 
   // Upcoming scheduled runs
   const upcomingRuns = useMemo(() => {
@@ -169,7 +165,7 @@ export default function CommandCenter() {
           label="Pending Review"
           variant={(stats?.pendingInterventions || 0) > 0 ? 'warning' : 'default'}
           pulse={(stats?.pendingInterventions || 0) > 0}
-          onClick={() => setActiveTab('gateway')}
+          onClick={() => setActiveTab('tickets')}
         />
         <StatCard value={metrics?.agents.tasks_today || 0} label="Tasks Today" />
         <StatCard
@@ -181,12 +177,9 @@ export default function CommandCenter() {
           value={metrics?.tickets.open || 0}
           label="Open Tickets"
           variant={(metrics?.tickets.open || 0) > 0 ? 'warning' : 'default'}
-          onClick={() => setActiveTab('memory')}
+          onClick={() => setActiveTab('tickets')}
         />
-        <StatCard
-          value={cost24h !== null ? `$${cost24h}` : '-'}
-          label="Cost (24h)"
-        />
+
       </div>
 
       {/* Row 2: Fleet Status Grid + Upcoming Runs */}
@@ -243,25 +236,25 @@ export default function CommandCenter() {
         <h3>Quick Actions</h3>
         <div className="hub-cmd-actions">
           <button
-            className={`hub-btn hub-btn--primary ${batchRunning ? 'running' : ''}`}
-            onClick={batchProcessAgents}
+            className={`hub-btn ${fleetRunning ? 'hub-btn--danger' : 'hub-btn--primary'} ${batchRunning ? 'running' : ''}`}
+            onClick={fleetRunning ? batchPauseAgents : batchProcessAgents}
             disabled={batchRunning}
           >
-            {batchRunning ? 'Starting Agents...' : 'Run All Agents'}
+            {batchRunning ? (fleetRunning ? 'Pausing Agents...' : 'Starting Agents...') : (fleetRunning ? 'Pause All Agents' : 'Run All Agents')}
           </button>
           <button className="hub-btn" onClick={() => setShowCreateAgent(true)}>
             Spin Up New Agent
           </button>
-          <button className="hub-btn" onClick={() => setActiveTab('gateway')}>
+          <button className="hub-btn" onClick={() => setActiveTab('tickets')}>
             Review Interventions
           </button>
-          <button className="hub-btn" onClick={() => setActiveTab('memory')}>
+          <button className="hub-btn" onClick={() => setActiveTab('tickets')}>
             Agent Tickets
           </button>
         </div>
         {batchResult && (
           <div className="hub-cmd-batch-result">
-            Started {batchResult.started} agents: {batchResult.agents.join(', ') || 'None'}
+            {batchResult.started > 0 ? `Started ${batchResult.started}` : `Paused ${batchResult.agents.length}`} agents: {batchResult.agents.join(', ') || 'None'}
           </div>
         )}
       </div>
@@ -296,7 +289,7 @@ export default function CommandCenter() {
                       duration_seconds: item.duration_seconds,
                     };
                     setSelectedTask(task);
-                    setActiveTab('memory');
+                    setActiveTab('tickets');
                   }}
                 >
                   <span className="hub-cmd-activity-agent">{item.agent_name}</span>
@@ -321,7 +314,7 @@ export default function CommandCenter() {
                   className="hub-cmd-ticket-row"
                   onClick={() => {
                     setShowTicketDetail(ticket);
-                    setActiveTab('memory');
+                    setActiveTab('tickets');
                   }}
                 >
                   <StatusBadge status={ticket.priority} />
@@ -363,7 +356,7 @@ export default function CommandCenter() {
                       description: null,
                     };
                     setSelectedFeedItem(feedItem);
-                    setActiveTab('memory');
+                    setActiveTab('tickets');
                   }}
                 >
                   <StatusBadge status={finding.severity} />
@@ -398,7 +391,7 @@ export default function CommandCenter() {
               </div>
             ))}
             {interventions.length > 5 && (
-              <button className="hub-btn hub-btn--ghost" onClick={() => setActiveTab('gateway')}>
+              <button className="hub-btn hub-btn--ghost" onClick={() => setActiveTab('tickets')}>
                 View all {interventions.length} interventions
               </button>
             )}

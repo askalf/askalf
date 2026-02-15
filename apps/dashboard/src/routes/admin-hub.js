@@ -371,6 +371,37 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     };
   });
 
+  // 9b. POST /api/v1/admin/agents/batch/pause - Pause all active agents
+  fastify.post('/api/v1/admin/agents/batch/pause', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const agentsRes = await callForge('/agents?status=active&limit=100');
+    if (agentsRes.error) {
+      return reply.code(503).send({ error: 'Failed to fetch agents' });
+    }
+
+    const results = [];
+    for (const agent of (agentsRes.agents || [])) {
+      const res = await callForge(`/agents/${agent.id}`, {
+        method: 'PUT',
+        body: { status: 'paused' },
+      });
+      results.push({
+        agent_id: agent.id,
+        agent_name: agent.name,
+        success: !res.error,
+      });
+    }
+
+    const succeeded = results.filter(r => r.success);
+    return {
+      results,
+      paused: succeeded.length,
+      agents: succeeded.map(r => r.agent_name),
+    };
+  });
+
   // 10. POST /api/v1/admin/agents/:id/process - Process single agent
   fastify.post('/api/v1/admin/agents/:id/process', async (request, reply) => {
     const admin = await requireAdmin(request, reply);

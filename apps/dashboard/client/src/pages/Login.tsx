@@ -18,7 +18,7 @@ export default function LoginPage() {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     root.setAttribute('data-theme', 'dark');
-    document.title = 'Log In — Orgi';
+    document.title = 'Log In — Forge';
     return () => {
       if (previousTheme) {
         root.setAttribute('data-theme', previousTheme);
@@ -48,9 +48,9 @@ export default function LoginPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-icon" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)' }}>O</span>
+            <span className="auth-logo-icon" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)' }}>F</span>
             <span className="auth-logo-text">
-              <span className="auth-logo-alf animate-gradient-text">Orgi</span>
+              <span className="auth-logo-alf animate-gradient-text">Forge</span>
             </span>
           </div>
           <p className="auth-subtitle">Sign in to your orchestration platform</p>

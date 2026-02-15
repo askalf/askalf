@@ -20,7 +20,7 @@ export default function SignupPage() {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     root.setAttribute('data-theme', 'dark');
-    document.title = 'Sign Up — Orgi';
+    document.title = 'Sign Up — Forge';
     return () => {
       if (previousTheme) {
         root.setAttribute('data-theme', previousTheme);
@@ -61,9 +61,9 @@ export default function SignupPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-icon" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)' }}>O</span>
+            <span className="auth-logo-icon" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)' }}>F</span>
             <span className="auth-logo-text">
-              <span className="auth-logo-alf animate-gradient-text">Orgi</span>
+              <span className="auth-logo-alf animate-gradient-text">Forge</span>
             </span>
           </div>
           <p className="auth-subtitle">Create your account</p>

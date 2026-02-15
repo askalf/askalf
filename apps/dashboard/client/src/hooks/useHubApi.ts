@@ -413,6 +413,9 @@ export const hubApi = {
     batchProcess: () =>
       apiFetch<{ started: number; agents: string[] }>('/api/v1/admin/agents/batch/process', { method: 'POST' }),
 
+    batchPause: () =>
+      apiFetch<{ paused: number; agents: string[] }>('/api/v1/admin/agents/batch/pause', { method: 'POST' }),
+
     process: (id: string) =>
       apiFetch(`/api/v1/admin/agents/${id}/process`, { method: 'POST' }),
 
