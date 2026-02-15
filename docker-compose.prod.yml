@@ -572,7 +572,7 @@ services:
   # Excluded: postgres, redis (stateful - prefer manual intervention)
   # Included: forge, dashboard, mcp-tools, nginx, pgbouncer, cloudflared, self, searxng
   autoheal:
-    image: willfarrell/autoheal:latest
+    image: willfarrell/autoheal@sha256:63fb6c9afa4420bd118cb22ddee919f99dd2439105261c61f1a0fb506119f66b
     container_name: substrate-prod-autoheal
     environment:
       # Label-based scope: only restart containers with autoheal=true label
@@ -580,6 +580,8 @@ services:
       AUTOHEAL_INTERVAL: 60
       AUTOHEAL_START_PERIOD: 300
       AUTOHEAL_DEFAULT_STOP_TIMEOUT: 10
+      # Only restart running-but-unhealthy containers, not stopped/exited ones
+      AUTOHEAL_ONLY_MONITOR_RUNNING: "true"
     volumes:
       # Docker socket access required for container restart
       - /var/run/docker.sock:/var/run/docker.sock
@@ -609,10 +611,16 @@ services:
   # SEARCH — SearXNG Meta-Search Engine
   # ============================================
   searxng:
-    image: searxng/searxng:latest
+    image: searxng/searxng@sha256:670bd1076097640fc25221bf92a8af7d344503ce17ba3305abedf28e3634e807
     container_name: substrate-prod-searxng
+    environment:
+      SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
     volumes:
       - ./infrastructure/searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ./infrastructure/searxng/limiter.toml:/etc/searxng/limiter.toml:ro
       - searxng_cache:/var/cache/searxng
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/healthz || exit 1"]
