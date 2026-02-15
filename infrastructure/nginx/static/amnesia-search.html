@@ -7,30 +7,65 @@
   <meta name="description" content="World's fastest aggregated search engine - powered by Sprayberry Labs">
   <meta name="robots" content="noindex, nofollow">
   <meta property="og:title" content="amnesia.tax">
-  <meta property="og:description" content="Internal search engine">
+  <meta property="og:description" content="World's fastest aggregated search engine - powered by Sprayberry Labs">
   <meta property="og:type" content="website">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%230a0a0f'/><text x='50' y='68' text-anchor='middle' font-size='56' font-family='system-ui' font-weight='700' fill='%233b82f6'>a</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%230a0a0f'/><text x='50' y='68' text-anchor='middle' font-size='56' font-family='system-ui' font-weight='700' fill='%238b5cf6'>a</text></svg>">
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       min-height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: #0a0a0f;
-      color: #e0e0e0;
+      font-family: 'Space Mono', monospace;
+      background: #050508;
+      color: #c4c4cc;
     }
 
+    /* Eerie animated background */
     .bg {
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(ellipse at 20% 50%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+        radial-gradient(ellipse at 20% 50%, rgba(88, 28, 135, 0.14) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(127, 29, 29, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 90%, rgba(30, 58, 138, 0.08) 0%, transparent 50%);
       z-index: 0;
+      animation: bgDrift 20s ease-in-out infinite alternate;
     }
 
-    /* Landing state — centered */
+    @keyframes bgDrift {
+      0% { opacity: 0.6; }
+      50% { opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+
+    /* Noise overlay */
+    .bg::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    /* Scanline effect */
+    .bg::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.08) 2px,
+        rgba(0, 0, 0, 0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+
     .shell {
       position: relative;
       z-index: 1;
@@ -63,7 +98,7 @@
     .results-mode .search-header {
       padding: 1.5rem;
       max-width: 100%;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(139, 92, 246, 0.08);
       display: flex;
       align-items: center;
       gap: 1.5rem;
@@ -72,21 +107,29 @@
     .logo {
       font-size: 2.4rem;
       font-weight: 700;
-      letter-spacing: 0.15em;
-      background: linear-gradient(135deg, #3b82f6, #10b981);
+      letter-spacing: 0.2em;
+      background: linear-gradient(135deg, #7c3aed, #991b1b, #7c3aed);
+      background-size: 200% 200%;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       cursor: pointer;
       user-select: none;
+      animation: logoShift 8s ease-in-out infinite;
+      text-transform: lowercase;
+    }
+
+    @keyframes logoShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
     }
 
     .landing .logo {
-      margin-bottom: 2rem;
+      display: none;
     }
 
     .results-mode .logo {
-      font-size: 1.4rem;
+      font-size: 1.2rem;
       flex-shrink: 0;
     }
 
@@ -94,46 +137,57 @@
       display: flex;
       width: 100%;
       max-width: 680px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(139, 92, 246, 0.15);
+      border-radius: 2px;
       overflow: hidden;
-      transition: border-color 0.2s;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.03);
     }
 
     .search-box:focus-within {
-      border-color: rgba(59, 130, 246, 0.5);
+      border-color: rgba(139, 92, 246, 0.35);
+      box-shadow: 0 0 30px rgba(139, 92, 246, 0.06), inset 0 0 20px rgba(139, 92, 246, 0.02);
     }
 
     .search-box input {
       flex: 1;
-      padding: 0.9rem 1.2rem;
+      padding: 1rem 1.2rem;
       background: transparent;
       border: none;
       outline: none;
-      color: #e0e0e0;
-      font-size: 1rem;
-      font-family: inherit;
+      color: #d4d4dc;
+      font-size: 0.95rem;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 0.02em;
     }
 
-    .search-box input::placeholder { color: #4b5563; }
+    .search-box input::placeholder {
+      color: #3f3f50;
+      font-style: italic;
+    }
 
     .search-box button {
-      padding: 0.9rem 1.4rem;
+      padding: 1rem 1.4rem;
       background: transparent;
       border: none;
-      color: #60a5fa;
+      color: rgba(139, 92, 246, 0.5);
       cursor: pointer;
-      font-size: 1.1rem;
-      transition: color 0.2s;
+      font-size: 1rem;
+      transition: all 0.3s;
     }
 
-    .search-box button:hover { color: #93c5fd; }
+    .search-box button:hover {
+      color: rgba(139, 92, 246, 0.9);
+      text-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+    }
 
     .landing .subtitle {
-      margin-top: 1rem;
-      font-size: 0.8rem;
-      color: #4b5563;
+      margin-top: 1.2rem;
+      font-size: 0.7rem;
+      color: #7a7a90;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
     }
 
     /* Results area */
@@ -143,27 +197,37 @@
     }
 
     .results-meta {
-      font-size: 0.8rem;
-      color: #4b5563;
+      font-size: 0.75rem;
+      color: #3f3f50;
       margin-bottom: 1.5rem;
       display: flex;
       align-items: center;
       gap: 0.75rem;
       flex-wrap: wrap;
+      letter-spacing: 0.05em;
     }
 
     .results-meta .engine-tag {
       display: inline-block;
       padding: 0.15rem 0.5rem;
-      background: rgba(59,130,246,0.1);
-      border: 1px solid rgba(59,130,246,0.15);
-      border-radius: 4px;
-      font-size: 0.7rem;
-      color: #60a5fa;
+      background: rgba(139, 92, 246, 0.06);
+      border: 1px solid rgba(139, 92, 246, 0.1);
+      border-radius: 1px;
+      font-size: 0.65rem;
+      color: rgba(139, 92, 246, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
 
     .result-item {
       margin-bottom: 1.75rem;
+      padding-left: 0.75rem;
+      border-left: 1px solid rgba(139, 92, 246, 0.06);
+      transition: border-color 0.3s;
+    }
+
+    .result-item:hover {
+      border-left-color: rgba(139, 92, 246, 0.25);
     }
 
     .result-item a {
@@ -171,34 +235,40 @@
     }
 
     .result-url {
-      font-size: 0.78rem;
-      color: #34d399;
+      font-size: 0.7rem;
+      color: rgba(74, 222, 128, 0.4);
       margin-bottom: 0.2rem;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      letter-spacing: 0.03em;
     }
 
     .result-title {
-      font-size: 1.15rem;
-      font-weight: 600;
-      color: #93c5fd;
+      font-size: 1rem;
+      font-weight: 700;
+      color: rgba(196, 181, 253, 0.8);
       margin-bottom: 0.35rem;
-      line-height: 1.4;
+      line-height: 1.5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    .result-title:hover { text-decoration: underline; }
+    .result-title:hover {
+      color: rgba(196, 181, 253, 1);
+      text-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+    }
 
     .result-snippet {
-      font-size: 0.9rem;
-      color: #9ca3af;
-      line-height: 1.6;
+      font-size: 0.82rem;
+      color: #6b6b7b;
+      line-height: 1.7;
     }
 
     .result-engines {
       margin-top: 0.3rem;
-      font-size: 0.7rem;
-      color: #4b5563;
+      font-size: 0.65rem;
+      color: #2a2a38;
+      letter-spacing: 0.05em;
     }
 
     /* Loading */
@@ -207,29 +277,32 @@
       align-items: center;
       gap: 0.75rem;
       padding: 2rem;
-      color: #4b5563;
+      color: #3f3f50;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
     }
 
     .spinner {
-      width: 20px;
-      height: 20px;
-      border: 2px solid rgba(59,130,246,0.2);
-      border-top-color: #3b82f6;
+      width: 16px;
+      height: 16px;
+      border: 1px solid rgba(139, 92, 246, 0.15);
+      border-top-color: rgba(139, 92, 246, 0.6);
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      animation: spin 1.2s linear infinite;
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .error-msg {
       padding: 2rem;
-      color: #f87171;
-      font-size: 0.9rem;
+      color: rgba(220, 38, 38, 0.6);
+      font-size: 0.85rem;
+      letter-spacing: 0.03em;
     }
 
     .no-results {
       padding: 2rem;
-      color: #6b7280;
+      color: #3f3f50;
     }
 
     /* Suggestions */
@@ -244,30 +317,43 @@
 
     .suggestions button {
       padding: 0.35rem 0.8rem;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 6px;
-      color: #9ca3af;
-      font-size: 0.8rem;
+      background: rgba(139, 92, 246, 0.03);
+      border: 1px solid rgba(139, 92, 246, 0.08);
+      border-radius: 1px;
+      color: #4a4a5c;
+      font-size: 0.75rem;
       cursor: pointer;
-      font-family: inherit;
-      transition: all 0.2s;
+      font-family: 'Space Mono', monospace;
+      transition: all 0.3s;
+      letter-spacing: 0.03em;
     }
 
     .suggestions button:hover {
-      background: rgba(59,130,246,0.1);
-      border-color: rgba(59,130,246,0.2);
-      color: #60a5fa;
+      background: rgba(139, 92, 246, 0.08);
+      border-color: rgba(139, 92, 246, 0.2);
+      color: rgba(196, 181, 253, 0.7);
     }
 
     /* Footer */
     .footer {
       padding: 2rem;
       max-width: 780px;
-      font-size: 0.75rem;
-      color: #374151;
-      border-top: 1px solid rgba(255,255,255,0.04);
+      font-size: 0.65rem;
+      color: #1a1a24;
+      border-top: 1px solid rgba(139, 92, 246, 0.04);
       margin-top: 2rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    /* Flicker on landing */
+    .landing .search-box {
+      animation: flicker 4s ease-in-out infinite;
+    }
+
+    @keyframes flicker {
+      0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.03); }
+      50% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.07), 0 0 60px rgba(127, 29, 29, 0.03); }
     }
   </style>
 </head>
@@ -278,9 +364,9 @@
       <div class="logo" id="logo">amnesia.tax</div>
       <div class="search-box">
         <input type="text" id="q" placeholder="Search the web..." autofocus autocomplete="off">
-        <button onclick="doSearch()" aria-label="Search">&#x1F50D;</button>
+        <button onclick="doSearch()" aria-label="Search">&#x25C8;</button>
       </div>
-      <p class="subtitle" id="subtitle">World's fastest aggregated search engine &mdash; powered by Sprayberry Labs</p>
+      <p class="subtitle" id="subtitle">Every engine at once. Unfiltered. Forgotten.</p>
     </div>
 
     <div id="content"></div>
@@ -294,7 +380,6 @@
 
     q.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
 
-    // Load query from URL on page load
     const params = new URLSearchParams(location.search);
     if (params.get('q')) {
       q.value = params.get('q');
@@ -314,15 +399,12 @@
       const query = q.value.trim();
       if (!query) return;
 
-      // Switch to results layout
       shell.className = 'shell results-mode';
       subtitle.style.display = 'none';
 
-      // Update URL
       history.pushState(null, '', '/?q=' + encodeURIComponent(query));
 
-      // Show loading
-      content.innerHTML = '<div class="loading"><div class="spinner"></div>Searching...</div>';
+      content.innerHTML = '<div class="loading"><div class="spinner"></div>searching...</div>';
 
       try {
         const res = await fetch('/search?q=' + encodeURIComponent(query) + '&format=json');
@@ -330,7 +412,7 @@
         const data = await res.json();
         renderResults(data);
       } catch (err) {
-        content.innerHTML = '<div class="error-msg">Search error: ' + escapeHtml(err.message) + '</div>';
+        content.innerHTML = '<div class="error-msg">' + escapeHtml(err.message) + '</div>';
       }
     }
 
@@ -341,19 +423,17 @@
 
       let html = '<div class="results-area">';
 
-      // Meta line
       html += '<div class="results-meta">';
-      html += '<span>' + results.length + ' results</span>';
+      html += '<span>' + results.length + ' found</span>';
       Array.from(engines).sort().forEach(e => {
         html += '<span class="engine-tag">' + escapeHtml(e) + '</span>';
       });
       html += '</div>';
 
       if (results.length === 0) {
-        html += '<div class="no-results">No results found.</div>';
+        html += '<div class="no-results">nothing here. try again.</div>';
       }
 
-      // Dedupe by URL
       const seen = new Set();
       results.forEach(r => {
         if (seen.has(r.url)) return;
@@ -361,19 +441,18 @@
 
         const domain = new URL(r.url).hostname.replace(/^www\./, '');
         html += '<div class="result-item"><a href="' + escapeAttr(r.url) + '" target="_blank" rel="noopener">';
-        html += '<div class="result-url">' + escapeHtml(domain) + ' &rsaquo; ' + escapeHtml(truncate(r.url, 90)) + '</div>';
+        html += '<div class="result-url">' + escapeHtml(domain) + '</div>';
         html += '<div class="result-title">' + escapeHtml(r.title || r.url) + '</div>';
         html += '</a>';
         if (r.content) html += '<div class="result-snippet">' + escapeHtml(truncate(r.content, 280)) + '</div>';
         if (r.engines && r.engines.length > 1) {
-          html += '<div class="result-engines">Found on: ' + r.engines.join(', ') + '</div>';
+          html += '<div class="result-engines">' + r.engines.join(' / ') + '</div>';
         }
         html += '</div>';
       });
 
       html += '</div>';
 
-      // Suggestions
       if (data.suggestions && data.suggestions.length > 0) {
         html += '<div class="suggestions">';
         data.suggestions.forEach(s => {
