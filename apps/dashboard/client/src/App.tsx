@@ -13,6 +13,8 @@ const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 
 // Lazy-loaded: app pages
+const AskAlf = lazy(() => import('./pages/AskAlf'));
+const AskAlfIntegrations = lazy(() => import('./pages/AskAlfIntegrations'));
 const Self = lazy(() => import('./pages/Self'));
 const Integrations = lazy(() => import('./pages/Integrations'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
@@ -81,6 +83,10 @@ export default function App() {
           </ProtectedRoute>
         }
       >
+        {/* Ask Alf — universal chat with hot swap + LLM classifier */}
+        <Route path="/ask-alf" element={<AskAlf />} />
+        <Route path="/ask-alf/integrations" element={<AskAlfIntegrations />} />
+
         {/* Self — conversation-first AI */}
         <Route path="/self" element={<Self />} />
         <Route path="/integrations" element={<Integrations />} />
@@ -90,7 +96,9 @@ export default function App() {
 
         {/* Orchestration */}
         <Route path="/agents" element={<OrchestrationHub />} />
-        <Route path="/git-space" element={<GitSpace />} />
+        {/* Just Push — simplified git */}
+        <Route path="/repos" element={<GitSpace />} />
+        <Route path="/git-space" element={<Navigate to="/repos" replace />} />
 
         {/* Platform */}
         <Route path="/settings" element={<Settings />} />
