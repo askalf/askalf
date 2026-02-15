@@ -10,12 +10,15 @@
     "typecheck": "pnpm exec tsc --noEmit"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.1.1",
-    "zustand": "^5.0.3",
-    "clsx": "^2.1.1",
-    "date-fns": "^4.1.0"
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",

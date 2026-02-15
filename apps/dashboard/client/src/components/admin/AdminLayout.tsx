@@ -25,6 +25,12 @@ const NAV_ITEMS = [
     ],
   },
   {
+    section: 'Search Engine',
+    items: [
+      { path: 'https://amnesia.tax', label: 'Amnesia', icon: 'A', external: true },
+    ],
+  },
+  {
     section: 'Just Push',
     items: [
       { path: '/repos', label: 'My Repos', icon: 'R' },
@@ -63,18 +69,31 @@ export default function AdminLayout() {
           {allSections.map((section) => (
             <div key={section.section} className="admin-nav-section">
               <div className="admin-nav-section-title">{section.section}</div>
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `admin-nav-item ${isActive ? 'active' : ''}`
-                  }
-                >
-                  <span className="admin-nav-icon">{item.icon}</span>
-                  <span className="admin-nav-label">{item.label}</span>
-                </NavLink>
-              ))}
+              {section.items.map((item) =>
+                'external' in item && item.external ? (
+                  <a
+                    key={item.path}
+                    href={item.path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="admin-nav-item"
+                  >
+                    <span className="admin-nav-icon">{item.icon}</span>
+                    <span className="admin-nav-label">{item.label}</span>
+                  </a>
+                ) : (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `admin-nav-item ${isActive ? 'active' : ''}`
+                    }
+                  >
+                    <span className="admin-nav-icon">{item.icon}</span>
+                    <span className="admin-nav-label">{item.label}</span>
+                  </NavLink>
+                )
+              )}
             </div>
           ))}
         </nav>
