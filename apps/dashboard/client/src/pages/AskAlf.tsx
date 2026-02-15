@@ -11,8 +11,8 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 
 const HARDCODED_MODELS: Record<string, string[]> = {
-  claude: ['claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001'],
-  openai: ['gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini'],
+  claude: ['claude-opus-4-6', 'claude-sonnet-4-5', 'claude-haiku-4-5'],
+  openai: ['gpt-5.2', 'gpt-5.2-codex', 'gpt-5.1', 'gpt-5.1-codex', 'gpt-4.1', 'gpt-4.5-preview', 'gpt-4o', 'gpt-4o-mini', 'o4-mini', 'o3', 'o3-mini', 'o1', 'o1-mini'],
 };
 
 const SUGGESTED_PROMPTS = [
