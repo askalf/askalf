@@ -10,7 +10,7 @@
  * Usage:
  *   node scripts/generate-agent-config.js
  *   # Or from backup container:
- *   docker exec substrate-prod-backup node /workspace/scripts/generate-agent-config.js
+ *   docker exec sprayberry-labs-backup node /workspace/scripts/generate-agent-config.js
  *
  * Output: agent-configs/<agent-name>/CLAUDE.md and mcp.json
  */

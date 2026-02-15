@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Add autonomous behavior sections to remaining dev agents.
- * Run: cat scripts/update-dev-agents.js | docker exec -i substrate-prod-api node -
+ * Run: cat scripts/update-dev-agents.js | docker exec -i sprayberry-labs-api node -
  */
 
 const http = require('http');

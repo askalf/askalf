@@ -1,8 +1,8 @@
 -- =============================================================================
 -- DEMO SHARD LIBRARY: High-value promoted shards for askalf.org demo
 -- =============================================================================
--- Run with: docker exec substrate-prod-postgres psql -U substrate -d substrate -f /dev/stdin < scripts/demo-shard-library.sql
--- Or pipe: cat scripts/demo-shard-library.sql | docker exec -i substrate-prod-postgres psql -U substrate -d substrate
+-- Run with: docker exec sprayberry-labs-postgres psql -U substrate -d substrate -f /dev/stdin < scripts/demo-shard-library.sql
+-- Or pipe: cat scripts/demo-shard-library.sql | docker exec -i sprayberry-labs-postgres psql -U substrate -d substrate
 -- =============================================================================
 
 BEGIN;

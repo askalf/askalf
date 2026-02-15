@@ -52,12 +52,12 @@ if [ "$USE_DOCKER" = true ]; then
   log "Running migrations via Docker..."
 
   # Check if container is running
-  if ! docker ps --format '{{.Names}}' | grep -q "substrate-prod-api"; then
-    error "substrate-prod-api container is not running"
+  if ! docker ps --format '{{.Names}}' | grep -q "sprayberry-labs-api"; then
+    error "sprayberry-labs-api container is not running"
   fi
 
   # Run migrations inside the API container (it has the built migrate.js)
-  docker exec -it substrate-prod-api node -e "
+  docker exec -it sprayberry-labs-api node -e "
     const { migrate } = require('postgres-migrations');
     const { Client } = require('pg');
     const path = require('path');

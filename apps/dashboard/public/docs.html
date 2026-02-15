@@ -904,13 +904,13 @@ CREATE INDEX ON knowledge_facts USING hnsw (embedding vector_cosine_ops);</code>
 
         <h3>Logs</h3>
         <pre><code># View API logs
-docker logs substrate-prod-api --tail 100 -f
+docker logs sprayberry-labs-api --tail 100 -f
 
 # View dashboard logs
-docker logs substrate-prod-dashboard --tail 100 -f
+docker logs sprayberry-labs-dashboard --tail 100 -f
 
 # Database access
-docker exec -it substrate-prod-postgres psql -U substrate -d substrate</code></pre>
+docker exec -it sprayberry-labs-postgres psql -U substrate -d substrate</code></pre>
 
         <div class="warning-box">
           <p><strong>Warning:</strong> Never run destructive database operations (DELETE, TRUNCATE, DROP) without explicit confirmation and backup.</p>

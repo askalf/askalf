@@ -244,7 +244,7 @@ ON CONFLICT (agent_id) DO UPDATE SET
   console.log('\n--- Schedule SQL (run against substrate DB) ---');
   console.log(scheduleSql);
   console.log('\nRun with:');
-  console.log(`  docker exec substrate-prod-postgres psql -U substrate -d substrate -c "${scheduleSql.replace(/\n/g, ' ')}"`);
+  console.log(`  docker exec sprayberry-labs-postgres psql -U substrate -d substrate -c "${scheduleSql.replace(/\n/g, ' ')}"`);
 
   console.log('\nDone. Verify:');
   console.log(`  curl -s -H "Authorization: Bearer ${key}" ${BASE}/${agentId} | jq .agent.name`);

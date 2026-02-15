@@ -2914,7 +2914,7 @@ app.get('/api/v1/admin/cycle-history', { preHandler: requireAdminAuth }, async (
 // Worker health proxy (avoids exposing port 8081 to frontend)
 app.get('/api/v1/admin/worker-health', { preHandler: requireAdminAuth }, async (_request, reply) => {
   try {
-    const workerUrl = process.env['WORKER_HEALTH_URL'] || 'http://substrate-prod-worker:8081/health';
+    const workerUrl = process.env['WORKER_HEALTH_URL'] || 'http://sprayberry-labs-worker:8081/health';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(workerUrl, { signal: controller.signal });

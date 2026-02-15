@@ -1,5 +1,5 @@
 -- Dev Agent Work Tickets — Batch Insert
--- Run: docker exec -i substrate-prod-postgres psql -U substrate -d substrate < scripts/create-dev-tickets.sql
+-- Run: docker exec -i sprayberry-labs-postgres psql -U substrate -d substrate < scripts/create-dev-tickets.sql
 
 -- Frontend Dev (01KGXGV6R7KD6F3WD0MGASRHYY)
 INSERT INTO agent_tickets (id, title, description, assigned_to, agent_id, agent_name, is_agent_ticket, status, priority, created_by, source)

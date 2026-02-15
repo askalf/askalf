@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Update agent models across the fleet.
- * Run: cat scripts/update-agent-models.js | docker exec -i substrate-prod-api node -
+ * Run: cat scripts/update-agent-models.js | docker exec -i sprayberry-labs-api node -
  */
 
 const http = require('http');

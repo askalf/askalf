@@ -160,10 +160,10 @@ export const TOOLS = [
 // ============================================
 
 const PROTECTED_CONTAINERS = [
-  'substrate-prod-dashboard', 'substrate-prod-forge',
-  'substrate-prod-nginx', 'substrate-prod-postgres', 'substrate-prod-redis',
-  'substrate-prod-pgbouncer', 'substrate-prod-cloudflared', 'substrate-prod-self',
-  'substrate-prod-mcp-tools', 'substrate-prod-searxng', 'substrate-prod-askalf',
+  'sprayberry-labs-dashboard', 'sprayberry-labs-forge',
+  'sprayberry-labs-nginx', 'sprayberry-labs-postgres', 'sprayberry-labs-redis',
+  'sprayberry-labs-pgbouncer', 'sprayberry-labs-cloudflared', 'sprayberry-labs-self',
+  'sprayberry-labs-mcp-tools', 'sprayberry-labs-searxng', 'sprayberry-labs-askalf',
 ];
 
 async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
@@ -263,10 +263,10 @@ async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
 // ============================================
 
 const SERVICE_MAP: Record<string, string> = {
-  dashboard: 'substrate-prod-dashboard', forge: 'substrate-prod-forge',
-  nginx: 'substrate-prod-nginx', self: 'substrate-prod-self',
-  'mcp-tools': 'substrate-prod-mcp-tools', searxng: 'substrate-prod-searxng',
-  askalf: 'substrate-prod-askalf',
+  dashboard: 'sprayberry-labs-dashboard', forge: 'sprayberry-labs-forge',
+  nginx: 'sprayberry-labs-nginx', self: 'sprayberry-labs-self',
+  'mcp-tools': 'sprayberry-labs-mcp-tools', searxng: 'sprayberry-labs-searxng',
+  askalf: 'sprayberry-labs-askalf',
 };
 const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
 
@@ -278,7 +278,7 @@ async function handleDeployOps(args: Record<string, unknown>): Promise<string> {
       const res = await dockerRequest('GET', '/v1.44/containers/json?all=true');
       const containers = JSON.parse(res.data) as Array<Record<string, unknown>>;
       const prod = containers
-        .filter((c) => ((c['Names'] as string[]) ?? [])[0]?.includes('substrate-prod-'))
+        .filter((c) => ((c['Names'] as string[]) ?? [])[0]?.includes('sprayberry-labs-'))
         .map((c) => ({
           name: ((c['Names'] as string[]) ?? [])[0]?.replace(/^\//, ''),
           state: c['State'], status: c['Status'],
@@ -432,7 +432,7 @@ async function handleSecurityScan(args: Record<string, unknown>): Promise<string
     case 'docker_security': {
       const res = await dockerRequest('GET', '/v1.44/containers/json?all=true');
       const containers = JSON.parse(res.data) as Array<Record<string, unknown>>;
-      const prodContainers = containers.filter((c) => ((c['Names'] as string[]) ?? [])[0]?.includes('substrate-prod-'));
+      const prodContainers = containers.filter((c) => ((c['Names'] as string[]) ?? [])[0]?.includes('sprayberry-labs-'));
       const report: Array<Record<string, unknown>> = [];
       for (const container of prodContainers) {
         const name = ((container['Names'] as string[]) ?? [])[0]?.replace(/^\//, '') ?? '';

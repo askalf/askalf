@@ -2,7 +2,7 @@
 /**
  * Create overnight work tickets for all agents.
  * Each agent gets specific, actionable tickets matching their role.
- * Run: cat scripts/create-overnight-tickets.js | docker exec -i substrate-prod-api node -
+ * Run: cat scripts/create-overnight-tickets.js | docker exec -i sprayberry-labs-api node -
  */
 
 const http = require('http');
