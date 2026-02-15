@@ -17,6 +17,7 @@ interface AskAlfState {
   streamingContent: string;
   streamingProvider: string | null;
   streamingModel: string | null;
+  abortController: AbortController | null;
 
   // Provider selection
   selectedProvider: string; // 'auto' | 'claude' | 'openai'
@@ -33,6 +34,7 @@ interface AskAlfState {
   setActiveConversation: (id: string) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
   sendMessage: (message: string) => Promise<void>;
+  stopGeneration: () => void;
   setProvider: (provider: string) => void;
   setModel: (model: string) => void;
   fetchProviders: () => Promise<void>;
@@ -50,6 +52,7 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
     streamingContent: '',
     streamingProvider: null,
     streamingModel: null,
+    abortController: null,
     selectedProvider: 'auto',
     selectedModel: '',
     providers: {},
@@ -120,6 +123,8 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
       const state = get();
       if (state.isStreaming) return;
 
+      const abortController = new AbortController();
+
       const userMsg: AskAlfMessage = {
         id: `user-${Date.now()}`,
         role: 'user',
@@ -137,6 +142,7 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
         streamingContent: '',
         streamingProvider: null,
         streamingModel: null,
+        abortController,
         error: null,
       }));
 
@@ -149,6 +155,7 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
+          signal: abortController.signal,
           body: JSON.stringify({
             conversationId: state.activeConversationId,
             message,
@@ -239,18 +246,61 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
           streamingContent: '',
           streamingProvider: null,
           streamingModel: null,
+          abortController: null,
           activeConversationId: conversationId,
         }));
 
         get().fetchConversations();
       } catch (err) {
+        // If aborted, preserve partial content as a message
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          const partial = get().streamingContent;
+          if (partial) {
+            const partialMsg: AskAlfMessage = {
+              id: `assistant-${Date.now()}`,
+              role: 'assistant',
+              content: partial,
+              provider: get().streamingProvider,
+              model: get().streamingModel,
+              tokens_used: 0,
+              classified: false,
+              created_at: new Date().toISOString(),
+            };
+            set((s) => ({
+              messages: [...s.messages, partialMsg],
+              isStreaming: false,
+              streamingContent: '',
+              streamingProvider: null,
+              streamingModel: null,
+              abortController: null,
+            }));
+          } else {
+            set({
+              isStreaming: false,
+              streamingContent: '',
+              streamingProvider: null,
+              streamingModel: null,
+              abortController: null,
+            });
+          }
+          return;
+        }
+
         set({
           isStreaming: false,
           streamingContent: '',
           streamingProvider: null,
           streamingModel: null,
+          abortController: null,
           error: err instanceof Error ? err.message : 'Failed to send message',
         });
+      }
+    },
+
+    stopGeneration: () => {
+      const { abortController } = get();
+      if (abortController) {
+        abortController.abort();
       }
     },
 
