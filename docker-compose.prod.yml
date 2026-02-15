@@ -306,8 +306,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3010
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/forge
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       SEARXNG_URL: http://searxng:8080
       FORGE_URL: http://forge:3005
@@ -318,7 +318,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - .:/workspace:ro
     depends_on:
-      postgres:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -366,7 +366,7 @@ services:
       NODE_ENV: production
       PORT: 3005
       # Direct connection to postgres (not via pgbouncer - separate database)
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/forge
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # AI Providers — ANTHROPIC_API_KEY intentionally empty to force OAuth subscription
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -376,7 +376,7 @@ services:
       # Auth
       JWT_SECRET: ${JWT_SECRET}
       # Substrate DB access for cross-database queries
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
       REPO_ROOT: /workspace
       WORKSPACE_ROOT: /workspace
       # CLI execution environment
@@ -392,7 +392,7 @@ services:
     group_add:
       - "0"
     depends_on:
-      postgres:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -439,14 +439,14 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3006
-      SELF_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/self
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
+      SELF_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/self
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET: ${JWT_SECRET}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     depends_on:
-      postgres:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -493,15 +493,15 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3007
-      ASKALF_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
+      ASKALF_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET: ${JWT_SECRET}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     depends_on:
-      postgres:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -599,7 +599,8 @@ services:
     image: edoburu/pgbouncer:v1.25.1-p0
     container_name: substrate-prod-pgbouncer
     environment:
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
+      # All 4 databases pooled — every service routes through pgbouncer
+      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate,postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge,postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/self,postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 1000
       DEFAULT_POOL_SIZE: 20
