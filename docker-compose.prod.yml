@@ -120,9 +120,6 @@ services:
       # Database (via pgbouncer for connection pooling)
       DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_ORG_ID: ${OPENAI_ORG_ID}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       # Configurable schedules (cron format) - defaults shown
       # SCHEDULE_CRYSTALLIZE: "*/15 * * * *"
       # SCHEDULE_PROMOTE: "*/30 * * * *"
@@ -143,6 +140,7 @@ services:
     networks:
       - substrate-prod-net
     restart: unless-stopped
+    stop_grace_period: 15s
     labels:
       - "autoheal=true"
     # Security hardening

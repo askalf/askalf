@@ -33,14 +33,16 @@ export function initializeEventBus(eventConfig: EventBusConfig): Redis {
     return redis;
   }
 
-  redis = new Redis(eventConfig.redisUrl);
+  redis = new Redis(eventConfig.redisUrl, {
+    keepAlive: 30000,
+  });
 
   redis.on('error', (err: Error) => {
     logger.error({ error: err.message }, 'Redis connection error');
   });
 
   redis.on('connect', () => {
-    logger.info('Connected to Redis for event bus');
+    logger.debug('Connected to Redis for event bus');
   });
 
   return redis;
