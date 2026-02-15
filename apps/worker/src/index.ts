@@ -228,7 +228,6 @@ const QUEUES = {
   CLASSIFIER_SEED: 'substrate-classifier-seed',
   TRACE_INGEST: 'substrate-trace-ingest',
   SHARD_EXECUTE: 'substrate-shard-execute',
-  CLEANUP: 'substrate-cleanup',
 } as const;
 
 // Data retention policy: EVERYTHING persists forever for all tiers
