@@ -541,7 +541,7 @@ services:
   # INFRASTRUCTURE LAYER
   # ===========================================
   nginx:
-    image: nginx:1.28.1-alpine
+    image: nginx:1.28.2-alpine
     container_name: substrate-prod-nginx
     # NO PUBLIC PORTS - nginx is only accessible via cloudflared tunnel
     # This ensures all traffic must go through Cloudflare's security layer
