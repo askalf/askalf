@@ -6,7 +6,8 @@ const NAV_ITEMS = [
   {
     section: 'Self',
     items: [
-      { path: '/self', label: 'Self', icon: 'S' },
+      { path: '/self', label: 'Chat', icon: 'S' },
+      { path: '/integrations', label: 'Integrations', icon: 'I' },
     ],
   },
   {
@@ -41,8 +42,8 @@ export default function AdminLayout() {
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
           <div className="admin-logo" onClick={() => navigate('/self')}>
-            <span className="admin-logo-icon">F</span>
-            <span className="admin-logo-text">Forge</span>
+            <span className="admin-logo-icon">S</span>
+            <span className="admin-logo-text">Sprayberry Labs</span>
           </div>
         </div>
 

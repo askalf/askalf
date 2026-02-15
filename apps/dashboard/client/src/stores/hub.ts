@@ -26,7 +26,7 @@ import {
   type CoordinationStats,
 } from '../hooks/useHubApi';
 
-export type HubTab = 'command' | 'fleet' | 'tickets' | 'memory' | 'threads';
+export type HubTab = 'fleet' | 'tickets' | 'memory' | 'threads';
 
 export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural' | 'workqueue';
 
@@ -275,7 +275,7 @@ interface HubState {
 
 export const useHubStore = create<HubState>((set, get) => ({
   // UI
-  activeTab: 'command',
+  activeTab: 'fleet',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   // Agents
