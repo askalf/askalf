@@ -1,0 +1,36 @@
+# SearXNG Rate Limiter Configuration
+# Docs: https://docs.searxng.org/admin/limiter.html
+
+[botdetection]
+
+ipv4_prefix = 32
+ipv6_prefix = 48
+
+# Trust nginx reverse proxy for real IP extraction
+trusted_proxies = [
+  '127.0.0.0/8',
+  '::1',
+  '172.16.0.0/12',
+  '10.0.0.0/8',
+]
+
+[botdetection.ip_limit]
+
+filter_link_local = false
+
+# Require link token after rate limit hit (anti-bot)
+link_token = true
+
+[botdetection.ip_lists]
+
+block_ip = []
+
+# Allow Docker internal network unrestricted (mcp-tools, self, forge)
+pass_ip = [
+  '127.0.0.0/8',
+  '172.16.0.0/12',
+  '10.0.0.0/8',
+]
+
+# Disable fetching blocklist from searxng.org
+pass_searxng_org = false
