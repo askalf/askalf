@@ -101,6 +101,43 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  apps/askalf:
+    dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.39.0
+        version: 0.39.0
+      '@fastify/cookie':
+        specifier: ^11.0.0
+        version: 11.0.2
+      '@fastify/cors':
+        specifier: ^10.0.0
+        version: 10.1.0
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.2.3
+      fastify:
+        specifier: ^5.2.0
+        version: 5.6.2
+      openai:
+        specifier: ^4.77.0
+        version: 4.104.0(ws@8.19.0)(zod@3.25.76)
+      pg:
+        specifier: ^8.11.3
+        version: 8.16.3
+      ulid:
+        specifier: ^2.3.0
+        version: 2.4.0
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.16.0
+      tsx:
+        specifier: ^4.19.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   apps/dashboard:
     dependencies:
       '@fastify/cookie':
