@@ -6,7 +6,7 @@
  */
 
 import { spawn, execSync } from 'child_process';
-import { readFile, writeFile, access, copyFile, mkdir, unlink } from 'fs/promises';
+import { readFile, writeFile, access, copyFile, mkdir, unlink, rm } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
 import { AnthropicAdapter } from '../providers/adapters/anthropic.js';
 import type { IProviderAdapter } from '../providers/interface.js';
@@ -78,6 +78,10 @@ export async function initializeWorker(): Promise<void> {
 
   initialized = true;
   console.log(`[Worker] Execution worker initialized with ${registry.size} tools`);
+
+  // Start periodic OAuth token refresh (every 6 hours)
+  // Ensures token stays fresh even when no CLI executions are happening
+  startTokenRefreshTimer();
 }
 
 // ============================================
@@ -620,15 +624,43 @@ function releaseCliSlot(): void {
   }
 }
 
+/** Start periodic OAuth token refresh timer */
+function startTokenRefreshTimer(): void {
+  const ONE_HOUR = 60 * 60 * 1000;
+  // Initial refresh after 30 seconds (let the server finish booting)
+  setTimeout(() => {
+    refreshCredentials().catch(err =>
+      console.warn('[CLI] Periodic token refresh error:', err),
+    );
+  }, 30_000);
+  // Then every hour (8h token TTL, refresh at 1h before expiry)
+  setInterval(() => {
+    refreshCredentials().catch(err =>
+      console.warn('[CLI] Periodic token refresh error:', err),
+    );
+  }, ONE_HOUR);
+  console.log('[CLI] OAuth token refresh timer started (every 1h)');
+}
+
+/** Claude Code CLI OAuth client ID (constant) */
+const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
+const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
+const TOKEN_REFRESH_BUFFER_MS = 60 * 60 * 1000; // Refresh 1 hour before expiry
+
 /**
  * Refresh OAuth credentials before execution.
- * Copies fresher token from mount if available.
+ * 1. Copies fresher token from mount if available
+ * 2. Auto-refreshes expired/expiring tokens using the refresh_token grant
+ * 3. Persists refreshed tokens back to mount (host) for container restart survival
  */
 async function refreshCredentials(): Promise<void> {
   const credsPath = `${CLAUDE_DIR}/.credentials.json`;
+  const mountPath = '/tmp/claude-credentials.json';
+
   try {
-    await access('/tmp/claude-credentials.json');
-    const mountRaw = await readFile('/tmp/claude-credentials.json', 'utf8');
+    // Step 1: Copy fresher token from mount if available
+    await access(mountPath);
+    const mountRaw = await readFile(mountPath, 'utf8');
     const mountCreds = JSON.parse(mountRaw);
     let currentExpiry = 0;
     try {
@@ -637,8 +669,70 @@ async function refreshCredentials(): Promise<void> {
       currentExpiry = cur.claudeAiOauth?.expiresAt || 0;
     } catch { /* no current file */ }
     if ((mountCreds.claudeAiOauth?.expiresAt || 0) > currentExpiry) {
-      await copyFile('/tmp/claude-credentials.json', credsPath);
+      await copyFile(mountPath, credsPath);
       console.log('[CLI] Refreshed credentials from mount');
+    }
+
+    // Step 2: Check if token needs auto-refresh
+    const raw = await readFile(credsPath, 'utf8');
+    const creds = JSON.parse(raw);
+    const oauth = creds.claudeAiOauth;
+    if (!oauth?.refreshToken) return;
+
+    const expiresAt = oauth.expiresAt || 0;
+    const now = Date.now();
+
+    if (expiresAt > now + TOKEN_REFRESH_BUFFER_MS) {
+      return; // Token still valid for > 1 hour
+    }
+
+    console.log(`[CLI] OAuth token expires in ${Math.round((expiresAt - now) / 60000)}min — auto-refreshing`);
+
+    const res = await fetch(OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: oauth.refreshToken,
+        client_id: OAUTH_CLIENT_ID,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      console.error(`[CLI] OAuth token refresh failed: ${res.status} ${errText.slice(0, 200)}`);
+      return;
+    }
+
+    const data = await res.json() as {
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+    };
+
+    // Build updated credentials (preserve existing fields like scopes, subscriptionType)
+    const updated = {
+      claudeAiOauth: {
+        ...oauth,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token, // Single-use — must store new one
+        expiresAt: now + data.expires_in * 1000,
+      },
+    };
+
+    const updatedJson = JSON.stringify(updated);
+
+    // Write to CLI credential path
+    await writeFile(credsPath, updatedJson);
+    console.log(`[CLI] OAuth token refreshed — expires ${new Date(updated.claudeAiOauth.expiresAt).toISOString()}`);
+
+    // Persist back to mount (host file) so it survives container restarts
+    try {
+      await writeFile(mountPath, updatedJson);
+      console.log('[CLI] Persisted refreshed token to host mount');
+    } catch (writeErr) {
+      console.warn('[CLI] Could not persist to mount (read-only?):', (writeErr as Error).message);
     }
   } catch { /* mount may not exist */ }
 }
@@ -912,6 +1006,70 @@ export async function runDirectCliExecution(
        WHERE id = $3`,
       [errorMsg, durationMs, executionId],
     ).catch(() => {});
+  } finally {
+    releaseCliSlot();
+  }
+}
+
+/**
+ * Run a synchronous CLI query (for System Assistant).
+ * Spawns CLI with OAuth + MCP tools, returns output directly.
+ * Shorter timeout and fewer turns than agent executions.
+ */
+export async function runCliQuery(
+  prompt: string,
+  options?: {
+    model?: string;
+    maxTurns?: number;
+    timeout?: number;
+    systemPrompt?: string;
+  },
+): Promise<{
+  output: string;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  numTurns: number;
+  isError: boolean;
+}> {
+  if (!initialized) {
+    await initializeWorker();
+  }
+
+  await setupCliEnvironment();
+  await acquireCliSlot();
+
+  try {
+    await refreshCredentials();
+
+    // Write system prompt as CLAUDE.md in a temp directory to avoid conflicts
+    const tempDir = `/tmp/assistant-query-${Date.now()}`;
+    await mkdir(tempDir, { recursive: true });
+
+    if (options?.systemPrompt) {
+      await writeFile(`${tempDir}/CLAUDE.md`, options.systemPrompt);
+    }
+
+    const args: string[] = [
+      '-p', prompt,
+      '--output-format', 'json',
+      '--max-turns', String(options?.maxTurns ?? 10),
+      '--dangerously-skip-permissions',
+      '--add-dir', tempDir,
+      '--mcp-config', MCP_CONFIG_PATH,
+    ];
+
+    if (options?.model) {
+      args.push('--model', options.model);
+    }
+
+    const result = await executeClaudeCode(args, tempDir, options?.timeout ?? 120000);
+    const parsed = parseCliOutput(result.stdout, result.stderr, result.exitCode);
+
+    // Cleanup temp directory
+    await rm(tempDir, { recursive: true }).catch(() => {});
+
+    return parsed;
   } finally {
     releaseCliSlot();
   }

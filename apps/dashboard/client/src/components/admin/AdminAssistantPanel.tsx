@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import './AdminAssistantPanel.css';
 
 const API_BASE = window.location.hostname.includes('askalf.org')
-  ? 'https://api.askalf.org'
-  : 'http://localhost:3005';
+  ? ''
+  : 'http://localhost:3001';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -20,21 +20,20 @@ interface AdminAssistantPanelProps {
 }
 
 const TIER_SUGGESTIONS: Record<string, string[]> = {
-  procedural: ['Show broken shards', 'Low confidence shards', 'Shard execution stats', 'Trigger crystallization'],
-  episodic: ['Recent negative episodes', 'Pattern in failures', 'Episode summary'],
-  semantic: ['Stale facts', 'Low confidence facts', 'Fact categories breakdown'],
-  working: ['Compression efficiency', 'Stuck contexts', 'Working memory stats'],
+  fleet: ['Fleet health summary', 'Which agents have errors?', 'Agent success rates', 'Agents needing attention'],
+  executions: ['Recent failed executions', 'Execution trends today', 'Slowest agents', 'Average execution time'],
+  tickets: ['Open urgent tickets', 'Unassigned tickets', 'Ticket resolution rate', 'Overdue tickets'],
+  memory: ['Fleet memory stats', 'Recent knowledge entries', 'Memory usage by agent', 'Search fleet memory'],
 };
 
 const PAGE_SUGGESTIONS: Record<string, string[]> = {
-  analytics: ['Explain our key metrics', 'What is shard hit rate?', 'Show growth vs last month', 'Explain MRR and ARR'],
-  users: ['Inactive accounts', 'Role distribution', 'Recent signups', 'Users by plan tier'],
-  backups: ['Last backup status', 'Backup schedule health', 'Storage usage', 'Restore readiness'],
-  convergence: ['Convergence score trend', 'Metabolic cycle health', 'Worker status', 'System bottlenecks'],
-  memory: [],  // Uses tier-based suggestions
+  agents: ['Fleet overview', 'Agents with errors', 'Schedule health', 'Intervention queue'],
+  users: ['Inactive accounts', 'Role distribution', 'Recent signups', 'Active sessions'],
+  settings: ['System configuration', 'API key status', 'Service health', 'Database stats'],
+  'git-space': ['Active branches', 'Pending reviews', 'Recent merges', 'Agent commits'],
 };
 
-const SELECTED_SUGGESTIONS = ['Analyze this item', 'Why is confidence low?', 'Show execution history'];
+const SELECTED_SUGGESTIONS = ['Analyze this agent', 'Show recent executions', 'What tickets are assigned?'];
 
 export default function AdminAssistantPanel({ isOpen, onToggle, activeTier, selectedItemId, pageContext }: AdminAssistantPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -109,7 +108,7 @@ export default function AdminAssistantPanel({ isOpen, onToggle, activeTier, sele
     ? SELECTED_SUGGESTIONS
     : (pageContext && PAGE_SUGGESTIONS[pageContext]?.length)
       ? PAGE_SUGGESTIONS[pageContext]
-      : (TIER_SUGGESTIONS[activeTier] || TIER_SUGGESTIONS.procedural);
+      : (TIER_SUGGESTIONS[activeTier] || TIER_SUGGESTIONS.fleet);
 
   // Simple markdown-ish rendering: bold, inline code, code blocks, lists
   const renderContent = (text: string) => {
@@ -231,7 +230,7 @@ export default function AdminAssistantPanel({ isOpen, onToggle, activeTier, sele
                 <path d="M8 19h8" />
               </svg>
             </div>
-            <p>Ask me about system health, shard diagnostics, or recommendations.</p>
+            <p>Ask me about fleet health, agent status, tickets, or system diagnostics.</p>
           </div>
         )}
         {messages.map((msg, i) => (
@@ -280,7 +279,7 @@ export default function AdminAssistantPanel({ isOpen, onToggle, activeTier, sele
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about system health..."
+          placeholder="Ask about fleet health, agents, tickets..."
           rows={1}
           disabled={isLoading}
         />

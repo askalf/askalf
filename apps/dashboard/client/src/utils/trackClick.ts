@@ -1,5 +1,5 @@
 const API_BASE = window.location.hostname.includes('askalf.org')
-  ? 'https://api.askalf.org'
+  ? ''
   : 'http://localhost:3005';
 
 export function trackClick(link: string) {

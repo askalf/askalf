@@ -3558,3 +3558,37 @@
   border-color: var(--synapse);
   color: var(--synapse);
 }
+
+/* ---- Sub-tab Navigation (Tickets, Threads wrappers) ---- */
+.hub-sub-nav {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-sm);
+}
+
+.hub-sub-nav button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.hub-sub-nav button:hover {
+  color: var(--text-secondary);
+}
+
+.hub-sub-nav button.active {
+  color: var(--crystal);
+  border-bottom-color: var(--crystal);
+}
