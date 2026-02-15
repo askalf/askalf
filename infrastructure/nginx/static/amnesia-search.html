@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>amnesia.tax</title>
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+    }
+
+    .bg {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%);
+      z-index: 0;
+    }
+
+    /* Landing state — centered */
+    .shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .shell.landing {
+      justify-content: center;
+      align-items: center;
+    }
+
+    .shell.results-mode {
+      justify-content: flex-start;
+    }
+
+    /* Search header */
+    .search-header {
+      width: 100%;
+      max-width: 680px;
+      padding: 0 1.5rem;
+      transition: all 0.3s ease;
+    }
+
+    .landing .search-header {
+      text-align: center;
+    }
+
+    .results-mode .search-header {
+      padding: 1.5rem;
+      max-width: 100%;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .logo {
+      font-size: 2.4rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      background: linear-gradient(135deg, #3b82f6, #10b981);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .landing .logo {
+      margin-bottom: 2rem;
+    }
+
+    .results-mode .logo {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .search-box {
+      display: flex;
+      width: 100%;
+      max-width: 680px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .search-box:focus-within {
+      border-color: rgba(59, 130, 246, 0.5);
+    }
+
+    .search-box input {
+      flex: 1;
+      padding: 0.9rem 1.2rem;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e0e0e0;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    .search-box input::placeholder { color: #4b5563; }
+
+    .search-box button {
+      padding: 0.9rem 1.4rem;
+      background: transparent;
+      border: none;
+      color: #60a5fa;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: color 0.2s;
+    }
+
+    .search-box button:hover { color: #93c5fd; }
+
+    .landing .subtitle {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: #4b5563;
+    }
+
+    /* Results area */
+    .results-area {
+      max-width: 780px;
+      padding: 1.5rem 2rem;
+    }
+
+    .results-meta {
+      font-size: 0.8rem;
+      color: #4b5563;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .results-meta .engine-tag {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.15);
+      border-radius: 4px;
+      font-size: 0.7rem;
+      color: #60a5fa;
+    }
+
+    .result-item {
+      margin-bottom: 1.75rem;
+    }
+
+    .result-item a {
+      text-decoration: none;
+    }
+
+    .result-url {
+      font-size: 0.78rem;
+      color: #34d399;
+      margin-bottom: 0.2rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .result-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #93c5fd;
+      margin-bottom: 0.35rem;
+      line-height: 1.4;
+    }
+
+    .result-title:hover { text-decoration: underline; }
+
+    .result-snippet {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+
+    .result-engines {
+      margin-top: 0.3rem;
+      font-size: 0.7rem;
+      color: #4b5563;
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 2rem;
+      color: #4b5563;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(59,130,246,0.2);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      padding: 2rem;
+      color: #f87171;
+      font-size: 0.9rem;
+    }
+
+    .no-results {
+      padding: 2rem;
+      color: #6b7280;
+    }
+
+    /* Suggestions */
+    .suggestions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+      padding: 0 2rem;
+      max-width: 780px;
+    }
+
+    .suggestions button {
+      padding: 0.35rem 0.8rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      color: #9ca3af;
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .suggestions button:hover {
+      background: rgba(59,130,246,0.1);
+      border-color: rgba(59,130,246,0.2);
+      color: #60a5fa;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 2rem;
+      max-width: 780px;
+      font-size: 0.75rem;
+      color: #374151;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="shell landing" id="shell">
+    <div class="search-header" id="searchHeader">
+      <div class="logo" id="logo">amnesia.tax</div>
+      <div class="search-box">
+        <input type="text" id="q" placeholder="Search the web..." autofocus autocomplete="off">
+        <button onclick="doSearch()" aria-label="Search">&#x1F50D;</button>
+      </div>
+      <p class="subtitle" id="subtitle">Internal search engine &mdash; powered by SearXNG</p>
+    </div>
+
+    <div id="content"></div>
+  </div>
+
+  <script>
+    const q = document.getElementById('q');
+    const shell = document.getElementById('shell');
+    const subtitle = document.getElementById('subtitle');
+    const content = document.getElementById('content');
+
+    q.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+
+    // Load query from URL on page load
+    const params = new URLSearchParams(location.search);
+    if (params.get('q')) {
+      q.value = params.get('q');
+      doSearch();
+    }
+
+    document.getElementById('logo').addEventListener('click', () => {
+      shell.className = 'shell landing';
+      content.innerHTML = '';
+      q.value = '';
+      subtitle.style.display = '';
+      history.pushState(null, '', '/');
+      q.focus();
+    });
+
+    async function doSearch() {
+      const query = q.value.trim();
+      if (!query) return;
+
+      // Switch to results layout
+      shell.className = 'shell results-mode';
+      subtitle.style.display = 'none';
+
+      // Update URL
+      history.pushState(null, '', '/?q=' + encodeURIComponent(query));
+
+      // Show loading
+      content.innerHTML = '<div class="loading"><div class="spinner"></div>Searching...</div>';
+
+      try {
+        const res = await fetch('/search?q=' + encodeURIComponent(query) + '&format=json');
+        if (!res.ok) throw new Error('Search failed (' + res.status + ')');
+        const data = await res.json();
+        renderResults(data);
+      } catch (err) {
+        content.innerHTML = '<div class="error-msg">Search error: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    function renderResults(data) {
+      const results = data.results || [];
+      const engines = new Set();
+      results.forEach(r => (r.engines || [r.engine]).forEach(e => engines.add(e)));
+
+      let html = '<div class="results-area">';
+
+      // Meta line
+      html += '<div class="results-meta">';
+      html += '<span>' + results.length + ' results</span>';
+      Array.from(engines).sort().forEach(e => {
+        html += '<span class="engine-tag">' + escapeHtml(e) + '</span>';
+      });
+      html += '</div>';
+
+      if (results.length === 0) {
+        html += '<div class="no-results">No results found.</div>';
+      }
+
+      // Dedupe by URL
+      const seen = new Set();
+      results.forEach(r => {
+        if (seen.has(r.url)) return;
+        seen.add(r.url);
+
+        const domain = new URL(r.url).hostname.replace(/^www\./, '');
+        html += '<div class="result-item"><a href="' + escapeAttr(r.url) + '" target="_blank" rel="noopener">';
+        html += '<div class="result-url">' + escapeHtml(domain) + ' &rsaquo; ' + escapeHtml(truncate(r.url, 90)) + '</div>';
+        html += '<div class="result-title">' + escapeHtml(r.title || r.url) + '</div>';
+        html += '</a>';
+        if (r.content) html += '<div class="result-snippet">' + escapeHtml(truncate(r.content, 280)) + '</div>';
+        if (r.engines && r.engines.length > 1) {
+          html += '<div class="result-engines">Found on: ' + r.engines.join(', ') + '</div>';
+        }
+        html += '</div>';
+      });
+
+      html += '</div>';
+
+      // Suggestions
+      if (data.suggestions && data.suggestions.length > 0) {
+        html += '<div class="suggestions">';
+        data.suggestions.forEach(s => {
+          html += '<button onclick="suggestSearch(this)">' + escapeHtml(s) + '</button>';
+        });
+        html += '</div>';
+      }
+
+      html += '<div class="footer">amnesia.tax &mdash; internal search</div>';
+
+      content.innerHTML = html;
+    }
+
+    function suggestSearch(btn) {
+      q.value = btn.textContent;
+      doSearch();
+      window.scrollTo(0, 0);
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
+
+    function escapeAttr(s) {
+      return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function truncate(s, n) {
+      return (s && s.length > n) ? s.slice(0, n) + '...' : (s || '');
+    }
+  </script>
+</body>
+</html>
