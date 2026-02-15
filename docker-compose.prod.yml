@@ -599,7 +599,8 @@ services:
     image: edoburu/pgbouncer:v1.25.1-p0
     container_name: substrate-prod-pgbouncer
     environment:
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate
+      # Comma-separated: pools both substrate and forge databases
+      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate,postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 1000
       DEFAULT_POOL_SIZE: 20
