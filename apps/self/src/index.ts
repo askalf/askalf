@@ -82,7 +82,7 @@ setInterval(() => {
 // HEALTH CHECK
 // ============================================
 
-app.get('/health', async () => {
+app.get('/health', { logLevel: 'silent' }, async () => {
   return {
     status: 'healthy',
     service: 'self',
