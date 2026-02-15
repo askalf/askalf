@@ -35,11 +35,12 @@ ui:
   results_on_new_tab: false
 
 outgoing:
-  request_timeout: 10.0
-  max_request_timeout: 15.0
+  request_timeout: 6.0
+  max_request_timeout: 10.0
   useragent_suffix: ""
   pool_connections: 100
   pool_maxsize: 20
+  enable_http2: true
 
 # Override specific engines from defaults
 engines:
