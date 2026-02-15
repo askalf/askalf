@@ -58,12 +58,12 @@ engines:
   - name: duckduckgo
     engine: duckduckgo
     shortcut: ddg
-    disabled: true          # Frequently CAPTCHA-blocked from server IPs
+    disabled: false
 
   - name: startpage
     engine: startpage
     shortcut: sp
-    disabled: true          # Frequent timeouts, unreliable from servers
+    disabled: false
 
   - name: wikipedia
     engine: wikipedia
@@ -83,13 +83,12 @@ engines:
   # stackoverflow engine removed — not available in this SearXNG version
 
   - name: brave
-    disabled: true
+    disabled: false
 
   - name: qwant
     engine: qwant
     shortcut: qw
-    disabled: false
-    timeout: 10.0
+    disabled: true          # Suspended: access denied
 
   - name: mojeek
     engine: mojeek
