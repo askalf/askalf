@@ -389,6 +389,7 @@ services:
     networks:
       - substrate-prod-net
     restart: unless-stopped
+    stop_grace_period: 15s
     labels:
       - "autoheal=true"
     security_opt:
