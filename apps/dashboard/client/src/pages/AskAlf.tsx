@@ -26,6 +26,7 @@ export default function AskAlf() {
   const {
     conversations,
     activeConversationId,
+    conversationsLoaded,
     messages,
     isStreaming,
     streamingContent,
@@ -64,14 +65,20 @@ export default function AskAlf() {
     fetchProviders();
   }, [fetchConversations, fetchProviders]);
 
-  // Auto-create first conversation
+  // Auto-select or create conversation after fetch completes
   useEffect(() => {
-    if (!isLoading && conversations.length === 0 && !activeConversationId) {
-      createConversation();
-    } else if (!activeConversationId && conversations.length > 0) {
+    if (!conversationsLoaded) return;
+    if (activeConversationId && conversations.find(c => c.id === activeConversationId)) {
+      // Restored from localStorage and conversation still exists — load its messages
+      if (messages.length === 0 && !isLoading) {
+        setActiveConversation(activeConversationId);
+      }
+    } else if (conversations.length > 0) {
       setActiveConversation(conversations[0].id);
+    } else if (!activeConversationId) {
+      createConversation();
     }
-  }, [conversations, activeConversationId, isLoading, createConversation, setActiveConversation]);
+  }, [conversationsLoaded]);
 
   // Scroll to bottom
   useEffect(() => {

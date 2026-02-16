@@ -10,6 +10,7 @@ interface AskAlfState {
   // Conversations
   conversations: AskAlfConversation[];
   activeConversationId: string | null;
+  conversationsLoaded: boolean;
   messages: AskAlfMessage[];
 
   // Streaming
@@ -45,9 +46,15 @@ interface AskAlfState {
 export const useAskAlfStore = create<AskAlfState>((set, get) => {
   const api = useAskAlfApi();
 
+  // Restore last active conversation from localStorage
+  const savedConvId = (() => {
+    try { return localStorage.getItem('askalf_activeConversationId'); } catch { return null; }
+  })();
+
   return {
     conversations: [],
-    activeConversationId: null,
+    activeConversationId: savedConvId,
+    conversationsLoaded: false,
     messages: [],
     isStreaming: false,
     streamingContent: '',
@@ -63,9 +70,9 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
     fetchConversations: async () => {
       try {
         const conversations = await api.fetchConversations();
-        set({ conversations });
+        set({ conversations, conversationsLoaded: true });
       } catch (err) {
-        set({ error: err instanceof Error ? err.message : 'Failed to load conversations' });
+        set({ conversationsLoaded: true, error: err instanceof Error ? err.message : 'Failed to load conversations' });
       }
     },
 
@@ -82,6 +89,7 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
           classified: false,
           created_at: new Date().toISOString(),
         };
+        try { localStorage.setItem('askalf_activeConversationId', id); } catch {}
         set((state) => ({
           activeConversationId: id,
           messages: [welcomeMsg],
@@ -98,6 +106,7 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
     },
 
     setActiveConversation: async (id: string) => {
+      try { localStorage.setItem('askalf_activeConversationId', id); } catch {}
       set({ activeConversationId: id, isLoading: true, messages: [] });
       try {
         const messages = await api.fetchMessages(id);
@@ -254,6 +263,9 @@ export const useAskAlfStore = create<AskAlfState>((set, get) => {
           created_at: new Date().toISOString(),
         };
 
+        if (conversationId) {
+          try { localStorage.setItem('askalf_activeConversationId', conversationId); } catch {}
+        }
         set((s) => ({
           messages: [...s.messages, assistantMsg],
           isStreaming: false,
