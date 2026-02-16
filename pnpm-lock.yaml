@@ -220,6 +220,37 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  apps/just-push:
+    dependencies:
+      '@fastify/cookie':
+        specifier: ^11.0.1
+        version: 11.0.2
+      '@fastify/cors':
+        specifier: ^10.0.2
+        version: 10.1.0
+      '@fastify/static':
+        specifier: ^8.0.4
+        version: 8.3.0
+      '@substrate/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@substrate/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      fastify:
+        specifier: ^5.2.1
+        version: 5.6.2
+    devDependencies:
+      '@types/node':
+        specifier: ^20.17.0
+        version: 20.19.27
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   apps/mcp:
     dependencies:
       '@modelcontextprotocol/sdk':
