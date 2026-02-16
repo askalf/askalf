@@ -220,18 +220,30 @@ export default function AskAlf() {
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <span
-                  className="aa-sidebar-item-title"
-                  onDoubleClick={(e) => startRename(e, c.id, c.title)}
-                >
+                <span className="aa-sidebar-item-title">
                   {c.title || 'New Chat'}
                 </span>
               )}
-              <button
-                className="aa-sidebar-item-delete"
-                onClick={(e) => handleDelete(e, c.id)}
-                title="Delete"
-              >x</button>
+              <div className="aa-sidebar-item-actions">
+                <button
+                  className="aa-sidebar-item-action"
+                  onClick={(e) => startRename(e, c.id, c.title)}
+                  title="Rename"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"/>
+                  </svg>
+                </button>
+                <button
+                  className="aa-sidebar-item-action aa-sidebar-item-delete"
+                  onClick={(e) => handleDelete(e, c.id)}
+                  title="Delete"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4l8 8M12 4l-8 8"/>
+                  </svg>
+                </button>
+              </div>
             </div>
           ))}
         </div>
