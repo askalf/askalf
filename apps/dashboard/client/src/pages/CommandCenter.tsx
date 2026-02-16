@@ -1,310 +1,284 @@
-import { useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useHubStore } from '../stores/hub';
+import { useCallback, useState, lazy, Suspense } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useHubStore, type HubTab } from '../stores/hub';
 import { usePolling } from '../hooks/usePolling';
-import StatCard from './hub/shared/StatCard';
-import StatusBadge from './hub/shared/StatusBadge';
-import MasterCLI from '../components/MasterCLI';
+import { AGENT_TYPE_INFO } from './hub/shared/AgentIcon';
+import AdminAssistantPanel from '../components/admin/AdminAssistantPanel';
+import Modal from './hub/shared/Modal';
 import './hub/shared/hub-shared.css';
 import './CommandCenter.css';
+import './forge/forge-theme.css';
 
-const relativeTime = (iso: string | null) => {
-  if (!iso) return 'Never';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-};
+// Lazy-load all tab panels
+const ForgeOverview = lazy(() => import('./forge/ForgeOverview'));
+const AgentFleet = lazy(() => import('./hub/AgentFleet'));
+const ExecutionHistory = lazy(() => import('./hub/ExecutionHistory'));
+const SchedulerControl = lazy(() => import('./hub/SchedulerControl'));
+const FleetCoordination = lazy(() => import('./hub/FleetCoordination'));
+const InterventionGateway = lazy(() => import('./hub/InterventionGateway'));
+const Tickets = lazy(() => import('./hub/Tickets'));
+const ContentFeed = lazy(() => import('./hub/ContentFeed'));
+const FleetMemory = lazy(() => import('./hub/FleetMemory'));
+const Threads = lazy(() => import('./hub/Threads'));
+const CostDashboard = lazy(() => import('./forge/CostDashboard'));
+const ProviderHealthPage = lazy(() => import('./forge/ProviderHealth'));
+const GuardrailsManager = lazy(() => import('./forge/GuardrailsManager'));
+const AuditLog = lazy(() => import('./forge/AuditLog'));
+const WorkflowBuilder = lazy(() => import('./forge/WorkflowBuilder'));
 
-const countdown = (iso: string | null) => {
-  if (!iso) return '';
-  const diff = new Date(iso).getTime() - Date.now();
-  if (diff <= 0) return 'Now';
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `in ${mins}m`;
-  return `in ${Math.floor(mins / 60)}h ${mins % 60}m`;
-};
+const TAB_SECTIONS = [
+  {
+    label: 'Fleet',
+    tabs: [
+      { key: 'overview' as HubTab, label: 'Overview' },
+      { key: 'fleet' as HubTab, label: 'Agents' },
+      { key: 'executions' as HubTab, label: 'Executions' },
+      { key: 'scheduler' as HubTab, label: 'Scheduler' },
+      { key: 'coordination' as HubTab, label: 'Coordination' },
+    ],
+  },
+  {
+    label: 'Ops',
+    tabs: [
+      { key: 'interventions' as HubTab, label: 'Interventions' },
+      { key: 'tickets' as HubTab, label: 'Tickets' },
+      { key: 'content' as HubTab, label: 'Content' },
+      { key: 'memory' as HubTab, label: 'Memory' },
+    ],
+  },
+  {
+    label: 'Observe',
+    tabs: [
+      { key: 'costs' as HubTab, label: 'Costs' },
+      { key: 'providers' as HubTab, label: 'Providers' },
+      { key: 'guardrails' as HubTab, label: 'Guardrails' },
+      { key: 'audit' as HubTab, label: 'Audit' },
+    ],
+  },
+  {
+    label: 'Build',
+    tabs: [
+      { key: 'workflows' as HubTab, label: 'Workflows' },
+    ],
+  },
+];
 
-const podDotClass = (status: string) => {
-  switch (status) {
-    case 'running': return 'cc-fleet-pod-dot--running';
-    case 'error': return 'cc-fleet-pod-dot--error';
-    case 'paused': return 'cc-fleet-pod-dot--paused';
-    default: return 'cc-fleet-pod-dot--idle';
-  }
+const PANEL_MAP: Record<HubTab, React.FC> = {
+  overview: ForgeOverview,
+  fleet: AgentFleet,
+  executions: ExecutionHistory,
+  scheduler: SchedulerControl,
+  coordination: FleetCoordination,
+  interventions: InterventionGateway,
+  tickets: Tickets,
+  content: ContentFeed,
+  memory: FleetMemory,
+  threads: Threads,
+  costs: CostDashboard,
+  providers: ProviderHealthPage,
+  guardrails: GuardrailsManager,
+  audit: AuditLog,
+  workflows: WorkflowBuilder,
 };
 
 export default function CommandCenter() {
+  const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
+
+  const activeTab = useHubStore((s) => s.activeTab);
+  const setActiveTab = useHubStore((s) => s.setActiveTab);
   const stats = useHubStore((s) => s.stats);
-  const agents = useHubStore((s) => s.agents);
   const interventions = useHubStore((s) => s.interventions);
-  const metrics = useHubStore((s) => s.metrics);
-  const taskStats = useHubStore((s) => s.taskStats);
-  const schedules = useHubStore((s) => s.schedules);
-  const tickets = useHubStore((s) => s.tickets);
-  const findings = useHubStore((s) => s.findings);
-  const batchRunning = useHubStore((s) => s.batchRunning);
-  const batchResult = useHubStore((s) => s.batchResult);
-  const loading = useHubStore((s) => s.loading);
+  const schedulerStatus = useHubStore((s) => s.schedulerStatus);
+  const fetchRibbonData = useHubStore((s) => s.fetchRibbonData);
+  const fetchSchedulerStatus = useHubStore((s) => s.fetchSchedulerStatus);
+  const toggleScheduler = useHubStore((s) => s.toggleScheduler);
+  const ribbonData = useHubStore((s) => s.ribbonData);
 
-  const fetchOrchestration = useHubStore((s) => s.fetchOrchestration);
-  const fetchAgents = useHubStore((s) => s.fetchAgents);
-  const fetchInterventions = useHubStore((s) => s.fetchInterventions);
-  const fetchMetrics = useHubStore((s) => s.fetchMetrics);
-  const fetchTaskStats = useHubStore((s) => s.fetchTaskStats);
-  const fetchSchedules = useHubStore((s) => s.fetchSchedules);
-  const fetchTickets = useHubStore((s) => s.fetchTickets);
-  const fetchFindings = useHubStore((s) => s.fetchFindings);
-  const batchProcessAgents = useHubStore((s) => s.batchProcessAgents);
-  const batchPauseAgents = useHubStore((s) => s.batchPauseAgents);
-  const respondToIntervention = useHubStore((s) => s.respondToIntervention);
+  // Hub-level modals
+  const showCreateAgent = useHubStore((s) => s.showCreateAgent);
+  const setShowCreateAgent = useHubStore((s) => s.setShowCreateAgent);
+  const showRunAgent = useHubStore((s) => s.showRunAgent);
+  const setShowRunAgent = useHubStore((s) => s.setShowRunAgent);
+  const createAgent = useHubStore((s) => s.createAgent);
+  const runAgent = useHubStore((s) => s.runAgent);
 
-  const pollCritical = useCallback(() => {
-    fetchOrchestration();
-    fetchAgents();
-    fetchInterventions();
-  }, [fetchOrchestration, fetchAgents, fetchInterventions]);
-  usePolling(pollCritical, 15000);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [newAgent, setNewAgent] = useState({ name: '', type: 'custom', description: '', system_prompt: '' });
+  const [creating, setCreating] = useState(false);
+  const [runPrompt, setRunPrompt] = useState('');
+  const [runningId, setRunningId] = useState<string | null>(null);
 
-  const pollSecondary = useCallback(() => {
-    fetchMetrics();
-    fetchTaskStats();
-    fetchSchedules();
-    fetchTickets();
-    fetchFindings();
-  }, [fetchMetrics, fetchTaskStats, fetchSchedules, fetchTickets, fetchFindings]);
-  usePolling(pollSecondary, 30000);
-
-  const activeAgents = useMemo(() => agents.filter((a) => !a.is_decommissioned), [agents]);
-  const fleetRunning = useMemo(() => activeAgents.some((a) => a.status === 'running' || a.status === 'idle'), [activeAgents]);
-
-  const successRate = useMemo(() => {
-    if (!taskStats?.recentByAgent?.length) return null;
-    const rates = taskStats.recentByAgent.map((a: Record<string, unknown>) => Number(a.successRate ?? a.success_rate ?? 0)).filter((r: number) => !isNaN(r));
-    if (rates.length === 0) return null;
-    return Math.round(rates.reduce((sum, r) => sum + r, 0) / rates.length);
-  }, [taskStats]);
-
-  const upcomingRuns = useMemo(() => {
-    return schedules
-      .filter((s) => s.schedule_type === 'scheduled' && s.next_run_at)
-      .sort((a, b) => new Date(a.next_run_at!).getTime() - new Date(b.next_run_at!).getTime())
-      .slice(0, 6);
-  }, [schedules]);
-
-  const urgentTickets = useMemo(() => {
-    return tickets
-      .filter((t) => (t.priority === 'urgent' || t.priority === 'high') && (t.status === 'open' || t.status === 'in_progress'))
-      .slice(0, 5);
-  }, [tickets]);
-
-  const criticalFindings = useMemo(() => {
-    return findings.filter((f) => f.severity === 'critical' || f.severity === 'warning').slice(0, 5);
-  }, [findings]);
-
-  // Cluster health: degraded if any errors or pending interventions
-  const hasErrors = activeAgents.some((a) => a.status === 'error');
-  const clusterHealthy = !hasErrors && (interventions.length === 0);
-
-  if (loading.agents && agents.length === 0) {
-    return <div className="cc-loading">Connecting to fleet...</div>;
+  // Sync tab from URL param on mount
+  const currentTab = (tab && tab in PANEL_MAP ? tab : null) as HubTab | null;
+  if (currentTab && currentTab !== activeTab) {
+    setActiveTab(currentTab);
   }
 
+  const handleTabChange = (key: HubTab) => {
+    setActiveTab(key);
+    navigate(key === 'overview' ? '/command-center' : `/command-center/${key}`, { replace: true });
+  };
+
+  const handleCreate = async () => {
+    if (!newAgent.name.trim()) return;
+    setCreating(true);
+    const ok = await createAgent(newAgent);
+    if (ok) {
+      setShowCreateAgent(false);
+      setNewAgent({ name: '', type: 'custom', description: '', system_prompt: '' });
+    }
+    setCreating(false);
+  };
+
+  const handleRun = async (id: string) => {
+    setRunningId(id);
+    await runAgent(id, runPrompt);
+    setShowRunAgent(null);
+    setRunPrompt('');
+    setRunningId(null);
+  };
+
+  // Background polling
+  const bgPoll = useCallback(() => {
+    fetchRibbonData();
+    fetchSchedulerStatus();
+  }, [fetchRibbonData, fetchSchedulerStatus]);
+  usePolling(bgPoll, 15000);
+
+  const hasErrors = (stats?.agents.active || 0) > 0 && ribbonData.running === 0;
+  const clusterHealthy = !hasErrors && interventions.length === 0;
+
+  const ActivePanel = PANEL_MAP[activeTab] || PANEL_MAP.overview;
+
   return (
-    <div className="cc-page">
-      {/* Top Bar: Brand + Cluster Status + Actions */}
-      <div className="cc-topbar">
-        <div className="cc-topbar-left">
-          <div className="cc-brand">
-            <div className="cc-brand-logo">F</div>
-            <div>
-              <div className="cc-brand-title">Forge</div>
-              <div className="cc-brand-subtitle">Command Center</div>
+    <div className={`fc-shell ${assistantOpen ? 'panel-open' : ''}`}>
+      {/* Header */}
+      <header className="fc-header">
+        <div className="fc-header-left">
+          <div className="fc-brand">
+            <div className="fc-brand-logo">F</div>
+            <div className="fc-brand-text">
+              <span className="fc-brand-title">Forge</span>
+              <span className="fc-brand-subtitle">Command Center</span>
             </div>
           </div>
-          <div className={`cc-cluster-status ${clusterHealthy ? '' : 'cc-cluster-status--degraded'}`}>
-            <span className="cc-cluster-dot" />
-            {clusterHealthy ? 'Cluster Healthy' : hasErrors ? 'Degraded' : 'Attention Required'}
+          <div className={`fc-cluster ${clusterHealthy ? 'fc-cluster--ok' : 'fc-cluster--warn'}`}>
+            <span className="fc-cluster-dot" />
+            <span>{clusterHealthy ? 'Healthy' : 'Attention'}</span>
           </div>
         </div>
-        <div className="cc-topbar-actions">
-          {batchResult && (
-            <div className="cc-batch-result">
-              {batchResult.started > 0 ? `Started ${batchResult.started}` : `Paused ${batchResult.agents.length}`} agents: {batchResult.agents.join(', ') || 'None'}
-            </div>
-          )}
+        <div className="fc-header-right">
+          <div className="fc-ribbon">
+            <span className="fc-ribbon-item">
+              <span className={`fc-ribbon-dot ${ribbonData.running > 0 ? 'fc-ribbon-dot--ok' : ''}`} />
+              {ribbonData.running} running
+            </span>
+            <span className="fc-ribbon-item">
+              <span className={`fc-ribbon-dot ${ribbonData.pendingInterventions > 0 ? 'fc-ribbon-dot--warn' : ''}`} />
+              {ribbonData.pendingInterventions} pending
+            </span>
+            <span className="fc-ribbon-item">
+              <span className="fc-ribbon-dot fc-ribbon-dot--info" />
+              {ribbonData.openTickets} tickets
+            </span>
+          </div>
           <button
-            className={`hub-btn ${fleetRunning ? 'hub-btn--danger' : 'hub-btn--primary'} ${batchRunning ? 'running' : ''}`}
-            onClick={fleetRunning ? batchPauseAgents : batchProcessAgents}
-            disabled={batchRunning}
+            className={`fc-scheduler-toggle ${schedulerStatus?.running ? 'running' : 'stopped'}`}
+            onClick={() => toggleScheduler(schedulerStatus?.running ? 'stop' : 'start')}
           >
-            {batchRunning ? (fleetRunning ? 'Pausing...' : 'Deploying...') : (fleetRunning ? 'Pause All' : 'Deploy All')}
+            <span className="fc-scheduler-dot" />
+            Scheduler
           </button>
-          <button className="hub-btn" onClick={() => navigate('/agents')}>
-            Fleet Manager
+          <button className={`fc-assistant-btn ${assistantOpen ? 'active' : ''}`} onClick={() => setAssistantOpen(!assistantOpen)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+              <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+              <path d="M19 10H5a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2Z" />
+              <path d="M12 15v4M8 19h8" />
+            </svg>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* KPI Strip */}
-      <div className="cc-kpi-strip">
-        <StatCard value={stats?.agents.active || 0} label="Agents Online" />
-        <StatCard
-          value={stats?.agents.running || 0}
-          label="Executing"
-          variant={(stats?.agents.running || 0) > 0 ? 'success' : 'default'}
-        />
-        <StatCard
-          value={stats?.pendingInterventions || 0}
-          label="Awaiting Review"
-          variant={(stats?.pendingInterventions || 0) > 0 ? 'warning' : 'default'}
-          pulse={(stats?.pendingInterventions || 0) > 0}
-          onClick={() => navigate('/agents')}
-        />
-        <StatCard value={metrics?.agents.tasks_today || 0} label="Executions Today" />
-        <StatCard
-          value={successRate !== null ? `${successRate}%` : '-'}
-          label="Success Rate"
-          variant={successRate !== null ? (successRate >= 90 ? 'success' : successRate >= 70 ? 'warning' : 'danger') : 'default'}
-        />
-        <StatCard
-          value={metrics?.tickets.open || 0}
-          label="Open Tickets"
-          variant={(metrics?.tickets.open || 0) > 0 ? 'warning' : 'default'}
-          onClick={() => navigate('/agents')}
-        />
-      </div>
-
-      {/* Main: CLI (dominant) + Side Panels */}
-      <div className="cc-main">
-        {/* Left: CLI fills the space */}
-        <div className="cc-left">
-          <MasterCLI />
-
-          {/* Inline Intervention Queue (below CLI if any pending) */}
-          {interventions.length > 0 && (
-            <div className="cc-panel" style={{ flexShrink: 0 }}>
-              <div className="cc-panel-header">
-                <span className="cc-panel-title">Intervention Queue</span>
-                <span className="cc-panel-count">{interventions.length}</span>
-              </div>
-              <div className="cc-intervention-list">
-                {interventions.slice(0, 3).map((inv) => (
-                  <div key={inv.id} className="cc-intervention-item">
-                    <div className="cc-intervention-info">
-                      <span className="cc-intervention-title">{inv.title}</span>
-                      <span className="cc-intervention-agent">{inv.agent_name}</span>
-                    </div>
-                    <div className="cc-intervention-actions">
-                      <button className="hub-btn hub-btn--success hub-btn--sm" onClick={() => respondToIntervention(inv.id, 'approve')}>
-                        Approve
-                      </button>
-                      <button className="hub-btn hub-btn--danger hub-btn--sm" onClick={() => respondToIntervention(inv.id, 'deny')}>
-                        Deny
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {interventions.length > 3 && (
-                  <button className="hub-btn hub-btn--ghost hub-btn--sm" onClick={() => navigate('/agents')}>
-                    +{interventions.length - 3} more
-                  </button>
+      {/* Tab Bar */}
+      <nav className="fc-tabs">
+        {TAB_SECTIONS.map((section) => (
+          <div key={section.label} className="fc-tab-group">
+            <span className="fc-tab-group-label">{section.label}</span>
+            {section.tabs.map((t) => (
+              <button
+                key={t.key}
+                className={`fc-tab ${activeTab === t.key ? 'active' : ''}`}
+                onClick={() => handleTabChange(t.key)}
+              >
+                {t.label}
+                {t.key === 'interventions' && interventions.length > 0 && (
+                  <span className="fc-tab-badge">{interventions.length}</span>
                 )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Fleet + Schedule + Alerts */}
-        <div className="cc-right">
-          {/* Fleet Status (Pods view) */}
-          <div className="cc-panel">
-            <div className="cc-panel-header">
-              <span className="cc-panel-title">Fleet Pods</span>
-              <span className="cc-panel-count">{activeAgents.length}</span>
-            </div>
-            {activeAgents.length === 0 ? (
-              <p className="cc-panel-empty">No agents deployed</p>
-            ) : (
-              <div className="cc-fleet-grid">
-                {activeAgents.map((agent) => (
-                  <div
-                    key={agent.id}
-                    className="cc-fleet-pod"
-                    onClick={() => navigate('/agents')}
-                  >
-                    <span className={`cc-fleet-pod-dot ${podDotClass(agent.status)}`} />
-                    <div className="cc-fleet-pod-info">
-                      <span className="cc-fleet-pod-name">{agent.name}</span>
-                      <span className="cc-fleet-pod-time">{relativeTime(agent.last_run_at)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+              </button>
+            ))}
           </div>
+        ))}
+      </nav>
 
-          {/* Schedule (CronJobs) */}
-          <div className="cc-panel">
-            <div className="cc-panel-header">
-              <span className="cc-panel-title">Scheduled Runs</span>
-              <span className="cc-panel-count">{upcomingRuns.length}</span>
-            </div>
-            {upcomingRuns.length === 0 ? (
-              <p className="cc-panel-empty">No scheduled runs</p>
-            ) : (
-              <div className="cc-schedule-list">
-                {upcomingRuns.map((sched) => (
-                  <div key={sched.id} className="cc-schedule-item">
-                    <span className="cc-schedule-name">{sched.name}</span>
-                    <span className="cc-schedule-eta">{countdown(sched.next_run_at)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Urgent Tickets */}
-          {urgentTickets.length > 0 && (
-            <div className="cc-panel">
-              <div className="cc-panel-header">
-                <span className="cc-panel-title">Urgent Tickets</span>
-                <span className="cc-panel-count">{urgentTickets.length}</span>
-              </div>
-              <div className="cc-alert-list">
-                {urgentTickets.map((t) => (
-                  <div key={t.id} className="cc-alert-row" onClick={() => navigate('/agents')}>
-                    <StatusBadge status={t.priority} />
-                    <span>{t.title}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Critical Findings */}
-          {criticalFindings.length > 0 && (
-            <div className="cc-panel">
-              <div className="cc-panel-header">
-                <span className="cc-panel-title">Critical Findings</span>
-                <span className="cc-panel-count">{criticalFindings.length}</span>
-              </div>
-              <div className="cc-alert-list">
-                {criticalFindings.map((f) => (
-                  <div key={f.id} className="cc-alert-row" onClick={() => navigate('/agents')}>
-                    <StatusBadge status={f.severity} />
-                    <span>{f.finding}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Content */}
+      <div className="fc-content">
+        <Suspense fallback={<div className="fc-tab-loading">Loading...</div>}>
+          <ActivePanel />
+        </Suspense>
       </div>
+
+      {/* Hub-level Modals */}
+      {showCreateAgent && (
+        <Modal title="Spin Up Agent" onClose={() => setShowCreateAgent(false)}>
+          <div className="hub-form-group">
+            <label>Name</label>
+            <input type="text" value={newAgent.name} onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })} placeholder="e.g., DevOps Monitor" />
+          </div>
+          <div className="hub-form-group">
+            <label>Type</label>
+            <div className="hub-type-grid">
+              {Object.entries(AGENT_TYPE_INFO).map(([type, info]) => (
+                <button key={type} className={`hub-type-chip ${newAgent.type === type ? 'active' : ''}`} onClick={() => setNewAgent({ ...newAgent, type })} style={{ '--type-color': info.color } as React.CSSProperties}>
+                  <span>{info.icon}</span>
+                  {info.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="hub-form-group">
+            <label>Description</label>
+            <input type="text" value={newAgent.description} onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })} placeholder="What does this agent do?" />
+          </div>
+          <div className="hub-form-group">
+            <label>System Prompt <span className="optional">(optional)</span></label>
+            <textarea value={newAgent.system_prompt} onChange={(e) => setNewAgent({ ...newAgent, system_prompt: e.target.value })} placeholder="Custom instructions..." rows={4} />
+          </div>
+          <div className="hub-modal-actions">
+            <button className="hub-btn" onClick={() => setShowCreateAgent(false)}>Cancel</button>
+            <button className="hub-btn hub-btn--primary" onClick={handleCreate} disabled={creating || !newAgent.name.trim()}>
+              {creating ? 'Creating...' : 'Spin Up'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {showRunAgent && (
+        <Modal title="Run Agent" onClose={() => setShowRunAgent(null)} size="small">
+          <div className="hub-form-group">
+            <label>Task Prompt <span className="optional">(optional)</span></label>
+            <textarea value={runPrompt} onChange={(e) => setRunPrompt(e.target.value)} placeholder="What should the agent work on?" rows={4} autoFocus />
+          </div>
+          <div className="hub-modal-actions">
+            <button className="hub-btn" onClick={() => setShowRunAgent(null)}>Cancel</button>
+            <button className="hub-btn hub-btn--primary" onClick={() => handleRun(showRunAgent)} disabled={runningId === showRunAgent}>
+              {runningId === showRunAgent ? 'Starting...' : 'Run Now'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      <AdminAssistantPanel isOpen={assistantOpen} onToggle={() => setAssistantOpen(!assistantOpen)} activeTier="procedural" pageContext="orchestration" />
     </div>
   );
 }

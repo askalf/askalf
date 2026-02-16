@@ -1,0 +1,262 @@
+/* ==========================================
+   Forge Workflow Builder
+   ========================================== */
+
+/* Workflow List */
+.fwb-workflow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fwb-workflow-card {
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.fwb-workflow-card:hover {
+  border-color: rgba(16, 185, 129, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.fwb-workflow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.fwb-workflow-header > div {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fwb-workflow-name {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.fwb-workflow-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.fwb-workflow-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0.4rem 0 0 0;
+  line-height: 1.4;
+}
+
+/* Mini flow preview */
+.fwb-mini-flow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.fwb-mini-node {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.fwb-mini-arrow {
+  color: var(--crystal);
+  font-size: 0.8rem;
+}
+
+/* Detail View */
+.fwb-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.fwb-back-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.fwb-back-btn:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--crystal);
+}
+
+.fwb-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.fwb-detail-title h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.fwb-detail-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fwb-detail-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 1rem 0;
+}
+
+/* Flow / Pipeline */
+.fwb-flow {
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.fwb-flow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.fwb-flow-connector {
+  width: 2px;
+  height: 24px;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.5), rgba(16, 185, 129, 0.2));
+  position: relative;
+}
+
+.fwb-flow-connector::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba(16, 185, 129, 0.4);
+}
+
+/* Node Card */
+.fwb-node {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.fwb-node:hover {
+  border-color: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.06);
+}
+
+.fwb-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fwb-node-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.fwb-node-actions {
+  display: flex;
+  gap: 0.3rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.fwb-node:hover .fwb-node-actions {
+  opacity: 1;
+}
+
+.fwb-node-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.fwb-node-btn:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--crystal);
+}
+
+.fwb-node-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--danger);
+}
+
+.fwb-node-agent {
+  font-size: 0.75rem;
+  color: var(--crystal);
+  margin-top: 0.3rem;
+  display: block;
+}
+
+.fwb-node-unassigned {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 0.3rem;
+  display: block;
+}
+
+/* Add Node Button */
+.fwb-add-node {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px dashed rgba(16, 185, 129, 0.25);
+  border-radius: 8px;
+  color: var(--crystal);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fwb-add-node:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.4);
+}

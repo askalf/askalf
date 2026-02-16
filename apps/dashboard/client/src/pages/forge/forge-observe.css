@@ -1,0 +1,504 @@
+/* ==========================================
+   Forge Observe Pages — Shared Styles
+   Costs, Providers, Guardrails, Audit
+   ========================================== */
+
+/* Filter Bar */
+.fobs-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  flex-wrap: wrap;
+}
+
+.fobs-select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  min-width: 140px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.fobs-select:hover,
+.fobs-select:focus {
+  border-color: rgba(16, 185, 129, 0.4);
+  outline: none;
+}
+
+.fobs-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  min-width: 180px;
+  transition: border-color 0.2s;
+}
+
+.fobs-input:focus {
+  border-color: rgba(16, 185, 129, 0.4);
+  outline: none;
+}
+
+.fobs-input::placeholder {
+  color: var(--text-muted);
+}
+
+.fobs-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.fobs-summary-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Tables */
+.fobs-table-wrap {
+  overflow-x: auto;
+}
+
+.fobs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.fobs-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.fobs-table td {
+  padding: 0.5rem 0.75rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.fobs-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.fobs-mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+}
+
+.fobs-nowrap {
+  white-space: nowrap;
+}
+
+/* Audit-specific */
+.fobs-action-badge {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.fobs-entity-type {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  margin-right: 0.4rem;
+}
+
+.fobs-entity-id {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.fobs-details {
+  max-width: 300px;
+}
+
+.fobs-json-preview {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.fobs-text-muted {
+  color: var(--text-muted);
+}
+
+/* Pagination */
+.fobs-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.fobs-page-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.fobs-page-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--crystal);
+}
+
+.fobs-page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fobs-page-info {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ==========================================
+   Bar Chart (Cost Dashboard)
+   ========================================== */
+
+.fobs-bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 1rem 0.75rem;
+  height: 200px;
+  overflow-x: auto;
+}
+
+.fobs-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 20px;
+  max-width: 36px;
+  height: 100%;
+}
+
+.fobs-bar-value {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-bottom: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.fobs-bar-col:hover .fobs-bar-value {
+  opacity: 1;
+}
+
+.fobs-bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 3px 3px 0 0;
+}
+
+.fobs-bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, var(--crystal), rgba(16, 185, 129, 0.3));
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+  transition: height 0.3s ease;
+}
+
+.fobs-bar-col:hover .fobs-bar-fill {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.9), rgba(16, 185, 129, 0.5));
+}
+
+.fobs-bar-label {
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+/* ==========================================
+   Provider Health
+   ========================================== */
+
+.fobs-overall-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.fobs-overall-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.fobs-overall-label strong {
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.fobs-provider-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.fobs-health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.fobs-health-dot--ok {
+  background: var(--crystal);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+  animation: fc-breathe 3s ease-in-out infinite;
+}
+
+.fobs-health-dot--warn {
+  background: var(--warning);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+  animation: fc-breathe 2s ease-in-out infinite;
+}
+
+.fobs-health-dot--danger {
+  background: var(--danger);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.fobs-health-dot--unknown {
+  background: var(--text-muted);
+}
+
+.fobs-provider-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fobs-provider-card {
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.fobs-provider-card:hover {
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.fobs-provider-card.expanded {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.fobs-provider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fobs-provider-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fobs-provider-name-row strong {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.fobs-provider-type {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+.fobs-provider-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.fobs-provider-check {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.fobs-provider-url {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.fobs-provider-models {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.fobs-models-header {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.fobs-model-name {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.fobs-badge {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: 0.3rem;
+}
+
+.fobs-badge--purple {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+}
+
+.fobs-badge--blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
+.fobs-badge--green {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--crystal);
+}
+
+.fobs-cap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+/* ==========================================
+   Guardrails Manager
+   ========================================== */
+
+.fobs-guardrail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0.75rem;
+}
+
+.fobs-guardrail-card {
+  transition: border-color 0.2s, opacity 0.2s;
+}
+
+.fobs-guardrail--disabled {
+  opacity: 0.5;
+}
+
+.fobs-guardrail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.fobs-guardrail-type {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fobs-guardrail-name {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  margin: 0 0 0.3rem 0;
+  font-weight: 600;
+}
+
+.fobs-guardrail-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.fobs-guardrail-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.fobs-guardrail-priority {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.7rem;
+}
+
+.fobs-guardrail-agents {
+  font-size: 0.7rem;
+}
+
+.fobs-guardrail-config {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.fobs-guardrail-config pre {
+  margin: 0;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}

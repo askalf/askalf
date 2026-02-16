@@ -1394,6 +1394,149 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     return { audit_trail: entries, total: countResult?.total || 0, limit: lim, offset: off };
   });
 
+  // ============================================================
+  // WORKFLOW PROXY (5 endpoints)
+  // ============================================================
+
+  // 33a. GET /api/v1/admin/workflows - List workflows
+  fastify.get('/api/v1/admin/workflows', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { status, limit, offset } = request.query;
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (limit) params.set('limit', limit);
+    if (offset) params.set('offset', offset);
+
+    const res = await callForge(`/workflows?${params.toString()}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflows unavailable', message: res.message });
+    return res;
+  });
+
+  // 33b. GET /api/v1/admin/workflows/:id - Get workflow detail
+  fastify.get('/api/v1/admin/workflows/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { id } = request.params;
+    const res = await callForge(`/workflows/${encodeURIComponent(id)}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflow not found', message: res.message });
+    return res;
+  });
+
+  // 33c. POST /api/v1/admin/workflows - Create workflow
+  fastify.post('/api/v1/admin/workflows', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/workflows', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflow creation failed', message: res.message });
+    return res;
+  });
+
+  // 33d. PUT /api/v1/admin/workflows/:id - Update workflow
+  fastify.put('/api/v1/admin/workflows/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { id } = request.params;
+    const res = await callForge(`/workflows/${encodeURIComponent(id)}`, { method: 'PUT', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflow update failed', message: res.message });
+    return res;
+  });
+
+  // 33e. POST /api/v1/admin/workflows/:id/run - Run workflow
+  fastify.post('/api/v1/admin/workflows/:id/run', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { id } = request.params;
+    const res = await callForge(`/workflows/${encodeURIComponent(id)}/run`, { method: 'POST', body: request.body || {} });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflow run failed', message: res.message });
+    return res;
+  });
+
+  // ============================================================
+  // COST TRACKING PROXY (1 endpoint)
+  // ============================================================
+
+  // 30. GET /api/v1/admin/costs - Cost summary + daily breakdown
+  fastify.get('/api/v1/admin/costs', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { startDate, endDate, agentId, days } = request.query;
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    if (agentId) params.set('agentId', agentId);
+    if (days) params.set('days', days);
+
+    const res = await callForge(`/admin/costs?${params.toString()}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Cost data unavailable', message: res.message });
+    return res;
+  });
+
+  // ============================================================
+  // GUARDRAILS PROXY (2 endpoints)
+  // ============================================================
+
+  // 31a. GET /api/v1/admin/guardrails - List guardrails
+  fastify.get('/api/v1/admin/guardrails', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/admin/guardrails');
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Guardrails unavailable', message: res.message });
+    return res;
+  });
+
+  // 31b. POST /api/v1/admin/guardrails - Create/update guardrail
+  fastify.post('/api/v1/admin/guardrails', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/admin/guardrails', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Guardrail creation failed', message: res.message });
+    return res;
+  });
+
+  // ============================================================
+  // PROVIDER PROXY (3 endpoints)
+  // ============================================================
+
+  // 32a. GET /api/v1/admin/providers - List providers
+  fastify.get('/api/v1/admin/providers', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/providers');
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Providers unavailable', message: res.message });
+    return res;
+  });
+
+  // 32b. GET /api/v1/admin/providers/health - Provider health
+  fastify.get('/api/v1/admin/providers/health', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/providers/health');
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Provider health unavailable', message: res.message });
+    return res;
+  });
+
+  // 32c. GET /api/v1/admin/providers/:id/models - Provider models
+  fastify.get('/api/v1/admin/providers/:id/models', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { id } = request.params;
+    const res = await callForge(`/providers/${encodeURIComponent(id)}/models`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Provider models unavailable', message: res.message });
+    return res;
+  });
+
   // ============================================
   // INTERVENTION AUTO-HANDLER
   // Processes pending interventions every scheduler tick
