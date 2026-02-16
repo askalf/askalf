@@ -20,7 +20,7 @@ services:
       - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     # Shared memory for PostgreSQL (matches shared_buffers)
-    shm_size: 1g
+    shm_size: 256m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U substrate"]
       interval: 10s
@@ -51,11 +51,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '4.0'
-          memory: 4G
+          cpus: '2.0'
+          memory: 1536M
         reservations:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '0.5'
+          memory: 512M
 
   redis:
     image: redis:8.4-alpine
@@ -155,7 +155,7 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 512M
+          memory: 384M
         reservations:
           cpus: '0.25'
           memory: 128M
@@ -213,7 +213,7 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 512M
+          memory: 384M
         reservations:
           cpus: '0.25'
           memory: 128M
@@ -286,11 +286,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 2G
+          cpus: '1.0'
+          memory: 768M
         reservations:
-          cpus: '0.5'
-          memory: 512M
+          cpus: '0.25'
+          memory: 256M
 
   # Self AI - Conversation-First AI Service
   self:
@@ -341,11 +341,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '0.5'
+          memory: 384M
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.1'
+          memory: 128M
 
   # Ask Alf — Universal Chat Service
   askalf:
@@ -397,11 +397,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '0.5'
+          memory: 384M
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.1'
+          memory: 128M
 
   # ===========================================
   # INFRASTRUCTURE LAYER
@@ -457,11 +457,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 256M
+          cpus: '0.5'
+          memory: 128M
         reservations:
           cpus: '0.1'
-          memory: 64M
+          memory: 32M
 
   # Database connection pooler
   pgbouncer:
@@ -521,11 +521,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 128M
+          cpus: '0.25'
+          memory: 64M
         reservations:
-          cpus: '0.1'
-          memory: 32M
+          cpus: '0.05'
+          memory: 16M
 
   # Cloudflare Tunnel for Zero Trust access (managed via Cloudflare dashboard)
   cloudflared:
@@ -563,11 +563,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 256M
+          cpus: '0.25'
+          memory: 128M
         reservations:
-          cpus: '0.1'
-          memory: 64M
+          cpus: '0.05'
+          memory: 32M
 
   # Auto-heal for container recovery
   # Only restarts containers with label "autoheal=true" that become unhealthy
@@ -603,11 +603,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: 64M
+          cpus: '0.1'
+          memory: 32M
         reservations:
           cpus: '0.05'
-          memory: 16M
+          memory: 8M
 
   # ============================================
   # SEARCH — SearXNG Meta-Search Engine
@@ -652,11 +652,65 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 512M
+          cpus: '0.5'
+          memory: 384M
         reservations:
           cpus: '0.1'
           memory: 128M
+
+  # ============================================
+  # BACKUP — Daily PostgreSQL dumps (7-day retention)
+  # ============================================
+  backup:
+    image: postgres:17-alpine
+    container_name: sprayberry-labs-backup
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cp /crontab /etc/crontabs/root
+        chmod 0600 /etc/crontabs/root
+        echo "[Backup] Cron scheduler started (daily 3:00 AM UTC)"
+        crond -f -l 2
+    environment:
+      PGHOST: postgres
+      PGUSER: substrate
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./infrastructure/backup/backup.sh:/backup.sh:ro
+      - ./infrastructure/backup/crontab:/crontab:ro
+      - sprayberry_labs_backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - sprayberry-labs-net
+    restart: unless-stopped
+    stop_grace_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+      - /var/log:mode=755,size=8m
+      - /etc/crontabs:mode=755,size=1m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
 
 # Production volumes (isolated from dev)
 volumes:
@@ -672,6 +726,8 @@ volumes:
   searxng_cache:
     name: substrate_prod_searxng_cache
     external: true
+  sprayberry_labs_backups:
+    name: sprayberry_labs_backups
 
 networks:
   sprayberry-labs-net:
