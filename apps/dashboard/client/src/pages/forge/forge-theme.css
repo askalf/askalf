@@ -1,0 +1,173 @@
+/* ==========================================
+   Forge Theme — Shared Visual System
+   Glassmorphism, animations, and utilities
+   ========================================== */
+
+/* ---- Animations ---- */
+@keyframes forge-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes forge-slide-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes forge-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes forge-glow-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.1); }
+  50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.2); }
+}
+
+/* ---- Apply fade-in to overview content ---- */
+.fo-overview {
+  animation: forge-fade-in 0.3s ease-out;
+}
+
+.fo-stats {
+  animation: forge-fade-in 0.35s ease-out;
+}
+
+.fo-panel {
+  animation: forge-scale-in 0.3s ease-out;
+}
+
+.fo-grid > .fo-panel:nth-child(1) { animation-delay: 0ms; }
+.fo-grid > .fo-panel:nth-child(2) { animation-delay: 50ms; }
+.fo-grid > .fo-panel:nth-child(3) { animation-delay: 100ms; }
+.fo-grid > .fo-panel:nth-child(4) { animation-delay: 150ms; }
+
+/* ---- Glassmorphism panels ---- */
+.fo-panel {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 1rem;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.2s, box-shadow 0.3s;
+}
+
+.fo-panel:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ---- Stat card enhancements ---- */
+.fo-stats .hub-stat-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.fo-stats .hub-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* ---- Action button glow on primary ---- */
+.fo-action-btn--primary {
+  animation: forge-glow-pulse 3s ease-in-out infinite;
+}
+
+/* ---- Fleet tile entrance ---- */
+.fo-fleet-grid .fo-fleet-tile {
+  animation: forge-slide-in 0.25s ease-out both;
+}
+
+.fo-fleet-grid .fo-fleet-tile:nth-child(1) { animation-delay: 0ms; }
+.fo-fleet-grid .fo-fleet-tile:nth-child(2) { animation-delay: 30ms; }
+.fo-fleet-grid .fo-fleet-tile:nth-child(3) { animation-delay: 60ms; }
+.fo-fleet-grid .fo-fleet-tile:nth-child(4) { animation-delay: 90ms; }
+.fo-fleet-grid .fo-fleet-tile:nth-child(5) { animation-delay: 120ms; }
+.fo-fleet-grid .fo-fleet-tile:nth-child(6) { animation-delay: 150ms; }
+
+/* ---- Provider cards stagger ---- */
+.fobs-provider-grid .fobs-provider-card {
+  animation: forge-fade-in 0.3s ease-out both;
+}
+
+.fobs-provider-grid .fobs-provider-card:nth-child(1) { animation-delay: 0ms; }
+.fobs-provider-grid .fobs-provider-card:nth-child(2) { animation-delay: 60ms; }
+.fobs-provider-grid .fobs-provider-card:nth-child(3) { animation-delay: 120ms; }
+.fobs-provider-grid .fobs-provider-card:nth-child(4) { animation-delay: 180ms; }
+
+/* ---- Guardrail cards stagger ---- */
+.fobs-guardrail-grid .fobs-guardrail-card {
+  animation: forge-scale-in 0.3s ease-out both;
+}
+
+.fobs-guardrail-grid .fobs-guardrail-card:nth-child(1) { animation-delay: 0ms; }
+.fobs-guardrail-grid .fobs-guardrail-card:nth-child(2) { animation-delay: 50ms; }
+.fobs-guardrail-grid .fobs-guardrail-card:nth-child(3) { animation-delay: 100ms; }
+.fobs-guardrail-grid .fobs-guardrail-card:nth-child(4) { animation-delay: 150ms; }
+
+/* ---- Workflow node entrance ---- */
+.fwb-flow-step {
+  animation: forge-fade-in 0.3s ease-out both;
+}
+
+.fwb-flow-step:nth-child(1) { animation-delay: 0ms; }
+.fwb-flow-step:nth-child(2) { animation-delay: 80ms; }
+.fwb-flow-step:nth-child(3) { animation-delay: 160ms; }
+.fwb-flow-step:nth-child(4) { animation-delay: 240ms; }
+.fwb-flow-step:nth-child(5) { animation-delay: 320ms; }
+
+/* ---- Workflow cards stagger ---- */
+.fwb-workflow-list .fwb-workflow-card {
+  animation: forge-slide-in 0.3s ease-out both;
+}
+
+.fwb-workflow-list .fwb-workflow-card:nth-child(1) { animation-delay: 0ms; }
+.fwb-workflow-list .fwb-workflow-card:nth-child(2) { animation-delay: 60ms; }
+.fwb-workflow-list .fwb-workflow-card:nth-child(3) { animation-delay: 120ms; }
+
+/* ---- Table row hover glow ---- */
+.fobs-table tbody tr:hover {
+  background: rgba(16, 185, 129, 0.03);
+}
+
+/* ---- Bar chart hover enhancement ---- */
+.fobs-bar-col:hover .fobs-bar-fill {
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+/* ---- Loading shimmer ---- */
+.fo-loading,
+.fc-tab-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  animation: forge-fade-in 0.5s ease-out;
+}
+
+/* ---- Coming Soon placeholder ---- */
+.fc-coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--text-muted);
+  animation: forge-fade-in 0.5s ease-out;
+}
+
+.fc-coming-soon-icon {
+  opacity: 0.3;
+  margin-bottom: 1rem;
+}
+
+.fc-coming-soon h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.fc-coming-soon p {
+  margin: 0;
+  font-size: 0.8rem;
+}

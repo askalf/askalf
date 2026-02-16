@@ -18,8 +18,8 @@ trusted_proxies = [
 
 filter_link_local = false
 
-# Require link token after rate limit hit (anti-bot)
-link_token = true
+# Disable link token — causes silent failures on JSON/API searches
+link_token = false
 
 [botdetection.ip_lists]
 
