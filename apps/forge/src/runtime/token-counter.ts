@@ -55,13 +55,13 @@ interface ModelPricing {
 }
 
 const MODEL_PRICING: Record<string, ModelPricing> = {
-  // Anthropic
+  // Anthropic — Claude 4.5 series (current)
+  'claude-opus-4-5-20251101': { inputPer1k: 0.005, outputPer1k: 0.025 },
+  'claude-sonnet-4-5-20250929': { inputPer1k: 0.003, outputPer1k: 0.015 },
+  'claude-haiku-4-5-20251001': { inputPer1k: 0.0008, outputPer1k: 0.004 },
+  // Anthropic — Claude 4.0 series (legacy, still referenced by existing agents)
   'claude-opus-4-20250514': { inputPer1k: 0.015, outputPer1k: 0.075 },
   'claude-sonnet-4-20250514': { inputPer1k: 0.003, outputPer1k: 0.015 },
-  'claude-3-5-sonnet-20241022': { inputPer1k: 0.003, outputPer1k: 0.015 },
-  'claude-haiku-4-5-20251001': { inputPer1k: 0.0008, outputPer1k: 0.004 },
-  'claude-3-5-haiku-20241022': { inputPer1k: 0.001, outputPer1k: 0.005 },
-  'claude-3-haiku-20240307': { inputPer1k: 0.00025, outputPer1k: 0.00125 },
   // OpenAI
   'gpt-4o': { inputPer1k: 0.0025, outputPer1k: 0.01 },
   'gpt-4o-mini': { inputPer1k: 0.00015, outputPer1k: 0.0006 },
