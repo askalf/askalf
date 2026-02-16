@@ -12,8 +12,17 @@ import {
   generateId,
 } from '@substrate/db';
 
-const DOCKER_SOCKET = '/var/run/docker.sock';
 const REPO_ROOT = process.env['REPO_ROOT'] ?? '/workspace';
+
+// Docker connection — uses DOCKER_HOST (tcp://host:port) when behind socket proxy, falls back to Unix socket
+const DOCKER_CONN: Record<string, unknown> = (() => {
+  const h = process.env['DOCKER_HOST'];
+  if (h?.startsWith('tcp://')) {
+    const u = new URL(h.replace('tcp://', 'http://'));
+    return { hostname: u.hostname, port: Number(u.port) || 2375 };
+  }
+  return { socketPath: '/var/run/docker.sock' };
+})();
 const log = (msg: string) => console.log(`[mcp-tools:infra] ${new Date().toISOString()} ${msg}`);
 
 // ============================================
@@ -31,7 +40,7 @@ function dockerRequest(
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Docker API request timed out')), REQUEST_TIMEOUT_MS);
     const options: http.RequestOptions = {
-      socketPath: DOCKER_SOCKET,
+      ...DOCKER_CONN,
       path,
       method,
       headers: { 'Content-Type': 'application/json' },

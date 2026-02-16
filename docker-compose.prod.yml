@@ -5,7 +5,7 @@ services:
   # DATABASE LAYER
   # ===========================================
   postgres:
-    image: pgvector/pgvector:0.8.1-pg17-bookworm
+    image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
     container_name: sprayberry-labs-postgres
     # No exposed ports — all access through pgbouncer inside Docker network
     environment:
@@ -58,7 +58,7 @@ services:
           memory: 512M
 
   redis:
-    image: redis:8.4-alpine
+    image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
     container_name: sprayberry-labs-redis
     command: sh /usr/local/etc/redis/docker-entrypoint.sh
     environment:
@@ -177,13 +177,15 @@ services:
       FORGE_API_KEY: ${FORGE_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       REPO_ROOT: /workspace
+      DOCKER_HOST: tcp://docker-proxy:2375
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - .:/workspace:ro
     depends_on:
       pgbouncer:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      docker-proxy:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
@@ -249,8 +251,8 @@ services:
       GIT_CONFIG_COUNT: "1"
       GIT_CONFIG_KEY_0: safe.directory
       GIT_CONFIG_VALUE_0: /workspace
+      DOCKER_HOST: tcp://docker-proxy:2375
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - .:/workspace
       - ./.claude-credentials.json:/tmp/claude-credentials.json:rw
     group_add:
@@ -259,6 +261,8 @@ services:
       pgbouncer:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      docker-proxy:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
@@ -407,7 +411,7 @@ services:
   # INFRASTRUCTURE LAYER
   # ===========================================
   nginx:
-    image: nginx:1.28.2-alpine
+    image: nginx:1.28.2-alpine@sha256:15e96e59aa3b0aada3a121296e3bce117721f42d88f5f64217ef4b18f458c6ab
     container_name: sprayberry-labs-nginx
     # NO PUBLIC PORTS - nginx is only accessible via cloudflared tunnel
     # This ensures all traffic must go through Cloudflare's security layer
@@ -465,7 +469,7 @@ services:
 
   # Database connection pooler
   pgbouncer:
-    image: edoburu/pgbouncer:v1.25.1-p0
+    image: edoburu/pgbouncer:v1.25.1-p0@sha256:c7bfcaa24de830e29588bb9ad1eb39cebaf07c27149e1974445899b695634bb4
     container_name: sprayberry-labs-pgbouncer
     environment:
       # All 4 databases pooled — every service routes through pgbouncer
@@ -529,8 +533,7 @@ services:
 
   # Cloudflare Tunnel for Zero Trust access (managed via Cloudflare dashboard)
   cloudflared:
-    # Pinned to version tag for stability with easy updates
-    image: cloudflare/cloudflared:2026.2.0
+    image: cloudflare/cloudflared:2026.2.0@sha256:404528c1cd63c3eb882c257ae524919e4376115e6fe57befca8d603656a91a4c
     container_name: sprayberry-labs-cloudflared
     # QUIC protocol preferred for better performance, metrics enabled for healthcheck
     command: tunnel --metrics localhost:2000 --protocol quic run --token ${CLOUDFLARE_TUNNEL_TOKEN}
@@ -568,6 +571,53 @@ services:
         reservations:
           cpus: '0.05'
           memory: 32M
+
+  # Docker socket proxy — whitelists Docker API endpoints for forge/mcp-tools
+  # Replaces raw /var/run/docker.sock mounts (effectively root access) with filtered TCP proxy
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
+    container_name: sprayberry-labs-docker-proxy
+    environment:
+      # API endpoint access (GET by default, POST requires POST=1)
+      CONTAINERS: 1
+      EXEC: 1
+      IMAGES: 1
+      POST: 1
+      ALLOW_RESTARTS: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - sprayberry-labs-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:2375/version || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=8m
+      - /run:mode=755,size=1m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          cpus: '0.05'
+          memory: 16M
 
   # Auto-heal for container recovery
   # Only restarts containers with label "autoheal=true" that become unhealthy
@@ -662,7 +712,7 @@ services:
   # BACKUP — Daily PostgreSQL dumps (7-day retention)
   # ============================================
   backup:
-    image: postgres:17-alpine
+    image: postgres:17-alpine@sha256:3430fe182f5065a6ea505c3d432d2c7fff18fbab954df8f277c1dbf4c70124af
     container_name: sprayberry-labs-backup
     entrypoint: ["/bin/sh", "-c"]
     command:

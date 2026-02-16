@@ -12,8 +12,17 @@ import { authMiddleware } from '../middleware/auth.js';
 const REPO_ROOT = process.env['REPO_ROOT'] ?? '/workspace';
 const EXEC_TIMEOUT_MS = 30_000;
 const MAX_DIFF_SIZE = 100_000; // 100KB max diff
-const DOCKER_SOCKET = '/var/run/docker.sock';
 const BUILDER_IMAGE = 'docker:27-cli';
+
+// Docker connection — uses DOCKER_HOST (tcp://host:port) when behind socket proxy, falls back to Unix socket
+const DOCKER_CONN: Record<string, unknown> = (() => {
+  const h = process.env['DOCKER_HOST'];
+  if (h?.startsWith('tcp://')) {
+    const u = new URL(h.replace('tcp://', 'http://'));
+    return { hostname: u.hostname, port: Number(u.port) || 2375 };
+  }
+  return { socketPath: '/var/run/docker.sock' };
+})();
 
 // Service dependency order for recreating containers
 const RECREATE_ORDER = [
@@ -28,7 +37,7 @@ function dockerApi(method: string, path: string, body?: unknown, timeout = 30_00
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Docker API timeout')), timeout);
     const opts: http.RequestOptions = {
-      socketPath: DOCKER_SOCKET,
+      ...DOCKER_CONN,
       path,
       method,
       headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -335,14 +344,13 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'Invalid service name' });
       }
 
-      const DOCKER_SOCKET = '/var/run/docker.sock';
       const container = `sprayberry-labs-${service}`;
 
       try {
         const data = await new Promise<string>((resolve, reject) => {
           const timer = setTimeout(() => reject(new Error('Timeout')), 10_000);
           const req = http.request(
-            { socketPath: DOCKER_SOCKET, path: `/v1.44/containers/${container}/json`, method: 'GET' },
+            { ...DOCKER_CONN, path: `/v1.44/containers/${container}/json`, method: 'GET' },
             (res) => {
               clearTimeout(timer);
               let body = '';
@@ -400,7 +408,6 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: `Protected services cannot be restarted: ${blocked.join(', ')}` });
       }
 
-      const DOCKER_SOCKET = '/var/run/docker.sock';
       const results: Array<{ service: string; status: string; error?: string }> = [];
 
       for (const service of services) {
@@ -409,7 +416,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
           await new Promise<void>((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error('Timeout')), 60_000);
             const req = http.request(
-              { socketPath: DOCKER_SOCKET, path: `/v1.44/containers/${container}/restart?t=10`, method: 'POST' },
+              { ...DOCKER_CONN, path: `/v1.44/containers/${container}/restart?t=10`, method: 'POST' },
               (res) => {
                 clearTimeout(timer);
                 let body = '';
