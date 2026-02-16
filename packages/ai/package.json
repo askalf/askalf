@@ -14,7 +14,7 @@
   "dependencies": {
     "@substrate/core": "workspace:*",
     "@substrate/observability": "workspace:*",
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@anthropic-ai/sdk": "^0.74.0",
     "@google/generative-ai": "^0.21.0",
     "openai": "^4.77.0"
   },
