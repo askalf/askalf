@@ -33,7 +33,7 @@ const NAV_ITEMS = [
   {
     section: 'Just Push',
     items: [
-      { path: '/repos', label: 'My Repos', icon: 'R' },
+      { path: '/push/', label: 'My Repos', icon: 'R', external: true },
     ],
   },
 ];
