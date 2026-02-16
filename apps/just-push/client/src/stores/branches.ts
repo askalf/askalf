@@ -58,10 +58,11 @@ export interface DeployTask {
   live_status?: string;
 }
 
-// API helper
+// API helper — prefix with base path so nginx routes to just-push, not forge
+const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 async function api<T = unknown>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(API_BASE + path, {
     credentials: 'include',
     ...options,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
