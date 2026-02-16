@@ -12,6 +12,7 @@ trusted_proxies = [
   '::1',
   '172.16.0.0/12',
   '10.0.0.0/8',
+  '192.168.0.0/16',
 ]
 
 [botdetection.ip_limit]
@@ -25,11 +26,12 @@ link_token = false
 
 block_ip = []
 
-# Allow Docker internal network unrestricted (mcp-tools, self, forge)
+# Allow all internal/private networks unrestricted (mcp-tools, self, forge, LAN clients)
 pass_ip = [
   '127.0.0.0/8',
   '172.16.0.0/12',
   '10.0.0.0/8',
+  '192.168.0.0/16',
 ]
 
 # Disable fetching blocklist from searxng.org
