@@ -20,8 +20,7 @@ const NAV_ITEMS = [
   {
     section: 'Forge',
     items: [
-      { path: '/command-center', label: 'Command Center', icon: 'C' },
-      { path: '/agents', label: 'Agent Fleet', icon: 'A' },
+      { path: '/command-center', label: 'Command Center', icon: 'F' },
     ],
   },
   {

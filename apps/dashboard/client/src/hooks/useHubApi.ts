@@ -377,6 +377,142 @@ export interface CoordinationStats {
   tasksByStatus: Record<string, number>;
 }
 
+// Cost types
+export interface CostSummary {
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalEvents: number;
+}
+
+export interface DailyCost {
+  date: string;
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  eventCount: number;
+}
+
+// Audit types
+export interface AuditEntry {
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  action: string;
+  actor: string;
+  actor_id: string | null;
+  old_value: Record<string, unknown>;
+  new_value: Record<string, unknown>;
+  execution_id: string | null;
+  created_at: string;
+}
+
+// Guardrail types
+export interface Guardrail {
+  id: string;
+  owner_id: string;
+  name: string;
+  description: string | null;
+  type: 'content_filter' | 'cost_limit' | 'rate_limit' | 'tool_restriction' | 'output_filter' | 'custom';
+  config: Record<string, unknown>;
+  is_enabled: boolean;
+  is_global: boolean;
+  agent_ids: string[];
+  priority: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Provider types
+export interface Provider {
+  id: string;
+  name: string;
+  type: string;
+  base_url: string | null;
+  is_enabled: boolean;
+  health_status: string;
+  last_health_check: string | null;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProviderModel {
+  id: string;
+  provider_id: string;
+  model_id: string;
+  display_name: string;
+  context_window: number;
+  max_output: number;
+  cost_per_1k_input: string;
+  cost_per_1k_output: string;
+  supports_tools: boolean;
+  supports_vision: boolean;
+  supports_streaming: boolean;
+  is_reasoning: boolean;
+  is_fast: boolean;
+  is_enabled: boolean;
+  created_at: string;
+}
+
+export interface ProviderHealth {
+  status: 'healthy' | 'degraded' | 'unknown';
+  providers: Array<{
+    id: string;
+    name: string;
+    type: string;
+    healthStatus: string;
+    lastHealthCheck: string | null;
+  }>;
+}
+
+// Workflow types
+export interface WorkflowNode {
+  id: string;
+  type: string;
+  label: string;
+  agentId?: string;
+  agentName?: string;
+  config?: Record<string, unknown>;
+}
+
+export interface WorkflowEdge {
+  from: string;
+  to: string;
+  condition?: string;
+}
+
+export interface Workflow {
+  id: string;
+  owner_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  definition: { nodes: WorkflowNode[]; edges: WorkflowEdge[] };
+  version: number;
+  status: 'draft' | 'active' | 'archived';
+  is_public: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  owner_id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  input: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  node_states: Record<string, unknown>;
+  shared_context: Record<string, unknown>;
+  current_node: string | null;
+  error: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
 // ============================
 // API functions
 // ============================
@@ -565,6 +701,56 @@ export const hubApi = {
       metadata?: Record<string, unknown>;
     }) =>
       apiFetch('/api/v1/admin/memory/store', { method: 'POST', body: JSON.stringify(body) }),
+  },
+
+  costs: {
+    summary: (params: { startDate?: string; endDate?: string; agentId?: string; days?: number } = {}) =>
+      apiFetch<{ summary: CostSummary; dailyCosts: DailyCost[] }>(
+        `/api/v1/admin/costs?${buildParams({ startDate: params.startDate, endDate: params.endDate, agentId: params.agentId, days: params.days || 30 })}`
+      ),
+  },
+
+  audit: {
+    list: (params: { entity_type?: string; action?: string; actor?: string; limit?: number; offset?: number } = {}) =>
+      apiFetch<{ audit_trail: AuditEntry[]; total: number; limit: number; offset: number }>(
+        `/api/v1/admin/audit?${buildParams({ entity_type: params.entity_type, action: params.action, actor: params.actor, limit: params.limit || 50, offset: params.offset || 0 })}`
+      ),
+  },
+
+  guardrails: {
+    list: () =>
+      apiFetch<{ guardrails: Guardrail[] }>('/api/v1/admin/guardrails'),
+
+    create: (body: { name: string; type: string; description?: string; config?: Record<string, unknown>; is_enabled?: boolean; is_global?: boolean; agent_ids?: string[]; priority?: number }) =>
+      apiFetch<{ guardrail: Guardrail }>('/api/v1/admin/guardrails', { method: 'POST', body: JSON.stringify(body) }),
+  },
+
+  providers: {
+    list: () =>
+      apiFetch<{ providers: Provider[] }>('/api/v1/admin/providers'),
+
+    models: (id: string) =>
+      apiFetch<{ provider: { id: string; name: string; type: string }; models: ProviderModel[] }>(`/api/v1/admin/providers/${id}/models`),
+
+    health: () =>
+      apiFetch<ProviderHealth>('/api/v1/admin/providers/health'),
+  },
+
+  workflows: {
+    list: (params: { status?: string; limit?: number; offset?: number } = {}) =>
+      apiFetch<{ workflows: Workflow[]; total: number }>(`/api/v1/admin/workflows?${buildParams({ status: params.status, limit: params.limit || 50, offset: params.offset || 0 })}`),
+
+    get: (id: string) =>
+      apiFetch<{ workflow: Workflow }>(`/api/v1/admin/workflows/${id}`),
+
+    create: (body: { name: string; description?: string; definition?: { nodes: unknown[]; edges: unknown[] } }) =>
+      apiFetch<{ workflow: Workflow }>('/api/v1/admin/workflows', { method: 'POST', body: JSON.stringify(body) }),
+
+    update: (id: string, body: { name?: string; description?: string; definition?: { nodes: unknown[]; edges: unknown[] }; status?: string }) =>
+      apiFetch<{ workflow: Workflow }>(`/api/v1/admin/workflows/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+    run: (id: string, input?: Record<string, unknown>) =>
+      apiFetch<{ run: WorkflowRun }>(`/api/v1/admin/workflows/${id}/run`, { method: 'POST', body: JSON.stringify({ input: input || {} }) }),
   },
 
   coordination: {

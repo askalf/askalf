@@ -24,9 +24,21 @@ import {
   type FleetRecallEvent,
   type CoordinationSession,
   type CoordinationStats,
+  type Workflow,
+  type CostSummary,
+  type DailyCost,
+  type AuditEntry,
+  type Guardrail,
+  type Provider,
+  type ProviderModel,
+  type ProviderHealth,
 } from '../hooks/useHubApi';
 
-export type HubTab = 'fleet' | 'tickets' | 'memory' | 'threads';
+export type HubTab =
+  | 'overview' | 'fleet' | 'executions' | 'scheduler' | 'coordination'
+  | 'interventions' | 'tickets' | 'content' | 'memory' | 'threads'
+  | 'costs' | 'providers' | 'guardrails' | 'audit'
+  | 'workflows';
 
 export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural' | 'workqueue';
 
@@ -173,6 +185,43 @@ interface HubState {
   setMemoryDateTo: (s: string) => void;
   setMemoryPage: (p: number) => void;
 
+  // Workflows
+  workflows: Workflow[];
+  selectedWorkflow: Workflow | null;
+  setSelectedWorkflow: (w: Workflow | null) => void;
+  showCreateWorkflow: boolean;
+  setShowCreateWorkflow: (v: boolean) => void;
+
+  // Costs
+  costSummary: CostSummary | null;
+  dailyCosts: DailyCost[];
+  costAgentFilter: string;
+  setCostAgentFilter: (s: string) => void;
+
+  // Audit
+  auditEntries: AuditEntry[];
+  auditTotal: number;
+  auditOffset: number;
+  auditEntityFilter: string;
+  auditActionFilter: string;
+  auditActorFilter: string;
+  setAuditOffset: (n: number) => void;
+  setAuditEntityFilter: (s: string) => void;
+  setAuditActionFilter: (s: string) => void;
+  setAuditActorFilter: (s: string) => void;
+
+  // Guardrails
+  guardrails: Guardrail[];
+  showCreateGuardrail: boolean;
+  setShowCreateGuardrail: (v: boolean) => void;
+
+  // Providers
+  providersList: Provider[];
+  providerHealth: ProviderHealth | null;
+  expandedProvider: string | null;
+  providerModels: Record<string, ProviderModel[]>;
+  setExpandedProvider: (id: string | null) => void;
+
   // Coordination
   coordinationSessions: CoordinationSession[];
   coordinationStats: CoordinationStats | null;
@@ -231,6 +280,27 @@ interface HubState {
   fetchMemoryRecent: () => Promise<void>;
   fetchMemoryRecalls: () => Promise<void>;
 
+  // Workflow actions
+  fetchWorkflows: () => Promise<void>;
+  createWorkflow: (body: { name: string; description?: string }) => Promise<boolean>;
+  updateWorkflow: (id: string, body: { name?: string; description?: string; definition?: { nodes: unknown[]; edges: unknown[] }; status?: string }) => Promise<boolean>;
+  runWorkflow: (id: string, input?: Record<string, unknown>) => Promise<boolean>;
+
+  // Cost actions
+  fetchCosts: () => Promise<void>;
+
+  // Audit actions
+  fetchAudit: () => Promise<void>;
+
+  // Guardrail actions
+  fetchGuardrails: () => Promise<void>;
+  createGuardrail: (body: { name: string; type: string; description?: string; config?: Record<string, unknown>; is_enabled?: boolean; is_global?: boolean; agent_ids?: string[]; priority?: number }) => Promise<boolean>;
+
+  // Provider actions
+  fetchProviders: () => Promise<void>;
+  fetchProviderHealth: () => Promise<void>;
+  fetchProviderModels: (id: string) => Promise<void>;
+
   // Coordination actions
   fetchCoordinationSessions: () => Promise<void>;
   fetchCoordinationStats: () => Promise<void>;
@@ -275,7 +345,7 @@ interface HubState {
 
 export const useHubStore = create<HubState>((set, get) => ({
   // UI
-  activeTab: 'fleet',
+  activeTab: 'overview',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   // Agents
@@ -415,6 +485,43 @@ export const useHubStore = create<HubState>((set, get) => ({
   setMemoryDateFrom: (s) => set({ memoryDateFrom: s, memoryPage: 1 }),
   setMemoryDateTo: (s) => set({ memoryDateTo: s, memoryPage: 1 }),
   setMemoryPage: (p) => set({ memoryPage: p }),
+
+  // Workflows
+  workflows: [],
+  selectedWorkflow: null,
+  setSelectedWorkflow: (w) => set({ selectedWorkflow: w }),
+  showCreateWorkflow: false,
+  setShowCreateWorkflow: (v) => set({ showCreateWorkflow: v }),
+
+  // Costs
+  costSummary: null,
+  dailyCosts: [],
+  costAgentFilter: '',
+  setCostAgentFilter: (s) => set({ costAgentFilter: s }),
+
+  // Audit
+  auditEntries: [],
+  auditTotal: 0,
+  auditOffset: 0,
+  auditEntityFilter: '',
+  auditActionFilter: '',
+  auditActorFilter: '',
+  setAuditOffset: (n) => set({ auditOffset: n }),
+  setAuditEntityFilter: (s) => set({ auditEntityFilter: s, auditOffset: 0 }),
+  setAuditActionFilter: (s) => set({ auditActionFilter: s, auditOffset: 0 }),
+  setAuditActorFilter: (s) => set({ auditActorFilter: s, auditOffset: 0 }),
+
+  // Guardrails
+  guardrails: [],
+  showCreateGuardrail: false,
+  setShowCreateGuardrail: (v) => set({ showCreateGuardrail: v }),
+
+  // Providers
+  providersList: [],
+  providerHealth: null,
+  expandedProvider: null,
+  providerModels: {},
+  setExpandedProvider: (id) => set({ expandedProvider: id }),
 
   // Coordination
   coordinationSessions: [],
@@ -742,6 +849,142 @@ export const useHubStore = create<HubState>((set, get) => ({
       });
     } catch (err) {
       console.error('Failed to fetch memory recalls:', err);
+    }
+  },
+
+  // Workflow actions
+  fetchWorkflows: async () => {
+    set((s) => ({ loading: { ...s.loading, workflows: true } }));
+    try {
+      const data = await hubApi.workflows.list();
+      set({ workflows: data.workflows || [] });
+    } catch (err) {
+      console.error('Failed to fetch workflows:', err);
+    } finally {
+      set((s) => ({ loading: { ...s.loading, workflows: false } }));
+    }
+  },
+
+  createWorkflow: async (body) => {
+    try {
+      const data = await hubApi.workflows.create(body);
+      await get().fetchWorkflows();
+      if (data.workflow) set({ selectedWorkflow: data.workflow });
+      return true;
+    } catch (err) {
+      console.error('Failed to create workflow:', err);
+      return false;
+    }
+  },
+
+  updateWorkflow: async (id, body) => {
+    try {
+      const data = await hubApi.workflows.update(id, body);
+      await get().fetchWorkflows();
+      if (data.workflow) set({ selectedWorkflow: data.workflow });
+      return true;
+    } catch (err) {
+      console.error('Failed to update workflow:', err);
+      return false;
+    }
+  },
+
+  runWorkflow: async (id, input) => {
+    try {
+      await hubApi.workflows.run(id, input);
+      return true;
+    } catch (err) {
+      console.error('Failed to run workflow:', err);
+      return false;
+    }
+  },
+
+  // Cost actions
+  fetchCosts: async () => {
+    set((s) => ({ loading: { ...s.loading, costs: true } }));
+    try {
+      const { costAgentFilter } = get();
+      const data = await hubApi.costs.summary({ agentId: costAgentFilter || undefined, days: 30 });
+      set({ costSummary: data.summary || null, dailyCosts: data.dailyCosts || [] });
+    } catch (err) {
+      console.error('Failed to fetch costs:', err);
+    } finally {
+      set((s) => ({ loading: { ...s.loading, costs: false } }));
+    }
+  },
+
+  // Audit actions
+  fetchAudit: async () => {
+    set((s) => ({ loading: { ...s.loading, audit: true } }));
+    try {
+      const { auditOffset, auditEntityFilter, auditActionFilter, auditActorFilter } = get();
+      const data = await hubApi.audit.list({
+        entity_type: auditEntityFilter || undefined,
+        action: auditActionFilter || undefined,
+        actor: auditActorFilter || undefined,
+        limit: 50,
+        offset: auditOffset,
+      });
+      set({ auditEntries: data.audit_trail || [], auditTotal: data.total || 0 });
+    } catch (err) {
+      console.error('Failed to fetch audit:', err);
+    } finally {
+      set((s) => ({ loading: { ...s.loading, audit: false } }));
+    }
+  },
+
+  // Guardrail actions
+  fetchGuardrails: async () => {
+    set((s) => ({ loading: { ...s.loading, guardrails: true } }));
+    try {
+      const data = await hubApi.guardrails.list();
+      set({ guardrails: data.guardrails || [] });
+    } catch (err) {
+      console.error('Failed to fetch guardrails:', err);
+    } finally {
+      set((s) => ({ loading: { ...s.loading, guardrails: false } }));
+    }
+  },
+
+  createGuardrail: async (body) => {
+    try {
+      await hubApi.guardrails.create(body);
+      await get().fetchGuardrails();
+      return true;
+    } catch (err) {
+      console.error('Failed to create guardrail:', err);
+      return false;
+    }
+  },
+
+  // Provider actions
+  fetchProviders: async () => {
+    set((s) => ({ loading: { ...s.loading, providers: true } }));
+    try {
+      const data = await hubApi.providers.list();
+      set({ providersList: data.providers || [] });
+    } catch (err) {
+      console.error('Failed to fetch providers:', err);
+    } finally {
+      set((s) => ({ loading: { ...s.loading, providers: false } }));
+    }
+  },
+
+  fetchProviderHealth: async () => {
+    try {
+      const data = await hubApi.providers.health();
+      set({ providerHealth: data });
+    } catch (err) {
+      console.error('Failed to fetch provider health:', err);
+    }
+  },
+
+  fetchProviderModels: async (id: string) => {
+    try {
+      const data = await hubApi.providers.models(id);
+      set((s) => ({ providerModels: { ...s.providerModels, [id]: data.models || [] } }));
+    } catch (err) {
+      console.error('Failed to fetch provider models:', err);
     }
   },
 

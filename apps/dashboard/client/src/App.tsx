@@ -18,7 +18,6 @@ const AskAlfIntegrations = lazy(() => import('./pages/AskAlfIntegrations'));
 const Self = lazy(() => import('./pages/Self'));
 const Integrations = lazy(() => import('./pages/Integrations'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
-const OrchestrationHub = lazy(() => import('./pages/OrchestrationHub'));
 const GitSpace = lazy(() => import('./pages/GitSpace'));
 const Settings = lazy(() => import('./pages/Settings'));
 
@@ -93,9 +92,10 @@ export default function App() {
 
         {/* Forge — agent orchestration */}
         <Route path="/command-center" element={<CommandCenter />} />
+        <Route path="/command-center/:tab" element={<CommandCenter />} />
 
-        {/* Orchestration */}
-        <Route path="/agents" element={<OrchestrationHub />} />
+        {/* Legacy redirect */}
+        <Route path="/agents" element={<Navigate to="/command-center" replace />} />
         {/* Just Push — simplified git */}
         <Route path="/repos" element={<GitSpace />} />
         <Route path="/git-space" element={<Navigate to="/repos" replace />} />
