@@ -10,6 +10,7 @@ interface SelfState {
   // Conversations
   conversations: Conversation[];
   activeConversationId: string | null;
+  conversationsLoaded: boolean;
   messages: SelfMessage[];
 
   // Streaming
@@ -32,9 +33,15 @@ interface SelfState {
 export const useSelfStore = create<SelfState>((set, get) => {
   const api = useSelfApi();
 
+  // Restore last active conversation from localStorage
+  const savedConvId = (() => {
+    try { return localStorage.getItem('self_activeConversationId'); } catch { return null; }
+  })();
+
   return {
     conversations: [],
-    activeConversationId: null,
+    activeConversationId: savedConvId,
+    conversationsLoaded: false,
     messages: [],
     isStreaming: false,
     streamingContent: '',
@@ -44,9 +51,9 @@ export const useSelfStore = create<SelfState>((set, get) => {
     fetchConversations: async () => {
       try {
         const conversations = await api.fetchConversations();
-        set({ conversations });
+        set({ conversations, conversationsLoaded: true });
       } catch (err) {
-        set({ error: err instanceof Error ? err.message : 'Failed to load conversations' });
+        set({ conversationsLoaded: true, error: err instanceof Error ? err.message : 'Failed to load conversations' });
       }
     },
 
@@ -61,6 +68,7 @@ export const useSelfStore = create<SelfState>((set, get) => {
           actions: [],
           created_at: new Date().toISOString(),
         };
+        try { localStorage.setItem('self_activeConversationId', id); } catch {}
         set((state) => ({
           activeConversationId: id,
           messages: [welcomeMsg],
@@ -77,6 +85,7 @@ export const useSelfStore = create<SelfState>((set, get) => {
     },
 
     setActiveConversation: async (id: string) => {
+      try { localStorage.setItem('self_activeConversationId', id); } catch {}
       set({ activeConversationId: id, isLoading: true, messages: [] });
       try {
         const messages = await api.fetchMessages(id);
@@ -200,6 +209,9 @@ export const useSelfStore = create<SelfState>((set, get) => {
           created_at: new Date().toISOString(),
         };
 
+        if (conversationId) {
+          try { localStorage.setItem('self_activeConversationId', conversationId); } catch {}
+        }
         set((s) => ({
           messages: [...s.messages, assistantMsg],
           isStreaming: false,
