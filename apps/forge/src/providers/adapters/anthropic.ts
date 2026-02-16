@@ -50,7 +50,7 @@ export class AnthropicAdapter implements IProviderAdapter {
   private client: Anthropic | null = null;
   private fallbackClient: Anthropic | null = null;
   private usingFallback = false;
-  private defaultModel = 'claude-sonnet-4-20250514';
+  private defaultModel = 'claude-sonnet-4-5-20250929';
 
   async initialize(config: Record<string, unknown>): Promise<void> {
     const apiKey = config['apiKey'] as string | undefined;
@@ -593,10 +593,10 @@ export class AnthropicAdapter implements IProviderAdapter {
   async listModels(): Promise<ModelInfo[]> {
     // Anthropic doesn't have a list models API; return known models.
     return [
-      { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', contextWindow: 200000, maxOutput: 32000 },
+      { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5', contextWindow: 200000, maxOutput: 64000 },
+      { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', contextWindow: 200000, maxOutput: 64000 },
+      { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', contextWindow: 200000, maxOutput: 64000 },
       { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', contextWindow: 200000, maxOutput: 16000 },
-      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', contextWindow: 200000, maxOutput: 8192 },
-      { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', contextWindow: 200000, maxOutput: 8192 },
     ];
   }
 }

@@ -366,7 +366,7 @@ export async function execute(
   }
 
   // ---- Load model info (optional, for context window limits) ----
-  let modelId = agent.model_id ?? 'claude-sonnet-4-20250514';
+  let modelId = agent.model_id ?? 'claude-sonnet-4-5-20250929';
   let contextWindow = 128_000;
   let maxOutput = agent.provider_config.maxTokens ?? config.maxTokensPerTurn;
 
