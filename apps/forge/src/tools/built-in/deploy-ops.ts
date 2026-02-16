@@ -26,9 +26,18 @@ export interface DeployOpsInput {
 // Constants
 // ============================================
 
-const DOCKER_SOCKET = '/var/run/docker.sock';
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_SIZE = 512_000;
+
+// Docker connection — uses DOCKER_HOST (tcp://host:port) when behind socket proxy, falls back to Unix socket
+const DOCKER_CONN: Record<string, unknown> = (() => {
+  const h = process.env['DOCKER_HOST'];
+  if (h?.startsWith('tcp://')) {
+    const u = new URL(h.replace('tcp://', 'http://'));
+    return { hostname: u.hostname, port: Number(u.port) || 2375 };
+  }
+  return { socketPath: '/var/run/docker.sock' };
+})();
 
 const SERVICE_MAP: Record<string, string> = {
   api: 'sprayberry-labs-api',
@@ -56,7 +65,7 @@ function dockerRequest(
     const timer = setTimeout(() => reject(new Error('Docker API request timed out')), REQUEST_TIMEOUT_MS);
 
     const options: http.RequestOptions = {
-      socketPath: DOCKER_SOCKET,
+      ...DOCKER_CONN,
       path,
       method,
       headers: { 'Content-Type': 'application/json' },

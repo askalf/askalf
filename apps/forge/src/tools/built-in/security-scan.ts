@@ -40,7 +40,15 @@ const SECRET_PATTERNS = [
 const SCAN_EXTENSIONS = new Set(['.ts', '.js', '.json', '.yml', '.yaml', '.env', '.sh', '.conf']);
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', '.next', 'build', 'coverage']);
 
-const DOCKER_SOCKET = '/var/run/docker.sock';
+// Docker connection — uses DOCKER_HOST (tcp://host:port) when behind socket proxy, falls back to Unix socket
+const DOCKER_CONN: Record<string, unknown> = (() => {
+  const h = process.env['DOCKER_HOST'];
+  if (h?.startsWith('tcp://')) {
+    const u = new URL(h.replace('tcp://', 'http://'));
+    return { hostname: u.hostname, port: Number(u.port) || 2375 };
+  }
+  return { socketPath: '/var/run/docker.sock' };
+})();
 
 // ============================================
 // Helpers
@@ -90,7 +98,7 @@ function dockerRequest(
 ): Promise<{ statusCode: number; data: string }> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Docker API request timed out')), 15_000);
-    const req = http.request({ socketPath: DOCKER_SOCKET, path, method, headers: { 'Content-Type': 'application/json' } }, (res) => {
+    const req = http.request({ ...DOCKER_CONN, path, method, headers: { 'Content-Type': 'application/json' } }, (res) => {
       let data = '';
       res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
       res.on('end', () => { clearTimeout(timer); resolve({ statusCode: res.statusCode ?? 500, data: data.slice(0, 512_000) }); });
