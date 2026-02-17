@@ -10,7 +10,26 @@ import { query, queryOne } from '../database.js';
 import { substrateQuery, substrateQueryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/session-auth.js';
-import { runDirectCliExecution } from '../runtime/worker.js';
+import { runDirectCliExecution, runCliQuery } from '../runtime/worker.js';
+
+// In-memory store for AI code reviews (transient — single instance, client polls max 10 min)
+const reviewStore = new Map<string, {
+  status: 'pending' | 'completed' | 'failed';
+  branch?: string;
+  diff?: string;
+  result?: { summary: string; issues: Array<{ severity: string; file: string; line: number | null; message: string }>; suggestions: Array<{ file: string; message: string }>; approved: boolean };
+  rawOutput?: string;
+  error?: string;
+}>();
+
+const REVIEW_SYSTEM_PROMPT = `You are an expert code reviewer. Analyze the git diff below and return ONLY valid JSON (no markdown fences, no extra text):
+{
+  "summary": "1-2 sentence overview of changes",
+  "issues": [{ "severity": "error|warning|info", "file": "path/to/file", "line": null, "message": "description of the issue" }],
+  "suggestions": [{ "file": "path/to/file", "message": "improvement suggestion" }],
+  "approved": true
+}
+Focus on: bugs, security vulnerabilities, performance problems, code style issues, and correctness. Set approved to false if there are any error-severity issues. Return an empty issues/suggestions array if the code looks good.`;
 
 // ============================================
 // Helpers
@@ -1106,24 +1125,140 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
   app.post(
     '/api/v1/admin/git-space/ai-review',
     { preHandler: [authMiddleware, requireAdmin] },
-    async () => {
-      return { review_id: ulid(), status: 'pending', message: 'AI review initiated' };
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { branch, diff } = request.body as { branch?: string; diff?: string };
+      if (!diff) {
+        return reply.status(400).send({ error: 'diff is required' });
+      }
+
+      const reviewId = ulid();
+      reviewStore.set(reviewId, { status: 'pending', branch: branch || 'unknown', diff });
+
+      // Fire async via CLI (uses OAuth — no API key cost)
+      void (async () => {
+        try {
+          const prompt = `${REVIEW_SYSTEM_PROMPT}\n\nBranch: ${branch || 'unknown'}\n\n${diff}`;
+          const result = await runCliQuery(prompt, {
+            maxTurns: 1,
+            timeout: 120_000,
+            systemPrompt: 'You are an expert code reviewer. Return only valid JSON, no markdown fences.',
+          });
+
+          if (result.isError) {
+            throw new Error(result.output || 'CLI execution failed');
+          }
+
+          // Parse JSON from response (strip markdown fences if present)
+          let jsonText = result.output.trim();
+          if (jsonText.startsWith('```')) {
+            jsonText = jsonText.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+          }
+          // Extract JSON if surrounded by other text
+          const firstBrace = jsonText.indexOf('{');
+          const lastBrace = jsonText.lastIndexOf('}');
+          if (firstBrace >= 0 && lastBrace > firstBrace) {
+            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+          }
+          const parsed = JSON.parse(jsonText);
+
+          const entry = reviewStore.get(reviewId);
+          if (entry) {
+            entry.status = 'completed';
+            entry.result = {
+              summary: parsed.summary || 'Review complete.',
+              issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+              suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+              approved: Boolean(parsed.approved),
+            };
+            entry.rawOutput = result.output;
+          }
+        } catch (err) {
+          console.error(`[AI Review] Failed for ${reviewId}:`, err);
+          const entry = reviewStore.get(reviewId);
+          if (entry) {
+            entry.status = 'failed';
+            entry.error = err instanceof Error ? err.message : String(err);
+          }
+        }
+      })();
+
+      return reply.status(202).send({ review_id: reviewId, status: 'pending', message: 'AI review initiated' });
     },
   );
 
   app.get(
     '/api/v1/admin/git-space/review-result/:id',
     { preHandler: [authMiddleware] },
-    async () => {
-      return { status: 'completed', summary: 'No AI review service configured yet.', issues: [], suggestions: [] };
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const entry = reviewStore.get(id);
+
+      if (!entry) {
+        return reply.status(404).send({ error: 'Review not found' });
+      }
+
+      if (entry.status === 'pending') {
+        return reply.send({ status: 'pending' });
+      }
+
+      if (entry.status === 'failed') {
+        return reply.send({ status: 'failed', error: entry.error || 'Unknown error' });
+      }
+
+      return reply.send({
+        status: 'completed',
+        summary: entry.result?.summary || '',
+        issues: entry.result?.issues || [],
+        suggestions: entry.result?.suggestions || [],
+        approved: entry.result?.approved ?? true,
+      });
     },
   );
 
   app.post(
     '/api/v1/admin/git-space/ai-review/chat',
     { preHandler: [authMiddleware, requireAdmin] },
-    async () => {
-      return { response: 'AI review chat not yet configured.' };
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { review_id, message } = request.body as { review_id?: string; message?: string };
+      if (!review_id || !message) {
+        return reply.status(400).send({ error: 'review_id and message are required' });
+      }
+
+      const entry = reviewStore.get(review_id);
+      if (!entry) {
+        return reply.status(404).send({ error: 'Review not found' });
+      }
+
+      try {
+        // Build context: original diff + review result + user follow-up
+        let context = '';
+        if (entry.diff) {
+          context += `Original diff for branch ${entry.branch || 'unknown'}:\n\n${entry.diff}\n\n`;
+        }
+        if (entry.result) {
+          context += `Previous review result:\n${JSON.stringify(entry.result, null, 2)}\n\n`;
+        }
+        if (entry.rawOutput) {
+          context += `Raw review output:\n${entry.rawOutput}\n\n`;
+        }
+
+        const prompt = `${context}User follow-up question: ${message}\n\nRespond helpfully about the code review.`;
+
+        const result = await runCliQuery(prompt, {
+          maxTurns: 1,
+          timeout: 60_000,
+          systemPrompt: 'You are an expert code reviewer discussing a previous review. Be concise and helpful.',
+        });
+
+        if (result.isError) {
+          throw new Error(result.output || 'CLI execution failed');
+        }
+
+        return reply.send({ response: result.output });
+      } catch (err) {
+        console.error(`[AI Review Chat] Failed:`, err);
+        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
+      }
     },
   );
 
