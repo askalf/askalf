@@ -560,7 +560,11 @@ export const hubApi = {
       apiFetch(`/api/v1/admin/agents/${id}/process`, { method: 'POST' }),
 
     setSchedule: (id: string, body: { schedule_type: string; interval_minutes?: number; execution_mode?: string }) =>
-      apiFetch(`/api/v1/admin/agents/${id}/schedule`, { method: 'POST', body: JSON.stringify(body) }),
+      apiFetch(`/api/v1/admin/agents/${id}/schedule`, { method: 'POST', body: JSON.stringify({
+        schedule_type: body.schedule_type,
+        schedule_interval_minutes: body.interval_minutes,
+        execution_mode: body.execution_mode,
+      }) }),
 
     updateModel: (id: string, model_id: string) =>
       apiFetch(`/api/v1/admin/agents/${id}/model`, { method: 'PATCH', body: JSON.stringify({ model_id }) }),

@@ -901,6 +901,8 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
         schedule_interval_minutes: sched?.schedule_interval_minutes || null,
         next_run_at: sched?.next_run_at || null,
         is_continuous: sched?.is_continuous || false,
+        execution_mode: sched?.execution_mode || 'batch',
+        model_id: agent.model_id || null,
         last_run_at: sched?.last_run_at || null,
       };
     });
@@ -1008,7 +1010,7 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     if (!admin) return { error: 'Admin access required' };
 
     const { id } = request.params;
-    const { schedule_type, schedule_interval_minutes, is_continuous } = request.body || {};
+    const { schedule_type, schedule_interval_minutes, is_continuous, execution_mode } = request.body || {};
 
     let nextRunAt = null;
     if (schedule_type === 'scheduled' && schedule_interval_minutes) {
@@ -1016,15 +1018,16 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     }
 
     const result = await queryOne(`
-      INSERT INTO agent_schedules (agent_id, schedule_type, schedule_interval_minutes, next_run_at, is_continuous)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO agent_schedules (agent_id, schedule_type, schedule_interval_minutes, next_run_at, is_continuous, execution_mode)
+      VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (agent_id) DO UPDATE SET
         schedule_type = EXCLUDED.schedule_type,
         schedule_interval_minutes = EXCLUDED.schedule_interval_minutes,
         next_run_at = EXCLUDED.next_run_at,
-        is_continuous = EXCLUDED.is_continuous
+        is_continuous = EXCLUDED.is_continuous,
+        execution_mode = EXCLUDED.execution_mode
       RETURNING *
-    `, [id, schedule_type || 'manual', schedule_interval_minutes || null, nextRunAt, is_continuous || false]);
+    `, [id, schedule_type || 'manual', schedule_interval_minutes || null, nextRunAt, is_continuous || false, execution_mode || 'batch']);
 
     return { schedule: result };
   });
