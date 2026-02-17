@@ -33,7 +33,7 @@ export default function EventLog() {
         hubApi.events.recent(100) as Promise<EventEntry[]>,
         hubApi.events.stats() as Promise<EventStats>,
       ]);
-      setEvents(eventsData);
+      setEvents(Array.isArray(eventsData) ? eventsData : []);
       setStats(statsData);
     } catch { /* ignore */ }
     setLoading(false);
@@ -89,7 +89,7 @@ export default function EventLog() {
         {/* Event Type Stats */}
         <div className="fo-section">
           <div className="fo-section-header"><h3>By Type</h3></div>
-          {stats?.topEventTypes.map((t) => (
+          {stats?.topEventTypes?.map((t) => (
             <div key={t.type} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
               <span style={{ color: typeColors[t.type] || '#6b7280' }}>{t.type}</span>
               <span style={{ fontWeight: 600 }}>{t.count}</span>

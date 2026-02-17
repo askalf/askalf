@@ -45,7 +45,7 @@ export default function Evolution() {
     setLoading(true);
     try {
       const data = await hubApi.evolution.experiments(selectedAgent) as Experiment[];
-      setExperiments(data);
+      setExperiments(Array.isArray(data) ? data : []);
     } catch { setExperiments([]); }
     setLoading(false);
   }, [selectedAgent]);

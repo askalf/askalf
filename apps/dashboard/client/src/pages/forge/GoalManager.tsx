@@ -32,7 +32,7 @@ export default function GoalManager() {
     setLoading(true);
     try {
       const data = await hubApi.goals.list(selectedAgent, statusFilter || undefined) as Goal[];
-      setGoals(data);
+      setGoals(Array.isArray(data) ? data : []);
     } catch { setGoals([]); }
     setLoading(false);
   }, [selectedAgent, statusFilter]);

@@ -25,6 +25,7 @@ function getModelTier(modelId: string | null): string {
 }
 
 function estimateDailyCost(modelId: string | null, intervalMinutes: number | null, executionMode: string): string {
+  if (executionMode === 'cli') return 'OAuth';
   const tier = getModelTier(modelId);
   const interval = intervalMinutes || 60;
   const runsPerDay = (24 * 60) / interval;
@@ -121,29 +122,8 @@ export default function SchedulerControl() {
               <div className="hub-sched-run-info">Next run: {formatDate(agent.next_run_at)}</div>
             )}
 
-            {/* Model selector */}
-            <div className="hub-sched-controls">
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Model</label>
-              <select
-                value={agent.model_id || ''}
-                onChange={(e) => {
-                  const modelId = e.target.value;
-                  if (modelId) updateAgentModel(agent.id, modelId);
-                }}
-                style={{ fontSize: '0.8rem' }}
-              >
-                <option value="">Default (Sonnet 4)</option>
-                <option value="claude-haiku-4-5-20251001">Haiku 4.5 ($1/$5)</option>
-                <option value="claude-sonnet-4-20250514">Sonnet 4 ($3/$15)</option>
-                <option value="claude-sonnet-4-5-20250929">Sonnet 4.5 ($3/$15)</option>
-                <option value="claude-opus-4-20250514">Opus 4 ($15/$75)</option>
-                <option value="claude-opus-4-5-20251101">Opus 4.5 ($5/$25)</option>
-                <option value="claude-opus-4-6">Opus 4.6 ($5/$25)</option>
-              </select>
-            </div>
-
             {/* Execution mode toggle */}
-            <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
+            <div className="hub-sched-controls">
               <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Execution Mode</label>
               <select
                 value={agent.execution_mode || 'batch'}
@@ -158,10 +138,31 @@ export default function SchedulerControl() {
                 }}
                 style={{ fontSize: '0.8rem' }}
               >
-                <option value="batch">Batch (50% off)</option>
-                <option value="individual">Individual (fast)</option>
+                <option value="cli">CLI (OAuth)</option>
+                <option value="batch">Batch API (50% off)</option>
+                <option value="individual">Individual API (fast)</option>
               </select>
             </div>
+
+            {/* Model selector — only for API execution modes */}
+            {(agent.execution_mode || 'batch') !== 'cli' && (
+              <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Model</label>
+                <select
+                  value={agent.model_id || ''}
+                  onChange={(e) => {
+                    const modelId = e.target.value;
+                    if (modelId) updateAgentModel(agent.id, modelId);
+                  }}
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  <option value="">Default (Sonnet 4.5)</option>
+                  <option value="claude-haiku-4-5">Haiku 4.5 ($1/$5)</option>
+                  <option value="claude-sonnet-4-5">Sonnet 4.5 ($3/$15)</option>
+                  <option value="claude-opus-4-6">Opus 4.6 ($5/$25)</option>
+                </select>
+              </div>
+            )}
 
             {/* Schedule type */}
             <div className="hub-sched-controls" style={{ marginTop: '4px' }}>

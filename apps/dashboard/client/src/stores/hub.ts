@@ -43,7 +43,7 @@ export type HubTab =
   | 'cost-optimizer' | 'knowledge' | 'health' | 'evolution'
   | 'events' | 'leaderboard';
 
-export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural' | 'workqueue';
+export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural';
 
 interface HubState {
   // UI

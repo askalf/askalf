@@ -1,8 +1,9 @@
-import { useCallback, useState, useMemo, lazy, Suspense } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useCallback, useState, lazy, Suspense } from 'react';
+import { useParams } from 'react-router-dom';
 import { useHubStore, type HubTab } from '../stores/hub';
 import { useAuthStore } from '../stores/auth';
 import { usePolling } from '../hooks/usePolling';
+import { hubApi } from '../hooks/useHubApi';
 import { AGENT_TYPE_INFO } from './hub/shared/AgentIcon';
 import AdminAssistantPanel from '../components/admin/AdminAssistantPanel';
 import Modal from './hub/shared/Modal';
@@ -42,75 +43,6 @@ const Evolution = lazy(() => import('./forge/Evolution'));
 const EventLog = lazy(() => import('./forge/EventLog'));
 const Leaderboard = lazy(() => import('./forge/Leaderboard'));
 
-const USER_TAB_SECTIONS = [
-  {
-    label: 'Forge',
-    tabs: [
-      { key: 'overview' as HubTab, label: 'Overview' },
-      { key: 'executions' as HubTab, label: 'Executions' },
-      { key: 'leaderboard' as HubTab, label: 'Leaderboard' },
-    ],
-  },
-];
-
-const ADMIN_TAB_SECTIONS = [
-  {
-    label: 'Fleet',
-    tabs: [
-      { key: 'overview' as HubTab, label: 'Overview' },
-      { key: 'fleet' as HubTab, label: 'Agents' },
-      { key: 'executions' as HubTab, label: 'Executions' },
-      { key: 'scheduler' as HubTab, label: 'Scheduler' },
-      { key: 'coordination' as HubTab, label: 'Coordination' },
-    ],
-  },
-  {
-    label: 'Ops',
-    tabs: [
-      { key: 'interventions' as HubTab, label: 'Interventions' },
-      { key: 'tickets' as HubTab, label: 'Tickets' },
-      { key: 'content' as HubTab, label: 'Content' },
-      { key: 'memory' as HubTab, label: 'Memory' },
-    ],
-  },
-  {
-    label: 'Observe',
-    tabs: [
-      { key: 'costs' as HubTab, label: 'Costs' },
-      { key: 'providers' as HubTab, label: 'Providers' },
-      { key: 'guardrails' as HubTab, label: 'Guardrails' },
-      { key: 'audit' as HubTab, label: 'Audit' },
-    ],
-  },
-  {
-    label: 'Build',
-    tabs: [
-      { key: 'workflows' as HubTab, label: 'Workflows' },
-      { key: 'push' as HubTab, label: 'Push' },
-    ],
-  },
-  {
-    label: 'Intelligence',
-    tabs: [
-      { key: 'prompt-lab' as HubTab, label: 'Prompt Lab' },
-      { key: 'nl-orchestrate' as HubTab, label: 'Orchestrate' },
-      { key: 'agent-chat' as HubTab, label: 'Chat' },
-      { key: 'goals' as HubTab, label: 'Goals' },
-      { key: 'cost-optimizer' as HubTab, label: 'Optimizer' },
-    ],
-  },
-  {
-    label: 'Evolve',
-    tabs: [
-      { key: 'knowledge' as HubTab, label: 'Knowledge' },
-      { key: 'health' as HubTab, label: 'Health' },
-      { key: 'evolution' as HubTab, label: 'Evolution' },
-      { key: 'events' as HubTab, label: 'Events' },
-      { key: 'leaderboard' as HubTab, label: 'Leaderboard' },
-    ],
-  },
-];
-
 const PANEL_MAP: Record<HubTab, React.FC> = {
   overview: ForgeOverview,
   fleet: AgentFleet,
@@ -142,11 +74,8 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
 
 export default function CommandCenter() {
   const { tab } = useParams<{ tab?: string }>();
-  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
-  const tabSections = useMemo(() => isAdmin ? ADMIN_TAB_SECTIONS : USER_TAB_SECTIONS, [isAdmin]);
-
   const activeTab = useHubStore((s) => s.activeTab);
   const setActiveTab = useHubStore((s) => s.setActiveTab);
   const stats = useHubStore((s) => s.stats);
@@ -168,6 +97,7 @@ export default function CommandCenter() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [newAgent, setNewAgent] = useState({ name: '', type: 'custom', description: '', system_prompt: '' });
   const [creating, setCreating] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [runPrompt, setRunPrompt] = useState('');
   const [runningId, setRunningId] = useState<string | null>(null);
 
@@ -176,11 +106,6 @@ export default function CommandCenter() {
   if (currentTab && currentTab !== activeTab) {
     setActiveTab(currentTab);
   }
-
-  const handleTabChange = (key: HubTab) => {
-    setActiveTab(key);
-    navigate(key === 'overview' ? '/command-center' : `/command-center/${key}`, { replace: true });
-  };
 
   const handleCreate = async () => {
     if (!newAgent.name.trim()) return;
@@ -191,6 +116,25 @@ export default function CommandCenter() {
       setNewAgent({ name: '', type: 'custom', description: '', system_prompt: '' });
     }
     setCreating(false);
+  };
+
+  const handleOptimizePrompt = async () => {
+    if (!newAgent.system_prompt.trim()) return;
+    setOptimizing(true);
+    try {
+      const result = await hubApi.agents.optimizePrompt({
+        prompt: newAgent.system_prompt,
+        name: newAgent.name,
+        type: newAgent.type,
+        description: newAgent.description,
+      });
+      if (result.optimized) {
+        setNewAgent((prev) => ({ ...prev, system_prompt: result.optimized }));
+      }
+    } catch (err: unknown) {
+      console.error('Failed to optimize prompt:', err);
+    }
+    setOptimizing(false);
   };
 
   const handleRun = async (id: string) => {
@@ -266,27 +210,6 @@ export default function CommandCenter() {
         </div>
       </header>
 
-      {/* Tab Bar */}
-      <nav className="fc-tabs">
-        {tabSections.map((section) => (
-          <div key={section.label} className="fc-tab-group">
-            <span className="fc-tab-group-label">{section.label}</span>
-            {section.tabs.map((t) => (
-              <button
-                key={t.key}
-                className={`fc-tab ${activeTab === t.key ? 'active' : ''}`}
-                onClick={() => handleTabChange(t.key)}
-              >
-                {t.label}
-                {t.key === 'interventions' && interventions.length > 0 && (
-                  <span className="fc-tab-badge">{interventions.length}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        ))}
-      </nav>
-
       {/* Content */}
       <div className="fc-content">
         <Suspense fallback={<div className="fc-tab-loading">Loading...</div>}>
@@ -317,8 +240,18 @@ export default function CommandCenter() {
             <input type="text" value={newAgent.description} onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })} placeholder="What does this agent do?" />
           </div>
           <div className="hub-form-group">
-            <label>System Prompt <span className="optional">(optional)</span></label>
-            <textarea value={newAgent.system_prompt} onChange={(e) => setNewAgent({ ...newAgent, system_prompt: e.target.value })} placeholder="Custom instructions..." rows={4} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label>System Prompt <span className="optional">(optional)</span></label>
+              <button
+                className="hub-btn hub-btn--ghost"
+                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                onClick={handleOptimizePrompt}
+                disabled={optimizing || !newAgent.system_prompt.trim()}
+              >
+                {optimizing ? 'Optimizing...' : 'Optimize with AI'}
+              </button>
+            </div>
+            <textarea value={newAgent.system_prompt} onChange={(e) => setNewAgent({ ...newAgent, system_prompt: e.target.value })} placeholder="Describe what this agent should do — AI will optimize it for you..." rows={6} />
           </div>
           <div className="hub-modal-actions">
             <button className="hub-btn" onClick={() => setShowCreateAgent(false)}>Cancel</button>

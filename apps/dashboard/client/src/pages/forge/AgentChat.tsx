@@ -36,7 +36,7 @@ export default function AgentChat() {
   const loadSessions = async () => {
     try {
       const data = await hubApi.chat.sessions() as typeof sessions;
-      setSessions(data);
+      setSessions(Array.isArray(data) ? data : []);
     } catch { /* ignore */ }
   };
 
@@ -137,7 +137,7 @@ export default function AgentChat() {
               </div>
             </div>
             <div style={{ flex: 1, overflow: 'auto', marginBottom: '8px' }}>
-              {activeSession.messages.map((msg) => (
+              {(activeSession.messages ?? []).map((msg) => (
                 <div key={msg.id} style={{
                   marginBottom: '8px', padding: '8px 12px', borderRadius: '8px',
                   background: msg.role === 'moderator' ? 'rgba(99,102,241,0.1)' : msg.role === 'system' ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.05)',

@@ -28,7 +28,7 @@ export default function NLOrchestrate() {
     try {
       const result = await hubApi.nlOrchestrate.run(instruction, maxAgents) as { sessionId: string; tasks: OrchTask[] };
       setSessionId(result.sessionId);
-      setTasks(result.tasks);
+      setTasks(Array.isArray(result.tasks) ? result.tasks : []);
       // Start polling
       pollStatus(result.sessionId);
     } catch (err) {
@@ -43,7 +43,7 @@ export default function NLOrchestrate() {
       await new Promise((r) => setTimeout(r, 5000));
       try {
         const status = await hubApi.nlOrchestrate.status(sid) as { tasks: OrchTask[]; completed: number; running: number; pending: number };
-        setTasks(status.tasks);
+        setTasks(Array.isArray(status.tasks) ? status.tasks : []);
         if (status.running === 0 && status.pending === 0) break;
       } catch { break; }
     }

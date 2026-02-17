@@ -143,7 +143,7 @@ export default function ForgeOverview() {
       <div className="fo-stats">
         <StatCard value={stats?.agents.active || 0} label="Active Agents" />
         <StatCard value={stats?.agents.running || 0} label="Running Now" variant={(stats?.agents.running || 0) > 0 ? 'success' : 'default'} />
-        <StatCard value={`${stats?.agents.avgAutonomy || 0}%`} label="Avg Autonomy" />
+        <StatCard value={`${stats?.agents.avgAutonomy || 0}/5`} label="Avg Autonomy" />
         <StatCard value={stats?.pendingInterventions || 0} label="Pending Review" variant={(stats?.pendingInterventions || 0) > 0 ? 'warning' : 'default'} pulse={(stats?.pendingInterventions || 0) > 0} onClick={() => setActiveTab('interventions')} />
         <StatCard value={metrics?.agents.tasks_today || 0} label="Tasks Today" />
         <StatCard value={successRate !== null ? `${successRate}%` : '-'} label="Success Rate" variant={successVariant} />
@@ -163,7 +163,7 @@ export default function ForgeOverview() {
         <button className="fo-action-btn" onClick={() => setActiveTab('interventions')}>Review Queue</button>
         {batchResult && (
           <span className="fo-batch-result">
-            {batchResult.started > 0 ? `Started ${batchResult.started}` : `Paused ${batchResult.agents.length}`} agents
+            {batchResult.started > 0 ? `Started ${batchResult.started}` : `Paused ${batchResult.agents?.length ?? 0}`} agents
           </span>
         )}
       </div>

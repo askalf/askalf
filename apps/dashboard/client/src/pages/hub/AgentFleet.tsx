@@ -105,9 +105,9 @@ export default function AgentFleet() {
 
               <div className="hub-fleet-autonomy">
                 <div className="hub-fleet-autonomy-bar">
-                  <div className="hub-fleet-autonomy-fill" style={{ width: `${agent.autonomy_level}%` }} />
+                  <div className="hub-fleet-autonomy-fill" style={{ width: `${(agent.autonomy_level / 5) * 100}%` }} />
                 </div>
-                <span className="hub-fleet-autonomy-label">{agent.autonomy_level}% autonomy</span>
+                <span className="hub-fleet-autonomy-label">Level {agent.autonomy_level}/5</span>
               </div>
 
               <div className="hub-fleet-footer">
@@ -210,7 +210,7 @@ export default function AgentFleet() {
                 <span className="stat-lbl">Failed</span>
               </div>
               <div className="hub-detail-stat">
-                <span className="stat-val">{selectedAgent.autonomy_level}%</span>
+                <span className="stat-val">{selectedAgent.autonomy_level}/5</span>
                 <span className="stat-lbl">Autonomy</span>
               </div>
               <div className="hub-detail-stat">
