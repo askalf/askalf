@@ -2145,3 +2145,38 @@
     justify-content: flex-end;
   }
 }
+
+/* ============================================
+   EMBEDDED MODE (Command Center)
+   ============================================ */
+
+.cr-shell--embedded {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.cr-shell--embedded .cr-header {
+  position: relative;
+  padding: var(--space-md) var(--space-lg);
+}
+
+.cr-shell--embedded .cr-layout {
+  height: calc(100% - 60px);
+}
+
+.cr-shell--embedded .cr-pipeline-container {
+  height: calc(100% - 60px);
+  overflow-y: auto;
+}
+
+.cr-shell--embedded .cr-review-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+}
+
+.cr-shell--embedded.cr-panel-open {
+  margin-right: 0;
+}

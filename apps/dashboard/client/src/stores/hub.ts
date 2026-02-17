@@ -38,7 +38,7 @@ export type HubTab =
   | 'overview' | 'fleet' | 'executions' | 'scheduler' | 'coordination'
   | 'interventions' | 'tickets' | 'content' | 'memory' | 'threads'
   | 'costs' | 'providers' | 'guardrails' | 'audit'
-  | 'workflows';
+  | 'workflows' | 'push';
 
 export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural' | 'workqueue';
 

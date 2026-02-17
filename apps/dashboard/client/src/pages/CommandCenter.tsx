@@ -29,6 +29,7 @@ const ProviderHealthPage = lazy(() => import('./forge/ProviderHealth'));
 const GuardrailsManager = lazy(() => import('./forge/GuardrailsManager'));
 const AuditLog = lazy(() => import('./forge/AuditLog'));
 const WorkflowBuilder = lazy(() => import('./forge/WorkflowBuilder'));
+const PushPanel = lazy(() => import('./forge/PushPanel'));
 
 const TAB_SECTIONS = [
   {
@@ -63,6 +64,7 @@ const TAB_SECTIONS = [
     label: 'Build',
     tabs: [
       { key: 'workflows' as HubTab, label: 'Workflows' },
+      { key: 'push' as HubTab, label: 'Push' },
     ],
   },
 ];
@@ -83,6 +85,7 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
   guardrails: GuardrailsManager,
   audit: AuditLog,
   workflows: WorkflowBuilder,
+  push: PushPanel,
 };
 
 export default function CommandCenter() {
