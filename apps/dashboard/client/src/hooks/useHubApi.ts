@@ -753,6 +753,108 @@ export const hubApi = {
       apiFetch<{ run: WorkflowRun }>(`/api/v1/admin/workflows/${id}/run`, { method: 'POST', body: JSON.stringify({ input: input || {} }) }),
   },
 
+  // Phase 6: Prompt Revisions
+  promptRevisions: {
+    propose: (agentId: string) =>
+      apiFetch(`/api/v1/admin/agents/${agentId}/propose-revision`, { method: 'POST', body: JSON.stringify({}) }),
+    list: (agentId: string) =>
+      apiFetch<unknown[]>(`/api/v1/admin/agents/${agentId}/prompt-revisions`),
+    apply: (revisionId: string) =>
+      apiFetch(`/api/v1/admin/prompt-revisions/${revisionId}/apply`, { method: 'POST', body: JSON.stringify({}) }),
+    reject: (revisionId: string) =>
+      apiFetch(`/api/v1/admin/prompt-revisions/${revisionId}/reject`, { method: 'POST', body: JSON.stringify({}) }),
+  },
+
+  // Phase 7: NL Orchestration
+  nlOrchestrate: {
+    run: (instruction: string, maxAgents?: number) =>
+      apiFetch<{ sessionId: string; tasks: unknown[]; totalTasks: number }>('/api/v1/admin/orchestrate-nl', {
+        method: 'POST', body: JSON.stringify({ instruction, maxAgents }),
+      }),
+    status: (sessionId: string) =>
+      apiFetch(`/api/v1/admin/orchestration/${sessionId}/status`),
+  },
+
+  // Phase 8: Multi-Agent Chat
+  chat: {
+    create: (topic: string, agentIds: string[]) =>
+      apiFetch('/api/v1/admin/chat/create', { method: 'POST', body: JSON.stringify({ topic, agentIds }) }),
+    sessions: () =>
+      apiFetch<unknown[]>('/api/v1/admin/chat/sessions'),
+    get: (sessionId: string) =>
+      apiFetch(`/api/v1/admin/chat/${sessionId}`),
+    message: (sessionId: string, content: string) =>
+      apiFetch(`/api/v1/admin/chat/${sessionId}/message`, { method: 'POST', body: JSON.stringify({ content }) }),
+    respond: (sessionId: string, agentId: string) =>
+      apiFetch(`/api/v1/admin/chat/${sessionId}/respond/${agentId}`, { method: 'POST', body: JSON.stringify({}) }),
+    round: (sessionId: string) =>
+      apiFetch<unknown[]>(`/api/v1/admin/chat/${sessionId}/round`, { method: 'POST', body: JSON.stringify({}) }),
+    end: (sessionId: string) =>
+      apiFetch(`/api/v1/admin/chat/${sessionId}/end`, { method: 'POST', body: JSON.stringify({}) }),
+  },
+
+  // Phase 9: Goals
+  goals: {
+    propose: (agentId: string) =>
+      apiFetch<unknown[]>(`/api/v1/admin/agents/${agentId}/propose-goals`, { method: 'POST', body: JSON.stringify({}) }),
+    list: (agentId: string, status?: string) =>
+      apiFetch<unknown[]>(`/api/v1/admin/agents/${agentId}/goals${status ? `?status=${status}` : ''}`),
+    approve: (goalId: string) =>
+      apiFetch(`/api/v1/admin/goals/${goalId}/approve`, { method: 'POST', body: JSON.stringify({}) }),
+    reject: (goalId: string) =>
+      apiFetch(`/api/v1/admin/goals/${goalId}/reject`, { method: 'POST', body: JSON.stringify({}) }),
+  },
+
+  // Phase 10: Cost Optimizer
+  costOptimizer: {
+    dashboard: () =>
+      apiFetch<{ profiles: unknown[]; savings: { totalSamples: number; avgCostReduction: number } }>('/api/v1/admin/cost/dashboard'),
+    recommend: (capabilities: string[], minQuality?: number) =>
+      apiFetch<unknown[]>('/api/v1/admin/cost/recommend', { method: 'POST', body: JSON.stringify({ capabilities, minQuality }) }),
+  },
+
+  // Phase 11: Knowledge Graph
+  knowledge: {
+    stats: () =>
+      apiFetch<{ totalNodes: number; totalEdges: number; topEntities: unknown[]; topRelations: unknown[] }>('/api/v1/admin/knowledge/stats'),
+    search: (q: string, type?: string, limit?: number) =>
+      apiFetch<unknown[]>(`/api/v1/admin/knowledge/search?${buildParams({ q, type, limit })}`),
+    neighborhood: (nodeId: string) =>
+      apiFetch<{ nodes: unknown[]; edges: unknown[] }>(`/api/v1/admin/knowledge/nodes/${nodeId}/neighborhood`),
+  },
+
+  // Phase 12: Monitoring
+  monitoring: {
+    health: () =>
+      apiFetch<{ timestamp: string; overall: string; checks: unknown[]; alerts: unknown[] }>('/api/v1/admin/monitoring/health'),
+  },
+
+  // Phase 13: Evolution
+  evolution: {
+    clone: (agentId: string, body: { type: string; description: string; promptOverride?: string; modelOverride?: string }) =>
+      apiFetch<{ variantId: string }>(`/api/v1/admin/agents/${agentId}/clone`, { method: 'POST', body: JSON.stringify(body) }),
+    experiment: (body: { parentId: string; variantId: string; testTask: string; mutationDescription: string }) =>
+      apiFetch('/api/v1/admin/evolution/experiment', { method: 'POST', body: JSON.stringify(body) }),
+    experiments: (agentId: string) =>
+      apiFetch<unknown[]>(`/api/v1/admin/agents/${agentId}/experiments`),
+    promote: (experimentId: string) =>
+      apiFetch(`/api/v1/admin/evolution/${experimentId}/promote`, { method: 'POST', body: JSON.stringify({}) }),
+  },
+
+  // Phase 14: Events & Leaderboard
+  events: {
+    recent: (limit?: number) =>
+      apiFetch<unknown[]>(`/api/v1/admin/events/recent${limit ? `?limit=${limit}` : ''}`),
+    execution: (executionId: string) =>
+      apiFetch<unknown[]>(`/api/v1/admin/events/execution/${executionId}`),
+    session: (sessionId: string) =>
+      apiFetch<unknown[]>(`/api/v1/admin/events/session/${sessionId}`),
+    stats: () =>
+      apiFetch<{ totalEvents: number; eventsLast24h: number; topEventTypes: unknown[] }>('/api/v1/admin/events/stats'),
+    leaderboard: () =>
+      apiFetch<unknown[]>('/api/v1/admin/fleet/leaderboard'),
+  },
+
   coordination: {
     sessions: () =>
       apiFetch<{ sessions: CoordinationSession[] }>('/api/v1/admin/coordination/sessions'),
