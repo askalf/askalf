@@ -761,10 +761,10 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
       queryOne(`SELECT COUNT(*) as count FROM users`),
       queryOne(`SELECT COUNT(*) as count FROM users WHERE last_login_at > NOW() - INTERVAL '24 hours'`).catch(() => ({ count: '0' })),
       queryOne(`SELECT COUNT(*) as count FROM users WHERE created_at > NOW() - INTERVAL '7 days'`).catch(() => ({ count: '0' })),
-      queryOne(`SELECT COUNT(*) as count FROM shards`).catch(() => ({ count: '0' })),
-      queryOne(`SELECT COUNT(*) as count FROM shards WHERE confidence >= 0.8`).catch(() => ({ count: '0' })),
-      queryOne(`SELECT COUNT(DISTINCT session_id) as count FROM chat_messages`).catch(() => ({ count: '0' })),
-      queryOne(`SELECT COUNT(*) as count FROM chat_messages`).catch(() => ({ count: '0' })),
+      Promise.resolve({ count: '0' }), // shards table decommissioned
+      Promise.resolve({ count: '0' }), // shards table decommissioned
+      Promise.resolve({ count: '0' }), // chat_messages table decommissioned
+      Promise.resolve({ count: '0' }), // chat_messages table decommissioned
       queryOne(`SELECT COUNT(*) as count FROM agent_tickets`).catch(() => ({ count: '0' })),
       queryOne(`SELECT COUNT(*) as count FROM agent_tickets WHERE status IN ('open', 'in_progress')`).catch(() => ({ count: '0' })),
       queryOne(`SELECT COUNT(*) as count FROM agent_tickets WHERE source = 'agent'`).catch(() => ({ count: '0' })),
