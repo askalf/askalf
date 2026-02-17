@@ -30,6 +30,16 @@ const GuardrailsManager = lazy(() => import('./forge/GuardrailsManager'));
 const AuditLog = lazy(() => import('./forge/AuditLog'));
 const WorkflowBuilder = lazy(() => import('./forge/WorkflowBuilder'));
 const PushPanel = lazy(() => import('./forge/PushPanel'));
+const PromptLab = lazy(() => import('./forge/PromptLab'));
+const NLOrchestrate = lazy(() => import('./forge/NLOrchestrate'));
+const AgentChat = lazy(() => import('./forge/AgentChat'));
+const GoalManager = lazy(() => import('./forge/GoalManager'));
+const CostOptimizer = lazy(() => import('./forge/CostOptimizer'));
+const KnowledgeGraph = lazy(() => import('./forge/KnowledgeGraph'));
+const HealthMonitor = lazy(() => import('./forge/HealthMonitor'));
+const Evolution = lazy(() => import('./forge/Evolution'));
+const EventLog = lazy(() => import('./forge/EventLog'));
+const Leaderboard = lazy(() => import('./forge/Leaderboard'));
 
 const TAB_SECTIONS = [
   {
@@ -67,6 +77,26 @@ const TAB_SECTIONS = [
       { key: 'push' as HubTab, label: 'Push' },
     ],
   },
+  {
+    label: 'Intelligence',
+    tabs: [
+      { key: 'prompt-lab' as HubTab, label: 'Prompt Lab' },
+      { key: 'nl-orchestrate' as HubTab, label: 'Orchestrate' },
+      { key: 'agent-chat' as HubTab, label: 'Chat' },
+      { key: 'goals' as HubTab, label: 'Goals' },
+      { key: 'cost-optimizer' as HubTab, label: 'Optimizer' },
+    ],
+  },
+  {
+    label: 'Evolve',
+    tabs: [
+      { key: 'knowledge' as HubTab, label: 'Knowledge' },
+      { key: 'health' as HubTab, label: 'Health' },
+      { key: 'evolution' as HubTab, label: 'Evolution' },
+      { key: 'events' as HubTab, label: 'Events' },
+      { key: 'leaderboard' as HubTab, label: 'Leaderboard' },
+    ],
+  },
 ];
 
 const PANEL_MAP: Record<HubTab, React.FC> = {
@@ -86,6 +116,16 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
   audit: AuditLog,
   workflows: WorkflowBuilder,
   push: PushPanel,
+  'prompt-lab': PromptLab,
+  'nl-orchestrate': NLOrchestrate,
+  'agent-chat': AgentChat,
+  goals: GoalManager,
+  'cost-optimizer': CostOptimizer,
+  knowledge: KnowledgeGraph,
+  health: HealthMonitor,
+  evolution: Evolution,
+  events: EventLog,
+  leaderboard: Leaderboard,
 };
 
 export default function CommandCenter() {
