@@ -1784,6 +1784,11 @@ fastify.post('/api/v1/admin/users', async (request, reply) => {
 
   try {
     const tenantId = `tenant_${crypto.randomUUID().replace(/-/g, '').slice(0, 26)}`;
+    const slug = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 100);
+    await query(
+      `INSERT INTO tenants (id, name, slug, type, tier) VALUES ($1, $2, $3, 'user', 'free')`,
+      [tenantId, display_name || email.split('@')[0], slug]
+    );
     const result = await createUser(tenantId, { email, password, display_name });
 
     // Set role if specified (default is 'user')
