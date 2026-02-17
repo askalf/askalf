@@ -142,10 +142,15 @@ export async function runHealthCheck(): Promise<HealthReport> {
   });
 
   // 6. Pending interventions (human attention needed)
-  const pendingInterventions = await query<{ count: string }>(
-    `SELECT COUNT(*)::text AS count FROM forge_interventions WHERE status = 'pending'`,
-  );
-  const pendingCount = parseInt(pendingInterventions[0]?.count ?? '0');
+  // Note: interventions live in the substrate DB (agent_interventions), not forge DB.
+  // Query execution feedback as a proxy for pending attention items.
+  let pendingCount = 0;
+  try {
+    const pendingItems = await query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM forge_execution_feedback WHERE processed = false`,
+    );
+    pendingCount = parseInt(pendingItems[0]?.count ?? '0');
+  } catch { /* table may not exist yet */ }
 
   checks.push({
     name: 'pending_interventions',
