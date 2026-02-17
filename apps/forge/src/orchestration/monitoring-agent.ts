@@ -1,0 +1,231 @@
+/**
+ * Production Monitoring Agent (Phase 12)
+ * Continuously monitors system health, detects anomalies, and alerts.
+ * Runs as a periodic cycle inside Forge (no separate container).
+ */
+
+import { query } from '../database.js';
+import { getEventBus } from './event-bus.js';
+
+export interface HealthReport {
+  timestamp: string;
+  overall: 'healthy' | 'degraded' | 'critical';
+  checks: HealthCheck[];
+  alerts: Alert[];
+}
+
+interface HealthCheck {
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  value: string;
+  threshold?: string;
+}
+
+interface Alert {
+  severity: 'info' | 'warning' | 'critical';
+  message: string;
+  metric: string;
+  value: number;
+  threshold: number;
+}
+
+let lastReport: HealthReport | null = null;
+
+/**
+ * Run a full health check across all monitored systems.
+ */
+export async function runHealthCheck(): Promise<HealthReport> {
+  const checks: HealthCheck[] = [];
+  const alerts: Alert[] = [];
+
+  // 1. Execution failure rate (last hour)
+  const failureRate = await query<{ total: string; failed: string }>(
+    `SELECT COUNT(*)::text AS total,
+            COUNT(*) FILTER (WHERE status = 'failed')::text AS failed
+     FROM forge_executions
+     WHERE started_at > NOW() - INTERVAL '1 hour'`,
+  );
+  const total = parseInt(failureRate[0]?.total ?? '0');
+  const failed = parseInt(failureRate[0]?.failed ?? '0');
+  const rate = total > 0 ? failed / total : 0;
+
+  checks.push({
+    name: 'execution_failure_rate',
+    status: rate > 0.5 ? 'fail' : rate > 0.25 ? 'warn' : 'pass',
+    value: `${(rate * 100).toFixed(1)}%`,
+    threshold: '25%/50%',
+  });
+
+  if (rate > 0.5 && total >= 3) {
+    alerts.push({
+      severity: 'critical',
+      message: `High execution failure rate: ${(rate * 100).toFixed(1)}% (${failed}/${total})`,
+      metric: 'execution_failure_rate',
+      value: rate,
+      threshold: 0.5,
+    });
+  }
+
+  // 2. Stuck executions (running > 15 min)
+  const stuck = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM forge_executions
+     WHERE status = 'running' AND started_at < NOW() - INTERVAL '15 minutes'`,
+  );
+  const stuckCount = parseInt(stuck[0]?.count ?? '0');
+
+  checks.push({
+    name: 'stuck_executions',
+    status: stuckCount > 2 ? 'fail' : stuckCount > 0 ? 'warn' : 'pass',
+    value: String(stuckCount),
+    threshold: '0/2',
+  });
+
+  if (stuckCount > 0) {
+    alerts.push({
+      severity: stuckCount > 2 ? 'critical' : 'warning',
+      message: `${stuckCount} execution(s) stuck (running > 15 min)`,
+      metric: 'stuck_executions',
+      value: stuckCount,
+      threshold: 0,
+    });
+  }
+
+  // 3. Cost burn rate (last hour)
+  const costResult = await query<{ total_cost: string }>(
+    `SELECT COALESCE(SUM(cost), 0)::text AS total_cost
+     FROM forge_executions
+     WHERE started_at > NOW() - INTERVAL '1 hour' AND cost IS NOT NULL`,
+  );
+  const hourlyCost = parseFloat(costResult[0]?.total_cost ?? '0');
+
+  checks.push({
+    name: 'hourly_cost',
+    status: hourlyCost > 5.0 ? 'fail' : hourlyCost > 2.0 ? 'warn' : 'pass',
+    value: `$${hourlyCost.toFixed(2)}`,
+    threshold: '$2.00/$5.00',
+  });
+
+  if (hourlyCost > 5.0) {
+    alerts.push({
+      severity: 'critical',
+      message: `High hourly cost: $${hourlyCost.toFixed(2)} in last hour`,
+      metric: 'hourly_cost',
+      value: hourlyCost,
+      threshold: 5.0,
+    });
+  }
+
+  // 4. Agent health (any agents in error state)
+  const errorAgents = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM forge_agents WHERE status = 'error'`,
+  );
+  const errorCount = parseInt(errorAgents[0]?.count ?? '0');
+
+  checks.push({
+    name: 'agents_in_error',
+    status: errorCount > 0 ? 'warn' : 'pass',
+    value: String(errorCount),
+  });
+
+  // 5. Memory system health (check recent stores)
+  const recentMemories = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM forge_semantic_memories
+     WHERE created_at > NOW() - INTERVAL '6 hours'`,
+  );
+  const memCount = parseInt(recentMemories[0]?.count ?? '0');
+
+  checks.push({
+    name: 'memory_activity',
+    status: 'pass',
+    value: `${memCount} memories stored (6h)`,
+  });
+
+  // 6. Pending interventions (human attention needed)
+  const pendingInterventions = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM forge_interventions WHERE status = 'pending'`,
+  );
+  const pendingCount = parseInt(pendingInterventions[0]?.count ?? '0');
+
+  checks.push({
+    name: 'pending_interventions',
+    status: pendingCount > 10 ? 'warn' : 'pass',
+    value: String(pendingCount),
+  });
+
+  // Determine overall status
+  const hasFailures = checks.some((c) => c.status === 'fail');
+  const hasWarnings = checks.some((c) => c.status === 'warn');
+  const overall = hasFailures ? 'critical' : hasWarnings ? 'degraded' : 'healthy';
+
+  const report: HealthReport = {
+    timestamp: new Date().toISOString(),
+    overall,
+    checks,
+    alerts,
+  };
+
+  lastReport = report;
+
+  // Emit alerts via event bus
+  if (alerts.length > 0) {
+    const eventBus = getEventBus();
+    for (const alert of alerts) {
+      void eventBus?.emitAgent('status_changed', 'system-monitor', 'System Monitor', {
+        event: 'alert',
+        severity: alert.severity,
+        message: alert.message,
+      }).catch(() => {});
+    }
+  }
+
+  return report;
+}
+
+/**
+ * Get the last health report (cached).
+ */
+export function getLastHealthReport(): HealthReport | null {
+  return lastReport;
+}
+
+/**
+ * Auto-heal stuck executions by marking them as failed.
+ */
+export async function healStuckExecutions(): Promise<number> {
+  const result = await query<{ id: string }>(
+    `UPDATE forge_executions
+     SET status = 'failed', error = 'Auto-healed: execution stuck > 30 minutes', completed_at = NOW()
+     WHERE status = 'running' AND started_at < NOW() - INTERVAL '30 minutes'
+     RETURNING id`,
+  );
+
+  if (result.length > 0) {
+    console.log(`[Monitor] Auto-healed ${result.length} stuck executions`);
+  }
+  return result.length;
+}
+
+/**
+ * Start monitoring cycles.
+ * - Health check every 5 minutes
+ * - Auto-heal stuck executions every 10 minutes
+ */
+export function startMonitoring(): void {
+  console.log('[Monitor] Production monitoring started (health=5m, heal=10m)');
+
+  // Initial check after 30 seconds
+  setTimeout(() => {
+    void runHealthCheck().catch((err) => console.warn('[Monitor] Health check failed:', err));
+  }, 30_000);
+
+  // Regular health checks
+  setInterval(() => {
+    void runHealthCheck().catch((err) => console.warn('[Monitor] Health check failed:', err));
+  }, 5 * 60_000);
+
+  // Auto-heal
+  setInterval(() => {
+    void healStuckExecutions().catch((err) => console.warn('[Monitor] Auto-heal failed:', err));
+  }, 10 * 60_000);
+}

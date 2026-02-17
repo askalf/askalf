@@ -6,11 +6,15 @@
 
 import { query } from '../database.js';
 import { processUnprocessedFeedback } from '../learning/feedback-processor.js';
+import { proposeAllRevisions } from '../learning/prompt-rewriter.js';
+import { proposeAllGoals } from '../orchestration/goal-proposer.js';
 
 let decayTimer: ReturnType<typeof setInterval> | null = null;
 let lessonsTimer: ReturnType<typeof setInterval> | null = null;
 let promoteTimer: ReturnType<typeof setInterval> | null = null;
 let feedbackTimer: ReturnType<typeof setInterval> | null = null;
+let promptRewriteTimer: ReturnType<typeof setInterval> | null = null;
+let goalProposalTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Start all metabolic cycles on intervals.
@@ -43,7 +47,17 @@ export function startMetabolicCycles(): void {
     void processUnprocessedFeedback().catch(logErr('feedback'));
   }, 30 * 60 * 1000);
 
-  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m)');
+  // Prompt rewrite proposals: every 6 hours (Phase 6)
+  promptRewriteTimer = setInterval(() => {
+    void proposeAllRevisions().catch(logErr('prompt-rewrite'));
+  }, 6 * 60 * 60 * 1000);
+
+  // Goal proposals: every 8 hours (Phase 9)
+  goalProposalTimer = setInterval(() => {
+    void proposeAllGoals().catch(logErr('goal-proposal'));
+  }, 8 * 60 * 60 * 1000);
+
+  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), goals(8h)');
 }
 
 /**
@@ -54,10 +68,14 @@ export function stopMetabolicCycles(): void {
   if (lessonsTimer) clearInterval(lessonsTimer);
   if (promoteTimer) clearInterval(promoteTimer);
   if (feedbackTimer) clearInterval(feedbackTimer);
+  if (promptRewriteTimer) clearInterval(promptRewriteTimer);
+  if (goalProposalTimer) clearInterval(goalProposalTimer);
   decayTimer = null;
   lessonsTimer = null;
   promoteTimer = null;
   feedbackTimer = null;
+  promptRewriteTimer = null;
+  goalProposalTimer = null;
 }
 
 // --------------------------------------------------------------------------
