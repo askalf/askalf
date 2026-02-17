@@ -129,6 +129,29 @@ export class EpisodicMemory {
   }
 
   /**
+   * Search episodic memories across ALL agents (fleet-wide).
+   * Same as search() but without agent_id filter.
+   */
+  async searchFleet(
+    embedding: number[],
+    k: number,
+  ): Promise<EpisodicSearchResult[]> {
+    const vecLiteral = EpisodicMemory.formatEmbedding(embedding);
+
+    return this.query<EpisodicSearchResult>(
+      `SELECT
+         id, agent_id, owner_id, situation, action, outcome,
+         outcome_quality, execution_id, metadata, created_at,
+         1 - (embedding <=> $1::vector) AS similarity
+       FROM forge_episodic_memories
+       WHERE embedding IS NOT NULL
+       ORDER BY similarity DESC
+       LIMIT $2`,
+      [vecLiteral, k],
+    );
+  }
+
+  /**
    * Get episodic memories for an agent, ordered by recency.
    * Optionally filter by minimum outcome quality.
    */

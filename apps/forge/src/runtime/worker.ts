@@ -15,6 +15,8 @@ import { executeTools, type ToolCall as ExecutorToolCall } from '../tools/execut
 import { execute, type ExecutionContext, type ExecutionDeps } from './engine.js';
 import { executeBatch, type BatchAgentExecution, type BatchExecutionResult } from './batch-engine.js';
 import { query } from '../database.js';
+import { extractMemories } from '../memory/extractor.js';
+import { buildMemoryContext } from '../memory/context-builder.js';
 
 // Built-in tools
 import { apiCall } from '../tools/built-in/api-call.js';
@@ -932,7 +934,12 @@ export async function runDirectCliExecution(
     // Copy agent's system prompt as CLAUDE.md in workspace
     if (options?.systemPrompt) {
       try {
-        await writeFile(`${WORKSPACE_DIR}/CLAUDE.md`, options.systemPrompt);
+        // Inject relevant memories into the system prompt
+        const memoryContext = await buildMemoryContext(agentId, input, { fleetWide: true }).catch(() => '');
+        const fullPrompt = memoryContext
+          ? `${options.systemPrompt}\n${memoryContext}`
+          : options.systemPrompt;
+        await writeFile(`${WORKSPACE_DIR}/CLAUDE.md`, fullPrompt);
       } catch {
         console.warn('[CLI] Could not write CLAUDE.md to workspace');
       }
@@ -995,6 +1002,23 @@ export async function runDirectCliExecution(
         executionId,
       ],
     );
+
+    // Fire-and-forget memory extraction
+    void extractMemories({
+      executionId,
+      agentId,
+      ownerId,
+      input,
+      output: parsed.output,
+      isError: parsed.isError,
+      costUsd: parsed.costUsd,
+      inputTokens: parsed.inputTokens,
+      outputTokens: parsed.outputTokens,
+      numTurns: parsed.numTurns,
+      durationMs,
+    }).catch((err) => {
+      console.warn('[Memory] Post-execution extraction failed:', err instanceof Error ? err.message : err);
+    });
   } catch (err) {
     const durationMs = Date.now() - startTime;
     const errorMsg = err instanceof Error ? err.message : String(err);
