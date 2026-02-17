@@ -156,4 +156,104 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
       });
     },
   );
+
+  /**
+   * POST /api/v1/forge/providers/health-check - Run live health checks against all providers
+   */
+  app.post(
+    '/api/v1/forge/providers/health-check',
+    { preHandler: [authMiddleware] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const providers = await query<ProviderRow>(
+        `SELECT id, name, type, base_url FROM forge_providers WHERE is_enabled = true`,
+      );
+
+      const ENV_KEYS: Record<string, string> = {
+        anthropic: 'ANTHROPIC_API_KEY',
+        openai: 'OPENAI_API_KEY',
+        google: 'GOOGLE_AI_KEY',
+        xai: 'XAI_API_KEY',
+        deepseek: 'DEEPSEEK_API_KEY',
+      };
+
+      // Providers that support alternative auth (CLI/OAuth) and don't need a direct API key
+      const CLI_AUTH_PROVIDERS = new Set(['anthropic']);
+
+      const checks = await Promise.allSettled(
+        providers.map(async (p) => {
+          const apiKey = process.env[ENV_KEYS[p.type] ?? ''] ?? '';
+          let status: 'healthy' | 'down' = 'down';
+          let error: string | null = null;
+
+          try {
+            // For cloud providers without an API key: if they support CLI/OAuth auth, mark healthy
+            if (!apiKey && CLI_AUTH_PROVIDERS.has(p.type)) {
+              status = 'healthy';
+            } else if (!apiKey && p.type !== 'ollama' && p.type !== 'lmstudio') {
+              // Cloud provider with no API key and no alternative auth
+              status = 'down';
+              error = 'No API key configured';
+            } else if (p.type === 'anthropic') {
+              const res = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                  'x-api-key': apiKey,
+                  'anthropic-version': '2023-06-01',
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+                signal: AbortSignal.timeout(10000),
+              });
+              status = res.ok ? 'healthy' : 'down';
+              if (!res.ok) error = `HTTP ${res.status}`;
+            } else if (p.type === 'openai') {
+              const res = await fetch('https://api.openai.com/v1/models', {
+                headers: { Authorization: `Bearer ${apiKey}` },
+                signal: AbortSignal.timeout(10000),
+              });
+              status = res.ok ? 'healthy' : 'down';
+              if (!res.ok) error = `HTTP ${res.status}`;
+            } else if (p.type === 'google') {
+              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {
+                signal: AbortSignal.timeout(10000),
+              });
+              status = res.ok ? 'healthy' : 'down';
+              if (!res.ok) error = `HTTP ${res.status}`;
+            } else if (p.type === 'ollama' || p.type === 'lmstudio') {
+              const base = p.base_url || 'http://localhost:11434';
+              const res = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(5000) });
+              status = res.ok ? 'healthy' : 'down';
+              if (!res.ok) error = `HTTP ${res.status}`;
+            } else {
+              // Unknown provider type — mark as down if no API key
+              status = apiKey ? 'healthy' : 'down';
+              if (!apiKey) error = 'No API key configured';
+            }
+          } catch (err: unknown) {
+            status = 'down';
+            error = err instanceof Error ? err.message : 'Connection failed';
+          }
+
+          await queryOne(
+            `UPDATE forge_providers SET health_status = $1, last_health_check = NOW() WHERE id = $2 RETURNING id`,
+            [status, p.id],
+          );
+
+          return { id: p.id, name: p.name, type: p.type, status, error };
+        }),
+      );
+
+      const results = checks.map((c) =>
+        c.status === 'fulfilled' ? c.value : { id: 'unknown', name: 'unknown', type: 'unknown', status: 'down' as const, error: 'Check failed' },
+      );
+
+      const allHealthy = results.every((r) => r.status === 'healthy');
+      const anyDown = results.some((r) => r.status === 'down');
+
+      return reply.send({
+        status: anyDown ? 'degraded' : allHealthy ? 'healthy' : 'unknown',
+        providers: results,
+      });
+    },
+  );
 }
