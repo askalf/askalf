@@ -2,7 +2,8 @@
 // Maps all 28 admin-hub.js endpoints
 
 const getApiBase = () => {
-  if (window.location.hostname.includes('askalf.org')) return '';
+  const host = window.location.hostname;
+  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
   return 'http://localhost:3005';
 };
 

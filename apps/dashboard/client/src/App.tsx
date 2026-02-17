@@ -44,7 +44,17 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'admin' && user.role !== 'super_admin') return <Navigate to="/self" replace />;
+  if (user.role !== 'admin' && user.role !== 'super_admin') return <Navigate to="/command-center" replace />;
+
+  return <>{children}</>;
+}
+
+function SuperAdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuthStore();
+
+  if (isLoading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'super_admin') return <Navigate to="/command-center" replace />;
 
   return <>{children}</>;
 }
@@ -81,13 +91,13 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        {/* Ask Alf — universal chat with hot swap + LLM classifier */}
-        <Route path="/ask-alf" element={<AskAlf />} />
-        <Route path="/ask-alf/integrations" element={<AskAlfIntegrations />} />
+        {/* Ask Alf — dev project, super_admin only */}
+        <Route path="/ask-alf" element={<SuperAdminRoute><AskAlf /></SuperAdminRoute>} />
+        <Route path="/ask-alf/integrations" element={<SuperAdminRoute><AskAlfIntegrations /></SuperAdminRoute>} />
 
-        {/* Self — conversation-first AI */}
-        <Route path="/self" element={<Self />} />
-        <Route path="/integrations" element={<Integrations />} />
+        {/* Self — dev project, super_admin only */}
+        <Route path="/self" element={<SuperAdminRoute><Self /></SuperAdminRoute>} />
+        <Route path="/integrations" element={<SuperAdminRoute><Integrations /></SuperAdminRoute>} />
 
         {/* Forge — agent orchestration */}
         <Route path="/command-center" element={<CommandCenter />} />
@@ -108,16 +118,16 @@ export default function App() {
       </Route>
 
       {/* Root redirect */}
-      <Route path="/" element={<Navigate to="/self" replace />} />
+      <Route path="/" element={<Navigate to="/command-center" replace />} />
 
       {/* Legacy redirects */}
-      <Route path="/app/*" element={<Navigate to="/self" replace />} />
-      <Route path="/admin/*" element={<Navigate to="/self" replace />} />
-      <Route path="/chat" element={<Navigate to="/self" replace />} />
-      <Route path="/chat/*" element={<Navigate to="/self" replace />} />
+      <Route path="/app/*" element={<Navigate to="/command-center" replace />} />
+      <Route path="/admin/*" element={<Navigate to="/command-center" replace />} />
+      <Route path="/chat" element={<Navigate to="/command-center" replace />} />
+      <Route path="/chat/*" element={<Navigate to="/command-center" replace />} />
 
       {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/self" replace />} />
+      <Route path="*" element={<Navigate to="/command-center" replace />} />
     </Routes>
     </Suspense>
     </>
