@@ -9,6 +9,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [deploymentName, setDeploymentName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -46,8 +47,14 @@ export default function SignupPage() {
 
     setIsLoading(true);
 
+    if (!deploymentName.trim()) {
+      setError('Deployment name is required');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      await register(email, password, displayName || undefined);
+      await register(email, password, displayName || undefined, deploymentName);
       navigate('/command-center');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
@@ -80,6 +87,22 @@ export default function SignupPage() {
           )}
 
           <div className="auth-field">
+            <label htmlFor="deploymentName">Deployment Name</label>
+            <input
+              id="deploymentName"
+              type="text"
+              value={deploymentName}
+              onChange={(e) => setDeploymentName(e.target.value)}
+              placeholder="e.g., Acme Corp Production"
+              required
+              autoFocus
+            />
+            <span style={{ fontSize: '11px', opacity: 0.5, marginTop: '4px', display: 'block' }}>
+              The name of your Forge deployment
+            </span>
+          </div>
+
+          <div className="auth-field">
             <label htmlFor="displayName">Display Name</label>
             <input
               id="displayName"
@@ -101,7 +124,6 @@ export default function SignupPage() {
               placeholder="you@example.com"
               required
               autoComplete="email"
-              autoFocus
             />
           </div>
 
