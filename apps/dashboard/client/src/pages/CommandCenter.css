@@ -29,7 +29,7 @@
   right: -200px;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.04) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -55,7 +55,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.3), transparent);
 }
 
 .fc-header-left {
@@ -83,7 +83,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(99, 102, 241, 0.2));
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(99, 102, 241, 0.2));
   border-radius: 8px;
   font-weight: 800;
   font-size: 1rem;
@@ -99,7 +99,7 @@
 .fc-brand-title {
   font-weight: 700;
   font-size: 0.9375rem;
-  background: linear-gradient(135deg, #6ee7b7, var(--crystal));
+  background: linear-gradient(135deg, #a78bfa, var(--crystal));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -220,7 +220,7 @@
 }
 
 .fc-assistant-btn:hover { border-color: rgba(255, 255, 255, 0.15); color: var(--text); }
-.fc-assistant-btn.active { border-color: var(--crystal); color: var(--crystal); background: rgba(16, 185, 129, 0.08); }
+.fc-assistant-btn.active { border-color: var(--crystal); color: var(--crystal); background: rgba(124, 58, 237, 0.08); }
 
 /* Content Area */
 .fc-content {
@@ -329,14 +329,14 @@
 }
 
 .fo-action-btn--primary {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08));
-  border-color: rgba(16, 185, 129, 0.25);
-  color: #6ee7b7;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(124, 58, 237, 0.08));
+  border-color: rgba(124, 58, 237, 0.25);
+  color: #a78bfa;
 }
 
 .fo-action-btn--primary:hover {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(16, 185, 129, 0.15));
-  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(124, 58, 237, 0.15));
+  border-color: rgba(124, 58, 237, 0.4);
 }
 
 .fo-action-btn--danger {
@@ -351,9 +351,9 @@
 }
 
 .fo-action-btn--success {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.25);
-  color: #6ee7b7;
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.25);
+  color: #a78bfa;
 }
 
 .fo-action-btn--sm {

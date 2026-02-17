@@ -299,7 +299,7 @@
 }
 
 .hub-fleet-card.running {
-  border-color: rgba(16, 185, 129, 0.3);
+  border-color: rgba(124, 58, 237, 0.3);
 }
 
 .hub-fleet-card.decommissioned {
@@ -393,7 +393,7 @@
 
 .hub-fleet-autonomy-fill {
   height: 100%;
-  background: var(--crystal, #10b981);
+  background: var(--crystal, #7c3aed);
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -484,7 +484,7 @@
 }
 
 .hub-hist-table tbody tr:hover {
-  background: rgba(16, 185, 129, 0.03);
+  background: rgba(124, 58, 237, 0.03);
 }
 
 .hub-hist-table td {
@@ -625,9 +625,9 @@
 }
 
 .hub-scheduler-toggle.running {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: var(--crystal, #10b981);
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.3);
+  color: var(--crystal, #7c3aed);
 }
 
 .hub-scheduler-toggle.stopped {
@@ -643,7 +643,7 @@
 }
 
 .hub-scheduler-toggle.running .hub-scheduler-dot {
-  background: var(--crystal, #10b981);
+  background: var(--crystal, #7c3aed);
   animation: forge-glow-pulse 2s ease-in-out infinite;
 }
 
@@ -709,7 +709,7 @@
 }
 
 .hub-sched-card.continuous {
-  border-top: 2px solid var(--crystal, #10b981);
+  border-top: 2px solid var(--crystal, #7c3aed);
 }
 
 .hub-sched-card.scheduled {
@@ -739,8 +739,8 @@
 }
 
 .hub-sched-type-badge.continuous {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--crystal, #10b981);
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--crystal, #7c3aed);
 }
 
 .hub-sched-type-badge.scheduled {
@@ -789,7 +789,7 @@
 }
 
 .hub-sched-controls select:focus {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .hub-sched-interval {
@@ -920,7 +920,7 @@
 }
 
 .hub-gate-response-form textarea:focus {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .hub-gate-response-buttons {
@@ -1080,7 +1080,7 @@
 .hub-form-group input:focus,
 .hub-form-group textarea:focus,
 .hub-form-group select:focus {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .hub-form-group select option {
@@ -1217,7 +1217,7 @@
 }
 
 .hub-search:focus-within {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .hub-search svg {
@@ -1444,8 +1444,8 @@
 .hub-ticket-detail-resolution {
   margin-bottom: var(--space-lg);
   padding: var(--space-md);
-  background: rgba(16, 185, 129, 0.05);
-  border: 1px solid rgba(16, 185, 129, 0.15);
+  background: rgba(124, 58, 237, 0.05);
+  border: 1px solid rgba(124, 58, 237, 0.15);
   border-radius: 8px;
 }
 
@@ -1453,7 +1453,7 @@
   display: block;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--crystal, #10b981);
+  color: var(--crystal, #7c3aed);
   margin-bottom: var(--space-xs);
 }
 
@@ -1549,7 +1549,7 @@
 }
 
 .hub-ticket-note-input textarea:focus {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 

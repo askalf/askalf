@@ -121,6 +121,7 @@ export interface TeamInviteEmailVars {
 }
 
 export interface WaitlistEmailVars {
+  name: string;
   email: string;
 }
 

@@ -15,7 +15,7 @@
 }
 
 .fwb-workflow-card:hover {
-  border-color: rgba(16, 185, 129, 0.2);
+  border-color: rgba(124, 58, 237, 0.2);
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -94,8 +94,8 @@
 }
 
 .fwb-back-btn:hover {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.3);
   color: var(--crystal);
 }
 
@@ -143,7 +143,7 @@
 .fwb-flow-connector {
   width: 2px;
   height: 24px;
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.5), rgba(16, 185, 129, 0.2));
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.5), rgba(124, 58, 237, 0.2));
   position: relative;
 }
 
@@ -157,7 +157,7 @@
   height: 0;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
-  border-top: 5px solid rgba(16, 185, 129, 0.4);
+  border-top: 5px solid rgba(124, 58, 237, 0.4);
 }
 
 /* Node Card */
@@ -172,8 +172,8 @@
 }
 
 .fwb-node:hover {
-  border-color: rgba(16, 185, 129, 0.25);
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.06);
+  border-color: rgba(124, 58, 237, 0.25);
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.06);
 }
 
 .fwb-node-header {
@@ -214,8 +214,8 @@
 }
 
 .fwb-node-btn:hover {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.3);
   color: var(--crystal);
 }
 
@@ -247,8 +247,8 @@
   gap: 0.5rem;
   margin-top: 1rem;
   padding: 0.5rem 1rem;
-  background: rgba(16, 185, 129, 0.06);
-  border: 1px dashed rgba(16, 185, 129, 0.25);
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px dashed rgba(124, 58, 237, 0.25);
   border-radius: 8px;
   color: var(--crystal);
   font-size: 0.8rem;
@@ -257,6 +257,6 @@
 }
 
 .fwb-add-node:hover {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.4);
 }

@@ -817,6 +817,39 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // ------------------------------------------
+  // DATA RETENTION CLEANUP
+  // ------------------------------------------
+
+  app.post(
+    '/api/v1/admin/retention-cleanup',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const RETENTION_DAYS = 90;
+      const EVENT_RETENTION_DAYS = 30;
+      const results: Record<string, number> = {};
+
+      const forgeTables = [
+        { name: 'forge_audit_log', days: RETENTION_DAYS },
+        { name: 'forge_event_log', days: EVENT_RETENTION_DAYS },
+        { name: 'forge_cost_events', days: RETENTION_DAYS },
+      ];
+
+      for (const t of forgeTables) {
+        try {
+          const deleted = await query(
+            `DELETE FROM ${t.name} WHERE created_at < NOW() - INTERVAL '${t.days} days' RETURNING id`
+          );
+          results[t.name] = deleted?.length ?? 0;
+        } catch {
+          results[t.name] = -1; // table may not exist
+        }
+      }
+
+      return { success: true, pruned: results, retention_days: RETENTION_DAYS };
+    },
+  );
+
+  // ------------------------------------------
   // REPORTS / METRICS
   // ------------------------------------------
 

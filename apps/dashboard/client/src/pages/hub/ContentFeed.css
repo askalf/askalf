@@ -39,7 +39,7 @@
 }
 
 .cf-search-input:focus {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .cf-search-input::placeholder {
@@ -75,7 +75,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--crystal, #10b981);
+  background: var(--crystal, #7c3aed);
 }
 
 /* ---- Advanced Filter Panel ---- */
@@ -125,7 +125,7 @@
 
 .cf-filter-group select:focus,
 .cf-filter-group input:focus {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .cf-clear-btn {

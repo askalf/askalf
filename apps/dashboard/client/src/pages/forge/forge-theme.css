@@ -20,8 +20,8 @@
 }
 
 @keyframes forge-glow-pulse {
-  0%, 100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.1); }
-  50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.2); }
+  0%, 100% { box-shadow: 0 0 4px rgba(124, 58, 237, 0.1); }
+  50% { box-shadow: 0 0 12px rgba(124, 58, 237, 0.2); }
 }
 
 /* ---- Apply fade-in to overview content ---- */
@@ -125,12 +125,12 @@
 
 /* ---- Table row hover glow ---- */
 .fobs-table tbody tr:hover {
-  background: rgba(16, 185, 129, 0.03);
+  background: rgba(124, 58, 237, 0.03);
 }
 
 /* ---- Bar chart hover enhancement ---- */
 .fobs-bar-col:hover .fobs-bar-fill {
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 8px rgba(124, 58, 237, 0.3);
 }
 
 /* ---- Loading shimmer ---- */

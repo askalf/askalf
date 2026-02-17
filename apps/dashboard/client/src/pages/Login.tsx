@@ -48,7 +48,7 @@ export default function LoginPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-icon" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)' }}>F</span>
+            <span className="auth-logo-icon" style={{ fontSize: '2rem' }}>🔨</span>
             <span className="auth-logo-text">
               <span className="auth-logo-alf animate-gradient-text">Forge</span>
             </span>
@@ -112,7 +112,7 @@ export default function LoginPage() {
         <div className="auth-footer">
           <p>
             Don't have an account?{' '}
-            <Link to="/signup" className="auth-link">Sign up for free</Link>
+            <Link to="/signup" className="auth-link">Join the waitlist</Link>
           </p>
           <Link to="/forgot-password" className="auth-link-subtle">
             Forgot your password?

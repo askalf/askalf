@@ -158,6 +158,9 @@ importers:
       '@substrate/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@substrate/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       fastify:
         specifier: ^5.2.1
         version: 5.6.2

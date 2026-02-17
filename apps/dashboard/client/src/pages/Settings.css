@@ -522,7 +522,7 @@
 .byok-info-card {
   padding: var(--space-lg);
   background: var(--crystal-dim);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.2);
   border-radius: var(--radius-lg);
 }
 
@@ -630,8 +630,8 @@
 }
 
 .settings-message-success {
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.2);
   color: var(--crystal);
 }
 
@@ -847,7 +847,7 @@
   align-items: center;
   justify-content: space-between;
   background: var(--crystal-dim);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.2);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
 }
@@ -1001,7 +1001,7 @@
 
 .billing-plan-option.lifetime {
   border-color: var(--crystal);
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.05) 0%, transparent 100%);
 }
 
 .billing-plan-badge {
@@ -1027,14 +1027,14 @@
 }
 
 .billing-plan-btn.lifetime {
-  background: linear-gradient(135deg, var(--crystal) 0%, #34d399 100%);
+  background: linear-gradient(135deg, var(--crystal) 0%, #8b5cf6 100%);
   border: none;
   color: var(--void);
 }
 
 .billing-plan-btn.lifetime:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
 }
 
 /* Team Plan Styling */

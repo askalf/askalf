@@ -21,7 +21,8 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @substrate/core build && \
     pnpm --filter @substrate/observability build && \
     pnpm --filter @substrate/database build && \
-    pnpm --filter @substrate/auth build
+    pnpm --filter @substrate/auth build && \
+    pnpm --filter @substrate/email build
 
 # Build React client
 WORKDIR /app/apps/dashboard/client

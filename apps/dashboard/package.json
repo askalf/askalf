@@ -14,6 +14,7 @@
     "@fastify/websocket": "^11.2.0",
     "@substrate/auth": "workspace:*",
     "@substrate/database": "workspace:*",
+    "@substrate/email": "workspace:*",
     "fastify": "^5.2.1"
   }
 }

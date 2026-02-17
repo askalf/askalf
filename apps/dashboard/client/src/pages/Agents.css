@@ -99,18 +99,18 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 8px;
-  color: #10b981;
+  color: #7c3aed;
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .reports-btn:hover {
-  background: rgba(16, 185, 129, 0.25);
-  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(124, 58, 237, 0.25);
+  border-color: rgba(124, 58, 237, 0.5);
 }
 
 .create-btn {
@@ -238,7 +238,7 @@
 }
 
 .stat-value.running {
-  color: #10b981;
+  color: #7c3aed;
 }
 
 .stat-value.highlight {
@@ -325,10 +325,10 @@
 .batch-result {
   margin-top: 1rem;
   padding: 0.75rem 1rem;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 8px;
-  color: #10b981;
+  color: #7c3aed;
   font-size: 0.875rem;
 }
 
@@ -461,8 +461,8 @@
 }
 
 .agent-card.running {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.05);
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(124, 58, 237, 0.05);
 }
 
 .agent-card.error {
@@ -572,7 +572,7 @@
 
 .autonomy-fill {
   height: 100%;
-  background: linear-gradient(90deg, #8b5cf6 0%, #10b981 100%);
+  background: linear-gradient(90deg, #8b5cf6 0%, #7c3aed 100%);
   border-radius: 3px;
   transition: width 0.3s;
 }
@@ -799,13 +799,13 @@
 }
 
 .approve-btn {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  color: #7c3aed;
 }
 
 .approve-btn:hover {
-  background: rgba(16, 185, 129, 0.25);
+  background: rgba(124, 58, 237, 0.25);
 }
 
 .deny-btn {
@@ -1118,8 +1118,8 @@
 }
 
 .task-status.completed {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
 .task-status.running {
