@@ -621,4 +621,83 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       }
     },
   );
+
+  /**
+   * DELETE /api/v1/forge/git/rebuild/:builderId
+   * Cancel a running rebuild by force-removing the builder container.
+   */
+  app.delete(
+    '/api/v1/forge/git/rebuild/:builderId',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { builderId } = request.params as { builderId: string };
+
+      try {
+        // Check if container exists first
+        const inspectRes = await dockerApi('GET', `/v1.44/containers/${builderId}/json`);
+        if (inspectRes.statusCode === 404) {
+          return reply.status(404).send({ error: 'Builder container not found' });
+        }
+
+        // Force remove (stops if running + removes)
+        const deleteRes = await dockerApi('DELETE', `/v1.44/containers/${builderId}?force=true`);
+        if (deleteRes.statusCode === 204 || deleteRes.statusCode === 200) {
+          return reply.send({ status: 'cancelled', builder_id: builderId });
+        }
+
+        return reply.status(500).send({ error: `Failed to cancel: HTTP ${deleteRes.statusCode}` });
+      } catch (err) {
+        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/git/rebuild/tasks
+   * List all builder containers (running + recently stopped).
+   */
+  app.get(
+    '/api/v1/forge/git/rebuild/tasks',
+    { preHandler: [authMiddleware] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const filters = encodeURIComponent(JSON.stringify({ label: ['substrate.role=builder'] }));
+        const listRes = await dockerApi('GET', `/v1.44/containers/json?all=true&filters=${filters}`);
+        if (listRes.statusCode !== 200) {
+          return reply.send({ tasks: [] });
+        }
+
+        const containers = JSON.parse(listRes.data) as Array<{
+          Id: string;
+          State: string;
+          Status: string;
+          Created: number;
+          Labels: Record<string, string>;
+        }>;
+
+        const tasks = containers.map((c) => {
+          let status: string;
+          if (c.State === 'running') {
+            status = 'running';
+          } else if (c.Status?.includes('Exited (0)')) {
+            status = 'completed';
+          } else {
+            status = 'failed';
+          }
+
+          return {
+            task_id: c.Labels['substrate.task_id'] || null,
+            builder_id: c.Id,
+            services: (c.Labels['substrate.services'] || '').split(',').filter(Boolean),
+            status,
+            created_at: new Date(c.Created * 1000).toISOString(),
+          };
+        });
+
+        return reply.send({ tasks });
+      } catch (err) {
+        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
+      }
+    },
+  );
 }
