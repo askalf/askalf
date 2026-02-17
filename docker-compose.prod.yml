@@ -407,57 +407,7 @@ services:
           cpus: '0.1'
           memory: 128M
 
-  just-push:
-    build:
-      context: .
-      dockerfile: apps/just-push/Dockerfile
-    container_name: sprayberry-labs-just-push
-    expose:
-      - "3008"
-    environment:
-      NODE_ENV: production
-      PORT: 3008
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
-      SESSION_SECRET: ${SESSION_SECRET}
-      FORGE_URL: http://forge:3005
-      FORGE_API_KEY: ${FORGE_API_KEY:-}
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-      forge:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3008/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - sprayberry-labs-net
-    restart: unless-stopped
-    labels:
-      - "autoheal=true"
-    stop_grace_period: 15s
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777,size=64m
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "30m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.1'
-          memory: 64M
+  # just-push: RETIRED — consolidated into Dashboard Command Center "Push" tab
 
   # ===========================================
   # INFRASTRUCTURE LAYER

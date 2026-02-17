@@ -18,7 +18,6 @@ const AskAlfIntegrations = lazy(() => import('./pages/AskAlfIntegrations'));
 const Self = lazy(() => import('./pages/Self'));
 const Integrations = lazy(() => import('./pages/Integrations'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
-const GitSpace = lazy(() => import('./pages/GitSpace'));
 const Settings = lazy(() => import('./pages/Settings'));
 
 // Lazy-loaded: admin-only pages
@@ -96,9 +95,9 @@ export default function App() {
 
         {/* Legacy redirect */}
         <Route path="/agents" element={<Navigate to="/command-center" replace />} />
-        {/* Just Push — simplified git */}
-        <Route path="/repos" element={<GitSpace />} />
-        <Route path="/git-space" element={<Navigate to="/repos" replace />} />
+        {/* Git space → Push tab in Command Center */}
+        <Route path="/repos" element={<Navigate to="/command-center/push" replace />} />
+        <Route path="/git-space" element={<Navigate to="/command-center/push" replace />} />
 
         {/* Platform */}
         <Route path="/settings" element={<Settings />} />

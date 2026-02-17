@@ -1351,7 +1351,17 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     return res;
   });
 
-  // 29g. GET /api/v1/admin/git-space/rebuild/:builderId - Poll rebuild status
+  // 29g-1. GET /api/v1/admin/git-space/rebuild/tasks - List all rebuild tasks (must be before :builderId)
+  fastify.get('/api/v1/admin/git-space/rebuild/tasks', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/git/rebuild/tasks');
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Rebuild tasks unavailable', message: res.message });
+    return res;
+  });
+
+  // 29g-2. GET /api/v1/admin/git-space/rebuild/:builderId - Poll rebuild status
   fastify.get('/api/v1/admin/git-space/rebuild/:builderId', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
@@ -1359,6 +1369,17 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     const { builderId } = request.params;
     const res = await callForge(`/git/rebuild/${encodeURIComponent(builderId)}`);
     if (res.error) return reply.code(res.status || 503).send({ error: 'Rebuild status unavailable', message: res.message });
+    return res;
+  });
+
+  // 29g-3. DELETE /api/v1/admin/git-space/rebuild/:builderId - Cancel rebuild
+  fastify.delete('/api/v1/admin/git-space/rebuild/:builderId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const { builderId } = request.params;
+    const res = await callForge(`/git/rebuild/${encodeURIComponent(builderId)}`, { method: 'DELETE' });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Rebuild cancel failed', message: res.message });
     return res;
   });
 
