@@ -144,25 +144,23 @@ export default function SchedulerControl() {
               </select>
             </div>
 
-            {/* Model selector — only for API execution modes */}
-            {(agent.execution_mode || 'batch') !== 'cli' && (
-              <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Model</label>
-                <select
-                  value={agent.model_id || ''}
-                  onChange={(e) => {
-                    const modelId = e.target.value;
-                    if (modelId) updateAgentModel(agent.id, modelId);
-                  }}
-                  style={{ fontSize: '0.8rem' }}
-                >
-                  <option value="">Default (Sonnet 4.5)</option>
-                  <option value="claude-haiku-4-5">Haiku 4.5 ($1/$5)</option>
-                  <option value="claude-sonnet-4-5">Sonnet 4.5 ($3/$15)</option>
-                  <option value="claude-opus-4-6">Opus 4.6 ($5/$25)</option>
-                </select>
-              </div>
-            )}
+            {/* Model selector */}
+            <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Model</label>
+              <select
+                value={agent.model_id || ''}
+                onChange={(e) => {
+                  const modelId = e.target.value;
+                  updateAgentModel(agent.id, modelId);
+                }}
+                style={{ fontSize: '0.8rem' }}
+              >
+                <option value="">Default (Sonnet 4.5)</option>
+                <option value="claude-haiku-4-5">Haiku 4.5 ($1/$5)</option>
+                <option value="claude-sonnet-4-5">Sonnet 4.5 ($3/$15)</option>
+                <option value="claude-opus-4-6">Opus 4.6 ($5/$25)</option>
+              </select>
+            </div>
 
             {/* Schedule type */}
             <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
