@@ -868,23 +868,46 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     return { schedules: result };
   });
 
-  // 20. GET /api/v1/admin/reports/findings - Agent findings
+  // 20. GET /api/v1/admin/reports/findings - Agent findings (paginated)
   fastify.get('/api/v1/admin/reports/findings', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
     try {
+      const { severity, agent_id, category, page = '1', limit = '50' } = request.query;
+      const pageNum = Math.max(1, parseInt(page));
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+      const offset = (pageNum - 1) * limitNum;
+
+      const conditions = [];
+      const params = [];
+      let paramIdx = 1;
+
+      if (severity) { conditions.push(`severity = $${paramIdx++}`); params.push(severity); }
+      if (agent_id) { conditions.push(`agent_id = $${paramIdx++}`); params.push(agent_id); }
+      if (category) { conditions.push(`category = $${paramIdx++}`); params.push(category); }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      const countResult = await query(`SELECT COUNT(*)::int as total FROM agent_findings ${where}`, params);
+      const total = countResult[0]?.total || 0;
+
       const findings = await query(`
-        SELECT * FROM agent_findings
+        SELECT * FROM agent_findings ${where}
         ORDER BY
           CASE severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 WHEN 'info' THEN 2 END,
           created_at DESC
-        LIMIT 50
-      `);
-      return { findings };
+        LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+      `, [...params, limitNum, offset]);
+
+      const totalPages = Math.ceil(total / limitNum) || 1;
+      return {
+        findings,
+        pagination: { page: pageNum, limit: limitNum, total, totalPages, hasNext: pageNum < totalPages, hasPrev: pageNum > 1 },
+      };
     } catch (err) {
       // Table may not exist yet
-      return { findings: [] };
+      return { findings: [], pagination: { page: 1, limit: 50, total: 0, totalPages: 1, hasNext: false, hasPrev: false } };
     }
   });
 
@@ -1339,28 +1362,55 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     return res;
   });
 
-  // 29h. POST /api/v1/admin/git-space/ai-review - AI code review (stub)
+  // 29h. POST /api/v1/admin/git-space/ai-review - AI code review (proxied to Forge platform-admin)
   fastify.post('/api/v1/admin/git-space/ai-review', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
-    return { review_id: ulid(), status: 'pending', message: 'AI review initiated' };
+    try {
+      const res = await fetch(`${FORGE_URL}/api/v1/admin/git-space/ai-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request.body),
+      });
+      const data = await res.json();
+      return reply.code(res.status).send(data);
+    } catch (err) {
+      return reply.code(503).send({ error: 'AI review unavailable' });
+    }
   });
 
-  // 29i. GET /api/v1/admin/git-space/review-result/:id - Get AI review result (stub)
+  // 29i. GET /api/v1/admin/git-space/review-result/:id - Get AI review result (proxied to Forge platform-admin)
   fastify.get('/api/v1/admin/git-space/review-result/:id', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
-    return { status: 'completed', summary: 'No AI review service configured yet.', issues: [], suggestions: [] };
+    try {
+      const { id } = request.params;
+      const res = await fetch(`${FORGE_URL}/api/v1/admin/git-space/review-result/${encodeURIComponent(id)}`);
+      const data = await res.json();
+      return reply.code(res.status).send(data);
+    } catch (err) {
+      return reply.code(503).send({ error: 'Review result unavailable' });
+    }
   });
 
-  // 29j. POST /api/v1/admin/git-space/ai-review/chat - AI review chat (stub)
+  // 29j. POST /api/v1/admin/git-space/ai-review/chat - AI review chat (proxied to Forge platform-admin)
   fastify.post('/api/v1/admin/git-space/ai-review/chat', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
-    return { response: 'AI review chat not yet configured.' };
+    try {
+      const res = await fetch(`${FORGE_URL}/api/v1/admin/git-space/ai-review/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request.body),
+      });
+      const data = await res.json();
+      return reply.code(res.status).send(data);
+    } catch (err) {
+      return reply.code(503).send({ error: 'AI review chat unavailable' });
+    }
   });
 
   // 28. GET /api/v1/admin/audit - View audit trail
