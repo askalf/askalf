@@ -5,10 +5,12 @@
  */
 
 import { query } from '../database.js';
+import { processUnprocessedFeedback } from '../learning/feedback-processor.js';
 
 let decayTimer: ReturnType<typeof setInterval> | null = null;
 let lessonsTimer: ReturnType<typeof setInterval> | null = null;
 let promoteTimer: ReturnType<typeof setInterval> | null = null;
+let feedbackTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Start all metabolic cycles on intervals.
@@ -36,7 +38,12 @@ export function startMetabolicCycles(): void {
     void runPromoteCycle().catch(logErr('promote'));
   }, 2 * 60 * 60 * 1000);
 
-  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h)');
+  // Feedback processing: every 30 minutes
+  feedbackTimer = setInterval(() => {
+    void processUnprocessedFeedback().catch(logErr('feedback'));
+  }, 30 * 60 * 1000);
+
+  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m)');
 }
 
 /**
@@ -46,9 +53,11 @@ export function stopMetabolicCycles(): void {
   if (decayTimer) clearInterval(decayTimer);
   if (lessonsTimer) clearInterval(lessonsTimer);
   if (promoteTimer) clearInterval(promoteTimer);
+  if (feedbackTimer) clearInterval(feedbackTimer);
   decayTimer = null;
   lessonsTimer = null;
   promoteTimer = null;
+  feedbackTimer = null;
 }
 
 // --------------------------------------------------------------------------

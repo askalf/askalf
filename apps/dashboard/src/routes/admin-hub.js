@@ -1938,6 +1938,34 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
   }
 
   // ============================================
+  // FEEDBACK & LEARNING (Phase 4)
+  // ============================================
+
+  // Submit feedback on an execution
+  fastify.post('/api/v1/admin/executions/:id/feedback', async (request, reply) => {
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/executions/${id}/feedback`, {
+      method: 'POST',
+      body: request.body,
+    });
+    return res;
+  });
+
+  // Get feedback stats for an agent
+  fastify.get('/api/v1/admin/agents/:id/feedback', async (request, reply) => {
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/agents/${id}/feedback`);
+    return res;
+  });
+
+  // Get correction patterns for an agent
+  fastify.get('/api/v1/admin/agents/:id/corrections', async (request, reply) => {
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/agents/${id}/corrections`);
+    return res;
+  });
+
+  // ============================================
   // CAPABILITIES (Phase 3)
   // ============================================
 

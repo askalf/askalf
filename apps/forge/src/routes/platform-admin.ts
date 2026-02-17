@@ -12,6 +12,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/session-auth.js';
 import { runDirectCliExecution, runCliQuery } from '../runtime/worker.js';
 import { detectCapabilities, getAgentCapabilities, findAgentsWithCapability, detectAllCapabilities } from '../orchestration/capability-registry.js';
+import { processFeedback, getAgentFeedbackStats } from '../learning/feedback-processor.js';
 
 // In-memory store for AI code reviews (transient — single instance, client polls max 10 min)
 const reviewStore = new Map<string, {
@@ -383,8 +384,10 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
       const statusMap: Record<string, string> = { approve: 'approved', deny: 'denied', feedback: 'resolved' };
       const responderId = request.userId || 'admin';
 
-      const oldIntervention = await substrateQueryOne<{ id: string; status: string }>(
-        `SELECT id, status FROM agent_interventions WHERE id = $1`,
+      const oldIntervention = await substrateQueryOne<{
+        id: string; status: string; agent_id: string; execution_id: string | null; context: string | null;
+      }>(
+        `SELECT id, status, agent_id, execution_id, context FROM agent_interventions WHERE id = $1`,
         [id],
       );
 
@@ -399,6 +402,7 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(404).send({ error: 'Intervention not found' });
       }
 
+      // Audit log
       void substrateQuery(
         `INSERT INTO agent_audit_log (entity_type, entity_id, action, actor, actor_id, old_value, new_value)
          VALUES ('intervention', $1, 'responded', $2, $3, $4, $5)`,
@@ -410,6 +414,26 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
           JSON.stringify({ status: statusMap[body.action], action: body.action, feedback: body.feedback || null }),
         ],
       ).catch(() => {});
+
+      // Phase 4: Close the learning loop — feed human response into memory
+      if (oldIntervention && body.feedback) {
+        const feedbackType = body.action === 'deny' ? 'rejection' as const
+          : body.action === 'feedback' ? 'correction' as const
+          : 'clarification' as const;
+
+        void processFeedback({
+          executionId: oldIntervention.execution_id ?? undefined,
+          interventionId: id,
+          agentId: oldIntervention.agent_id,
+          ownerId: responderId,
+          feedbackType,
+          humanResponse: body.feedback,
+          agentOutput: oldIntervention.context ?? undefined,
+          autonomyDelta: body.autonomy_delta,
+        }).catch((err) => {
+          console.warn('[Feedback] Processing failed:', err instanceof Error ? err.message : err);
+        });
+      }
 
       return { intervention: updated };
     },
@@ -1980,6 +2004,80 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
       );
       if (!result) return reply.code(404).send({ error: 'User not found' });
       return { success: true };
+    },
+  );
+
+  // ------------------------------------------
+  // FEEDBACK & LEARNING (Phase 4)
+  // ------------------------------------------
+
+  // Submit direct feedback on an execution
+  app.post(
+    '/api/v1/admin/executions/:id/feedback',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        feedbackType: string;
+        feedback: string;
+        correctedOutput?: string;
+        autonomyDelta?: number;
+      };
+
+      if (!body.feedbackType || !body.feedback) {
+        return reply.code(400).send({ error: 'feedbackType and feedback are required' });
+      }
+
+      // Get execution details
+      const exec = await queryOne<{ agent_id: string; owner_id: string; output: string }>(
+        `SELECT agent_id, owner_id, output FROM forge_executions WHERE id = $1`,
+        [id],
+      );
+      if (!exec) return reply.code(404).send({ error: 'Execution not found' });
+
+      const result = await processFeedback({
+        executionId: id,
+        agentId: exec.agent_id,
+        ownerId: exec.owner_id,
+        feedbackType: body.feedbackType as 'correction' | 'clarification' | 'praise' | 'warning' | 'rejection',
+        humanResponse: body.feedback,
+        agentOutput: exec.output,
+        correctedOutput: body.correctedOutput,
+        autonomyDelta: body.autonomyDelta,
+      });
+
+      return reply.code(201).send(result);
+    },
+  );
+
+  // Get feedback stats for an agent
+  app.get(
+    '/api/v1/admin/agents/:id/feedback',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const { id } = request.params as { id: string };
+      const stats = await getAgentFeedbackStats(id);
+      return { agentId: id, ...stats };
+    },
+  );
+
+  // Get correction patterns for an agent
+  app.get(
+    '/api/v1/admin/agents/:id/corrections',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const { id } = request.params as { id: string };
+      const patterns = await query<{
+        id: string; pattern_type: string; description: string;
+        frequency: number; confidence: number; last_seen: string;
+        examples: unknown[];
+      }>(
+        `SELECT id, pattern_type, description, frequency, confidence, last_seen, examples
+         FROM forge_correction_patterns WHERE agent_id = $1
+         ORDER BY frequency DESC, confidence DESC`,
+        [id],
+      );
+      return { agentId: id, patterns };
     },
   );
 
