@@ -2,28 +2,37 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth';
 import './AdminLayout.css';
 
-const NAV_ITEMS = [
-  {
-    section: 'Ask Alf',
-    items: [
-      { path: '/ask-alf', label: 'Chat', icon: 'A' },
-      { path: '/ask-alf/integrations', label: 'Integrations', icon: 'I' },
-    ],
-  },
-  {
-    section: 'Self',
-    items: [
-      { path: '/self', label: 'Chat', icon: 'S' },
-      { path: '/integrations', label: 'Integrations', icon: 'I' },
-    ],
-  },
-  {
+const getNavSections = (role: string) => {
+  const sections: Array<{ section: string; items: Array<{ path: string; label: string; icon: string }> }> = [];
+
+  // Forge — visible to all roles
+  sections.push({
     section: 'Forge',
-    items: [
-      { path: '/command-center', label: 'Command Center', icon: 'F' },
-    ],
-  },
-];
+    items: [{ path: '/command-center', label: 'Command Center', icon: 'F' }],
+  });
+
+  // Dev projects — super_admin only
+  if (role === 'super_admin') {
+    sections.push(
+      {
+        section: 'Ask Alf',
+        items: [
+          { path: '/ask-alf', label: 'Chat', icon: 'A' },
+          { path: '/ask-alf/integrations', label: 'Integrations', icon: 'I' },
+        ],
+      },
+      {
+        section: 'Self',
+        items: [
+          { path: '/self', label: 'Chat', icon: 'S' },
+          { path: '/integrations', label: 'Integrations', icon: 'I' },
+        ],
+      },
+    );
+  }
+
+  return sections;
+};
 
 const ADMIN_NAV_ITEMS = [
   {
@@ -39,16 +48,17 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const navSections = getNavSections(user?.role || 'user');
 
-  const allSections = isAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
+  const allSections = isAdmin ? [...navSections, ...ADMIN_NAV_ITEMS] : navSections;
 
   return (
     <div className="admin-layout">
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
-          <div className="admin-logo" onClick={() => navigate('/self')}>
-            <span className="admin-logo-icon">S</span>
-            <span className="admin-logo-text">Sprayberry Labs</span>
+          <div className="admin-logo" onClick={() => navigate('/command-center')}>
+            <span className="admin-logo-icon">F</span>
+            <span className="admin-logo-text">Forge</span>
           </div>
         </div>
 
