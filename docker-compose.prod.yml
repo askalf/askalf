@@ -234,7 +234,7 @@ services:
       # Direct connection to postgres (not via pgbouncer - separate database)
       FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/forge
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      # AI Providers — ANTHROPIC_API_KEY intentionally empty to force OAuth subscription
+      # AI Providers — ANTHROPIC_API_KEY empty to force OAuth subscription (CLI uses OAuth)
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ''
       ANTHROPIC_API_KEY_FALLBACK: ${ANTHROPIC_API_KEY_FALLBACK:-}
