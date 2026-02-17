@@ -13,6 +13,8 @@ import { requireAdmin } from '../middleware/session-auth.js';
 import { runDirectCliExecution, runCliQuery } from '../runtime/worker.js';
 import { detectCapabilities, getAgentCapabilities, findAgentsWithCapability, detectAllCapabilities } from '../orchestration/capability-registry.js';
 import { processFeedback, getAgentFeedbackStats } from '../learning/feedback-processor.js';
+import { getEventBus, type ForgeEvent } from '../orchestration/event-bus.js';
+import { setContext, getContext, getContextList, appendContext, listContextKeys, createHandoff, getHandoff } from '../orchestration/shared-context.js';
 
 // In-memory store for AI code reviews (transient — single instance, client polls max 10 min)
 const reviewStore = new Map<string, {
@@ -2162,6 +2164,138 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
          ORDER BY avg_proficiency DESC`,
       );
       return { agents: summary };
+    },
+  );
+
+  // ------------------------------------------
+  // REAL-TIME EVENTS (Phase 5)
+  // ------------------------------------------
+
+  // SSE endpoint for real-time event streaming
+  app.get(
+    '/api/v1/admin/events/stream',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const qs = request.query as { types?: string };
+      const filterTypes = qs.types ? qs.types.split(',') : null;
+
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+
+      const eventBus = getEventBus();
+      if (!eventBus) {
+        reply.raw.write('data: {"error":"Event bus not initialized"}\n\n');
+        reply.raw.end();
+        return;
+      }
+
+      // Send initial connection event
+      reply.raw.write(`data: ${JSON.stringify({ type: 'connected', timestamp: new Date().toISOString() })}\n\n`);
+
+      const handler = (event: ForgeEvent) => {
+        if (filterTypes && !filterTypes.includes(event.type)) return;
+        try {
+          reply.raw.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+        } catch {
+          // Client disconnected
+        }
+      };
+
+      eventBus.on('*', handler);
+
+      // Heartbeat every 15 seconds
+      const heartbeat = setInterval(() => {
+        try {
+          reply.raw.write(': heartbeat\n\n');
+        } catch {
+          clearInterval(heartbeat);
+        }
+      }, 15_000);
+
+      // Cleanup on disconnect
+      request.raw.on('close', () => {
+        eventBus.off('*', handler);
+        clearInterval(heartbeat);
+      });
+
+      // Don't let Fastify close the response
+      await reply;
+    },
+  );
+
+  // Shared context endpoints
+  app.post(
+    '/api/v1/admin/context/:sessionId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { sessionId } = request.params as { sessionId: string };
+      const body = request.body as { key: string; value: unknown; append?: boolean };
+      if (!body.key) return reply.code(400).send({ error: 'key is required' });
+
+      if (body.append) {
+        const length = await appendContext(sessionId, body.key, body.value);
+        return { appended: true, length };
+      }
+      await setContext(sessionId, body.key, body.value);
+      return { stored: true };
+    },
+  );
+
+  app.get(
+    '/api/v1/admin/context/:sessionId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const { sessionId } = request.params as { sessionId: string };
+      const qs = request.query as { key?: string; list?: string };
+
+      if (qs.key && qs.list === 'true') {
+        const items = await getContextList(sessionId, qs.key);
+        return { key: qs.key, items };
+      }
+      if (qs.key) {
+        const value = await getContext(sessionId, qs.key);
+        return { key: qs.key, value };
+      }
+      const keys = await listContextKeys(sessionId);
+      return { sessionId, keys };
+    },
+  );
+
+  // Handoff endpoints
+  app.post(
+    '/api/v1/admin/handoff',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const body = request.body as {
+        sessionId: string; fromAgentId: string; toAgentId: string;
+        task: string; progress: string; artifacts?: string[]; notes?: string;
+      };
+      const handoffId = await createHandoff(body.sessionId, body.fromAgentId, body.toAgentId, {
+        task: body.task, progress: body.progress, artifacts: body.artifacts, notes: body.notes,
+      });
+
+      // Emit handoff event
+      const eventBus = getEventBus();
+      void eventBus?.emitHandoff('requested', body.fromAgentId, body.toAgentId, {
+        sessionId: body.sessionId, context: body.task,
+      }).catch(() => {});
+
+      return { handoffId, sessionId: body.sessionId };
+    },
+  );
+
+  app.get(
+    '/api/v1/admin/handoff/:sessionId/:handoffId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { sessionId, handoffId } = request.params as { sessionId: string; handoffId: string };
+      const handoff = await getHandoff(sessionId, handoffId);
+      if (!handoff) return reply.code(404).send({ error: 'Handoff not found' });
+      return handoff;
     },
   );
 

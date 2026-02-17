@@ -27,6 +27,9 @@ import { initializeWorker } from './runtime/worker.js';
 import { initMemoryManager } from './memory/singleton.js';
 import { startMetabolicCycles } from './memory/metabolic.js';
 import { detectAllCapabilities } from './orchestration/capability-registry.js';
+import { initEventBus } from './orchestration/event-bus.js';
+import { initSharedContext } from './orchestration/shared-context.js';
+import { Redis } from 'ioredis';
 
 const app = Fastify({
   logger: true,
@@ -151,6 +154,12 @@ async function start(): Promise<void> {
     await initMemoryManager(config.redisUrl);
     startMetabolicCycles();
     console.log('[Forge] Universal memory + metabolic cycles activated');
+
+    // Initialize event bus and shared context
+    await initEventBus(config.redisUrl);
+    const sharedRedis = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+    initSharedContext(sharedRedis);
+    console.log('[Forge] Event bus + shared context initialized');
 
     // Auto-detect agent capabilities on startup (non-blocking)
     void detectAllCapabilities().catch((err) => {
