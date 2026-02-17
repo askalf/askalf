@@ -50,7 +50,7 @@ interface AuthState {
   // Actions
   checkAuth: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, displayName?: string) => Promise<void>;
+  register: (email: string, password: string, displayName?: string, deploymentName?: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -103,7 +103,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  register: async (email: string, password: string, displayName?: string) => {
+  register: async (email: string, password: string, displayName?: string, deploymentName?: string) => {
     set({ isLoading: true, error: null });
     try {
       const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
@@ -114,6 +114,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           email,
           password,
           display_name: displayName || undefined,
+          tenant_name: deploymentName || undefined,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
