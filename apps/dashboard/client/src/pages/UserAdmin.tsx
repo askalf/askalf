@@ -103,7 +103,7 @@ export default function UserAdmin() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/v1/admin/users/stats', {
+      const response = await fetch('/api/v1/admin/stats', {
         credentials: 'include',
       });
 

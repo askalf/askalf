@@ -1564,7 +1564,7 @@ async function requireAdmin(request, reply) {
 }
 
 // Check if current user is admin
-fastify.get('/api/admin/me', async (request, reply) => {
+fastify.get('/api/v1/admin/me', async (request, reply) => {
   const user = await getUserFromSession(request);
   if (!user) {
     reply.status(401);
@@ -1583,7 +1583,7 @@ fastify.get('/api/admin/me', async (request, reply) => {
 });
 
 // Get admin stats
-fastify.get('/api/admin/stats', async (request, reply) => {
+fastify.get('/api/v1/admin/stats', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
@@ -1629,7 +1629,7 @@ fastify.get('/api/admin/stats', async (request, reply) => {
 });
 
 // List users (admin)
-fastify.get('/api/admin/users', async (request, reply) => {
+fastify.get('/api/v1/admin/users', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
@@ -1707,7 +1707,7 @@ fastify.get('/api/admin/users', async (request, reply) => {
 });
 
 // Get single user (admin)
-fastify.get('/api/admin/users/:id', async (request, reply) => {
+fastify.get('/api/v1/admin/users/:id', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
@@ -1769,7 +1769,7 @@ fastify.get('/api/admin/users/:id', async (request, reply) => {
 });
 
 // Suspend user (admin)
-fastify.post('/api/admin/users/:id/suspend', async (request, reply) => {
+fastify.post('/api/v1/admin/users/:id/suspend', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
@@ -1779,7 +1779,7 @@ fastify.post('/api/admin/users/:id/suspend', async (request, reply) => {
 });
 
 // Unsuspend user (admin)
-fastify.post('/api/admin/users/:id/unsuspend', async (request, reply) => {
+fastify.post('/api/v1/admin/users/:id/unsuspend', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
@@ -1789,7 +1789,7 @@ fastify.post('/api/admin/users/:id/unsuspend', async (request, reply) => {
 });
 
 // Update user role (admin)
-fastify.patch('/api/admin/users/:id/role', async (request, reply) => {
+fastify.patch('/api/v1/admin/users/:id/role', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
@@ -1806,7 +1806,7 @@ fastify.patch('/api/admin/users/:id/role', async (request, reply) => {
 });
 
 // Update user (admin) - combined update for name, role, status, plan
-fastify.patch('/api/admin/users/:id', async (request, reply) => {
+fastify.patch('/api/v1/admin/users/:id', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
@@ -1862,7 +1862,7 @@ fastify.patch('/api/admin/users/:id', async (request, reply) => {
 });
 
 // Delete user (admin)
-fastify.delete('/api/admin/users/:id', async (request, reply) => {
+fastify.delete('/api/v1/admin/users/:id', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
@@ -1894,7 +1894,7 @@ fastify.delete('/api/admin/users/:id', async (request, reply) => {
 });
 
 // List tenants (admin)
-fastify.get('/api/admin/tenants', async (request, reply) => {
+fastify.get('/api/v1/admin/tenants', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
@@ -1919,7 +1919,7 @@ fastify.get('/api/admin/tenants', async (request, reply) => {
 });
 
 // List plans (admin)
-fastify.get('/api/admin/plans', async (request, reply) => {
+fastify.get('/api/v1/admin/plans', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 

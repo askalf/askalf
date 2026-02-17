@@ -83,29 +83,29 @@ export interface UpdateUserPayload {
 export const usersApi = {
   list: (params: { search?: string; role?: string; status?: string; limit: number; offset: number }) => {
     const q = buildParams(params);
-    return apiFetch<{ users: User[]; total: number }>(`/api/admin/users?${q}`);
+    return apiFetch<{ users: User[]; total: number }>(`/api/v1/admin/users?${q}`);
   },
 
   getDetails: (userId: string) =>
-    apiFetch<{ user: User; stats: UserDetails['stats'] }>(`/api/admin/users/${userId}`),
+    apiFetch<{ user: User; stats: UserDetails['stats'] }>(`/api/v1/admin/users/${userId}`),
 
   create: (payload: CreateUserPayload) =>
-    apiFetch<{ user: User }>('/api/admin/users', {
+    apiFetch<{ user: User }>('/api/v1/admin/users', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
 
   update: (userId: string, payload: UpdateUserPayload) =>
-    apiFetch<{ user: User }>(`/api/admin/users/${userId}`, {
+    apiFetch<{ user: User }>(`/api/v1/admin/users/${userId}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
 
   delete: (userId: string) =>
-    apiFetch<void>(`/api/admin/users/${userId}`, { method: 'DELETE' }),
+    apiFetch<void>(`/api/v1/admin/users/${userId}`, { method: 'DELETE' }),
 
   getStats: () =>
-    apiFetch<AdminStats>('/api/v1/admin/users/stats'),
+    apiFetch<AdminStats>('/api/v1/admin/stats'),
 };
 
 // ============================

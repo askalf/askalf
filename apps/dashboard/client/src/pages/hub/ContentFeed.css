@@ -1,0 +1,258 @@
+/* ============================================
+   Content Feed — Execution outputs, findings, resolutions
+   Forge glassmorphism theme
+   ============================================ */
+
+/* ---- Search Bar ---- */
+.cf-search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  animation: forge-fade-in 0.3s ease-out;
+}
+
+.cf-search-input-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cf-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.cf-search-input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md) var(--space-sm) 36px;
+  font-size: 0.85rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.cf-search-input:focus {
+  border-color: var(--crystal, #10b981);
+}
+
+.cf-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.cf-advanced-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.cf-advanced-toggle:hover,
+.cf-advanced-toggle.active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.cf-filter-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--crystal, #10b981);
+}
+
+/* ---- Advanced Filter Panel ---- */
+.cf-advanced-panel {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+  animation: forge-scale-in 0.2s ease-out;
+}
+
+.cf-advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-sm);
+}
+
+.cf-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cf-filter-group label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cf-filter-group select,
+.cf-filter-group input {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: var(--text);
+  outline: none;
+}
+
+.cf-filter-group select option {
+  background: var(--surface, #1a1a2e);
+}
+
+.cf-filter-group select:focus,
+.cf-filter-group input:focus {
+  border-color: var(--crystal, #10b981);
+}
+
+.cf-clear-btn {
+  margin-top: var(--space-sm);
+}
+
+/* ---- Content List ---- */
+.cf-content-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  animation: forge-fade-in 0.3s ease-out;
+}
+
+/* ---- Content Card ---- */
+.cf-content-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: var(--space-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  animation: forge-fade-in 0.3s ease-out both;
+}
+
+.cf-content-card:nth-child(1) { animation-delay: 0ms; }
+.cf-content-card:nth-child(2) { animation-delay: 30ms; }
+.cf-content-card:nth-child(3) { animation-delay: 60ms; }
+.cf-content-card:nth-child(4) { animation-delay: 90ms; }
+.cf-content-card:nth-child(5) { animation-delay: 120ms; }
+
+.cf-content-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Source-specific left border accent */
+.cf-content-card.execution {
+  border-left: 3px solid rgba(139, 92, 246, 0.4);
+}
+
+.cf-content-card.finding {
+  border-left: 3px solid rgba(250, 204, 21, 0.4);
+}
+
+.cf-content-card.resolution {
+  border-left: 3px solid rgba(74, 222, 128, 0.4);
+}
+
+/* ---- Content Header ---- */
+.cf-content-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-xs);
+}
+
+.cf-content-agent {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cf-content-source-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cf-content-source-tag.execution {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+}
+
+.cf-content-source-tag.finding {
+  background: rgba(250, 204, 21, 0.15);
+  color: #facc15;
+}
+
+.cf-content-source-tag.resolution {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+.cf-content-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.cf-content-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ---- Content Body ---- */
+.cf-content-input {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 2px 0;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.cf-content-preview {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: var(--space-xs) 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---- Detail Modal ---- */
+.cf-detail {
+  animation: forge-fade-in 0.2s ease-out;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 640px) {
+  .cf-advanced-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
