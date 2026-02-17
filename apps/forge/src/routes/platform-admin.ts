@@ -1532,6 +1532,141 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // ------------------------------------------
+  // ORCHESTRATED EXECUTION (intelligent decompose + match + dispatch)
+  // ------------------------------------------
+
+  app.post(
+    '/api/v1/admin/coordination/orchestrate',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as {
+        task: string;
+        leadAgentId?: string;
+      };
+
+      if (!body.task) {
+        return reply.code(400).send({ error: 'task description is required' });
+      }
+
+      try {
+        const { decomposeTask, shouldDecompose } = await import('../orchestration/task-decomposer.js');
+        const { matchAgentsToTasks } = await import('../orchestration/agent-matcher.js');
+
+        // Check if task warrants decomposition
+        if (!shouldDecompose(body.task)) {
+          return reply.code(200).send({
+            orchestrated: false,
+            reason: 'Task is simple enough for a single agent',
+          });
+        }
+
+        // Get available agents
+        const agents = await query<{ id: string; name: string; type: string; description: string }>(
+          `SELECT id, name, type, description FROM forge_agents
+           WHERE status != 'error' AND (is_decommissioned IS NULL OR is_decommissioned = false)`,
+        );
+
+        if (agents.length === 0) {
+          return reply.code(400).send({ error: 'No active agents available' });
+        }
+
+        // Decompose
+        const decomposition = await decomposeTask(body.task, agents);
+
+        // Match agents
+        const matches = await matchAgentsToTasks(decomposition.tasks);
+
+        // Determine lead agent
+        const leadAgentId = body.leadAgentId || agents[0]!.id;
+        const leadAgent = agents.find(a => a.id === leadAgentId) || agents[0]!;
+
+        // Create coordination session in DB
+        const sessionId = ulid();
+        await query(
+          `INSERT INTO coordination_sessions (id, title, pattern, lead_agent_id, lead_agent_name)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [sessionId, body.task.substring(0, 200), decomposition.pattern, leadAgentId, leadAgent.name],
+        );
+
+        // Create tasks
+        interface OrchTask {
+          id: string; title: string; description: string;
+          assignedAgent: string; assignedAgentId: string;
+          dependencies: string[]; status: string;
+          matchScore: number; matchReasons: string[];
+          complexity: string;
+        }
+        const createdTasks: OrchTask[] = [];
+        for (let i = 0; i < decomposition.tasks.length; i++) {
+          const task = decomposition.tasks[i]!;
+          const match = matches.find(m => m.taskTitle === task.title);
+          const taskId = ulid();
+
+          // Map dependency titles to previously created task IDs
+          const depTitles = task.dependencies || [];
+          const depTaskIds = depTitles
+            .map(title => createdTasks.find(ct => ct.title === title)?.id)
+            .filter((id): id is string => id !== undefined);
+
+          await query(
+            `INSERT INTO coordination_tasks (id, session_id, title, description, assigned_agent, assigned_agent_id, dependencies)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [taskId, sessionId, task.title, task.description,
+             match?.agentName || leadAgent.name, match?.agentId || leadAgentId,
+             depTaskIds],
+          );
+
+          createdTasks.push({
+            id: taskId, title: task.title, description: task.description,
+            assignedAgent: match?.agentName || leadAgent.name,
+            assignedAgentId: match?.agentId || leadAgentId,
+            dependencies: depTaskIds, status: 'pending',
+            matchScore: match?.score || 0,
+            matchReasons: match?.reasons || [],
+            complexity: task.estimatedComplexity,
+          });
+        }
+
+        // Start ready tasks based on pattern
+        if (decomposition.pattern === 'fan-out') {
+          const readyIds = createdTasks.filter(t => t.dependencies.length === 0).map(t => t.id);
+          if (readyIds.length > 0) {
+            await query(`UPDATE coordination_tasks SET status = 'running', started_at = NOW() WHERE id = ANY($1)`, [readyIds]);
+            for (const t of createdTasks) {
+              if (readyIds.includes(t.id)) t.status = 'running';
+            }
+          }
+        } else {
+          // Pipeline/consensus: start first task
+          const first = createdTasks.find(t => t.dependencies.length === 0);
+          if (first) {
+            await query(`UPDATE coordination_tasks SET status = 'running', started_at = NOW() WHERE id = $1`, [first.id]);
+            first.status = 'running';
+          }
+        }
+
+        return reply.code(201).send({
+          orchestrated: true,
+          session: {
+            id: sessionId,
+            title: body.task.substring(0, 200),
+            pattern: decomposition.pattern,
+            reasoning: decomposition.reasoning,
+            leadAgent: leadAgent.name,
+            tasks: createdTasks,
+          },
+        });
+      } catch (err) {
+        console.error('[Orchestrate] Failed:', err instanceof Error ? err.message : err);
+        return reply.code(500).send({
+          error: 'Orchestration failed',
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+  );
+
+  // ------------------------------------------
   // CONTENT & REPORTS FEED
   // ------------------------------------------
 
