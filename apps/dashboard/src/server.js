@@ -1590,6 +1590,9 @@ fastify.get('/api/v1/admin/stats', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
 
+  const tenantScope = admin.role !== 'super_admin';
+  const tenantWhere = tenantScope ? `WHERE tenant_id = '${admin.tenant_id}'` : '';
+
   const [users, shards, traces, executions] = await Promise.all([
     queryOne(`
       SELECT
@@ -1597,7 +1600,7 @@ fastify.get('/api/v1/admin/stats', async (request, reply) => {
         COUNT(*) FILTER (WHERE status = 'active') as active,
         COUNT(*) FILTER (WHERE status = 'suspended') as suspended,
         COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as today
-      FROM users
+      FROM users ${tenantWhere}
     `),
     queryOne(`
       SELECT COUNT(*) as total
@@ -1639,6 +1642,12 @@ fastify.get('/api/v1/admin/users', async (request, reply) => {
   const { limit = 50, offset = 0, status, search, role, plan, sort = 'created_at:desc' } = request.query;
   const filterParams = [];
   let whereClause = 'WHERE 1=1';
+
+  // Tenant scoping: admin sees only their tenant, super_admin sees all
+  if (admin.role !== 'super_admin') {
+    filterParams.push(admin.tenant_id);
+    whereClause += ` AND u.tenant_id = $${filterParams.length}`;
+  }
 
   if (status) {
     filterParams.push(status);

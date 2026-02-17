@@ -4,6 +4,7 @@
  */
 
 import 'dotenv/config';
+import { initializeEmailFromEnv } from '@substrate/email';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
@@ -46,6 +47,8 @@ await app.register(cors, {
     'https://forge.askalf.org',
     'https://askalf.org',
     'https://app.askalf.org',
+    'https://integration.tax',
+    'https://www.integration.tax',
     'http://localhost:3005',
     'http://localhost:5173',
     'http://localhost:5174',
@@ -146,6 +149,10 @@ async function start(): Promise<void> {
     initializeSubstrateDatabase(config.substrateDatabaseUrl);
     console.log('[Forge] Substrate database connection initialized');
   }
+
+  // Initialize email service (falls back to console if EMAIL_PROVIDER not set)
+  initializeEmailFromEnv();
+  console.log('[Forge] Email service initialized');
 
   try {
     // Initialize execution worker (provider + tools)

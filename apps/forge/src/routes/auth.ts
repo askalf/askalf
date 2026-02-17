@@ -8,6 +8,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { createHash } from 'node:crypto';
 import { substrateQuery, substrateQueryOne } from '../database.js';
+import { sendEmailVerificationEmail, sendPasswordResetEmail } from '@substrate/email';
 
 // ============================================
 // Types
@@ -168,7 +169,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         id, tenant_id, email, email_normalized, password_hash,
         email_verification_token, email_verification_expires,
         display_name, timezone, status, role, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', 'user', NOW(), NOW())`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', 'admin', NOW(), NOW())`,
       [
         userId, tenantId, body.email, emailNormalized, passwordHash,
         verificationToken, verificationExpires,
@@ -184,6 +185,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     );
 
     console.log(`[Auth] New user registered: ${body.email} (${userId}), verification token generated`);
+
+    // Fire-and-forget: send verification email
+    sendEmailVerificationEmail(body.email, {
+      userName: body.display_name || body.email.split('@')[0] || 'there',
+      verifyUrl: `https://integration.tax/verify-email?token=${verificationToken}`,
+      expiresInHours: 24,
+    }).catch((err: unknown) => console.error('[Auth] Failed to send verification email:', err));
 
     return {
       success: true,
@@ -451,6 +459,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     console.log(`[Auth] Verification token regenerated for user ${session.user_id}`);
 
+    // Fire-and-forget: send verification email
+    const verifyUser = await substrateQueryOne<{ email: string; display_name: string | null }>(
+      'SELECT email, display_name FROM users WHERE id = $1',
+      [session.user_id],
+    );
+    if (verifyUser) {
+      sendEmailVerificationEmail(verifyUser.email, {
+        userName: verifyUser.display_name || verifyUser.email.split('@')[0] || 'there',
+        verifyUrl: `https://integration.tax/verify-email?token=${newToken}`,
+        expiresInHours: 24,
+      }).catch((err: unknown) => console.error('[Auth] Failed to send verification email:', err));
+    }
+
     return { success: true, message: 'Verification email sent' };
   });
 
@@ -490,6 +511,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     ).catch(() => {});
 
     console.log(`[Auth] Password reset requested for ${body.email}, token: ${token.slice(0, 8)}...`);
+
+    // Fire-and-forget: send password reset email
+    const resetUser = await substrateQueryOne<{ display_name: string | null }>(
+      'SELECT display_name FROM users WHERE id = $1',
+      [user.id],
+    );
+    sendPasswordResetEmail(body.email, {
+      userName: resetUser?.display_name || body.email.split('@')[0] || 'there',
+      resetUrl: `https://integration.tax/reset-password?token=${token}`,
+      expiresInMinutes: 60,
+    }).catch((err: unknown) => console.error('[Auth] Failed to send password reset email:', err));
 
     return { success: true, message: 'If the email exists, a reset link has been sent' };
   });
