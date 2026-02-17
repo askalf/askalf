@@ -1640,6 +1640,16 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     return res;
   });
 
+  // 32b2. POST /api/v1/admin/providers/health-check - Run live health checks
+  fastify.post('/api/v1/admin/providers/health-check', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const res = await callForge('/providers/health-check', { method: 'POST', body: {} });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Health check failed', message: res.message });
+    return res;
+  });
+
   // 32c. GET /api/v1/admin/providers/:id/models - Provider models
   fastify.get('/api/v1/admin/providers/:id/models', async (request, reply) => {
     const admin = await requireAdmin(request, reply);

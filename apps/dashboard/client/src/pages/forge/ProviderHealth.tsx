@@ -24,6 +24,7 @@ export default function ProviderHealth() {
   const fetchProviders = useHubStore((s) => s.fetchProviders);
   const fetchProviderHealth = useHubStore((s) => s.fetchProviderHealth);
   const fetchProviderModels = useHubStore((s) => s.fetchProviderModels);
+  const runProviderHealthCheck = useHubStore((s) => s.runProviderHealthCheck);
   const loading = useHubStore((s) => s.loading);
 
   const poll = useCallback(() => {
@@ -60,6 +61,14 @@ export default function ProviderHealth() {
           <span className="fobs-provider-count">
             {providersList.length} provider{providersList.length !== 1 ? 's' : ''} configured
           </span>
+          <button
+            className="fo-action-btn"
+            onClick={runProviderHealthCheck}
+            disabled={!!loading['providerHealthCheck']}
+            style={{ marginLeft: 'auto' }}
+          >
+            {loading['providerHealthCheck'] ? 'Checking...' : 'Check Now'}
+          </button>
         </div>
       )}
 
@@ -80,17 +89,23 @@ export default function ProviderHealth() {
                 className={`fo-panel fobs-provider-card ${isExpanded ? 'expanded' : ''}`}
                 onClick={() => setExpandedProvider(isExpanded ? null : provider.id)}
               >
-                <div className="fobs-provider-header">
+                <div className="fobs-provider-header" style={!provider.is_enabled ? { opacity: 0.5 } : undefined}>
                   <div className="fobs-provider-name-row">
-                    <span className={`fobs-health-dot ${healthDot(provider.health_status)}`} />
+                    <span className={`fobs-health-dot ${provider.is_enabled ? healthDot(provider.health_status) : 'fobs-health-dot--unknown'}`} />
                     <strong>{provider.name}</strong>
                     <span className="fobs-provider-type">{provider.type}</span>
                   </div>
                   <div className="fobs-provider-meta">
-                    <StatusBadge status={provider.is_enabled ? 'active' : 'paused'} />
-                    <span className="fobs-provider-check">
-                      Checked {relativeTime(provider.last_health_check)}
-                    </span>
+                    {!provider.is_enabled && (provider.config as Record<string, unknown>)?.coming_soon ? (
+                      <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa', fontWeight: 500 }}>Coming Soon</span>
+                    ) : (
+                      <StatusBadge status={provider.is_enabled ? 'active' : 'paused'} />
+                    )}
+                    {provider.is_enabled && (
+                      <span className="fobs-provider-check">
+                        Checked {relativeTime(provider.last_health_check)}
+                      </span>
+                    )}
                   </div>
                 </div>
 

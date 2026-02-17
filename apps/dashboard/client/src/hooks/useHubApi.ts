@@ -742,6 +742,9 @@ export const hubApi = {
 
     health: () =>
       apiFetch<ProviderHealth>('/api/v1/admin/providers/health'),
+
+    runHealthCheck: () =>
+      apiFetch<ProviderHealth>('/api/v1/admin/providers/health-check', { method: 'POST', body: JSON.stringify({}) }),
   },
 
   workflows: {
