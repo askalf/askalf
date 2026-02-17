@@ -10,7 +10,7 @@ const PROVIDERS = [
 
 const AI_PROVIDERS = [
   { id: 'claude', name: 'Claude', icon: 'C', desc: 'Anthropic API key', color: '#d97706' },
-  { id: 'openai', name: 'OpenAI', icon: 'O', desc: 'OpenAI API key', color: '#10b981' },
+  { id: 'openai', name: 'OpenAI', icon: 'O', desc: 'OpenAI API key', color: '#7c3aed' },
 ];
 
 const formatDate = (iso: string) => {

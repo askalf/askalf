@@ -113,9 +113,9 @@
 }
 
 .bug-type-chip.active {
-  background: var(--crystal-dim, rgba(16, 185, 129, 0.1));
-  border-color: var(--crystal, #10b981);
-  color: var(--crystal, #10b981);
+  background: var(--crystal-dim, rgba(124, 58, 237, 0.1));
+  border-color: var(--crystal, #7c3aed);
+  color: var(--crystal, #7c3aed);
 }
 
 .bug-type-chip .chip-icon {
@@ -138,7 +138,7 @@
 .bug-form-group input:focus,
 .bug-form-group textarea:focus {
   outline: none;
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .bug-form-group input::placeholder,
@@ -190,7 +190,7 @@
 }
 
 .bug-modal-btn.primary {
-  background: var(--crystal, #10b981);
+  background: var(--crystal, #7c3aed);
   border: none;
   color: #000;
   font-weight: 600;
@@ -212,7 +212,7 @@
 }
 
 .bug-modal-success .success-icon {
-  color: var(--crystal, #10b981);
+  color: var(--crystal, #7c3aed);
   margin-bottom: 1.5rem;
 }
 

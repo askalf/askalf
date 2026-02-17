@@ -6,8 +6,8 @@ import './Login.css';
 
 function getApiUrl() {
   const host = window.location.hostname;
-  if (host.includes('askalf.org')) return '';
-  return 'http://localhost:3005';
+  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  return 'http://localhost:3001';
 }
 
 const API_BASE = getApiUrl();
@@ -125,7 +125,7 @@ export default function VerifyEmailPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-icon" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)' }}>F</span>
+            <span className="auth-logo-icon" style={{ fontSize: '2rem' }}>🔨</span>
             <span className="auth-logo-text">
               <span className="auth-logo-alf animate-gradient-text">Forge</span>
             </span>
@@ -170,7 +170,7 @@ export default function VerifyEmailPage() {
 
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
               {resent ? (
-                <p className="auth-subtitle" style={{ color: '#10b981' }}>New verification email sent!</p>
+                <p className="auth-subtitle" style={{ color: '#7c3aed' }}>New verification email sent!</p>
               ) : (
                 <button
                   className="auth-submit"
@@ -213,7 +213,7 @@ export default function VerifyEmailPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {resent ? (
-                <p className="auth-subtitle" style={{ color: '#10b981', textAlign: 'center', padding: '0.75rem 0' }}>
+                <p className="auth-subtitle" style={{ color: '#7c3aed', textAlign: 'center', padding: '0.75rem 0' }}>
                   Verification email sent! Check your inbox.
                 </p>
               ) : (

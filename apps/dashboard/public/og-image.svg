@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#09090b"/>
+      <stop offset="100%" style="stop-color:#0f0d18"/>
+    </linearGradient>
+    <linearGradient id="purple-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="100%" style="stop-color:#a78bfa"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="40%">
+      <stop offset="0%" style="stop-color:rgba(124,58,237,0.15)"/>
+      <stop offset="100%" style="stop-color:rgba(124,58,237,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg-grad)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <!-- Top accent line -->
+  <rect x="0" y="0" width="1200" height="3" fill="url(#purple-grad)"/>
+  <!-- Hammer icon -->
+  <text x="600" y="220" text-anchor="middle" font-size="80">&#128296;</text>
+  <!-- Title -->
+  <text x="600" y="330" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" fill="#ffffff" letter-spacing="-2">Forge</text>
+  <!-- Subtitle -->
+  <text x="600" y="390" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="500" fill="#a78bfa" letter-spacing="3" text-transform="uppercase">AI Agent Orchestration Platform</text>
+  <!-- Domain -->
+  <text x="600" y="540" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500" fill="rgba(255,255,255,0.35)">integration.tax</text>
+</svg>

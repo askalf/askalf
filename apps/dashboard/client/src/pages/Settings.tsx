@@ -314,7 +314,7 @@ function AppearanceTab() {
 
 const AI_PROVIDERS = [
   { id: 'claude', name: 'Claude (Anthropic)', placeholder: 'sk-ant-...', color: '#d97706' },
-  { id: 'openai', name: 'OpenAI', placeholder: 'sk-...', color: '#10b981' },
+  { id: 'openai', name: 'OpenAI', placeholder: 'sk-...', color: '#7c3aed' },
 ];
 
 function AIKeysTab() {

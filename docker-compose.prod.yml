@@ -118,6 +118,12 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       # Encryption key for API keys (shared with API)
       JWT_SECRET: ${JWT_SECRET}
+      # Email (SendGrid)
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Forge}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@integration.tax}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       # Agent Forge proxy
       FORGE_URL: http://forge:3005
       FORGE_API_KEY: ${FORGE_API_KEY:-}

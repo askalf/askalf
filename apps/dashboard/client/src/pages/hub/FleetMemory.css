@@ -29,7 +29,7 @@
 
 .fm-stat-card.semantic { border-top: 2px solid var(--water, #3b82f6); }
 .fm-stat-card.episodic { border-top: 2px solid var(--synapse, #8b5cf6); }
-.fm-stat-card.procedural { border-top: 2px solid var(--crystal, #10b981); }
+.fm-stat-card.procedural { border-top: 2px solid var(--crystal, #7c3aed); }
 .fm-stat-card.recalls { border-top: 2px solid var(--warning, #f59e0b); }
 
 .fm-stat-value {
@@ -49,7 +49,7 @@
 
 .fm-stat-recent {
   font-size: 0.65rem;
-  color: var(--crystal, #10b981);
+  color: var(--crystal, #7c3aed);
   margin-top: 2px;
 }
 
@@ -151,7 +151,7 @@
 }
 
 .fm-search-input:focus {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .fm-search-input::placeholder {
@@ -195,7 +195,7 @@
 }
 
 .fm-filter-row select:focus {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 /* ---- Section Header ---- */
@@ -255,7 +255,7 @@
 }
 
 .fm-recall-chip-count {
-  color: var(--crystal, #10b981);
+  color: var(--crystal, #7c3aed);
 }
 
 .fm-recall-chip-time {
@@ -295,7 +295,7 @@
 /* Tier-specific accents */
 .fm-memory-card.semantic { border-left: 3px solid var(--water, #3b82f6); }
 .fm-memory-card.episodic { border-left: 3px solid var(--synapse, #8b5cf6); }
-.fm-memory-card.procedural { border-left: 3px solid var(--crystal, #10b981); }
+.fm-memory-card.procedural { border-left: 3px solid var(--crystal, #7c3aed); }
 
 /* ---- Memory Header ---- */
 .fm-memory-header {

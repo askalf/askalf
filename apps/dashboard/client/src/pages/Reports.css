@@ -11,8 +11,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 2rem;
-  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.05) 0%, transparent 100%);
 }
 
 .reports-header .header-left {
@@ -31,8 +31,8 @@
 }
 
 .reports-header .back-btn:hover {
-  background: rgba(16, 185, 129, 0.2);
-  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(124, 58, 237, 0.2);
+  border-color: rgba(124, 58, 237, 0.4);
 }
 
 .reports-header .back-btn svg {
@@ -78,8 +78,8 @@
 }
 
 .status-indicator.active::before {
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
+  background: #7c3aed;
+  box-shadow: 0 0 8px #7c3aed;
   animation: pulse 2s infinite;
 }
 
@@ -110,8 +110,8 @@
 }
 
 .scheduler-toggle.running {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
 .scheduler-toggle.running:hover {
@@ -125,8 +125,8 @@
 }
 
 .scheduler-toggle.stopped:hover {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
 .scheduler-dot {
@@ -170,9 +170,9 @@
 }
 
 .reports-tabs button.active {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.4);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.4);
+  color: #7c3aed;
 }
 
 /* Content */
@@ -234,7 +234,7 @@
   display: block;
   font-size: 2rem;
   font-weight: 700;
-  color: #10b981;
+  color: #7c3aed;
 }
 
 .health-value.warning {
@@ -271,7 +271,7 @@
 }
 
 .stat-value.active {
-  color: #10b981;
+  color: #7c3aed;
 }
 
 .stat-value.warning {
@@ -313,8 +313,8 @@
 }
 
 .activity-status.completed {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
 .activity-status.running {
@@ -378,7 +378,7 @@
 
 .activity-table .duration {
   font-family: 'JetBrains Mono', monospace;
-  color: #10b981;
+  color: #7c3aed;
 }
 
 .status-badge {
@@ -389,8 +389,8 @@
 }
 
 .status-badge.completed {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
 .status-badge.running {
@@ -446,8 +446,8 @@
 }
 
 .schedule-card.continuous {
-  border-color: rgba(16, 185, 129, 0.3);
-  background: rgba(16, 185, 129, 0.05);
+  border-color: rgba(124, 58, 237, 0.3);
+  background: rgba(124, 58, 237, 0.05);
 }
 
 .schedule-card.scheduled {
@@ -488,8 +488,8 @@
 }
 
 .schedule-badge.continuous {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
 .schedule-info {
@@ -516,8 +516,8 @@
 }
 
 .schedule-info .agent-status.running {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.2);
+  color: #7c3aed;
 }
 
 .last-run, .next-run {

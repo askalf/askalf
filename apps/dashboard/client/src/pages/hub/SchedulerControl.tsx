@@ -195,10 +195,10 @@ export default function SchedulerControl() {
                 fontSize: '0.72rem',
                 fontWeight: 500,
                 background: (agent.execution_mode || 'batch') === 'batch'
-                  ? 'rgba(16, 185, 129, 0.15)'
+                  ? 'rgba(124, 58, 237, 0.15)'
                   : 'rgba(245, 158, 11, 0.15)',
                 color: (agent.execution_mode || 'batch') === 'batch'
-                  ? 'var(--success, #10b981)'
+                  ? 'var(--success, #7c3aed)'
                   : 'var(--warning, #f59e0b)',
                 display: 'inline-block',
               }}>

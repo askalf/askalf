@@ -86,9 +86,9 @@
 }
 
 .coord-btn.primary {
-  background: var(--crystal, #10b981);
+  background: var(--crystal, #7c3aed);
   color: var(--void, #000);
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .coord-btn.primary:hover {
@@ -141,8 +141,8 @@
 }
 
 .coord-session-card.selected {
-  border-color: var(--crystal, #10b981);
-  background: rgba(16, 185, 129, 0.05);
+  border-color: var(--crystal, #7c3aed);
+  background: rgba(124, 58, 237, 0.05);
 }
 
 .coord-session-header {
@@ -496,7 +496,7 @@
 }
 
 .coord-form-input:focus {
-  border-color: var(--crystal, #10b981);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .coord-form-input option {
@@ -573,17 +573,17 @@
   padding: var(--space-xs) var(--space-md);
   font-size: 0.8rem;
   font-weight: 500;
-  color: var(--crystal, #10b981);
+  color: var(--crystal, #7c3aed);
   background: none;
-  border: 1px dashed rgba(16, 185, 129, 0.3);
+  border: 1px dashed rgba(124, 58, 237, 0.3);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .coord-add-task:hover {
-  background: rgba(16, 185, 129, 0.05);
-  border-color: var(--crystal, #10b981);
+  background: rgba(124, 58, 237, 0.05);
+  border-color: var(--crystal, #7c3aed);
 }
 
 /* ---- Responsive ---- */

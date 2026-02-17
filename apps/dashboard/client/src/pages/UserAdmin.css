@@ -90,8 +90,8 @@
 }
 
 .admin-create-btn:hover {
-  background: var(--crystal-bright, #00e89d);
-  border-color: var(--crystal-bright, #00e89d);
+  background: var(--crystal-bright, #7c3aed);
+  border-color: var(--crystal-bright, #7c3aed);
 }
 
 .admin-create-btn svg {
@@ -178,10 +178,10 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-md);
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: var(--radius-md);
-  color: #10b981;
+  color: #7c3aed;
   margin-bottom: var(--space-lg);
   font-size: 0.875rem;
 }
@@ -222,7 +222,7 @@
 }
 
 .ua-stat-dot.users { background: #6366f1; }
-.ua-stat-dot.active { background: #10b981; }
+.ua-stat-dot.active { background: #7c3aed; }
 .ua-stat-dot.today { background: #3b82f6; }
 .ua-stat-dot.shards { background: #8b5cf6; }
 .ua-stat-dot.executions { background: #f59e0b; }
@@ -356,7 +356,7 @@
 }
 
 .admin-table tbody tr.selected {
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(124, 58, 237, 0.1);
 }
 
 /* User Cell */
@@ -414,8 +414,8 @@
 }
 
 .badge-success {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.15);
+  color: #7c3aed;
 }
 
 .badge-warning {
@@ -449,8 +449,8 @@
 }
 
 .verified-badge {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  background: rgba(124, 58, 237, 0.15);
+  color: #7c3aed;
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;

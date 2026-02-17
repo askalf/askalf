@@ -2368,10 +2368,67 @@ Be efficient and concise. Every action you take must be tracked through a ticket
     }
   }
 
+  // ============================================
+  // DATA RETENTION — runs once per day
+  // Prunes old log/audit/session data to prevent unbounded growth
+  // ============================================
+
+  const RETENTION_DAYS = 90;
+  const SESSION_RETENTION_DAYS = 30;
+  let lastRetentionRun = 0;
+
+  async function runRetentionCleanup() {
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+
+    // Only run once per day
+    if (now - lastRetentionRun < ONE_DAY) return;
+    lastRetentionRun = now;
+
+    console.log(`[Retention] Starting daily cleanup (${RETENTION_DAYS}-day retention)...`);
+
+    const tables = [
+      { name: 'agent_audit_log', days: RETENTION_DAYS },
+      { name: 'agent_logs', days: RETENTION_DAYS },
+      { name: 'audit_logs', days: RETENTION_DAYS },
+      { name: 'sessions', days: SESSION_RETENTION_DAYS },
+    ];
+
+    for (const t of tables) {
+      try {
+        const result = await query(
+          `DELETE FROM ${t.name} WHERE created_at < NOW() - INTERVAL '${t.days} days'`
+        );
+        const deleted = result?.length ?? 0;
+        if (deleted > 0) {
+          console.log(`[Retention] Pruned ${deleted} rows from ${t.name} (>${t.days} days)`);
+        }
+      } catch (err) {
+        // Table may not exist, skip silently
+        console.error(`[Retention] Error cleaning ${t.name}:`, err.message);
+      }
+    }
+
+    // Clean forge tables via Forge API
+    try {
+      await callForgeAdmin('/retention-cleanup', { method: 'POST' });
+      console.log('[Retention] Forge cleanup triggered');
+    } catch (err) {
+      console.error('[Retention] Forge cleanup failed:', err.message);
+    }
+
+    console.log('[Retention] Daily cleanup complete');
+  }
+
   // Start the scheduler loop
   console.log('[Scheduler] Agent scheduler daemon started (60s interval)');
   setInterval(runSchedulerTick, SCHEDULER_INTERVAL_MS);
 
   // Run first tick after a 10s delay to let services stabilize
   setTimeout(runSchedulerTick, 10_000);
+
+  // Run retention check on each scheduler tick (self-throttles to once/day)
+  setInterval(runRetentionCleanup, SCHEDULER_INTERVAL_MS);
+  // First retention run after 30s
+  setTimeout(runRetentionCleanup, 30_000);
 }

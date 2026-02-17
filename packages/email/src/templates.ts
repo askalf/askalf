@@ -44,8 +44,8 @@ function wrapHtml(content: string): string {
               <table role="presentation" cellspacing="0" cellpadding="0">
                 <tr>
                   <td style="vertical-align: middle;">
-                    <span style="display: inline-block; width: 40px; height: 40px; background-color: #10b981; border-radius: 8px; text-align: center; line-height: 40px; font-size: 22px; font-weight: 800; color: #ffffff; margin-right: 12px; vertical-align: middle;">F</span>
-                    <span style="font-size: 32px; font-weight: 800; color: #10b981; letter-spacing: -0.02em; line-height: 1; vertical-align: middle;">Forge</span>
+                    <span style="display: inline-block; width: 40px; height: 40px; background-color: #7c3aed; border-radius: 8px; text-align: center; line-height: 40px; font-size: 22px; font-weight: 800; color: #ffffff; margin-right: 12px; vertical-align: middle;">&#128296;</span>
+                    <span style="font-size: 32px; font-weight: 800; color: #7c3aed; letter-spacing: -0.02em; line-height: 1; vertical-align: middle;">Forge</span>
                   </td>
                 </tr>
               </table>
@@ -72,7 +72,7 @@ function wrapHtml(content: string): string {
                 AI Agent Orchestration Platform
               </p>
               <p style="margin: 0; font-size: 13px;">
-                <a href="https://integration.tax" style="color: #10b981; text-decoration: none; font-weight: 600;">integration.tax</a>
+                <a href="https://integration.tax" style="color: #7c3aed; text-decoration: none; font-weight: 600;">integration.tax</a>
               </p>
             </td>
           </tr>
@@ -91,7 +91,7 @@ function button(text: string, url: string): string {
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 28px 0;">
       <tr>
-        <td align="center" style="background-color: #10b981; border-radius: 8px;">
+        <td align="center" style="background-color: #7c3aed; border-radius: 8px;">
           <a href="${url}" style="display: inline-block; padding: 14px 32px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">
             ${text}
           </a>
@@ -104,7 +104,7 @@ function button(text: string, url: string): string {
 /** Reusable note/callout box */
 function noteBox(content: string, type: 'info' | 'warning' | 'error' = 'info'): string {
   const colors = {
-    info: { bg: '#f0fdf4', border: '#10b981' },
+    info: { bg: '#f5f3ff', border: '#7c3aed' },
     warning: { bg: '#fffbeb', border: '#f59e0b' },
     error: { bg: '#fef2f2', border: '#ef4444' },
   };
@@ -135,7 +135,7 @@ export function welcomeEmailHtml(vars: WelcomeEmailVars): string {
     </p>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
-      You're in. Your <strong style="color: #10b981;">${vars.planName}</strong> deployment is ready.
+      You're in. Your <strong style="color: #7c3aed;">${vars.planName}</strong> deployment is ready.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
@@ -233,7 +233,7 @@ export function passwordResetEmailHtml(vars: PasswordResetEmailVars): string {
 
     <p style="margin: 24px 0 0 0; font-size: 12px; color: #9ca3af;">
       Button not working? Copy this link:<br>
-      <a href="${vars.resetUrl}" style="color: #10b981; word-break: break-all;">${vars.resetUrl}</a>
+      <a href="${vars.resetUrl}" style="color: #7c3aed; word-break: break-all;">${vars.resetUrl}</a>
     </p>
   `);
 }
@@ -290,7 +290,7 @@ export function emailVerificationHtml(vars: EmailVerificationVars): string {
 
     <p style="margin: 24px 0 0 0; font-size: 12px; color: #9ca3af;">
       Button not working? Copy this link:<br>
-      <a href="${vars.verifyUrl}" style="color: #10b981; word-break: break-all;">${vars.verifyUrl}</a>
+      <a href="${vars.verifyUrl}" style="color: #7c3aed; word-break: break-all;">${vars.verifyUrl}</a>
     </p>
   `);
 }
@@ -605,70 +605,73 @@ https://integration.tax
 // ============================================
 
 export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
+  const firstName = vars.name.split(' ')[0];
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      You're on the List!    </h1>
+    <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #111827;">
+      You're on the list, ${firstName}.
+    </h1>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Thanks for joining the Forge waitlist. We're building the next generation of AI agent orchestration.
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151; line-height: 1.6;">
+      Thanks for your interest in Forge. We're opening access in small batches to make sure every team gets a great onboarding experience.
     </p>
 
-    <h2 style="margin: 32px 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">
-      What's Coming
-    </h2>
-
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 32px 0; background: #f9fafb; border-radius: 12px;">
       <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Agent Orchestration</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Create, deploy, and manage autonomous AI agents that work together</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Universal Memory</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Agents learn and retain knowledge across executions</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Multi-Provider AI</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Anthropic, OpenAI, Google — each agent uses the right model</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0;">
-          <strong style="color: #111827;">Production Ready</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Health monitoring, auto-healing, and event logging built in</span>
+        <td style="padding: 24px 28px;">
+          <p style="margin: 0 0 16px 0; font-size: 14px; font-weight: 600; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.05em;">
+            What you'll get access to
+          </p>
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            <tr>
+              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
+                <strong>Agent Fleet Management</strong> — deploy, monitor, and coordinate autonomous AI agents from one dashboard
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
+                <strong>Persistent Memory</strong> — agents retain context across sessions with 4-tier cognitive memory
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
+                <strong>Multi-Provider AI</strong> — Anthropic, OpenAI, Google, and local models — each agent picks the right one
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
+                <strong>Built-in Guardrails</strong> — cost limits, rate controls, content filters, and tool restrictions out of the box
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
 
-    ${noteBox(`
-      <p style="margin: 0; font-size: 14px; color: #374151;">
-        We'll keep you updated at <strong>${vars.email}</strong>
-      </p>
-    `)}
+    <p style="margin: 0 0 24px 0; font-size: 15px; color: #6b7280; line-height: 1.6;">
+      We'll email <strong>${vars.email}</strong> when your spot opens up. In the meantime, follow us on X for updates.
+    </p>
 
-    ${button('Explore Forge', 'https://integration.tax')}
+    ${button('Follow @ForgePlatform', 'https://x.com/AskAlfOrg')}
   `);
 }
 
 export function waitlistEmailText(vars: WaitlistEmailVars): string {
+  const firstName = vars.name.split(' ')[0];
   return `
-You're on the List!
-Thanks for joining the Forge waitlist. We're building the next generation of AI agent orchestration.
+You're on the list, ${firstName}.
 
-WHAT'S COMING
--------------
-- Agent Orchestration - Create, deploy, and manage autonomous AI agents
-- Universal Memory - Agents learn and retain knowledge across executions
-- Multi-Provider AI - Anthropic, OpenAI, Google — each agent uses the right model
-- Production Ready - Health monitoring, auto-healing, and event logging built in
+Thanks for your interest in Forge. We're opening access in small batches to make sure every team gets a great onboarding experience.
 
-We'll keep you updated at ${vars.email}
+WHAT YOU'LL GET ACCESS TO
+-------------------------
+- Agent Fleet Management — deploy, monitor, and coordinate autonomous AI agents from one dashboard
+- Persistent Memory — agents retain context across sessions with 4-tier cognitive memory
+- Multi-Provider AI — Anthropic, OpenAI, Google, and local models — each agent picks the right one
+- Built-in Guardrails — cost limits, rate controls, content filters, and tool restrictions out of the box
 
-Explore Forge: https://integration.tax
+We'll email ${vars.email} when your spot opens up.
+
+Follow us on X: https://x.com/AskAlfOrg
 
 ---
 Forge — AI Agent Orchestration Platform
@@ -689,7 +692,7 @@ export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
       You signed up for the Forge waitlist, and we wanted to be the first to tell you:
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #10b981;">
+    <p style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #7c3aed;">
       The new Forge is ready for you to explore.
     </p>
 
@@ -783,7 +786,7 @@ export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
     </p>
 
     <div style="text-align: center; margin: 32px 0;">
-      <a href="${signupUrl}" style="display: inline-block; padding: 14px 32px; background: #10b981; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 8px;">
+      <a href="${signupUrl}" style="display: inline-block; padding: 14px 32px; background: #7c3aed; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 8px;">
         Join the Beta
       </a>
     </div>

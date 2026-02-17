@@ -8,6 +8,7 @@ const Signup = lazy(() => import('./pages/Signup'));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const Landing = lazy(() => import('./pages/Landing'));
 
 // Lazy-loaded: app layout (shared sidebar)
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
@@ -63,7 +64,7 @@ function LoadingScreen() {
   return (
     <div className="loading-screen" role="status" aria-live="polite" aria-label="Loading">
       <div className="loading-logo">
-        <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--crystal)', letterSpacing: '-0.02em' }}>F</div>
+        <div style={{ fontSize: '2rem' }}>{'\u{1F528}'}</div>
         <span className="sr-only">Loading...</span>
       </div>
     </div>
@@ -117,8 +118,8 @@ export default function App() {
         <Route path="/users" element={<AdminRoute><UserAdmin /></AdminRoute>} />
       </Route>
 
-      {/* Root redirect */}
-      <Route path="/" element={<Navigate to="/command-center" replace />} />
+      {/* Public landing page */}
+      <Route path="/" element={<Landing />} />
 
       {/* Legacy redirects */}
       <Route path="/app/*" element={<Navigate to="/command-center" replace />} />

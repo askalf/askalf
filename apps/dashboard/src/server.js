@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import crypto from 'crypto';
 import { initializePool, query, queryOne } from '@substrate/database';
+import { initializeEmailFromEnv, sendWaitlistEmail, sendAdminNotification } from '@substrate/email';
 import {
   validateSession,
   getUserById,
@@ -26,6 +27,7 @@ const __dirname = dirname(__filename);
 // Initialize database
 const databaseUrl = process.env['DATABASE_URL'] ?? 'postgresql://substrate:substrate_dev@localhost:5432/substrate';
 initializePool({ connectionString: databaseUrl });
+initializeEmailFromEnv();
 
 const fastify = Fastify({ logger: true });
 
@@ -1988,6 +1990,139 @@ await registerAdminHubRoutes(fastify, requireAdmin, query, queryOne);
 // System Assistant (agentic AI for fleet management)
 import { registerAssistantRoutes } from './routes/admin-assistant.js';
 await registerAssistantRoutes(fastify, requireAdmin, query, queryOne);
+
+// ===========================================
+// WAITLIST
+// ===========================================
+
+const waitlistRateLimit = new Map(); // ip -> { count, resetAt }
+const WAITLIST_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const WAITLIST_MAX = 5; // 5 submissions per 15 min per IP
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of waitlistRateLimit.entries()) {
+    if (v.resetAt < now) waitlistRateLimit.delete(k);
+  }
+}, 60000);
+
+fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
+  const { name, email, website } = request.body || {};
+
+  // Honeypot — bots fill hidden fields
+  if (website) {
+    return reply.send({ ok: true }); // silent success to fool bots
+  }
+
+  // Per-IP rate limit (tighter than global)
+  const ip = request.ip || 'unknown';
+  const now = Date.now();
+  let entry = waitlistRateLimit.get(ip);
+  if (!entry || entry.resetAt < now) {
+    entry = { count: 1, resetAt: now + WAITLIST_WINDOW_MS };
+    waitlistRateLimit.set(ip, entry);
+  } else {
+    entry.count++;
+  }
+  if (entry.count > WAITLIST_MAX) {
+    return reply.code(429).send({ error: 'Too many requests. Please try again later.' });
+  }
+
+  // Required fields
+  if (!name || !email) {
+    return reply.code(400).send({ error: 'Name and email are required' });
+  }
+
+  // Input validation
+  const trimmedName = String(name).trim().slice(0, 100);
+  const trimmedEmail = String(email).trim().toLowerCase().slice(0, 254);
+
+  if (trimmedName.length < 1) {
+    return reply.code(400).send({ error: 'Name is required' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    return reply.code(400).send({ error: 'Invalid email address' });
+  }
+
+  // Block disposable email domains
+  const disposable = ['mailinator.com', 'guerrillamail.com', 'tempmail.com', 'throwaway.email', 'yopmail.com', 'sharklasers.com', 'guerrillamailblock.com', 'grr.la', 'dispostable.com', 'trashmail.com'];
+  const domain = trimmedEmail.split('@')[1];
+  if (disposable.includes(domain)) {
+    return reply.code(400).send({ error: 'Please use a valid email address' });
+  }
+
+  try {
+    await queryOne(
+      `INSERT INTO waitlist (id, name, email) VALUES ($1, $2, $3)
+       ON CONFLICT (email) DO UPDATE SET name = $2, created_at = NOW()
+       RETURNING id`,
+      [crypto.randomUUID(), trimmedName, trimmedEmail],
+    );
+
+    // Fire-and-forget: send welcome + admin notification
+    sendWaitlistEmail(trimmedEmail, { name: trimmedName, email: trimmedEmail }).catch(err =>
+      console.error('[Waitlist] Email send failed:', err)
+    );
+    sendAdminNotification(process.env['ADMIN_EMAIL'] || 'admin@integration.tax', {
+      type: 'waitlist_signup',
+      email: trimmedEmail,
+      timestamp: new Date().toISOString(),
+    }).catch(err =>
+      console.error('[Waitlist] Admin notification failed:', err)
+    );
+
+    return reply.send({ ok: true });
+  } catch (err) {
+    console.error('[Waitlist] Error:', err);
+    return reply.code(500).send({ error: 'Failed to join waitlist' });
+  }
+});
+
+// ===========================================
+// AUTH PROXY — forward auth routes to Forge
+// ===========================================
+
+const FORGE_AUTH_URL = process.env.FORGE_URL || 'http://forge:3005';
+
+async function proxyToForge(request, reply, path) {
+  try {
+    const res = await fetch(`${FORGE_AUTH_URL}${path}`, {
+      method: request.method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(request.headers.cookie ? { cookie: request.headers.cookie } : {}),
+        'x-forwarded-for': request.ip || '',
+        'user-agent': request.headers['user-agent'] || '',
+      },
+      body: request.method !== 'GET' ? JSON.stringify(request.body || {}) : undefined,
+    });
+    const data = await res.json();
+
+    // Forward set-cookie headers from Forge
+    const setCookie = res.headers.get('set-cookie');
+    if (setCookie) reply.header('set-cookie', setCookie);
+
+    return reply.code(res.status).send(data);
+  } catch (err) {
+    console.error(`[Auth Proxy] Error forwarding to ${path}:`, err.message);
+    return reply.code(502).send({ error: 'Service unavailable' });
+  }
+}
+
+const authProxyRoutes = [
+  'login', 'register', 'logout', 'check',
+  'forgot-password', 'reset-password',
+  'verify-email', 'resend-verification',
+];
+
+for (const route of authProxyRoutes) {
+  fastify.post(`/api/v1/auth/${route}`, (req, reply) =>
+    proxyToForge(req, reply, `/api/v1/auth/${route}`));
+}
+
+// GET for auth check (session validation)
+fastify.get('/api/v1/auth/check', (req, reply) =>
+  proxyToForge(req, reply, '/api/v1/auth/check'));
 
 // ===========================================
 // SPA FALLBACK - Serve index.html for client routes

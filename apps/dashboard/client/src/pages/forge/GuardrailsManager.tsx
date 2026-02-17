@@ -10,7 +10,7 @@ const TYPE_INFO: Record<string, { label: string; color: string }> = {
   cost_limit: { label: 'Cost Limit', color: '#f59e0b' },
   rate_limit: { label: 'Rate Limit', color: '#ef4444' },
   tool_restriction: { label: 'Tool Restriction', color: '#8b5cf6' },
-  output_filter: { label: 'Output Filter', color: '#10b981' },
+  output_filter: { label: 'Output Filter', color: '#7c3aed' },
   custom: { label: 'Custom', color: '#6b7280' },
 };
 
