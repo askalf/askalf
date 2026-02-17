@@ -17,6 +17,7 @@ import { executeBatch, type BatchAgentExecution, type BatchExecutionResult } fro
 import { query } from '../database.js';
 import { extractMemories } from '../memory/extractor.js';
 import { buildMemoryContext } from '../memory/context-builder.js';
+import { updateCapabilityFromExecution } from '../orchestration/capability-registry.js';
 
 // Built-in tools
 import { apiCall } from '../tools/built-in/api-call.js';
@@ -1003,6 +1004,24 @@ export async function runDirectCliExecution(
       ],
     );
 
+    // Update agent performance counters
+    const counterField = parsed.isError ? 'tasks_failed' : 'tasks_completed';
+    await query(
+      `UPDATE forge_agents SET ${counterField} = ${counterField} + 1 WHERE id = $1`,
+      [agentId],
+    ).catch(() => {});
+
+    // Update capability proficiency from tools used in this execution
+    const toolExecs = await query<{ tool_name: string }>(
+      `SELECT DISTINCT tool_name FROM forge_tool_executions WHERE execution_id = $1`,
+      [executionId],
+    ).catch(() => [] as { tool_name: string }[]);
+    if (toolExecs.length > 0) {
+      void updateCapabilityFromExecution(
+        agentId, toolExecs.map((t) => t.tool_name), !parsed.isError,
+      ).catch(() => {});
+    }
+
     // Fire-and-forget memory extraction
     void extractMemories({
       executionId,
@@ -1029,6 +1048,12 @@ export async function runDirectCliExecution(
        SET status = 'failed', error = $1, duration_ms = $2, completed_at = NOW()
        WHERE id = $3`,
       [errorMsg, durationMs, executionId],
+    ).catch(() => {});
+
+    // Update agent failure counter
+    await query(
+      `UPDATE forge_agents SET tasks_failed = tasks_failed + 1 WHERE id = $1`,
+      [agentId],
     ).catch(() => {});
   } finally {
     releaseCliSlot();

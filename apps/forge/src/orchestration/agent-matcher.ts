@@ -3,12 +3,14 @@
  * Scores and selects the best agent for each subtask based on:
  * - Agent type alignment (dev, research, etc.)
  * - System prompt relevance
+ * - Capability proficiency from execution history
  * - Past execution history (episodic memory)
  * - Current availability (idle > running)
  */
 
 import { query } from '../database.js';
 import type { DecomposedTask } from './task-decomposer.js';
+import { getAgentCapabilities } from './capability-registry.js';
 
 interface AgentCandidate {
   id: string;
@@ -60,8 +62,17 @@ export async function matchAgentsToTasks(
   const results: MatchResult[] = [];
   const assignedAgentIds = new Set<string>();
 
+  // Pre-fetch capabilities for all agents
+  const capabilitiesMap = new Map<string, Array<{ capability: string; proficiency: number }>>();
+  await Promise.all(
+    agents.map(async (a) => {
+      const caps = await getAgentCapabilities(a.id).catch(() => []);
+      capabilitiesMap.set(a.id, caps.map((c) => ({ capability: c.capability, proficiency: c.proficiency })));
+    }),
+  );
+
   for (const task of tasks) {
-    const scored = scoreAgents(task, agents, assignedAgentIds);
+    const scored = scoreAgents(task, agents, assignedAgentIds, capabilitiesMap);
 
     if (scored.length === 0) {
       // Fallback: pick first available agent
@@ -103,8 +114,16 @@ function scoreAgents(
   task: DecomposedTask,
   agents: AgentCandidate[],
   alreadyAssigned: Set<string>,
+  capabilitiesMap: Map<string, Array<{ capability: string; proficiency: number }>>,
 ): ScoredAgent[] {
   const scored: ScoredAgent[] = [];
+
+  // Extract task-relevant keywords for capability matching
+  const taskWords = new Set(
+    (task.title + ' ' + task.description).toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+      .filter((w) => w.length > 3),
+  );
 
   for (const agent of agents) {
     let score = 0;
@@ -119,49 +138,61 @@ function scoreAgents(
       reasons.push(`compatible type: ${agent.type}≈${task.suggestedAgentType}`);
     }
 
-    // 2. Description/prompt keyword overlap (0-25 points)
+    // 2. Description/prompt keyword overlap (0-20 points)
     const keywordScore = computeKeywordOverlap(
       task.description + ' ' + task.title,
       agent.description + ' ' + agent.system_prompt,
     );
-    score += keywordScore * 25;
+    score += keywordScore * 20;
     if (keywordScore > 0.3) {
       reasons.push(`keyword match: ${(keywordScore * 100).toFixed(0)}%`);
     }
 
-    // 3. Success rate (0-20 points)
+    // 3. Capability proficiency (0-20 points) — NEW Phase 3
+    const caps = capabilitiesMap.get(agent.id) ?? [];
+    if (caps.length > 0) {
+      // Find capabilities whose name overlaps with task keywords
+      const relevant = caps.filter((c) => taskWords.has(c.capability.replace(/_/g, ' ').split(' ')[0]!));
+      if (relevant.length > 0) {
+        const avgProficiency = relevant.reduce((sum, c) => sum + c.proficiency, 0) / relevant.length;
+        const capScore = (avgProficiency / 100) * 20;
+        score += capScore;
+        reasons.push(`capability: ${relevant.map((c) => c.capability).join(',')} (${avgProficiency.toFixed(0)}%)`);
+      }
+    }
+
+    // 4. Success rate (0-15 points)
     const total = agent.tasks_completed + agent.tasks_failed;
     if (total > 0) {
       const successRate = agent.tasks_completed / total;
-      score += successRate * 20;
+      score += successRate * 15;
       if (successRate > 0.8) {
         reasons.push(`high success: ${(successRate * 100).toFixed(0)}%`);
       }
     } else {
-      score += 10; // New agents get benefit of the doubt
+      score += 8; // New agents get benefit of the doubt
       reasons.push('new agent');
     }
 
-    // 4. Availability (0-15 points)
+    // 5. Availability (0-10 points)
     if (agent.status === 'idle') {
-      score += 15;
+      score += 10;
       reasons.push('idle');
     } else if (agent.status === 'paused') {
       score += 5;
     }
-    // Running agents get 0
 
-    // 5. Autonomy level alignment (0-10 points)
+    // 6. Autonomy level alignment (0-5 points)
     if (task.estimatedComplexity === 'high' && agent.autonomy_level >= 7) {
-      score += 10;
+      score += 5;
       reasons.push('high autonomy for complex task');
     } else if (task.estimatedComplexity === 'low' && agent.autonomy_level <= 5) {
-      score += 10;
-    } else {
       score += 5;
+    } else {
+      score += 2;
     }
 
-    // 6. Prefer unassigned agents (-10 penalty if already assigned in this plan)
+    // 7. Prefer unassigned agents (-10 penalty if already assigned in this plan)
     if (alreadyAssigned.has(agent.id)) {
       score -= 10;
       reasons.push('already assigned');

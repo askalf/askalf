@@ -11,6 +11,7 @@ import { substrateQuery, substrateQueryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/session-auth.js';
 import { runDirectCliExecution, runCliQuery } from '../runtime/worker.js';
+import { detectCapabilities, getAgentCapabilities, findAgentsWithCapability, detectAllCapabilities } from '../orchestration/capability-registry.js';
 
 // In-memory store for AI code reviews (transient — single instance, client polls max 10 min)
 const reviewStore = new Map<string, {
@@ -1979,6 +1980,90 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
       );
       if (!result) return reply.code(404).send({ error: 'User not found' });
       return { success: true };
+    },
+  );
+
+  // ------------------------------------------
+  // CAPABILITIES (Phase 3)
+  // ------------------------------------------
+
+  // Get capabilities for a specific agent
+  app.get(
+    '/api/v1/admin/agents/:id/capabilities',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const { id } = request.params as { id: string };
+      const caps = await getAgentCapabilities(id);
+      return { capabilities: caps };
+    },
+  );
+
+  // Detect/refresh capabilities for a specific agent
+  app.post(
+    '/api/v1/admin/agents/:id/capabilities/detect',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const { id } = request.params as { id: string };
+      const caps = await detectCapabilities(id);
+      return { detected: caps.length, capabilities: caps };
+    },
+  );
+
+  // Detect capabilities for all agents
+  app.post(
+    '/api/v1/admin/capabilities/detect-all',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const total = await detectAllCapabilities();
+      return { detected: total };
+    },
+  );
+
+  // Find agents with a specific capability
+  app.get(
+    '/api/v1/admin/capabilities/:name/agents',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const { name } = request.params as { name: string };
+      const qs = request.query as { minProficiency?: string };
+      const agents = await findAgentsWithCapability(name, qs.minProficiency ? parseInt(qs.minProficiency) : 30);
+      return { capability: name, agents };
+    },
+  );
+
+  // Get capability catalog
+  app.get(
+    '/api/v1/admin/capabilities/catalog',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const catalog = await query<{
+        id: string; name: string; display_name: string; description: string;
+        category: string; required_tools: string[]; keywords: string[];
+      }>(`SELECT * FROM forge_capability_catalog ORDER BY category, name`);
+      return { catalog };
+    },
+  );
+
+  // Get all agents' capabilities summary
+  app.get(
+    '/api/v1/admin/capabilities/summary',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const summary = await query<{
+        agent_id: string; agent_name: string; capability_count: string;
+        avg_proficiency: string; top_capability: string;
+      }>(
+        `SELECT c.agent_id, a.name AS agent_name,
+                COUNT(*)::text AS capability_count,
+                ROUND(AVG(c.proficiency))::text AS avg_proficiency,
+                (SELECT c2.capability FROM forge_agent_capabilities c2
+                 WHERE c2.agent_id = c.agent_id ORDER BY c2.proficiency DESC LIMIT 1) AS top_capability
+         FROM forge_agent_capabilities c
+         JOIN forge_agents a ON a.id = c.agent_id
+         GROUP BY c.agent_id, a.name
+         ORDER BY avg_proficiency DESC`,
+      );
+      return { agents: summary };
     },
   );
 
