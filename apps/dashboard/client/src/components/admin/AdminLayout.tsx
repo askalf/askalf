@@ -23,18 +23,6 @@ const NAV_ITEMS = [
       { path: '/command-center', label: 'Command Center', icon: 'F' },
     ],
   },
-  {
-    section: 'Search Engine',
-    items: [
-      { path: 'https://amnesia.tax', label: 'Amnesia', icon: 'A', external: true },
-    ],
-  },
-  {
-    section: 'Just Push',
-    items: [
-      { path: '/push/', label: 'My Repos', icon: 'R', external: true },
-    ],
-  },
 ];
 
 const ADMIN_NAV_ITEMS = [
