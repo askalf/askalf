@@ -17,6 +17,7 @@ import {
   getSubscriptionWithPlan,
   getUsageSummary,
   changePassword,
+  createUser,
 } from '@substrate/auth';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -125,6 +126,8 @@ const ALLOWED_ORIGINS = [
   'https://app.askalf.org',
   'https://askalf.org',
   'https://www.askalf.org',
+  'https://integration.tax',
+  'https://www.integration.tax',
   // Development origins
   ...(process.env['NODE_ENV'] !== 'production' ? [
     'http://localhost:3001',
@@ -174,7 +177,7 @@ fastify.addHook('onSend', async (request, reply) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: https:; " +
-    "connect-src 'self' wss://app.askalf.org ws://localhost:* http://localhost:*; " +
+    "connect-src 'self' wss://app.askalf.org wss://integration.tax ws://localhost:* http://localhost:*; " +
     "frame-ancestors 'none';"
   );
   // Other security headers
@@ -1556,7 +1559,7 @@ async function requireAdmin(request, reply) {
     reply.status(401);
     return null;
   }
-  if (user.role !== 'admin') {
+  if (user.role !== 'admin' && user.role !== 'super_admin') {
     reply.status(403);
     return null;
   }
@@ -1766,6 +1769,36 @@ fastify.get('/api/v1/admin/users/:id', async (request, reply) => {
       executions: parseInt(stats?.executions || '0', 10),
     },
   };
+});
+
+// Create user (admin)
+fastify.post('/api/v1/admin/users', async (request, reply) => {
+  const admin = await requireAdmin(request, reply);
+  if (!admin) return { error: 'Admin access required' };
+
+  const { email, password, display_name, role } = request.body || {};
+  if (!email || !password) {
+    reply.status(400);
+    return { error: 'Email and password are required' };
+  }
+
+  try {
+    const tenantId = `tenant_${crypto.randomUUID().replace(/-/g, '').slice(0, 26)}`;
+    const result = await createUser(tenantId, { email, password, display_name });
+
+    // Set role if specified (default is 'user')
+    if (role && role !== 'user') {
+      await query(`UPDATE users SET role = $1 WHERE id = $2`, [role, result.user.id]);
+    }
+
+    // Auto-verify email for admin-created users
+    await query(`UPDATE users SET email_verified = true, email_verification_token = NULL WHERE id = $1`, [result.user.id]);
+
+    return { user: { ...result.user, role: role || 'user', emailVerified: true } };
+  } catch (err) {
+    reply.status(400);
+    return { error: err.message || 'Failed to create user' };
+  }
 });
 
 // Suspend user (admin)

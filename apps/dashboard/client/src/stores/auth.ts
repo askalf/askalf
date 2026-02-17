@@ -10,6 +10,7 @@ const getApiUrl = () => {
   }
   const host = window.location.hostname;
   if (host.includes('askalf.org')) return '';
+  if (host.includes('integration.tax')) return '';
   if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3005';
   return ''; // Fallback to relative URLs
 };
