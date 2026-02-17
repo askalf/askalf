@@ -1,4 +1,4 @@
-// Ask ALF: Email Templates
+// Forge: Email Templates
 // HTML and text templates for transactional emails
 
 import type {
@@ -25,7 +25,7 @@ function wrapHtml(content: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ask ALF</title>
+  <title>Forge</title>
   <!--[if mso]>
   <style type="text/css">
     body, table, td {font-family: Arial, sans-serif !important;}
@@ -43,10 +43,9 @@ function wrapHtml(content: string): string {
             <td align="center" style="padding-bottom: 32px;">
               <table role="presentation" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td style="font-size: 48px; line-height: 1; padding-right: 12px; vertical-align: middle;">👽</td>
                   <td style="vertical-align: middle;">
-                    <span style="display: block; font-size: 11px; font-weight: 600; color: #6b7280; letter-spacing: 0.1em; text-transform: uppercase;">ASK</span>
-                    <span style="display: block; font-size: 32px; font-weight: 800; color: #10b981; letter-spacing: -0.02em; line-height: 1;">ALF</span>
+                    <span style="display: inline-block; width: 40px; height: 40px; background-color: #10b981; border-radius: 8px; text-align: center; line-height: 40px; font-size: 22px; font-weight: 800; color: #ffffff; margin-right: 12px; vertical-align: middle;">F</span>
+                    <span style="font-size: 32px; font-weight: 800; color: #10b981; letter-spacing: -0.02em; line-height: 1; vertical-align: middle;">Forge</span>
                   </td>
                 </tr>
               </table>
@@ -70,10 +69,10 @@ function wrapHtml(content: string): string {
           <tr>
             <td align="center" style="padding-top: 32px;">
               <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280;">
-                Not a chatbot. Not a wrapper. A living intelligence.
+                AI Agent Orchestration Platform
               </p>
               <p style="margin: 0; font-size: 13px;">
-                <a href="https://askalf.org" style="color: #10b981; text-decoration: none; font-weight: 600;">askalf.org</a>
+                <a href="https://integration.tax" style="color: #10b981; text-decoration: none; font-weight: 600;">integration.tax</a>
               </p>
             </td>
           </tr>
@@ -129,19 +128,18 @@ function noteBox(content: string, type: 'info' | 'warning' | 'error' = 'info'): 
 export function welcomeEmailHtml(vars: WelcomeEmailVars): string {
   return wrapHtml(`
     <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      Welcome to Ask ALF! 👽
-    </h1>
+      Welcome to Forge!    </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
       Hi ${vars.userName},
     </p>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
-      You're in. Your <strong style="color: #10b981;">${vars.planName}</strong> account is ready.
+      You're in. Your <strong style="color: #10b981;">${vars.planName}</strong> deployment is ready.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Ask ALF is an AI assistant with memory. It gives you access to models from OpenAI and Anthropic through a single interface — with Google, xAI, DeepSeek, Llama, and more coming soon. But here's what makes it different: ALF learns from every conversation and builds <strong>knowledge shards</strong> — reusable answers that are served instantly at zero cost. The more people use it, the smarter and cheaper it gets for everyone.
+      Forge is an AI agent orchestration platform. Create, deploy, and manage autonomous AI agents that work together — with built-in memory, monitoring, and self-healing capabilities.
     </p>
 
     <h2 style="margin: 32px 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">
@@ -151,64 +149,55 @@ export function welcomeEmailHtml(vars: WelcomeEmailVars): string {
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">OpenAI + Anthropic Models</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">GPT-5.2, o3, Claude Opus 4.5, Claude Sonnet 4.5 — with Google, Grok, DeepSeek, and more coming soon</span>
+          <strong style="color: #111827;">Agent Fleet Management</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Create and orchestrate multiple AI agents from a single command center</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">500+ Knowledge Shards</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Instant answers from ALF's shared memory — always free, always fast</span>
+          <strong style="color: #111827;">Universal Memory</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Agents learn and retain knowledge across executions — episodic, semantic, and procedural</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">50 Credits / Day</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Use any model — fast models cost 1 credit, standard 2, reasoning 10</span>
+          <strong style="color: #111827;">Multi-Provider AI</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Anthropic, OpenAI, Google, and more — each agent uses the right model for the job</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0;">
-          <strong style="color: #111827;">Smart Routing</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">ALF picks the right model for each question — or choose your own</span>
+          <strong style="color: #111827;">Production Monitoring</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Real-time health checks, event logs, and auto-healing for your agent fleet</span>
         </td>
       </tr>
     </table>
 
-    ${button('Start Chatting', vars.dashboardUrl)}
-
-    ${noteBox(`
-      <p style="margin: 0; font-size: 14px; color: #374151;">
-        <strong>Shard hits are always free.</strong> When ALF already knows the answer, you pay nothing. The more you use it, the more free answers you unlock.
-      </p>
-    `)}
+    ${button('Open Command Center', vars.dashboardUrl)}
   `);
 }
 
 export function welcomeEmailText(vars: WelcomeEmailVars): string {
   return `
-Welcome to Ask ALF! 👽
-
+Welcome to Forge!
 Hi ${vars.userName},
 
-You're in. Your ${vars.planName} account is ready.
+You're in. Your ${vars.planName} deployment is ready.
 
-Ask ALF is an AI assistant with memory. It gives you access to models from OpenAI and Anthropic through a single interface — with Google, xAI, DeepSeek, Llama, and more coming soon. ALF learns from every conversation and builds knowledge shards — reusable answers served instantly at zero cost. The more people use it, the smarter and cheaper it gets for everyone.
+Forge is an AI agent orchestration platform. Create, deploy, and manage autonomous AI agents that work together — with built-in memory, monitoring, and self-healing capabilities.
 
 WHAT YOU GET
 ------------
-- OpenAI + Anthropic Models — GPT-5.2, o3, Claude Opus 4.5, Claude Sonnet 4.5, and more coming soon
-- 500+ Knowledge Shards — Instant answers from ALF's shared memory, always free
-- 50 Credits / Day — Fast models cost 1 credit, standard 2, reasoning 10
-- Smart Routing — ALF picks the right model for each question
+- Agent Fleet Management — Create and orchestrate multiple AI agents from a single command center
+- Universal Memory — Agents learn and retain knowledge across executions
+- Multi-Provider AI — Anthropic, OpenAI, Google, and more
+- Production Monitoring — Real-time health checks, event logs, and auto-healing
 
-Shard hits are always free. When ALF already knows the answer, you pay nothing.
-
-Start Chatting: ${vars.dashboardUrl}
+Open Command Center: ${vars.dashboardUrl}
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -264,8 +253,8 @@ This link expires in ${vars.expiresInMinutes} minutes.
 If you didn't request this, you can safely ignore this email. Your password won't change.
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -284,7 +273,7 @@ export function emailVerificationHtml(vars: EmailVerificationVars): string {
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Please verify your email address to complete your Ask ALF account setup:
+      Please verify your email address to complete your Forge account setup:
     </p>
 
     ${button('Verify Email', vars.verifyUrl)}
@@ -296,7 +285,7 @@ export function emailVerificationHtml(vars: EmailVerificationVars): string {
     `)}
 
     <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280;">
-      If you didn't create an Ask ALF account, you can safely ignore this email.
+      If you didn't create an Forge account, you can safely ignore this email.
     </p>
 
     <p style="margin: 24px 0 0 0; font-size: 12px; color: #9ca3af;">
@@ -312,17 +301,17 @@ Verify Your Email
 
 Hi ${vars.userName},
 
-Please verify your email address to complete your Ask ALF account setup:
+Please verify your email address to complete your Forge account setup:
 
 ${vars.verifyUrl}
 
 This link expires in ${vars.expiresInHours} hours.
 
-If you didn't create an Ask ALF account, you can safely ignore this email.
+If you didn't create an Forge account, you can safely ignore this email.
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -341,7 +330,7 @@ export function subscriptionConfirmationHtml(vars: SubscriptionEmailVars): strin
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Thank you for subscribing to Ask ALF!
+      Thank you for subscribing to Forge!
     </p>
 
     ${noteBox(`
@@ -380,7 +369,7 @@ Subscription Confirmed! 🎉
 
 Hi ${vars.userName},
 
-Thank you for subscribing to Ask ALF!
+Thank you for subscribing to Forge!
 
 Plan: ${vars.planName}
 Amount: ${vars.amount}
@@ -391,8 +380,8 @@ You now have access to all features in your plan.
 Go to Dashboard: ${vars.dashboardUrl}
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -427,7 +416,7 @@ export function subscriptionCanceledHtml(vars: SubscriptionEmailVars): string {
     ${button('Manage Subscription', `${vars.dashboardUrl}/billing`)}
 
     <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280;">
-      We'd love to hear your feedback — it helps us improve Ask ALF for everyone.
+      We'd love to hear your feedback — it helps us improve Forge for everyone.
     </p>
   `);
 }
@@ -445,11 +434,11 @@ ${vars.nextBillingDate ? `You'll continue to have access until ${vars.nextBillin
 Changed your mind? You can reactivate anytime:
 ${vars.dashboardUrl}/billing
 
-We'd love to hear your feedback — it helps us improve Ask ALF for everyone.
+We'd love to hear your feedback — it helps us improve Forge for everyone.
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -502,8 +491,8 @@ Update Payment Method: ${vars.updatePaymentUrl}
 Questions about billing? Reply to this email and we'll help.
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -556,8 +545,8 @@ Once you hit the limit, ${vars.limitType.toLowerCase()} will pause until the nex
 Upgrade Plan: ${vars.upgradeUrl}
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -568,15 +557,14 @@ https://askalf.org
 export function teamInviteHtml(vars: TeamInviteEmailVars): string {
   return wrapHtml(`
     <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      You're Invited! 👽
-    </h1>
+      You're Invited!    </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
-      <strong>${vars.inviterName}</strong> invited you to join <strong>${vars.teamName}</strong> on Ask ALF.
+      <strong>${vars.inviterName}</strong> invited you to join <strong>${vars.teamName}</strong> on Forge.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Ask ALF is a smarter AI assistant that helps teams save tokens and time.
+      Forge is an AI agent orchestration platform for teams.
     </p>
 
     ${button('Accept Invitation', vars.inviteUrl)}
@@ -595,11 +583,10 @@ export function teamInviteHtml(vars: TeamInviteEmailVars): string {
 
 export function teamInviteText(vars: TeamInviteEmailVars): string {
   return `
-You're Invited! 👽
+You're Invited!
+${vars.inviterName} invited you to join ${vars.teamName} on Forge.
 
-${vars.inviterName} invited you to join ${vars.teamName} on Ask ALF.
-
-Ask ALF is a smarter AI assistant that helps teams save tokens and time.
+Forge is an AI agent orchestration platform for teams.
 
 Accept Invitation: ${vars.inviteUrl}
 
@@ -608,8 +595,8 @@ This invitation expires in ${vars.expiresInDays} days.
 Don't want to join? Just ignore this email.
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -620,11 +607,10 @@ https://askalf.org
 export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
   return wrapHtml(`
     <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      You're on the List! 👽
-    </h1>
+      You're on the List!    </h1>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Thanks for joining the Ask ALF waitlist. We're building the most universal AI platform on the planet — one account that works everywhere.
+      Thanks for joining the Forge waitlist. We're building the next generation of AI agent orchestration.
     </p>
 
     <h2 style="margin: 32px 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">
@@ -634,26 +620,26 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Every AI, One Interface</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">OpenAI, Anthropic, Google, Grok — all accessible through Ask ALF</span>
+          <strong style="color: #111827;">Agent Orchestration</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Create, deploy, and manage autonomous AI agents that work together</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Works Everywhere</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Desktop app, browser extensions, mobile apps, tablets — your AI follows you</span>
+          <strong style="color: #111827;">Universal Memory</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Agents learn and retain knowledge across executions</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">For Developers Too</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">SDK, MCP integration, CLI tools, APIs — build with Ask ALF</span>
+          <strong style="color: #111827;">Multi-Provider AI</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Anthropic, OpenAI, Google — each agent uses the right model</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0;">
-          <strong style="color: #111827;">Launching February 1st</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">We'll send you updates as we build out the full ecosystem</span>
+          <strong style="color: #111827;">Production Ready</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Health monitoring, auto-healing, and event logging built in</span>
         </td>
       </tr>
     </table>
@@ -664,30 +650,29 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
       </p>
     `)}
 
-    ${button('Explore Ask ALF', 'https://askalf.org')}
+    ${button('Explore Forge', 'https://integration.tax')}
   `);
 }
 
 export function waitlistEmailText(vars: WaitlistEmailVars): string {
   return `
-You're on the List! 👽
-
-Thanks for joining the Ask ALF waitlist. We're building the most universal AI platform on the planet — one account that works everywhere.
+You're on the List!
+Thanks for joining the Forge waitlist. We're building the next generation of AI agent orchestration.
 
 WHAT'S COMING
 -------------
-• Every AI, One Interface - OpenAI, Anthropic, Google, Grok — all accessible through Ask ALF
-• Works Everywhere - Desktop app, browser extensions, mobile apps, tablets — your AI follows you
-• For Developers Too - SDK, MCP integration, CLI tools, APIs — build with Ask ALF
-• Launching February 1st - We'll send you updates as we build out the full ecosystem
+- Agent Orchestration - Create, deploy, and manage autonomous AI agents
+- Universal Memory - Agents learn and retain knowledge across executions
+- Multi-Provider AI - Anthropic, OpenAI, Google — each agent uses the right model
+- Production Ready - Health monitoring, auto-healing, and event logging built in
 
 We'll keep you updated at ${vars.email}
 
-Explore Ask ALF: https://askalf.org
+Explore Forge: https://integration.tax
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -698,15 +683,14 @@ https://askalf.org
 export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
   return wrapHtml(`
     <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      Ask ALF is Live! 👽
-    </h1>
+      Forge is Live!    </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
-      You signed up for the Ask ALF waitlist, and we wanted to be the first to tell you:
+      You signed up for the Forge waitlist, and we wanted to be the first to tell you:
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #10b981;">
-      The new Ask ALF is ready for you to explore.
+      The new Forge is ready for you to explore.
     </p>
 
     <h2 style="margin: 32px 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">
@@ -716,35 +700,35 @@ export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Chat-First Experience</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Jump straight into conversation - no barriers, no setup</span>
+          <strong style="color: #111827;">Agent Fleet Management</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Create and orchestrate AI agents from a single command center</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Memory Shards</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">ALF learns and remembers - instant answers at zero cost</span>
+          <strong style="color: #111827;">Universal Memory</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Agents learn and retain knowledge across executions</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Every Major AI Model</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">OpenAI, Anthropic, Google, xAI - all in one place</span>
+          <strong style="color: #111827;">Multi-Provider AI</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Anthropic, OpenAI, Google, xAI - all in one place</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0;">
-          <strong style="color: #111827;">Bring Your Own Keys</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Use your API keys with zero markup - or use our credits</span>
+          <strong style="color: #111827;">Production Monitoring</strong>
+          <br><span style="color: #6b7280; font-size: 14px;">Health checks, event logs, and auto-healing built in</span>
         </td>
       </tr>
     </table>
 
-    ${button('Try Ask ALF Now', 'https://askalf.org')}
+    ${button('Try Forge Now', 'https://integration.tax')}
 
     ${noteBox(`
       <p style="margin: 0; font-size: 14px; color: #374151;">
-        <strong>Free tier available</strong> - 50 credits daily, all models, no credit card required.
+        <strong>Free tier available</strong> — get started with no credit card required.
       </p>
     `)}
 
@@ -756,28 +740,27 @@ export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
 
 export function waitlistUpdateEmailText(vars: WaitlistUpdateEmailVars): string {
   return `
-Ask ALF is Live! 👽
+Forge is Live!
+You signed up for the Forge waitlist, and we wanted to be the first to tell you:
 
-You signed up for the Ask ALF waitlist, and we wanted to be the first to tell you:
-
-The new Ask ALF is ready for you to explore.
+The new Forge is ready for you to explore.
 
 WHAT'S NEW
 ----------
-- Chat-First Experience - Jump straight into conversation - no barriers, no setup
-- Memory Shards - ALF learns and remembers - instant answers at zero cost
-- Every Major AI Model - OpenAI, Anthropic, Google, xAI - all in one place
-- Bring Your Own Keys - Use your API keys with zero markup - or use our credits
+- Agent Fleet Management - Create and orchestrate AI agents from a single command center
+- Universal Memory - Agents learn and retain knowledge across executions
+- Multi-Provider AI - Anthropic, OpenAI, Google, xAI - all in one place
+- Production Monitoring - Health checks, event logs, and auto-healing built in
 
-Try Ask ALF Now: https://askalf.org
+Try Forge Now: https://integration.tax
 
-Free tier available - 50 credits daily, all models, no credit card required.
+Free tier available — get started with no credit card required.
 
 Thanks for being an early supporter. We built this for people like you.
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -786,14 +769,13 @@ https://askalf.org
 // ============================================
 
 export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
-  const signupUrl = vars.signupUrl || 'https://askalf.org/signup';
+  const signupUrl = vars.signupUrl || 'https://integration.tax/signup';
   return wrapHtml(`
     <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      You're Invited to the Beta! 👽
-    </h1>
+      You're Invited to the Beta!    </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-      Great news — you've been selected from the waitlist to join the Ask ALF beta.
+      Great news — you've been selected from the waitlist to join the Forge beta.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #374151;">
@@ -811,10 +793,10 @@ export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
     </h2>
 
     <ul style="margin: 0 0 24px 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: #374151;">
-      <li><strong>Every Major AI Model</strong> — OpenAI, Anthropic, and more in one place</li>
-      <li><strong>Knowledge Shards</strong> — ALF learns and remembers, giving you instant answers</li>
-      <li><strong>Smart Router</strong> — Automatically picks the best model for each question</li>
-      <li><strong>Bring Your Own Keys</strong> — Use your API keys with zero markup</li>
+      <li><strong>Agent Fleet Management</strong> — Create and orchestrate AI agents from one command center</li>
+      <li><strong>Universal Memory</strong> — Agents learn and retain knowledge across executions</li>
+      <li><strong>Multi-Provider AI</strong> — Anthropic, OpenAI, Google — the right model for each job</li>
+      <li><strong>Production Monitoring</strong> — Health checks, event logs, and auto-healing</li>
     </ul>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #374151;">
@@ -822,17 +804,16 @@ export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
     </p>
 
     <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #6b7280;">
-      This invite is for <strong>${vars.email}</strong>. If you didn't sign up for Ask ALF, you can ignore this email.
+      This invite is for <strong>${vars.email}</strong>. If you didn't sign up for Forge, you can ignore this email.
     </p>
   `);
 }
 
 export function betaInviteEmailText(vars: BetaInviteEmailVars): string {
-  const signupUrl = vars.signupUrl || 'https://askalf.org/signup';
+  const signupUrl = vars.signupUrl || 'https://integration.tax/signup';
   return `
-You're Invited to the Beta! 👽
-
-Great news — you've been selected from the waitlist to join the Ask ALF beta.
+You're Invited to the Beta!
+Great news — you've been selected from the waitlist to join the Forge beta.
 
 Your account is ready to create. Visit the link below to get started:
 
@@ -840,18 +821,18 @@ ${signupUrl}
 
 WHAT YOU GET
 ------------
-- Every Major AI Model — OpenAI, Anthropic, and more in one place
-- Knowledge Shards — ALF learns and remembers, giving you instant answers
-- Smart Router — Automatically picks the best model for each question
-- Bring Your Own Keys — Use your API keys with zero markup
+- Agent Fleet Management — Create and orchestrate AI agents from one command center
+- Universal Memory — Agents learn and retain knowledge across executions
+- Multi-Provider AI — Anthropic, OpenAI, Google — the right model for each job
+- Production Monitoring — Health checks, event logs, and auto-healing
 
 As a beta tester, your feedback directly shapes what we build. We'd love to hear from you.
 
-This invite is for ${vars.email}. If you didn't sign up for Ask ALF, you can ignore this email.
+This invite is for ${vars.email}. If you didn't sign up for Forge, you can ignore this email.
 
 ---
-Ask ALF — Not a chatbot. Not a wrapper. A living intelligence.
-https://askalf.org
+Forge — AI Agent Orchestration Platform
+https://integration.tax
   `.trim();
 }
 
@@ -866,11 +847,10 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
     case 'waitlist_signup':
       content = `
         <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-          New Waitlist Signup 👽
-        </h1>
+          New Waitlist Signup        </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-          Someone new joined the Ask ALF waitlist.
+          Someone new joined the Forge waitlist.
         </p>
 
         ${noteBox(`
@@ -895,7 +875,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
           </table>
         `)}
 
-        ${button('View Dashboard', 'https://app.askalf.org')}
+        ${button('View Dashboard', 'https://integration.tax')}
       `;
       break;
 
@@ -906,7 +886,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-          A new user registered for Ask ALF.
+          A new user registered for Forge.
         </p>
 
         ${noteBox(`
@@ -933,7 +913,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-          An error occurred in the Ask ALF system.
+          An error occurred in the Forge system.
         </p>
 
         ${noteBox(`
@@ -951,44 +931,43 @@ export function adminNotificationText(vars: AdminNotificationVars): string {
   switch (vars.type) {
     case 'waitlist_signup':
       return `
-New Waitlist Signup 👽
-
+New Waitlist Signup
 A new developer joined the waitlist.
 
 Email: ${vars.email}
 Time: ${vars.timestamp}
 ${vars.totalWaitlistCount ? `Total signups: ${vars.totalWaitlistCount}` : ''}
 
-View Dashboard: https://app.askalf.org
+View Dashboard: https://integration.tax
 
 ---
-Ask ALF Admin Notification
+Forge Admin Notification
       `.trim();
 
     case 'new_user':
       return `
 New User Registration 🎉
 
-A new user registered for Ask ALF.
+A new user registered for Forge.
 
 Email: ${vars.email}
 Time: ${vars.timestamp}
 
 ---
-Ask ALF Admin Notification
+Forge Admin Notification
       `.trim();
 
     case 'error':
       return `
 System Alert ⚠️
 
-An error occurred in the Ask ALF system.
+An error occurred in the Forge system.
 
 ${vars.message}
 Time: ${vars.timestamp}
 
 ---
-Ask ALF Admin Notification
+Forge Admin Notification
       `.trim();
 
     default:
@@ -1040,90 +1019,90 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
   switch (template) {
     case 'welcome':
       return {
-        subject: 'Welcome to Ask ALF! 👽',
+        subject: 'Welcome to Forge!',
         html: welcomeEmailHtml(vars as WelcomeEmailVars),
         text: welcomeEmailText(vars as WelcomeEmailVars),
       };
 
     case 'password-reset':
       return {
-        subject: 'Reset Your Password - Ask ALF',
+        subject: 'Reset Your Password - Forge',
         html: passwordResetEmailHtml(vars as PasswordResetEmailVars),
         text: passwordResetEmailText(vars as PasswordResetEmailVars),
       };
 
     case 'email-verification':
       return {
-        subject: 'Verify Your Email - Ask ALF',
+        subject: 'Verify Your Email - Forge',
         html: emailVerificationHtml(vars as EmailVerificationVars),
         text: emailVerificationText(vars as EmailVerificationVars),
       };
 
     case 'subscription-confirmation':
       return {
-        subject: 'Subscription Confirmed - Ask ALF 🎉',
+        subject: 'Subscription Confirmed - Forge 🎉',
         html: subscriptionConfirmationHtml(vars as SubscriptionEmailVars),
         text: subscriptionConfirmationText(vars as SubscriptionEmailVars),
       };
 
     case 'subscription-canceled':
       return {
-        subject: 'Subscription Canceled - Ask ALF',
+        subject: 'Subscription Canceled - Forge',
         html: subscriptionCanceledHtml(vars as SubscriptionEmailVars),
         text: subscriptionCanceledText(vars as SubscriptionEmailVars),
       };
 
     case 'payment-failed':
       return {
-        subject: 'Action Required: Payment Failed - Ask ALF',
+        subject: 'Action Required: Payment Failed - Forge',
         html: paymentFailedHtml(vars as PaymentFailedEmailVars),
         text: paymentFailedText(vars as PaymentFailedEmailVars),
       };
 
     case 'usage-limit-warning':
       return {
-        subject: 'Usage Limit Warning - Ask ALF',
+        subject: 'Usage Limit Warning - Forge',
         html: usageLimitWarningHtml(vars as UsageLimitEmailVars),
         text: usageLimitWarningText(vars as UsageLimitEmailVars),
       };
 
     case 'team-invite':
       return {
-        subject: `You're invited to join ${(vars as TeamInviteEmailVars).teamName} on Ask ALF 👽`,
+        subject: `You're invited to join ${(vars as TeamInviteEmailVars).teamName} on Forge`,
         html: teamInviteHtml(vars as TeamInviteEmailVars),
         text: teamInviteText(vars as TeamInviteEmailVars),
       };
 
     case 'waitlist':
       return {
-        subject: `You're on the Ask ALF Developer Waitlist! 👽`,
+        subject: `You're on the Forge Waitlist!`,
         html: waitlistEmailHtml(vars as WaitlistEmailVars),
         text: waitlistEmailText(vars as WaitlistEmailVars),
       };
 
     case 'waitlist-update':
       return {
-        subject: `Ask ALF is Live! 👽`,
+        subject: `Forge is Live!`,
         html: waitlistUpdateEmailHtml(vars as WaitlistUpdateEmailVars),
         text: waitlistUpdateEmailText(vars as WaitlistUpdateEmailVars),
       };
 
     case 'beta-invite':
       return {
-        subject: `You're Invited to the Ask ALF Beta! 👽`,
+        subject: `You're Invited to the Forge Beta!`,
         html: betaInviteEmailHtml(vars as BetaInviteEmailVars),
         text: betaInviteEmailText(vars as BetaInviteEmailVars),
       };
 
     case 'admin-notification': {
       const adminVars = vars as AdminNotificationVars;
-      let subject = 'Ask ALF Admin Alert';
+      let subject = 'Forge Admin Alert';
       if (adminVars.type === 'waitlist_signup') {
-        subject = `New Waitlist Signup: ${adminVars.email} 👽`;
+        subject = `New Waitlist Signup: ${adminVars.email}`;
       } else if (adminVars.type === 'new_user') {
         subject = `New User Registration: ${adminVars.email} 🎉`;
       } else if (adminVars.type === 'error') {
-        subject = '⚠️ Ask ALF System Alert';
+        subject = '⚠️ Forge System Alert';
       }
       return {
         subject,
