@@ -19,6 +19,8 @@ import { extractMemories } from '../memory/extractor.js';
 import { buildMemoryContext } from '../memory/context-builder.js';
 import { updateCapabilityFromExecution } from '../orchestration/capability-registry.js';
 import { getEventBus } from '../orchestration/event-bus.js';
+import { extractKnowledge } from '../orchestration/knowledge-graph.js';
+import { recordCostSample } from '../orchestration/cost-router.js';
 
 // Built-in tools
 import { apiCall } from '../tools/built-in/api-call.js';
@@ -1061,6 +1063,24 @@ export async function runDirectCliExecution(
     }).catch((err) => {
       console.warn('[Memory] Post-execution extraction failed:', err instanceof Error ? err.message : err);
     });
+
+    // Fire-and-forget knowledge graph extraction (Phase 11)
+    if (!parsed.isError && parsed.output.length > 200) {
+      void extractKnowledge(agentId, parsed.output, input).catch(() => {});
+    }
+
+    // Record cost sample for optimization (Phase 10)
+    if (toolExecs.length > 0 && parsed.costUsd > 0) {
+      const quality = parsed.isError ? 0.2 : 0.8;
+      const agentMeta = await query<{ model_id: string }>(
+        `SELECT COALESCE(metadata->>'model_id', 'claude-sonnet-4-5-20250929') AS model_id FROM forge_agents WHERE id = $1`,
+        [agentId],
+      ).catch(() => [] as { model_id: string }[]);
+      const modelId = agentMeta[0]?.model_id ?? 'claude-sonnet-4-5-20250929';
+      for (const tool of toolExecs) {
+        void recordCostSample(tool.tool_name, modelId, parsed.costUsd / toolExecs.length, (parsed.inputTokens + parsed.outputTokens) / toolExecs.length, quality).catch(() => {});
+      }
+    }
   } catch (err) {
     const durationMs = Date.now() - startTime;
     const errorMsg = err instanceof Error ? err.message : String(err);
