@@ -21,6 +21,33 @@ function paginationResponse(total, page, limit) {
 // Scheduler running state (the daemon runs inside this process)
 let schedulerRunning = true;
 
+async function callForgeAdmin(path, options = {}) {
+  const url = `${FORGE_URL}/api/v1/admin${path}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(FORGE_API_KEY ? { 'Authorization': `Bearer ${FORGE_API_KEY}` } : {}),
+    ...options.headers,
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: options.method || 'GET',
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { error: true, status: res.status, message: text.substring(0, 200) };
+    }
+
+    return await res.json();
+  } catch (err) {
+    return { error: true, status: 503, message: err.message || 'Forge admin unreachable' };
+  }
+}
+
 async function callForge(path, options = {}) {
   const url = `${FORGE_URL}/api/v1/forge${path}`;
   const headers = {
@@ -1606,6 +1633,182 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     const res = await callForge(`/providers/${encodeURIComponent(id)}/models`);
     if (res.error) return reply.code(res.status || 503).send({ error: 'Provider models unavailable', message: res.message });
     return res;
+  });
+
+  // ============================================
+  // CONTENT FEED (proxy to Forge platform-admin)
+  // ============================================
+
+  fastify.get('/api/v1/admin/reports/feed', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const qs = new URL(request.url, 'http://localhost').search;
+    const res = await callForgeAdmin(`/reports/feed${qs}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Feed unavailable' });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/reports/feed/agents', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/reports/feed/agents');
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Feed agents unavailable' });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/reports/feed/categories', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/reports/feed/categories');
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Feed categories unavailable' });
+    return res;
+  });
+
+  // ============================================
+  // COORDINATION (proxy to Forge fleet coordinator)
+  // ============================================
+
+  fastify.get('/api/v1/admin/coordination/sessions', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/coordination/sessions');
+    if (res.error) return reply.code(res.status || 503).send({ sessions: [] });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/coordination/sessions/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/coordination/sessions/${encodeURIComponent(id)}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Session unavailable' });
+    return res;
+  });
+
+  fastify.post('/api/v1/admin/coordination/sessions', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/coordination/sessions', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Session creation failed' });
+    return res;
+  });
+
+  fastify.post('/api/v1/admin/coordination/sessions/:id/cancel', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/coordination/sessions/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Session cancel failed' });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/coordination/plans', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/coordination/plans');
+    if (res.error) return reply.code(res.status || 503).send({ plans: [] });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/coordination/stats', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/coordination/stats');
+    if (res.error) return reply.code(res.status || 503).send({ totalSessions: 0, activeSessions: 0, completedSessions: 0, failedSessions: 0 });
+    return res;
+  });
+
+  // ============================================
+  // MEMORY STORE
+  // ============================================
+
+  fastify.post('/api/v1/admin/memory/store', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/memory/store', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Memory store failed' });
+    return res;
+  });
+
+  // ============================================
+  // AGENT MODEL UPDATE
+  // ============================================
+
+  fastify.patch('/api/v1/admin/agents/:id/model', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/agents/${encodeURIComponent(id)}/model`, { method: 'PATCH', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Model update failed' });
+    return res;
+  });
+
+  // ============================================
+  // TICKET NOTES
+  // ============================================
+
+  fastify.get('/api/v1/admin/tickets/:id/notes', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    try {
+      const notes = await query(
+        `SELECT id, ticket_id, content, author, created_at
+         FROM agent_ticket_notes
+         WHERE ticket_id = $1
+         ORDER BY created_at ASC`,
+        [id]
+      );
+      return { notes };
+    } catch {
+      return { notes: [] };
+    }
+  });
+
+  fastify.post('/api/v1/admin/tickets/:id/notes', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const { content } = request.body || {};
+    if (!content) return reply.code(400).send({ error: 'Content required' });
+    const noteId = ulid();
+    try {
+      await query(
+        `INSERT INTO agent_ticket_notes (id, ticket_id, content, author, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [noteId, id, content, admin.email || 'admin']
+      );
+      const note = await queryOne(
+        `SELECT id, ticket_id, content, author, created_at FROM agent_ticket_notes WHERE id = $1`,
+        [noteId]
+      );
+      return { note };
+    } catch (err) {
+      return reply.code(500).send({ error: 'Failed to create note' });
+    }
+  });
+
+  // ============================================
+  // FINDING DETAIL
+  // ============================================
+
+  fastify.get('/api/v1/admin/reports/findings/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    try {
+      const finding = await queryOne(
+        `SELECT af.*, fa.name as agent_name
+         FROM agent_findings af
+         LEFT JOIN forge_agents fa ON af.agent_id = fa.id
+         WHERE af.id = $1`,
+        [id]
+      );
+      if (!finding) return reply.code(404).send({ error: 'Finding not found' });
+      return { finding };
+    } catch {
+      return reply.code(500).send({ error: 'Failed to fetch finding' });
+    }
   });
 
   // ============================================
