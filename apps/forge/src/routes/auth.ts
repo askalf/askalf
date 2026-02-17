@@ -38,6 +38,7 @@ const SESSION_COOKIE_OPTIONS = {
 function getCookieDomain(host: string): string | undefined {
   if (!isProduction) return undefined;
   if (host.includes('askalf.org')) return '.askalf.org';
+  if (host.includes('integration.tax')) return '.integration.tax';
   return undefined;
 }
 

@@ -1,6 +1,7 @@
-import { useCallback, useState, lazy, Suspense } from 'react';
+import { useCallback, useState, useMemo, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useHubStore, type HubTab } from '../stores/hub';
+import { useAuthStore } from '../stores/auth';
 import { usePolling } from '../hooks/usePolling';
 import { AGENT_TYPE_INFO } from './hub/shared/AgentIcon';
 import AdminAssistantPanel from '../components/admin/AdminAssistantPanel';
@@ -41,7 +42,18 @@ const Evolution = lazy(() => import('./forge/Evolution'));
 const EventLog = lazy(() => import('./forge/EventLog'));
 const Leaderboard = lazy(() => import('./forge/Leaderboard'));
 
-const TAB_SECTIONS = [
+const USER_TAB_SECTIONS = [
+  {
+    label: 'Forge',
+    tabs: [
+      { key: 'overview' as HubTab, label: 'Overview' },
+      { key: 'executions' as HubTab, label: 'Executions' },
+      { key: 'leaderboard' as HubTab, label: 'Leaderboard' },
+    ],
+  },
+];
+
+const ADMIN_TAB_SECTIONS = [
   {
     label: 'Fleet',
     tabs: [
@@ -131,6 +143,9 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
 export default function CommandCenter() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const tabSections = useMemo(() => isAdmin ? ADMIN_TAB_SECTIONS : USER_TAB_SECTIONS, [isAdmin]);
 
   const activeTab = useHubStore((s) => s.activeTab);
   const setActiveTab = useHubStore((s) => s.setActiveTab);
@@ -216,27 +231,31 @@ export default function CommandCenter() {
           </div>
         </div>
         <div className="fc-header-right">
-          <div className="fc-ribbon">
-            <span className="fc-ribbon-item">
-              <span className={`fc-ribbon-dot ${ribbonData.running > 0 ? 'fc-ribbon-dot--ok' : ''}`} />
-              {ribbonData.running} running
-            </span>
-            <span className="fc-ribbon-item">
-              <span className={`fc-ribbon-dot ${ribbonData.pendingInterventions > 0 ? 'fc-ribbon-dot--warn' : ''}`} />
-              {ribbonData.pendingInterventions} pending
-            </span>
-            <span className="fc-ribbon-item">
-              <span className="fc-ribbon-dot fc-ribbon-dot--info" />
-              {ribbonData.openTickets} tickets
-            </span>
-          </div>
-          <button
-            className={`fc-scheduler-toggle ${schedulerStatus?.running ? 'running' : 'stopped'}`}
-            onClick={() => toggleScheduler(schedulerStatus?.running ? 'stop' : 'start')}
-          >
-            <span className="fc-scheduler-dot" />
-            Scheduler
-          </button>
+          {isAdmin && (
+            <>
+              <div className="fc-ribbon">
+                <span className="fc-ribbon-item">
+                  <span className={`fc-ribbon-dot ${ribbonData.running > 0 ? 'fc-ribbon-dot--ok' : ''}`} />
+                  {ribbonData.running} running
+                </span>
+                <span className="fc-ribbon-item">
+                  <span className={`fc-ribbon-dot ${ribbonData.pendingInterventions > 0 ? 'fc-ribbon-dot--warn' : ''}`} />
+                  {ribbonData.pendingInterventions} pending
+                </span>
+                <span className="fc-ribbon-item">
+                  <span className="fc-ribbon-dot fc-ribbon-dot--info" />
+                  {ribbonData.openTickets} tickets
+                </span>
+              </div>
+              <button
+                className={`fc-scheduler-toggle ${schedulerStatus?.running ? 'running' : 'stopped'}`}
+                onClick={() => toggleScheduler(schedulerStatus?.running ? 'stop' : 'start')}
+              >
+                <span className="fc-scheduler-dot" />
+                Scheduler
+              </button>
+            </>
+          )}
           <button className={`fc-assistant-btn ${assistantOpen ? 'active' : ''}`} onClick={() => setAssistantOpen(!assistantOpen)}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
               <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
@@ -249,7 +268,7 @@ export default function CommandCenter() {
 
       {/* Tab Bar */}
       <nav className="fc-tabs">
-        {TAB_SECTIONS.map((section) => (
+        {tabSections.map((section) => (
           <div key={section.label} className="fc-tab-group">
             <span className="fc-tab-group-label">{section.label}</span>
             {section.tabs.map((t) => (
