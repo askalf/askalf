@@ -34,15 +34,13 @@ const getNavSections = (role: string) => {
   return sections;
 };
 
-const ADMIN_NAV_ITEMS = [
-  {
-    section: 'Admin',
-    items: [
-      { path: '/settings', label: 'Settings', icon: 'S' },
-      { path: '/users', label: 'Users', icon: 'U' },
-    ],
-  },
-];
+const getAdminNavItems = (role: string) => [{
+  section: 'Admin',
+  items: [
+    { path: '/settings', label: 'Settings', icon: 'S' },
+    ...(role === 'super_admin' ? [{ path: '/users', label: 'Users', icon: 'U' }] : []),
+  ],
+}];
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -50,7 +48,7 @@ export default function AdminLayout() {
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const navSections = getNavSections(user?.role || 'user');
 
-  const allSections = isAdmin ? [...navSections, ...ADMIN_NAV_ITEMS] : navSections;
+  const allSections = isAdmin ? [...navSections, ...getAdminNavItems(user?.role || 'user')] : navSections;
 
   return (
     <div className="admin-layout">

@@ -23,7 +23,8 @@
     "openai": "^4.77.0",
     "pg": "^8.11.3",
     "ulid": "^2.3.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "@substrate/email": "workspace:*"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

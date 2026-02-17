@@ -179,6 +179,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.25.2(hono@4.11.3)(zod@3.25.76)
+      '@substrate/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
