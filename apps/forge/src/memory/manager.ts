@@ -221,6 +221,35 @@ export class MemoryManager {
   }
 
   /**
+   * Search across all vector-backed memory tiers fleet-wide (no agent_id filter).
+   * Useful for cross-agent knowledge sharing.
+   */
+  async recallFleet(
+    queryText: string,
+    options?: { k?: number; minSimilarity?: number },
+  ): Promise<Omit<RecallResult, 'working'>> {
+    const embedding = await this.embed(queryText);
+    const k = options?.k ?? 5;
+
+    const [semanticResult, episodicResult, proceduralResult] =
+      await Promise.all([
+        this.semantic.searchFleet(
+          embedding,
+          k,
+          options?.minSimilarity ?? this.config.semantic.minSimilarity ?? 0.0,
+        ),
+        this.episodic.searchFleet(embedding, k),
+        this.procedural.searchFleet(embedding, k),
+      ]);
+
+    return {
+      semantic: semanticResult,
+      episodic: episodicResult,
+      procedural: proceduralResult,
+    };
+  }
+
+  /**
    * Store a memory into the appropriate tier.
    * Automatically generates embeddings for vector-backed tiers.
    * Returns the ID of the stored memory.

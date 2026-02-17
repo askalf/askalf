@@ -128,6 +128,29 @@ export class ProceduralMemory {
   }
 
   /**
+   * Search procedural memories across ALL agents (fleet-wide).
+   * Same as search() but without agent_id filter.
+   */
+  async searchFleet(
+    embedding: number[],
+    k: number,
+  ): Promise<ProceduralSearchResult[]> {
+    const vecLiteral = ProceduralMemory.formatEmbedding(embedding);
+
+    return this.query<ProceduralSearchResult>(
+      `SELECT
+         id, agent_id, owner_id, trigger_pattern, tool_sequence,
+         success_count, failure_count, confidence, metadata, created_at,
+         1 - (embedding <=> $1::vector) AS similarity
+       FROM forge_procedural_memories
+       WHERE embedding IS NOT NULL
+       ORDER BY similarity DESC
+       LIMIT $2`,
+      [vecLiteral, k],
+    );
+  }
+
+  /**
    * Record the outcome of a procedure execution.
    * Increments success_count or failure_count and recalculates confidence
    * using a simple Bayesian: confidence = success / (success + failure).

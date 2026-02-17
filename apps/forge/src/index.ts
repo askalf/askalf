@@ -24,6 +24,8 @@ import { authRoutes } from './routes/auth.js';
 import { platformAdminRoutes } from './routes/platform-admin.js';
 import { cliRoutes } from './routes/cli.js';
 import { initializeWorker } from './runtime/worker.js';
+import { initMemoryManager } from './memory/singleton.js';
+import { startMetabolicCycles } from './memory/metabolic.js';
 
 const app = Fastify({
   logger: true,
@@ -143,6 +145,11 @@ async function start(): Promise<void> {
     // Initialize execution worker (provider + tools)
     await initializeWorker();
     console.log('[Forge] Execution worker initialized');
+
+    // Initialize universal memory system
+    await initMemoryManager(config.redisUrl);
+    startMetabolicCycles();
+    console.log('[Forge] Universal memory + metabolic cycles activated');
 
     await app.listen({ port: config.port, host: '0.0.0.0' });
     console.log(`[Forge] Agent Forge API server started on port ${config.port}`);

@@ -143,6 +143,42 @@ export class SemanticMemory {
   }
 
   /**
+   * Search semantic memories across ALL agents (fleet-wide).
+   * Same as search() but without agent_id filter.
+   */
+  async searchFleet(
+    embedding: number[],
+    k: number,
+    minSimilarity: number = 0.0,
+  ): Promise<SemanticSearchResult[]> {
+    const vecLiteral = SemanticMemory.formatEmbedding(embedding);
+
+    const rows = await this.query<SemanticSearchResult>(
+      `SELECT
+         id, agent_id, owner_id, content, source, importance,
+         access_count, metadata, created_at,
+         1 - (embedding <=> $1::vector) AS similarity
+       FROM forge_semantic_memories
+       WHERE 1 - (embedding <=> $1::vector) >= $2
+       ORDER BY similarity DESC
+       LIMIT $3`,
+      [vecLiteral, minSimilarity, k],
+    );
+
+    if (rows.length > 0) {
+      const ids = rows.map((r) => r.id);
+      await this.query(
+        `UPDATE forge_semantic_memories
+         SET access_count = access_count + 1, last_accessed = NOW()
+         WHERE id = ANY($1)`,
+        [ids],
+      );
+    }
+
+    return rows;
+  }
+
+  /**
    * Retrieve a single memory by ID.
    */
   async getById(id: string): Promise<SemanticMemoryRow | null> {
