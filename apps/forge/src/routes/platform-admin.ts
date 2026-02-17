@@ -15,6 +15,15 @@ import { detectCapabilities, getAgentCapabilities, findAgentsWithCapability, det
 import { processFeedback, getAgentFeedbackStats } from '../learning/feedback-processor.js';
 import { getEventBus, type ForgeEvent } from '../orchestration/event-bus.js';
 import { setContext, getContext, getContextList, appendContext, listContextKeys, createHandoff, getHandoff } from '../orchestration/shared-context.js';
+import { proposePromptRevision, applyPromptRevision, rejectPromptRevision, getPromptRevisions } from '../learning/prompt-rewriter.js';
+import { orchestrateFromNL, getOrchestrationStatus } from '../orchestration/nl-orchestrator.js';
+import { createChatSession, getChatSession, listChatSessions, addModeratorMessage, getAgentResponse, runChatRound, endChatSession } from '../orchestration/multi-agent-chat.js';
+import { proposeGoals, approveGoal, rejectGoal, getAgentGoals } from '../orchestration/goal-proposer.js';
+import { selectOptimalModel, getCostDashboard, getModelRecommendations, recordCostSample } from '../orchestration/cost-router.js';
+import { searchNodes, getNodeNeighborhood, getGraphStats } from '../orchestration/knowledge-graph.js';
+import { runHealthCheck, getLastHealthReport } from '../orchestration/monitoring-agent.js';
+import { cloneAgent, runExperiment, getExperiments, promoteVariant } from '../orchestration/evolution.js';
+import { getExecutionEvents, getSessionEvents, getRecentEvents, getFleetLeaderboard, getEventLogStats } from '../orchestration/event-log.js';
 
 // In-memory store for AI code reviews (transient — single instance, client polls max 10 min)
 const reviewStore = new Map<string, {
@@ -2296,6 +2305,356 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
       const handoff = await getHandoff(sessionId, handoffId);
       if (!handoff) return reply.code(404).send({ error: 'Handoff not found' });
       return handoff;
+    },
+  );
+
+  // ==========================================================================
+  // PHASE 6: Self-Rewriting System Prompts
+  // ==========================================================================
+
+  app.post<{ Params: { id: string } }>(
+    '/api/v1/platform/agents/:id/propose-revision',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const revision = await proposePromptRevision(request.params.id);
+      if (!revision) return reply.code(200).send({ message: 'No revision proposed — insufficient correction patterns' });
+      return revision;
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    '/api/v1/platform/agents/:id/prompt-revisions',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      return getPromptRevisions(request.params.id);
+    },
+  );
+
+  app.post<{ Params: { revisionId: string } }>(
+    '/api/v1/platform/prompt-revisions/:revisionId/apply',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const ok = await applyPromptRevision(request.params.revisionId, 'admin');
+      if (!ok) return reply.code(400).send({ error: 'Cannot apply revision' });
+      return { success: true };
+    },
+  );
+
+  app.post<{ Params: { revisionId: string } }>(
+    '/api/v1/platform/prompt-revisions/:revisionId/reject',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const ok = await rejectPromptRevision(request.params.revisionId, 'admin');
+      if (!ok) return reply.code(400).send({ error: 'Cannot reject revision' });
+      return { success: true };
+    },
+  );
+
+  // ==========================================================================
+  // PHASE 7: Natural Language Orchestration
+  // ==========================================================================
+
+  app.post(
+    '/api/v1/platform/orchestrate-nl',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { instruction, maxAgents } = request.body as { instruction: string; maxAgents?: number };
+      return orchestrateFromNL({
+        instruction,
+        ownerId: 'admin',
+        maxAgents,
+      });
+    },
+  );
+
+  app.get<{ Params: { sessionId: string } }>(
+    '/api/v1/platform/orchestration/:sessionId/status',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      return getOrchestrationStatus(request.params.sessionId);
+    },
+  );
+
+  // ==========================================================================
+  // PHASE 8: Multi-Agent Chat
+  // ==========================================================================
+
+  app.post(
+    '/api/v1/platform/chat/create',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { topic, agentIds } = request.body as { topic: string; agentIds: string[] };
+      return createChatSession(topic, agentIds, 'admin');
+    },
+  );
+
+  app.get(
+    '/api/v1/platform/chat/sessions',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      return listChatSessions();
+    },
+  );
+
+  app.get<{ Params: { sessionId: string } }>(
+    '/api/v1/platform/chat/:sessionId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const session = getChatSession(request.params.sessionId);
+      if (!session) return reply.code(404).send({ error: 'Session not found' });
+      return session;
+    },
+  );
+
+  app.post<{ Params: { sessionId: string } }>(
+    '/api/v1/platform/chat/:sessionId/message',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const { content } = request.body as { content: string };
+      const msg = addModeratorMessage(request.params.sessionId, content, 'admin');
+      if (!msg) return reply.code(400).send({ error: 'Session not active' });
+      return msg;
+    },
+  );
+
+  app.post<{ Params: { sessionId: string; agentId: string } }>(
+    '/api/v1/platform/chat/:sessionId/respond/:agentId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const msg = await getAgentResponse(request.params.sessionId, request.params.agentId);
+      if (!msg) return reply.code(400).send({ error: 'Could not get agent response' });
+      return msg;
+    },
+  );
+
+  app.post<{ Params: { sessionId: string } }>(
+    '/api/v1/platform/chat/:sessionId/round',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      return runChatRound(request.params.sessionId);
+    },
+  );
+
+  app.post<{ Params: { sessionId: string } }>(
+    '/api/v1/platform/chat/:sessionId/end',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const session = endChatSession(request.params.sessionId);
+      if (!session) return reply.code(404).send({ error: 'Session not found' });
+      return session;
+    },
+  );
+
+  // ==========================================================================
+  // PHASE 9: Autonomous Goal-Setting
+  // ==========================================================================
+
+  app.post<{ Params: { id: string } }>(
+    '/api/v1/platform/agents/:id/propose-goals',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      return proposeGoals(request.params.id);
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    '/api/v1/platform/agents/:id/goals',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { status } = request.query as { status?: string };
+      return getAgentGoals(request.params.id, status);
+    },
+  );
+
+  app.post<{ Params: { goalId: string } }>(
+    '/api/v1/platform/goals/:goalId/approve',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const ok = await approveGoal(request.params.goalId, 'admin');
+      if (!ok) return reply.code(400).send({ error: 'Cannot approve goal' });
+      return { success: true };
+    },
+  );
+
+  app.post<{ Params: { goalId: string } }>(
+    '/api/v1/platform/goals/:goalId/reject',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const ok = await rejectGoal(request.params.goalId);
+      if (!ok) return reply.code(400).send({ error: 'Cannot reject goal' });
+      return { success: true };
+    },
+  );
+
+  // ==========================================================================
+  // PHASE 10: Cost Optimization
+  // ==========================================================================
+
+  app.get(
+    '/api/v1/platform/cost/dashboard',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      return getCostDashboard();
+    },
+  );
+
+  app.post(
+    '/api/v1/platform/cost/recommend',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { capabilities, minQuality } = request.body as { capabilities: string[]; minQuality?: number };
+      return getModelRecommendations(capabilities, minQuality);
+    },
+  );
+
+  app.get(
+    '/api/v1/platform/cost/optimal-model',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { capability, minQuality } = request.query as { capability: string; minQuality?: string };
+      return selectOptimalModel(capability, minQuality ? parseFloat(minQuality) : undefined);
+    },
+  );
+
+  // ==========================================================================
+  // PHASE 11: Knowledge Graph
+  // ==========================================================================
+
+  app.get(
+    '/api/v1/platform/knowledge/stats',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      return getGraphStats();
+    },
+  );
+
+  app.get(
+    '/api/v1/platform/knowledge/search',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { q, type, agentId, limit } = request.query as { q: string; type?: string; agentId?: string; limit?: string };
+      return searchNodes(q, {
+        entityType: type,
+        agentId,
+        limit: limit ? parseInt(limit) : undefined,
+      });
+    },
+  );
+
+  app.get<{ Params: { nodeId: string } }>(
+    '/api/v1/platform/knowledge/nodes/:nodeId/neighborhood',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      return getNodeNeighborhood(request.params.nodeId);
+    },
+  );
+
+  // ==========================================================================
+  // PHASE 12: Monitoring
+  // ==========================================================================
+
+  app.get(
+    '/api/v1/platform/monitoring/health',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const cached = getLastHealthReport();
+      if (cached && Date.now() - new Date(cached.timestamp).getTime() < 60_000) {
+        return cached;
+      }
+      return runHealthCheck();
+    },
+  );
+
+  // ==========================================================================
+  // PHASE 13: Agent Evolution
+  // ==========================================================================
+
+  app.post<{ Params: { id: string } }>(
+    '/api/v1/platform/agents/:id/clone',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { type, description, promptOverride, modelOverride } = request.body as {
+        type: 'prompt' | 'tools' | 'model' | 'config' | 'combined';
+        description: string;
+        promptOverride?: string;
+        modelOverride?: string;
+      };
+      const variantId = await cloneAgent(request.params.id, { type, description, promptOverride, modelOverride });
+      return { variantId };
+    },
+  );
+
+  app.post(
+    '/api/v1/platform/evolution/experiment',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { parentId, variantId, testTask, mutationDescription, mutationType } = request.body as {
+        parentId: string; variantId: string; testTask: string; mutationDescription: string; mutationType?: string;
+      };
+      return runExperiment(parentId, variantId, testTask, mutationDescription, mutationType);
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    '/api/v1/platform/agents/:id/experiments',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      return getExperiments(request.params.id);
+    },
+  );
+
+  app.post<{ Params: { experimentId: string } }>(
+    '/api/v1/platform/evolution/:experimentId/promote',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const ok = await promoteVariant(request.params.experimentId);
+      if (!ok) return reply.code(400).send({ error: 'Cannot promote — variant did not win' });
+      return { success: true };
+    },
+  );
+
+  // ==========================================================================
+  // PHASE 14: Event Log, Leaderboard, Replay
+  // ==========================================================================
+
+  app.get(
+    '/api/v1/platform/events/recent',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { limit } = request.query as { limit?: string };
+      return getRecentEvents(limit ? parseInt(limit) : 50);
+    },
+  );
+
+  app.get<{ Params: { executionId: string } }>(
+    '/api/v1/platform/events/execution/:executionId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      return getExecutionEvents(request.params.executionId);
+    },
+  );
+
+  app.get<{ Params: { sessionId: string } }>(
+    '/api/v1/platform/events/session/:sessionId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      return getSessionEvents(request.params.sessionId);
+    },
+  );
+
+  app.get(
+    '/api/v1/platform/events/stats',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      return getEventLogStats();
+    },
+  );
+
+  app.get(
+    '/api/v1/platform/fleet/leaderboard',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      return getFleetLeaderboard();
     },
   );
 

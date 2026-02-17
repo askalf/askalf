@@ -29,6 +29,8 @@ import { startMetabolicCycles } from './memory/metabolic.js';
 import { detectAllCapabilities } from './orchestration/capability-registry.js';
 import { initEventBus } from './orchestration/event-bus.js';
 import { initSharedContext } from './orchestration/shared-context.js';
+import { startMonitoring } from './orchestration/monitoring-agent.js';
+import { startEventLogger } from './orchestration/event-log.js';
 import { Redis } from 'ioredis';
 
 const app = Fastify({
@@ -160,6 +162,12 @@ async function start(): Promise<void> {
     const sharedRedis = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
     initSharedContext(sharedRedis);
     console.log('[Forge] Event bus + shared context initialized');
+
+    // Start persistent event logger (logs all events to postgres)
+    startEventLogger();
+
+    // Start production monitoring (health checks + auto-heal)
+    startMonitoring();
 
     // Auto-detect agent capabilities on startup (non-blocking)
     void detectAllCapabilities().catch((err) => {
