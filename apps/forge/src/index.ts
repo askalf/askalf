@@ -26,6 +26,7 @@ import { cliRoutes } from './routes/cli.js';
 import { initializeWorker } from './runtime/worker.js';
 import { initMemoryManager } from './memory/singleton.js';
 import { startMetabolicCycles } from './memory/metabolic.js';
+import { detectAllCapabilities } from './orchestration/capability-registry.js';
 
 const app = Fastify({
   logger: true,
@@ -150,6 +151,11 @@ async function start(): Promise<void> {
     await initMemoryManager(config.redisUrl);
     startMetabolicCycles();
     console.log('[Forge] Universal memory + metabolic cycles activated');
+
+    // Auto-detect agent capabilities on startup (non-blocking)
+    void detectAllCapabilities().catch((err) => {
+      console.warn('[Capabilities] Initial detection failed:', err instanceof Error ? err.message : err);
+    });
 
     await app.listen({ port: config.port, host: '0.0.0.0' });
     console.log(`[Forge] Agent Forge API server started on port ${config.port}`);

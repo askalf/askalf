@@ -1938,6 +1938,49 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
   }
 
   // ============================================
+  // CAPABILITIES (Phase 3)
+  // ============================================
+
+  // Get capabilities for a specific agent
+  fastify.get('/api/v1/admin/agents/:id/capabilities', async (request, reply) => {
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/agents/${id}/capabilities`);
+    return res;
+  });
+
+  // Detect capabilities for a specific agent
+  fastify.post('/api/v1/admin/agents/:id/capabilities/detect', async (request, reply) => {
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/agents/${id}/capabilities/detect`, { method: 'POST' });
+    return res;
+  });
+
+  // Detect capabilities for all agents
+  fastify.post('/api/v1/admin/capabilities/detect-all', async (request, reply) => {
+    const res = await callForgeAdmin('/capabilities/detect-all', { method: 'POST' });
+    return res;
+  });
+
+  // Find agents with a specific capability
+  fastify.get('/api/v1/admin/capabilities/:name/agents', async (request, reply) => {
+    const { name } = request.params;
+    const res = await callForgeAdmin(`/capabilities/${name}/agents`);
+    return res;
+  });
+
+  // Get capability catalog
+  fastify.get('/api/v1/admin/capabilities/catalog', async (request, reply) => {
+    const res = await callForgeAdmin('/capabilities/catalog');
+    return res;
+  });
+
+  // Get all agents' capabilities summary
+  fastify.get('/api/v1/admin/capabilities/summary', async (request, reply) => {
+    const res = await callForgeAdmin('/capabilities/summary');
+    return res;
+  });
+
+  // ============================================
   // SCHEDULER DAEMON
   // Checks agent_schedules every 60s, triggers Forge executions for due agents
   // ============================================
