@@ -9,12 +9,18 @@ WORKDIR /app
 # Copy workspace files
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/forge ./apps/forge
+COPY packages/email ./packages/email
+COPY packages/core ./packages/core
+COPY packages/observability ./packages/observability
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build forge
-RUN pnpm --filter @substrate/forge build
+# Build workspace dependencies first, then forge
+RUN pnpm --filter @substrate/core build && \
+    pnpm --filter @substrate/observability build && \
+    pnpm --filter @substrate/email build && \
+    pnpm --filter @substrate/forge build
 
 # Deploy to a self-contained directory
 RUN pnpm deploy --filter @substrate/forge --prod /app/deploy
