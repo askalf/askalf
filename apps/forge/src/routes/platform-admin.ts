@@ -305,7 +305,7 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params as { id: string };
       const { model_id } = request.body as { model_id: string };
       const result = await queryOne<{ id: string }>(
-        `UPDATE forge_agents SET model_id = $1, updated_at = NOW() WHERE id = $2 RETURNING id`, [model_id, id]
+        `UPDATE forge_agents SET model_id = $1, updated_at = NOW() WHERE id = $2 RETURNING id`, [model_id || null, id]
       );
       if (!result) return reply.code(404).send({ error: 'Agent not found' });
       return { success: true };

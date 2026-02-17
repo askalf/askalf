@@ -1073,10 +1073,10 @@ export async function runDirectCliExecution(
     if (toolExecs.length > 0 && parsed.costUsd > 0) {
       const quality = parsed.isError ? 0.2 : 0.8;
       const agentMeta = await query<{ model_id: string }>(
-        `SELECT COALESCE(metadata->>'model_id', 'claude-sonnet-4-5-20250929') AS model_id FROM forge_agents WHERE id = $1`,
+        `SELECT COALESCE(metadata->>'model_id', 'claude-sonnet-4-5') AS model_id FROM forge_agents WHERE id = $1`,
         [agentId],
       ).catch(() => [] as { model_id: string }[]);
-      const modelId = agentMeta[0]?.model_id ?? 'claude-sonnet-4-5-20250929';
+      const modelId = agentMeta[0]?.model_id ?? 'claude-sonnet-4-5';
       for (const tool of toolExecs) {
         void recordCostSample(tool.tool_name, modelId, parsed.costUsd / toolExecs.length, (parsed.inputTokens + parsed.outputTokens) / toolExecs.length, quality).catch(() => {});
       }
