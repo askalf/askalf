@@ -18,6 +18,7 @@ import { query } from '../database.js';
 import { extractMemories } from '../memory/extractor.js';
 import { buildMemoryContext } from '../memory/context-builder.js';
 import { updateCapabilityFromExecution } from '../orchestration/capability-registry.js';
+import { getEventBus } from '../orchestration/event-bus.js';
 
 // Built-in tools
 import { apiCall } from '../tools/built-in/api-call.js';
@@ -929,6 +930,14 @@ export async function runDirectCliExecution(
       [executionId],
     );
 
+    // Emit execution started event
+    const agentRow = await query<{ name: string }>(`SELECT name FROM forge_agents WHERE id = $1`, [agentId]);
+    const agentName = agentRow[0]?.name ?? agentId;
+    const eventBus = getEventBus();
+    void eventBus?.emitExecution('started', executionId, agentId, agentName, {
+      input: input.substring(0, 200),
+    }).catch(() => {});
+
     // Refresh OAuth credentials
     await refreshCredentials();
 
@@ -1004,6 +1013,20 @@ export async function runDirectCliExecution(
       ],
     );
 
+    // Emit execution completed/failed event
+    void eventBus?.emitExecution(
+      parsed.isError ? 'failed' : 'completed',
+      executionId, agentId, agentName,
+      {
+        output: parsed.output.substring(0, 500),
+        error: parsed.isError ? (result.stderr?.substring(0, 500) || 'CLI execution failed') : undefined,
+        tokens: parsed.inputTokens + parsed.outputTokens,
+        cost: parsed.costUsd,
+        durationMs,
+        turns: parsed.numTurns,
+      },
+    ).catch(() => {});
+
     // Update agent performance counters
     const counterField = parsed.isError ? 'tasks_failed' : 'tasks_completed';
     await query(
@@ -1042,6 +1065,12 @@ export async function runDirectCliExecution(
     const durationMs = Date.now() - startTime;
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error(`[CLI] Execution ${executionId} error: ${errorMsg}`);
+
+    // Emit failure event
+    void getEventBus()?.emitExecution('failed', executionId, agentId, agentId, {
+      error: errorMsg.substring(0, 500),
+      durationMs,
+    }).catch(() => {});
 
     await query(
       `UPDATE forge_executions

@@ -2009,6 +2009,77 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
   });
 
   // ============================================
+  // REAL-TIME EVENTS & SHARED CONTEXT (Phase 5)
+  // ============================================
+
+  // SSE event stream (proxy to Forge)
+  fastify.get('/api/v1/admin/events/stream', async (request, reply) => {
+    const FORGE_URL = process.env.FORGE_URL || 'http://forge:3005';
+    const url = `${FORGE_URL}/api/v1/admin/events/stream`;
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'text/event-stream',
+          'Cookie': request.headers.cookie || '',
+          'x-user-id': request.userId || '',
+          'x-user-role': request.userRole || '',
+        },
+      });
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      // Pipe the SSE stream through
+      const reader = res.body?.getReader();
+      if (!reader) {
+        reply.raw.end();
+        return;
+      }
+      const pump = async () => {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          try { reply.raw.write(value); } catch { break; }
+        }
+        reply.raw.end();
+      };
+      void pump();
+      request.raw.on('close', () => { reader.cancel(); });
+      await reply;
+    } catch (err) {
+      reply.code(502).send({ error: 'Event stream unavailable' });
+    }
+  });
+
+  // Shared context
+  fastify.post('/api/v1/admin/context/:sessionId', async (request, reply) => {
+    const { sessionId } = request.params;
+    const res = await callForgeAdmin(`/context/${sessionId}`, { method: 'POST', body: request.body });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/context/:sessionId', async (request, reply) => {
+    const { sessionId } = request.params;
+    const qs = new URLSearchParams(request.query).toString();
+    const res = await callForgeAdmin(`/context/${sessionId}${qs ? `?${qs}` : ''}`);
+    return res;
+  });
+
+  // Handoffs
+  fastify.post('/api/v1/admin/handoff', async (request, reply) => {
+    const res = await callForgeAdmin('/handoff', { method: 'POST', body: request.body });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/handoff/:sessionId/:handoffId', async (request, reply) => {
+    const { sessionId, handoffId } = request.params;
+    const res = await callForgeAdmin(`/handoff/${sessionId}/${handoffId}`);
+    return res;
+  });
+
+  // ============================================
   // SCHEDULER DAEMON
   // Checks agent_schedules every 60s, triggers Forge executions for due agents
   // ============================================
