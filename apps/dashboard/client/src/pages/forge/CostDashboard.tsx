@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
 import StatCard from '../hub/shared/StatCard';
@@ -20,7 +20,7 @@ export default function CostDashboard() {
   usePolling(poll, 30000);
 
   // Fetch agents for filter dropdown
-  useCallback(() => { fetchAgents(); }, [fetchAgents]);
+  useEffect(() => { fetchAgents(); }, [fetchAgents]);
 
   const maxDailyCost = useMemo(() => {
     if (!dailyCosts.length) return 1;
