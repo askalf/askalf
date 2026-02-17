@@ -1,4 +1,4 @@
-import { useCallback, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { useHubStore, type HubTab } from '../stores/hub';
 import { useAuthStore } from '../stores/auth';
@@ -15,33 +15,51 @@ import './hub/FleetMemory.css';
 import './CommandCenter.css';
 import './forge/forge-theme.css';
 
+// Auto-retry dynamic imports — handles stale chunk hashes after deploys
+function lazyRetry<T extends { default: React.ComponentType }>(
+  importFn: () => Promise<T>,
+): React.LazyExoticComponent<T['default']> {
+  return lazy(() =>
+    importFn().catch(() => {
+      // Chunk hash mismatch after deploy — reload once to get fresh manifest
+      const key = 'chunk-reload';
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+        window.location.reload();
+      }
+      // If we already reloaded, surface the error so ErrorBoundary catches it
+      return importFn();
+    }),
+  );
+}
+
 // Lazy-load all tab panels
-const ForgeOverview = lazy(() => import('./forge/ForgeOverview'));
-const AgentFleet = lazy(() => import('./hub/AgentFleet'));
-const ExecutionHistory = lazy(() => import('./hub/ExecutionHistory'));
-const SchedulerControl = lazy(() => import('./hub/SchedulerControl'));
-const FleetCoordination = lazy(() => import('./hub/FleetCoordination'));
-const InterventionGateway = lazy(() => import('./hub/InterventionGateway'));
-const Tickets = lazy(() => import('./hub/Tickets'));
-const ContentFeed = lazy(() => import('./hub/ContentFeed'));
-const FleetMemory = lazy(() => import('./hub/FleetMemory'));
-const Threads = lazy(() => import('./hub/Threads'));
-const CostDashboard = lazy(() => import('./forge/CostDashboard'));
-const ProviderHealthPage = lazy(() => import('./forge/ProviderHealth'));
-const GuardrailsManager = lazy(() => import('./forge/GuardrailsManager'));
-const AuditLog = lazy(() => import('./forge/AuditLog'));
-const WorkflowBuilder = lazy(() => import('./forge/WorkflowBuilder'));
-const PushPanel = lazy(() => import('./forge/PushPanel'));
-const PromptLab = lazy(() => import('./forge/PromptLab'));
-const NLOrchestrate = lazy(() => import('./forge/NLOrchestrate'));
-const AgentChat = lazy(() => import('./forge/AgentChat'));
-const GoalManager = lazy(() => import('./forge/GoalManager'));
-const CostOptimizer = lazy(() => import('./forge/CostOptimizer'));
-const KnowledgeGraph = lazy(() => import('./forge/KnowledgeGraph'));
-const HealthMonitor = lazy(() => import('./forge/HealthMonitor'));
-const Evolution = lazy(() => import('./forge/Evolution'));
-const EventLog = lazy(() => import('./forge/EventLog'));
-const Leaderboard = lazy(() => import('./forge/Leaderboard'));
+const ForgeOverview = lazyRetry(() => import('./forge/ForgeOverview'));
+const AgentFleet = lazyRetry(() => import('./hub/AgentFleet'));
+const ExecutionHistory = lazyRetry(() => import('./hub/ExecutionHistory'));
+const SchedulerControl = lazyRetry(() => import('./hub/SchedulerControl'));
+const FleetCoordination = lazyRetry(() => import('./hub/FleetCoordination'));
+const InterventionGateway = lazyRetry(() => import('./hub/InterventionGateway'));
+const Tickets = lazyRetry(() => import('./hub/Tickets'));
+const ContentFeed = lazyRetry(() => import('./hub/ContentFeed'));
+const FleetMemory = lazyRetry(() => import('./hub/FleetMemory'));
+const Threads = lazyRetry(() => import('./hub/Threads'));
+const CostDashboard = lazyRetry(() => import('./forge/CostDashboard'));
+const ProviderHealthPage = lazyRetry(() => import('./forge/ProviderHealth'));
+const GuardrailsManager = lazyRetry(() => import('./forge/GuardrailsManager'));
+const AuditLog = lazyRetry(() => import('./forge/AuditLog'));
+const WorkflowBuilder = lazyRetry(() => import('./forge/WorkflowBuilder'));
+const PushPanel = lazyRetry(() => import('./forge/PushPanel'));
+const PromptLab = lazyRetry(() => import('./forge/PromptLab'));
+const NLOrchestrate = lazyRetry(() => import('./forge/NLOrchestrate'));
+const AgentChat = lazyRetry(() => import('./forge/AgentChat'));
+const GoalManager = lazyRetry(() => import('./forge/GoalManager'));
+const CostOptimizer = lazyRetry(() => import('./forge/CostOptimizer'));
+const KnowledgeGraph = lazyRetry(() => import('./forge/KnowledgeGraph'));
+const HealthMonitor = lazyRetry(() => import('./forge/HealthMonitor'));
+const Evolution = lazyRetry(() => import('./forge/Evolution'));
+const EventLog = lazyRetry(() => import('./forge/EventLog'));
+const Leaderboard = lazyRetry(() => import('./forge/Leaderboard'));
 
 const PANEL_MAP: Record<HubTab, React.FC> = {
   overview: ForgeOverview,
@@ -101,11 +119,13 @@ export default function CommandCenter() {
   const [runPrompt, setRunPrompt] = useState('');
   const [runningId, setRunningId] = useState<string | null>(null);
 
-  // Sync tab from URL param on mount
-  const currentTab = (tab && tab in PANEL_MAP ? tab : null) as HubTab | null;
-  if (currentTab && currentTab !== activeTab) {
-    setActiveTab(currentTab);
-  }
+  // Sync tab from URL param — use effect to avoid setting state during render
+  const currentTab = (tab && tab in PANEL_MAP ? tab : 'overview') as HubTab;
+  useEffect(() => {
+    if (currentTab !== activeTab) {
+      setActiveTab(currentTab);
+    }
+  }, [currentTab]);
 
   const handleCreate = async () => {
     if (!newAgent.name.trim()) return;
@@ -155,7 +175,7 @@ export default function CommandCenter() {
   const hasErrors = (stats?.agents.active || 0) > 0 && ribbonData.running === 0;
   const clusterHealthy = !hasErrors && interventions.length === 0;
 
-  const ActivePanel = PANEL_MAP[activeTab] || PANEL_MAP.overview;
+  const ActivePanel = PANEL_MAP[currentTab] || PANEL_MAP.overview;
 
   return (
     <div className={`fc-shell ${assistantOpen ? 'panel-open' : ''}`}>
