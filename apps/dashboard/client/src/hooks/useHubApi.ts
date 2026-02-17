@@ -209,7 +209,7 @@ export interface AgentSchedule {
   schedule_interval_minutes: number | null;
   next_run_at: string | null;
   is_continuous: boolean;
-  execution_mode: 'batch' | 'individual';
+  execution_mode: 'batch' | 'individual' | 'cli';
   model_id: string | null;
   status: string;
   last_run_at: string | null;
@@ -528,6 +528,9 @@ export const hubApi = {
 
     create: (body: { name: string; type: string; description: string; system_prompt: string }) =>
       apiFetch<{ agent: Agent }>('/api/v1/admin/agents', { method: 'POST', body: JSON.stringify(body) }),
+
+    optimizePrompt: (body: { prompt: string; name?: string; type?: string; description?: string }) =>
+      apiFetch<{ optimized: string; tokens: { input: number; output: number } }>('/api/v1/admin/agents/optimize-prompt', { method: 'POST', body: JSON.stringify(body) }),
 
     run: (id: string, prompt?: string) =>
       apiFetch(`/api/v1/admin/agents/${id}/run`, {

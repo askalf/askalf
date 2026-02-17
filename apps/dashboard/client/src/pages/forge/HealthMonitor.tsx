@@ -53,13 +53,13 @@ export default function HealthMonitor() {
           large
           pulse={report?.overall === 'critical'}
         />
-        <StatCard value={report?.checks.filter((c) => c.status === 'pass').length ?? '-'} label="Checks Passing" variant="success" />
-        <StatCard value={report?.alerts.length ?? 0} label="Active Alerts" variant={report?.alerts.length ? 'danger' : 'default'} />
+        <StatCard value={report?.checks?.filter((c) => c.status === 'pass').length ?? '-'} label="Checks Passing" variant="success" />
+        <StatCard value={report?.alerts?.length ?? 0} label="Active Alerts" variant={(report?.alerts?.length ?? 0) > 0 ? 'danger' : 'default'} />
         <StatCard value={report ? new Date(report.timestamp).toLocaleTimeString() : '-'} label="Last Check" />
       </div>
 
       {/* Alerts */}
-      {report && report.alerts.length > 0 && (
+      {report && (report.alerts?.length ?? 0) > 0 && (
         <div className="fo-section" style={{ marginBottom: '16px' }}>
           <div className="fo-section-header"><h3>Active Alerts</h3></div>
           {report.alerts.map((alert, i) => (
@@ -93,7 +93,7 @@ export default function HealthMonitor() {
         {loading && !report && <div className="fo-empty">Running health checks...</div>}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '8px' }}>
-          {report?.checks.map((check) => (
+          {report?.checks?.map((check) => (
             <div key={check.name} className="fo-card" style={{ padding: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <span style={{ fontSize: '13px', fontWeight: 600 }}>{check.name.replace(/_/g, ' ')}</span>

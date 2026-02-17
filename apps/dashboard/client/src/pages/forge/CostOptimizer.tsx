@@ -25,8 +25,8 @@ export default function CostOptimizer() {
     setLoading(true);
     try {
       const data = await hubApi.costOptimizer.dashboard();
-      setProfiles(data.profiles as CostProfile[]);
-      setSavings(data.savings);
+      setProfiles(Array.isArray(data.profiles) ? data.profiles as CostProfile[] : []);
+      setSavings(data.savings ?? { totalSamples: 0, avgCostReduction: 0 });
     } catch { /* ignore */ }
     setLoading(false);
   };

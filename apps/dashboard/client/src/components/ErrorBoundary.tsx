@@ -103,7 +103,7 @@ class ErrorBoundary extends Component<Props, State> {
               We encountered an unexpected error. Our team has been notified.
             </p>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {this.state.error && (
               <details style={{
                 marginBottom: '1.5rem',
                 textAlign: 'left',

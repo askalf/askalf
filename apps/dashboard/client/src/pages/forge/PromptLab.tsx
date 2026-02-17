@@ -30,7 +30,7 @@ export default function PromptLab() {
     setLoading(true);
     try {
       const data = await hubApi.promptRevisions.list(selectedAgent) as Revision[];
-      setRevisions(data);
+      setRevisions(Array.isArray(data) ? data : []);
     } catch { setRevisions([]); }
     setLoading(false);
   }, [selectedAgent]);
@@ -98,7 +98,7 @@ export default function PromptLab() {
                   {rev.status}
                 </span>
                 <span style={{ marginLeft: '8px', fontSize: '13px', opacity: 0.7 }}>
-                  {rev.correction_patterns_used.length} correction patterns used
+                  {rev.correction_patterns_used?.length ?? 0} correction patterns used
                 </span>
               </div>
               {rev.status === 'pending' && (

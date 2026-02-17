@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useHubStore, type MemorySubView } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
 import type { FleetMemoryItem, FleetRecallEvent } from '../../hooks/useHubApi';
-import TicketSystem from './TicketSystem';
-
 const TIER_LABELS: Record<string, { label: string; icon: string; color: string }> = {
   semantic: { label: 'Knowledge', icon: '\u{1F4A1}', color: 'var(--water)' },
   episodic: { label: 'Experience', icon: '\u{1F4D6}', color: 'var(--synapse)' },
@@ -22,7 +20,6 @@ const SUB_VIEWS: { key: MemorySubView; label: string; icon: string }[] = [
   { key: 'semantic', label: 'Knowledge', icon: '\u{1F4A1}' },
   { key: 'episodic', label: 'Experience', icon: '\u{1F4D6}' },
   { key: 'procedural', label: 'Patterns', icon: '\u{1F504}' },
-  { key: 'workqueue', label: 'Work Queue', icon: '\u{1F3AB}' },
 ];
 
 const relativeTime = (iso: string) => {
@@ -439,8 +436,7 @@ export default function FleetMemory() {
 
   // Refresh when sub-view changes
   useEffect(() => {
-    if (memorySubView === 'workqueue') return;
-    // Set tier filter based on sub-view
+        // Set tier filter based on sub-view
     if (memorySubView === 'episodic') setMemoryTierFilter('episodic');
     else if (memorySubView === 'semantic') setMemoryTierFilter('semantic');
     else if (memorySubView === 'procedural') setMemoryTierFilter('procedural');
@@ -451,14 +447,13 @@ export default function FleetMemory() {
 
   // Refresh recent when filters change
   useEffect(() => {
-    if (memorySubView === 'workqueue') return;
-    fetchMemoryRecent();
+        fetchMemoryRecent();
   }, [memoryAgentFilter, memorySourceFilter, fetchMemoryRecent, memorySubView]);
 
   // Poll stats every 30s
   const poll = useCallback(() => {
     fetchMemoryStats();
-    if (memorySubView !== 'workqueue') fetchMemoryRecent();
+    fetchMemoryRecent();
   }, [fetchMemoryStats, fetchMemoryRecent, memorySubView]);
   usePolling(poll, 30000);
 
@@ -480,7 +475,7 @@ export default function FleetMemory() {
   };
 
   const isSearchMode = memorySearchQuery.trim().length > 0;
-  const showFilters = memorySubView !== 'workqueue';
+  const showFilters = true;
 
   return (
     <>
@@ -611,7 +606,6 @@ export default function FleetMemory() {
       {memorySubView === 'episodic' && <EpisodicView />}
       {memorySubView === 'semantic' && <SemanticView />}
       {memorySubView === 'procedural' && <ProceduralView />}
-      {memorySubView === 'workqueue' && <TicketSystem />}
     </>
   );
 }

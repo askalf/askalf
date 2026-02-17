@@ -22,7 +22,7 @@ export default function Leaderboard() {
 
   useEffect(() => {
     hubApi.events.leaderboard()
-      .then((data) => setEntries(data as LeaderboardEntry[]))
+      .then((data) => setEntries(Array.isArray(data) ? data as LeaderboardEntry[] : []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

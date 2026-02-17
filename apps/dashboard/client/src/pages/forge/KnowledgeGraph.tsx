@@ -66,7 +66,7 @@ export default function KnowledgeGraph() {
       <div className="fo-stats">
         <StatCard value={stats?.totalNodes ?? '-'} label="Nodes" />
         <StatCard value={stats?.totalEdges ?? '-'} label="Edges" />
-        <StatCard value={stats?.topEntities?.length ?? '-'} label="Entity Types" />
+        <StatCard value={stats?.topEntities?.length ?? 0} label="Entity Types" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -97,7 +97,7 @@ export default function KnowledgeGraph() {
           ))}
 
           {/* Top Entities */}
-          {!searchResults.length && stats && (
+          {!searchResults.length && stats && stats.topEntities?.length > 0 && (
             <>
               <h4 style={{ fontSize: '13px', marginTop: '16px', marginBottom: '8px' }}>Top Entities</h4>
               {stats.topEntities.map((e, i) => (
@@ -143,7 +143,7 @@ export default function KnowledgeGraph() {
           )}
 
           {/* Top Relations */}
-          {!neighborhood && stats && stats.topRelations.length > 0 && (
+          {!neighborhood && stats && stats.topRelations?.length > 0 && (
             <>
               <h4 style={{ fontSize: '13px', marginTop: '16px', marginBottom: '8px' }}>Top Relations</h4>
               {stats.topRelations.map((r, i) => (

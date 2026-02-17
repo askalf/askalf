@@ -265,6 +265,19 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     return reply.code(201).send({ agent });
   });
 
+  // 3b. POST /api/v1/admin/agents/optimize-prompt - Optimize system prompt with AI
+  fastify.post('/api/v1/admin/agents/optimize-prompt', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const body = request.body || {};
+    const res = await callForge('/agents/optimize-prompt', { method: 'POST', body });
+    if (res.error) {
+      return reply.code(res.status || 500).send({ error: 'Failed to optimize prompt', message: res.message });
+    }
+    return reply.send(res);
+  });
+
   // 4. POST /api/v1/admin/agents/:id/run - Run agent
   fastify.post('/api/v1/admin/agents/:id/run', async (request, reply) => {
     const admin = await requireAdmin(request, reply);

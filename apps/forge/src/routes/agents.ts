@@ -5,6 +5,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
+import Anthropic from '@anthropic-ai/sdk';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
@@ -440,6 +441,72 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
       }).catch(() => {});
 
       return reply.status(201).send({ agent: forked });
+    },
+  );
+
+  // POST /api/v1/forge/agents/optimize-prompt — Optimize a system prompt using LLM
+  app.post(
+    '/api/v1/forge/agents/optimize-prompt',
+    { preHandler: authMiddleware },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as {
+        prompt?: string;
+        name?: string;
+        type?: string;
+        description?: string;
+      };
+
+      const rawPrompt = (body.prompt || '').trim();
+      if (!rawPrompt) {
+        return reply.status(400).send({ error: 'prompt is required' });
+      }
+
+      const apiKey = process.env['ANTHROPIC_API_KEY'];
+      if (!apiKey) {
+        return reply.status(503).send({ error: 'AI provider not configured' });
+      }
+
+      const client = new Anthropic({ apiKey });
+
+      const context = [
+        body.name ? `Agent name: ${body.name}` : '',
+        body.type ? `Agent type: ${body.type}` : '',
+        body.description ? `Description: ${body.description}` : '',
+      ].filter(Boolean).join('\n');
+
+      try {
+        const response = await client.messages.create({
+          model: 'claude-haiku-4-5',
+          max_tokens: 2048,
+          messages: [
+            {
+              role: 'user',
+              content: `You are an expert AI prompt engineer. Optimize the following system prompt to be clearer, more effective, and well-structured. Keep the same intent and purpose but improve clarity, add useful constraints, and structure it for better AI agent performance.
+
+${context ? `AGENT CONTEXT:\n${context}\n\n` : ''}USER'S DRAFT PROMPT:
+${rawPrompt}
+
+Return ONLY the optimized system prompt text — no explanations, no markdown fences, no preamble. Just the improved prompt ready to use.`,
+            },
+          ],
+        });
+
+        const optimized = response.content
+          .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+          .map((b) => b.text)
+          .join('');
+
+        return reply.send({
+          optimized,
+          tokens: {
+            input: response.usage.input_tokens,
+            output: response.usage.output_tokens,
+          },
+        });
+      } catch (err: unknown) {
+        console.error('[Agents] Prompt optimization failed:', err instanceof Error ? err.message : err);
+        return reply.status(500).send({ error: 'Optimization failed' });
+      }
     },
   );
 }

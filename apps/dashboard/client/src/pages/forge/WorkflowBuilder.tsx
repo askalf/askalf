@@ -61,7 +61,7 @@ export default function WorkflowBuilder() {
 
   const handleAddNode = async () => {
     if (!selectedWorkflow) return;
-    const nodes = [...(selectedWorkflow.definition.nodes || [])];
+    const nodes = [...(selectedWorkflow.definition?.nodes || [])];
     const newNode = {
       id: `node-${nodes.length + 1}`,
       type: 'agent',
@@ -72,7 +72,7 @@ export default function WorkflowBuilder() {
     nodes.push(newNode);
 
     // Auto-connect edges
-    const edges = [...(selectedWorkflow.definition.edges || [])];
+    const edges = [...(selectedWorkflow.definition?.edges || [])];
     if (nodes.length >= 2) {
       edges.push({ from: nodes[nodes.length - 2].id, to: newNode.id });
     }
@@ -82,7 +82,7 @@ export default function WorkflowBuilder() {
 
   const handleSaveNode = async () => {
     if (!selectedWorkflow || !editingNode) return;
-    const nodes = [...(selectedWorkflow.definition.nodes || [])];
+    const nodes = [...(selectedWorkflow.definition?.nodes || [])];
     const agent = agents.find((a) => a.id === editingNode.agentId);
     nodes[editingNode.idx] = {
       ...nodes[editingNode.idx],
@@ -90,16 +90,16 @@ export default function WorkflowBuilder() {
       agentId: editingNode.agentId,
       agentName: agent?.name || '',
     };
-    await updateWorkflow(selectedWorkflow.id, { definition: { ...selectedWorkflow.definition, nodes } });
+    await updateWorkflow(selectedWorkflow.id, { definition: { ...(selectedWorkflow.definition || {}), nodes } });
     setEditingNode(null);
   };
 
   const handleRemoveNode = async (idx: number) => {
     if (!selectedWorkflow) return;
-    const nodes = [...(selectedWorkflow.definition.nodes || [])];
+    const nodes = [...(selectedWorkflow.definition?.nodes || [])];
     const removedId = nodes[idx].id;
     nodes.splice(idx, 1);
-    const edges = (selectedWorkflow.definition.edges || []).filter(
+    const edges = (selectedWorkflow.definition?.edges || []).filter(
       (e) => e.from !== removedId && e.to !== removedId,
     );
     // Reconnect edges around removed node
@@ -112,10 +112,10 @@ export default function WorkflowBuilder() {
   const activeAgents = agents.filter((a) => !a.is_decommissioned);
 
   const nodes = selectedWorkflow
-    ? (selectedWorkflow.definition.nodes || []) as Array<{ id: string; type: string; label: string; agentId?: string; agentName?: string }>
+    ? (selectedWorkflow.definition?.nodes || []) as Array<{ id: string; type: string; label: string; agentId?: string; agentName?: string }>
     : [];
   const edges = selectedWorkflow
-    ? (selectedWorkflow.definition.edges || []) as Array<{ from: string; to: string }>
+    ? (selectedWorkflow.definition?.edges || []) as Array<{ from: string; to: string }>
     : [];
 
   return (
@@ -146,13 +146,13 @@ export default function WorkflowBuilder() {
                       <StatusBadge status={wf.status} />
                     </div>
                     <span className="fwb-workflow-meta">
-                      v{wf.version} &middot; {(wf.definition.nodes || []).length} nodes &middot; Updated {relativeTime(wf.updated_at)}
+                      v{wf.version} &middot; {(wf.definition?.nodes || []).length} nodes &middot; Updated {relativeTime(wf.updated_at)}
                     </span>
                   </div>
                   {wf.description && <p className="fwb-workflow-desc">{wf.description}</p>}
-                  {(wf.definition.nodes || []).length > 0 && (
+                  {(wf.definition?.nodes || []).length > 0 && (
                     <div className="fwb-mini-flow">
-                      {(wf.definition.nodes as Array<{ id: string; label: string }>).map((node, i) => (
+                      {(wf.definition?.nodes as Array<{ id: string; label: string }>).map((node, i) => (
                         <span key={node.id} className="fwb-mini-node">
                           {i > 0 && <span className="fwb-mini-arrow">&rarr;</span>}
                           {node.label}
