@@ -1719,6 +1719,18 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
   });
 
   // ============================================
+  // ORCHESTRATED EXECUTION
+  // ============================================
+
+  fastify.post('/api/v1/admin/coordination/orchestrate', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/coordination/orchestrate', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Orchestration failed', message: res.message });
+    return res;
+  });
+
+  // ============================================
   // MEMORY STORE
   // ============================================
 
