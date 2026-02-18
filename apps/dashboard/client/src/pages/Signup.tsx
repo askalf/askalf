@@ -11,6 +11,18 @@ function getApiUrl() {
 
 const API_BASE = getApiUrl();
 
+function validateEmail(email: string): string | null {
+  if (!email.trim()) return 'Email is required';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Enter a valid email address';
+  return null;
+}
+
+function validateName(name: string): string | null {
+  if (!name.trim()) return 'Name is required';
+  if (name.trim().length < 2) return 'Name must be at least 2 characters';
+  return null;
+}
+
 export default function WaitlistPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -18,6 +30,7 @@ export default function WaitlistPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [touched, setTouched] = useState<{ name?: boolean; email?: boolean }>({});
 
   // Force dark theme on auth pages
   useEffect(() => {
@@ -34,8 +47,20 @@ export default function WaitlistPage() {
     };
   }, []);
 
+  const nameError = touched.name ? validateName(name) : null;
+  const emailError = touched.email ? validateEmail(email) : null;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setTouched({ name: true, email: true });
+
+    const nameErr = validateName(name);
+    const emailErr = validateEmail(email);
+    if (nameErr || emailErr) {
+      setError(nameErr || emailErr || '');
+      return;
+    }
+
     setError('');
     setIsLoading(true);
 
@@ -89,31 +114,39 @@ export default function WaitlistPage() {
               </div>
             )}
 
-            <div className="auth-field">
+            <div className={`auth-field${nameError ? ' auth-field-error' : ''}`}>
               <label htmlFor="name">Name</label>
               <input
                 id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                onBlur={() => setTouched(t => ({ ...t, name: true }))}
                 placeholder="Your name"
                 required
                 autoFocus
                 autoComplete="name"
+                aria-invalid={!!nameError}
+                aria-describedby={nameError ? 'name-error' : undefined}
               />
+              {nameError && <span id="name-error" className="auth-field-hint">{nameError}</span>}
             </div>
 
-            <div className="auth-field">
+            <div className={`auth-field${emailError ? ' auth-field-error' : ''}`}>
               <label htmlFor="email">Email</label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setTouched(t => ({ ...t, email: true }))}
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
+                aria-invalid={!!emailError}
+                aria-describedby={emailError ? 'email-error' : undefined}
               />
+              {emailError && <span id="email-error" className="auth-field-hint">{emailError}</span>}
             </div>
 
             {/* Honeypot — hidden from real users, bots auto-fill it */}
