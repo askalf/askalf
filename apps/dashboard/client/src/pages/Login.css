@@ -55,38 +55,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-md);
   margin-bottom: var(--space-md);
 }
 
-.auth-logo-icon {
-  font-size: 2.5rem;
-}
-
-.auth-logo-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.2;
-}
-
-.auth-logo-ask {
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-}
-
-.auth-logo-alf {
-  font-size: 2rem;
+.auth-logo-wordmark {
+  font-size: 1.75rem;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--crystal) 0%, #8b5cf6 50%, #a78bfa 100%);
+  letter-spacing: -0.03em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background: linear-gradient(135deg, #fff 0%, var(--crystal-lighter, #a78bfa) 100%);
   background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: gradient-shift 4s ease infinite;
+  animation: logo-shimmer 4s ease-in-out infinite;
+}
+
+@keyframes logo-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 .auth-subtitle {
@@ -409,12 +396,8 @@
     padding: var(--space-lg);
   }
 
-  .auth-logo-alf {
+  .auth-logo-wordmark {
     font-size: 1.5rem;
-  }
-
-  .auth-logo-icon {
-    font-size: 1.75rem !important;
   }
 
   .auth-submit {

@@ -65,7 +65,13 @@ function LoadingScreen() {
   return (
     <div className="loading-screen" role="status" aria-live="polite" aria-label="Loading">
       <div className="loading-logo">
-        <div style={{ fontSize: '2rem' }}>{'\u{1F528}'}</div>
+        <span style={{
+          fontSize: '1.5rem',
+          fontWeight: 800,
+          letterSpacing: '-0.03em',
+          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          color: '#a78bfa',
+        }}>forge</span>
         <span className="sr-only">Loading...</span>
       </div>
     </div>
