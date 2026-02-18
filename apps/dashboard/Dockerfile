@@ -44,11 +44,11 @@ RUN rm -rf /app/deploy/client && \
     rm -rf /app/deploy/node_modules/.cache 2>/dev/null || true
 
 # Copy source files and static assets
+# Vite outputs to public/app/ (including client/public/* assets like favicon.png, og-image.png)
+# docs.html lives in public/ root (served separately by server.js)
 RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
     mkdir -p /app/deploy/public && \
     cp -r /app/apps/dashboard/public/app /app/deploy/public/app && \
-    cp /app/apps/dashboard/public/favicon.png /app/deploy/public/favicon.png && \
-    cp /app/apps/dashboard/public/og-image.png /app/deploy/public/og-image.png && \
     cp /app/apps/dashboard/public/docs.html /app/deploy/public/docs.html
 
 # Production stage - minimal Alpine
