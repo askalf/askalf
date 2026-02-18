@@ -11,9 +11,8 @@ export default defineConfig({
     port: 3100,
     proxy: {
       '/api': {
-        target: 'https://api.askalf.org',
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        secure: true,
       },
     },
   },

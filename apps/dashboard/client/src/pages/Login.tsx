@@ -4,11 +4,18 @@ import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import './Login.css';
 
+function validateEmail(email: string): string | null {
+  if (!email.trim()) return 'Email is required';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Enter a valid email address';
+  return null;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [touched, setTouched] = useState<{ email?: boolean }>({});
 
   const navigate = useNavigate();
   const { login } = useAuthStore();
@@ -28,8 +35,16 @@ export default function LoginPage() {
     };
   }, []);
 
+  const emailError = touched.email ? validateEmail(email) : null;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setTouched({ email: true });
+
+    const emailErr = validateEmail(email);
+    if (emailErr) { setError(emailErr); return; }
+    if (!password) { setError('Password is required'); return; }
+
     setError('');
     setIsLoading(true);
 
@@ -63,17 +78,22 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="auth-field">
+          <div className={`auth-field${emailError ? ' auth-field-error' : ''}`}>
             <label htmlFor="email">Email</label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => setTouched(t => ({ ...t, email: true }))}
               placeholder="you@example.com"
               required
               autoComplete="email"
+              autoFocus
+              aria-invalid={!!emailError}
+              aria-describedby={emailError ? 'email-error' : undefined}
             />
+            {emailError && <span id="email-error" className="auth-field-hint">{emailError}</span>}
           </div>
 
           <div className="auth-field">
