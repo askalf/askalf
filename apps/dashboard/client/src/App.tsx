@@ -10,6 +10,9 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const Register = lazy(() => import('./pages/Register'));
 const Landing = lazy(() => import('./pages/Landing'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Terms = lazy(() => import('./pages/Terms'));
 
 // Lazy-loaded: app layout (shared sidebar)
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
@@ -126,8 +129,10 @@ export default function App() {
         <Route path="/users" element={<AdminRoute><UserAdmin /></AdminRoute>} />
       </Route>
 
-      {/* Public landing page */}
+      {/* Public pages */}
       <Route path="/" element={<Landing />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
 
       {/* Legacy redirects */}
       <Route path="/app/*" element={<Navigate to="/command-center" replace />} />
@@ -136,7 +141,7 @@ export default function App() {
       <Route path="/chat/*" element={<Navigate to="/command-center" replace />} />
 
       {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/command-center" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
     </Suspense>
     </>
