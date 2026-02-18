@@ -155,9 +155,9 @@ export default function SchedulerControl() {
                 }}
                 style={{ fontSize: '0.8rem' }}
               >
-                <option value="">Default (Sonnet 4.5)</option>
+                <option value="">Default (Sonnet 4.6)</option>
                 <option value="claude-haiku-4-5">Haiku 4.5 ($1/$5)</option>
-                <option value="claude-sonnet-4-5">Sonnet 4.5 ($3/$15)</option>
+                <option value="claude-sonnet-4-6">Sonnet 4.6 ($3/$15)</option>
                 <option value="claude-opus-4-6">Opus 4.6 ($5/$25)</option>
               </select>
             </div>

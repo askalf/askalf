@@ -35,9 +35,10 @@ class ErrorBoundary extends Component<Props, State> {
 
   private async reportError(error: Error, errorInfo: ErrorInfo) {
     try {
-      const apiBase = window.location.hostname.includes('askalf.org')
+      const host = window.location.hostname;
+      const apiBase = (host.includes('askalf.org') || host.includes('integration.tax'))
         ? ''
-        : 'http://localhost:3005';
+        : 'http://localhost:3001';
 
       await fetch(`${apiBase}/api/v1/errors/report`, {
         method: 'POST',

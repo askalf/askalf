@@ -202,7 +202,7 @@ export async function executeBatch(
       continue;
     }
 
-    let modelId = agent.model_id ?? 'claude-sonnet-4-5-20250929';
+    let modelId = agent.model_id ?? 'claude-sonnet-4-6';
     let contextWindow = 128_000;
     let maxOutput = agent.provider_config.maxTokens ?? config.maxTokensPerTurn;
 

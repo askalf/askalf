@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import './AdminAssistantPanel.css';
 
-const API_BASE = window.location.hostname.includes('askalf.org')
-  ? ''
-  : 'http://localhost:3001';
+const API_BASE = (() => {
+  const host = window.location.hostname;
+  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  return 'http://localhost:3001';
+})();
 
 interface Message {
   role: 'user' | 'assistant';

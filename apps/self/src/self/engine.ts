@@ -20,7 +20,7 @@ interface MessageRow {
 
 const MAX_TOOL_TURNS = 10;
 const MAX_TOKENS = 4096;
-const MODEL = 'claude-sonnet-4-5-20250929';
+const MODEL = 'claude-sonnet-4-6';
 
 /**
  * Stream a Self conversation response via SSE.

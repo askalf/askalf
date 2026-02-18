@@ -187,7 +187,7 @@ export async function complete(
   // Try Anthropic first if available
   if (anthropic) {
     // Look up the actual API model ID from the registry
-    const requestedModel = options.model ?? 'claude-sonnet-4-5';
+    const requestedModel = options.model ?? 'claude-sonnet-4-6';
     const modelInfo = MODELS[requestedModel];
     const apiModelId = modelInfo?.modelId ?? requestedModel;
 
@@ -383,14 +383,14 @@ export function classifyTraceComplexity(
 
 // Model pairs per complexity tier
 const SYNTHESIS_MODELS: Record<SynthesisComplexity, Record<'sonnet' | 'gpt5', string>> = {
-  simple: { sonnet: 'claude-sonnet-4-5', gpt5: 'gpt-4.1' },
-  complex: { sonnet: 'claude-opus-4-5', gpt5: 'gpt-5' },
+  simple: { sonnet: 'claude-sonnet-4-6', gpt5: 'gpt-4.1' },
+  complex: { sonnet: 'claude-opus-4-6', gpt5: 'gpt-5' },
 };
 
 // Fix pass models per complexity tier
 const FIX_MODELS: Record<SynthesisComplexity, Record<'sonnet' | 'gpt5', string>> = {
-  simple: { sonnet: 'claude-sonnet-4-5', gpt5: 'gpt-4.1' },
-  complex: { sonnet: 'claude-opus-4-5', gpt5: 'gpt-5' },
+  simple: { sonnet: 'claude-sonnet-4-6', gpt5: 'gpt-4.1' },
+  complex: { sonnet: 'claude-opus-4-6', gpt5: 'gpt-5' },
 };
 
 /**

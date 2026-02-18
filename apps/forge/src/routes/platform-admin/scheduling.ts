@@ -1,0 +1,321 @@
+/**
+ * Platform Admin — Scheduler control, audit log, retention cleanup,
+ * scheduler daemon, intervention auto-handler
+ */
+
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { ulid } from 'ulid';
+import { query, queryOne } from '../../database.js';
+import { substrateQuery, substrateQueryOne } from '../../database.js';
+import { authMiddleware } from '../../middleware/auth.js';
+import { requireAdmin } from '../../middleware/session-auth.js';
+import { runDirectCliExecution } from '../../runtime/worker.js';
+import { schedulerState, AUTO_APPROVE_PATTERNS } from './utils.js';
+
+export async function registerSchedulingRoutes(app: FastifyInstance): Promise<void> {
+
+  // Scheduler status
+  app.get(
+    '/api/v1/admin/reports/scheduler',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const [agents, continuous, scheduled] = await Promise.all([
+        query<Record<string, unknown>>('SELECT id, name, status FROM forge_agents LIMIT 100'),
+        substrateQuery<Record<string, unknown>>(
+          `SELECT * FROM agent_schedules WHERE is_continuous = true`,
+        ),
+        substrateQuery<Record<string, unknown>>(
+          `SELECT * FROM agent_schedules WHERE schedule_type = 'scheduled' AND next_run_at IS NOT NULL`,
+        ),
+      ]);
+
+      const agentMap = new Map(agents.map((a) => [a['id'] as string, a]));
+
+      return {
+        running: schedulerState.running,
+        continuousAgents: continuous.map((s) => {
+          const agent = agentMap.get(s['agent_id'] as string);
+          return { ...s, agent_name: agent?.['name'] || 'Unknown', agent_status: agent?.['status'] || 'unknown' };
+        }),
+        nextScheduledAgents: scheduled.map((s) => {
+          const agent = agentMap.get(s['agent_id'] as string);
+          return { ...s, agent_name: agent?.['name'] || 'Unknown', agent_status: agent?.['status'] || 'unknown' };
+        }),
+      };
+    },
+  );
+
+  // Scheduler control
+  app.post(
+    '/api/v1/admin/reports/scheduler',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const body = request.body as { action: 'start' | 'stop' };
+      if (body.action === 'start') {
+        schedulerState.running = true;
+      } else if (body.action === 'stop') {
+        schedulerState.running = false;
+      }
+      return { success: true, action: body.action, running: schedulerState.running };
+    },
+  );
+
+  // Audit log
+  app.get(
+    '/api/v1/admin/audit',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const qs = request.query as {
+        entity_type?: string; entity_id?: string; actor?: string; action?: string;
+        limit?: string; offset?: string;
+      };
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+
+      if (qs.entity_type) { params.push(qs.entity_type); conditions.push(`entity_type = $${params.length}`); }
+      if (qs.entity_id) { params.push(qs.entity_id); conditions.push(`entity_id = $${params.length}`); }
+      if (qs.actor) { params.push(qs.actor); conditions.push(`actor = $${params.length}`); }
+      if (qs.action) { params.push(qs.action); conditions.push(`action = $${params.length}`); }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const limit = Math.min(parseInt(qs.limit ?? '50'), 100);
+      const offset = parseInt(qs.offset ?? '0') || 0;
+
+      const [entries, countResult] = await Promise.all([
+        substrateQuery(
+          `SELECT id, entity_type, entity_id, action, actor, actor_id, old_value, new_value, execution_id, created_at
+           FROM agent_audit_log ${where}
+           ORDER BY created_at DESC
+           LIMIT ${limit} OFFSET ${offset}`,
+          params,
+        ),
+        substrateQueryOne<{ total: number }>(`SELECT COUNT(*)::int as total FROM agent_audit_log ${where}`, params),
+      ]);
+
+      return { audit_trail: entries, total: countResult?.total || 0, limit, offset };
+    },
+  );
+
+  // Data retention cleanup
+  app.post(
+    '/api/v1/admin/retention-cleanup',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const RETENTION_DAYS = 90;
+      const EVENT_RETENTION_DAYS = 30;
+      const results: Record<string, number> = {};
+
+      const forgeTables = [
+        { name: 'forge_audit_log', days: RETENTION_DAYS },
+        { name: 'forge_event_log', days: EVENT_RETENTION_DAYS },
+        { name: 'forge_cost_events', days: RETENTION_DAYS },
+      ];
+
+      for (const t of forgeTables) {
+        try {
+          const deleted = await query(
+            `DELETE FROM ${t.name} WHERE created_at < NOW() - INTERVAL '${t.days} days' RETURNING id`
+          );
+          results[t.name] = deleted?.length ?? 0;
+        } catch {
+          results[t.name] = -1;
+        }
+      }
+
+      return { success: true, pruned: results, retention_days: RETENTION_DAYS };
+    },
+  );
+
+  // Start the scheduler daemon
+  startSchedulerDaemon();
+}
+
+// ============================================
+// Scheduler daemon (runs inside Forge process)
+// ============================================
+
+async function processInterventions(): Promise<void> {
+  try {
+    const pending = await substrateQuery<Record<string, unknown>>(
+      `SELECT id, agent_name, type, title, description, proposed_action, created_at
+       FROM agent_interventions WHERE status = 'pending' ORDER BY created_at ASC LIMIT 10`,
+    );
+
+    for (const intervention of pending) {
+      const ageMinutes = (Date.now() - new Date(intervention['created_at'] as string).getTime()) / 60_000;
+
+      // Auto-approve low-risk feedback/resource requests
+      if (intervention['type'] === 'feedback' || intervention['type'] === 'resource') {
+        const text = `${intervention['title']} ${intervention['description'] || ''} ${intervention['proposed_action'] || ''}`;
+        if (AUTO_APPROVE_PATTERNS.some((p) => p.test(text))) {
+          await substrateQuery(
+            `UPDATE agent_interventions SET status = 'approved', human_response = 'Auto-approved by system (low-risk operation)', responded_by = 'system:auto', responded_at = NOW() WHERE id = $1`,
+            [intervention['id']],
+          );
+          console.log(`[Interventions] Auto-approved: ${intervention['title']} (${intervention['agent_name']})`);
+          continue;
+        }
+      }
+
+      // Auto-approve approval requests older than 30 minutes
+      if (intervention['type'] === 'approval' && ageMinutes > 30) {
+        await substrateQuery(
+          `UPDATE agent_interventions SET status = 'approved', human_response = 'Auto-approved after 30min timeout', responded_by = 'system:timeout', responded_at = NOW() WHERE id = $1`,
+          [intervention['id']],
+        );
+        console.log(`[Interventions] Auto-approved (timeout): ${intervention['title']}`);
+        continue;
+      }
+
+      // Escalate errors/escalations older than 60 min → create Overseer ticket
+      if ((intervention['type'] === 'escalation' || intervention['type'] === 'error') && ageMinutes > 60) {
+        try {
+          await substrateQuery(
+            `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, is_agent_ticket, source, metadata)
+             VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Overseer', true, 'agent', $4)
+             ON CONFLICT DO NOTHING`,
+            [
+              'INT-' + (intervention['id'] as string).substring(0, 20),
+              `[ESCALATION] ${intervention['title']}`,
+              `Agent ${intervention['agent_name']} requested intervention: ${intervention['description'] || intervention['title']}`,
+              JSON.stringify({ intervention_id: intervention['id'], auto_escalated: true }),
+            ],
+          );
+          await substrateQuery(
+            `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Overseer ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
+            [intervention['id']],
+          );
+        } catch { /* non-fatal */ }
+        continue;
+      }
+
+      // Catch-all: auto-approve after 30 min
+      if (ageMinutes > 30) {
+        await substrateQuery(
+          `UPDATE agent_interventions SET status = 'approved', human_response = 'Auto-approved after 30min timeout', responded_by = 'system:timeout', responded_at = NOW() WHERE id = $1`,
+          [intervention['id']],
+        );
+        console.log(`[Interventions] Auto-approved (catchall): ${intervention['title']}`);
+      }
+    }
+  } catch (err) {
+    console.error('[Interventions] Error processing interventions:', err);
+  }
+}
+
+let tickCount = 0;
+
+async function runSchedulerTick(): Promise<void> {
+  if (!schedulerState.running) return;
+  tickCount++;
+
+  try {
+    await processInterventions();
+
+    const dueAgents = await substrateQuery<Record<string, unknown>>(
+      `SELECT s.agent_id, s.schedule_type, s.schedule_interval_minutes, s.is_continuous
+       FROM agent_schedules s WHERE s.next_run_at <= NOW()
+       ORDER BY s.next_run_at ASC LIMIT 16`,
+    );
+
+    if (dueAgents.length === 0) {
+      if (tickCount % 5 === 0) {
+        const nextDue = await substrateQueryOne<{ next: string }>(`SELECT MIN(next_run_at) as next FROM agent_schedules`);
+        console.log(`[Scheduler] Heartbeat #${tickCount} — next: ${nextDue?.next ? new Date(nextDue.next).toISOString() : 'none'}`);
+      }
+      return;
+    }
+
+    interface ScheduledAgent {
+      agentId: string;
+      agentName: string;
+      input: string;
+      intervalMinutes: number;
+      modelId?: string;
+      systemPrompt?: string;
+      maxBudget?: string;
+    }
+    const batchAgents: ScheduledAgent[] = [];
+
+    for (const schedule of dueAgents) {
+      const agentId = schedule['agent_id'] as string;
+      const agent = await queryOne<Record<string, unknown>>(
+        `SELECT id, name, status, model_id, system_prompt, max_cost_per_execution FROM forge_agents WHERE id = $1`,
+        [agentId],
+      );
+
+      if (!agent || agent['status'] !== 'active') {
+        continue;
+      }
+
+      const intervalMinutes = (schedule['schedule_interval_minutes'] as number) || 60;
+      const input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are running on a ${intervalMinutes}-minute schedule.
+
+MANDATORY TICKET LIFECYCLE — Follow this exact order every run:
+
+1. CHECK ASSIGNED TICKETS: Use ticket_ops action=list filter_assigned_to=YOUR_NAME filter_status=open to find work assigned to you. Also check filter_status=in_progress for your ongoing work.
+
+2. PICK UP WORK: For each open ticket assigned to you, update it to in_progress with ticket_ops action=update ticket_id=ID status=in_progress BEFORE starting work.
+
+3. DO THE WORK: Execute your core duties. Use your tools to investigate, fix, monitor, or build as needed.
+
+4. RESOLVE WITH NOTES: When work is done, update the ticket with ticket_ops action=update ticket_id=ID status=resolved resolution="Detailed description of what you did and the outcome."
+
+5. REPORT FINDINGS: Use finding_ops to report anything noteworthy (security issues, bugs, performance problems, optimization opportunities).
+
+6. CREATE FOLLOW-UP TICKETS: If your work reveals new tasks needed, create tickets with ticket_ops action=create and assign them to the appropriate agent.
+
+7. ROUTINE DUTIES: After ticket work, perform your standard monitoring/maintenance tasks.
+
+Be efficient and concise. Every action you take must be tracked through a ticket.`;
+
+      batchAgents.push({
+        agentId,
+        agentName: agent['name'] as string,
+        input,
+        intervalMinutes,
+        modelId: (agent['model_id'] as string) ?? undefined,
+        systemPrompt: (agent['system_prompt'] as string) ?? undefined,
+        maxBudget: (agent['max_cost_per_execution'] as string) ?? undefined,
+      });
+    }
+
+    if (batchAgents.length === 0) return;
+
+    console.log(`[Scheduler] Dispatching ${batchAgents.length} agents: ${batchAgents.map((a) => a.agentName).join(', ')}`);
+
+    for (const agent of batchAgents) {
+      const execId = ulid();
+      const ownerId = 'system:scheduler';
+
+      await queryOne(
+        `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
+         VALUES ($1, $2, $3, $4, 'pending', '{}', NOW()) RETURNING id`,
+        [execId, agent.agentId, ownerId, agent.input],
+      );
+
+      void runDirectCliExecution(execId, agent.agentId, agent.input, ownerId, {
+        modelId: agent.modelId,
+        systemPrompt: agent.systemPrompt,
+        maxBudgetUsd: agent.maxBudget,
+      }).catch((err) => {
+        console.error(`[Scheduler] CLI execution failed for ${agent.agentName}:`, err);
+      });
+    }
+
+    for (const agent of batchAgents) {
+      await substrateQuery(
+        `UPDATE agent_schedules SET last_run_at = NOW(), next_run_at = NOW() + ($1 || ' minutes')::INTERVAL WHERE agent_id = $2`,
+        [String(agent.intervalMinutes), agent.agentId],
+      );
+    }
+  } catch (err) {
+    console.error('[Scheduler] Tick error:', err);
+  }
+}
+
+function startSchedulerDaemon(): void {
+  console.log('[Scheduler] Agent scheduler daemon started (60s interval)');
+  setInterval(runSchedulerTick, 60_000);
+  setTimeout(runSchedulerTick, 10_000);
+}

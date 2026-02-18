@@ -52,10 +52,10 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 1536M
+          memory: 768M
         reservations:
           cpus: '0.5'
-          memory: 512M
+          memory: 256M
 
   redis:
     image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
@@ -94,10 +94,10 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 768M
+          memory: 256M
         reservations:
           cpus: '0.25'
-          memory: 128M
+          memory: 64M
 
   # ===========================================
   # APPLICATION LAYER
