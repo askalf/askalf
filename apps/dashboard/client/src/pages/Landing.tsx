@@ -307,6 +307,14 @@ export default function LandingPage() {
           </div>
           <div className="landing-footer-links">
             <a
+              href="https://amnesia.tax"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="landing-footer-link"
+            >
+              amnesia.tax — the world's fastest aggregated search engine
+            </a>
+            <a
               href="https://x.com/meetaskalf"
               target="_blank"
               rel="noopener noreferrer"
