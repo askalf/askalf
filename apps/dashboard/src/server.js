@@ -168,18 +168,9 @@ await fastify.register(fastifyCookie, {
 await fastify.register(fastifyWebsocket);
 
 // Security headers middleware
+// NOTE: CSP is set by nginx (cloudflared.conf) — do NOT duplicate here
+// to avoid double CSP headers which browsers resolve by taking the most restrictive.
 fastify.addHook('onSend', async (request, reply) => {
-  // Content Security Policy
-  reply.header('Content-Security-Policy',
-    "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
-    "img-src 'self' data: https:; " +
-    "connect-src 'self' wss://orcastr8r.com ws://localhost:* http://localhost:*; " +
-    "frame-ancestors 'none';"
-  );
-  // Other security headers
   reply.header('X-Frame-Options', 'DENY');
   reply.header('X-Content-Type-Options', 'nosniff');
   reply.header('X-XSS-Protection', '1; mode=block');
@@ -244,11 +235,6 @@ fastify.get('/docs', async (request, reply) => {
   } catch {
     return reply.code(404).send({ error: 'Page not found' });
   }
-});
-
-// Serve favicon from public root (referenced by index.html as /favicon.svg)
-fastify.get('/favicon.svg', async (request, reply) => {
-  return reply.sendFile('favicon.svg', join(__dirname, '../public'));
 });
 
 // ===========================================
