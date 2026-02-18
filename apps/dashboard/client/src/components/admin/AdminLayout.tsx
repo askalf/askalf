@@ -102,8 +102,7 @@ export default function AdminLayout() {
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
           <div className="admin-logo" onClick={() => { handleTabClick('overview'); }}>
-            <span className="admin-logo-icon">F</span>
-            <span className="admin-logo-text">Forge</span>
+            <span className="admin-logo-wordmark">forge</span>
           </div>
         </div>
 
