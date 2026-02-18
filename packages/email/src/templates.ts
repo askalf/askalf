@@ -16,7 +16,7 @@ import type {
 } from './types.js';
 
 /**
- * Base HTML template wrapper - Clean light theme for better email client compatibility
+ * Base HTML template wrapper — dark theme matching the forge brand
  */
 function wrapHtml(content: string): string {
   return `
@@ -25,15 +25,15 @@ function wrapHtml(content: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Forge</title>
+  <title>forge</title>
   <!--[if mso]>
   <style type="text/css">
     body, table, td {font-family: Arial, sans-serif !important;}
   </style>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5;">
+<body style="margin: 0; padding: 0; background-color: #0a0a0b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0a0a0b;">
     <tr>
       <td align="center" style="padding: 40px 20px;">
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%;">
@@ -41,21 +41,14 @@ function wrapHtml(content: string): string {
           <!-- Header -->
           <tr>
             <td align="center" style="padding-bottom: 32px;">
-              <table role="presentation" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td style="vertical-align: middle;">
-                    <span style="display: inline-block; width: 40px; height: 40px; background-color: #7c3aed; border-radius: 8px; text-align: center; line-height: 40px; font-size: 22px; font-weight: 800; color: #ffffff; margin-right: 12px; vertical-align: middle;">&#128296;</span>
-                    <span style="font-size: 32px; font-weight: 800; color: #7c3aed; letter-spacing: -0.02em; line-height: 1; vertical-align: middle;">Forge</span>
-                  </td>
-                </tr>
-              </table>
+              <span style="font-size: 28px; font-weight: 800; color: #a78bfa; letter-spacing: -0.03em; line-height: 1; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;">forge</span>
             </td>
           </tr>
 
           <!-- Main Content Card -->
           <tr>
             <td>
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #111113; border: 1px solid #1e1e22; border-radius: 12px;">
                 <tr>
                   <td style="padding: 48px 40px;">
                     ${content}
@@ -68,8 +61,8 @@ function wrapHtml(content: string): string {
           <!-- Footer -->
           <tr>
             <td align="center" style="padding-top: 32px;">
-              <p style="margin: 0 0 8px 0; font-size: 13px; color: #6b7280;">
-                AI Agent Orchestration Platform
+              <p style="margin: 0 0 8px 0; font-size: 13px; color: #52525b;">
+                The control plane for autonomous agents
               </p>
               <p style="margin: 0; font-size: 13px;">
                 <a href="https://integration.tax" style="color: #7c3aed; text-decoration: none; font-weight: 600;">integration.tax</a>
@@ -104,9 +97,9 @@ function button(text: string, url: string): string {
 /** Reusable note/callout box */
 function noteBox(content: string, type: 'info' | 'warning' | 'error' = 'info'): string {
   const colors = {
-    info: { bg: '#f5f3ff', border: '#7c3aed' },
-    warning: { bg: '#fffbeb', border: '#f59e0b' },
-    error: { bg: '#fef2f2', border: '#ef4444' },
+    info: { bg: '#1a1625', border: '#7c3aed' },
+    warning: { bg: '#1a1810', border: '#f59e0b' },
+    error: { bg: '#1a1012', border: '#ef4444' },
   };
   const { bg, border } = colors[type];
 
@@ -121,54 +114,62 @@ function noteBox(content: string, type: 'info' | 'warning' | 'error' = 'info'): 
   `;
 }
 
+/** Section label — mimics the // comment style from the site */
+function sectionLabel(text: string): string {
+  return `
+    <p style="margin: 32px 0 16px 0; font-size: 11px; font-weight: 600; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;">
+      // ${text}
+    </p>
+  `;
+}
+
 // ============================================
 // Welcome Email
 // ============================================
 
 export function welcomeEmailHtml(vars: WelcomeEmailVars): string {
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      Welcome to Forge!    </h1>
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
+      You're in.
+    </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
       Hi ${vars.userName},
     </p>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
-      You're in. Your <strong style="color: #7c3aed;">${vars.planName}</strong> deployment is ready.
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
+      Your <strong style="color: #a78bfa;">${vars.planName}</strong> deployment is live. The control plane is ready.
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Forge is an AI agent orchestration platform. Create, deploy, and manage autonomous AI agents that work together — with built-in memory, monitoring, and self-healing capabilities.
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
+      Forge gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
     </p>
 
-    <h2 style="margin: 32px 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">
-      What You Get
-    </h2>
+    ${sectionLabel('What you get')}
 
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
       <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Agent Fleet Management</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Create and orchestrate multiple AI agents from a single command center</span>
+        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
+          <strong style="color: #fafafa;">Fleet Orchestration</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Deploy, scale, and coordinate autonomous agents from a single command center</span>
         </td>
       </tr>
       <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Universal Memory</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Agents learn and retain knowledge across executions — episodic, semantic, and procedural</span>
+        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
+          <strong style="color: #fafafa;">Darwinian Evolution</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Agents that perform get promoted. Agents that don't get killed. Automatically.</span>
         </td>
       </tr>
       <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Multi-Provider AI</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Anthropic, OpenAI, Google, and more — each agent uses the right model for the job</span>
+        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
+          <strong style="color: #fafafa;">4-Tier Memory</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Working, episodic, semantic, and procedural memory that persists across executions</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0;">
-          <strong style="color: #111827;">Production Monitoring</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Real-time health checks, event logs, and auto-healing for your agent fleet</span>
+          <strong style="color: #fafafa;">Budget Enforcement</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Hard limits per agent, per fleet, per cycle. No surprise bills. Ever.</span>
         </td>
       </tr>
     </table>
@@ -179,24 +180,24 @@ export function welcomeEmailHtml(vars: WelcomeEmailVars): string {
 
 export function welcomeEmailText(vars: WelcomeEmailVars): string {
   return `
-Welcome to Forge!
+You're in.
+
 Hi ${vars.userName},
 
-You're in. Your ${vars.planName} deployment is ready.
+Your ${vars.planName} deployment is live. The control plane is ready.
 
-Forge is an AI agent orchestration platform. Create, deploy, and manage autonomous AI agents that work together — with built-in memory, monitoring, and self-healing capabilities.
+Forge gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
 
-WHAT YOU GET
-------------
-- Agent Fleet Management — Create and orchestrate multiple AI agents from a single command center
-- Universal Memory — Agents learn and retain knowledge across executions
-- Multi-Provider AI — Anthropic, OpenAI, Google, and more
-- Production Monitoring — Real-time health checks, event logs, and auto-healing
+// WHAT YOU GET
+- Fleet Orchestration — Deploy, scale, and coordinate autonomous agents from a single command center
+- Darwinian Evolution — Agents that perform get promoted. Agents that don't get killed. Automatically.
+- 4-Tier Memory — Working, episodic, semantic, and procedural memory that persists across executions
+- Budget Enforcement — Hard limits per agent, per fleet, per cycle. No surprise bills. Ever.
 
 Open Command Center: ${vars.dashboardUrl}
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -207,31 +208,31 @@ https://integration.tax
 
 export function passwordResetEmailHtml(vars: PasswordResetEmailVars): string {
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
       Reset Your Password
     </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
       Hi ${vars.userName},
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
       We received a request to reset your password. Click the button below to create a new one:
     </p>
 
     ${button('Reset Password', vars.resetUrl)}
 
     ${noteBox(`
-      <p style="margin: 0; font-size: 14px; color: #374151;">
-        This link expires in <strong>${vars.expiresInMinutes} minutes</strong>.
+      <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
+        This link expires in <strong style="color: #fafafa;">${vars.expiresInMinutes} minutes</strong>.
       </p>
     `, 'warning')}
 
-    <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280;">
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
       If you didn't request this, you can safely ignore this email. Your password won't change.
     </p>
 
-    <p style="margin: 24px 0 0 0; font-size: 12px; color: #9ca3af;">
+    <p style="margin: 24px 0 0 0; font-size: 12px; color: #3f3f46;">
       Button not working? Copy this link:<br>
       <a href="${vars.resetUrl}" style="color: #7c3aed; word-break: break-all;">${vars.resetUrl}</a>
     </p>
@@ -253,7 +254,7 @@ This link expires in ${vars.expiresInMinutes} minutes.
 If you didn't request this, you can safely ignore this email. Your password won't change.
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -264,31 +265,31 @@ https://integration.tax
 
 export function emailVerificationHtml(vars: EmailVerificationVars): string {
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
       Verify Your Email
     </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
       Hi ${vars.userName},
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Please verify your email address to complete your Forge account setup:
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
+      One last step to activate your forge account:
     </p>
 
     ${button('Verify Email', vars.verifyUrl)}
 
     ${noteBox(`
-      <p style="margin: 0; font-size: 14px; color: #374151;">
-        This link expires in <strong>${vars.expiresInHours} hours</strong>.
+      <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
+        This link expires in <strong style="color: #fafafa;">${vars.expiresInHours} hours</strong>.
       </p>
     `)}
 
-    <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280;">
-      If you didn't create an Forge account, you can safely ignore this email.
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
+      If you didn't create a forge account, you can safely ignore this email.
     </p>
 
-    <p style="margin: 24px 0 0 0; font-size: 12px; color: #9ca3af;">
+    <p style="margin: 24px 0 0 0; font-size: 12px; color: #3f3f46;">
       Button not working? Copy this link:<br>
       <a href="${vars.verifyUrl}" style="color: #7c3aed; word-break: break-all;">${vars.verifyUrl}</a>
     </p>
@@ -301,16 +302,16 @@ Verify Your Email
 
 Hi ${vars.userName},
 
-Please verify your email address to complete your Forge account setup:
+One last step to activate your forge account:
 
 ${vars.verifyUrl}
 
 This link expires in ${vars.expiresInHours} hours.
 
-If you didn't create an Forge account, you can safely ignore this email.
+If you didn't create a forge account, you can safely ignore this email.
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -321,66 +322,66 @@ https://integration.tax
 
 export function subscriptionConfirmationHtml(vars: SubscriptionEmailVars): string {
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      Subscription Confirmed! 🎉
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
+      Subscription Confirmed
     </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
       Hi ${vars.userName},
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Thank you for subscribing to Forge!
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
+      Your forge deployment just leveled up.
     </p>
 
     ${noteBox(`
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
         <tr>
-          <td style="padding: 4px 0; font-size: 14px; color: #374151;">
-            <strong>Plan:</strong> ${vars.planName}
+          <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
+            <strong style="color: #fafafa;">Plan:</strong> ${vars.planName}
           </td>
         </tr>
         <tr>
-          <td style="padding: 4px 0; font-size: 14px; color: #374151;">
-            <strong>Amount:</strong> ${vars.amount}
+          <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
+            <strong style="color: #fafafa;">Amount:</strong> ${vars.amount}
           </td>
         </tr>
         ${vars.nextBillingDate ? `
         <tr>
-          <td style="padding: 4px 0; font-size: 14px; color: #374151;">
-            <strong>Next billing:</strong> ${vars.nextBillingDate}
+          <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
+            <strong style="color: #fafafa;">Next billing:</strong> ${vars.nextBillingDate}
           </td>
         </tr>
         ` : ''}
       </table>
     `)}
 
-    <p style="margin: 24px 0 0 0; font-size: 16px; color: #374151;">
-      You now have access to all features in your plan. Start exploring:
+    <p style="margin: 24px 0 0 0; font-size: 16px; color: #a1a1aa;">
+      All features in your plan are now active. Deploy your fleet:
     </p>
 
-    ${button('Go to Dashboard', vars.dashboardUrl)}
+    ${button('Open Command Center', vars.dashboardUrl)}
   `);
 }
 
 export function subscriptionConfirmationText(vars: SubscriptionEmailVars): string {
   return `
-Subscription Confirmed! 🎉
+Subscription Confirmed
 
 Hi ${vars.userName},
 
-Thank you for subscribing to Forge!
+Your forge deployment just leveled up.
 
 Plan: ${vars.planName}
 Amount: ${vars.amount}
 ${vars.nextBillingDate ? `Next billing: ${vars.nextBillingDate}` : ''}
 
-You now have access to all features in your plan.
+All features in your plan are now active.
 
-Go to Dashboard: ${vars.dashboardUrl}
+Open Command Center: ${vars.dashboardUrl}
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -391,32 +392,32 @@ https://integration.tax
 
 export function subscriptionCanceledHtml(vars: SubscriptionEmailVars): string {
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
       Subscription Canceled
     </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
       Hi ${vars.userName},
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
       Your ${vars.planName} subscription has been canceled.
     </p>
 
     ${vars.nextBillingDate ? noteBox(`
-      <p style="margin: 0; font-size: 14px; color: #374151;">
-        You'll continue to have access until <strong>${vars.nextBillingDate}</strong>.
+      <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
+        You'll continue to have access until <strong style="color: #fafafa;">${vars.nextBillingDate}</strong>.
       </p>
     `) : ''}
 
-    <p style="margin: 24px 0 0 0; font-size: 16px; color: #374151;">
-      Changed your mind? You can reactivate anytime:
+    <p style="margin: 24px 0 0 0; font-size: 16px; color: #a1a1aa;">
+      Changed your mind? Reactivate anytime:
     </p>
 
     ${button('Manage Subscription', `${vars.dashboardUrl}/billing`)}
 
-    <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280;">
-      We'd love to hear your feedback — it helps us improve Forge for everyone.
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
+      We'd love to hear your feedback. It helps us build a better control plane.
     </p>
   `);
 }
@@ -431,13 +432,11 @@ Your ${vars.planName} subscription has been canceled.
 
 ${vars.nextBillingDate ? `You'll continue to have access until ${vars.nextBillingDate}.` : ''}
 
-Changed your mind? You can reactivate anytime:
+Changed your mind? Reactivate anytime:
 ${vars.dashboardUrl}/billing
 
-We'd love to hear your feedback — it helps us improve Forge for everyone.
-
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -448,29 +447,29 @@ https://integration.tax
 
 export function paymentFailedHtml(vars: PaymentFailedEmailVars): string {
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
       Payment Failed
     </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
       Hi ${vars.userName},
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      We couldn't process your payment of <strong>${vars.amount}</strong>.
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
+      We couldn't process your payment of <strong style="color: #fafafa;">${vars.amount}</strong>.
     </p>
 
     ${noteBox(`
-      <p style="margin: 0; font-size: 14px; color: #374151;">
+      <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
         ${vars.retryDate
-          ? `We'll automatically retry on <strong>${vars.retryDate}</strong>.`
+          ? `We'll automatically retry on <strong style="color: #fafafa;">${vars.retryDate}</strong>.`
           : 'Please update your payment method to avoid service interruption.'}
       </p>
     `, 'error')}
 
     ${button('Update Payment Method', vars.updatePaymentUrl)}
 
-    <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280;">
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
       Questions about billing? Reply to this email and we'll help.
     </p>
   `);
@@ -491,7 +490,7 @@ Update Payment Method: ${vars.updatePaymentUrl}
 Questions about billing? Reply to this email and we'll help.
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -504,26 +503,26 @@ export function usageLimitWarningHtml(vars: UsageLimitEmailVars): string {
   const isHigh = vars.percentUsed >= 90;
 
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
       Usage Limit Warning
     </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
       Hi ${vars.userName},
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
       You're approaching your ${vars.limitType} limit.
     </p>
 
     ${noteBox(`
-      <p style="margin: 0; font-size: 14px; color: #374151;">
-        <strong>Current usage:</strong> ${vars.currentUsage.toLocaleString()} / ${vars.limit.toLocaleString()} (${vars.percentUsed}%)
+      <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
+        <strong style="color: #fafafa;">Current usage:</strong> ${vars.currentUsage.toLocaleString()} / ${vars.limit.toLocaleString()} (${vars.percentUsed}%)
       </p>
     `, isHigh ? 'error' : 'warning')}
 
-    <p style="margin: 24px 0 0 0; font-size: 16px; color: #374151;">
-      Once you hit the limit, ${vars.limitType.toLowerCase()} will pause until the next billing period. Upgrade to continue uninterrupted:
+    <p style="margin: 24px 0 0 0; font-size: 16px; color: #a1a1aa;">
+      Once you hit the limit, ${vars.limitType.toLowerCase()} will pause until the next billing period. Upgrade to keep your fleet running:
     </p>
 
     ${button('Upgrade Plan', vars.upgradeUrl)}
@@ -545,7 +544,7 @@ Once you hit the limit, ${vars.limitType.toLowerCase()} will pause until the nex
 Upgrade Plan: ${vars.upgradeUrl}
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -556,26 +555,27 @@ https://integration.tax
 
 export function teamInviteHtml(vars: TeamInviteEmailVars): string {
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      You're Invited!    </h1>
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
+      You're Invited
+    </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
-      <strong>${vars.inviterName}</strong> invited you to join <strong>${vars.teamName}</strong> on Forge.
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
+      <strong style="color: #fafafa;">${vars.inviterName}</strong> invited you to join <strong style="color: #a78bfa;">${vars.teamName}</strong> on forge.
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-      Forge is an AI agent orchestration platform for teams.
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
+      Forge is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
     </p>
 
     ${button('Accept Invitation', vars.inviteUrl)}
 
     ${noteBox(`
-      <p style="margin: 0; font-size: 14px; color: #374151;">
-        This invitation expires in <strong>${vars.expiresInDays} days</strong>.
+      <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
+        This invitation expires in <strong style="color: #fafafa;">${vars.expiresInDays} days</strong>.
       </p>
     `)}
 
-    <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280;">
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
       Don't want to join? Just ignore this email.
     </p>
   `);
@@ -583,10 +583,11 @@ export function teamInviteHtml(vars: TeamInviteEmailVars): string {
 
 export function teamInviteText(vars: TeamInviteEmailVars): string {
   return `
-You're Invited!
-${vars.inviterName} invited you to join ${vars.teamName} on Forge.
+You're Invited
 
-Forge is an AI agent orchestration platform for teams.
+${vars.inviterName} invited you to join ${vars.teamName} on forge.
+
+Forge is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
 
 Accept Invitation: ${vars.inviteUrl}
 
@@ -595,7 +596,7 @@ This invitation expires in ${vars.expiresInDays} days.
 Don't want to join? Just ignore this email.
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -607,39 +608,54 @@ https://integration.tax
 export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
   const firstName = vars.name.split(' ')[0];
   return wrapHtml(`
-    <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #111827;">
+    <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
       You're on the list, ${firstName}.
     </h1>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151; line-height: 1.6;">
-      Thanks for your interest in Forge. We're opening access in small batches to make sure every team gets a great onboarding experience.
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa; line-height: 1.7;">
+      You just reserved your spot for Forge — the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
     </p>
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 32px 0; background: #f9fafb; border-radius: 12px;">
+    ${sectionLabel('What you\'re getting access to')}
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 32px 0; background: #0f0f12; border: 1px solid #1e1e22; border-radius: 12px;">
       <tr>
         <td style="padding: 24px 28px;">
-          <p style="margin: 0 0 16px 0; font-size: 14px; font-weight: 600; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.05em;">
-            What you'll get access to
-          </p>
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
             <tr>
-              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
-                <strong>Agent Fleet Management</strong> — deploy, monitor, and coordinate autonomous AI agents from one dashboard
+              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
+                <strong style="color: #fafafa;">Fleet Orchestration</strong>
+                <br><span style="color: #71717a; font-size: 14px;">Deploy, scale, and coordinate autonomous agents. Kubernetes-style primitives for LLMs.</span>
               </td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
-                <strong>Persistent Memory</strong> — agents retain context across sessions with 4-tier cognitive memory
+              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
+                <strong style="color: #fafafa;">Darwinian Evolution</strong>
+                <br><span style="color: #71717a; font-size: 14px;">Agents that perform get promoted. Agents that don't get killed. Natural selection for your fleet.</span>
               </td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
-                <strong>Multi-Provider AI</strong> — Anthropic, OpenAI, Google, and local models — each agent picks the right one
+              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
+                <strong style="color: #fafafa;">Budget Enforcement</strong>
+                <br><span style="color: #71717a; font-size: 14px;">Hard cost limits per agent, per fleet, per cycle. Your agents can't spend what you don't authorize.</span>
               </td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #374151; font-size: 15px;">
-                <strong>Built-in Guardrails</strong> — cost limits, rate controls, content filters, and tool restrictions out of the box
+              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
+                <strong style="color: #fafafa;">4-Tier Cognitive Memory</strong>
+                <br><span style="color: #71717a; font-size: 14px;">Working, episodic, semantic, and procedural memory. Agents learn and remember across executions.</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
+                <strong style="color: #fafafa;">Auto-Healing</strong>
+                <br><span style="color: #71717a; font-size: 14px;">Failed agents restart automatically. Health checks, circuit breakers, and graceful degradation built in.</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0;">
+                <strong style="color: #fafafa;">Human Checkpoints</strong>
+                <br><span style="color: #71717a; font-size: 14px;">Define approval gates. Agents pause and wait for your sign-off before critical actions.</span>
               </td>
             </tr>
           </table>
@@ -647,8 +663,14 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
       </tr>
     </table>
 
-    <p style="margin: 0 0 24px 0; font-size: 15px; color: #6b7280; line-height: 1.6;">
-      We'll email <strong>${vars.email}</strong> when your spot opens up. In the meantime, follow us on X for updates.
+    ${noteBox(`
+      <p style="margin: 0; font-size: 14px; color: #a1a1aa; line-height: 1.6;">
+        <strong style="color: #a78bfa;">Think of it this way:</strong> Kubernetes doesn't run your containers — it orchestrates them. Forge doesn't run your agents — it orchestrates them. Same model, different substrate.
+      </p>
+    `)}
+
+    <p style="margin: 24px 0 0 0; font-size: 15px; color: #71717a; line-height: 1.6;">
+      We'll email <strong style="color: #a1a1aa;">${vars.email}</strong> the moment your spot opens. It won't be long.
     </p>
 
     ${button('Follow @meetaskalf', 'https://x.com/meetaskalf')}
@@ -660,21 +682,24 @@ export function waitlistEmailText(vars: WaitlistEmailVars): string {
   return `
 You're on the list, ${firstName}.
 
-Thanks for your interest in Forge. We're opening access in small batches to make sure every team gets a great onboarding experience.
+You just reserved your spot for Forge -- the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
 
-WHAT YOU'LL GET ACCESS TO
--------------------------
-- Agent Fleet Management — deploy, monitor, and coordinate autonomous AI agents from one dashboard
-- Persistent Memory — agents retain context across sessions with 4-tier cognitive memory
-- Multi-Provider AI — Anthropic, OpenAI, Google, and local models — each agent picks the right one
-- Built-in Guardrails — cost limits, rate controls, content filters, and tool restrictions out of the box
+// WHAT YOU'RE GETTING ACCESS TO
+- Fleet Orchestration — Deploy, scale, and coordinate autonomous agents. Kubernetes-style primitives for LLMs.
+- Darwinian Evolution — Agents that perform get promoted. Agents that don't get killed. Natural selection for your fleet.
+- Budget Enforcement — Hard cost limits per agent, per fleet, per cycle. Your agents can't spend what you don't authorize.
+- 4-Tier Cognitive Memory — Working, episodic, semantic, and procedural. Agents learn and remember across executions.
+- Auto-Healing — Failed agents restart automatically. Health checks, circuit breakers, graceful degradation.
+- Human Checkpoints — Define approval gates. Agents pause and wait for your sign-off before critical actions.
 
-We'll email ${vars.email} when your spot opens up.
+Think of it this way: Kubernetes doesn't run your containers -- it orchestrates them. Forge doesn't run your agents -- it orchestrates them. Same model, different substrate.
+
+We'll email ${vars.email} the moment your spot opens. It won't be long.
 
 Follow us on X: https://x.com/meetaskalf
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -685,84 +710,83 @@ https://integration.tax
 
 export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      Forge is Live!    </h1>
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
+      Your spot is ready.
+    </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; color: #374151;">
-      You signed up for the Forge waitlist, and we wanted to be the first to tell you:
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
+      You signed up for the forge waitlist. The wait is over:
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 20px; font-weight: 600; color: #7c3aed;">
-      The new Forge is ready for you to explore.
+    <p style="margin: 0 0 24px 0; font-size: 22px; font-weight: 600; color: #a78bfa;">
+      The control plane is live. Your fleet awaits.
     </p>
 
-    <h2 style="margin: 32px 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">
-      What's New
-    </h2>
+    ${sectionLabel('What\'s ready for you')}
 
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
       <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Agent Fleet Management</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Create and orchestrate AI agents from a single command center</span>
+        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
+          <strong style="color: #fafafa;">Fleet Orchestration</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Deploy and coordinate autonomous agents from a single command center</span>
         </td>
       </tr>
       <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Universal Memory</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Agents learn and retain knowledge across executions</span>
+        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
+          <strong style="color: #fafafa;">Darwinian Evolution</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Natural selection for your agent fleet. The best survive, the rest don't.</span>
         </td>
       </tr>
       <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-          <strong style="color: #111827;">Multi-Provider AI</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Anthropic, OpenAI, Google, xAI - all in one place</span>
+        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
+          <strong style="color: #fafafa;">4-Tier Memory</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Persistent cognitive memory across all agent executions</span>
         </td>
       </tr>
       <tr>
         <td style="padding: 12px 0;">
-          <strong style="color: #111827;">Production Monitoring</strong>
-          <br><span style="color: #6b7280; font-size: 14px;">Health checks, event logs, and auto-healing built in</span>
+          <strong style="color: #fafafa;">Budget Enforcement</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Hard limits per agent, per fleet, per cycle. Zero surprise bills.</span>
         </td>
       </tr>
     </table>
 
-    ${button('Try Forge Now', 'https://integration.tax')}
+    ${button('Deploy Your Fleet', 'https://integration.tax')}
 
     ${noteBox(`
-      <p style="margin: 0; font-size: 14px; color: #374151;">
-        <strong>Free tier available</strong> — get started with no credit card required.
+      <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
+        <strong style="color: #fafafa;">Free tier available</strong> — get started with no credit card required.
       </p>
     `)}
 
-    <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280;">
-      Thanks for being an early supporter. We built this for people like you.
+    <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
+      Thanks for being early. We built this for people like you.
     </p>
   `);
 }
 
 export function waitlistUpdateEmailText(vars: WaitlistUpdateEmailVars): string {
   return `
-Forge is Live!
-You signed up for the Forge waitlist, and we wanted to be the first to tell you:
+Your spot is ready.
 
-The new Forge is ready for you to explore.
+You signed up for the forge waitlist. The wait is over:
 
-WHAT'S NEW
-----------
-- Agent Fleet Management - Create and orchestrate AI agents from a single command center
-- Universal Memory - Agents learn and retain knowledge across executions
-- Multi-Provider AI - Anthropic, OpenAI, Google, xAI - all in one place
-- Production Monitoring - Health checks, event logs, and auto-healing built in
+The control plane is live. Your fleet awaits.
 
-Try Forge Now: https://integration.tax
+// WHAT'S READY FOR YOU
+- Fleet Orchestration — Deploy and coordinate autonomous agents from a single command center
+- Darwinian Evolution — Natural selection for your agent fleet. The best survive, the rest don't.
+- 4-Tier Memory — Persistent cognitive memory across all agent executions
+- Budget Enforcement — Hard limits per agent, per fleet, per cycle. Zero surprise bills.
+
+Deploy Your Fleet: https://integration.tax
 
 Free tier available — get started with no credit card required.
 
-Thanks for being an early supporter. We built this for people like you.
+Thanks for being early. We built this for people like you.
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -774,40 +798,55 @@ https://integration.tax
 export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
   const signupUrl = vars.signupUrl || 'https://integration.tax/signup';
   return wrapHtml(`
-    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-      You're Invited to the Beta!    </h1>
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
+      You've been selected.
+    </h1>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-      Great news — you've been selected from the waitlist to join the Forge beta.
+    <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
+      You're off the waitlist. Your forge deployment is ready to create.
     </p>
 
-    <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-      Your account is ready to create. Click the button below to get started:
+    <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
+      As a beta operator, you'll be among the first to deploy autonomous agent fleets with Kubernetes-style orchestration.
     </p>
 
-    <div style="text-align: center; margin: 32px 0;">
-      <a href="${signupUrl}" style="display: inline-block; padding: 14px 32px; background: #7c3aed; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 8px;">
-        Join the Beta
-      </a>
-    </div>
+    ${button('Activate Your Account', signupUrl)}
 
-    <h2 style="margin: 32px 0 16px 0; font-size: 20px; font-weight: 600; color: #111827;">
-      What You Get
-    </h2>
+    ${sectionLabel('What you get')}
 
-    <ul style="margin: 0 0 24px 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: #374151;">
-      <li><strong>Agent Fleet Management</strong> — Create and orchestrate AI agents from one command center</li>
-      <li><strong>Universal Memory</strong> — Agents learn and retain knowledge across executions</li>
-      <li><strong>Multi-Provider AI</strong> — Anthropic, OpenAI, Google — the right model for each job</li>
-      <li><strong>Production Monitoring</strong> — Health checks, event logs, and auto-healing</li>
-    </ul>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
+          <strong style="color: #fafafa;">Fleet Orchestration</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Deploy, scale, and coordinate autonomous agents from one command center</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
+          <strong style="color: #fafafa;">Darwinian Evolution</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Agents that perform get promoted. Agents that don't get killed.</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
+          <strong style="color: #fafafa;">4-Tier Memory</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Persistent cognitive memory across all agent executions</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 0;">
+          <strong style="color: #fafafa;">Budget Enforcement</strong>
+          <br><span style="color: #71717a; font-size: 14px;">Hard cost limits per agent, per fleet, per cycle. No surprises.</span>
+        </td>
+      </tr>
+    </table>
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #374151;">
-      As a beta tester, your feedback directly shapes what we build. We'd love to hear from you.
+    <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
+      Your feedback shapes what we build next. We're listening.
     </p>
 
-    <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #6b7280;">
-      This invite is for <strong>${vars.email}</strong>. If you didn't sign up for Forge, you can ignore this email.
+    <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #52525b;">
+      This invite is for <strong style="color: #71717a;">${vars.email}</strong>. If you didn't sign up for forge, you can ignore this email.
     </p>
   `);
 }
@@ -815,26 +854,26 @@ export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
 export function betaInviteEmailText(vars: BetaInviteEmailVars): string {
   const signupUrl = vars.signupUrl || 'https://integration.tax/signup';
   return `
-You're Invited to the Beta!
-Great news — you've been selected from the waitlist to join the Forge beta.
+You've been selected.
 
-Your account is ready to create. Visit the link below to get started:
+You're off the waitlist. Your forge deployment is ready to create.
 
-${signupUrl}
+As a beta operator, you'll be among the first to deploy autonomous agent fleets with Kubernetes-style orchestration.
 
-WHAT YOU GET
-------------
-- Agent Fleet Management — Create and orchestrate AI agents from one command center
-- Universal Memory — Agents learn and retain knowledge across executions
-- Multi-Provider AI — Anthropic, OpenAI, Google — the right model for each job
-- Production Monitoring — Health checks, event logs, and auto-healing
+Activate Your Account: ${signupUrl}
 
-As a beta tester, your feedback directly shapes what we build. We'd love to hear from you.
+// WHAT YOU GET
+- Fleet Orchestration — Deploy, scale, and coordinate autonomous agents from one command center
+- Darwinian Evolution — Agents that perform get promoted. Agents that don't get killed.
+- 4-Tier Memory — Persistent cognitive memory across all agent executions
+- Budget Enforcement — Hard cost limits per agent, per fleet, per cycle. No surprises.
 
-This invite is for ${vars.email}. If you didn't sign up for Forge, you can ignore this email.
+Your feedback shapes what we build next. We're listening.
+
+This invite is for ${vars.email}. If you didn't sign up for forge, you can ignore this email.
 
 ---
-Forge — AI Agent Orchestration Platform
+forge — The control plane for autonomous agents
 https://integration.tax
   `.trim();
 }
@@ -849,29 +888,30 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
   switch (vars.type) {
     case 'waitlist_signup':
       content = `
-        <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-          New Waitlist Signup        </h1>
+        <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
+          New Waitlist Signup
+        </h1>
 
-        <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-          Someone new joined the Forge waitlist.
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
+          Someone new joined the forge waitlist.
         </p>
 
         ${noteBox(`
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
             <tr>
-              <td style="padding: 4px 0; font-size: 14px; color: #374151;">
-                <strong>Email:</strong> ${vars.email}
+              <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
+                <strong style="color: #fafafa;">Email:</strong> ${vars.email}
               </td>
             </tr>
             <tr>
-              <td style="padding: 4px 0; font-size: 14px; color: #374151;">
-                <strong>Time:</strong> ${vars.timestamp}
+              <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
+                <strong style="color: #fafafa;">Time:</strong> ${vars.timestamp}
               </td>
             </tr>
             ${vars.totalWaitlistCount ? `
             <tr>
-              <td style="padding: 4px 0; font-size: 14px; color: #374151;">
-                <strong>Total signups:</strong> ${vars.totalWaitlistCount}
+              <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
+                <strong style="color: #fafafa;">Total signups:</strong> ${vars.totalWaitlistCount}
               </td>
             </tr>
             ` : ''}
@@ -884,24 +924,24 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
 
     case 'new_user':
       content = `
-        <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-          New User Registration 🎉
+        <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
+          New User Registration
         </h1>
 
-        <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-          A new user registered for Forge.
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
+          A new operator registered for forge.
         </p>
 
         ${noteBox(`
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
             <tr>
-              <td style="padding: 4px 0; font-size: 14px; color: #374151;">
-                <strong>Email:</strong> ${vars.email}
+              <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
+                <strong style="color: #fafafa;">Email:</strong> ${vars.email}
               </td>
             </tr>
             <tr>
-              <td style="padding: 4px 0; font-size: 14px; color: #374151;">
-                <strong>Time:</strong> ${vars.timestamp}
+              <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
+                <strong style="color: #fafafa;">Time:</strong> ${vars.timestamp}
               </td>
             </tr>
           </table>
@@ -911,17 +951,17 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
 
     case 'error':
       content = `
-        <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #111827;">
-          System Alert ⚠️
+        <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
+          System Alert
         </h1>
 
-        <p style="margin: 0 0 24px 0; font-size: 16px; color: #374151;">
-          An error occurred in the Forge system.
+        <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
+          An error occurred in the forge system.
         </p>
 
         ${noteBox(`
-          <p style="margin: 0 0 8px 0; font-size: 14px; color: #374151;">${vars.message}</p>
-          <p style="margin: 0; font-size: 14px; color: #374151;"><strong>Time:</strong> ${vars.timestamp}</p>
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #a1a1aa;">${vars.message}</p>
+          <p style="margin: 0; font-size: 14px; color: #a1a1aa;"><strong style="color: #fafafa;">Time:</strong> ${vars.timestamp}</p>
         `, 'error')}
       `;
       break;
@@ -935,7 +975,8 @@ export function adminNotificationText(vars: AdminNotificationVars): string {
     case 'waitlist_signup':
       return `
 New Waitlist Signup
-A new developer joined the waitlist.
+
+Someone new joined the forge waitlist.
 
 Email: ${vars.email}
 Time: ${vars.timestamp}
@@ -944,33 +985,33 @@ ${vars.totalWaitlistCount ? `Total signups: ${vars.totalWaitlistCount}` : ''}
 View Dashboard: https://integration.tax
 
 ---
-Forge Admin Notification
+forge admin notification
       `.trim();
 
     case 'new_user':
       return `
-New User Registration 🎉
+New User Registration
 
-A new user registered for Forge.
+A new operator registered for forge.
 
 Email: ${vars.email}
 Time: ${vars.timestamp}
 
 ---
-Forge Admin Notification
+forge admin notification
       `.trim();
 
     case 'error':
       return `
-System Alert ⚠️
+System Alert
 
-An error occurred in the Forge system.
+An error occurred in the forge system.
 
 ${vars.message}
 Time: ${vars.timestamp}
 
 ---
-Forge Admin Notification
+forge admin notification
       `.trim();
 
     default:
@@ -1022,90 +1063,90 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
   switch (template) {
     case 'welcome':
       return {
-        subject: 'Welcome to Forge!',
+        subject: 'You\'re in — forge',
         html: welcomeEmailHtml(vars as WelcomeEmailVars),
         text: welcomeEmailText(vars as WelcomeEmailVars),
       };
 
     case 'password-reset':
       return {
-        subject: 'Reset Your Password - Forge',
+        subject: 'Reset your password — forge',
         html: passwordResetEmailHtml(vars as PasswordResetEmailVars),
         text: passwordResetEmailText(vars as PasswordResetEmailVars),
       };
 
     case 'email-verification':
       return {
-        subject: 'Verify Your Email - Forge',
+        subject: 'Verify your email — forge',
         html: emailVerificationHtml(vars as EmailVerificationVars),
         text: emailVerificationText(vars as EmailVerificationVars),
       };
 
     case 'subscription-confirmation':
       return {
-        subject: 'Subscription Confirmed - Forge 🎉',
+        subject: 'Subscription confirmed — forge',
         html: subscriptionConfirmationHtml(vars as SubscriptionEmailVars),
         text: subscriptionConfirmationText(vars as SubscriptionEmailVars),
       };
 
     case 'subscription-canceled':
       return {
-        subject: 'Subscription Canceled - Forge',
+        subject: 'Subscription canceled — forge',
         html: subscriptionCanceledHtml(vars as SubscriptionEmailVars),
         text: subscriptionCanceledText(vars as SubscriptionEmailVars),
       };
 
     case 'payment-failed':
       return {
-        subject: 'Action Required: Payment Failed - Forge',
+        subject: 'Action required: payment failed — forge',
         html: paymentFailedHtml(vars as PaymentFailedEmailVars),
         text: paymentFailedText(vars as PaymentFailedEmailVars),
       };
 
     case 'usage-limit-warning':
       return {
-        subject: 'Usage Limit Warning - Forge',
+        subject: 'Usage limit warning — forge',
         html: usageLimitWarningHtml(vars as UsageLimitEmailVars),
         text: usageLimitWarningText(vars as UsageLimitEmailVars),
       };
 
     case 'team-invite':
       return {
-        subject: `You're invited to join ${(vars as TeamInviteEmailVars).teamName} on Forge`,
+        subject: `You're invited to ${(vars as TeamInviteEmailVars).teamName} — forge`,
         html: teamInviteHtml(vars as TeamInviteEmailVars),
         text: teamInviteText(vars as TeamInviteEmailVars),
       };
 
     case 'waitlist':
       return {
-        subject: `You're on the Forge Waitlist!`,
+        subject: `You're on the list — forge`,
         html: waitlistEmailHtml(vars as WaitlistEmailVars),
         text: waitlistEmailText(vars as WaitlistEmailVars),
       };
 
     case 'waitlist-update':
       return {
-        subject: `Forge is Live!`,
+        subject: `Your spot is ready — forge`,
         html: waitlistUpdateEmailHtml(vars as WaitlistUpdateEmailVars),
         text: waitlistUpdateEmailText(vars as WaitlistUpdateEmailVars),
       };
 
     case 'beta-invite':
       return {
-        subject: `You're Invited to the Forge Beta!`,
+        subject: `You've been selected — forge beta`,
         html: betaInviteEmailHtml(vars as BetaInviteEmailVars),
         text: betaInviteEmailText(vars as BetaInviteEmailVars),
       };
 
     case 'admin-notification': {
       const adminVars = vars as AdminNotificationVars;
-      let subject = 'Forge Admin Alert';
+      let subject = 'forge admin alert';
       if (adminVars.type === 'waitlist_signup') {
-        subject = `New Waitlist Signup: ${adminVars.email}`;
+        subject = `New waitlist signup: ${adminVars.email}`;
       } else if (adminVars.type === 'new_user') {
-        subject = `New User Registration: ${adminVars.email} 🎉`;
+        subject = `New user: ${adminVars.email}`;
       } else if (adminVars.type === 'error') {
-        subject = '⚠️ Forge System Alert';
+        subject = 'forge system alert';
       }
       return {
         subject,

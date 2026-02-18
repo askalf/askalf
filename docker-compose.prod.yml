@@ -580,10 +580,10 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 128M
+          memory: 192M
         reservations:
           cpus: '0.05'
-          memory: 32M
+          memory: 48M
 
   # Docker socket proxy — whitelists Docker API endpoints for forge/mcp-tools
   # Replaces raw /var/run/docker.sock mounts (effectively root access) with filtered TCP proxy
