@@ -5,17 +5,24 @@ import './Login.css';
 
 function getApiUrl() {
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com') || host.includes('integration.tax')) return '';
+  if (host.includes('orcastr8r.com')) return '';
   return 'http://localhost:3001';
 }
 
 const API_BASE = getApiUrl();
+
+function validateEmail(v: string): string | null {
+  if (!v.trim()) return 'Email is required';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Enter a valid email address';
+  return null;
+}
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [touched, setTouched] = useState(false);
 
   // Force dark theme on auth pages
   useEffect(() => {
@@ -32,8 +39,13 @@ export default function ForgotPasswordPage() {
     };
   }, []);
 
+  const emailError = touched ? validateEmail(email) : null;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setTouched(true);
+    const err = validateEmail(email);
+    if (err) { setError(err); return; }
     setError('');
     setIsLoading(true);
 
@@ -90,17 +102,21 @@ export default function ForgotPasswordPage() {
               Enter your email address and we'll send you a link to reset your password.
             </p>
 
-            <div className="auth-field">
+            <div className={`auth-field${emailError ? ' auth-field-error' : ''}`}>
               <label htmlFor="email">Email</label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setTouched(true)}
                 placeholder="you@example.com"
                 required
                 autoComplete="email"
+                aria-invalid={!!emailError}
+                aria-describedby={emailError ? 'email-error' : undefined}
               />
+              {emailError && <span id="email-error" className="auth-field-hint">{emailError}</span>}
             </div>
 
             <button

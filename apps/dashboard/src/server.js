@@ -127,8 +127,6 @@ function getTenantId(request) {
 const ALLOWED_ORIGINS = [
   'https://orcastr8r.com',
   'https://www.orcastr8r.com',
-  'https://integration.tax',
-  'https://www.integration.tax',
   // Development origins
   ...(process.env['NODE_ENV'] !== 'production' ? [
     'http://localhost:3001',
@@ -178,7 +176,7 @@ fastify.addHook('onSend', async (request, reply) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: https:; " +
-    "connect-src 'self' wss://orcastr8r.com wss://integration.tax ws://localhost:* http://localhost:*; " +
+    "connect-src 'self' wss://orcastr8r.com ws://localhost:* http://localhost:*; " +
     "frame-ancestors 'none';"
   );
   // Other security headers

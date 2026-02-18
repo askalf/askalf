@@ -5,7 +5,7 @@ import './Login.css';
 
 function getApiUrl() {
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com') || host.includes('integration.tax')) return '';
+  if (host.includes('orcastr8r.com')) return '';
   return 'http://localhost:3001';
 }
 
@@ -46,15 +46,11 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (password.length < 12) {
-      setError('Password must be at least 12 characters');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+    if (password.length < 12) { setError('Password must be at least 12 characters'); return; }
+    if (!/[A-Z]/.test(password)) { setError('Password must contain an uppercase letter'); return; }
+    if (!/[a-z]/.test(password)) { setError('Password must contain a lowercase letter'); return; }
+    if (!/[0-9]/.test(password)) { setError('Password must contain a number'); return; }
+    if (password !== confirmPassword) { setError('Passwords do not match'); return; }
 
     setIsLoading(true);
 
@@ -151,9 +147,17 @@ export default function ResetPasswordPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter new password"
                 required
-                minLength={8}
+                minLength={12}
                 autoComplete="new-password"
               />
+              {password && (
+                <div className="auth-password-requirements">
+                  <span className={password.length >= 12 ? 'auth-req-met' : 'auth-req-unmet'}>12+ chars</span>
+                  <span className={/[A-Z]/.test(password) ? 'auth-req-met' : 'auth-req-unmet'}>Uppercase</span>
+                  <span className={/[a-z]/.test(password) ? 'auth-req-met' : 'auth-req-unmet'}>Lowercase</span>
+                  <span className={/[0-9]/.test(password) ? 'auth-req-met' : 'auth-req-unmet'}>Number</span>
+                </div>
+              )}
             </div>
 
             <div className="auth-field">
