@@ -29,7 +29,7 @@ export default function Integrations() {
   const [showKeyInput, setShowKeyInput] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = 'Integrations — Forge';
+    document.title = 'Integrations — Orcastr8r';
     loadData();
   }, []);
 

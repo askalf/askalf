@@ -105,7 +105,7 @@ export default function LandingPage() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
-    document.title = 'Forge — The Control Plane for Autonomous Agents';
+    document.title = 'Orcastr8r — The Control Plane for Autonomous Agents';
   }, []);
 
   return (
@@ -116,7 +116,7 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="landing-nav">
         <Link to="/" className="landing-nav-logo">
-          <span className="landing-nav-logo-text">forge</span>
+          <span className="landing-nav-logo-text">orcastr8r</span>
         </Link>
         <div className="landing-nav-links">
           <Link to="/login" className="landing-nav-signin">Sign In</Link>
@@ -201,7 +201,7 @@ export default function LandingPage() {
           <div className="landing-k8s-row is-header">
             <span className="landing-k8s-left">Kubernetes</span>
             <span className="landing-k8s-arrow" />
-            <span className="landing-k8s-right">Forge</span>
+            <span className="landing-k8s-right">Orcastr8r</span>
           </div>
           {k8sMapping.map((row) => (
             <div key={row.left} className="landing-k8s-row landing-stagger">
@@ -299,7 +299,7 @@ export default function LandingPage() {
         <div className="landing-footer-inner">
           <div className="landing-footer-left">
             <span className="landing-footer-copy">
-              {'\u00A9'} {new Date().getFullYear()} Forge. All rights reserved.
+              {'\u00A9'} {new Date().getFullYear()} Orcastr8r. All rights reserved.
             </span>
             <span className="landing-footer-built">
               Built by one developer who got tired of frameworks.

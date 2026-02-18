@@ -71,7 +71,7 @@ function LoadingScreen() {
           letterSpacing: '-0.03em',
           fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
           color: '#a78bfa',
-        }}>forge</span>
+        }}>orcastr8r</span>
         <span className="sr-only">Loading...</span>
       </div>
     </div>

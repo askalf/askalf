@@ -5,7 +5,7 @@ import './Login.css';
 
 function getApiUrl() {
   const host = window.location.hostname;
-  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  if (host.includes('orcastr8r.com') || host.includes('integration.tax')) return '';
   return 'http://localhost:3001';
 }
 
@@ -24,7 +24,7 @@ export default function WaitlistPage() {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     root.setAttribute('data-theme', 'dark');
-    document.title = 'Join the Waitlist — Forge';
+    document.title = 'Join the Waitlist — Orcastr8r';
     return () => {
       if (previousTheme) {
         root.setAttribute('data-theme', previousTheme);
@@ -64,7 +64,7 @@ export default function WaitlistPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-wordmark">forge</span>
+            <span className="auth-logo-wordmark">orcastr8r</span>
           </div>
           <div className="auth-beta-badge">Early Access</div>
           <p className="auth-subtitle">

@@ -8,7 +8,7 @@ import { useGitSpaceStore } from '../../stores/git-space';
 const SERVICES = [
   { id: 'api', label: 'API Server', desc: 'sprayberry-labs-api' },
   { id: 'dashboard', label: 'Dashboard', desc: 'sprayberry-labs-dashboard' },
-  { id: 'forge', label: 'Forge', desc: 'sprayberry-labs-forge' },
+  { id: 'forge', label: 'Orcastr8r', desc: 'sprayberry-labs-forge' },
   { id: 'nginx', label: 'Nginx', desc: 'sprayberry-labs-nginx' },
   { id: 'mcp', label: 'MCP', desc: 'sprayberry-labs-mcp' },
   { id: 'mcp-tools', label: 'MCP Tools', desc: 'sprayberry-labs-mcp-tools' },

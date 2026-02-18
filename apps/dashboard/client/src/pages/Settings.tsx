@@ -16,7 +16,7 @@ export default function SettingsPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  useEffect(() => { document.title = 'Settings — Forge'; }, []);
+  useEffect(() => { document.title = 'Settings — Orcastr8r'; }, []);
 
   return (
     <div className="settings-page">
@@ -88,7 +88,7 @@ export default function SettingsPage() {
 // Determine API base URL based on current hostname
 const getApiUrl = () => {
   const host = window.location.hostname;
-  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  if (host.includes('orcastr8r.com') || host.includes('integration.tax')) return '';
   if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3001';
   return '';
 };
