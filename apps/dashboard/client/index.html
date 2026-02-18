@@ -37,6 +37,33 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Orcastr8r",
+      "url": "https://orcastr8r.com",
+      "description": "Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/PreOrder"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "Orcastr8r",
+        "url": "https://orcastr8r.com",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "email": "support@orcastr8r.com",
+          "contactType": "customer support"
+        }
+      }
+    }
+    </script>
     <!-- Cloudflare Web Analytics — replace TOKEN with your cf-beacon token -->
     <!-- <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "YOUR_CF_ANALYTICS_TOKEN"}'></script> -->
   </body>
