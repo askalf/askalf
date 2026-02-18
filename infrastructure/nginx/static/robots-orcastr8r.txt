@@ -1,4 +1,4 @@
-# integration.tax — Forge control plane
+# orcastr8r.com — Forge control plane
 User-agent: *
 Allow: /
 Disallow: /api/
@@ -13,4 +13,4 @@ Disallow: /settings
 Disallow: /users
 Disallow: /command-center
 
-Sitemap: https://integration.tax/sitemap.xml
+Sitemap: https://orcastr8r.com/sitemap.xml

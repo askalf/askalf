@@ -125,9 +125,8 @@ function getTenantId(request) {
 
 // CORS configuration - restrict to known origins
 const ALLOWED_ORIGINS = [
-  'https://app.askalf.org',
-  'https://askalf.org',
-  'https://www.askalf.org',
+  'https://orcastr8r.com',
+  'https://www.orcastr8r.com',
   'https://integration.tax',
   'https://www.integration.tax',
   // Development origins
@@ -179,7 +178,7 @@ fastify.addHook('onSend', async (request, reply) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: https:; " +
-    "connect-src 'self' wss://app.askalf.org wss://integration.tax ws://localhost:* http://localhost:*; " +
+    "connect-src 'self' wss://orcastr8r.com wss://integration.tax ws://localhost:* http://localhost:*; " +
     "frame-ancestors 'none';"
   );
   // Other security headers
@@ -2117,12 +2116,7 @@ fastify.get('/api/v1/auth/me', async (request, reply) => {
     return { error: 'Not authenticated' };
   }
 
-  let subscription = null;
-  try {
-    subscription = await getSubscriptionWithPlan(user.tenant_id);
-  } catch (_) {
-    // subscriptions table may not exist yet
-  }
+  const subscription = await getSubscriptionWithPlan(user.tenant_id);
 
   return {
     user: {

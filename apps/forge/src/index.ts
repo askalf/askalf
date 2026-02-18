@@ -44,9 +44,8 @@ const app = Fastify({
 // Register CORS
 await app.register(cors, {
   origin: process.env['ALLOWED_ORIGINS']?.split(',') || [
-    'https://forge.askalf.org',
-    'https://askalf.org',
-    'https://app.askalf.org',
+    'https://orcastr8r.com',
+    'https://www.orcastr8r.com',
     'https://integration.tax',
     'https://www.integration.tax',
     'http://localhost:3005',
