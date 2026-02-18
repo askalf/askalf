@@ -1,0 +1,5 @@
+# askalf.org — holding page
+User-agent: *
+Allow: /
+
+Sitemap: https://askalf.org/sitemap.xml
