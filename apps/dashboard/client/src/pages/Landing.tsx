@@ -126,7 +126,7 @@ export default function LandingPage() {
             {'\u00A9'} {new Date().getFullYear()} Forge. All rights reserved.
           </span>
           <div className="landing-footer-links">
-            <a href="https://x.com/AskAlfOrg" target="_blank" rel="noopener noreferrer" className="landing-footer-link">
+            <a href="https://x.com/meetaskalf" target="_blank" rel="noopener noreferrer" className="landing-footer-link">
               X / Twitter
             </a>
             <Link to="/login" className="landing-footer-link">Dashboard</Link>

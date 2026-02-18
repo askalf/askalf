@@ -62,5 +62,7 @@ CREATE TABLE IF NOT EXISTS agent_schedules (
   schedule_interval_minutes INTEGER,
   next_run_at TIMESTAMPTZ,
   is_continuous BOOLEAN DEFAULT false,
-  last_run_at TIMESTAMPTZ
+  last_run_at TIMESTAMPTZ,
+  tenant_id TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_schedules_tenant ON agent_schedules(tenant_id);

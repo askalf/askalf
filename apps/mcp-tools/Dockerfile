@@ -12,7 +12,7 @@ COPY packages/db ./packages/db
 COPY apps/mcp-tools ./apps/mcp-tools
 
 # Install dependencies
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 # Build shared packages first, then mcp-tools
 RUN pnpm --filter @substrate/db build || true

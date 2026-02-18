@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import './MasterCLI.css';
 
 const getApiBase = () => {
-  if (window.location.hostname.includes('askalf.org')) return '';
-  return 'http://localhost:3005';
+  const host = window.location.hostname;
+  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  return 'http://localhost:3001';
 };
 
 interface CLILine {

@@ -148,7 +148,7 @@ Respond naturally to the conversation. Be concise (2-4 sentences). Build on what
 
   try {
     const result = await runCliQuery(prompt, {
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-haiku-4-5',
       maxTurns: 1,
       timeout: 30000,
     });
