@@ -651,7 +651,7 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
       We'll email <strong>${vars.email}</strong> when your spot opens up. In the meantime, follow us on X for updates.
     </p>
 
-    ${button('Follow @ForgePlatform', 'https://x.com/AskAlfOrg')}
+    ${button('Follow @meetaskalf', 'https://x.com/meetaskalf')}
   `);
 }
 
@@ -671,7 +671,7 @@ WHAT YOU'LL GET ACCESS TO
 
 We'll email ${vars.email} when your spot opens up.
 
-Follow us on X: https://x.com/AskAlfOrg
+Follow us on X: https://x.com/meetaskalf
 
 ---
 Forge — AI Agent Orchestration Platform

@@ -1,6 +1,8 @@
-const API_BASE = window.location.hostname.includes('askalf.org')
-  ? ''
-  : 'http://localhost:3005';
+const API_BASE = (() => {
+  const host = window.location.hostname;
+  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  return 'http://localhost:3001';
+})();
 
 export function trackClick(link: string) {
   fetch(`${API_BASE}/api/v1/demo/track-click`, {

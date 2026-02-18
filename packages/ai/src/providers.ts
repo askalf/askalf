@@ -178,18 +178,28 @@ export const MODELS: Record<string, ModelInfo> = {
     costPer1kInput: 0.005,
     costPer1kOutput: 0.025,
   },
+  'claude-sonnet-4-6': {
+    provider: 'anthropic',
+    modelId: 'claude-sonnet-4-6',
+    displayName: 'Claude Sonnet 4.6',
+    contextWindow: 1000000, // 1M context preview
+    maxOutput: 64000,
+    costPer1kInput: 0.003,
+    costPer1kOutput: 0.015,
+  },
+  // Legacy alias — maps to current sonnet
   'claude-sonnet-4-5': {
     provider: 'anthropic',
-    modelId: 'claude-sonnet-4-5-20250929',
-    displayName: 'Claude Sonnet 4.5',
-    contextWindow: 1000000, // 1M context preview
+    modelId: 'claude-sonnet-4-6',
+    displayName: 'Claude Sonnet 4.6',
+    contextWindow: 1000000,
     maxOutput: 64000,
     costPer1kInput: 0.003,
     costPer1kOutput: 0.015,
   },
   'claude-haiku-4-5': {
     provider: 'anthropic',
-    modelId: 'claude-haiku-4-5-20251001',
+    modelId: 'claude-haiku-4-5',
     displayName: 'Claude Haiku 4.5',
     contextWindow: 200000,
     maxOutput: 64000,

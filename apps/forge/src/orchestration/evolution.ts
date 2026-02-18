@@ -40,7 +40,7 @@ export async function cloneAgent(
     owner_id: string; type: string;
   }>(
     `SELECT name, description, system_prompt,
-            COALESCE(metadata->>'model_id', 'claude-sonnet-4-5-20250929') AS model_id,
+            COALESCE(metadata->>'model_id', 'claude-sonnet-4-6') AS model_id,
             enabled_tools AS tools, metadata, owner_id, type
      FROM forge_agents WHERE id = $1`,
     [parentId],
@@ -125,10 +125,10 @@ export async function runExperiment(
   // Get agent configs
   const [parentAgent, variantAgent] = await Promise.all([
     query<{ system_prompt: string; model_id: string }>(
-      `SELECT system_prompt, COALESCE(metadata->>'model_id', 'claude-sonnet-4-5-20250929') AS model_id
+      `SELECT system_prompt, COALESCE(metadata->>'model_id', 'claude-sonnet-4-6') AS model_id
        FROM forge_agents WHERE id = $1`, [parentId]),
     query<{ system_prompt: string; model_id: string }>(
-      `SELECT system_prompt, COALESCE(metadata->>'model_id', 'claude-sonnet-4-5-20250929') AS model_id
+      `SELECT system_prompt, COALESCE(metadata->>'model_id', 'claude-sonnet-4-6') AS model_id
        FROM forge_agents WHERE id = $1`, [variantId]),
   ]);
 

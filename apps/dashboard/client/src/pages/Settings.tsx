@@ -88,8 +88,8 @@ export default function SettingsPage() {
 // Determine API base URL based on current hostname
 const getApiUrl = () => {
   const host = window.location.hostname;
-  if (host.includes('askalf.org')) return '';
-  if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3005';
+  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3001';
   return '';
 };
 
@@ -589,8 +589,8 @@ function SecurityTab() {
         <p>
           During the beta, account deletion is handled by our team to ensure data integrity.
           {' '}To request account deletion, contact{' '}
-          <a href="mailto:support@askalf.org?subject=Account%20Deletion%20Request" style={{ color: 'var(--crystal)' }}>
-            support@askalf.org
+          <a href="mailto:support@integration.tax?subject=Account%20Deletion%20Request" style={{ color: 'var(--crystal)' }}>
+            support@integration.tax
           </a>
         </p>
         <button className="settings-danger-btn" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>

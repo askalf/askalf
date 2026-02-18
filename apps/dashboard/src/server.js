@@ -1984,7 +1984,7 @@ fastify.get('/api/v1/admin/plans', async (request, reply) => {
 });
 
 // Agent Hub admin routes
-import { registerAdminHubRoutes } from './routes/admin-hub.js';
+import { registerAdminHubRoutes } from './routes/admin-hub/index.js';
 await registerAdminHubRoutes(fastify, requireAdmin, query, queryOne);
 
 // System Assistant (agentic AI for fleet management)

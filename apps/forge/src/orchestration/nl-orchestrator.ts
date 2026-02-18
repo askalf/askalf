@@ -97,7 +97,7 @@ export async function orchestrateFromNL(
     // Get agent config for execution
     const agent = await query<{ system_prompt: string; model_id: string; max_budget: string }>(
       `SELECT system_prompt,
-              COALESCE(metadata->>'model_id', 'claude-sonnet-4-5-20250929') AS model_id,
+              COALESCE(metadata->>'model_id', 'claude-sonnet-4-6') AS model_id,
               COALESCE(metadata->>'max_budget', '0.50') AS max_budget
        FROM forge_agents WHERE id = $1`,
       [match.agentId],

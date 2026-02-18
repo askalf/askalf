@@ -22,7 +22,7 @@ import { adminRoutes } from './routes/admin.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { gitReviewRoutes } from './routes/git-review.js';
 import { authRoutes } from './routes/auth.js';
-import { platformAdminRoutes } from './routes/platform-admin.js';
+import { platformAdminRoutes } from './routes/platform-admin/index.js';
 import { cliRoutes } from './routes/cli.js';
 import { initializeWorker } from './runtime/worker.js';
 import { initMemoryManager } from './memory/singleton.js';

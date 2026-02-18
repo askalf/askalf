@@ -200,7 +200,7 @@ export async function registerAssistantRoutes(fastify, requireAdmin, query, quer
         body: {
           prompt,
           systemPrompt,
-          model: 'claude-sonnet-4-5-20250929',
+          model: 'claude-sonnet-4-6',
           maxTurns: 10,
         },
         timeout: 150000, // 2.5 min timeout (CLI has 2 min internal timeout)

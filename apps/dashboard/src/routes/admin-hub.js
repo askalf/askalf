@@ -18,8 +18,8 @@ function paginationResponse(total, page, limit) {
   return { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 };
 }
 
-// Scheduler running state (the daemon runs inside this process)
-let schedulerRunning = true;
+// Per-tenant scheduler pause state (Set of user IDs that have paused their scheduler)
+const schedulerPausedTenants = new Set();
 
 async function callForgeAdmin(path, options = {}) {
   const url = `${FORGE_URL}/api/v1/admin${path}`;
@@ -953,16 +953,17 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     }
   });
 
-  // 21. GET /api/v1/admin/reports/scheduler - Scheduler status
+  // 21. GET /api/v1/admin/reports/scheduler - Scheduler status (per-tenant)
   fastify.get('/api/v1/admin/reports/scheduler', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
+    const tenantId = admin.id;
     const continuousSchedules = await query(
-      `SELECT * FROM agent_schedules WHERE is_continuous = true`
+      `SELECT * FROM agent_schedules WHERE is_continuous = true AND tenant_id = $1`, [tenantId]
     );
     const scheduledSchedules = await query(
-      `SELECT * FROM agent_schedules WHERE schedule_type = 'scheduled' AND next_run_at IS NOT NULL`
+      `SELECT * FROM agent_schedules WHERE schedule_type = 'scheduled' AND next_run_at IS NOT NULL AND tenant_id = $1`, [tenantId]
     );
 
     // Look up agent names from Forge
@@ -975,7 +976,7 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     }
 
     return {
-      running: schedulerRunning,
+      running: !schedulerPausedTenants.has(tenantId),
       continuousAgents: continuousSchedules.map(s => ({
         name: agentNameMap[s.agent_id] || s.agent_id,
         status: s.last_run_at ? 'active' : 'idle',
@@ -988,20 +989,21 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     };
   });
 
-  // 22. POST /api/v1/admin/reports/scheduler - Scheduler control
+  // 22. POST /api/v1/admin/reports/scheduler - Scheduler control (per-tenant)
   fastify.post('/api/v1/admin/reports/scheduler', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
+    const tenantId = admin.id;
     const { action } = request.body || {};
     if (action === 'start') {
-      schedulerRunning = true;
-      console.log('[Scheduler] Scheduler started by admin');
+      schedulerPausedTenants.delete(tenantId);
+      console.log(`[Scheduler] Scheduler started by tenant ${tenantId}`);
     } else if (action === 'stop') {
-      schedulerRunning = false;
-      console.log('[Scheduler] Scheduler stopped by admin');
+      schedulerPausedTenants.add(tenantId);
+      console.log(`[Scheduler] Scheduler paused by tenant ${tenantId}`);
     }
-    return { success: true, action: action || 'acknowledged', running: schedulerRunning };
+    return { success: true, action: action || 'acknowledged', running: !schedulerPausedTenants.has(tenantId) };
   });
 
   // 23. POST /api/v1/admin/agents/:id/schedule - Set agent schedule
@@ -1018,16 +1020,17 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
     }
 
     const result = await queryOne(`
-      INSERT INTO agent_schedules (agent_id, schedule_type, schedule_interval_minutes, next_run_at, is_continuous, execution_mode)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO agent_schedules (agent_id, schedule_type, schedule_interval_minutes, next_run_at, is_continuous, execution_mode, tenant_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       ON CONFLICT (agent_id) DO UPDATE SET
         schedule_type = EXCLUDED.schedule_type,
         schedule_interval_minutes = EXCLUDED.schedule_interval_minutes,
         next_run_at = EXCLUDED.next_run_at,
         is_continuous = EXCLUDED.is_continuous,
-        execution_mode = EXCLUDED.execution_mode
+        execution_mode = EXCLUDED.execution_mode,
+        tenant_id = EXCLUDED.tenant_id
       RETURNING *
-    `, [id, schedule_type || 'manual', schedule_interval_minutes || null, nextRunAt, is_continuous || false, execution_mode || 'batch']);
+    `, [id, schedule_type || 'manual', schedule_interval_minutes || null, nextRunAt, is_continuous || false, execution_mode || 'batch', admin.id]);
 
     return { schedule: result };
   });
@@ -2240,20 +2243,29 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
   let tickCount = 0;
 
   async function runSchedulerTick() {
-    if (!schedulerRunning) return;
     tickCount++;
     try {
       // Process pending interventions each tick
       await processInterventions();
 
-      // Find agents due to run
-      const dueAgents = await query(
-        `SELECT s.agent_id, s.schedule_type, s.schedule_interval_minutes, s.is_continuous
-         FROM agent_schedules s
-         WHERE s.next_run_at <= NOW()
-         ORDER BY s.next_run_at ASC
-         LIMIT 16`
-      );
+      // Find agents due to run, excluding paused tenants
+      const pausedIds = [...schedulerPausedTenants];
+      const dueAgents = pausedIds.length > 0
+        ? await query(
+            `SELECT s.agent_id, s.schedule_type, s.schedule_interval_minutes, s.is_continuous
+             FROM agent_schedules s
+             WHERE s.next_run_at <= NOW()
+               AND (s.tenant_id IS NULL OR s.tenant_id != ALL($1))
+             ORDER BY s.next_run_at ASC
+             LIMIT 16`, [pausedIds]
+          )
+        : await query(
+            `SELECT s.agent_id, s.schedule_type, s.schedule_interval_minutes, s.is_continuous
+             FROM agent_schedules s
+             WHERE s.next_run_at <= NOW()
+             ORDER BY s.next_run_at ASC
+             LIMIT 16`
+          );
 
       if (dueAgents.length === 0) {
         // Log heartbeat every 5 ticks (~5 min) so we know it's alive
@@ -2411,7 +2423,7 @@ Be efficient and concise. Every action you take must be tracked through a ticket
 
     // Clean forge tables via Forge API
     try {
-      await callForgeAdmin('/retention-cleanup', { method: 'POST' });
+      await callForgeAdmin('/retention-cleanup', { method: 'POST', body: {} });
       console.log('[Retention] Forge cleanup triggered');
     } catch (err) {
       console.error('[Retention] Forge cleanup failed:', err.message);
