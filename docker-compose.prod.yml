@@ -122,7 +122,7 @@ services:
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Forge}
-      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@integration.tax}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@orcastr8r.com}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       # Agent Forge proxy
       FORGE_URL: http://forge:3005
@@ -262,7 +262,7 @@ services:
       EMAIL_PROVIDER: sendgrid
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Forge}
-      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@integration.tax}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@orcastr8r.com}
     volumes:
       - .:/workspace
       - ./.claude-credentials.json:/tmp/claude-credentials.json:rw
