@@ -589,8 +589,8 @@ function SecurityTab() {
         <p>
           During the beta, account deletion is handled by our team to ensure data integrity.
           {' '}To request account deletion, contact{' '}
-          <a href="mailto:support@integration.tax?subject=Account%20Deletion%20Request" style={{ color: 'var(--crystal)' }}>
-            support@integration.tax
+          <a href="mailto:support@orcastr8r.com?subject=Account%20Deletion%20Request" style={{ color: 'var(--crystal)' }}>
+            support@orcastr8r.com
           </a>
         </p>
         <button className="settings-danger-btn" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>

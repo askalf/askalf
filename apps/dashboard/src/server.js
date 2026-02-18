@@ -2062,7 +2062,7 @@ fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
     sendWaitlistEmail(trimmedEmail, { name: trimmedName, email: trimmedEmail }).catch(err =>
       console.error('[Waitlist] Email send failed:', err)
     );
-    sendAdminNotification(process.env['ADMIN_EMAIL'] || 'admin@integration.tax', {
+    sendAdminNotification(process.env['ADMIN_EMAIL'] || 'support@orcastr8r.com', {
       type: 'waitlist_signup',
       email: trimmedEmail,
       timestamp: new Date().toISOString(),
