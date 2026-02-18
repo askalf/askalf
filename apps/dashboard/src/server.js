@@ -2109,6 +2109,37 @@ async function proxyToForge(request, reply, path) {
   }
 }
 
+// Get current authenticated user (called by frontend after login)
+fastify.get('/api/v1/auth/me', async (request, reply) => {
+  const user = await getUserFromSession(request);
+  if (!user) {
+    reply.status(401);
+    return { error: 'Not authenticated' };
+  }
+
+  let subscription = null;
+  try {
+    subscription = await getSubscriptionWithPlan(user.tenant_id);
+  } catch (_) {
+    // subscriptions table may not exist yet
+  }
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      emailVerified: user.email_verified,
+      displayName: user.display_name,
+      role: user.role,
+    },
+    subscription: subscription ? {
+      status: subscription.status,
+      plan: subscription.plan,
+      current_period_end: subscription.current_period_end,
+    } : null,
+  };
+});
+
 const authProxyRoutes = [
   'login', 'register', 'logout', 'check',
   'forgot-password', 'reset-password',
