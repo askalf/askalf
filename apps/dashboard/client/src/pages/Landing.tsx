@@ -167,8 +167,8 @@ function TerminalDemo() {
   const currentLine = lineIndex < terminalLines.length ? terminalLines[lineIndex] : null;
 
   return (
-    <div className="landing-terminal">
-      <div className="landing-terminal-bar">
+    <div className="landing-terminal" role="region" aria-label="Terminal demo">
+      <div className="landing-terminal-bar" aria-hidden="true">
         <span className="landing-terminal-dot dot-red" />
         <span className="landing-terminal-dot dot-yellow" />
         <span className="landing-terminal-dot dot-green" />
@@ -279,7 +279,7 @@ function AgentConstellation() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="landing-constellation" />;
+  return <canvas ref={canvasRef} className="landing-constellation" aria-hidden="true" />;
 }
 
 /* ---- Metrics Bar ---- */
@@ -553,7 +553,7 @@ export default function LandingPage() {
       <AgentConstellation />
 
       {/* Nav */}
-      <nav className="landing-nav">
+      <nav className="landing-nav" aria-label="Main navigation">
         <Link to="/" className="landing-nav-logo">
           <span className="landing-nav-logo-text">orcastr8r</span>
         </Link>
@@ -563,9 +563,9 @@ export default function LandingPage() {
       </nav>
 
       {/* ============ HERO ============ */}
-      <section className="landing-hero">
+      <section className="landing-hero" aria-labelledby="hero-heading">
         <div className="landing-badge">Early Access</div>
-        <h1>
+        <h1 id="hero-heading">
           The control plane for{' '}
           <span>autonomous agents</span>
         </h1>
@@ -756,7 +756,7 @@ export default function LandingPage() {
       </section>
 
       {/* ============ FOOTER ============ */}
-      <footer className="landing-footer">
+      <footer className="landing-footer" role="contentinfo">
         <div className="landing-footer-inner">
           <div className="landing-footer-left">
             <span className="landing-footer-copy">
@@ -784,6 +784,8 @@ export default function LandingPage() {
               X / Twitter
             </a>
             <Link to="/login" className="landing-footer-link">Dashboard</Link>
+            <Link to="/privacy" className="landing-footer-link">Privacy</Link>
+            <Link to="/terms" className="landing-footer-link">Terms</Link>
           </div>
         </div>
       </footer>
