@@ -39,7 +39,6 @@
 .admin-logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
   cursor: pointer;
   transition: opacity 0.2s;
 }
@@ -48,27 +47,22 @@
   opacity: 0.8;
 }
 
-.admin-logo-icon {
-  font-size: 1.125rem;
+.admin-logo-wordmark {
+  font-size: 1.25rem;
   font-weight: 800;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
-  color: white;
-  border-radius: 6px;
-}
-
-.admin-logo-text {
-  font-size: 1.125rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  letter-spacing: -0.03em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background: linear-gradient(135deg, #fff 0%, #a78bfa 100%);
+  background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  animation: admin-logo-shimmer 4s ease-in-out infinite;
+}
+
+@keyframes admin-logo-shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 /* Navigation */

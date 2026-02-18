@@ -125,10 +125,7 @@ export default function VerifyEmailPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-icon" style={{ fontSize: '2rem' }}>🔨</span>
-            <span className="auth-logo-text">
-              <span className="auth-logo-alf animate-gradient-text">Forge</span>
-            </span>
+            <span className="auth-logo-wordmark">forge</span>
           </div>
         </div>
 
