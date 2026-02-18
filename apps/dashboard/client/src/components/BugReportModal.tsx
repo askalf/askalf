@@ -4,7 +4,7 @@ import './BugReportModal.css';
 
 const API_BASE = (() => {
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com') || host.includes('integration.tax')) return '';
+  if (host.includes('orcastr8r.com')) return '';
   return 'http://localhost:3001';
 })();
 
