@@ -16,9 +16,13 @@ interface CostProfile {
 }
 
 const MODEL_TIERS: Record<string, { label: string; costMultiplier: number }> = {
+  // Current aliases
+  'claude-haiku-4-5': { label: 'haiku', costMultiplier: 0.2 },
+  'claude-sonnet-4-6': { label: 'sonnet', costMultiplier: 1.0 },
+  'claude-opus-4-6': { label: 'opus', costMultiplier: 5.0 },
+  // Dated versions (backwards compat)
   'claude-haiku-4-5-20251001': { label: 'haiku', costMultiplier: 0.2 },
   'claude-sonnet-4-5-20250929': { label: 'sonnet', costMultiplier: 1.0 },
-  'claude-opus-4-6': { label: 'opus', costMultiplier: 5.0 },
 };
 
 /**
@@ -74,7 +78,7 @@ export async function selectOptimalModel(
 
   // Not enough data or no model meets threshold — default to sonnet
   return {
-    modelId: 'claude-sonnet-4-5-20250929',
+    modelId: 'claude-sonnet-4-6',
     reason: profiles.length === 0
       ? `no cost data for ${capability} — defaulting to sonnet`
       : `no model meets quality threshold ${(minQuality * 100).toFixed(0)}% for ${capability} — defaulting to sonnet`,

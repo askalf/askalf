@@ -55,7 +55,11 @@ interface ModelPricing {
 }
 
 const MODEL_PRICING: Record<string, ModelPricing> = {
-  // Anthropic — Claude 4.5 series (current)
+  // Anthropic — current aliases
+  'claude-opus-4-6': { inputPer1k: 0.005, outputPer1k: 0.025 },
+  'claude-sonnet-4-6': { inputPer1k: 0.003, outputPer1k: 0.015 },
+  'claude-haiku-4-5': { inputPer1k: 0.0008, outputPer1k: 0.004 },
+  // Anthropic — dated versions (backwards compat)
   'claude-opus-4-5-20251101': { inputPer1k: 0.005, outputPer1k: 0.025 },
   'claude-sonnet-4-5-20250929': { inputPer1k: 0.003, outputPer1k: 0.015 },
   'claude-haiku-4-5-20251001': { inputPer1k: 0.0008, outputPer1k: 0.004 },

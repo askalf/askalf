@@ -47,7 +47,7 @@ export function classifyPrompt(prompt: string, defaultProvider?: string, default
   if (codeScore === 0 && creativeScore === 0 && defaultProvider && defaultProvider !== 'auto') {
     return {
       provider: defaultProvider,
-      model: defaultModel || (defaultProvider === 'openai' ? 'gpt-4o' : 'claude-sonnet-4-5-20250929'),
+      model: defaultModel || (defaultProvider === 'openai' ? 'gpt-4o' : 'claude-sonnet-4-6'),
       classified: true,
     };
   }
@@ -63,7 +63,7 @@ export function classifyPrompt(prompt: string, defaultProvider?: string, default
   // Default: Claude for code, technical, and general queries
   return {
     provider: 'claude',
-    model: 'claude-sonnet-4-5-20250929',
+    model: 'claude-sonnet-4-6',
     classified: true,
   };
 }

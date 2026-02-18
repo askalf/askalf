@@ -203,7 +203,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       try {
         const result = await runCliQuery(body.prompt, {
           systemPrompt: body.systemPrompt,
-          model: body.model || 'claude-sonnet-4-5-20250929',
+          model: body.model || 'claude-sonnet-4-6',
           maxTurns: body.maxTurns || 10,
           timeout: 120000, // 2 minute timeout for assistant queries
         });

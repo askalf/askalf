@@ -15,10 +15,10 @@ function toAnthropicMessages(messages: ChatMessage[]): Anthropic.MessageParam[] 
 export const claudeProvider: LLMProvider = {
   id: 'claude',
   name: 'Claude',
-  defaultModel: 'claude-sonnet-4-5',
+  defaultModel: 'claude-sonnet-4-6',
   models: [
     'claude-opus-4-6',
-    'claude-sonnet-4-5',
+    'claude-sonnet-4-6',
     'claude-haiku-4-5',
   ],
 

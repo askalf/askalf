@@ -76,7 +76,7 @@ const TIER_MODELS: Record<RoutingTier, string[]> = {
   ],
   pro: [
     // OpenAI & Anthropic first
-    'claude-sonnet-4-5',
+    'claude-sonnet-4-6',
     'claude-sonnet-4',
     'gpt-4o',
     'gpt-4.1',

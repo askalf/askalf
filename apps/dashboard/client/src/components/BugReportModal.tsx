@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useAuthStore } from '../stores/auth';
 import './BugReportModal.css';
 
-const API_BASE = window.location.hostname.includes('askalf.org')
-  ? ''
-  : 'http://localhost:3005';
+const API_BASE = (() => {
+  const host = window.location.hostname;
+  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  return 'http://localhost:3001';
+})();
 
 interface BugReportModalProps {
   isOpen: boolean;
