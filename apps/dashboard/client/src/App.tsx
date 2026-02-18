@@ -1,6 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/auth';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy-loaded: auth pages
 const Login = lazy(() => import('./pages/Login'));
@@ -83,7 +84,7 @@ function LoadingScreen() {
 
 export default function App() {
   return (
-    <>
+    <ErrorBoundary>
     <ScrollToTop />
     <Suspense fallback={<LoadingScreen />}>
     <Routes>
@@ -144,6 +145,6 @@ export default function App() {
       <Route path="*" element={<NotFound />} />
     </Routes>
     </Suspense>
-    </>
+    </ErrorBoundary>
   );
 }
