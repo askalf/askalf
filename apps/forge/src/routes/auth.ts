@@ -38,7 +38,7 @@ const SESSION_COOKIE_OPTIONS = {
 
 function getCookieDomain(host: string): string | undefined {
   if (!isProduction) return undefined;
-  if (host.includes('askalf.org')) return '.askalf.org';
+  if (host.includes('orcastr8r.com')) return '.orcastr8r.com';
   if (host.includes('integration.tax')) return '.integration.tax';
   return undefined;
 }
@@ -189,7 +189,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     // Fire-and-forget: send verification email
     sendEmailVerificationEmail(body.email, {
       userName: body.display_name || body.email.split('@')[0] || 'there',
-      verifyUrl: `https://integration.tax/verify-email?token=${verificationToken}`,
+      verifyUrl: `https://orcastr8r.com/verify-email?token=${verificationToken}`,
       expiresInHours: 24,
     }).catch((err: unknown) => console.error('[Auth] Failed to send verification email:', err));
 
@@ -467,7 +467,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (verifyUser) {
       sendEmailVerificationEmail(verifyUser.email, {
         userName: verifyUser.display_name || verifyUser.email.split('@')[0] || 'there',
-        verifyUrl: `https://integration.tax/verify-email?token=${newToken}`,
+        verifyUrl: `https://orcastr8r.com/verify-email?token=${newToken}`,
         expiresInHours: 24,
       }).catch((err: unknown) => console.error('[Auth] Failed to send verification email:', err));
     }
@@ -519,7 +519,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     );
     sendPasswordResetEmail(body.email, {
       userName: resetUser?.display_name || body.email.split('@')[0] || 'there',
-      resetUrl: `https://integration.tax/reset-password?token=${token}`,
+      resetUrl: `https://orcastr8r.com/reset-password?token=${token}`,
       expiresInMinutes: 60,
     }).catch((err: unknown) => console.error('[Auth] Failed to send password reset email:', err));
 

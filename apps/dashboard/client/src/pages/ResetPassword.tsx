@@ -5,7 +5,7 @@ import './Login.css';
 
 function getApiUrl() {
   const host = window.location.hostname;
-  if (host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  if (host.includes('orcastr8r.com') || host.includes('integration.tax')) return '';
   return 'http://localhost:3001';
 }
 
@@ -27,7 +27,7 @@ export default function ResetPasswordPage() {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     root.setAttribute('data-theme', 'dark');
-    document.title = 'Reset Password — Forge';
+    document.title = 'Reset Password — Orcastr8r';
     return () => {
       if (previousTheme) {
         root.setAttribute('data-theme', previousTheme);
@@ -88,7 +88,7 @@ export default function ResetPasswordPage() {
             <div className="auth-logo">
               <span className="auth-logo-icon" style={{ fontSize: '2rem' }}>🔨</span>
               <span className="auth-logo-text">
-                <span className="auth-logo-alf animate-gradient-text">Forge</span>
+                <span className="auth-logo-alf animate-gradient-text">Orcastr8r</span>
               </span>
             </div>
           </div>
@@ -119,7 +119,7 @@ export default function ResetPasswordPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-wordmark">forge</span>
+            <span className="auth-logo-wordmark">orcastr8r</span>
           </div>
           <p className="auth-subtitle">Set your new password</p>
         </div>

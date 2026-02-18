@@ -185,7 +185,7 @@ export default function CommandCenter() {
           <div className="fc-brand">
             <div className="fc-brand-logo">F</div>
             <div className="fc-brand-text">
-              <span className="fc-brand-title">Forge</span>
+              <span className="fc-brand-title">Orcastr8r</span>
               <span className="fc-brand-subtitle">Command Center</span>
             </div>
           </div>

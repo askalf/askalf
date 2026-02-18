@@ -12,7 +12,7 @@ export interface TabSection {
 
 export const USER_TAB_SECTIONS: TabSection[] = [
   {
-    label: 'Forge',
+    label: 'Orcastr8r',
     tabs: [
       { key: 'overview', label: 'Overview' },
       { key: 'executions', label: 'Executions' },

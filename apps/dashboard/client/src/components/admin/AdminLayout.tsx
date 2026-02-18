@@ -102,14 +102,14 @@ export default function AdminLayout() {
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
           <div className="admin-logo" onClick={() => { handleTabClick('overview'); }}>
-            <span className="admin-logo-wordmark">forge</span>
+            <span className="admin-logo-wordmark">orcastr8r</span>
           </div>
         </div>
 
         <nav className="admin-nav">
           {/* Forge Section */}
           <div className="admin-nav-section">
-            <div className="admin-nav-section-title">Forge</div>
+            <div className="admin-nav-section-title">Orcastr8r</div>
 
             {showFlatForge ? (
               /* Regular users: flat list */

@@ -41,7 +41,7 @@ function wrapHtml(content: string): string {
           <!-- Header -->
           <tr>
             <td align="center" style="padding-bottom: 32px;">
-              <span style="font-size: 28px; font-weight: 800; color: #a78bfa; letter-spacing: -0.03em; line-height: 1; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;">forge</span>
+              <span style="font-size: 28px; font-weight: 800; color: #a78bfa; letter-spacing: -0.03em; line-height: 1; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;">orcastr8r</span>
             </td>
           </tr>
 
@@ -65,7 +65,7 @@ function wrapHtml(content: string): string {
                 The control plane for autonomous agents
               </p>
               <p style="margin: 0; font-size: 13px;">
-                <a href="https://integration.tax" style="color: #7c3aed; text-decoration: none; font-weight: 600;">integration.tax</a>
+                <a href="https://orcastr8r.com" style="color: #7c3aed; text-decoration: none; font-weight: 600;">orcastr8r.com</a>
               </p>
             </td>
           </tr>
@@ -142,7 +142,7 @@ export function welcomeEmailHtml(vars: WelcomeEmailVars): string {
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      Forge gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
+      Orcastr8r gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
     </p>
 
     ${sectionLabel('What you get')}
@@ -186,7 +186,7 @@ Hi ${vars.userName},
 
 Your ${vars.planName} deployment is live. The control plane is ready.
 
-Forge gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
+Orcastr8r gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
 
 // WHAT YOU GET
 - Fleet Orchestration — Deploy, scale, and coordinate autonomous agents from a single command center
@@ -197,8 +197,8 @@ Forge gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enf
 Open Command Center: ${vars.dashboardUrl}
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -254,8 +254,8 @@ This link expires in ${vars.expiresInMinutes} minutes.
 If you didn't request this, you can safely ignore this email. Your password won't change.
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -274,7 +274,7 @@ export function emailVerificationHtml(vars: EmailVerificationVars): string {
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      One last step to activate your forge account:
+      One last step to activate your orcastr8r account:
     </p>
 
     ${button('Verify Email', vars.verifyUrl)}
@@ -286,7 +286,7 @@ export function emailVerificationHtml(vars: EmailVerificationVars): string {
     `)}
 
     <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
-      If you didn't create a forge account, you can safely ignore this email.
+      If you didn't create an orcastr8r account, you can safely ignore this email.
     </p>
 
     <p style="margin: 24px 0 0 0; font-size: 12px; color: #3f3f46;">
@@ -302,17 +302,17 @@ Verify Your Email
 
 Hi ${vars.userName},
 
-One last step to activate your forge account:
+One last step to activate your orcastr8r account:
 
 ${vars.verifyUrl}
 
 This link expires in ${vars.expiresInHours} hours.
 
-If you didn't create a forge account, you can safely ignore this email.
+If you didn't create an orcastr8r account, you can safely ignore this email.
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -331,7 +331,7 @@ export function subscriptionConfirmationHtml(vars: SubscriptionEmailVars): strin
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      Your forge deployment just leveled up.
+      Your orcastr8r deployment just leveled up.
     </p>
 
     ${noteBox(`
@@ -370,7 +370,7 @@ Subscription Confirmed
 
 Hi ${vars.userName},
 
-Your forge deployment just leveled up.
+Your orcastr8r deployment just leveled up.
 
 Plan: ${vars.planName}
 Amount: ${vars.amount}
@@ -381,8 +381,8 @@ All features in your plan are now active.
 Open Command Center: ${vars.dashboardUrl}
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -436,8 +436,8 @@ Changed your mind? Reactivate anytime:
 ${vars.dashboardUrl}/billing
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -490,8 +490,8 @@ Update Payment Method: ${vars.updatePaymentUrl}
 Questions about billing? Reply to this email and we'll help.
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -544,8 +544,8 @@ Once you hit the limit, ${vars.limitType.toLowerCase()} will pause until the nex
 Upgrade Plan: ${vars.upgradeUrl}
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -560,11 +560,11 @@ export function teamInviteHtml(vars: TeamInviteEmailVars): string {
     </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
-      <strong style="color: #fafafa;">${vars.inviterName}</strong> invited you to join <strong style="color: #a78bfa;">${vars.teamName}</strong> on forge.
+      <strong style="color: #fafafa;">${vars.inviterName}</strong> invited you to join <strong style="color: #a78bfa;">${vars.teamName}</strong> on orcastr8r.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      Forge is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
+      Orcastr8r is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
     </p>
 
     ${button('Accept Invitation', vars.inviteUrl)}
@@ -585,9 +585,9 @@ export function teamInviteText(vars: TeamInviteEmailVars): string {
   return `
 You're Invited
 
-${vars.inviterName} invited you to join ${vars.teamName} on forge.
+${vars.inviterName} invited you to join ${vars.teamName} on orcastr8r.
 
-Forge is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
+Orcastr8r is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
 
 Accept Invitation: ${vars.inviteUrl}
 
@@ -596,8 +596,8 @@ This invitation expires in ${vars.expiresInDays} days.
 Don't want to join? Just ignore this email.
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -613,7 +613,7 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
     </h1>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa; line-height: 1.7;">
-      You just reserved your spot for Forge — the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
+      You just reserved your spot for Orcastr8r — the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
     </p>
 
     ${sectionLabel('What you\'re getting access to')}
@@ -665,7 +665,7 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
 
     ${noteBox(`
       <p style="margin: 0; font-size: 14px; color: #a1a1aa; line-height: 1.6;">
-        <strong style="color: #a78bfa;">Think of it this way:</strong> Kubernetes doesn't run your containers — it orchestrates them. Forge doesn't run your agents — it orchestrates them. Same model, different substrate.
+        <strong style="color: #a78bfa;">Think of it this way:</strong> Kubernetes doesn't run your containers — it orchestrates them. Orcastr8r doesn't run your agents — it orchestrates them. Same model, different substrate.
       </p>
     `)}
 
@@ -682,7 +682,7 @@ export function waitlistEmailText(vars: WaitlistEmailVars): string {
   return `
 You're on the list, ${firstName}.
 
-You just reserved your spot for Forge -- the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
+You just reserved your spot for Orcastr8r -- the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
 
 // WHAT YOU'RE GETTING ACCESS TO
 - Fleet Orchestration — Deploy, scale, and coordinate autonomous agents. Kubernetes-style primitives for LLMs.
@@ -692,15 +692,15 @@ You just reserved your spot for Forge -- the control plane for autonomous AI age
 - Auto-Healing — Failed agents restart automatically. Health checks, circuit breakers, graceful degradation.
 - Human Checkpoints — Define approval gates. Agents pause and wait for your sign-off before critical actions.
 
-Think of it this way: Kubernetes doesn't run your containers -- it orchestrates them. Forge doesn't run your agents -- it orchestrates them. Same model, different substrate.
+Think of it this way: Kubernetes doesn't run your containers -- it orchestrates them. Orcastr8r doesn't run your agents -- it orchestrates them. Same model, different substrate.
 
 We'll email ${vars.email} the moment your spot opens. It won't be long.
 
 Follow us on X: https://x.com/meetaskalf
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -715,7 +715,7 @@ export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
     </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
-      You signed up for the forge waitlist. The wait is over:
+      You signed up for the orcastr8r waitlist. The wait is over:
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 22px; font-weight: 600; color: #a78bfa;">
@@ -751,7 +751,7 @@ export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
       </tr>
     </table>
 
-    ${button('Deploy Your Fleet', 'https://integration.tax')}
+    ${button('Deploy Your Fleet', 'https://orcastr8r.com')}
 
     ${noteBox(`
       <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
@@ -769,7 +769,7 @@ export function waitlistUpdateEmailText(vars: WaitlistUpdateEmailVars): string {
   return `
 Your spot is ready.
 
-You signed up for the forge waitlist. The wait is over:
+You signed up for the orcastr8r waitlist. The wait is over:
 
 The control plane is live. Your fleet awaits.
 
@@ -779,15 +779,15 @@ The control plane is live. Your fleet awaits.
 - 4-Tier Memory — Persistent cognitive memory across all agent executions
 - Budget Enforcement — Hard limits per agent, per fleet, per cycle. Zero surprise bills.
 
-Deploy Your Fleet: https://integration.tax
+Deploy Your Fleet: https://orcastr8r.com
 
 Free tier available — get started with no credit card required.
 
 Thanks for being early. We built this for people like you.
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -796,14 +796,14 @@ https://integration.tax
 // ============================================
 
 export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
-  const signupUrl = vars.signupUrl || 'https://integration.tax/signup';
+  const signupUrl = vars.signupUrl || 'https://orcastr8r.com/signup';
   return wrapHtml(`
     <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
       You've been selected.
     </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
-      You're off the waitlist. Your forge deployment is ready to create.
+      You're off the waitlist. Your orcastr8r deployment is ready to create.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
@@ -846,17 +846,17 @@ export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
     </p>
 
     <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #52525b;">
-      This invite is for <strong style="color: #71717a;">${vars.email}</strong>. If you didn't sign up for forge, you can ignore this email.
+      This invite is for <strong style="color: #71717a;">${vars.email}</strong>. If you didn't sign up for orcastr8r, you can ignore this email.
     </p>
   `);
 }
 
 export function betaInviteEmailText(vars: BetaInviteEmailVars): string {
-  const signupUrl = vars.signupUrl || 'https://integration.tax/signup';
+  const signupUrl = vars.signupUrl || 'https://orcastr8r.com/signup';
   return `
 You've been selected.
 
-You're off the waitlist. Your forge deployment is ready to create.
+You're off the waitlist. Your orcastr8r deployment is ready to create.
 
 As a beta operator, you'll be among the first to deploy autonomous agent fleets with Kubernetes-style orchestration.
 
@@ -870,11 +870,11 @@ Activate Your Account: ${signupUrl}
 
 Your feedback shapes what we build next. We're listening.
 
-This invite is for ${vars.email}. If you didn't sign up for forge, you can ignore this email.
+This invite is for ${vars.email}. If you didn't sign up for orcastr8r, you can ignore this email.
 
 ---
-forge — The control plane for autonomous agents
-https://integration.tax
+orcastr8r — The control plane for autonomous agents
+https://orcastr8r.com
   `.trim();
 }
 
@@ -893,7 +893,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          Someone new joined the forge waitlist.
+          Someone new joined the orcastr8r waitlist.
         </p>
 
         ${noteBox(`
@@ -918,7 +918,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
           </table>
         `)}
 
-        ${button('View Dashboard', 'https://integration.tax')}
+        ${button('View Dashboard', 'https://orcastr8r.com')}
       `;
       break;
 
@@ -929,7 +929,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          A new operator registered for forge.
+          A new operator registered for orcastr8r.
         </p>
 
         ${noteBox(`
@@ -956,7 +956,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          An error occurred in the forge system.
+          An error occurred in the orcastr8r system.
         </p>
 
         ${noteBox(`
@@ -976,42 +976,42 @@ export function adminNotificationText(vars: AdminNotificationVars): string {
       return `
 New Waitlist Signup
 
-Someone new joined the forge waitlist.
+Someone new joined the orcastr8r waitlist.
 
 Email: ${vars.email}
 Time: ${vars.timestamp}
 ${vars.totalWaitlistCount ? `Total signups: ${vars.totalWaitlistCount}` : ''}
 
-View Dashboard: https://integration.tax
+View Dashboard: https://orcastr8r.com
 
 ---
-forge admin notification
+orcastr8r admin notification
       `.trim();
 
     case 'new_user':
       return `
 New User Registration
 
-A new operator registered for forge.
+A new operator registered for orcastr8r.
 
 Email: ${vars.email}
 Time: ${vars.timestamp}
 
 ---
-forge admin notification
+orcastr8r admin notification
       `.trim();
 
     case 'error':
       return `
 System Alert
 
-An error occurred in the forge system.
+An error occurred in the orcastr8r system.
 
 ${vars.message}
 Time: ${vars.timestamp}
 
 ---
-forge admin notification
+orcastr8r admin notification
       `.trim();
 
     default:
@@ -1063,90 +1063,90 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
   switch (template) {
     case 'welcome':
       return {
-        subject: 'You\'re in — forge',
+        subject: 'You\'re in — orcastr8r',
         html: welcomeEmailHtml(vars as WelcomeEmailVars),
         text: welcomeEmailText(vars as WelcomeEmailVars),
       };
 
     case 'password-reset':
       return {
-        subject: 'Reset your password — forge',
+        subject: 'Reset your password — orcastr8r',
         html: passwordResetEmailHtml(vars as PasswordResetEmailVars),
         text: passwordResetEmailText(vars as PasswordResetEmailVars),
       };
 
     case 'email-verification':
       return {
-        subject: 'Verify your email — forge',
+        subject: 'Verify your email — orcastr8r',
         html: emailVerificationHtml(vars as EmailVerificationVars),
         text: emailVerificationText(vars as EmailVerificationVars),
       };
 
     case 'subscription-confirmation':
       return {
-        subject: 'Subscription confirmed — forge',
+        subject: 'Subscription confirmed — orcastr8r',
         html: subscriptionConfirmationHtml(vars as SubscriptionEmailVars),
         text: subscriptionConfirmationText(vars as SubscriptionEmailVars),
       };
 
     case 'subscription-canceled':
       return {
-        subject: 'Subscription canceled — forge',
+        subject: 'Subscription canceled — orcastr8r',
         html: subscriptionCanceledHtml(vars as SubscriptionEmailVars),
         text: subscriptionCanceledText(vars as SubscriptionEmailVars),
       };
 
     case 'payment-failed':
       return {
-        subject: 'Action required: payment failed — forge',
+        subject: 'Action required: payment failed — orcastr8r',
         html: paymentFailedHtml(vars as PaymentFailedEmailVars),
         text: paymentFailedText(vars as PaymentFailedEmailVars),
       };
 
     case 'usage-limit-warning':
       return {
-        subject: 'Usage limit warning — forge',
+        subject: 'Usage limit warning — orcastr8r',
         html: usageLimitWarningHtml(vars as UsageLimitEmailVars),
         text: usageLimitWarningText(vars as UsageLimitEmailVars),
       };
 
     case 'team-invite':
       return {
-        subject: `You're invited to ${(vars as TeamInviteEmailVars).teamName} — forge`,
+        subject: `You're invited to ${(vars as TeamInviteEmailVars).teamName} — orcastr8r`,
         html: teamInviteHtml(vars as TeamInviteEmailVars),
         text: teamInviteText(vars as TeamInviteEmailVars),
       };
 
     case 'waitlist':
       return {
-        subject: `You're on the list — forge`,
+        subject: `You're on the list — orcastr8r`,
         html: waitlistEmailHtml(vars as WaitlistEmailVars),
         text: waitlistEmailText(vars as WaitlistEmailVars),
       };
 
     case 'waitlist-update':
       return {
-        subject: `Your spot is ready — forge`,
+        subject: `Your spot is ready — orcastr8r`,
         html: waitlistUpdateEmailHtml(vars as WaitlistUpdateEmailVars),
         text: waitlistUpdateEmailText(vars as WaitlistUpdateEmailVars),
       };
 
     case 'beta-invite':
       return {
-        subject: `You've been selected — forge beta`,
+        subject: `You've been selected — orcastr8r beta`,
         html: betaInviteEmailHtml(vars as BetaInviteEmailVars),
         text: betaInviteEmailText(vars as BetaInviteEmailVars),
       };
 
     case 'admin-notification': {
       const adminVars = vars as AdminNotificationVars;
-      let subject = 'forge admin alert';
+      let subject = 'orcastr8r admin alert';
       if (adminVars.type === 'waitlist_signup') {
         subject = `New waitlist signup: ${adminVars.email}`;
       } else if (adminVars.type === 'new_user') {
         subject = `New user: ${adminVars.email}`;
       } else if (adminVars.type === 'error') {
-        subject = 'forge system alert';
+        subject = 'orcastr8r system alert';
       }
       return {
         subject,
