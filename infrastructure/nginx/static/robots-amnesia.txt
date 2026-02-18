@@ -1,0 +1,11 @@
+# amnesia.tax — search engine
+User-agent: *
+Allow: /
+Disallow: /search
+Disallow: /settings
+Disallow: /preferences
+Disallow: /stats
+Disallow: /config
+Disallow: /info
+
+Sitemap: https://amnesia.tax/sitemap.xml

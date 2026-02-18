@@ -1,0 +1,16 @@
+# integration.tax — Forge control plane
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /ws
+Disallow: /login
+Disallow: /signup
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /settings
+Disallow: /users
+Disallow: /command-center
+
+Sitemap: https://integration.tax/sitemap.xml
