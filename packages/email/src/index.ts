@@ -321,8 +321,12 @@ export async function sendTeamInviteEmail(
  */
 export async function sendWaitlistEmail(
   to: string,
-  vars: WaitlistEmailVars
+  vars: WaitlistEmailVars,
+  source?: string
 ): Promise<EmailResult> {
+  if (source === 'claw-replay') {
+    return getEmailService().sendTemplate(to, 'waitlist-claw', vars);
+  }
   return getEmailService().sendWaitlist(to, vars);
 }
 
