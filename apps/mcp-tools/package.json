@@ -14,7 +14,8 @@
     "@substrate/db": "workspace:*",
     "express": "^5.1.0",
     "cors": "^2.8.5",
-    "openai": "^4.77.0"
+    "openai": "^4.77.0",
+    "@substrate/observability": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -9,12 +9,14 @@ WORKDIR /app
 # Copy workspace files
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/self ./apps/self
+COPY packages/observability ./packages/observability
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Build self
-RUN pnpm --filter @substrate/self build
+RUN pnpm --filter @substrate/observability build && \
+    pnpm --filter @substrate/self build
 
 # Deploy to a self-contained directory
 RUN pnpm deploy --filter @substrate/self --prod /app/deploy
