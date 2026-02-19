@@ -17,8 +17,8 @@
   <meta property="og:url" content="https://integration.tax">
   <meta property="og:title" content="Claw Replay — Time-Travel Debugging for AI Conversations">
   <meta property="og:description" content="Fork any point. Replay with perfect context. See exactly where things went wrong. Merkle DAG timelines, Ghost Mode speculation, forensic analysis.">
-  <meta property="og:image" content="https://integration.tax/og.svg">
-  <meta property="og:image:type" content="image/svg+xml">
+  <meta property="og:image" content="https://integration.tax/og.png">
+  <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Claw Replay — Time-Travel Debugging for AI Conversations">
@@ -30,7 +30,7 @@
   <meta name="twitter:url" content="https://integration.tax">
   <meta name="twitter:title" content="Claw Replay — Time-Travel Debugging for AI Conversations">
   <meta name="twitter:description" content="Fork any point. Replay with perfect context. See exactly where things went wrong.">
-  <meta name="twitter:image" content="https://integration.tax/og.svg">
+  <meta name="twitter:image" content="https://integration.tax/og.png">
   <meta name="twitter:image:alt" content="Claw Replay — Time-Travel Debugging for AI Conversations">
 
   <!-- Theme & Appearance -->
@@ -42,9 +42,9 @@
   <meta name="apple-mobile-web-app-title" content="Claw Replay">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg">
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/favicon.png">
 
   <!-- Canonical -->
   <link rel="canonical" href="https://integration.tax">
@@ -1306,11 +1306,14 @@
         <h2>Be first to debug the future.</h2>
         <p>Claw Replay is in active development. Request early access and we'll reach out when it's ready.</p>
         <form class="cta-form" id="cta-form" onsubmit="return handleSubmit(event)">
-          <input type="email" class="cta-input" placeholder="you@company.com" required aria-label="Email address">
-          <button type="submit" class="cta-submit">Request Access</button>
+          <input type="text" class="cta-input" id="cta-name" placeholder="Your name" required aria-label="Name" autocomplete="name">
+          <input type="email" class="cta-input" id="cta-email" placeholder="you@company.com" required aria-label="Email address" autocomplete="email">
+          <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
+          <button type="submit" class="cta-submit" id="cta-btn">Request Access</button>
         </form>
         <p class="cta-note" id="cta-note">Private development. Selective early access.</p>
-        <p class="cta-success" id="cta-success">We'll be in touch.</p>
+        <p class="cta-success" id="cta-success">You're on the list. We'll be in touch.</p>
+        <p class="cta-error" id="cta-error" style="display:none; color: var(--accent-red); font-size: 14px;"></p>
       </div>
     </div>
   </section>
@@ -1345,14 +1348,49 @@
     // ==========================================
     // CTA Form Handler
     // ==========================================
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
       e.preventDefault();
       const form = document.getElementById('cta-form');
       const note = document.getElementById('cta-note');
       const success = document.getElementById('cta-success');
-      form.style.display = 'none';
-      note.style.display = 'none';
-      success.style.display = 'block';
+      const errorEl = document.getElementById('cta-error');
+      const btn = document.getElementById('cta-btn');
+      const name = document.getElementById('cta-name').value.trim();
+      const email = document.getElementById('cta-email').value.trim();
+      const honeypot = form.querySelector('[name="website"]').value;
+
+      errorEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      try {
+        const res = await fetch('/api/waitlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, website: honeypot }),
+        });
+
+        if (res.ok) {
+          form.style.display = 'none';
+          note.style.display = 'none';
+          success.style.display = 'block';
+        } else {
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 429) {
+            errorEl.textContent = 'Too many requests. Please try again later.';
+          } else {
+            errorEl.textContent = data.error || 'Something went wrong. Please try again.';
+          }
+          errorEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Request Access';
+        }
+      } catch {
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Request Access';
+      }
       return false;
     }
 
