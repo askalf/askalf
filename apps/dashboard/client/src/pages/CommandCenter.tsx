@@ -60,6 +60,7 @@ const HealthMonitor = lazyRetry(() => import('./forge/HealthMonitor'));
 const Evolution = lazyRetry(() => import('./forge/Evolution'));
 const EventLog = lazyRetry(() => import('./forge/EventLog'));
 const Leaderboard = lazyRetry(() => import('./forge/Leaderboard'));
+const MetabolicDashboard = lazyRetry(() => import('./forge/MetabolicDashboard'));
 
 const PANEL_MAP: Record<HubTab, React.FC> = {
   overview: ForgeOverview,
@@ -88,6 +89,7 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
   evolution: Evolution,
   events: EventLog,
   leaderboard: Leaderboard,
+  metabolic: MetabolicDashboard,
 };
 
 export default function CommandCenter() {
