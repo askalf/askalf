@@ -133,6 +133,7 @@ function getTenantId(request) {
 const ALLOWED_ORIGINS = [
   'https://orcastr8r.com',
   'https://www.orcastr8r.com',
+  'https://integration.tax',
   // Development origins
   ...(process.env['NODE_ENV'] !== 'production' ? [
     'http://localhost:3001',

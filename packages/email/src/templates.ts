@@ -741,7 +741,7 @@ function wrapClawHtml(content: string): string {
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #111116; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
                 <tr>
                   <td style="padding: 48px 40px;">
-                    \${content}
+                    ${content}
                   </td>
                 </tr>
               </table>
@@ -779,8 +779,8 @@ function clawButton(text: string, url: string): string {
     <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 28px 0;">
       <tr>
         <td align="center" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 8px;">
-          <a href="\${url}" style="display: inline-block; padding: 14px 32px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">
-            \${text}
+          <a href="${url}" style="display: inline-block; padding: 14px 32px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">
+            ${text}
           </a>
         </td>
       </tr>
@@ -791,7 +791,7 @@ function clawButton(text: string, url: string): string {
 function clawSectionLabel(text: string): string {
   return `
     <p style="margin: 32px 0 16px 0; font-size: 11px; font-weight: 600; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;">
-      // \${text}
+      // ${text}
     </p>
   `;
 }
@@ -868,8 +868,8 @@ export function clawWaitlistEmailHtml(vars: WaitlistEmailVars): string {
 
 export function clawWaitlistEmailText(vars: WaitlistEmailVars): string {
   const firstName = vars.name.split(' ')[0];
-  return \`
-You're on the list, \${firstName}.
+  return `
+You're on the list, ${firstName}.
 
 You just requested early access to Claw Replay -- time-travel debugging for AI conversations. We're opening access selectively to ensure quality.
 
@@ -882,7 +882,7 @@ You just requested early access to Claw Replay -- time-travel debugging for AI c
 
 The problem we're solving: When your AI conversation breaks at message 47, you shouldn't have to start over. Claw Replay lets you fork at any point, replay with exact context, and see precisely where things went wrong.
 
-We'll email \${vars.email} when your access is ready.
+We'll email ${vars.email} when your access is ready.
 
 Visit: https://integration.tax
 
@@ -890,7 +890,7 @@ Visit: https://integration.tax
 Claw Replay — Time-travel debugging for AI conversations
 https://integration.tax | @agent_orcastr8r
 Built by Sprayberry Labs
-  \`.trim();
+  `.trim();
 }
 
 // ============================================
