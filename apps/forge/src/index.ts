@@ -5,6 +5,15 @@
 
 import 'dotenv/config';
 import { initializeEmailFromEnv } from '@substrate/email';
+import {
+  getPrometheusMetrics,
+  httpRequestsTotal,
+  httpRequestDuration,
+  httpRequestsInFlight,
+  createCounter,
+  createGauge,
+  createHistogram,
+} from '@substrate/observability';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
@@ -103,7 +112,39 @@ setInterval(() => {
 }, 60000);
 
 // ============================================
-// HEALTH CHECK
+// PROMETHEUS METRICS
+// ============================================
+
+// Forge-specific metrics
+const forgeExecutionsTotal = createCounter('forge_executions_total', 'Total agent executions started');
+const forgeExecutionDuration = createHistogram('forge_execution_duration_ms', 'Agent execution duration in milliseconds');
+const forgeActiveAgents = createGauge('forge_active_agents', 'Number of active agents');
+const forgeToolCalls = createCounter('forge_tool_calls_total', 'Total tool calls across all executions');
+const forgeMcpConnections = createGauge('forge_mcp_connections', 'Active MCP SSE connections');
+
+// Export for use by other modules
+export { forgeExecutionsTotal, forgeExecutionDuration, forgeActiveAgents, forgeToolCalls, forgeMcpConnections };
+
+// HTTP request instrumentation
+app.addHook('onRequest', async (request) => {
+  httpRequestsInFlight.inc({ service: 'forge' });
+  (request as unknown as Record<string, unknown>)['_metricsStart'] = process.hrtime.bigint();
+});
+
+app.addHook('onResponse', async (request, reply) => {
+  httpRequestsInFlight.dec({ service: 'forge' });
+  const start = (request as unknown as Record<string, unknown>)['_metricsStart'] as bigint | undefined;
+  const method = request.method;
+  const status = String(reply.statusCode);
+  httpRequestsTotal.inc({ service: 'forge', method, status });
+  if (start) {
+    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+    httpRequestDuration.observe(durationMs, { service: 'forge', method });
+  }
+});
+
+// ============================================
+// HEALTH CHECK & METRICS ENDPOINTS
 // ============================================
 
 app.get('/health', { logLevel: 'silent' }, async () => {
@@ -113,6 +154,11 @@ app.get('/health', { logLevel: 'silent' }, async () => {
     version: '1.0.0',
     timestamp: new Date().toISOString(),
   };
+});
+
+app.get('/metrics', { logLevel: 'silent' }, async (_request, reply) => {
+  reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  return getPrometheusMetrics();
 });
 
 // ============================================
