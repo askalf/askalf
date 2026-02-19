@@ -428,8 +428,8 @@ services:
   nginx:
     image: nginx:1.28.2-alpine@sha256:15e96e59aa3b0aada3a121296e3bce117721f42d88f5f64217ef4b18f458c6ab
     container_name: sprayberry-labs-nginx
-    # Replace default symlinks (-> /dev/stdout) with real files on persistent volume
-    command: ["/bin/sh", "-c", "rm -f /var/log/nginx/access.log /var/log/nginx/error.log && touch /var/log/nginx/access.log /var/log/nginx/error.log && nginx -g 'daemon off;'"]
+    # Replace default symlinks (-> /dev/stdout) with real files, preserve existing logs
+    command: ["/bin/sh", "-c", "[ -L /var/log/nginx/access.log ] && rm /var/log/nginx/access.log; [ -L /var/log/nginx/error.log ] && rm /var/log/nginx/error.log; touch /var/log/nginx/access.log /var/log/nginx/error.log; nginx -g 'daemon off;'"]
     # NO PUBLIC PORTS - nginx is only accessible via cloudflared tunnel
     # This ensures all traffic must go through Cloudflare's security layer
     expose:
