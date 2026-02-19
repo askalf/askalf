@@ -705,6 +705,195 @@ https://orcastr8r.com
 }
 
 // ============================================
+// Claw Replay Waitlist Email
+// ============================================
+
+function wrapClawHtml(content: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claw Replay</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td {font-family: Arial, sans-serif !important;}
+  </style>
+  <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; background-color: #06060b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #06060b;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%;">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" style="padding-bottom: 32px;">
+              <span style="font-size: 28px; font-weight: 800; color: #e8eaed; letter-spacing: -0.03em; line-height: 1;">Claw Replay</span>
+            </td>
+          </tr>
+
+          <!-- Main Content Card -->
+          <tr>
+            <td>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #111116; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+                <tr>
+                  <td style="padding: 48px 40px;">
+                    \${content}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding-top: 32px;">
+              <p style="margin: 0 0 8px 0; font-size: 13px; color: #5a5e72;">
+                Time-travel debugging for AI conversations
+              </p>
+              <p style="margin: 0; font-size: 13px;">
+                <a href="https://integration.tax" style="color: #3b82f6; text-decoration: none; font-weight: 600;">integration.tax</a>
+                &nbsp;&middot;&nbsp;
+                <a href="https://x.com/agent_orcastr8r" style="color: #5a5e72; text-decoration: none;">@agent_orcastr8r</a>
+              </p>
+              <p style="margin: 12px 0 0 0; font-size: 11px; color: #3f3f46;">
+                Built by <a href="https://orcastr8r.com" style="color: #5a5e72; text-decoration: none;">Sprayberry Labs</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
+function clawButton(text: string, url: string): string {
+  return `
+    <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 28px 0;">
+      <tr>
+        <td align="center" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 8px;">
+          <a href="\${url}" style="display: inline-block; padding: 14px 32px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none;">
+            \${text}
+          </a>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+function clawSectionLabel(text: string): string {
+  return `
+    <p style="margin: 32px 0 16px 0; font-size: 11px; font-weight: 600; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;">
+      // \${text}
+    </p>
+  `;
+}
+
+export function clawWaitlistEmailHtml(vars: WaitlistEmailVars): string {
+  const firstName = vars.name.split(' ')[0];
+  return wrapClawHtml(`
+    <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #e8eaed;">
+      You're on the list, ${firstName}.
+    </h1>
+
+    <p style="margin: 0 0 24px 0; font-size: 16px; color: #8b8fa3; line-height: 1.7;">
+      You just requested early access to Claw Replay — time-travel debugging for AI conversations. We're opening access selectively to ensure quality.
+    </p>
+
+    ${clawSectionLabel('What you\'re getting access to')}
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 32px 0; background: #0a0a10; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+      <tr>
+        <td style="padding: 24px 28px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <strong style="color: #e8eaed;">Merkle DAG Timelines</strong>
+                <br><span style="color: #5a5e72; font-size: 14px;">Every message is a content-addressed node. Branch, merge, and diff any two points in a conversation.</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <strong style="color: #e8eaed;">Ghost Mode</strong>
+                <br><span style="color: #5a5e72; font-size: 14px;">Preview multiple futures before committing. Speculative execution ranks which paths matter.</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <strong style="color: #e8eaed;">Forensics Engine</strong>
+                <br><span style="color: #5a5e72; font-size: 14px;">Context pressure, confidence decay, semantic drift — automatically pinpoint where conversations break.</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <strong style="color: #e8eaed;">State Snapshots</strong>
+                <br><span style="color: #5a5e72; font-size: 14px;">Copy-on-write deltas reconstruct exact model context at any point in milliseconds.</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0;">
+                <strong style="color: #e8eaed;">Portable .claw Files</strong>
+                <br><span style="color: #5a5e72; font-size: 14px;">Export entire conversation timelines as shareable capsules. Import, fork, and learn from others.</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 24px 0;">
+      <tr>
+        <td style="background-color: #0d0f1a; border-left: 4px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 16px 20px;">
+          <p style="margin: 0; font-size: 14px; color: #8b8fa3; line-height: 1.6;">
+            <strong style="color: #3b82f6;">The problem we're solving:</strong> When your AI conversation breaks at message 47, you shouldn't have to start over. Claw Replay lets you fork at any point, replay with exact context, and see precisely where things went wrong.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 24px 0 0 0; font-size: 15px; color: #5a5e72; line-height: 1.6;">
+      We'll email <strong style="color: #8b8fa3;">${vars.email}</strong> when your access is ready.
+    </p>
+
+    ${clawButton('Visit integration.tax', 'https://integration.tax')}
+  `);
+}
+
+export function clawWaitlistEmailText(vars: WaitlistEmailVars): string {
+  const firstName = vars.name.split(' ')[0];
+  return \`
+You're on the list, \${firstName}.
+
+You just requested early access to Claw Replay -- time-travel debugging for AI conversations. We're opening access selectively to ensure quality.
+
+// WHAT YOU'RE GETTING ACCESS TO
+- Merkle DAG Timelines — Every message is a content-addressed node. Branch, merge, and diff any two points.
+- Ghost Mode — Preview multiple futures before committing. Speculative execution ranks which paths matter.
+- Forensics Engine — Context pressure, confidence decay, semantic drift. Pinpoint where conversations break.
+- State Snapshots — Copy-on-write deltas reconstruct exact model context at any point in milliseconds.
+- Portable .claw Files — Export entire conversation timelines as shareable capsules.
+
+The problem we're solving: When your AI conversation breaks at message 47, you shouldn't have to start over. Claw Replay lets you fork at any point, replay with exact context, and see precisely where things went wrong.
+
+We'll email \${vars.email} when your access is ready.
+
+Visit: https://integration.tax
+
+---
+Claw Replay — Time-travel debugging for AI conversations
+https://integration.tax | @agent_orcastr8r
+Built by Sprayberry Labs
+  \`.trim();
+}
+
+// ============================================
 // Waitlist Update Email (Announcement to existing waitlist)
 // ============================================
 
@@ -893,7 +1082,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          Someone new joined the orcastr8r waitlist.
+          Someone new joined the ${vars.source === 'claw-replay' ? 'Claw Replay' : 'orcastr8r'} waitlist.
         </p>
 
         ${noteBox(`
@@ -903,6 +1092,13 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
                 <strong style="color: #fafafa;">Email:</strong> ${vars.email}
               </td>
             </tr>
+            ${vars.source ? `
+            <tr>
+              <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
+                <strong style="color: #fafafa;">Source:</strong> ${vars.source}
+              </td>
+            </tr>
+            ` : ''}
             <tr>
               <td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;">
                 <strong style="color: #fafafa;">Time:</strong> ${vars.timestamp}
@@ -974,11 +1170,12 @@ export function adminNotificationText(vars: AdminNotificationVars): string {
   switch (vars.type) {
     case 'waitlist_signup':
       return `
-New Waitlist Signup
+New Waitlist Signup${vars.source ? ` (${vars.source})` : ''}
 
-Someone new joined the orcastr8r waitlist.
+Someone new joined the ${vars.source === 'claw-replay' ? 'Claw Replay' : 'orcastr8r'} waitlist.
 
 Email: ${vars.email}
+${vars.source ? `Source: ${vars.source}` : ''}
 Time: ${vars.timestamp}
 ${vars.totalWaitlistCount ? `Total signups: ${vars.totalWaitlistCount}` : ''}
 
@@ -1033,6 +1230,7 @@ export type EmailTemplate =
   | 'usage-limit-warning'
   | 'team-invite'
   | 'waitlist'
+  | 'waitlist-claw'
   | 'waitlist-update'
   | 'beta-invite'
   | 'admin-notification';
@@ -1124,6 +1322,13 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
         text: waitlistEmailText(vars as WaitlistEmailVars),
       };
 
+    case 'waitlist-claw':
+      return {
+        subject: `You're on the list — Claw Replay`,
+        html: clawWaitlistEmailHtml(vars as WaitlistEmailVars),
+        text: clawWaitlistEmailText(vars as WaitlistEmailVars),
+      };
+
     case 'waitlist-update':
       return {
         subject: `Your spot is ready — orcastr8r`,
@@ -1142,7 +1347,7 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
       const adminVars = vars as AdminNotificationVars;
       let subject = 'orcastr8r admin alert';
       if (adminVars.type === 'waitlist_signup') {
-        subject = `New waitlist signup: ${adminVars.email}`;
+        subject = `New ${adminVars.source === 'claw-replay' ? 'Claw Replay' : 'orcastr8r'} waitlist signup: ${adminVars.email}`;
       } else if (adminVars.type === 'new_user') {
         subject = `New user: ${adminVars.email}`;
       } else if (adminVars.type === 'error') {
