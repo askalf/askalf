@@ -9,6 +9,60 @@ import { processUnprocessedFeedback } from '../learning/feedback-processor.js';
 import { proposeAllRevisions } from '../learning/prompt-rewriter.js';
 import { proposeAllGoals } from '../orchestration/goal-proposer.js';
 
+// ============================================
+// Cycle Status Tracking
+// ============================================
+
+export interface CycleResult {
+  cycle: string;
+  intervalHours: number;
+  lastRun: string | null;
+  lastDurationMs: number;
+  lastResult: Record<string, number>;
+  runCount: number;
+  lastError: string | null;
+}
+
+const cycleStatus = new Map<string, CycleResult>();
+
+function initCycleStatus(name: string, intervalHours: number): void {
+  cycleStatus.set(name, {
+    cycle: name,
+    intervalHours,
+    lastRun: null,
+    lastDurationMs: 0,
+    lastResult: {},
+    runCount: 0,
+    lastError: null,
+  });
+}
+
+function recordCycleRun(name: string, durationMs: number, result: Record<string, number>): void {
+  const status = cycleStatus.get(name);
+  if (status) {
+    status.lastRun = new Date().toISOString();
+    status.lastDurationMs = durationMs;
+    status.lastResult = result;
+    status.runCount++;
+    status.lastError = null;
+  }
+}
+
+function recordCycleError(name: string, error: string): void {
+  const status = cycleStatus.get(name);
+  if (status) {
+    status.lastError = error;
+  }
+}
+
+export function getMetabolicStatus(): CycleResult[] {
+  return Array.from(cycleStatus.values());
+}
+
+// ============================================
+// Timers
+// ============================================
+
 let decayTimer: ReturnType<typeof setInterval> | null = null;
 let lessonsTimer: ReturnType<typeof setInterval> | null = null;
 let promoteTimer: ReturnType<typeof setInterval> | null = null;
@@ -21,6 +75,14 @@ let goalProposalTimer: ReturnType<typeof setInterval> | null = null;
  * Call once during server startup after database is initialized.
  */
 export function startMetabolicCycles(): void {
+  // Initialize status tracking
+  initCycleStatus('decay', 12);
+  initCycleStatus('lessons', 4);
+  initCycleStatus('promote', 2);
+  initCycleStatus('feedback', 0.5);
+  initCycleStatus('prompt-rewrite', 6);
+  initCycleStatus('goal-proposal', 8);
+
   // Run initial cycles 5 minutes after startup
   setTimeout(() => {
     void runDecayCycle().catch(logErr('decay'));
@@ -82,16 +144,9 @@ export function stopMetabolicCycles(): void {
 // Decay Cycle
 // --------------------------------------------------------------------------
 
-/**
- * Reduce importance of stale memories and purge very low-value ones.
- * - Semantic: reduce importance by 0.05 for memories not accessed in 30+ days
- * - Procedural: reduce confidence by 0.05 for procedures not updated in 30+ days
- * - Delete: remove very low-importance (<0.15) memories older than 90 days with <2 accesses
- */
 async function runDecayCycle(): Promise<void> {
   const start = Date.now();
 
-  // Decay stale semantic memories
   const decayedSemantic = await query<{ count: string }>(
     `WITH decayed AS (
        UPDATE forge_semantic_memories
@@ -103,7 +158,6 @@ async function runDecayCycle(): Promise<void> {
      SELECT COUNT(*)::text AS count FROM decayed`,
   );
 
-  // Decay stale procedural memories
   const decayedProcedural = await query<{ count: string }>(
     `WITH decayed AS (
        UPDATE forge_procedural_memories
@@ -115,7 +169,6 @@ async function runDecayCycle(): Promise<void> {
      SELECT COUNT(*)::text AS count FROM decayed`,
   );
 
-  // Purge very low-value old memories
   const purgedSemantic = await query<{ count: string }>(
     `WITH purged AS (
        DELETE FROM forge_semantic_memories
@@ -128,10 +181,17 @@ async function runDecayCycle(): Promise<void> {
   );
 
   const elapsed = Date.now() - start;
+  const result = {
+    semanticDecayed: parseInt(decayedSemantic[0]?.count ?? '0', 10),
+    proceduralDecayed: parseInt(decayedProcedural[0]?.count ?? '0', 10),
+    purged: parseInt(purgedSemantic[0]?.count ?? '0', 10),
+  };
+  recordCycleRun('decay', elapsed, result);
+
   console.log(
-    `[Metabolic] Decay cycle: ${decayedSemantic[0]?.count ?? 0} semantic decayed, ` +
-    `${decayedProcedural[0]?.count ?? 0} procedural decayed, ` +
-    `${purgedSemantic[0]?.count ?? 0} purged — ${elapsed}ms`,
+    `[Metabolic] Decay cycle: ${result.semanticDecayed} semantic decayed, ` +
+    `${result.proceduralDecayed} procedural decayed, ` +
+    `${result.purged} purged — ${elapsed}ms`,
   );
 }
 
@@ -139,15 +199,9 @@ async function runDecayCycle(): Promise<void> {
 // Lessons Cycle
 // --------------------------------------------------------------------------
 
-/**
- * Find failed executions and mark them as processed for lesson extraction.
- * Note: Full LLM-based lesson extraction requires runCliQuery which may be
- * expensive. For now, we create lightweight episodic markers.
- */
 async function runLessonsCycle(): Promise<void> {
   const start = Date.now();
 
-  // Find failed episodic memories not yet processed for lessons
   const failures = await query<{
     id: string;
     agent_id: string;
@@ -165,11 +219,12 @@ async function runLessonsCycle(): Promise<void> {
   );
 
   if (failures.length === 0) {
-    console.log(`[Metabolic] Lessons cycle: no unprocessed failures — ${Date.now() - start}ms`);
+    const elapsed = Date.now() - start;
+    recordCycleRun('lessons', elapsed, { processed: 0 });
+    console.log(`[Metabolic] Lessons cycle: no unprocessed failures — ${elapsed}ms`);
     return;
   }
 
-  // Mark each as processed (lesson extraction without LLM for now)
   for (const f of failures) {
     await query(
       `UPDATE forge_episodic_memories
@@ -180,6 +235,7 @@ async function runLessonsCycle(): Promise<void> {
   }
 
   const elapsed = Date.now() - start;
+  recordCycleRun('lessons', elapsed, { processed: failures.length });
   console.log(`[Metabolic] Lessons cycle: ${failures.length} failures processed — ${elapsed}ms`);
 }
 
@@ -187,15 +243,9 @@ async function runLessonsCycle(): Promise<void> {
 // Promote Cycle
 // --------------------------------------------------------------------------
 
-/**
- * Boost high-performing memories:
- * - Procedural: boost confidence for procedures with >80% success rate and 3+ uses
- * - Semantic: boost importance for frequently accessed memories (10+ accesses)
- */
 async function runPromoteCycle(): Promise<void> {
   const start = Date.now();
 
-  // Boost high-success-rate procedures
   const promotedProcedural = await query<{ count: string }>(
     `WITH promoted AS (
        UPDATE forge_procedural_memories
@@ -208,7 +258,6 @@ async function runPromoteCycle(): Promise<void> {
      SELECT COUNT(*)::text AS count FROM promoted`,
   );
 
-  // Boost frequently accessed semantic memories
   const promotedSemantic = await query<{ count: string }>(
     `WITH promoted AS (
        UPDATE forge_semantic_memories
@@ -221,9 +270,15 @@ async function runPromoteCycle(): Promise<void> {
   );
 
   const elapsed = Date.now() - start;
+  const result = {
+    proceduralBoosted: parseInt(promotedProcedural[0]?.count ?? '0', 10),
+    semanticBoosted: parseInt(promotedSemantic[0]?.count ?? '0', 10),
+  };
+  recordCycleRun('promote', elapsed, result);
+
   console.log(
-    `[Metabolic] Promote cycle: ${promotedProcedural[0]?.count ?? 0} procedural boosted, ` +
-    `${promotedSemantic[0]?.count ?? 0} semantic boosted — ${elapsed}ms`,
+    `[Metabolic] Promote cycle: ${result.proceduralBoosted} procedural boosted, ` +
+    `${result.semanticBoosted} semantic boosted — ${elapsed}ms`,
   );
 }
 
@@ -233,6 +288,8 @@ async function runPromoteCycle(): Promise<void> {
 
 function logErr(cycle: string) {
   return (err: unknown) => {
-    console.error(`[Metabolic] ${cycle} cycle error:`, err instanceof Error ? err.message : err);
+    const msg = err instanceof Error ? err.message : String(err);
+    recordCycleError(cycle, msg);
+    console.error(`[Metabolic] ${cycle} cycle error:`, msg);
   };
 }

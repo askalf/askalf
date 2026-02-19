@@ -852,6 +852,25 @@ export const hubApi = {
       apiFetch(`/api/v1/admin/evolution/${experimentId}/promote`, { method: 'POST', body: JSON.stringify({}) }),
   },
 
+  // Metabolic Dashboard
+  metabolic: {
+    status: () =>
+      apiFetch<{
+        startedAt: string;
+        uptimeSeconds: number;
+        cycles: Array<{
+          cycle: string;
+          intervalHours: number;
+          lastRun: string | null;
+          lastDurationMs: number;
+          lastResult: Record<string, number>;
+          runCount: number;
+          lastError: string | null;
+        }>;
+        memory: Record<string, number>;
+      }>('/api/v1/admin/metabolic/status'),
+  },
+
   // Phase 14: Events & Leaderboard
   events: {
     recent: (limit?: number) =>
