@@ -2016,7 +2016,7 @@ setInterval(() => {
 }, 60000);
 
 fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
-  const { name, email, website } = request.body || {};
+  const { name, email, website, source } = request.body || {};
 
   // Honeypot — bots fill hidden fields
   if (website) {
@@ -2060,21 +2060,26 @@ fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
     return reply.code(400).send({ error: 'Please use a valid email address' });
   }
 
+  // Sanitize source
+  const VALID_SOURCES = ['orcastr8r', 'claw-replay', 'askalf'];
+  const trimmedSource = VALID_SOURCES.includes(String(source || '').trim()) ? String(source).trim() : 'orcastr8r';
+
   try {
     await queryOne(
-      `INSERT INTO waitlist (id, name, email) VALUES ($1, $2, $3)
-       ON CONFLICT (email) DO UPDATE SET name = $2, created_at = NOW()
+      `INSERT INTO waitlist (id, name, email, source) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (email) DO UPDATE SET name = $2, source = $4, created_at = NOW()
        RETURNING id`,
-      [crypto.randomUUID(), trimmedName, trimmedEmail],
+      [crypto.randomUUID(), trimmedName, trimmedEmail, trimmedSource],
     );
 
     // Fire-and-forget: send welcome + admin notification
-    sendWaitlistEmail(trimmedEmail, { name: trimmedName, email: trimmedEmail }).catch(err =>
+    sendWaitlistEmail(trimmedEmail, { name: trimmedName, email: trimmedEmail }, trimmedSource).catch(err =>
       console.error('[Waitlist] Email send failed:', err)
     );
     sendAdminNotification(process.env['ADMIN_EMAIL'] || 'support@orcastr8r.com', {
       type: 'waitlist_signup',
       email: trimmedEmail,
+      source: trimmedSource,
       timestamp: new Date().toISOString(),
     }).catch(err =>
       console.error('[Waitlist] Admin notification failed:', err)
