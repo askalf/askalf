@@ -45,6 +45,9 @@ importers:
       '@fastify/cors':
         specifier: ^10.0.0
         version: 10.1.0
+      '@substrate/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
@@ -94,6 +97,9 @@ importers:
       '@substrate/email':
         specifier: workspace:*
         version: link:../../packages/email
+      '@substrate/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       fastify:
         specifier: ^5.2.1
         version: 5.6.2
@@ -201,6 +207,9 @@ importers:
       '@substrate/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@substrate/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -238,6 +247,9 @@ importers:
       '@fastify/cors':
         specifier: ^10.0.0
         version: 10.1.0
+      '@substrate/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3

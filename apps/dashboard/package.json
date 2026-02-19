@@ -15,6 +15,7 @@
     "@substrate/auth": "workspace:*",
     "@substrate/database": "workspace:*",
     "@substrate/email": "workspace:*",
-    "fastify": "^5.2.1"
+    "fastify": "^5.2.1",
+    "@substrate/observability": "workspace:*"
   }
 }

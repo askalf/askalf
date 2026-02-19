@@ -4,6 +4,12 @@
  */
 
 import 'dotenv/config';
+import {
+  getPrometheusMetrics,
+  httpRequestsTotal,
+  httpRequestDuration,
+  httpRequestsInFlight,
+} from '@substrate/observability';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
@@ -79,7 +85,26 @@ setInterval(() => {
 }, 60000);
 
 // ============================================
-// HEALTH CHECK
+// METRICS INSTRUMENTATION
+// ============================================
+
+app.addHook('onRequest', async (request) => {
+  httpRequestsInFlight.inc({ service: 'self' });
+  (request as unknown as Record<string, unknown>)['_metricsStart'] = process.hrtime.bigint();
+});
+
+app.addHook('onResponse', async (request, reply) => {
+  httpRequestsInFlight.dec({ service: 'self' });
+  const start = (request as unknown as Record<string, unknown>)['_metricsStart'] as bigint | undefined;
+  httpRequestsTotal.inc({ service: 'self', method: request.method, status: String(reply.statusCode) });
+  if (start) {
+    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+    httpRequestDuration.observe(durationMs, { service: 'self', method: request.method });
+  }
+});
+
+// ============================================
+// HEALTH CHECK & METRICS
 // ============================================
 
 app.get('/health', { logLevel: 'silent' }, async () => {
@@ -89,6 +114,11 @@ app.get('/health', { logLevel: 'silent' }, async () => {
     version: '1.0.0',
     timestamp: new Date().toISOString(),
   };
+});
+
+app.get('/metrics', { logLevel: 'silent' }, async (_request, reply) => {
+  reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  return getPrometheusMetrics();
 });
 
 // ============================================
