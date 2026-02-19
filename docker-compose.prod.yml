@@ -428,6 +428,8 @@ services:
   nginx:
     image: nginx:1.28.2-alpine@sha256:15e96e59aa3b0aada3a121296e3bce117721f42d88f5f64217ef4b18f458c6ab
     container_name: sprayberry-labs-nginx
+    # Replace default symlinks (-> /dev/stdout) with real files on persistent volume
+    command: ["/bin/sh", "-c", "rm -f /var/log/nginx/access.log /var/log/nginx/error.log && touch /var/log/nginx/access.log /var/log/nginx/error.log && nginx -g 'daemon off;'"]
     # NO PUBLIC PORTS - nginx is only accessible via cloudflared tunnel
     # This ensures all traffic must go through Cloudflare's security layer
     expose:
@@ -438,6 +440,7 @@ services:
       - ./infrastructure/nginx/conf.d/cloudflared.conf:/etc/nginx/conf.d/default.conf:ro
       - ./infrastructure/nginx/static:/usr/share/nginx/static:ro
       - nginx_cache:/var/cache/nginx
+      - nginx_logs:/var/log/nginx
     depends_on:
       dashboard:
         condition: service_healthy
@@ -459,7 +462,6 @@ services:
     tmpfs:
       - /tmp:mode=1777,size=16m
       - /var/run:mode=755,size=8m
-      - /var/log/nginx:mode=755,size=50m
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -787,6 +789,9 @@ volumes:
     external: true
   nginx_cache:
     name: substrate_prod_nginx_cache
+    external: true
+  nginx_logs:
+    name: substrate_prod_nginx_logs
     external: true
   searxng_cache:
     name: substrate_prod_searxng_cache
