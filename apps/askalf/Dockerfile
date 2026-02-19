@@ -9,12 +9,14 @@ WORKDIR /app
 # Copy workspace files
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/askalf ./apps/askalf
+COPY packages/observability ./packages/observability
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Build askalf
-RUN pnpm --filter @substrate/askalf build
+RUN pnpm --filter @substrate/observability build && \
+    pnpm --filter @substrate/askalf build
 
 # Deploy to a self-contained directory
 RUN pnpm deploy --filter @substrate/askalf --prod /app/deploy

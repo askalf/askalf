@@ -14,6 +14,12 @@
 
 import express from 'express';
 import cors from 'cors';
+import {
+  getPrometheusMetrics,
+  httpRequestsTotal,
+  httpRequestDuration,
+  httpRequestsInFlight,
+} from '@substrate/observability';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -58,8 +64,26 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 
+// Metrics instrumentation
+app.use((req, _res, next) => {
+  httpRequestsInFlight.inc({ service: 'mcp-tools' });
+  const start = process.hrtime.bigint();
+  _res.on('finish', () => {
+    httpRequestsInFlight.dec({ service: 'mcp-tools' });
+    httpRequestsTotal.inc({ service: 'mcp-tools', method: req.method, status: String(_res.statusCode) });
+    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+    httpRequestDuration.observe(durationMs, { service: 'mcp-tools', method: req.method });
+  });
+  next();
+});
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'healthy', service: 'mcp-tools', tools: ALL_TOOLS.length });
+});
+
+app.get('/metrics', (_req, res) => {
+  res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  res.send(getPrometheusMetrics());
 });
 
 const transports = new Map<string, SSEServerTransport>();

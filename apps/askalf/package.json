@@ -17,7 +17,8 @@
     "fastify": "^5.2.0",
     "openai": "^4.77.0",
     "pg": "^8.11.3",
-    "ulid": "^2.3.0"
+    "ulid": "^2.3.0",
+    "@substrate/observability": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "^8.11.0",

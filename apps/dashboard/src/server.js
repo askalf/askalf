@@ -3,6 +3,12 @@ import fastifyStatic from '@fastify/static';
 import fastifyCors from '@fastify/cors';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyCookie from '@fastify/cookie';
+import {
+  getPrometheusMetrics,
+  httpRequestsTotal,
+  httpRequestDuration,
+  httpRequestsInFlight,
+} from '@substrate/observability';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import crypto from 'crypto';
@@ -193,6 +199,21 @@ async function getUserFromSession(request) {
   return user;
 }
 
+// Metrics instrumentation
+fastify.addHook('onRequest', async (request) => {
+  httpRequestsInFlight.inc({ service: 'dashboard' });
+  request._metricsStart = process.hrtime.bigint();
+});
+
+fastify.addHook('onResponse', async (request, reply) => {
+  httpRequestsInFlight.dec({ service: 'dashboard' });
+  httpRequestsTotal.inc({ service: 'dashboard', method: request.method, status: String(reply.statusCode) });
+  if (request._metricsStart) {
+    const durationMs = Number(process.hrtime.bigint() - request._metricsStart) / 1_000_000;
+    httpRequestDuration.observe(durationMs, { service: 'dashboard', method: request.method });
+  }
+});
+
 // Health check endpoint for container orchestration
 fastify.get('/health', { logLevel: 'silent' }, async () => {
   // Validate database connectivity
@@ -202,6 +223,11 @@ fastify.get('/health', { logLevel: 'silent' }, async () => {
   } catch (err) {
     return { status: 'degraded', service: 'dashboard', database: 'disconnected', error: err.message };
   }
+});
+
+fastify.get('/metrics', { logLevel: 'silent' }, async (_request, reply) => {
+  reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  return getPrometheusMetrics();
 });
 
 // Serve React app static files

@@ -9,6 +9,7 @@ WORKDIR /app
 # Copy workspace files
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/db ./packages/db
+COPY packages/observability ./packages/observability
 COPY apps/mcp-tools ./apps/mcp-tools
 
 # Install dependencies
@@ -16,7 +17,8 @@ RUN pnpm install --frozen-lockfile
 
 # Build shared packages first, then mcp-tools
 RUN pnpm --filter @substrate/db build || true
-RUN pnpm --filter @substrate/mcp-tools build
+RUN pnpm --filter @substrate/observability build && \
+    pnpm --filter @substrate/mcp-tools build
 
 # Deploy to a self-contained directory
 RUN pnpm deploy --filter @substrate/mcp-tools --prod /app/deploy
