@@ -169,9 +169,7 @@ function TerminalDemo() {
   return (
     <div className="landing-terminal" role="region" aria-label="Terminal demo">
       <div className="landing-terminal-bar" aria-hidden="true">
-        <span className="landing-terminal-dot dot-red" />
-        <span className="landing-terminal-dot dot-yellow" />
-        <span className="landing-terminal-dot dot-green" />
+        <span className="landing-terminal-prompt">&#x276F;</span>
         <span className="landing-terminal-title">orcastr8r</span>
       </div>
       <div className="landing-terminal-body" ref={containerRef}>
@@ -776,7 +774,7 @@ export default function LandingPage() {
               amnesia.tax — the world's fastest aggregated search engine
             </a>
             <a
-              href="https://x.com/meetaskalf"
+              href="https://x.com/agent_orcastr8r"
               target="_blank"
               rel="noopener noreferrer"
               className="landing-footer-link"

@@ -2073,6 +2073,7 @@ async function proxyToForge(request, reply, path) {
       method: request.method,
       headers: {
         'Content-Type': 'application/json',
+        'x-forwarded-host': request.headers.host || '',
         ...(request.headers.cookie ? { cookie: request.headers.cookie } : {}),
         'x-forwarded-for': request.ip || '',
         'user-agent': request.headers['user-agent'] || '',

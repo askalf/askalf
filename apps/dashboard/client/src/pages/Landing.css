@@ -855,18 +855,14 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.landing-terminal-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.landing-terminal-prompt {
+  font-size: 0.75rem;
+  color: var(--crystal-lighter, #a78bfa);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-.dot-red { background: #ff5f57; }
-.dot-yellow { background: #febc2e; }
-.dot-green { background: #28c840; }
-
 .landing-terminal-title {
-  margin-left: auto;
+  margin-left: 0.5rem;
   font-size: 0.6875rem;
   color: rgba(255, 255, 255, 0.25);
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
@@ -874,8 +870,7 @@
 
 .landing-terminal-body {
   padding: 1rem 1.25rem;
-  min-height: 200px;
-  max-height: 260px;
+  height: 260px;
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -1135,8 +1130,7 @@
   }
 
   .landing-terminal-body {
-    min-height: 160px;
-    max-height: 220px;
+    height: 220px;
   }
 
   .landing-terminal-line {
