@@ -263,32 +263,54 @@ export async function toolRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      // In a full implementation, this would connect to the MCP server via the
-      // configured transport and call tools/list to discover available tools.
-      // For now, return a stub response indicating discovery was initiated.
+      // Connect to the MCP server, discover tools, then disconnect
+      const { MCPClientManager } = await import('../tools/mcp-client.js');
+      const manager = new MCPClientManager();
+      const serverConfig: import('../tools/mcp-client.js').MCPServerConfig = {
+        id: server.id,
+        name: server.name,
+        transportType: server.transport_type as 'stdio' | 'sse' | 'streamable_http',
+        connectionConfig: server.connection_config as unknown as import('../tools/mcp-client.js').MCPServerConfig['connectionConfig'],
+      };
 
-      // Update health check timestamp
-      await query(
-        `UPDATE forge_mcp_servers SET last_health_check = NOW(), health_status = 'unknown' WHERE id = $1`,
-        [id],
-      );
+      let discoveredTools: { name: string; description: string; inputSchema: Record<string, unknown> }[] = [];
+      let healthStatus = 'healthy';
+      let errorMessage: string | undefined;
+
+      try {
+        await manager.connect(serverConfig);
+        discoveredTools = await manager.discoverTools(server.id);
+      } catch (err) {
+        healthStatus = 'unhealthy';
+        errorMessage = err instanceof Error ? err.message : String(err);
+      } finally {
+        await manager.disconnectAll();
+      }
 
       void logAudit({
         ownerId: userId,
         action: 'mcp.server.discover',
         resourceType: 'mcp_server',
         resourceId: id,
-        details: { serverName: server.name },
+        details: { serverName: server.name, toolCount: discoveredTools.length, healthStatus },
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
       }).catch(() => {});
 
+      if (errorMessage) {
+        return reply.status(502).send({
+          error: 'Discovery Failed',
+          message: `Failed to discover tools from ${server.name}: ${errorMessage}`,
+          serverId: id,
+          serverName: server.name,
+        });
+      }
+
       return reply.send({
-        message: 'Tool discovery initiated',
+        message: `Discovered ${discoveredTools.length} tools`,
         serverId: id,
         serverName: server.name,
-        discoveredTools: server.discovered_tools,
-        note: 'Full MCP discovery will be implemented with the MCP client module',
+        discoveredTools,
       });
     },
   );

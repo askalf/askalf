@@ -218,8 +218,6 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       });
       reply.raw.write(`data: ${initialEvent}\n\n`);
 
-      // In a full implementation, this would subscribe to a Redis pub/sub channel
-      // or BullMQ events for real-time updates. For now, send a stub completion.
       if (execution.status === 'completed' || execution.status === 'failed') {
         const doneEvent = JSON.stringify({
           type: 'done',
@@ -229,14 +227,76 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         reply.raw.write(`data: ${doneEvent}\n\n`);
         reply.raw.end();
       } else {
-        // Keep connection open with heartbeat
+        // Subscribe to real-time execution events via the event bus
+        const { getEventBus } = await import('../orchestration/event-bus.js');
+        const eventBus = getEventBus();
+        let closed = false;
+
         const heartbeat = setInterval(() => {
-          reply.raw.write(`: heartbeat\n\n`);
+          if (!closed) reply.raw.write(`: heartbeat\n\n`);
         }, 15_000);
 
-        request.raw.on('close', () => {
+        // Poll for status changes (in case events are missed)
+        const pollInterval = setInterval(async () => {
+          if (closed) return;
+          try {
+            const current = await queryOne<{ status: string; output: string | null; error: string | null }>(
+              `SELECT status, output, error FROM forge_executions WHERE id = $1`,
+              [id],
+            );
+            if (current && (current.status === 'completed' || current.status === 'failed')) {
+              const event = JSON.stringify({
+                type: 'done',
+                executionId: id,
+                status: current.status,
+                output: current.output?.substring(0, 1000),
+                error: current.error,
+              });
+              reply.raw.write(`data: ${event}\n\n`);
+              cleanup();
+            }
+          } catch { /* ignore polling errors */ }
+        }, 3_000);
+
+        // Listen for execution events from the event bus
+        // ForgeEvent handler — execution events have: type, event, executionId, data
+        const handler = (forgeEvent: Record<string, unknown>) => {
+          if (closed) return;
+          if (forgeEvent['type'] !== 'execution') return;
+          if (forgeEvent['executionId'] !== id) return;
+
+          const eventName = forgeEvent['event'] as string;
+          const eventData = (forgeEvent['data'] ?? {}) as Record<string, unknown>;
+
+          const sseEvent = JSON.stringify({
+            type: eventName === 'completed' || eventName === 'failed' ? 'done' : 'progress',
+            executionId: id,
+            status: eventName,
+            ...eventData,
+          });
+          reply.raw.write(`data: ${sseEvent}\n\n`);
+
+          if (eventName === 'completed' || eventName === 'failed') {
+            cleanup();
+          }
+        };
+
+        if (eventBus) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          eventBus.on('execution', handler as any);
+        }
+
+        function cleanup() {
+          if (closed) return;
+          closed = true;
           clearInterval(heartbeat);
-        });
+          clearInterval(pollInterval);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (eventBus) eventBus.off('execution', handler as any);
+          reply.raw.end();
+        }
+
+        request.raw.on('close', cleanup);
       }
     },
   );
