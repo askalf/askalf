@@ -22,6 +22,7 @@ import { searchNodes, getNodeNeighborhood, getGraphStats } from '../../orchestra
 import { runHealthCheck, getLastHealthReport } from '../../orchestration/monitoring-agent.js';
 import { cloneAgent, runExperiment, getExperiments, promoteVariant } from '../../orchestration/evolution.js';
 import { getExecutionEvents, getSessionEvents, getRecentEvents, getFleetLeaderboard, getEventLogStats } from '../../orchestration/event-log.js';
+import { getMetabolicStatus } from '../../memory/metabolic.js';
 
 export async function registerSystemRoutes(app: FastifyInstance): Promise<void> {
 
@@ -799,6 +800,34 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
       return getFleetLeaderboard();
+    },
+  );
+
+  // ------------------------------------------
+  // METABOLIC STATUS
+  // ------------------------------------------
+
+  app.get(
+    '/api/v1/admin/metabolic/status',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const cycles = getMetabolicStatus();
+
+      // Also get memory counts from DB
+      const memoryCounts = await query<{ tier: string; count: string }>(
+        `SELECT 'procedural' AS tier, COUNT(*)::text AS count FROM forge_procedural_memories
+         UNION ALL SELECT 'semantic', COUNT(*)::text FROM forge_semantic_memories
+         UNION ALL SELECT 'episodic', COUNT(*)::text FROM forge_episodic_memories`,
+      );
+
+      const memory = Object.fromEntries(memoryCounts.map((r) => [r.tier, parseInt(r.count, 10)]));
+
+      return {
+        startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString(),
+        uptimeSeconds: Math.round(process.uptime()),
+        cycles,
+        memory,
+      };
     },
   );
 }

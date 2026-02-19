@@ -70,6 +70,7 @@ export const ADMIN_TAB_SECTIONS: TabSection[] = [
   {
     label: 'Evolve',
     tabs: [
+      { key: 'metabolic', label: 'Metabolic' },
       { key: 'knowledge', label: 'Knowledge' },
       { key: 'health', label: 'Health' },
       { key: 'evolution', label: 'Evolution' },
