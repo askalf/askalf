@@ -138,6 +138,7 @@ export interface AdminNotificationVars {
   type: 'waitlist_signup' | 'new_user' | 'error';
   email?: string;
   message?: string;
+  source?: string;
   timestamp: string;
   totalWaitlistCount?: number;
 }

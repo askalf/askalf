@@ -1031,9 +1031,19 @@
 
     .cta-form {
       display: flex;
+      flex-wrap: wrap;
       gap: 12px;
       max-width: 480px;
       margin: 0 auto 20px;
+    }
+
+    .cta-form .cta-input {
+      flex: 1 1 calc(50% - 6px);
+      min-width: 180px;
+    }
+
+    .cta-form .cta-submit {
+      flex: 1 1 100%;
     }
 
     .cta-input {
@@ -1624,7 +1634,7 @@
         const res = await fetch('/api/waitlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, website: honeypot }),
+          body: JSON.stringify({ name, email, website: honeypot, source: 'claw-replay' }),
         });
 
         if (res.ok) {
