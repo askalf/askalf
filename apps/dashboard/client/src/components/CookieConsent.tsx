@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import './CookieConsent.css';
 
 const CONSENT_KEY = 'orcastr8r_cookie_consent';
 

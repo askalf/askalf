@@ -33,13 +33,12 @@ const SESSION_COOKIE_OPTIONS = {
   secure: isProduction,
   sameSite: (isProduction ? 'none' : 'lax') as 'lax' | 'none' | 'strict',
   path: '/',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 7 * 24 * 60 * 60, // 7 days (seconds)
 };
 
 function getCookieDomain(host: string): string | undefined {
   if (!isProduction) return undefined;
   if (host.includes('orcastr8r.com')) return '.orcastr8r.com';
-  if (host.includes('integration.tax')) return '.integration.tax';
   return undefined;
 }
 
@@ -285,8 +284,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       [`audit_${ulid()}`, user['tenant_id'], user['id'], request.ip, request.headers['user-agent']],
     ).catch(() => {});
 
-    // Set session cookie
-    const host = request.headers.host || '';
+    // Set session cookie — use x-forwarded-host from dashboard proxy, fall back to host
+    const host = (request.headers['x-forwarded-host'] as string) || request.headers.host || '';
     const cookieDomain = getCookieDomain(host);
     reply.setCookie(SESSION_COOKIE_NAME, sessionToken, {
       ...SESSION_COOKIE_OPTIONS,
@@ -321,7 +320,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       );
     }
 
-    const host = request.headers.host || '';
+    const host = (request.headers['x-forwarded-host'] as string) || request.headers.host || '';
     const cookieDomain = getCookieDomain(host);
     reply.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
     if (cookieDomain) {
