@@ -258,6 +258,8 @@ services:
       GIT_CONFIG_KEY_0: safe.directory
       GIT_CONFIG_VALUE_0: /workspace
       DOCKER_HOST: tcp://docker-proxy:2375
+      # Web search
+      SEARXNG_URL: http://searxng:8080
       # Email (SendGrid via orcastr8r.com)
       EMAIL_PROVIDER: sendgrid
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
