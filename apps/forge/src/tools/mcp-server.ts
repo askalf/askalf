@@ -1,43 +1,33 @@
 /**
  * MCP Server - Expose Forge as an MCP Server
- * Allows external MCP clients to use forge capabilities as tools.
+ * Allows Claude Desktop and other MCP clients to use forge agent tools.
  *
  * Exposed tools:
- * - create_agent: Create a new forge agent
+ * - list_agents: List all forge agents
  * - run_agent: Execute an agent with input
- * - search_memory: Search agent memory
- * - list_agents: List available agents
+ * - search_memory: Search agent memory (semantic, episodic, procedural)
+ * - get_agent: Get detailed info about a specific agent
+ * - metabolic_status: Get the metabolic cycle status
+ *
+ * Transport: SSE (Server-Sent Events) for Claude Desktop compatibility
+ * Endpoints: GET /mcp/sse (connect), POST /mcp/message (messages)
  */
 
-import { query } from '../database.js';
+import type { FastifyInstance } from 'fastify';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import { query, queryOne } from '../database.js';
+import { createExecutionRecord } from '../runtime/persistence.js';
+import { runExecution } from '../runtime/worker.js';
+import { getMetabolicStatus } from '../memory/metabolic.js';
 
 // ============================================
 // Types
 // ============================================
-
-export interface ForgeMCPServerOptions {
-  /** The name of this MCP server instance */
-  name?: string | undefined;
-  /** The version string to expose */
-  version?: string | undefined;
-}
-
-export interface MCPToolHandler {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  handler: (args: Record<string, unknown>) => Promise<MCPToolResponse>;
-}
-
-export interface MCPToolResponse {
-  content: MCPContentBlock[];
-  isError?: boolean | undefined;
-}
-
-export interface MCPContentBlock {
-  type: 'text';
-  text: string;
-}
 
 interface AgentRow {
   id: string;
@@ -46,302 +36,403 @@ interface AgentRow {
   description: string | null;
   status: string;
   owner_id: string;
+  system_prompt: string | null;
+  autonomy_level: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MemoryRow {
+  id: string;
+  content: string | null;
+  importance?: number;
+  confidence?: number;
+  outcome_quality?: number;
+  situation?: string;
+  action?: string;
+  outcome?: string;
+  trigger_pattern?: string;
   created_at: string;
 }
 
 // ============================================
-// Tool Definitions
+// Tool Definitions (MCP schema format)
 // ============================================
 
-function defineTools(): MCPToolHandler[] {
-  return [
-    {
-      name: 'create_agent',
-      description: 'Create a new forge agent with the specified configuration',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: 'Agent name' },
-          description: { type: 'string', description: 'Agent description' },
-          systemPrompt: { type: 'string', description: 'System prompt for the agent' },
-          ownerId: { type: 'string', description: 'Owner ID' },
-        },
-        required: ['name', 'ownerId'],
+const FORGE_TOOLS = [
+  {
+    name: 'list_agents',
+    description: 'List all forge agents. Returns agent names, IDs, status, and descriptions.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        status: { type: 'string', description: 'Filter by status: draft, active, paused, archived. Omit for all.' },
+        limit: { type: 'number', description: 'Max agents to return (default 50)' },
       },
-      handler: handleCreateAgent,
     },
-    {
-      name: 'run_agent',
-      description: 'Execute a forge agent with the given input text',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          agentId: { type: 'string', description: 'The agent ID to run' },
-          input: { type: 'string', description: 'Input text for the agent' },
-          ownerId: { type: 'string', description: 'Owner ID for authorization' },
-        },
-        required: ['agentId', 'input', 'ownerId'],
+  },
+  {
+    name: 'get_agent',
+    description: 'Get detailed info about a specific forge agent including system prompt and execution stats.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'The agent ID' },
+        agentName: { type: 'string', description: 'Or search by agent name (partial match)' },
       },
-      handler: handleRunAgent,
     },
-    {
-      name: 'search_memory',
-      description: 'Search agent semantic and episodic memory',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          agentId: { type: 'string', description: 'Agent whose memory to search' },
-          query: { type: 'string', description: 'Search query' },
-          memoryType: { type: 'string', description: 'Memory type: semantic, episodic, procedural' },
-          limit: { type: 'integer', description: 'Maximum results to return' },
-        },
-        required: ['agentId', 'query'],
+  },
+  {
+    name: 'run_agent',
+    description: 'Execute a forge agent with the given input. Returns the execution ID. The agent runs asynchronously.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'The agent ID to run' },
+        input: { type: 'string', description: 'Input text/prompt for the agent' },
       },
-      handler: handleSearchMemory,
+      required: ['agentId', 'input'],
     },
-    {
-      name: 'list_agents',
-      description: 'List available forge agents for a given owner',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          ownerId: { type: 'string', description: 'Owner ID to list agents for' },
-          status: { type: 'string', description: 'Filter by status (draft, active, paused, archived)' },
-        },
-        required: ['ownerId'],
+  },
+  {
+    name: 'search_memory',
+    description: 'Search agent memory across semantic, episodic, and procedural tiers. Uses text search.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Search query text' },
+        agentId: { type: 'string', description: 'Filter to a specific agent (optional)' },
+        tier: { type: 'string', description: 'Memory tier: semantic, episodic, procedural. Omit for all.' },
+        limit: { type: 'number', description: 'Max results (default 20)' },
       },
-      handler: handleListAgents,
+      required: ['query'],
     },
-  ];
-}
+  },
+  {
+    name: 'metabolic_status',
+    description: 'Get the status of forge metabolic learning cycles (decay, lessons, promote, feedback, prompt-rewrite, goal-proposal) and memory tier counts.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+];
 
 // ============================================
 // Tool Handlers
 // ============================================
 
-async function handleCreateAgent(args: Record<string, unknown>): Promise<MCPToolResponse> {
-  // TODO: Integrate with actual agent creation service
-  // For now, return a stub response indicating the interface works
-  const name = args['name'] as string | undefined;
-  const ownerId = args['ownerId'] as string | undefined;
+type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean };
 
-  if (!name || !ownerId) {
-    return {
-      content: [{ type: 'text', text: 'Error: name and ownerId are required' }],
-      isError: true,
-    };
+async function handleListAgents(args: Record<string, unknown>): Promise<ToolResult> {
+  const status = args['status'] as string | undefined;
+  const limit = Math.min(Number(args['limit']) || 50, 100);
+
+  let sql = `SELECT id, name, slug, description, status, autonomy_level, created_at FROM forge_agents`;
+  const params: unknown[] = [];
+
+  if (status) {
+    sql += ` WHERE status = $1`;
+    params.push(status);
   }
+  sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+  params.push(limit);
+
+  const rows = await query<AgentRow>(sql, params);
 
   return {
     content: [{
       type: 'text',
       text: JSON.stringify({
-        message: 'create_agent stub - agent creation service integration pending',
-        requestedName: name,
-        ownerId,
-      }),
+        agents: rows.map((r) => ({
+          id: r.id, name: r.name, status: r.status,
+          description: r.description, autonomyLevel: r.autonomy_level,
+          createdAt: r.created_at,
+        })),
+        total: rows.length,
+      }, null, 2),
     }],
   };
 }
 
-async function handleRunAgent(args: Record<string, unknown>): Promise<MCPToolResponse> {
-  // TODO: Integrate with actual execution engine
+async function handleGetAgent(args: Record<string, unknown>): Promise<ToolResult> {
+  const agentId = args['agentId'] as string | undefined;
+  const agentName = args['agentName'] as string | undefined;
+
+  let agent: AgentRow | null = null;
+  if (agentId) {
+    agent = await queryOne<AgentRow>(`SELECT * FROM forge_agents WHERE id = $1`, [agentId]);
+  } else if (agentName) {
+    agent = await queryOne<AgentRow>(
+      `SELECT * FROM forge_agents WHERE LOWER(name) LIKE LOWER($1) LIMIT 1`,
+      [`%${agentName}%`],
+    );
+  }
+
+  if (!agent) {
+    return { content: [{ type: 'text', text: 'Agent not found' }], isError: true };
+  }
+
+  // Get execution stats
+  const stats = await queryOne<{ total: string; completed: string; failed: string }>(
+    `SELECT COUNT(*)::text AS total,
+            COUNT(*) FILTER (WHERE status = 'completed')::text AS completed,
+            COUNT(*) FILTER (WHERE status = 'failed')::text AS failed
+     FROM forge_executions WHERE agent_id = $1`,
+    [agent.id],
+  );
+
+  return {
+    content: [{
+      type: 'text',
+      text: JSON.stringify({
+        id: agent.id, name: agent.name, slug: agent.slug,
+        status: agent.status, description: agent.description,
+        systemPrompt: agent.system_prompt?.slice(0, 500),
+        autonomyLevel: agent.autonomy_level,
+        executions: {
+          total: parseInt(stats?.total ?? '0', 10),
+          completed: parseInt(stats?.completed ?? '0', 10),
+          failed: parseInt(stats?.failed ?? '0', 10),
+        },
+        createdAt: agent.created_at, updatedAt: agent.updated_at,
+      }, null, 2),
+    }],
+  };
+}
+
+async function handleRunAgent(args: Record<string, unknown>): Promise<ToolResult> {
   const agentId = args['agentId'] as string | undefined;
   const input = args['input'] as string | undefined;
-  const ownerId = args['ownerId'] as string | undefined;
 
-  if (!agentId || !input || !ownerId) {
-    return {
-      content: [{ type: 'text', text: 'Error: agentId, input, and ownerId are required' }],
-      isError: true,
-    };
+  if (!agentId || !input) {
+    return { content: [{ type: 'text', text: 'Error: agentId and input are required' }], isError: true };
   }
+
+  const agent = await queryOne<AgentRow>(`SELECT id, owner_id, status FROM forge_agents WHERE id = $1`, [agentId]);
+  if (!agent) {
+    return { content: [{ type: 'text', text: `Agent ${agentId} not found` }], isError: true };
+  }
+
+  // Generate execution ID
+  const timestamp = Date.now().toString(36).padStart(10, '0');
+  const random = Math.random().toString(36).slice(2, 12);
+  const executionId = (timestamp + random).toUpperCase();
+
+  await createExecutionRecord(executionId, agentId, undefined, agent.owner_id, input, 'mcp');
+
+  // Fire and forget — execution runs asynchronously
+  void runExecution(executionId, agentId, input, agent.owner_id).catch((err) => {
+    console.error(`[MCP] Execution ${executionId} failed:`, err instanceof Error ? err.message : err);
+  });
 
   return {
     content: [{
       type: 'text',
       text: JSON.stringify({
-        message: 'run_agent stub - execution engine integration pending',
+        executionId,
         agentId,
-        inputPreview: input.slice(0, 200),
-      }),
+        agentName: agent.id,
+        status: 'started',
+        message: `Execution ${executionId} started. Agent is processing asynchronously.`,
+      }, null, 2),
     }],
   };
 }
 
-async function handleSearchMemory(args: Record<string, unknown>): Promise<MCPToolResponse> {
-  // TODO: Integrate with MemoryManager
-  const agentId = args['agentId'] as string | undefined;
+async function handleSearchMemory(args: Record<string, unknown>): Promise<ToolResult> {
   const searchQuery = args['query'] as string | undefined;
+  const agentId = args['agentId'] as string | undefined;
+  const tier = args['tier'] as string | undefined;
+  const limit = Math.min(Number(args['limit']) || 20, 50);
 
-  if (!agentId || !searchQuery) {
-    return {
-      content: [{ type: 'text', text: 'Error: agentId and query are required' }],
-      isError: true,
-    };
+  if (!searchQuery) {
+    return { content: [{ type: 'text', text: 'Error: query is required' }], isError: true };
+  }
+
+  const results: Array<{ tier: string; id: string; content: string; score?: number; createdAt: string }> = [];
+  const tsQuery = searchQuery.split(/\s+/).filter(Boolean).join(' & ');
+
+  // Search semantic memories
+  if (!tier || tier === 'semantic') {
+    const semanticRows = await query<MemoryRow>(
+      `SELECT id, content, importance, created_at
+       FROM forge_semantic_memories
+       WHERE content ILIKE $1 ${agentId ? 'AND agent_id = $3' : ''}
+       ORDER BY importance DESC NULLS LAST LIMIT $2`,
+      agentId ? [`%${searchQuery}%`, limit, agentId] : [`%${searchQuery}%`, limit],
+    );
+    for (const r of semanticRows) {
+      results.push({ tier: 'semantic', id: r.id, content: r.content ?? '', score: r.importance, createdAt: r.created_at });
+    }
+  }
+
+  // Search episodic memories
+  if (!tier || tier === 'episodic') {
+    const episodicRows = await query<MemoryRow>(
+      `SELECT id, situation, action, outcome, outcome_quality, created_at
+       FROM forge_episodic_memories
+       WHERE (situation ILIKE $1 OR action ILIKE $1 OR outcome ILIKE $1)
+       ${agentId ? 'AND agent_id = $3' : ''}
+       ORDER BY created_at DESC LIMIT $2`,
+      agentId ? [`%${searchQuery}%`, limit, agentId] : [`%${searchQuery}%`, limit],
+    );
+    for (const r of episodicRows) {
+      results.push({
+        tier: 'episodic', id: r.id,
+        content: `Situation: ${r.situation}\nAction: ${r.action}\nOutcome: ${r.outcome}`,
+        score: r.outcome_quality, createdAt: r.created_at,
+      });
+    }
+  }
+
+  // Search procedural memories
+  if (!tier || tier === 'procedural') {
+    const proceduralRows = await query<MemoryRow>(
+      `SELECT id, trigger_pattern, confidence, created_at
+       FROM forge_procedural_memories
+       WHERE trigger_pattern ILIKE $1 ${agentId ? 'AND agent_id = $3' : ''}
+       ORDER BY confidence DESC NULLS LAST LIMIT $2`,
+      agentId ? [`%${searchQuery}%`, limit, agentId] : [`%${searchQuery}%`, limit],
+    );
+    for (const r of proceduralRows) {
+      results.push({ tier: 'procedural', id: r.id, content: r.trigger_pattern ?? '', score: r.confidence, createdAt: r.created_at });
+    }
   }
 
   return {
     content: [{
       type: 'text',
-      text: JSON.stringify({
-        message: 'search_memory stub - MemoryManager integration pending',
-        agentId,
-        query: searchQuery,
-      }),
+      text: JSON.stringify({ query: searchQuery, results, total: results.length }, null, 2),
     }],
   };
 }
 
-async function handleListAgents(args: Record<string, unknown>): Promise<MCPToolResponse> {
-  const ownerId = args['ownerId'] as string | undefined;
-  const status = args['status'] as string | undefined;
+async function handleMetabolicStatus(): Promise<ToolResult> {
+  const cycles = getMetabolicStatus();
 
-  if (!ownerId) {
-    return {
-      content: [{ type: 'text', text: 'Error: ownerId is required' }],
-      isError: true,
-    };
-  }
+  const memoryCounts = await query<{ tier: string; count: string }>(
+    `SELECT 'procedural' AS tier, COUNT(*)::text AS count FROM forge_procedural_memories
+     UNION ALL SELECT 'semantic', COUNT(*)::text FROM forge_semantic_memories
+     UNION ALL SELECT 'episodic', COUNT(*)::text FROM forge_episodic_memories`,
+  );
 
-  try {
-    let sql = `SELECT id, name, slug, description, status, created_at FROM forge_agents WHERE owner_id = $1`;
-    const params: unknown[] = [ownerId];
+  const memory = Object.fromEntries(memoryCounts.map((r) => [r.tier, parseInt(r.count, 10)]));
 
-    if (status) {
-      sql += ` AND status = $2`;
-      params.push(status);
-    }
+  return {
+    content: [{
+      type: 'text',
+      text: JSON.stringify({
+        uptimeSeconds: Math.round(process.uptime()),
+        cycles: cycles.map((c) => ({
+          name: c.cycle,
+          interval: `${c.intervalHours}h`,
+          lastRun: c.lastRun,
+          runCount: c.runCount,
+          lastDurationMs: c.lastDurationMs,
+          lastResult: c.lastResult,
+          lastError: c.lastError,
+        })),
+        memory,
+      }, null, 2),
+    }],
+  };
+}
 
-    sql += ` ORDER BY created_at DESC LIMIT 50`;
+// ============================================
+// Tool Dispatcher
+// ============================================
 
-    const rows = await query<AgentRow>(sql, params);
-
-    return {
-      content: [{
-        type: 'text',
-        text: JSON.stringify({
-          agents: rows.map((row) => ({
-            id: row.id,
-            name: row.name,
-            slug: row.slug,
-            description: row.description,
-            status: row.status,
-            createdAt: row.created_at,
-          })),
-          total: rows.length,
-        }),
-      }],
-    };
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    return {
-      content: [{ type: 'text', text: `Error listing agents: ${errorMessage}` }],
-      isError: true,
-    };
+async function dispatchTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
+  switch (name) {
+    case 'list_agents': return handleListAgents(args);
+    case 'get_agent': return handleGetAgent(args);
+    case 'run_agent': return handleRunAgent(args);
+    case 'search_memory': return handleSearchMemory(args);
+    case 'metabolic_status': return handleMetabolicStatus();
+    default:
+      return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
   }
 }
 
 // ============================================
-// MCP Server Class
+// MCP Server Factory
 // ============================================
 
-export class ForgeMCPServer {
-  private readonly name: string;
-  private readonly version: string;
-  private readonly tools: MCPToolHandler[];
-  private running: boolean = false;
+function createMCPServer(): Server {
+  const server = new Server(
+    { name: 'forge', version: '1.0.0' },
+    { capabilities: { tools: {} } },
+  );
 
-  constructor(options: ForgeMCPServerOptions = {}) {
-    this.name = options.name ?? 'forge';
-    this.version = options.version ?? '1.0.0';
-    this.tools = defineTools();
-  }
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    return { tools: FORGE_TOOLS };
+  });
 
-  /**
-   * Start the MCP server.
-   * TODO: Replace with actual @modelcontextprotocol/sdk server setup.
-   *
-   * The real implementation would look something like:
-   *
-   * import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-   * import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-   *
-   * const server = new Server({ name: this.name, version: this.version }, {
-   *   capabilities: { tools: {} }
-   * });
-   *
-   * server.setRequestHandler(ListToolsRequestSchema, async () => ({
-   *   tools: this.tools.map(t => ({
-   *     name: t.name,
-   *     description: t.description,
-   *     inputSchema: t.inputSchema,
-   *   })),
-   * }));
-   *
-   * server.setRequestHandler(CallToolRequestSchema, async (request) => {
-   *   const handler = this.tools.find(t => t.name === request.params.name);
-   *   if (!handler) throw new Error(`Unknown tool: ${request.params.name}`);
-   *   return handler.handler(request.params.arguments ?? {});
-   * });
-   *
-   * const transport = new StdioServerTransport();
-   * await server.connect(transport);
-   */
-  async start(): Promise<void> {
-    console.log(`[ForgeMCPServer] Starting MCP server '${this.name}' v${this.version}`);
-    console.log(`[ForgeMCPServer] Exposing ${this.tools.length} tools: ${this.tools.map((t) => t.name).join(', ')}`);
-
-    // TODO: Initialize actual MCP server transport and handlers
-    this.running = true;
-
-    console.log(`[ForgeMCPServer] MCP server started (stub - awaiting SDK integration)`);
-  }
-
-  /**
-   * Stop the MCP server and clean up resources.
-   */
-  async stop(): Promise<void> {
-    if (!this.running) return;
-
-    console.log(`[ForgeMCPServer] Stopping MCP server '${this.name}'`);
-
-    // TODO: Close actual MCP server transport
-    // await server.close();
-
-    this.running = false;
-    console.log(`[ForgeMCPServer] MCP server stopped`);
-  }
-
-  /**
-   * Get the list of tool definitions this server exposes.
-   */
-  getToolDefinitions(): Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> {
-    return this.tools.map((t) => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: t.inputSchema,
-    }));
-  }
-
-  /**
-   * Directly invoke a tool handler (useful for testing without MCP transport).
-   */
-  async invokeTool(toolName: string, args: Record<string, unknown>): Promise<MCPToolResponse> {
-    const handler = this.tools.find((t) => t.name === toolName);
-    if (!handler) {
-      return {
-        content: [{ type: 'text', text: `Unknown tool: ${toolName}` }],
-        isError: true,
-      };
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    try {
+      return await dispatchTool(name, (args ?? {}) as Record<string, unknown>);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { content: [{ type: 'text', text: `Tool error: ${msg}` }], isError: true };
     }
-    return handler.handler(args);
-  }
+  });
 
-  /**
-   * Check if the server is currently running.
-   */
-  isRunning(): boolean {
-    return this.running;
-  }
+  return server;
+}
+
+// ============================================
+// Fastify Route Registration
+// ============================================
+
+const transports = new Map<string, SSEServerTransport>();
+
+export async function registerMCPRoutes(app: FastifyInstance): Promise<void> {
+  // SSE connection endpoint — Claude Desktop connects here
+  app.get('/mcp/sse', { logLevel: 'info' }, async (request, reply) => {
+    // Use raw Node.js response for SSE transport
+    const res = reply.raw;
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Content-Type', 'text/event-stream');
+
+    const transport = new SSEServerTransport('/mcp/message', res);
+    const sessionId = transport.sessionId;
+    transports.set(sessionId, transport);
+
+    const server = createMCPServer();
+
+    // Clean up on disconnect
+    request.raw.on('close', () => {
+      transports.delete(sessionId);
+      void server.close().catch(() => {});
+    });
+
+    await server.connect(transport);
+    console.log(`[MCP] SSE client connected: ${sessionId}`);
+
+    // Keep Fastify from closing the response
+    await reply.hijack();
+  });
+
+  // Message endpoint — receives tool calls from the SSE client
+  app.post('/mcp/message', { logLevel: 'info' }, async (request, reply) => {
+    const sessionId = (request.query as Record<string, string>)['sessionId'];
+    if (!sessionId) {
+      return reply.status(400).send({ error: 'Missing sessionId query parameter' });
+    }
+
+    const transport = transports.get(sessionId);
+    if (!transport) {
+      return reply.status(404).send({ error: 'Session not found. Connect via /mcp/sse first.' });
+    }
+
+    // SSEServerTransport.handlePostMessage expects Express-style req/res
+    await transport.handlePostMessage(request.raw, reply.raw);
+    await reply.hijack();
+  });
+
+  console.log(`[MCP] Forge MCP server routes registered: GET /mcp/sse, POST /mcp/message`);
 }

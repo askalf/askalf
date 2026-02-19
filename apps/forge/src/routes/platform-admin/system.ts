@@ -458,7 +458,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   // ==========================================================================
 
   app.post<{ Params: { id: string } }>(
-    '/api/v1/platform/agents/:id/propose-revision',
+    '/api/v1/admin/agents/:id/propose-revision',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const revision = await proposePromptRevision(request.params.id);
@@ -468,7 +468,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get<{ Params: { id: string } }>(
-    '/api/v1/platform/agents/:id/prompt-revisions',
+    '/api/v1/admin/agents/:id/prompt-revisions',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       return getPromptRevisions(request.params.id);
@@ -476,7 +476,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post<{ Params: { revisionId: string } }>(
-    '/api/v1/platform/prompt-revisions/:revisionId/apply',
+    '/api/v1/admin/prompt-revisions/:revisionId/apply',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const ok = await applyPromptRevision(request.params.revisionId, 'admin');
@@ -486,7 +486,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post<{ Params: { revisionId: string } }>(
-    '/api/v1/platform/prompt-revisions/:revisionId/reject',
+    '/api/v1/admin/prompt-revisions/:revisionId/reject',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const ok = await rejectPromptRevision(request.params.revisionId, 'admin');
@@ -500,7 +500,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   // ==========================================================================
 
   app.post(
-    '/api/v1/platform/orchestrate-nl',
+    '/api/v1/admin/orchestrate-nl',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       const { instruction, maxAgents } = request.body as { instruction: string; maxAgents?: number };
@@ -513,7 +513,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get<{ Params: { sessionId: string } }>(
-    '/api/v1/platform/orchestration/:sessionId/status',
+    '/api/v1/admin/orchestration/:sessionId/status',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       return getOrchestrationStatus(request.params.sessionId);
@@ -525,7 +525,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   // ==========================================================================
 
   app.post(
-    '/api/v1/platform/chat/create',
+    '/api/v1/admin/chat/create',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       const { topic, agentIds } = request.body as { topic: string; agentIds: string[] };
@@ -534,7 +534,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get(
-    '/api/v1/platform/chat/sessions',
+    '/api/v1/admin/chat/sessions',
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
       return listChatSessions();
@@ -542,7 +542,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get<{ Params: { sessionId: string } }>(
-    '/api/v1/platform/chat/:sessionId',
+    '/api/v1/admin/chat/:sessionId',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const session = getChatSession(request.params.sessionId);
@@ -552,7 +552,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post<{ Params: { sessionId: string } }>(
-    '/api/v1/platform/chat/:sessionId/message',
+    '/api/v1/admin/chat/:sessionId/message',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const { content } = request.body as { content: string };
@@ -563,7 +563,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post<{ Params: { sessionId: string; agentId: string } }>(
-    '/api/v1/platform/chat/:sessionId/respond/:agentId',
+    '/api/v1/admin/chat/:sessionId/respond/:agentId',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const msg = await getAgentResponse(request.params.sessionId, request.params.agentId);
@@ -573,7 +573,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post<{ Params: { sessionId: string } }>(
-    '/api/v1/platform/chat/:sessionId/round',
+    '/api/v1/admin/chat/:sessionId/round',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       return runChatRound(request.params.sessionId);
@@ -581,7 +581,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post<{ Params: { sessionId: string } }>(
-    '/api/v1/platform/chat/:sessionId/end',
+    '/api/v1/admin/chat/:sessionId/end',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const session = endChatSession(request.params.sessionId);
@@ -595,7 +595,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   // ==========================================================================
 
   app.post<{ Params: { id: string } }>(
-    '/api/v1/platform/agents/:id/propose-goals',
+    '/api/v1/admin/agents/:id/propose-goals',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       return proposeGoals(request.params.id);
@@ -603,7 +603,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get<{ Params: { id: string } }>(
-    '/api/v1/platform/agents/:id/goals',
+    '/api/v1/admin/agents/:id/goals',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       const { status } = request.query as { status?: string };
@@ -612,7 +612,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post<{ Params: { goalId: string } }>(
-    '/api/v1/platform/goals/:goalId/approve',
+    '/api/v1/admin/goals/:goalId/approve',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const ok = await approveGoal(request.params.goalId, 'admin');
@@ -622,7 +622,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post<{ Params: { goalId: string } }>(
-    '/api/v1/platform/goals/:goalId/reject',
+    '/api/v1/admin/goals/:goalId/reject',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const ok = await rejectGoal(request.params.goalId);
@@ -636,7 +636,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   // ==========================================================================
 
   app.get(
-    '/api/v1/platform/cost/dashboard',
+    '/api/v1/admin/cost/dashboard',
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
       return getCostDashboard();
@@ -644,7 +644,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post(
-    '/api/v1/platform/cost/recommend',
+    '/api/v1/admin/cost/recommend',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       const { capabilities, minQuality } = request.body as { capabilities: string[]; minQuality?: number };
@@ -653,7 +653,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get(
-    '/api/v1/platform/cost/optimal-model',
+    '/api/v1/admin/cost/optimal-model',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       const { capability, minQuality } = request.query as { capability: string; minQuality?: string };
@@ -666,7 +666,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   // ==========================================================================
 
   app.get(
-    '/api/v1/platform/knowledge/stats',
+    '/api/v1/admin/knowledge/stats',
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
       return getGraphStats();
@@ -674,7 +674,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get(
-    '/api/v1/platform/knowledge/search',
+    '/api/v1/admin/knowledge/search',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       const { q, type, agentId, limit } = request.query as { q: string; type?: string; agentId?: string; limit?: string };
@@ -687,7 +687,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get<{ Params: { nodeId: string } }>(
-    '/api/v1/platform/knowledge/nodes/:nodeId/neighborhood',
+    '/api/v1/admin/knowledge/nodes/:nodeId/neighborhood',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       return getNodeNeighborhood(request.params.nodeId);
@@ -699,7 +699,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   // ==========================================================================
 
   app.get(
-    '/api/v1/platform/monitoring/health',
+    '/api/v1/admin/monitoring/health',
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
       const cached = getLastHealthReport();
@@ -715,7 +715,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   // ==========================================================================
 
   app.post<{ Params: { id: string } }>(
-    '/api/v1/platform/agents/:id/clone',
+    '/api/v1/admin/agents/:id/clone',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       const { type, description, promptOverride, modelOverride } = request.body as {
@@ -730,7 +730,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post(
-    '/api/v1/platform/evolution/experiment',
+    '/api/v1/admin/evolution/experiment',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       const { parentId, variantId, testTask, mutationDescription, mutationType } = request.body as {
@@ -741,7 +741,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get<{ Params: { id: string } }>(
-    '/api/v1/platform/agents/:id/experiments',
+    '/api/v1/admin/agents/:id/experiments',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       return getExperiments(request.params.id);
@@ -749,7 +749,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.post<{ Params: { experimentId: string } }>(
-    '/api/v1/platform/evolution/:experimentId/promote',
+    '/api/v1/admin/evolution/:experimentId/promote',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request, reply) => {
       const ok = await promoteVariant(request.params.experimentId);
@@ -763,7 +763,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   // ==========================================================================
 
   app.get(
-    '/api/v1/platform/events/recent',
+    '/api/v1/admin/events/recent',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       const { limit } = request.query as { limit?: string };
@@ -772,7 +772,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get<{ Params: { executionId: string } }>(
-    '/api/v1/platform/events/execution/:executionId',
+    '/api/v1/admin/events/execution/:executionId',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       return getExecutionEvents(request.params.executionId);
@@ -780,7 +780,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get<{ Params: { sessionId: string } }>(
-    '/api/v1/platform/events/session/:sessionId',
+    '/api/v1/admin/events/session/:sessionId',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       return getSessionEvents(request.params.sessionId);
@@ -788,7 +788,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get(
-    '/api/v1/platform/events/stats',
+    '/api/v1/admin/events/stats',
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
       return getEventLogStats();
@@ -796,7 +796,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   app.get(
-    '/api/v1/platform/fleet/leaderboard',
+    '/api/v1/admin/fleet/leaderboard',
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
       return getFleetLeaderboard();
