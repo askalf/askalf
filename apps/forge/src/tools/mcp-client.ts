@@ -4,6 +4,9 @@
  * discovers their tools, and proxies tool calls.
  */
 
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { query } from '../database.js';
 import type { ToolResult } from './registry.js';
 
@@ -44,9 +47,8 @@ interface MCPServerConnection {
   config: MCPServerConfig;
   connected: boolean;
   tools: MCPToolDefinition[];
-  // TODO: Store actual MCP Client instance here when using @modelcontextprotocol/sdk
-  // client: Client | null;
-  // transport: Transport | null;
+  client: Client | null;
+  transport: StdioClientTransport | SSEClientTransport | null;
 }
 
 interface MCPServerRow {
@@ -80,34 +82,57 @@ export class MCPClientManager {
 
     console.log(`[MCPClient] Connecting to MCP server: ${serverConfig.name} (${serverConfig.transportType})`);
 
-    // TODO: Replace with actual @modelcontextprotocol/sdk implementation
-    // The real implementation would look something like:
-    //
-    // import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-    // import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-    // import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-    //
-    // let transport: Transport;
-    // switch (serverConfig.transportType) {
-    //   case 'stdio': {
-    //     const cfg = serverConfig.connectionConfig as StdioConnectionConfig;
-    //     transport = new StdioClientTransport({ command: cfg.command, args: cfg.args, env: cfg.env });
-    //     break;
-    //   }
-    //   case 'sse': {
-    //     const cfg = serverConfig.connectionConfig as SSEConnectionConfig;
-    //     transport = new SSEClientTransport(new URL(cfg.url), { headers: cfg.headers });
-    //     break;
-    //   }
-    // }
-    //
-    // const client = new Client({ name: 'forge', version: '1.0.0' }, { capabilities: {} });
-    // await client.connect(transport);
+    let transport: StdioClientTransport | SSEClientTransport;
+
+    switch (serverConfig.transportType) {
+      case 'stdio': {
+        const cfg = serverConfig.connectionConfig as StdioConnectionConfig;
+        transport = new StdioClientTransport({
+          command: cfg.command,
+          args: cfg.args,
+          env: cfg.env,
+        });
+        break;
+      }
+      case 'sse': {
+        const cfg = serverConfig.connectionConfig as SSEConnectionConfig;
+        transport = new SSEClientTransport(new URL(cfg.url));
+        break;
+      }
+      case 'streamable_http': {
+        // StreamableHTTPClientTransport requires SDK >= 1.8
+        // Fall back to SSE transport which is compatible with most servers
+        const cfg = serverConfig.connectionConfig as StreamableHttpConnectionConfig;
+        console.warn(`[MCPClient] streamable_http not supported in current SDK, falling back to SSE for: ${serverConfig.name}`);
+        transport = new SSEClientTransport(new URL(cfg.url));
+        break;
+      }
+      default:
+        throw new Error(`Unsupported transport type: ${serverConfig.transportType}`);
+    }
+
+    const client = new Client(
+      { name: 'forge', version: '1.0.0' },
+      { capabilities: {} },
+    );
+
+    try {
+      await client.connect(transport);
+    } catch (err) {
+      // Update health status to reflect failure
+      await query(
+        `UPDATE forge_mcp_servers SET health_status = 'unhealthy', last_health_check = NOW() WHERE id = $1`,
+        [serverConfig.id],
+      ).catch(() => {});
+      throw new Error(`Failed to connect to MCP server ${serverConfig.name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     const connection: MCPServerConnection = {
       config: serverConfig,
       connected: true,
       tools: [],
+      client,
+      transport,
     };
 
     this.connections.set(serverConfig.id, connection);
@@ -131,22 +156,19 @@ export class MCPClientManager {
       throw new Error(`MCP server not connected: ${serverId}`);
     }
 
-    if (!connection.connected) {
+    if (!connection.connected || !connection.client) {
       throw new Error(`MCP server is disconnected: ${serverId}`);
     }
 
     console.log(`[MCPClient] Discovering tools from: ${connection.config.name}`);
 
-    // TODO: Replace with actual @modelcontextprotocol/sdk call
-    // const response = await client.listTools();
-    // const tools = response.tools.map(t => ({
-    //   name: t.name,
-    //   description: t.description ?? '',
-    //   inputSchema: t.inputSchema as Record<string, unknown>,
-    // }));
+    const response = await connection.client.listTools();
+    const tools: MCPToolDefinition[] = (response.tools ?? []).map((t) => ({
+      name: t.name,
+      description: t.description ?? '',
+      inputSchema: (t.inputSchema ?? {}) as Record<string, unknown>,
+    }));
 
-    // Stub: return empty tools until SDK integration
-    const tools: MCPToolDefinition[] = [];
     connection.tools = tools;
 
     // Persist discovered tools to database
@@ -178,7 +200,7 @@ export class MCPClientManager {
       };
     }
 
-    if (!connection.connected) {
+    if (!connection.connected || !connection.client) {
       return {
         output: null,
         error: `MCP server is disconnected: ${serverId}`,
@@ -189,21 +211,20 @@ export class MCPClientManager {
     try {
       console.log(`[MCPClient] Calling tool '${toolName}' on server: ${connection.config.name}`);
 
-      // TODO: Replace with actual @modelcontextprotocol/sdk call
-      // const result = await client.callTool({ name: toolName, arguments: args });
-      // return {
-      //   output: result.content,
-      //   durationMs: Math.round(performance.now() - startTime),
-      // };
+      const result = await connection.client.callTool({
+        name: toolName,
+        arguments: args,
+      });
 
-      // Stub response until SDK integration
+      // Extract text content from the MCP response
+      const textParts = (result.content as Array<{ type: string; text?: string }>)
+        .filter((c) => c.type === 'text' && c.text)
+        .map((c) => c.text)
+        .join('\n');
+
       const durationMs = Math.round(performance.now() - startTime);
       return {
-        output: {
-          message: `MCP tool '${toolName}' call stub - SDK integration pending`,
-          server: connection.config.name,
-          args,
-        },
+        output: textParts || result.content,
         durationMs,
       };
     } catch (err) {
@@ -228,11 +249,17 @@ export class MCPClientManager {
 
     console.log(`[MCPClient] Disconnecting from MCP server: ${connection.config.name}`);
 
-    // TODO: Replace with actual @modelcontextprotocol/sdk cleanup
-    // await client.close();
-    // await transport.close();
+    try {
+      if (connection.client) {
+        await connection.client.close();
+      }
+    } catch (err) {
+      console.warn(`[MCPClient] Error closing client for ${connection.config.name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     connection.connected = false;
+    connection.client = null;
+    connection.transport = null;
     this.connections.delete(serverId);
 
     // Update health status
