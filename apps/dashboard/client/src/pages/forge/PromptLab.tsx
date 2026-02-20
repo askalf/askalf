@@ -7,6 +7,7 @@ import './forge-observe.css';
 interface Revision {
   id: string;
   agent_id: string;
+  agent_name?: string;
   current_prompt: string;
   proposed_prompt: string;
   reasoning: string;
@@ -26,11 +27,16 @@ export default function PromptLab() {
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
 
   const loadRevisions = useCallback(async () => {
-    if (!selectedAgent) return;
     setLoading(true);
     try {
-      const data = await hubApi.promptRevisions.list(selectedAgent) as Revision[];
-      setRevisions(Array.isArray(data) ? data : []);
+      if (selectedAgent) {
+        const data = await hubApi.promptRevisions.list(selectedAgent) as Revision[];
+        setRevisions(Array.isArray(data) ? data : []);
+      } else {
+        const data = await hubApi.promptRevisions.listAll();
+        const list = (data as { revisions?: Revision[] })?.revisions ?? [];
+        setRevisions(Array.isArray(list) ? list : []);
+      }
     } catch { setRevisions([]); }
     setLoading(false);
   }, [selectedAgent]);
@@ -75,25 +81,28 @@ export default function PromptLab() {
           <h3>Self-Rewriting Prompts</h3>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <select className="hub-select" value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value)}>
-              <option value="">Select agent...</option>
+              <option value="">All Agents</option>
               {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
-            <button className="hub-btn hub-btn--primary" onClick={handlePropose} disabled={proposing || !selectedAgent}>
-              {proposing ? 'Analyzing...' : 'Propose Revision'}
-            </button>
+            {selectedAgent && (
+              <button className="hub-btn hub-btn--primary" onClick={handlePropose} disabled={proposing}>
+                {proposing ? 'Analyzing...' : 'Propose Revision'}
+              </button>
+            )}
           </div>
         </div>
 
         {loading && <div className="fo-empty">Loading revisions...</div>}
 
-        {!loading && revisions.length === 0 && selectedAgent && (
-          <div className="fo-empty">No prompt revisions for this agent yet. Click "Propose Revision" to analyze correction patterns.</div>
+        {!loading && revisions.length === 0 && (
+          <div className="fo-empty">{selectedAgent ? 'No prompt revisions for this agent yet. Click "Propose Revision" to analyze correction patterns.' : 'No pending prompt revisions across the fleet.'}</div>
         )}
 
         {revisions.map((rev) => (
           <div key={rev.id} className="fo-card" style={{ marginBottom: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <div>
+                {!selectedAgent && rev.agent_name && <span style={{ fontSize: '12px', opacity: 0.6, marginRight: '8px' }}>[{rev.agent_name}]</span>}
                 <span className={`hub-badge hub-badge--${rev.status === 'pending' ? 'warning' : rev.status === 'applied' ? 'success' : 'default'}`}>
                   {rev.status}
                 </span>
