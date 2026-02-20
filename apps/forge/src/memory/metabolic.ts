@@ -16,6 +16,8 @@ import { detectCapabilities } from '../orchestration/capability-registry.js';
 import { promoteVariant } from '../orchestration/evolution.js';
 import { orchestrateFromNL, getOrchestrationStatus } from '../orchestration/nl-orchestrator.js';
 import { shouldDecompose } from '../orchestration/task-decomposer.js';
+import { initConsciousness, startIntegrationCycle, stopIntegrationCycle } from '../consciousness/index.js';
+import { getMemoryRedis } from './singleton.js';
 
 // ============================================
 // Cycle Status Tracking
@@ -92,6 +94,17 @@ export function startMetabolicCycles(): void {
   initCycleStatus('prompt-rewrite', 6);
   initCycleStatus('goal-proposal', 8);
   initCycleStatus('autonomy-loop', 0.25);
+  initCycleStatus('integration', 0.083); // 5 minutes
+
+  // Initialize consciousness layer
+  const redis = getMemoryRedis();
+  if (redis) {
+    void initConsciousness(redis).then(() => {
+      startIntegrationCycle();
+    }).catch((err) => {
+      console.error('[Metabolic] Failed to initialize consciousness:', err);
+    });
+  }
 
   // Run initial cycles 5 minutes after startup
   setTimeout(() => {
@@ -140,7 +153,7 @@ export function startMetabolicCycles(): void {
     void runAutonomyLoop().catch(logErr('autonomy-loop'));
   }, 2 * 60 * 1000);
 
-  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), goals(8h), autonomy(15m)');
+  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), goals(8h), autonomy(15m), integration(5m)');
 }
 
 /**
@@ -154,6 +167,7 @@ export function stopMetabolicCycles(): void {
   if (promptRewriteTimer) clearInterval(promptRewriteTimer);
   if (goalProposalTimer) clearInterval(goalProposalTimer);
   if (autonomyLoopTimer) clearInterval(autonomyLoopTimer);
+  stopIntegrationCycle();
   decayTimer = null;
   lessonsTimer = null;
   promoteTimer = null;
