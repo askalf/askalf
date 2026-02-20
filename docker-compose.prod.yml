@@ -311,61 +311,7 @@ services:
 
   # self: RETIRED — conversation-first AI service (archived to archive/apps/self/)
 
-  # Ask Alf — Universal Chat Service
-  askalf:
-    build:
-      context: .
-      dockerfile: apps/askalf/Dockerfile
-    container_name: sprayberry-labs-askalf
-    expose:
-      - "3007"
-    environment:
-      NODE_ENV: production
-      PORT: 3007
-      ASKALF_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3007/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - sprayberry-labs-net
-    restart: unless-stopped
-    stop_grace_period: 15s
-    labels:
-      - "autoheal=true"
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777,size=256m
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 384M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
+  # askalf: RETIRED — universal chat service (archived to archive/apps/askalf/)
 
   # just-push: RETIRED — consolidated into Dashboard Command Center "Push" tab
 
@@ -437,7 +383,7 @@ services:
     container_name: sprayberry-labs-pgbouncer
     environment:
       # All 4 databases pooled — every service routes through pgbouncer
-      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate,postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge,postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate,postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 1000
       DEFAULT_POOL_SIZE: 20
