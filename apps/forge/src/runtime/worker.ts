@@ -54,6 +54,8 @@ import { goalOps } from '../tools/built-in/goal-ops.js';
 import { costOptimize } from '../tools/built-in/cost-optimize.js';
 import { feedbackOps } from '../tools/built-in/feedback-ops.js';
 import { eventQuery } from '../tools/built-in/event-query.js';
+import { agentChat } from '../tools/built-in/agent-chat.js';
+import { auditInspect } from '../tools/built-in/audit-inspect.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -978,6 +980,58 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => eventQuery(input as unknown as Parameters<typeof eventQuery>[0]),
+  });
+
+  reg.register({
+    name: 'agent_chat',
+    displayName: 'Agent Chat',
+    description: 'Multi-agent collaborative discussions: create chat sessions with selected agents, run discussion rounds, get individual responses, view session status, and end sessions.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'round', 'respond', 'status', 'end'],
+          description: 'create: start a discussion. round: all agents respond in turn. respond: get one agent\'s response. status: view session or list all. end: close session.',
+        },
+        topic: { type: 'string', description: 'Discussion topic (for create)' },
+        agent_ids: { type: 'array', items: { type: 'string' }, description: 'Agent IDs to include (for create)' },
+        session_id: { type: 'string', description: 'Chat session ID (for round, respond, status, end)' },
+        agent_id: { type: 'string', description: 'Agent ID to get response from (for respond)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => agentChat(input as unknown as Parameters<typeof agentChat>[0]),
+  });
+
+  reg.register({
+    name: 'audit_inspect',
+    displayName: 'Audit Inspect',
+    description: 'Self-inspection of audit trails and guardrail constraints: view your own audit history, pre-check guardrails before acting, and inspect active guardrail rules that apply to you.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['my_audit', 'check_guardrails', 'my_guardrails'],
+          description: 'my_audit: view your audit trail. check_guardrails: pre-check if an action is allowed. my_guardrails: see active rules.',
+        },
+        filter_action: { type: 'string', description: 'Filter audit by action type (for my_audit)' },
+        filter_resource_type: { type: 'string', description: 'Filter audit by resource type (for my_audit)' },
+        limit: { type: 'number', description: 'Max results (for my_audit, default 25, max 100)' },
+        offset: { type: 'number', description: 'Pagination offset (for my_audit)' },
+        input: { type: 'string', description: 'Input text to check against guardrails (for check_guardrails)' },
+        tool_name: { type: 'string', description: 'Tool name to check restrictions (for check_guardrails)' },
+        estimated_cost: { type: 'number', description: 'Estimated cost in USD (for check_guardrails)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => auditInspect(input as unknown as Parameters<typeof auditInspect>[0]),
   });
 }
 

@@ -999,10 +999,52 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Feedback review error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated, goalsCompleted, goalsRequeued, goalsAutoProposed, autonomyIncreased, autonomyDecreased });
+  // ------------------------------------------------------------------
+  // Step 12: Guardrail violation review (Level 13)
+  // ------------------------------------------------------------------
+  let guardrailViolationsReviewed = 0;
+  const MAX_VIOLATION_ADJUSTMENTS = 3;
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated + goalsCompleted + goalsAutoProposed + autonomyIncreased + autonomyDecreased;
+  try {
+    // Find agents with frequent guardrail violations in last 24h
+    const violators = await query<{
+      agent_id: string;
+      agent_name: string;
+      violation_count: string;
+      autonomy_level: number;
+    }>(
+      `SELECT a.id AS agent_id, a.name AS agent_name,
+              COUNT(*)::text AS violation_count, a.autonomy_level
+       FROM forge_audit_log al
+       JOIN forge_agents a ON al.owner_id = a.id OR al.details->>'agent_id' = a.id
+       WHERE al.action = 'guardrail_violation'
+         AND al.created_at > NOW() - INTERVAL '24 hours'
+         AND (a.is_decommissioned IS NULL OR a.is_decommissioned = false)
+         AND (COALESCE(a.metadata->>'system_agent', 'false') != 'true')
+       GROUP BY a.id, a.name, a.autonomy_level
+       HAVING COUNT(*) >= 5`,
+    );
+
+    for (const violator of violators) {
+      if (guardrailViolationsReviewed >= MAX_VIOLATION_ADJUSTMENTS) break;
+
+      if (violator.autonomy_level > 1) {
+        await query(
+          `UPDATE forge_agents SET autonomy_level = autonomy_level - 1, updated_at = NOW() WHERE id = $1`,
+          [violator.agent_id],
+        );
+        guardrailViolationsReviewed++;
+        console.log(`[Autonomy] Reduced autonomy for ${violator.agent_name}: ${violator.violation_count} guardrail violations in 24h (${violator.autonomy_level} → ${violator.autonomy_level - 1})`);
+      }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Guardrail violation review error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated, goalsCompleted, goalsRequeued, goalsAutoProposed, autonomyIncreased, autonomyDecreased, guardrailViolationsReviewed });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated + goalsCompleted + goalsAutoProposed + autonomyIncreased + autonomyDecreased + guardrailViolationsReviewed;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
@@ -1011,7 +1053,7 @@ async function runAutonomyLoop(): Promise<void> {
       `${correctionsPromoted} corrections promoted, ${anomaliesDetected} anomalies, ` +
       `${autoHealed} auto-healed, ${autoEvolved} auto-evolved, ${autoOrchestrated} auto-orchestrated, ` +
       `${goalsCompleted} goals completed, ${goalsRequeued} requeued, ${goalsAutoProposed} auto-proposed, ` +
-      `${autonomyIncreased} autonomy↑, ${autonomyDecreased} autonomy↓ — ${elapsed}ms`,
+      `${autonomyIncreased} autonomy↑, ${autonomyDecreased} autonomy↓, ${guardrailViolationsReviewed} guardrail violations reviewed — ${elapsed}ms`,
     );
   }
 }
