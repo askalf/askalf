@@ -26,8 +26,8 @@ export async function registerReportRoutes(fastify, requireAdmin, query, queryOn
 
     // Forge stats
     const [agentsRes, execsRes] = await Promise.all([
-      callForge('/agents?limit=100'),
-      callForge('/executions?limit=100'),
+      callForgeAdmin('/agents'),
+      callForgeAdmin('/executions?limit=100'),
     ]);
 
     const forgeAgents = agentsRes.error ? [] : (agentsRes.agents || []);
@@ -84,8 +84,8 @@ export async function registerReportRoutes(fastify, requireAdmin, query, queryOn
     if (!admin) return { error: 'Admin access required' };
 
     const [execsRes, agentsRes] = await Promise.all([
-      callForge('/executions?limit=50'),
-      callForge('/agents?limit=100'),
+      callForgeAdmin('/executions?limit=50'),
+      callForgeAdmin('/agents'),
     ]);
 
     if (execsRes.error) {
@@ -120,7 +120,7 @@ export async function registerReportRoutes(fastify, requireAdmin, query, queryOn
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
-    const agentsRes = await callForge('/agents?limit=100');
+    const agentsRes = await callForgeAdmin('/agents');
     const agents = agentsRes.error ? [] : (agentsRes.agents || []);
 
     const schedules = await query(`SELECT * FROM agent_schedules`);
@@ -134,8 +134,8 @@ export async function registerReportRoutes(fastify, requireAdmin, query, queryOn
       return {
         id: agent.id,
         name: agent.name,
-        type: mapAgentType(agent.metadata),
-        status: mapAgentStatus(agent.status, agent.status === 'archived'),
+        type: agent.type || mapAgentType(agent.metadata),
+        status: agent.status,
         schedule_type: sched?.schedule_type || 'manual',
         schedule_interval_minutes: sched?.schedule_interval_minutes || null,
         next_run_at: sched?.next_run_at || null,

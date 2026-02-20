@@ -12,7 +12,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.get('/api/v1/admin/metabolic/status', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForgeAdmin('/metabolic/status');
+    const res = await callForge('/metabolic/status');
     if (res.error) return reply.code(res.status || 503).send({ error: 'Metabolic status unavailable' });
     return res;
   });
@@ -77,7 +77,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.post('/api/v1/admin/memory/store', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForgeAdmin('/memory/store', { method: 'POST', body: request.body });
+    const res = await callForge('/memory/store', { method: 'POST', body: request.body });
     if (res.error) return reply.code(res.status || 503).send({ error: 'Memory store failed' });
     return res;
   });
@@ -341,7 +341,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.get('/api/v1/admin/coordination/sessions', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForgeAdmin('/coordination/sessions');
+    const res = await callForge('/coordination/sessions');
     if (res.error) return reply.code(res.status || 503).send({ sessions: [] });
     return res;
   });
@@ -350,7 +350,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
-    const res = await callForgeAdmin(`/coordination/sessions/${encodeURIComponent(id)}`);
+    const res = await callForge(`/coordination/sessions/${encodeURIComponent(id)}`);
     if (res.error) return reply.code(res.status || 503).send({ error: 'Session unavailable' });
     return res;
   });
@@ -358,7 +358,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.post('/api/v1/admin/coordination/sessions', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForgeAdmin('/coordination/sessions', { method: 'POST', body: request.body });
+    const res = await callForge('/coordination/sessions', { method: 'POST', body: request.body });
     if (res.error) return reply.code(res.status || 503).send({ error: 'Session creation failed' });
     return res;
   });
@@ -367,7 +367,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
-    const res = await callForgeAdmin(`/coordination/sessions/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+    const res = await callForge(`/coordination/sessions/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
     if (res.error) return reply.code(res.status || 503).send({ error: 'Session cancel failed' });
     return res;
   });
@@ -375,7 +375,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.get('/api/v1/admin/coordination/plans', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForgeAdmin('/coordination/plans');
+    const res = await callForge('/coordination/plans');
     if (res.error) return reply.code(res.status || 503).send({ plans: [] });
     return res;
   });
@@ -383,7 +383,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.get('/api/v1/admin/coordination/stats', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForgeAdmin('/coordination/stats');
+    const res = await callForge('/coordination/stats');
     if (res.error) return reply.code(res.status || 503).send({ totalSessions: 0, activeSessions: 0, completedSessions: 0, failedSessions: 0 });
     return res;
   });
@@ -391,7 +391,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.post('/api/v1/admin/coordination/orchestrate', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForgeAdmin('/coordination/orchestrate', { method: 'POST', body: request.body });
+    const res = await callForge('/coordination/orchestrate', { method: 'POST', body: request.body });
     if (res.error) return reply.code(res.status || 503).send({ error: 'Orchestration failed', message: res.message });
     return res;
   });
@@ -409,7 +409,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     if (status) params.set('status', status);
     if (limit) params.set('limit', limit);
     const qs = params.toString();
-    const res = await callForgeAdmin(`/checkpoints${qs ? `?${qs}` : ''}`);
+    const res = await callForge(`/checkpoints${qs ? `?${qs}` : ''}`);
     if (res.error) return reply.code(res.status || 503).send({ checkpoints: [] });
     return res;
   });
@@ -418,7 +418,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
-    const res = await callForgeAdmin(`/checkpoints/${encodeURIComponent(id)}`);
+    const res = await callForge(`/checkpoints/${encodeURIComponent(id)}`);
     if (res.error) return reply.code(res.status || 503).send({ error: 'Checkpoint unavailable' });
     return res;
   });
@@ -427,7 +427,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
-    const res = await callForgeAdmin(`/checkpoints/${encodeURIComponent(id)}/respond`, { method: 'POST', body: request.body });
+    const res = await callForge(`/checkpoints/${encodeURIComponent(id)}/respond`, { method: 'POST', body: request.body });
     if (res.error) return reply.code(res.status || 503).send({ error: 'Checkpoint response failed' });
     return res;
   });
@@ -478,105 +478,105 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   // Shared context
   fastify.post('/api/v1/admin/context/:sessionId', async (request, reply) => {
     const { sessionId } = request.params;
-    const res = await callForgeAdmin(`/context/${sessionId}`, { method: 'POST', body: request.body });
+    const res = await callForge(`/context/${sessionId}`, { method: 'POST', body: request.body });
     return res;
   });
 
   fastify.get('/api/v1/admin/context/:sessionId', async (request, reply) => {
     const { sessionId } = request.params;
     const qs = new URLSearchParams(request.query).toString();
-    const res = await callForgeAdmin(`/context/${sessionId}${qs ? `?${qs}` : ''}`);
+    const res = await callForge(`/context/${sessionId}${qs ? `?${qs}` : ''}`);
     return res;
   });
 
   // Handoffs
   fastify.post('/api/v1/admin/handoff', async (request, reply) => {
-    const res = await callForgeAdmin('/handoff', { method: 'POST', body: request.body });
+    const res = await callForge('/handoff', { method: 'POST', body: request.body });
     return res;
   });
 
   fastify.get('/api/v1/admin/handoff/:sessionId/:handoffId', async (request, reply) => {
     const { sessionId, handoffId } = request.params;
-    const res = await callForgeAdmin(`/handoff/${sessionId}/${handoffId}`);
+    const res = await callForge(`/handoff/${sessionId}/${handoffId}`);
     return res;
   });
 
   // Phase 7: Natural Language Orchestration
   fastify.post('/api/v1/admin/orchestrate-nl', async (request) => {
-    return callForgeAdmin('/orchestrate-nl', { method: 'POST', body: request.body });
+    return callForge('/orchestrate-nl', { method: 'POST', body: request.body });
   });
   fastify.get('/api/v1/admin/orchestration/:sessionId/status', async (request) => {
-    return callForgeAdmin(`/orchestration/${request.params.sessionId}/status`);
+    return callForge(`/orchestration/${request.params.sessionId}/status`);
   });
 
   // Phase 8: Multi-Agent Chat
   fastify.post('/api/v1/admin/chat/create', async (request) => {
-    return callForgeAdmin('/chat/create', { method: 'POST', body: request.body });
+    return callForge('/chat/create', { method: 'POST', body: request.body });
   });
   fastify.get('/api/v1/admin/chat/sessions', async () => {
-    return callForgeAdmin('/chat/sessions');
+    return callForge('/chat/sessions');
   });
   fastify.get('/api/v1/admin/chat/:sessionId', async (request) => {
-    return callForgeAdmin(`/chat/${request.params.sessionId}`);
+    return callForge(`/chat/${request.params.sessionId}`);
   });
   fastify.post('/api/v1/admin/chat/:sessionId/message', async (request) => {
-    return callForgeAdmin(`/chat/${request.params.sessionId}/message`, { method: 'POST', body: request.body });
+    return callForge(`/chat/${request.params.sessionId}/message`, { method: 'POST', body: request.body });
   });
   fastify.post('/api/v1/admin/chat/:sessionId/respond/:agentId', async (request) => {
-    return callForgeAdmin(`/chat/${request.params.sessionId}/respond/${request.params.agentId}`, { method: 'POST', body: request.body || {} });
+    return callForge(`/chat/${request.params.sessionId}/respond/${request.params.agentId}`, { method: 'POST', body: request.body || {} });
   });
   fastify.post('/api/v1/admin/chat/:sessionId/round', async (request) => {
-    return callForgeAdmin(`/chat/${request.params.sessionId}/round`, { method: 'POST', body: request.body || {} });
+    return callForge(`/chat/${request.params.sessionId}/round`, { method: 'POST', body: request.body || {} });
   });
   fastify.post('/api/v1/admin/chat/:sessionId/end', async (request) => {
-    return callForgeAdmin(`/chat/${request.params.sessionId}/end`, { method: 'POST', body: request.body || {} });
+    return callForge(`/chat/${request.params.sessionId}/end`, { method: 'POST', body: request.body || {} });
   });
 
   // Phase 10: Cost Optimization
   fastify.get('/api/v1/admin/cost/dashboard', async () => {
-    return callForgeAdmin('/cost/dashboard');
+    return callForge('/cost/dashboard');
   });
   fastify.post('/api/v1/admin/cost/recommend', async (request) => {
-    return callForgeAdmin('/cost/recommend', { method: 'POST', body: request.body });
+    return callForge('/cost/recommend', { method: 'POST', body: request.body });
   });
   fastify.get('/api/v1/admin/cost/optimal-model', async (request) => {
     const qs = new URLSearchParams(request.query).toString();
-    return callForgeAdmin(`/cost/optimal-model?${qs}`);
+    return callForge(`/cost/optimal-model?${qs}`);
   });
 
   // Phase 11: Knowledge Graph
   fastify.get('/api/v1/admin/knowledge/stats', async () => {
-    return callForgeAdmin('/knowledge/stats');
+    return callForge('/knowledge/stats');
   });
   fastify.get('/api/v1/admin/knowledge/search', async (request) => {
     const qs = new URLSearchParams(request.query).toString();
-    return callForgeAdmin(`/knowledge/search?${qs}`);
+    return callForge(`/knowledge/search?${qs}`);
   });
   fastify.get('/api/v1/admin/knowledge/nodes/:nodeId/neighborhood', async (request) => {
-    return callForgeAdmin(`/knowledge/nodes/${request.params.nodeId}/neighborhood`);
+    return callForge(`/knowledge/nodes/${request.params.nodeId}/neighborhood`);
   });
 
   // Phase 12: Monitoring
   fastify.get('/api/v1/admin/monitoring/health', async () => {
-    return callForgeAdmin('/monitoring/health');
+    return callForge('/monitoring/health');
   });
 
   // Phase 14: Event Log, Leaderboard, Replay
   fastify.get('/api/v1/admin/events/recent', async (request) => {
     const qs = request.query.limit ? `?limit=${request.query.limit}` : '';
-    return callForgeAdmin(`/events/recent${qs}`);
+    return callForge(`/events/recent${qs}`);
   });
   fastify.get('/api/v1/admin/events/execution/:executionId', async (request) => {
-    return callForgeAdmin(`/events/execution/${request.params.executionId}`);
+    return callForge(`/events/execution/${request.params.executionId}`);
   });
   fastify.get('/api/v1/admin/events/session/:sessionId', async (request) => {
-    return callForgeAdmin(`/events/session/${request.params.sessionId}`);
+    return callForge(`/events/session/${request.params.sessionId}`);
   });
   fastify.get('/api/v1/admin/events/stats', async () => {
-    return callForgeAdmin('/events/stats');
+    return callForge('/events/stats');
   });
   fastify.get('/api/v1/admin/fleet/leaderboard', async () => {
-    return callForgeAdmin('/fleet/leaderboard');
+    return callForge('/fleet/leaderboard');
   });
 
   // ============================================
@@ -592,13 +592,13 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     if (agent_id) params.set('agent_id', agent_id);
     if (limit) params.set('limit', limit);
     const qs = params.toString();
-    return callForgeAdmin(`/goals${qs ? `?${qs}` : ''}`);
+    return callForge(`/goals${qs ? `?${qs}` : ''}`);
   });
 
   fastify.get('/api/v1/admin/goals/:goalId', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    return callForgeAdmin(`/goals/${encodeURIComponent(request.params.goalId)}`);
+    return callForge(`/goals/${encodeURIComponent(request.params.goalId)}`);
   });
 
   fastify.get('/api/v1/admin/prompt-revisions', async (request, reply) => {
@@ -606,6 +606,6 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     if (!admin) return { error: 'Admin access required' };
     const { status } = request.query;
     const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-    return callForgeAdmin(`/prompt-revisions${qs}`);
+    return callForge(`/prompt-revisions${qs}`);
   });
 }

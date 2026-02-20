@@ -15,7 +15,8 @@ export { ulid };
 export interface ForgeAgent {
   id: string; name: string; description: string | null; system_prompt: string | null;
   status: string; autonomy_level: number; metadata: Record<string, unknown> | null;
-  provider_config: Record<string, unknown> | null; created_at: string; updated_at: string;
+  provider_config: Record<string, unknown> | null; model_id: string | null;
+  created_at: string; updated_at: string;
 }
 
 export interface ForgeExecution {
@@ -77,6 +78,10 @@ export function transformAgent(a: ForgeAgent, executions: ForgeExecution[] = [],
     pending_interventions: pendingInterventions,
     created_at: a.created_at,
     updated_at: a.updated_at,
+    // Raw fields preserved for dashboard routes that need them
+    metadata: a.metadata || {},
+    model_id: a.model_id || null,
+    raw_status: a.status,
   };
 }
 

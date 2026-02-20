@@ -16,26 +16,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
       });
     }
 
-    const execsRes = await callForgeAdmin('/executions?limit=100');
-    const executions = execsRes.error ? [] : (execsRes.executions || []);
-
-    // Get pending intervention counts per agent
-    const interventionCounts = await query(`
-      SELECT agent_id, COUNT(*) as count
-      FROM agent_interventions
-      WHERE status = 'pending'
-      GROUP BY agent_id
-    `);
-    const interventionMap = {};
-    for (const row of interventionCounts) {
-      interventionMap[row.agent_id] = parseInt(row.count);
-    }
-
-    const agents = (agentsRes.agents || []).map(a =>
-      transformAgent(a, executions, interventionMap[a.id] || 0)
-    );
-
-    return { agents };
+    // Forge admin route returns fully-transformed agents with stats
+    return { agents: agentsRes.agents || [] };
   });
 
   // 2. GET /api/v1/admin/agents/:id - Agent detail with logs
@@ -44,44 +26,14 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     if (!admin) return { error: 'Admin access required' };
 
     const { id } = request.params;
-    const [agentRes, execsRes] = await Promise.all([
-      callForgeAdmin(`/agents/${id}`),
-      callForgeAdmin(`/executions?agentId=${id}&limit=50`),
-    ]);
+    const agentRes = await callForgeAdmin(`/agents/${id}`);
 
     if (agentRes.error) {
       return reply.code(agentRes.status || 404).send({ error: 'Agent not found' });
     }
 
-    const executions = execsRes.error ? [] : (execsRes.executions || []);
-    const pendingCount = await queryOne(`
-      SELECT COUNT(*) as count FROM agent_interventions
-      WHERE agent_id = $1 AND status = 'pending'
-    `, [id]);
-
-    const agent = transformAgent(agentRes.agent, executions, parseInt(pendingCount?.count || '0'));
-
-    // Synthesize logs from executions
-    const logs = executions.map(exec => ({
-      id: exec.id,
-      created_at: exec.started_at || exec.created_at,
-      level: exec.status === 'failed' ? 'error' : 'info',
-      message: exec.status === 'failed'
-        ? `Execution failed: ${exec.error || 'Unknown error'}`
-        : `Execution ${exec.status}: ${(exec.input || '').substring(0, 100)}`,
-      metadata: {
-        execution_id: exec.id,
-        status: exec.status,
-        tokens: exec.total_tokens,
-        cost: exec.cost,
-        duration_ms: exec.duration_ms,
-      },
-    })).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    // Synthesize tasks from executions for agent detail
-    const tasks = executions.map(exec => transformExecution(exec, agentRes.agent.name, mapAgentType(agentRes.agent.metadata)));
-
-    return { agent, logs, tasks };
+    // Forge admin route returns fully-transformed { agent, logs, tasks }
+    return { agent: agentRes.agent, logs: agentRes.logs || [], tasks: agentRes.tasks || [] };
   });
 
   // 3. POST /api/v1/admin/agents - Create agent
@@ -106,8 +58,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
       return reply.code(res.status || 500).send({ error: 'Failed to create agent', message: res.message });
     }
 
-    const agent = transformAgent(res.agent);
-    return reply.code(201).send({ agent });
+    return reply.code(201).send({ agent: res.agent });
   });
 
   // 3b. POST /api/v1/admin/agents/optimize-prompt - Optimize system prompt with AI
@@ -164,7 +115,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
       return reply.code(res.status || 500).send({ error: 'Failed to stop agent', message: res.message });
     }
 
-    return { success: true, agent: transformAgent(res.agent) };
+    return { success: true, agent: res.agent };
   });
 
   // 6. POST /api/v1/admin/agents/:id/decommission - Archive agent
@@ -321,6 +272,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
       callForgeAdmin('/executions?limit=100'),
     ]);
 
+    // Forge admin returns pre-transformed agents (status: idle/running/paused, not 'active')
     const agents = agentsRes.error ? [] : (agentsRes.agents || []);
     const executions = execsRes.error ? [] : (execsRes.executions || []);
 
@@ -328,17 +280,18 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
       `SELECT COUNT(*) as count FROM agent_interventions WHERE status = 'pending'`
     );
 
-    const activeAgentCount = agents.filter(a => a.status === 'active').length;
-    const archivedAgents = agents.filter(a => a.status === 'archived').length;
+    const activeAgents = agents.filter(a => !a.is_decommissioned);
+    const runningAgents = agents.filter(a => a.status === 'running').length;
+    const archivedAgents = agents.filter(a => a.is_decommissioned).length;
     const runningExecs = executions.filter(e => e.status === 'running' || e.status === 'pending').length;
-    const totalAutonomy = agents.reduce((sum, a) => sum + (a.autonomy_level ?? 2), 0);
-    const avgAutonomy = agents.length > 0 ? Math.round(totalAutonomy / agents.length) : 0;
+    const totalAutonomy = activeAgents.reduce((sum, a) => sum + (a.autonomy_level ?? 2), 0);
+    const avgAutonomy = activeAgents.length > 0 ? Math.round(totalAutonomy / activeAgents.length) : 0;
 
     return {
       agents: {
         total: agents.length,
-        active: activeAgentCount,
-        running: runningExecs,
+        active: activeAgents.length,
+        running: Math.max(runningAgents, runningExecs),
         decommissioned: archivedAgents,
         avgAutonomy,
       },
