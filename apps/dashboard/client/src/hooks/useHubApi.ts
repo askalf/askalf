@@ -770,6 +770,8 @@ export const hubApi = {
       apiFetch(`/api/v1/admin/agents/${agentId}/propose-revision`, { method: 'POST', body: JSON.stringify({}) }),
     list: (agentId: string) =>
       apiFetch<unknown[]>(`/api/v1/admin/agents/${agentId}/prompt-revisions`),
+    listAll: (status?: string) =>
+      apiFetch<{ revisions: unknown[] }>(`/api/v1/admin/prompt-revisions?${buildParams({ status: status || 'pending' })}`),
     apply: (revisionId: string) =>
       apiFetch(`/api/v1/admin/prompt-revisions/${revisionId}/apply`, { method: 'POST', body: JSON.stringify({}) }),
     reject: (revisionId: string) =>
@@ -810,6 +812,8 @@ export const hubApi = {
       apiFetch<unknown[]>(`/api/v1/admin/agents/${agentId}/propose-goals`, { method: 'POST', body: JSON.stringify({}) }),
     list: (agentId: string, status?: string) =>
       apiFetch<unknown[]>(`/api/v1/admin/agents/${agentId}/goals${status ? `?status=${status}` : ''}`),
+    listAll: (status?: string, agentId?: string) =>
+      apiFetch<{ goals: unknown[] }>(`/api/v1/admin/goals?${buildParams({ status, agent_id: agentId })}`),
     approve: (goalId: string) =>
       apiFetch(`/api/v1/admin/goals/${goalId}/approve`, { method: 'POST', body: JSON.stringify({}) }),
     reject: (goalId: string) =>
@@ -883,6 +887,16 @@ export const hubApi = {
       apiFetch<{ totalEvents: number; eventsLast24h: number; topEventTypes: unknown[] }>('/api/v1/admin/events/stats'),
     leaderboard: () =>
       apiFetch<unknown[]>('/api/v1/admin/fleet/leaderboard'),
+  },
+
+  // Checkpoints (human-in-the-loop)
+  checkpoints: {
+    list: (params: { owner_id?: string; status?: string; limit?: number } = {}) =>
+      apiFetch<{ checkpoints: unknown[] }>(`/api/v1/admin/checkpoints?${buildParams({ owner_id: params.owner_id, status: params.status, limit: params.limit })}`),
+    get: (id: string) =>
+      apiFetch<{ checkpoint: unknown }>(`/api/v1/admin/checkpoints/${id}`),
+    respond: (id: string, body: { response: string; status: 'approved' | 'rejected' }) =>
+      apiFetch(`/api/v1/admin/checkpoints/${id}/respond`, { method: 'POST', body: JSON.stringify(body) }),
   },
 
   coordination: {

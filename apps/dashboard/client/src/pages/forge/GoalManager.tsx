@@ -7,6 +7,7 @@ import './forge-observe.css';
 interface Goal {
   id: string;
   agent_id: string;
+  agent_name?: string;
   title: string;
   description: string;
   rationale: string;
@@ -28,11 +29,16 @@ export default function GoalManager() {
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
 
   const loadGoals = useCallback(async () => {
-    if (!selectedAgent) return;
     setLoading(true);
     try {
-      const data = await hubApi.goals.list(selectedAgent, statusFilter || undefined) as Goal[];
-      setGoals(Array.isArray(data) ? data : []);
+      if (selectedAgent) {
+        const data = await hubApi.goals.list(selectedAgent, statusFilter || undefined) as Goal[];
+        setGoals(Array.isArray(data) ? data : []);
+      } else {
+        const data = await hubApi.goals.listAll(statusFilter || undefined);
+        const list = (data as { goals?: Goal[] })?.goals ?? [];
+        setGoals(Array.isArray(list) ? list : []);
+      }
     } catch { setGoals([]); }
     setLoading(false);
   }, [selectedAgent, statusFilter]);
@@ -74,7 +80,7 @@ export default function GoalManager() {
           <h3>Autonomous Goals</h3>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <select className="hub-select" value={selectedAgent} onChange={(e) => setSelectedAgent(e.target.value)}>
-              <option value="">Select agent...</option>
+              <option value="">All Agents</option>
               {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
             <select className="hub-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -92,8 +98,8 @@ export default function GoalManager() {
 
         {loading && <div className="fo-empty">Loading goals...</div>}
 
-        {!loading && goals.length === 0 && selectedAgent && (
-          <div className="fo-empty">No goals for this agent. Click "Propose Goals" to analyze performance and suggest improvements.</div>
+        {!loading && goals.length === 0 && (
+          <div className="fo-empty">{selectedAgent ? 'No goals for this agent. Click "Propose Goals" to analyze performance and suggest improvements.' : 'No goals across the fleet yet. Select an agent to propose goals.'}</div>
         )}
 
         {goals.map((goal) => (
@@ -102,6 +108,7 @@ export default function GoalManager() {
               <div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
                   <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: priorityColor[goal.priority] || '#6b7280' }} />
+                  {!selectedAgent && goal.agent_name && <span style={{ fontSize: '11px', opacity: 0.6, marginRight: '4px' }}>[{goal.agent_name}]</span>}
                   <strong>{goal.title}</strong>
                   <span className={`hub-badge hub-badge--${goal.status === 'proposed' ? 'warning' : goal.status === 'approved' ? 'success' : goal.status === 'rejected' ? 'danger' : 'default'}`}>
                     {goal.status}

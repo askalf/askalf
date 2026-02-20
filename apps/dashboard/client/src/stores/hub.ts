@@ -36,7 +36,7 @@ import {
 
 export type HubTab =
   | 'overview' | 'fleet' | 'executions' | 'scheduler' | 'coordination'
-  | 'interventions' | 'tickets' | 'content' | 'memory' | 'threads'
+  | 'interventions' | 'checkpoints' | 'tickets' | 'content' | 'memory' | 'threads'
   | 'costs' | 'providers' | 'guardrails' | 'audit'
   | 'workflows' | 'push'
   | 'prompt-lab' | 'nl-orchestrate' | 'agent-chat' | 'goals'

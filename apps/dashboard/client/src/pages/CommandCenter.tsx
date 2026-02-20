@@ -40,6 +40,7 @@ const ExecutionHistory = lazyRetry(() => import('./hub/ExecutionHistory'));
 const SchedulerControl = lazyRetry(() => import('./hub/SchedulerControl'));
 const FleetCoordination = lazyRetry(() => import('./hub/FleetCoordination'));
 const InterventionGateway = lazyRetry(() => import('./hub/InterventionGateway'));
+const Checkpoints = lazyRetry(() => import('./hub/Checkpoints'));
 const Tickets = lazyRetry(() => import('./hub/Tickets'));
 const ContentFeed = lazyRetry(() => import('./hub/ContentFeed'));
 const FleetMemory = lazyRetry(() => import('./hub/FleetMemory'));
@@ -69,6 +70,7 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
   scheduler: SchedulerControl,
   coordination: FleetCoordination,
   interventions: InterventionGateway,
+  checkpoints: Checkpoints,
   tickets: Tickets,
   content: ContentFeed,
   memory: FleetMemory,

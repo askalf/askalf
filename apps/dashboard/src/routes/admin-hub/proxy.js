@@ -578,4 +578,34 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.get('/api/v1/admin/fleet/leaderboard', async () => {
     return callForgeAdmin('/fleet/leaderboard');
   });
+
+  // ============================================
+  // FLEET-WIDE GOALS & PROMPT REVISIONS
+  // ============================================
+
+  fastify.get('/api/v1/admin/goals', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { status, agent_id, limit } = request.query;
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (agent_id) params.set('agent_id', agent_id);
+    if (limit) params.set('limit', limit);
+    const qs = params.toString();
+    return callForgeAdmin(`/goals${qs ? `?${qs}` : ''}`);
+  });
+
+  fastify.get('/api/v1/admin/goals/:goalId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    return callForgeAdmin(`/goals/${encodeURIComponent(request.params.goalId)}`);
+  });
+
+  fastify.get('/api/v1/admin/prompt-revisions', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { status } = request.query;
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    return callForgeAdmin(`/prompt-revisions${qs}`);
+  });
 }
