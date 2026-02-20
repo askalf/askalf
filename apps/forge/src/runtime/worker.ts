@@ -39,6 +39,9 @@ import { deployOps } from '../tools/built-in/deploy-ops.js';
 import { securityScan } from '../tools/built-in/security-scan.js';
 import { codeAnalysis } from '../tools/built-in/code-analysis.js';
 import { agentCreate } from '../tools/built-in/agent-create.js';
+import { agentDelegate } from '../tools/built-in/agent-delegate.js';
+import { agentCall, type AgentCallInput } from '../tools/built-in/agent-call.js';
+import { getExecutionContext, executionStore } from './execution-context.js';
 
 // ============================================
 // State
@@ -487,6 +490,97 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => agentCreate(input as unknown as Parameters<typeof agentCreate>[0]),
+  });
+
+  reg.register({
+    name: 'agent_delegate',
+    displayName: 'Agent Delegate',
+    description: 'Delegate a task to the best available agent by capability. Finds the most suitable agent using capability matching and runs them synchronously. Can also search for agents without executing.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['delegate', 'find'],
+          description: 'delegate: find best agent and run them. find: just search for matching agents.',
+        },
+        task: { type: 'string', description: 'Task description to delegate or search for' },
+        capability: { type: 'string', description: 'Capability to match (e.g. monitoring, architecture, troubleshooting)' },
+        agent_type: { type: 'string', description: 'Filter by agent type (dev, monitor, research, content, custom)' },
+        agent_id: { type: 'string', description: 'Your agent ID (for self-delegation prevention)' },
+        agent_name: { type: 'string', description: 'Your agent name' },
+        execution_id: { type: 'string', description: 'Your execution ID' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => agentDelegate(input as unknown as Parameters<typeof agentDelegate>[0]),
+  });
+
+  reg.register({
+    name: 'agent_call',
+    displayName: 'Agent Call',
+    description: 'Invoke another agent by ID as a sub-agent. The sub-agent runs synchronously and returns its output. Includes recursion depth protection (max depth 5).',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agentId: { type: 'string', description: 'The ID of the agent to call' },
+        input: { type: 'string', description: 'The input/task to send to the sub-agent' },
+      },
+      required: ['agentId', 'input'],
+    },
+    execute: async (rawInput) => {
+      const input = rawInput as unknown as AgentCallInput;
+      const ctx = getExecutionContext();
+      return agentCall(input, {
+        executeAgent: async (params) => {
+          const childExecId = `child-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+          // Create child execution record
+          await query(
+            `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, parent_execution_id)
+             VALUES ($1, $2, $3, $4, 'pending', $5)`,
+            [childExecId, params.agentId, params.ownerId, params.input, ctx?.executionId ?? null],
+          );
+          // Get agent config
+          const agentRow = await query<{ model_id: string; system_prompt: string; max_cost_per_execution: number }>(
+            `SELECT model_id, system_prompt, max_cost_per_execution FROM forge_agents WHERE id = $1`,
+            [params.agentId],
+          );
+          const agentCfg = agentRow[0];
+          if (!agentCfg) throw new Error(`Agent not found: ${params.agentId}`);
+
+          await runDirectCliExecution(childExecId, params.agentId, params.input, params.ownerId, {
+            modelId: agentCfg.model_id,
+            systemPrompt: agentCfg.system_prompt,
+            maxBudgetUsd: String(agentCfg.max_cost_per_execution ?? '0.50'),
+          });
+
+          // Read back result
+          const result = await query<{
+            status: string; output: string; error: string | null;
+            iterations: number; duration_ms: number;
+          }>(
+            `SELECT status, COALESCE(output, '') as output, error,
+                    COALESCE(iterations, 0) as iterations, COALESCE(duration_ms, 0) as duration_ms
+             FROM forge_executions WHERE id = $1`,
+            [childExecId],
+          );
+          const r = result[0];
+          return {
+            output: r?.output ?? '',
+            status: (r?.status === 'completed' ? 'completed' : 'failed') as 'completed' | 'failed',
+            iterations: r?.iterations ?? 0,
+            durationMs: r?.duration_ms ?? 0,
+            error: r?.error ?? undefined,
+          };
+        },
+        ownerId: ctx?.ownerId ?? 'system:forge',
+        currentDepth: ctx?.depth ?? 0,
+      });
+    },
   });
 }
 
@@ -960,6 +1054,13 @@ export async function runDirectCliExecution(
   const startTime = Date.now();
   console.log(`[CLI] Processing execution ${executionId} for agent ${agentId}`);
 
+  // Propagate execution context via AsyncLocalStorage so tools (agent_call, agent_delegate)
+  // can access ownerId, executionId, and depth for sub-agent invocations
+  const parentCtx = getExecutionContext();
+  const depth = (parentCtx?.depth ?? 0) + (parentCtx ? 1 : 0);
+
+  await executionStore.run({ ownerId, executionId, depth }, async () => {
+
   try {
     // Update execution status to running
     await query(
@@ -1142,6 +1243,8 @@ export async function runDirectCliExecution(
   } finally {
     releaseCliSlot();
   }
+
+  }); // end executionStore.run()
 }
 
 /**
