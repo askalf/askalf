@@ -9,6 +9,7 @@
 import type { FastifyInstance } from 'fastify';
 import { query, queryOne } from '../database.js';
 import { substrateQuery } from '../database.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 // Build a map of agent_id → name from forge DB (cached in memory)
 let agentNameCache: Map<string, string> | null = null;
@@ -23,7 +24,7 @@ async function getAgentNames(): Promise<Map<string, string>> {
 }
 
 export async function cliRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/api/v1/forge/cli', async (request, reply) => {
+  app.post('/api/v1/forge/cli', { preHandler: [authMiddleware] }, async (request, reply) => {
     const { command } = request.body as { command: string };
     if (!command?.trim()) {
       return reply.status(400).send({ error: 'Command is required' });

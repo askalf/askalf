@@ -10,10 +10,8 @@ import {
   httpRequestsTotal,
   httpRequestDuration,
   httpRequestsInFlight,
-  createCounter,
-  createGauge,
-  createHistogram,
 } from '@substrate/observability';
+import { forgeActiveAgents } from './metrics.js';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
@@ -114,16 +112,6 @@ setInterval(() => {
 // ============================================
 // PROMETHEUS METRICS
 // ============================================
-
-// Forge-specific metrics
-const forgeExecutionsTotal = createCounter('forge_executions_total', 'Total agent executions started');
-const forgeExecutionDuration = createHistogram('forge_execution_duration_ms', 'Agent execution duration in milliseconds');
-const forgeActiveAgents = createGauge('forge_active_agents', 'Number of active agents');
-const forgeToolCalls = createCounter('forge_tool_calls_total', 'Total tool calls across all executions');
-const forgeMcpConnections = createGauge('forge_mcp_connections', 'Active MCP SSE connections');
-
-// Export for use by other modules
-export { forgeExecutionsTotal, forgeExecutionDuration, forgeActiveAgents, forgeToolCalls, forgeMcpConnections };
 
 // HTTP request instrumentation
 app.addHook('onRequest', async (request) => {
@@ -249,6 +237,44 @@ async function start(): Promise<void> {
     void detectAllCapabilities().catch((err) => {
       console.warn('[Capabilities] Initial detection failed:', err instanceof Error ? err.message : err);
     });
+
+    // Periodic active agents gauge update (every 60s)
+    setInterval(async () => {
+      try {
+        const rows = await dbQuery<{ count: string }>(`SELECT COUNT(*) AS count FROM forge_agents WHERE status = 'active'`);
+        forgeActiveAgents.set(parseInt(rows[0]?.count ?? '0', 10));
+      } catch { /* ignore metric update failures */ }
+    }, 60_000);
+
+    // Stale execution cleanup (every 5 min)
+    setInterval(async () => {
+      try {
+        // Mark pending executions older than 15 min as failed
+        const stalePending = await dbQuery<{ id: string; agent_id: string }>(
+          `UPDATE forge_executions SET status = 'failed', error = 'Timed out in pending state', completed_at = NOW()
+           WHERE status = 'pending' AND created_at < NOW() - INTERVAL '15 minutes'
+           RETURNING id, agent_id`,
+        );
+        // Mark running executions older than 16 min as failed
+        const staleRunning = await dbQuery<{ id: string; agent_id: string }>(
+          `UPDATE forge_executions SET status = 'failed', error = 'Exceeded maximum runtime', completed_at = NOW()
+           WHERE status = 'running' AND started_at < NOW() - INTERVAL '16 minutes'
+           RETURNING id, agent_id`,
+        );
+        const cleaned = [...stalePending, ...staleRunning];
+        if (cleaned.length > 0) {
+          console.log(`[Forge] Cleaned up ${cleaned.length} stale executions`);
+          const eventBus = getEventBus();
+          for (const row of cleaned) {
+            void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
+              error: 'Stale execution cleanup',
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.warn('[Forge] Stale execution cleanup error:', err instanceof Error ? err.message : err);
+      }
+    }, 300_000);
 
     await app.listen({ port: config.port, host: '0.0.0.0' });
     console.log(`[Forge] Agent Forge API server started on port ${config.port}`);

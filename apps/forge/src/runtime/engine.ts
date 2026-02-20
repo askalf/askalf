@@ -27,7 +27,7 @@ import {
 } from './context-manager.js';
 import { calculateCost, checkBudget } from './token-counter.js';
 import { createStateMachine, AgentState, type StateMachine } from './state-machine.js';
-import { ExecutionError } from './error-handler.js';
+import { ExecutionError, withRetry } from './error-handler.js';
 
 // ============================================
 // Types
@@ -484,10 +484,13 @@ export async function execute(
         completionRequest.tools = toolDefs;
       }
 
-      // ---- Call provider ----
+      // ---- Call provider (with retry on transient errors) ----
       let response: CompletionResponse;
       try {
-        response = await provider.complete(completionRequest);
+        response = await withRetry(
+          () => provider.complete(completionRequest),
+          { maxRetries: 2, baseDelayMs: 1000 },
+        );
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         throw new ExecutionError(
