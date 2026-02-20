@@ -6,22 +6,8 @@ import { ADMIN_TAB_SECTIONS, USER_TAB_SECTIONS } from '../../config/forge-tabs';
 import type { TabSection } from '../../config/forge-tabs';
 import './AdminLayout.css';
 
-const getOtherNavSections = (role: string) => {
+const getOtherNavSections = (_role: string) => {
   const sections: Array<{ section: string; items: Array<{ path: string; label: string; icon: string }> }> = [];
-
-  // Dev projects — super_admin only
-  if (role === 'super_admin') {
-    sections.push(
-      {
-        section: 'Ask Alf',
-        items: [
-          { path: '/ask-alf', label: 'Chat', icon: 'A' },
-          { path: '/ask-alf/integrations', label: 'Integrations', icon: 'I' },
-        ],
-      },
-    );
-  }
-
   return sections;
 };
 
