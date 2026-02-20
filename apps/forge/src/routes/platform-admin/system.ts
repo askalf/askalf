@@ -804,6 +804,109 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   );
 
   // ------------------------------------------
+  // FLAT GOALS (fleet-wide)
+  // ------------------------------------------
+
+  app.get(
+    '/api/v1/admin/goals',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { status, agent_id, limit = '50' } = request.query as {
+        status?: string; agent_id?: string; limit?: string;
+      };
+
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+      let idx = 1;
+
+      if (status) {
+        conditions.push(`g.status = $${idx++}`);
+        params.push(status);
+      }
+      if (agent_id) {
+        conditions.push(`g.agent_id = $${idx++}`);
+        params.push(agent_id);
+      }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const limitNum = Math.min(parseInt(limit, 10) || 50, 200);
+
+      const goals = await query<{
+        id: string; agent_id: string; agent_name: string; title: string;
+        description: string; rationale: string; priority: string; source: string;
+        status: string; execution_id: string | null; approved_by: string | null;
+        approved_at: string | null; completed_at: string | null;
+        metadata: Record<string, unknown>; created_at: string;
+      }>(
+        `SELECT g.*, a.name AS agent_name
+         FROM forge_agent_goals g
+         LEFT JOIN forge_agents a ON a.id = g.agent_id
+         ${where}
+         ORDER BY g.created_at DESC
+         LIMIT ${limitNum}`,
+        params,
+      );
+
+      return { goals, total: goals.length };
+    },
+  );
+
+  app.get<{ Params: { goalId: string } }>(
+    '/api/v1/admin/goals/:goalId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const goal = await queryOne<{
+        id: string; agent_id: string; title: string; description: string;
+        rationale: string; priority: string; source: string; status: string;
+        execution_id: string | null; approved_by: string | null;
+        approved_at: string | null; completed_at: string | null;
+        metadata: Record<string, unknown>; created_at: string;
+      }>(
+        `SELECT g.*, a.name AS agent_name
+         FROM forge_agent_goals g
+         LEFT JOIN forge_agents a ON a.id = g.agent_id
+         WHERE g.id = $1`,
+        [request.params.goalId],
+      );
+      if (!goal) return reply.code(404).send({ error: 'Goal not found' });
+      return { goal };
+    },
+  );
+
+  // ------------------------------------------
+  // FLAT PROMPT REVISIONS (fleet-wide)
+  // ------------------------------------------
+
+  app.get(
+    '/api/v1/admin/prompt-revisions',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { status = 'pending', limit = '50' } = request.query as {
+        status?: string; limit?: string;
+      };
+
+      const limitNum = Math.min(parseInt(limit, 10) || 50, 200);
+
+      const revisions = await query<{
+        id: string; agent_id: string; agent_name: string; reasoning: string;
+        correction_patterns_used: string[]; status: string;
+        approved_by: string | null; created_at: string;
+      }>(
+        `SELECT r.id, r.agent_id, a.name AS agent_name, r.reasoning,
+                r.correction_patterns_used, r.status, r.approved_by, r.created_at
+         FROM forge_prompt_revisions r
+         LEFT JOIN forge_agents a ON a.id = r.agent_id
+         WHERE r.status = $1
+         ORDER BY r.created_at DESC
+         LIMIT ${limitNum}`,
+        [status],
+      );
+
+      return { revisions, total: revisions.length };
+    },
+  );
+
+  // ------------------------------------------
   // METABOLIC STATUS
   // ------------------------------------------
 
