@@ -56,6 +56,8 @@ import { feedbackOps } from '../tools/built-in/feedback-ops.js';
 import { eventQuery } from '../tools/built-in/event-query.js';
 import { agentChat } from '../tools/built-in/agent-chat.js';
 import { auditInspect } from '../tools/built-in/audit-inspect.js';
+import { checkpointOps } from '../tools/built-in/checkpoint-ops.js';
+import { contextOps } from '../tools/built-in/context-ops.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -1032,6 +1034,63 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => auditInspect(input as unknown as Parameters<typeof auditInspect>[0]),
+  });
+
+  reg.register({
+    name: 'checkpoint_ops',
+    displayName: 'Checkpoint Ops',
+    description: 'Human-in-the-loop checkpoints: create approval/review/input requests to pause for human response, list pending checkpoints, respond to checkpoints (high autonomy), and check checkpoint status.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'list', 'respond', 'get'],
+          description: 'create: request human approval/review/input. list: pending checkpoints. respond: answer a checkpoint (autonomy >= 4). get: check status.',
+        },
+        type: { type: 'string', enum: ['approval', 'review', 'input', 'confirmation'], description: 'Checkpoint type (for create)' },
+        title: { type: 'string', description: 'Brief title for the checkpoint (for create)' },
+        description: { type: 'string', description: 'Detailed description of what is needed (for create)' },
+        context: { type: 'object', description: 'Additional context data (for create)' },
+        timeout_minutes: { type: 'number', description: 'Timeout in minutes (for create, default 60)' },
+        checkpoint_id: { type: 'string', description: 'Checkpoint ID (for respond, get)' },
+        response: { type: 'object', description: 'Response data (for respond)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => checkpointOps(input as unknown as Parameters<typeof checkpointOps>[0]),
+  });
+
+  reg.register({
+    name: 'context_ops',
+    displayName: 'Context Ops',
+    description: 'Redis-backed shared context for multi-agent coordination: read/write session state, accumulate results in lists, list keys, and create/retrieve agent-to-agent handoffs.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['set', 'get', 'append', 'list_keys', 'handoff', 'get_handoff'],
+          description: 'set: write value. get: read value. append: add to list. list_keys: see all keys. handoff: create agent handoff. get_handoff: retrieve handoff.',
+        },
+        session_id: { type: 'string', description: 'Coordination session ID' },
+        key: { type: 'string', description: 'Context key (for set, get, append)' },
+        value: { description: 'Value to store (for set, append)' },
+        to_agent_id: { type: 'string', description: 'Target agent ID (for handoff)' },
+        task: { type: 'string', description: 'Task description (for handoff)' },
+        progress: { type: 'string', description: 'Current progress summary (for handoff)' },
+        artifacts: { type: 'array', items: { type: 'string' }, description: 'Artifact references (for handoff)' },
+        notes: { type: 'string', description: 'Additional notes (for handoff)' },
+        handoff_id: { type: 'string', description: 'Handoff ID (for get_handoff)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => contextOps(input as unknown as Parameters<typeof contextOps>[0]),
   });
 }
 
