@@ -5,9 +5,11 @@
  */
 
 import { query } from '../database.js';
+import { substrateQuery } from '../database.js';
 import { processUnprocessedFeedback } from '../learning/feedback-processor.js';
-import { proposeAllRevisions } from '../learning/prompt-rewriter.js';
-import { proposeAllGoals } from '../orchestration/goal-proposer.js';
+import { proposeAllRevisions, applyPromptRevision } from '../learning/prompt-rewriter.js';
+import { proposeAllGoals, approveGoal } from '../orchestration/goal-proposer.js';
+import { selectOptimalModel } from '../orchestration/cost-router.js';
 
 // ============================================
 // Cycle Status Tracking
@@ -69,6 +71,7 @@ let promoteTimer: ReturnType<typeof setInterval> | null = null;
 let feedbackTimer: ReturnType<typeof setInterval> | null = null;
 let promptRewriteTimer: ReturnType<typeof setInterval> | null = null;
 let goalProposalTimer: ReturnType<typeof setInterval> | null = null;
+let autonomyLoopTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Start all metabolic cycles on intervals.
@@ -82,6 +85,7 @@ export function startMetabolicCycles(): void {
   initCycleStatus('feedback', 0.5);
   initCycleStatus('prompt-rewrite', 6);
   initCycleStatus('goal-proposal', 8);
+  initCycleStatus('autonomy-loop', 0.25);
 
   // Run initial cycles 5 minutes after startup
   setTimeout(() => {
@@ -119,7 +123,18 @@ export function startMetabolicCycles(): void {
     void proposeAllGoals().catch(logErr('goal-proposal'));
   }, 8 * 60 * 60 * 1000);
 
-  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), goals(8h)');
+  // Autonomy loop: every 15 minutes (Level 4)
+  // Auto-approves goals, converts to tickets, applies prompt revisions, optimizes models
+  autonomyLoopTimer = setInterval(() => {
+    void runAutonomyLoop().catch(logErr('autonomy-loop'));
+  }, 15 * 60 * 1000);
+
+  // Run autonomy loop 2 min after startup
+  setTimeout(() => {
+    void runAutonomyLoop().catch(logErr('autonomy-loop'));
+  }, 2 * 60 * 1000);
+
+  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), goals(8h), autonomy(15m)');
 }
 
 /**
@@ -132,12 +147,14 @@ export function stopMetabolicCycles(): void {
   if (feedbackTimer) clearInterval(feedbackTimer);
   if (promptRewriteTimer) clearInterval(promptRewriteTimer);
   if (goalProposalTimer) clearInterval(goalProposalTimer);
+  if (autonomyLoopTimer) clearInterval(autonomyLoopTimer);
   decayTimer = null;
   lessonsTimer = null;
   promoteTimer = null;
   feedbackTimer = null;
   promptRewriteTimer = null;
   goalProposalTimer = null;
+  autonomyLoopTimer = null;
 }
 
 // --------------------------------------------------------------------------
@@ -280,6 +297,169 @@ async function runPromoteCycle(): Promise<void> {
     `[Metabolic] Promote cycle: ${result.proceduralBoosted} procedural boosted, ` +
     `${result.semanticBoosted} semantic boosted — ${elapsed}ms`,
   );
+}
+
+// --------------------------------------------------------------------------
+// Autonomy Loop (Level 4) — self-governance for high-autonomy agents
+// --------------------------------------------------------------------------
+
+async function runAutonomyLoop(): Promise<void> {
+  const start = Date.now();
+  let goalsApproved = 0;
+  let goalsTicketed = 0;
+  let promptsApplied = 0;
+  let modelsOptimized = 0;
+
+  // Step 1: Auto-approve goals for high-autonomy agents (autonomy >= 4)
+  try {
+    const proposedGoals = await query<{ id: string; agent_id: string; title: string; agent_name: string }>(
+      `SELECT g.id, g.agent_id, g.title, a.name AS agent_name
+       FROM forge_agent_goals g
+       JOIN forge_agents a ON g.agent_id = a.id
+       WHERE g.status = 'proposed' AND a.autonomy_level >= 4
+       LIMIT 10`,
+    );
+
+    for (const goal of proposedGoals) {
+      const approved = await approveGoal(goal.id, 'system:autonomy');
+      if (approved) {
+        goalsApproved++;
+        console.log(`[Autonomy] Auto-approved goal "${goal.title}" for ${goal.agent_name}`);
+      }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Goal auto-approval error:', err instanceof Error ? err.message : err);
+  }
+
+  // Step 2: Convert approved goals to tickets (all agents, not just high-autonomy)
+  try {
+    const approvedGoals = await query<{
+      id: string; agent_id: string; title: string; description: string;
+      priority: string; agent_name: string;
+    }>(
+      `SELECT g.id, g.agent_id, g.title, g.description, g.priority, a.name AS agent_name
+       FROM forge_agent_goals g
+       JOIN forge_agents a ON g.agent_id = a.id
+       WHERE g.status = 'approved'
+       LIMIT 10`,
+    );
+
+    for (const goal of approvedGoals) {
+      // Check if ticket already exists for this goal
+      const existing = await substrateQuery<{ id: string }>(
+        `SELECT id FROM agent_tickets
+         WHERE metadata->>'goal_id' = $1 AND status IN ('open', 'in_progress')
+         LIMIT 1`,
+        [goal.id],
+      );
+      if (existing.length > 0) continue;
+
+      const ticketId = `GOAL-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+      const priority = goal.priority === 'critical' ? 'urgent' : goal.priority === 'high' ? 'high' : 'medium';
+
+      await substrateQuery(
+        `INSERT INTO agent_tickets
+         (id, title, description, status, priority, category, created_by, assigned_to,
+          agent_id, agent_name, is_agent_ticket, source, metadata)
+         VALUES ($1, $2, $3, 'open', $4, 'goal', 'system:autonomy', $5,
+          $6, $7, true, 'agent', $8)`,
+        [
+          ticketId,
+          `[GOAL] ${goal.title}`,
+          goal.description,
+          priority,
+          goal.agent_name,
+          goal.agent_id,
+          goal.agent_name,
+          JSON.stringify({ goal_id: goal.id, auto_created: true }),
+        ],
+      );
+
+      // Mark goal as in_progress
+      await query(
+        `UPDATE forge_agent_goals SET status = 'in_progress' WHERE id = $1`,
+        [goal.id],
+      );
+
+      goalsTicketed++;
+      console.log(`[Autonomy] Created ticket for goal "${goal.title}" → assigned to ${goal.agent_name}`);
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Goal→ticket conversion error:', err instanceof Error ? err.message : err);
+  }
+
+  // Step 3: Auto-apply prompt revisions for high-autonomy agents (autonomy >= 4)
+  try {
+    const pendingRevisions = await query<{ id: string; agent_id: string; agent_name: string }>(
+      `SELECT r.id, r.agent_id, a.name AS agent_name
+       FROM forge_prompt_revisions r
+       JOIN forge_agents a ON r.agent_id = a.id
+       WHERE r.status = 'pending' AND a.autonomy_level >= 4
+       LIMIT 5`,
+    );
+
+    for (const rev of pendingRevisions) {
+      const applied = await applyPromptRevision(rev.id, 'system:autonomy');
+      if (applied) {
+        promptsApplied++;
+        console.log(`[Autonomy] Auto-applied prompt revision for ${rev.agent_name}`);
+      }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Prompt auto-apply error:', err instanceof Error ? err.message : err);
+  }
+
+  // Step 4: Auto-optimize model selection for agents with autonomy >= 3
+  try {
+    const agents = await query<{
+      id: string; name: string; model_id: string; autonomy_level: number;
+    }>(
+      `SELECT id, name, model_id, autonomy_level FROM forge_agents
+       WHERE status = 'active' AND autonomy_level >= 3
+         AND (is_decommissioned IS NULL OR is_decommissioned = false)`,
+    );
+
+    for (const agent of agents) {
+      // Get agent's primary capability (highest proficiency)
+      const cap = await query<{ capability: string }>(
+        `SELECT capability FROM forge_agent_capabilities
+         WHERE agent_id = $1 ORDER BY proficiency DESC LIMIT 1`,
+        [agent.id],
+      );
+      if (cap.length === 0) continue;
+
+      const recommendation = await selectOptimalModel(cap[0]!.capability, 0.7);
+      if (recommendation.modelId !== agent.model_id && !recommendation.reason.includes('default')) {
+        // Verify the recommendation has enough samples
+        const profile = await query<{ sample_count: string }>(
+          `SELECT sample_count::text FROM forge_cost_profiles
+           WHERE capability = $1 AND model_id = $2`,
+          [cap[0]!.capability, recommendation.modelId],
+        );
+        if (parseInt(profile[0]?.sample_count ?? '0') < 5) continue;
+
+        await query(
+          `UPDATE forge_agents SET model_id = $1, updated_at = NOW() WHERE id = $2`,
+          [recommendation.modelId, agent.id],
+        );
+        modelsOptimized++;
+        console.log(`[Autonomy] Switched ${agent.name} from ${agent.model_id} to ${recommendation.modelId} (${recommendation.reason})`);
+      }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Cost optimization error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized;
+  if (total > 0) {
+    console.log(
+      `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
+      `${promptsApplied} prompts applied, ${modelsOptimized} models optimized — ${elapsed}ms`,
+    );
+  }
 }
 
 // --------------------------------------------------------------------------

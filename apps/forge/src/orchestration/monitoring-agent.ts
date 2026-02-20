@@ -5,6 +5,7 @@
  */
 
 import { query } from '../database.js';
+import { substrateQuery } from '../database.js';
 import { getEventBus } from './event-bus.js';
 
 export interface HealthReport {
@@ -30,6 +31,63 @@ interface Alert {
 }
 
 let lastReport: HealthReport | null = null;
+
+/** Map alert metrics to the agent responsible for handling them */
+const ALERT_ASSIGNMENT: Record<string, string> = {
+  execution_failure_rate: 'Overseer',
+  stuck_executions: 'DevOps',
+  hourly_cost: 'Overseer',
+  agents_in_error: 'DevOps',
+};
+
+/**
+ * Create a ticket from a monitoring alert (with deduplication).
+ * Only creates if no open/in_progress ticket exists for the same metric.
+ */
+async function createAlertTicket(alert: Alert): Promise<void> {
+  try {
+    // Deduplicate: skip if open ticket already exists for this metric
+    const existing = await substrateQuery<{ id: string }>(
+      `SELECT id FROM agent_tickets
+       WHERE metadata->>'alert_metric' = $1
+         AND status IN ('open', 'in_progress')
+       LIMIT 1`,
+      [alert.metric],
+    );
+    if (existing.length > 0) return;
+
+    const id = `MON-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+    const assignedTo = ALERT_ASSIGNMENT[alert.metric] || 'Overseer';
+    const priority = alert.severity === 'critical' ? 'urgent' : 'high';
+
+    await substrateQuery(
+      `INSERT INTO agent_tickets
+       (id, title, description, status, priority, category, created_by, assigned_to,
+        is_agent_ticket, source, metadata)
+       VALUES ($1, $2, $3, 'open', $4, 'monitoring', 'system:monitor', $5,
+        true, 'agent', $6)`,
+      [
+        id,
+        `[${alert.severity.toUpperCase()}] ${alert.metric}: ${alert.message}`,
+        `Monitoring alert detected at ${new Date().toISOString()}.\n\nMetric: ${alert.metric}\nValue: ${alert.value}\nThreshold: ${alert.threshold}\nSeverity: ${alert.severity}\n\nInvestigate and resolve the underlying issue.`,
+        priority,
+        assignedTo,
+        JSON.stringify({ alert_metric: alert.metric, alert_severity: alert.severity, auto_created: true }),
+      ],
+    );
+
+    // Audit trail
+    await substrateQuery(
+      `INSERT INTO agent_audit_log (entity_type, entity_id, action, actor, old_value, new_value)
+       VALUES ('ticket', $1, 'created', 'system:monitor', '{}', $2)`,
+      [id, JSON.stringify({ title: alert.message, priority, assigned_to: assignedTo })],
+    ).catch(() => {});
+
+    console.log(`[Monitor] Auto-created ticket ${id} for ${alert.metric} → assigned to ${assignedTo}`);
+  } catch (err) {
+    console.warn(`[Monitor] Failed to create alert ticket for ${alert.metric}:`, err instanceof Error ? err.message : err);
+  }
+}
 
 /**
  * Run a full health check across all monitored systems.
@@ -172,7 +230,7 @@ export async function runHealthCheck(): Promise<HealthReport> {
 
   lastReport = report;
 
-  // Emit alerts via event bus
+  // Emit alerts via event bus + auto-create tickets
   if (alerts.length > 0) {
     const eventBus = getEventBus();
     for (const alert of alerts) {
@@ -181,6 +239,9 @@ export async function runHealthCheck(): Promise<HealthReport> {
         severity: alert.severity,
         message: alert.message,
       }).catch(() => {});
+
+      // Level 4: Auto-create tickets for alerts so agents can pick them up
+      void createAlertTicket(alert).catch(() => {});
     }
   }
 
