@@ -13,6 +13,8 @@ import { selectOptimalModel } from '../orchestration/cost-router.js';
 import { getMemoryManager } from './singleton.js';
 import { healStuckExecutions } from '../orchestration/monitoring-agent.js';
 import { promoteVariant } from '../orchestration/evolution.js';
+import { orchestrateFromNL } from '../orchestration/nl-orchestrator.js';
+import { shouldDecompose } from '../orchestration/task-decomposer.js';
 
 // ============================================
 // Cycle Status Tracking
@@ -788,17 +790,74 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Auto-evolution error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved });
+  // ------------------------------------------------------------------
+  // Step 9: Auto-orchestrate complex approved goals (Level 10)
+  // ------------------------------------------------------------------
+  let autoOrchestrated = 0;
+  const MAX_AUTO_ORCHESTRATIONS = 2;
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved;
+  try {
+    // Find approved goals that are complex enough to decompose
+    const approvedGoals = await query<{
+      id: string;
+      agent_id: string;
+      description: string;
+      metadata: Record<string, unknown> | null;
+    }>(
+      `SELECT g.id, g.agent_id, g.description, g.metadata
+       FROM forge_agent_goals g
+       JOIN forge_agents a ON a.id = g.agent_id
+       WHERE g.status = 'approved'
+         AND a.autonomy_level >= 4
+         AND (a.is_decommissioned IS NULL OR a.is_decommissioned = false)
+         AND (g.metadata IS NULL OR g.metadata->>'orchestration_session_id' IS NULL)
+       ORDER BY g.created_at ASC
+       LIMIT 5`,
+    );
+
+    for (const goal of approvedGoals) {
+      if (autoOrchestrated >= MAX_AUTO_ORCHESTRATIONS) break;
+
+      // Check if task is complex enough to warrant orchestration
+      if (!shouldDecompose(goal.description)) continue;
+
+      try {
+        const result = await orchestrateFromNL({
+          instruction: goal.description,
+          ownerId: goal.agent_id,
+          maxAgents: 4,
+          autoApprove: true,
+        });
+
+        // Mark goal as in_progress with session reference
+        await query(
+          `UPDATE forge_agent_goals
+           SET status = 'in_progress',
+               metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('orchestration_session_id', $1::text, 'orchestrated_at', NOW()::text),
+               updated_at = NOW()
+           WHERE id = $2`,
+          [result.sessionId, goal.id],
+        );
+
+        autoOrchestrated++;
+        console.log(`[Autonomy] Auto-orchestrated goal "${goal.description.substring(0, 60)}..." → session ${result.sessionId} (${result.totalTasks} tasks)`);
+      } catch { /* non-fatal */ }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Auto-orchestration error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
       `${promptsApplied} prompts applied, ${modelsOptimized} models optimized, ` +
       `${agentsDecommissioned} decommissioned, ${agentsFlagged} flagged, ` +
       `${correctionsPromoted} corrections promoted, ${anomaliesDetected} anomalies, ` +
-      `${autoHealed} auto-healed, ${autoEvolved} auto-evolved — ${elapsed}ms`,
+      `${autoHealed} auto-healed, ${autoEvolved} auto-evolved, ${autoOrchestrated} auto-orchestrated — ${elapsed}ms`,
     );
   }
 }
