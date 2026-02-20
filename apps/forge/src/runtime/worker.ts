@@ -48,6 +48,8 @@ import { fleetHealth } from '../tools/built-in/fleet-health.js';
 import { selfHeal } from '../tools/built-in/self-heal.js';
 import { selfImprove } from '../tools/built-in/self-improve.js';
 import { evolutionTest } from '../tools/built-in/evolution-test.js';
+import { workflowOps } from '../tools/built-in/workflow-ops.js';
+import { orchestrate } from '../tools/built-in/orchestrate.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -805,6 +807,71 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => evolutionTest(input as unknown as Parameters<typeof evolutionTest>[0]),
+  });
+
+  reg.register({
+    name: 'workflow_ops',
+    displayName: 'Workflow Ops',
+    description: 'Structured multi-agent coordination: decompose complex tasks into subtasks, create DAG-based coordination plans, execute across the fleet, monitor plan health, and recover from task failures.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['decompose', 'create_plan', 'execute_plan', 'plan_status', 'recover'],
+          description: 'decompose: break task into subtasks. create_plan: build coordination plan. execute_plan: dispatch tasks to agents. plan_status: check plan health. recover: handle failed tasks.',
+        },
+        task_description: { type: 'string', description: 'Complex task to decompose (for decompose)' },
+        title: { type: 'string', description: 'Plan title (for create_plan)' },
+        pattern: { type: 'string', enum: ['pipeline', 'fan-out', 'consensus'], description: 'Coordination pattern (for create_plan, default: pipeline)' },
+        tasks: {
+          type: 'array',
+          description: 'Array of tasks with title, description, agent_name, dependencies (for create_plan)',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+              agent_name: { type: 'string' },
+              dependencies: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['title', 'description', 'agent_name'],
+          },
+        },
+        plan_id: { type: 'string', description: 'Plan ID (for execute_plan, plan_status, recover)' },
+        task_id: { type: 'string', description: 'Failed task ID within a plan (for recover)' },
+        retry_count: { type: 'number', description: 'Number of retries already attempted (for recover, default: 0)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => workflowOps(input as unknown as Parameters<typeof workflowOps>[0]),
+  });
+
+  reg.register({
+    name: 'orchestrate',
+    displayName: 'Orchestrate',
+    description: 'Natural language orchestration: give a plain English instruction and the system automatically decomposes it, matches the best agents, and executes across the fleet. Monitor progress with status checks.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['run', 'status'],
+          description: 'run: start orchestration from a natural language instruction. status: check progress of an orchestration session.',
+        },
+        instruction: { type: 'string', description: 'Plain English instruction describing work to be done (for run)' },
+        max_agents: { type: 'number', description: 'Maximum number of agents to assign (for run, default: 5)' },
+        session_id: { type: 'string', description: 'Orchestration session ID (for status)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => orchestrate(input as unknown as Parameters<typeof orchestrate>[0]),
   });
 }
 
