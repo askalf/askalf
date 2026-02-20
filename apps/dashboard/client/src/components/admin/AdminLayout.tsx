@@ -19,13 +19,6 @@ const getOtherNavSections = (role: string) => {
           { path: '/ask-alf/integrations', label: 'Integrations', icon: 'I' },
         ],
       },
-      {
-        section: 'Self',
-        items: [
-          { path: '/self', label: 'Chat', icon: 'S' },
-          { path: '/integrations', label: 'Integrations', icon: 'I' },
-        ],
-      },
     );
   }
 
