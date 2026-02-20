@@ -7,11 +7,12 @@
 import { query } from '../database.js';
 import { substrateQuery } from '../database.js';
 import { processUnprocessedFeedback } from '../learning/feedback-processor.js';
-import { proposeAllRevisions, applyPromptRevision } from '../learning/prompt-rewriter.js';
+import { proposeAllRevisions, applyPromptRevision, proposePromptRevision } from '../learning/prompt-rewriter.js';
 import { proposeAllGoals, approveGoal } from '../orchestration/goal-proposer.js';
 import { selectOptimalModel } from '../orchestration/cost-router.js';
 import { getMemoryManager } from './singleton.js';
 import { healStuckExecutions } from '../orchestration/monitoring-agent.js';
+import { promoteVariant } from '../orchestration/evolution.js';
 
 // ============================================
 // Cycle Status Tracking
@@ -713,16 +714,91 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Anomaly detection error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed });
+  // Step 8: Auto-evolution for top performers (Level 9 — Vibe Evolution)
+  let autoEvolved = 0;
+  try {
+    const MAX_AUTO_EVOLUTIONS = 3;
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected;
+    // Find top-performing agents eligible for auto-evolution
+    const topAgents = await query<{
+      id: string; name: string; autonomy_level: number;
+      tasks_completed: string; tasks_failed: string;
+    }>(
+      `SELECT id, name, autonomy_level,
+              COALESCE(tasks_completed, 0)::text AS tasks_completed,
+              COALESCE(tasks_failed, 0)::text AS tasks_failed
+       FROM forge_agents
+       WHERE status = 'active'
+         AND autonomy_level >= 4
+         AND (is_decommissioned IS NULL OR is_decommissioned = false)
+         AND COALESCE(tasks_completed, 0) >= 20
+         AND COALESCE(tasks_completed, 0)::float /
+             GREATEST(COALESCE(tasks_completed, 0) + COALESCE(tasks_failed, 0), 1)::float >= 0.8`,
+    );
+
+    for (const agent of topAgents) {
+      if (autoEvolved >= MAX_AUTO_EVOLUTIONS) break;
+
+      // Check for pending prompt revisions — auto-propose if none exist
+      const pendingRevisions = await query<{ id: string }>(
+        `SELECT id FROM forge_prompt_revisions
+         WHERE agent_id = $1 AND status = 'pending'
+         LIMIT 1`,
+        [agent.id],
+      );
+
+      if (pendingRevisions.length === 0) {
+        // Try to propose a revision based on correction patterns
+        try {
+          const revision = await proposePromptRevision(agent.id);
+          if (revision) {
+            autoEvolved++;
+            console.log(`[Autonomy] Auto-proposed prompt revision for ${agent.name}`);
+          }
+        } catch { /* non-fatal — may fail if no correction patterns */ }
+      }
+
+      // Check for completed experiments with winning variants — auto-promote
+      const winningExperiments = await query<{
+        id: string; variant_score: number; parent_score: number;
+      }>(
+        `SELECT id, variant_score, parent_score
+         FROM forge_evolution_experiments
+         WHERE parent_agent_id = $1
+           AND status = 'completed'
+           AND winner = 'variant'
+           AND variant_score - parent_score >= 5
+         ORDER BY completed_at DESC
+         LIMIT 1`,
+        [agent.id],
+      );
+
+      for (const exp of winningExperiments) {
+        if (autoEvolved >= MAX_AUTO_EVOLUTIONS) break;
+        try {
+          const promoted = await promoteVariant(exp.id);
+          if (promoted) {
+            autoEvolved++;
+            console.log(`[Autonomy] Auto-promoted winning variant for ${agent.name} (score: ${exp.variant_score} vs ${exp.parent_score})`);
+          }
+        } catch { /* non-fatal */ }
+      }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Auto-evolution error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
       `${promptsApplied} prompts applied, ${modelsOptimized} models optimized, ` +
       `${agentsDecommissioned} decommissioned, ${agentsFlagged} flagged, ` +
-      `${correctionsPromoted} corrections promoted, ${anomaliesDetected} anomalies, ${autoHealed} auto-healed — ${elapsed}ms`,
+      `${correctionsPromoted} corrections promoted, ${anomaliesDetected} anomalies, ` +
+      `${autoHealed} auto-healed, ${autoEvolved} auto-evolved — ${elapsed}ms`,
     );
   }
 }
