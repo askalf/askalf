@@ -44,6 +44,8 @@ import { agentCall, type AgentCallInput } from '../tools/built-in/agent-call.js'
 import { memorySearch, type MemorySearchInput } from '../tools/built-in/memory-search.js';
 import { memoryStore, type MemoryStoreInput } from '../tools/built-in/memory-store.js';
 import { knowledgeSearch } from '../tools/built-in/knowledge-search.js';
+import { fleetHealth } from '../tools/built-in/fleet-health.js';
+import { selfHeal } from '../tools/built-in/self-heal.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -704,6 +706,53 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => knowledgeSearch(input as unknown as Parameters<typeof knowledgeSearch>[0]),
+  });
+
+  reg.register({
+    name: 'fleet_health',
+    displayName: 'Fleet Health',
+    description: 'Query fleet health, agent performance rankings, cost summaries, and execution statistics with anomaly detection. Use this to understand how the fleet is performing and identify problems.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['check', 'leaderboard', 'costs', 'execution_stats'],
+          description: 'check: run health check. leaderboard: agent rankings. costs: cost breakdown. execution_stats: per-agent stats + anomaly detection.',
+        },
+        days: { type: 'number', description: 'Number of days for cost summary (default 7)' },
+        owner_id: { type: 'string', description: 'Owner ID filter for costs (default system:forge)' },
+        agent_id: { type: 'string', description: 'Filter to specific agent' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => fleetHealth(input as unknown as Parameters<typeof fleetHealth>[0]),
+  });
+
+  reg.register({
+    name: 'self_heal',
+    displayName: 'Self Heal',
+    description: 'Take autonomous corrective actions: heal stuck executions, pause poorly-performing agents, reset circuit breakers, or rebalance workload away from degraded agents.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['heal_stuck', 'pause_agent', 'reset_circuit_breaker', 'rebalance'],
+          description: 'heal_stuck: fix stuck executions. pause_agent: temporarily pause a failing agent. reset_circuit_breaker: reset stuck breaker. rebalance: extend schedule of degraded agent.',
+        },
+        agent_id: { type: 'string', description: 'Target agent ID (for pause_agent)' },
+        reason: { type: 'string', description: 'Reason for pausing (required for pause_agent)' },
+        breaker_name: { type: 'string', description: 'Circuit breaker name (default: provider)' },
+        degraded_agent_id: { type: 'string', description: 'Agent to rebalance away from (for rebalance)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => selfHeal(input as unknown as Parameters<typeof selfHeal>[0]),
   });
 }
 
