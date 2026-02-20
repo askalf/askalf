@@ -10,6 +10,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 export interface ExecutionLocalContext {
   ownerId: string;
   executionId: string;
+  agentId: string;
   depth: number;
 }
 

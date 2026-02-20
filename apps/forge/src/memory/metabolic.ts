@@ -10,6 +10,7 @@ import { processUnprocessedFeedback } from '../learning/feedback-processor.js';
 import { proposeAllRevisions, applyPromptRevision } from '../learning/prompt-rewriter.js';
 import { proposeAllGoals, approveGoal } from '../orchestration/goal-proposer.js';
 import { selectOptimalModel } from '../orchestration/cost-router.js';
+import { getMemoryManager } from './singleton.js';
 
 // ============================================
 // Cycle Status Tracking
@@ -519,15 +520,83 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Decommission check error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged });
+  // Step 6: Promote high-frequency correction patterns to fleet-wide semantic memories (Level 7 — Vibe Memory)
+  let correctionsPromoted = 0;
+  try {
+    const MAX_PROMOTIONS = 5;
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged;
+    // Find correction patterns seen 3+ times that haven't been promoted yet
+    const patterns = await query<{
+      id: string; agent_id: string; description: string; pattern_type: string;
+      frequency: number; confidence: string; embedding: string | null;
+    }>(
+      `SELECT id, agent_id, description, pattern_type, frequency,
+              confidence::text, embedding::text
+       FROM forge_correction_patterns
+       WHERE frequency >= 3
+         AND (examples->0 IS NOT NULL)
+       ORDER BY frequency DESC, confidence DESC
+       LIMIT 20`,
+    );
+
+    for (const pattern of patterns) {
+      if (correctionsPromoted >= MAX_PROMOTIONS) break;
+
+      // Check if a similar memory already exists fleet-wide
+      // Use the pattern's own embedding if available, otherwise skip
+      if (!pattern.embedding) continue;
+
+      const existing = await query<{ similarity: string }>(
+        `SELECT 1 - (embedding <=> $1::vector) AS similarity
+         FROM forge_semantic_memories
+         WHERE 1 - (embedding <=> $1::vector) > 0.85
+         LIMIT 1`,
+        [pattern.embedding],
+      );
+
+      if (existing.length > 0) continue; // Already exists in fleet memory
+
+      // Store as fleet-accessible semantic memory
+      // Use a dedicated "fleet" agent ID so it surfaces in recallFleet() for all agents
+      const content = `[Correction Pattern — ${pattern.pattern_type}] ${pattern.description} (observed ${pattern.frequency} times, confidence: ${pattern.confidence})`;
+
+      try {
+        const mm = getMemoryManager();
+        await mm.store('fleet', {
+          type: 'semantic',
+          ownerId: 'system:correction-promotion',
+          content,
+          options: {
+            source: 'correction-promotion',
+            importance: 0.9,
+            metadata: {
+              correction_pattern_id: pattern.id,
+              original_agent_id: pattern.agent_id,
+              pattern_type: pattern.pattern_type,
+              frequency: pattern.frequency,
+            },
+          },
+        });
+        correctionsPromoted++;
+        console.log(`[Autonomy] Promoted correction "${pattern.description.substring(0, 60)}..." to fleet memory (freq=${pattern.frequency})`);
+      } catch (storeErr) {
+        console.warn('[Autonomy] Failed to promote correction:', storeErr instanceof Error ? storeErr.message : storeErr);
+      }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Correction promotion error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
       `${promptsApplied} prompts applied, ${modelsOptimized} models optimized, ` +
-      `${agentsDecommissioned} decommissioned, ${agentsFlagged} flagged — ${elapsed}ms`,
+      `${agentsDecommissioned} decommissioned, ${agentsFlagged} flagged, ` +
+      `${correctionsPromoted} corrections promoted — ${elapsed}ms`,
     );
   }
 }

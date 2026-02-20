@@ -14,6 +14,8 @@ export interface MemorySearchInput {
   query: string;
   memoryType?: string | undefined;
   limit?: number | undefined;
+  /** Search across all agents' memories (fleet-wide). Default: false (agent-only). */
+  fleet?: boolean | undefined;
 }
 
 /**
@@ -28,6 +30,10 @@ export interface MemoryManagerDep {
     memoryType?: string | undefined;
     limit?: number | undefined;
   }): Promise<MemoryRecallResult>;
+  recallFleet?(
+    query: string,
+    options?: { k?: number },
+  ): Promise<MemoryRecallResult>;
 }
 
 export interface MemoryRecallResult {
@@ -77,12 +83,19 @@ export async function memorySearch(
   const limit = input.limit ?? DEFAULT_LIMIT;
 
   try {
-    const result = await deps.memoryManager.recall({
-      agentId: deps.agentId,
-      query: input.query,
-      memoryType: input.memoryType,
-      limit,
-    });
+    let result: MemoryRecallResult;
+
+    if (input.fleet && deps.memoryManager.recallFleet) {
+      // Fleet-wide search across all agents' memories
+      result = await deps.memoryManager.recallFleet(input.query, { k: limit });
+    } else {
+      result = await deps.memoryManager.recall({
+        agentId: deps.agentId,
+        query: input.query,
+        memoryType: input.memoryType,
+        limit,
+      });
+    }
 
     const durationMs = Math.round(performance.now() - startTime);
 
@@ -90,6 +103,7 @@ export async function memorySearch(
       output: {
         query: input.query,
         memoryType: input.memoryType ?? 'all',
+        fleet: input.fleet ?? false,
         memories: result.memories,
         total: result.total,
         limit,
