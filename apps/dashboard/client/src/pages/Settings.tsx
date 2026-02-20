@@ -2,16 +2,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
-import { useSelfApi, type Credential } from '../hooks/useSelfApi';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'ai-keys' | 'security';
+type SettingsTab = 'profile' | 'appearance' | 'security';
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'profile';
   const [activeTab, setActiveTab] = useState<SettingsTab>(
-    ['profile', 'appearance', 'ai-keys', 'security'].includes(initialTab) ? initialTab : 'profile'
+    ['profile', 'appearance', 'security'].includes(initialTab) ? initialTab : 'profile'
   );
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -54,15 +53,6 @@ export default function SettingsPage() {
             Appearance
           </button>
           <button
-            className={`settings-nav-item ${activeTab === 'ai-keys' ? 'active' : ''}`}
-            onClick={() => setActiveTab('ai-keys')}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-            </svg>
-            AI Keys
-          </button>
-          <button
             className={`settings-nav-item ${activeTab === 'security' ? 'active' : ''}`}
             onClick={() => setActiveTab('security')}
           >
@@ -77,7 +67,6 @@ export default function SettingsPage() {
         <div className="settings-content">
           {activeTab === 'profile' && <ProfileTab user={user} />}
           {activeTab === 'appearance' && <AppearanceTab />}
-          {activeTab === 'ai-keys' && <AIKeysTab />}
           {activeTab === 'security' && <SecurityTab />}
         </div>
       </div>
@@ -308,132 +297,6 @@ function AppearanceTab() {
           </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-const AI_PROVIDERS = [
-  { id: 'claude', name: 'Claude (Anthropic)', placeholder: 'sk-ant-...', color: '#d97706' },
-  { id: 'openai', name: 'OpenAI', placeholder: 'sk-...', color: '#7c3aed' },
-];
-
-function AIKeysTab() {
-  const api = useSelfApi();
-  const [credentials, setCredentials] = useState<Credential[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
-  const [editing, setEditing] = useState<string | null>(null);
-  const [saving, setSaving] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  useEffect(() => {
-    api.fetchCredentials()
-      .then(setCredentials)
-      .catch(() => setMessage({ type: 'error', text: 'Failed to load credentials' }))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const getCred = (provider: string) =>
-    credentials.find((c) => c.provider === provider && c.status === 'active');
-
-  const handleSave = async (provider: string) => {
-    const value = keyInputs[provider]?.trim();
-    if (!value) return;
-    setSaving(provider);
-    setMessage(null);
-    try {
-      const result = await api.saveCredential(provider, 'api_key', value);
-      setCredentials((prev) => {
-        const filtered = prev.filter((c) => c.provider !== provider);
-        return [...filtered, { provider, credential_type: 'api_key', last4: result.last4, status: 'active', created_at: new Date().toISOString() }];
-      });
-      setKeyInputs((prev) => ({ ...prev, [provider]: '' }));
-      setEditing(null);
-      setMessage({ type: 'success', text: `${provider === 'claude' ? 'Claude' : 'OpenAI'} API key saved` });
-    } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save key' });
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  const handleRemove = async (provider: string) => {
-    setMessage(null);
-    try {
-      await api.deleteCredential(provider);
-      setCredentials((prev) => prev.filter((c) => c.provider !== provider));
-      setMessage({ type: 'success', text: 'Key removed' });
-    } catch (err) {
-      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to remove key' });
-    }
-  };
-
-  return (
-    <div className="settings-section">
-      <h2>AI Keys</h2>
-      <p className="settings-section-desc">
-        Add your own API keys for Self. Your key is encrypted at rest and never exposed.
-        If no key is set, the platform key is used.
-      </p>
-
-      {message && (
-        <div className={`settings-message settings-message-${message.type}`}>
-          {message.text}
-        </div>
-      )}
-
-      {loading ? (
-        <p className="settings-field-hint">Loading...</p>
-      ) : (
-        <div className="settings-form">
-          {AI_PROVIDERS.map((p) => {
-            const cred = getCred(p.id);
-            return (
-              <div key={p.id} className="settings-ai-key-card">
-                <div className="settings-ai-key-header">
-                  <span className="settings-ai-key-dot" style={{ background: p.color }} />
-                  <strong>{p.name}</strong>
-                  {cred && <span className="settings-ai-key-active">****{cred.last4}</span>}
-                </div>
-
-                {cred && editing !== p.id ? (
-                  <div className="settings-ai-key-actions">
-                    <button className="settings-ai-key-btn" onClick={() => setEditing(p.id)}>
-                      Replace
-                    </button>
-                    <button className="settings-ai-key-btn settings-ai-key-btn--danger" onClick={() => handleRemove(p.id)}>
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <div className="settings-ai-key-input">
-                    <input
-                      type="password"
-                      placeholder={p.placeholder}
-                      value={keyInputs[p.id] || ''}
-                      onChange={(e) => setKeyInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                      autoFocus={editing === p.id}
-                    />
-                    <button
-                      className="settings-save-btn"
-                      onClick={() => handleSave(p.id)}
-                      disabled={saving === p.id || !keyInputs[p.id]?.trim()}
-                      style={{ margin: 0 }}
-                    >
-                      {saving === p.id ? 'Saving...' : 'Save Key'}
-                    </button>
-                    {editing === p.id && (
-                      <button className="settings-ai-key-btn" onClick={() => setEditing(null)}>
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

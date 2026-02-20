@@ -22,8 +22,6 @@ const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 // Lazy-loaded: app pages
 const AskAlf = lazy(() => import('./pages/AskAlf'));
 const AskAlfIntegrations = lazy(() => import('./pages/AskAlfIntegrations'));
-const Self = lazy(() => import('./pages/Self'));
-const Integrations = lazy(() => import('./pages/Integrations'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
 const Settings = lazy(() => import('./pages/Settings'));
 
@@ -109,9 +107,6 @@ export default function App() {
         <Route path="/ask-alf" element={<SuperAdminRoute><AskAlf /></SuperAdminRoute>} />
         <Route path="/ask-alf/integrations" element={<SuperAdminRoute><AskAlfIntegrations /></SuperAdminRoute>} />
 
-        {/* Self — dev project, super_admin only */}
-        <Route path="/self" element={<SuperAdminRoute><Self /></SuperAdminRoute>} />
-        <Route path="/integrations" element={<SuperAdminRoute><Integrations /></SuperAdminRoute>} />
 
         {/* Forge — agent orchestration */}
         <Route path="/command-center" element={<CommandCenter />} />
