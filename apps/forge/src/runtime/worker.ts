@@ -46,6 +46,8 @@ import { memoryStore, type MemoryStoreInput } from '../tools/built-in/memory-sto
 import { knowledgeSearch } from '../tools/built-in/knowledge-search.js';
 import { fleetHealth } from '../tools/built-in/fleet-health.js';
 import { selfHeal } from '../tools/built-in/self-heal.js';
+import { selfImprove } from '../tools/built-in/self-improve.js';
+import { evolutionTest } from '../tools/built-in/evolution-test.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -753,6 +755,56 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => selfHeal(input as unknown as Parameters<typeof selfHeal>[0]),
+  });
+
+  reg.register({
+    name: 'self_improve',
+    displayName: 'Self Improve',
+    description: 'Propose and apply prompt revisions based on correction patterns, review revision history, and analyze your capabilities with fleet comparison. Use this to actively improve your own performance.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['propose_revision', 'list_revisions', 'apply_revision', 'analyze_capabilities'],
+          description: 'propose_revision: generate prompt improvements. list_revisions: see revision history. apply_revision: apply an approved revision. analyze_capabilities: see your skills vs fleet.',
+        },
+        revision_id: { type: 'string', description: 'Revision ID (for apply_revision)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => selfImprove(input as unknown as Parameters<typeof selfImprove>[0]),
+  });
+
+  reg.register({
+    name: 'evolution_test',
+    displayName: 'Evolution Test',
+    description: 'A/B test agent variations: clone yourself with mutations (prompt, model, tools), run head-to-head tests, review results, and promote winning variants.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['clone', 'run_test', 'results', 'promote'],
+          description: 'clone: create a variant. run_test: A/B test parent vs variant. results: see experiment history. promote: apply winning variant config to parent.',
+        },
+        mutation_type: { type: 'string', enum: ['prompt', 'tools', 'model', 'config', 'combined'], description: 'Type of mutation (for clone)' },
+        mutation_description: { type: 'string', description: 'Description of what changed (for clone)' },
+        prompt_override: { type: 'string', description: 'New system prompt (for clone with prompt mutation)' },
+        model_override: { type: 'string', description: 'New model ID (for clone with model mutation)' },
+        variant_id: { type: 'string', description: 'Variant agent ID (for run_test)' },
+        test_task: { type: 'string', description: 'Task to test both agents on (for run_test)' },
+        experiment_id: { type: 'string', description: 'Experiment ID (for promote)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => evolutionTest(input as unknown as Parameters<typeof evolutionTest>[0]),
   });
 }
 
