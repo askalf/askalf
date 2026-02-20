@@ -18,6 +18,7 @@ import { loadConfig } from './config.js';
 import { conversationRoutes } from './routes/conversations.js';
 import { connectionRoutes } from './routes/connections.js';
 import { credentialRoutes } from './routes/credentials.js';
+import { initializeSelfEngine } from './self/engine.js';
 
 const app = Fastify({
   logger: true,
@@ -142,6 +143,10 @@ async function start(): Promise<void> {
 
   initializeSubstrateDatabase(config.substrateDatabaseUrl);
   console.log('[Self] Substrate database connection initialized');
+
+  // Initialize CLI engine (setup OAuth credentials, MCP config, token refresh)
+  await initializeSelfEngine();
+  console.log('[Self] CLI engine initialized');
 
   try {
     await app.listen({ port: config.port, host: '0.0.0.0' });

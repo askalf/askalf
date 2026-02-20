@@ -320,12 +320,15 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3006
+      HOME: /tmp/claude-home
       SELF_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/self
       SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET: ${JWT_SECRET}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+    volumes:
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:rw
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -349,7 +352,7 @@ services:
       - ALL
     read_only: true
     tmpfs:
-      - /tmp:mode=1777,size=256m
+      - /tmp:mode=1777,size=512m
     logging:
       driver: "json-file"
       options:
@@ -358,11 +361,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 384M
+          cpus: '1.0'
+          memory: 768M
         reservations:
-          cpus: '0.1'
-          memory: 128M
+          cpus: '0.2'
+          memory: 256M
 
   # Ask Alf — Universal Chat Service
   askalf:
