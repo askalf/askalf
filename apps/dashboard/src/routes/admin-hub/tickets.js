@@ -1,5 +1,5 @@
 // Ticket CRUD, ticket notes, audit trail
-import { callForge, ulid, paginationResponse } from './utils.js';
+import { callForge, callForgeAdmin, ulid, paginationResponse } from './utils.js';
 
 export async function registerTicketRoutes(fastify, requireAdmin, query, queryOne) {
 
@@ -57,7 +57,7 @@ export async function registerTicketRoutes(fastify, requireAdmin, query, queryOn
     // Enrich tickets that have task_id with linked task info
     for (const ticket of tickets) {
       if (ticket.task_id) {
-        const taskRes = await callForge(`/executions/${ticket.task_id}`);
+        const taskRes = await callForgeAdmin(`/executions/${ticket.task_id}`);
         if (!taskRes.error && taskRes.execution) {
           ticket.task = {
             id: taskRes.execution.id,

@@ -1,5 +1,5 @@
 // Task (execution) endpoints
-import { callForge, transformExecution, mapAgentType, paginationResponse } from './utils.js';
+import { callForgeAdmin, transformExecution, mapAgentType, paginationResponse } from './utils.js';
 
 export async function registerTaskRoutes(fastify, requireAdmin, query, queryOne) {
 
@@ -16,8 +16,8 @@ export async function registerTaskRoutes(fastify, requireAdmin, query, queryOne)
     if (agent_id) queryParams.set('agentId', agent_id);
 
     const [execsRes, agentsRes] = await Promise.all([
-      callForge(`/executions?${queryParams.toString()}`),
-      callForge('/agents?limit=100'),
+      callForgeAdmin(`/executions?${queryParams.toString()}`),
+      callForgeAdmin('/agents'),
     ]);
 
     if (execsRes.error) {
@@ -26,7 +26,7 @@ export async function registerTaskRoutes(fastify, requireAdmin, query, queryOne)
 
     const agentMap = {};
     for (const a of (agentsRes.agents || [])) {
-      agentMap[a.id] = { name: a.name, type: mapAgentType(a.metadata) };
+      agentMap[a.id] = { name: a.name, type: a.type || mapAgentType(a.metadata) };
     }
 
     const tasks = (execsRes.executions || []).map(exec => {
@@ -51,13 +51,13 @@ export async function registerTaskRoutes(fastify, requireAdmin, query, queryOne)
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
-    const execsRes = await callForge('/executions?limit=100');
+    const execsRes = await callForgeAdmin('/executions?limit=100');
     const executions = execsRes.error ? [] : (execsRes.executions || []);
 
-    const agentsRes = await callForge('/agents?limit=100');
+    const agentsRes = await callForgeAdmin('/agents');
     const agentMap = {};
     for (const a of (agentsRes.agents || [])) {
-      agentMap[a.id] = { name: a.name, type: mapAgentType(a.metadata) };
+      agentMap[a.id] = { name: a.name, type: a.type || mapAgentType(a.metadata) };
     }
 
     const total = executions.length;
@@ -108,16 +108,16 @@ export async function registerTaskRoutes(fastify, requireAdmin, query, queryOne)
     if (!admin) return { error: 'Admin access required' };
 
     const { id } = request.params;
-    const execRes = await callForge(`/executions/${id}`);
+    const execRes = await callForgeAdmin(`/executions/${id}`);
 
     if (execRes.error) {
       return reply.code(execRes.status || 404).send({ error: 'Task not found' });
     }
 
     const exec = execRes.execution;
-    const agentRes = await callForge(`/agents/${exec.agent_id}`);
+    const agentRes = await callForgeAdmin(`/agents/${exec.agent_id}`);
     const agentName = agentRes.agent?.name || 'Unknown';
-    const agentType = mapAgentType(agentRes.agent?.metadata);
+    const agentType = agentRes.agent?.type || mapAgentType(agentRes.agent?.metadata);
 
     const interventions = await query(
       `SELECT * FROM agent_interventions WHERE task_id = $1 ORDER BY created_at DESC`,
@@ -154,7 +154,7 @@ export async function registerTaskRoutes(fastify, requireAdmin, query, queryOne)
     }
 
     // Check for child tasks (executions triggered by this execution)
-    const childExecsRes = await callForge(`/executions?limit=20`);
+    const childExecsRes = await callForgeAdmin(`/executions?limit=20`);
     const childTasks = [];
     if (!childExecsRes.error) {
       for (const ce of (childExecsRes.executions || [])) {

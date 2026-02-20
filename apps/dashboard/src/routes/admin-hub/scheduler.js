@@ -1,5 +1,5 @@
 // Scheduler daemon, scheduler status/control, schedule CRUD, intervention auto-handler, data retention
-import { callForge, callForgeAdmin, schedulerPausedTenants } from './utils.js';
+import { callForgeAdmin, schedulerPausedTenants } from './utils.js';
 
 export async function registerSchedulerRoutes(fastify, requireAdmin, query, queryOne) {
 
@@ -17,7 +17,7 @@ export async function registerSchedulerRoutes(fastify, requireAdmin, query, quer
     );
 
     // Look up agent names from Forge
-    const agentsRes = await callForge('/agents?limit=100');
+    const agentsRes = await callForgeAdmin('/agents');
     const agentNameMap = {};
     if (!agentsRes.error) {
       for (const a of (agentsRes.agents || [])) {
@@ -153,12 +153,12 @@ export async function registerSchedulerRoutes(fastify, requireAdmin, query, quer
           continue;
         }
 
-        // Escalation/error interventions older than 60 min — create a ticket for Overseer
+        // Escalation/error interventions older than 60 min — create a ticket for Nexus
         if ((intervention.type === 'escalation' || intervention.type === 'error') && ageMinutes > 60) {
           try {
             await query(
               `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, is_agent_ticket, source, metadata)
-               VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Overseer', true, 'agent', $4)
+               VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Nexus', true, 'agent', $4)
                ON CONFLICT DO NOTHING`,
               [
                 'INT-' + intervention.id.substring(0, 20),
@@ -168,11 +168,11 @@ export async function registerSchedulerRoutes(fastify, requireAdmin, query, quer
               ]
             );
             await queryOne(
-              `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Overseer ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
+              `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Nexus ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
               [intervention.id]
             );
           } catch { /* non-fatal */ }
-          console.log(`[Interventions] Escalated to Overseer ticket: ${intervention.title}`);
+          console.log(`[Interventions] Escalated to Nexus ticket: ${intervention.title}`);
           continue;
         }
 
@@ -242,15 +242,16 @@ export async function registerSchedulerRoutes(fastify, requireAdmin, query, quer
 
       for (const schedule of dueAgents) {
         try {
-          const agentRes = await callForge(`/agents/${schedule.agent_id}`);
+          const agentRes = await callForgeAdmin(`/agents/${schedule.agent_id}`);
           if (agentRes.error || !agentRes.agent) {
             console.log(`[Scheduler] Agent ${schedule.agent_id} not found in Forge, skipping`);
             continue;
           }
 
           const agent = agentRes.agent;
-          if (agent.status !== 'active') {
-            console.log(`[Scheduler] Agent ${agent.name} is ${agent.status}, skipping`);
+          // Skip archived/paused agents (raw_status preserved from admin transform)
+          if (agent.is_decommissioned || agent.status === 'paused') {
+            console.log(`[Scheduler] Agent ${agent.name} is ${agent.raw_status || agent.status}, skipping`);
             continue;
           }
 
@@ -290,7 +291,7 @@ Be efficient and concise. Every action you take must be tracked through a ticket
       if (batchAgents.length >= 2) {
         console.log(`[Scheduler] Batching ${batchAgents.length} agents: ${batchAgents.map(a => a.agentName).join(', ')}`);
 
-        const batchRes = await callForge('/executions/batch', {
+        const batchRes = await callForgeAdmin('/executions/batch', {
           method: 'POST',
           body: {
             agents: batchAgents.map(a => ({ agentId: a.agentId, input: a.input })),
@@ -300,7 +301,7 @@ Be efficient and concise. Every action you take must be tracked through a ticket
         if (batchRes.error) {
           console.error(`[Scheduler] Batch failed, falling back to individual:`, batchRes.message);
           for (const agent of batchAgents) {
-            const execRes = await callForge('/executions', {
+            const execRes = await callForgeAdmin('/executions', {
               method: 'POST',
               body: { agentId: agent.agentId, input: agent.input },
             });
@@ -313,7 +314,7 @@ Be efficient and concise. Every action you take must be tracked through a ticket
         }
       } else {
         const agent = batchAgents[0];
-        const execRes = await callForge('/executions', {
+        const execRes = await callForgeAdmin('/executions', {
           method: 'POST',
           body: { agentId: agent.agentId, input: agent.input },
         });
