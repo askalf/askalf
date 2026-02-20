@@ -1041,10 +1041,36 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Guardrail violation review error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated, goalsCompleted, goalsRequeued, goalsAutoProposed, autonomyIncreased, autonomyDecreased, guardrailViolationsReviewed });
+  // ------------------------------------------------------------------
+  // Step 13: Checkpoint timeout cleanup (Level 14)
+  // ------------------------------------------------------------------
+  let checkpointsExpired = 0;
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated + goalsCompleted + goalsAutoProposed + autonomyIncreased + autonomyDecreased + guardrailViolationsReviewed;
+  try {
+    const expired = await query<{ count: string }>(
+      `WITH expired AS (
+         UPDATE forge_checkpoints
+         SET status = 'timeout'
+         WHERE status = 'pending'
+           AND timeout_at IS NOT NULL
+           AND timeout_at < NOW()
+         RETURNING id
+       )
+       SELECT COUNT(*)::text AS count FROM expired`,
+    );
+    checkpointsExpired = parseInt(expired[0]?.count ?? '0', 10);
+
+    if (checkpointsExpired > 0) {
+      console.log(`[Autonomy] Expired ${checkpointsExpired} timed-out checkpoint(s)`);
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Checkpoint cleanup error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated, goalsCompleted, goalsRequeued, goalsAutoProposed, autonomyIncreased, autonomyDecreased, guardrailViolationsReviewed, checkpointsExpired });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated + goalsCompleted + goalsAutoProposed + autonomyIncreased + autonomyDecreased + guardrailViolationsReviewed + checkpointsExpired;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
@@ -1053,7 +1079,7 @@ async function runAutonomyLoop(): Promise<void> {
       `${correctionsPromoted} corrections promoted, ${anomaliesDetected} anomalies, ` +
       `${autoHealed} auto-healed, ${autoEvolved} auto-evolved, ${autoOrchestrated} auto-orchestrated, ` +
       `${goalsCompleted} goals completed, ${goalsRequeued} requeued, ${goalsAutoProposed} auto-proposed, ` +
-      `${autonomyIncreased} autonomy↑, ${autonomyDecreased} autonomy↓, ${guardrailViolationsReviewed} guardrail violations reviewed — ${elapsed}ms`,
+      `${autonomyIncreased} autonomy↑, ${autonomyDecreased} autonomy↓, ${guardrailViolationsReviewed} guardrail violations reviewed, ${checkpointsExpired} checkpoints expired — ${elapsed}ms`,
     );
   }
 }
