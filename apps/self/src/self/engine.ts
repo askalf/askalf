@@ -1,29 +1,368 @@
 /**
- * Self Conversation Engine
- * Streams AI responses via SSE with an agentic tool loop.
- * Uses Anthropic SDK directly — not MCP, not the Forge agent pipeline.
+ * Self Conversation Engine — CLI Mode
+ * Spawns Claude Code CLI with OAuth credentials and MCP tools.
+ * Replaces direct Anthropic SDK usage for zero API cost (Claude Max subscription).
  */
 
 import type { FastifyReply } from 'fastify';
+import { spawn, execSync } from 'child_process';
+import { readFile, writeFile, access, copyFile, mkdir, unlink } from 'fs/promises';
 import { ulid } from 'ulid';
 import { selfQuery, selfQueryOne } from '../database.js';
-import { getAnthropicClient } from './credentials.js';
-import { SELF_TOOLS, executeSelfTool } from './tools.js';
 import { buildSystemPrompt, WELCOME_MESSAGE } from './system-prompt.js';
-import type Anthropic from '@anthropic-ai/sdk';
 
 interface MessageRow {
   role: string;
   content: string;
-  tool_calls: unknown[];
 }
 
-const MAX_TOOL_TURNS = 10;
-const MAX_TOKENS = 4096;
-const MODEL = 'claude-sonnet-4-6';
+// ============================================
+// CLI Configuration
+// ============================================
+
+const MAX_CLI_TURNS = 10;
+const CLI_TIMEOUT = 120_000; // 2 minutes per chat
+const MAX_CONCURRENT = 2;
+
+const CLAUDE_DIR = '/tmp/claude-home/.claude';
+const MCP_CONFIG_PATH = '/tmp/claude-home/mcp.json';
+const WORKSPACE_DIR = '/tmp/agent-workspace';
+
+const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
+const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
+const TOKEN_REFRESH_BUFFER_MS = 60 * 60 * 1000; // 1 hour before expiry
+
+// ============================================
+// CLI Environment Setup
+// ============================================
+
+let cliReady = false;
+let cliConcurrent = 0;
+const cliQueue: Array<() => void> = [];
+
+async function setupCliEnvironment(): Promise<void> {
+  if (cliReady) return;
+
+  await mkdir(`${CLAUDE_DIR}/debug`, { recursive: true });
+  await mkdir(`${CLAUDE_DIR}/cache`, { recursive: true });
+  await mkdir(WORKSPACE_DIR, { recursive: true });
+
+  // Copy OAuth credentials if available
+  try {
+    await access('/tmp/claude-credentials.json');
+    await copyFile('/tmp/claude-credentials.json', `${CLAUDE_DIR}/.credentials.json`);
+    console.log('[Self CLI] OAuth credentials installed');
+  } catch {
+    console.warn('[Self CLI] No OAuth credentials found at /tmp/claude-credentials.json');
+  }
+
+  // Settings — auto-accept all permissions
+  const settings = {
+    permissions: {
+      allow: [
+        'Bash(*)', 'Read(*)', 'Write(*)', 'Edit(*)',
+        'Glob(*)', 'Grep(*)', 'WebFetch(*)', 'WebSearch(*)',
+        'NotebookEdit(*)', 'Task(*)',
+      ],
+      deny: [],
+    },
+    hasCompletedOnboarding: true,
+  };
+  await writeFile(`${CLAUDE_DIR}/settings.json`, JSON.stringify(settings, null, 2));
+
+  // MCP config — connect to mcp-tools for remember/recall/web_search
+  const mcpConfig = {
+    mcpServers: {
+      'mcp-tools': {
+        type: 'http',
+        url: 'http://mcp-tools:3010/mcp',
+      },
+    },
+  };
+  await writeFile(MCP_CONFIG_PATH, JSON.stringify(mcpConfig, null, 2));
+
+  cliReady = true;
+  console.log('[Self CLI] Environment ready');
+}
+
+async function refreshCredentials(): Promise<void> {
+  const credsPath = `${CLAUDE_DIR}/.credentials.json`;
+  const mountPath = '/tmp/claude-credentials.json';
+
+  try {
+    await access(mountPath);
+    const mountRaw = await readFile(mountPath, 'utf8');
+    const mountCreds = JSON.parse(mountRaw);
+    let currentExpiry = 0;
+    try {
+      const curRaw = await readFile(credsPath, 'utf8');
+      const cur = JSON.parse(curRaw);
+      currentExpiry = cur.claudeAiOauth?.expiresAt || 0;
+    } catch { /* no current file */ }
+    if ((mountCreds.claudeAiOauth?.expiresAt || 0) > currentExpiry) {
+      await copyFile(mountPath, credsPath);
+      console.log('[Self CLI] Refreshed credentials from mount');
+    }
+
+    const raw = await readFile(credsPath, 'utf8');
+    const creds = JSON.parse(raw);
+    const oauth = creds.claudeAiOauth;
+    if (!oauth?.refreshToken) return;
+
+    const expiresAt = oauth.expiresAt || 0;
+    const now = Date.now();
+
+    if (expiresAt > now + TOKEN_REFRESH_BUFFER_MS) return;
+
+    console.log(`[Self CLI] OAuth token expires in ${Math.round((expiresAt - now) / 60000)}min — refreshing`);
+
+    const res = await fetch(OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: oauth.refreshToken,
+        client_id: OAUTH_CLIENT_ID,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      console.error(`[Self CLI] OAuth refresh failed: ${res.status} ${errText.slice(0, 200)}`);
+      return;
+    }
+
+    const data = await res.json() as {
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+    };
+
+    const updated = {
+      claudeAiOauth: {
+        ...oauth,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresAt: now + data.expires_in * 1000,
+      },
+    };
+
+    const updatedJson = JSON.stringify(updated);
+    await writeFile(credsPath, updatedJson);
+    console.log(`[Self CLI] Token refreshed — expires ${new Date(updated.claudeAiOauth.expiresAt).toISOString()}`);
+
+    try {
+      await writeFile(mountPath, updatedJson);
+      console.log('[Self CLI] Persisted refreshed token to host mount');
+    } catch (writeErr) {
+      console.warn('[Self CLI] Could not persist to mount:', (writeErr as Error).message);
+    }
+  } catch { /* mount may not exist */ }
+}
+
+function startTokenRefreshTimer(): void {
+  setTimeout(() => {
+    refreshCredentials().catch(err =>
+      console.warn('[Self CLI] Periodic token refresh error:', err),
+    );
+  }, 30_000);
+  setInterval(() => {
+    refreshCredentials().catch(err =>
+      console.warn('[Self CLI] Periodic token refresh error:', err),
+    );
+  }, 60 * 60 * 1000);
+  console.log('[Self CLI] OAuth token refresh timer started (every 1h)');
+}
+
+// ============================================
+// CLI Concurrency Semaphore
+// ============================================
+
+function acquireSlot(): Promise<void> {
+  if (cliConcurrent < MAX_CONCURRENT) {
+    cliConcurrent++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    cliQueue.push(() => {
+      cliConcurrent++;
+      resolve();
+    });
+  });
+}
+
+function releaseSlot(): void {
+  cliConcurrent--;
+  if (cliQueue.length > 0) {
+    const next = cliQueue.shift()!;
+    next();
+  }
+}
+
+// ============================================
+// CLI Execution
+// ============================================
+
+function executeClaudeCode(
+  args: string[],
+  cwd: string,
+  timeout: number,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    const promptIdx = args.indexOf('-p');
+    let promptFile: string | null = null;
+    const filteredArgs = [...args];
+
+    const run = async () => {
+      if (promptIdx >= 0 && promptIdx + 1 < args.length) {
+        promptFile = `/tmp/prompt-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`;
+        await writeFile(promptFile, filteredArgs[promptIdx + 1]!);
+        filteredArgs.splice(promptIdx, 2);
+      }
+
+      const escapedArgs = filteredArgs.map(a => "'" + a.replace(/'/g, "'\\''") + "'").join(' ');
+      const shellCmd = promptFile
+        ? `claude -p "$(cat '${promptFile}')" ${escapedArgs}`
+        : `claude ${escapedArgs}`;
+
+      const proc = spawn('sh', ['-c', shellCmd], {
+        cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          ANTHROPIC_API_KEY: '', // Force OAuth
+          HOME: '/tmp/claude-home',
+        },
+      });
+
+      let stdout = '';
+      let stderr = '';
+      let killed = false;
+
+      proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+      proc.stderr.on('data', (chunk: Buffer) => {
+        const text = chunk.toString();
+        stderr += text;
+        const lines = text.trim().split('\n');
+        for (const line of lines.slice(0, 3)) {
+          if (line.trim()) console.log(`[Self CLI:stderr] ${line.substring(0, 200)}`);
+        }
+      });
+
+      const cleanup = async () => {
+        if (promptFile) {
+          try { await unlink(promptFile); } catch { /* ignore */ }
+        }
+      };
+
+      const killTree = () => {
+        killed = true;
+        try {
+          proc.kill('SIGTERM');
+          try {
+            execSync(`kill -TERM $(pgrep -P ${proc.pid}) 2>/dev/null || true`, { stdio: 'ignore' });
+          } catch { /* no children or already dead */ }
+        } catch { /* already dead */ }
+        setTimeout(() => {
+          try { proc.kill('SIGKILL'); } catch { /* already dead */ }
+        }, 5000);
+      };
+
+      proc.on('close', async (code) => {
+        await cleanup();
+        const cleanStdout = stdout.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
+        resolve({
+          exitCode: killed ? 124 : (code ?? 1),
+          stdout: cleanStdout,
+          stderr: stderr.trim(),
+        });
+      });
+
+      proc.on('error', async (err) => {
+        await cleanup();
+        resolve({ exitCode: 1, stdout: '', stderr: err.message });
+      });
+
+      setTimeout(killTree, timeout);
+    };
+
+    run().catch((err) => {
+      resolve({ exitCode: 1, stdout: '', stderr: `Setup error: ${err}` });
+    });
+  });
+}
+
+function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
+  output: string;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  numTurns: number;
+  isError: boolean;
+} {
+  let output = stdout;
+  let costUsd = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let numTurns = 0;
+  let isError = false;
+
+  try {
+    let jsonStr = stdout;
+    jsonStr = jsonStr.replace(/[\x00-\x09\x0b-\x1f\x7f]/g, '');
+    const firstBrace = jsonStr.indexOf('{');
+    const lastBrace = jsonStr.lastIndexOf('}');
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+    }
+
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+    output = (parsed['result'] as string) ?? stdout;
+    costUsd = (parsed['total_cost_usd'] as number) ?? 0;
+    numTurns = (parsed['num_turns'] as number) ?? 0;
+
+    const usage = parsed['usage'] as Record<string, number> | undefined;
+    if (usage) {
+      inputTokens = usage['input_tokens'] ?? 0;
+      outputTokens = usage['output_tokens'] ?? 0;
+    }
+
+    if (parsed['is_error'] === true && outputTokens === 0) {
+      isError = true;
+    } else if (!parsed['type'] && exitCode !== 0) {
+      isError = true;
+    }
+  } catch {
+    console.error(`[Self CLI] JSON parse failed: ${stdout.substring(0, 200)}`);
+    if (stderr) console.error(`[Self CLI] stderr: ${stderr.substring(0, 500)}`);
+    if (exitCode !== 0) isError = true;
+  }
+
+  return { output, costUsd, inputTokens, outputTokens, numTurns, isError };
+}
+
+// ============================================
+// Public API
+// ============================================
+
+let initialized = false;
 
 /**
- * Stream a Self conversation response via SSE.
+ * Initialize the Self CLI engine.
+ * Call once on server startup.
+ */
+export async function initializeSelfEngine(): Promise<void> {
+  if (initialized) return;
+  await setupCliEnvironment();
+  startTokenRefreshTimer();
+  initialized = true;
+  console.log('[Self CLI] Engine initialized');
+}
+
+/**
+ * Stream a Self conversation response via SSE using Claude CLI.
+ * MVP: runs CLI to completion, sends result as one SSE burst.
  */
 export async function streamSelfConversation(
   userId: string,
@@ -51,7 +390,6 @@ export async function streamSelfConversation(
       [userMsgId, conversationId, userMessage],
     );
 
-    // Update conversation
     await selfQuery(
       `UPDATE self_conversations SET message_count = message_count + 1, updated_at = NOW() WHERE id = $1`,
       [conversationId],
@@ -59,7 +397,7 @@ export async function streamSelfConversation(
 
     // Load conversation history (last 50 messages)
     const history = await selfQuery<MessageRow>(
-      `SELECT role, content, tool_calls FROM self_messages
+      `SELECT role, content FROM self_messages
        WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT 50`,
       [conversationId],
     );
@@ -70,142 +408,93 @@ export async function streamSelfConversation(
       [userId],
     );
 
-    // Build messages for Anthropic API
+    // Build the system prompt
     const systemPrompt = buildSystemPrompt(preferences);
-    const messages = buildApiMessages(history);
 
-    // Get Anthropic client (user's key or platform fallback)
-    const anthropic = await getAnthropicClient(userId);
+    // Build conversation context for CLI prompt
+    const conversationContext = history
+      .slice(0, -1) // Exclude the message we just inserted (it's the current input)
+      .map(m => `[${m.role}] ${m.content}`)
+      .join('\n\n');
 
-    // Agentic tool loop
-    let fullContent = '';
-    const allToolCalls: unknown[] = [];
-    const allActions: unknown[] = [];
-    let totalTokens = 0;
+    const cliPrompt = conversationContext
+      ? `<conversation-history>\n${conversationContext}\n</conversation-history>\n\n<current-message>\n${userMessage}\n</current-message>`
+      : userMessage;
 
-    let currentMessages = messages;
-    let toolTurns = 0;
+    // Write system prompt as CLAUDE.md in workspace
+    await writeFile(`${WORKSPACE_DIR}/CLAUDE.md`, systemPrompt);
 
-    while (toolTurns < MAX_TOOL_TURNS) {
-      const stream = anthropic.messages.stream({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        system: systemPrompt,
-        messages: currentMessages,
-        tools: SELF_TOOLS as Anthropic.Tool[],
-      });
+    // Ensure CLI environment and credentials are fresh
+    await setupCliEnvironment();
+    await refreshCredentials();
 
-      let turnContent = '';
-      const turnToolCalls: { id: string; name: string; input: Record<string, unknown> }[] = [];
+    // Acquire concurrency slot
+    await acquireSlot();
 
-      for await (const event of stream) {
-        if (event.type === 'content_block_delta') {
-          const delta = event.delta as { type: string; text?: string; partial_json?: string };
-          if (delta.type === 'text_delta' && delta.text) {
-            turnContent += delta.text;
-            send('token', { text: delta.text });
-          }
-        } else if (event.type === 'content_block_start') {
-          const block = event.content_block as { type: string; id?: string; name?: string };
-          if (block.type === 'tool_use' && block.id && block.name) {
-            turnToolCalls.push({ id: block.id, name: block.name, input: {} });
-          }
-        } else if (event.type === 'message_delta') {
-          const msgDelta = event as unknown as { usage?: { output_tokens?: number } };
-          if (msgDelta.usage?.output_tokens) {
-            totalTokens += msgDelta.usage.output_tokens;
-          }
-        }
-      }
+    const startTime = Date.now();
 
-      // Get the final message to extract complete tool inputs
-      const finalMessage = await stream.finalMessage();
-
-      // Extract complete tool call inputs from final message
-      for (const block of finalMessage.content) {
-        if (block.type === 'tool_use') {
-          const tc = turnToolCalls.find(t => t.id === block.id);
-          if (tc) {
-            tc.input = block.input as Record<string, unknown>;
-          }
-        }
-      }
-
-      fullContent += turnContent;
-
-      // If no tool calls, we're done
-      if (turnToolCalls.length === 0) {
-        break;
-      }
-
-      // Execute tool calls
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-      for (const tc of turnToolCalls) {
-        send('tool_use', { id: tc.id, name: tc.name, input: tc.input });
-
-        const result = await executeSelfTool(tc.name, tc.input, userId, conversationId);
-
-        allToolCalls.push({ id: tc.id, name: tc.name, input: tc.input, result: result.content });
-
-        if (result.actions) {
-          for (const action of result.actions) {
-            allActions.push(action);
-            send('action', action);
-          }
-        }
-
-        send('tool_result', { id: tc.id, name: tc.name, result: result.content });
-
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: tc.id,
-          content: result.content,
-        });
-      }
-
-      // Build next turn messages: add assistant response + tool results
-      currentMessages = [
-        ...currentMessages,
-        { role: 'assistant' as const, content: finalMessage.content },
-        ...toolResults.map(tr => ({ role: 'user' as const, content: [tr] })),
+    try {
+      // Build CLI arguments
+      const args: string[] = [
+        '-p', cliPrompt,
+        '--output-format', 'json',
+        '--max-turns', String(MAX_CLI_TURNS),
+        '--dangerously-skip-permissions',
+        '--add-dir', WORKSPACE_DIR,
+        '--mcp-config', MCP_CONFIG_PATH,
       ];
 
-      toolTurns++;
-    }
+      // Execute CLI
+      const result = await executeClaudeCode(args, WORKSPACE_DIR, CLI_TIMEOUT);
+      const durationMs = Date.now() - startTime;
+      const parsed = parseCliOutput(result.stdout, result.stderr, result.exitCode);
 
-    // Store assistant message
-    const assistantMsgId = ulid();
-    await selfQuery(
-      `INSERT INTO self_messages (id, conversation_id, role, content, tool_calls, actions, tokens_used)
-       VALUES ($1, $2, 'assistant', $3, $4, $5, $6)`,
-      [assistantMsgId, conversationId, fullContent, JSON.stringify(allToolCalls), JSON.stringify(allActions), totalTokens],
-    );
-
-    // Update conversation count
-    await selfQuery(
-      `UPDATE self_conversations SET message_count = message_count + 1, updated_at = NOW() WHERE id = $1`,
-      [conversationId],
-    );
-
-    // Auto-generate title after first exchange (2 messages = user + assistant)
-    const convo = await selfQueryOne<{ message_count: number; title: string | null }>(
-      `SELECT message_count, title FROM self_conversations WHERE id = $1`,
-      [conversationId],
-    );
-
-    if (convo && convo.message_count <= 2 && !convo.title) {
-      const title = generateTitle(userMessage);
-      await selfQuery(
-        `UPDATE self_conversations SET title = $1 WHERE id = $2`,
-        [title, conversationId],
+      console.log(
+        `[Self CLI] Chat ${conversationId.slice(-6)} ${parsed.isError ? 'FAILED' : 'done'} ` +
+        `in ${durationMs}ms — cost=$${parsed.costUsd.toFixed(4)} turns=${parsed.numTurns}`,
       );
-      send('title', { title });
-    }
 
-    send('done', { tokens: totalTokens, toolCalls: allToolCalls.length });
+      if (parsed.isError) {
+        send('error', { message: 'Self encountered an error. Please try again.' });
+      } else {
+        // Send the response as token events (one burst for MVP)
+        send('token', { text: parsed.output });
+
+        // Store assistant message
+        const assistantMsgId = ulid();
+        await selfQuery(
+          `INSERT INTO self_messages (id, conversation_id, role, content, tokens_used)
+           VALUES ($1, $2, 'assistant', $3, $4)`,
+          [assistantMsgId, conversationId, parsed.output, parsed.inputTokens + parsed.outputTokens],
+        );
+
+        await selfQuery(
+          `UPDATE self_conversations SET message_count = message_count + 1, updated_at = NOW() WHERE id = $1`,
+          [conversationId],
+        );
+
+        // Auto-generate title after first exchange
+        const convo = await selfQueryOne<{ message_count: number; title: string | null }>(
+          `SELECT message_count, title FROM self_conversations WHERE id = $1`,
+          [conversationId],
+        );
+
+        if (convo && convo.message_count <= 2 && !convo.title) {
+          const title = generateTitle(userMessage);
+          await selfQuery(
+            `UPDATE self_conversations SET title = $1 WHERE id = $2`,
+            [title, conversationId],
+          );
+          send('title', { title });
+        }
+
+        send('done', { tokens: parsed.inputTokens + parsed.outputTokens, turns: parsed.numTurns });
+      }
+    } finally {
+      releaseSlot();
+    }
   } catch (err) {
-    console.error('[Self Engine] Error:', err);
+    console.error('[Self CLI] Error:', err);
     send('error', { message: err instanceof Error ? err.message : 'An error occurred' });
   } finally {
     reply.raw.end();
@@ -223,24 +512,7 @@ export function getWelcomeMessage(): string {
 // Helpers
 // ============================================
 
-function buildApiMessages(history: MessageRow[]): Anthropic.MessageParam[] {
-  const messages: Anthropic.MessageParam[] = [];
-
-  for (const msg of history) {
-    if (msg.role === 'user') {
-      messages.push({ role: 'user', content: msg.content });
-    } else if (msg.role === 'assistant') {
-      messages.push({ role: 'assistant', content: msg.content });
-    }
-  }
-
-  // Ensure messages alternate user/assistant (Anthropic requirement)
-  // If first message isn't from user, we have a problem — shouldn't happen normally
-  return messages;
-}
-
 function generateTitle(firstMessage: string): string {
-  // Simple title generation from first message
   const words = firstMessage.trim().split(/\s+/).slice(0, 6);
   let title = words.join(' ');
   if (firstMessage.trim().split(/\s+/).length > 6) {

@@ -33,6 +33,12 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
 # Production stage
 FROM node:20-alpine AS runner
 
+# Install procps for pgrep (process tree kill on CLI timeout)
+RUN apk add --no-cache procps
+
+# Install Claude Code CLI globally for conversation execution
+RUN npm install -g @anthropic-ai/claude-code
+
 # Security: create non-root user
 RUN addgroup -g 1001 substrate && \
     adduser -u 1001 -G substrate -s /bin/false -D substrate
@@ -42,8 +48,13 @@ WORKDIR /app
 # Copy the deployed app
 COPY --from=builder --chown=substrate:substrate /app/deploy ./
 
+# Pre-create CLI directories owned by substrate user
+RUN mkdir -p /tmp/claude-home/.claude /tmp/agent-workspace && \
+    chown -R substrate:substrate /tmp/claude-home /tmp/agent-workspace
+
 ENV NODE_ENV=production
 ENV PORT=3006
+ENV HOME=/tmp/claude-home
 
 USER substrate
 
