@@ -229,3 +229,21 @@ export class CircuitBreaker {
     }
   }
 }
+
+// ============================================
+// Named Circuit Breaker Registry
+// ============================================
+
+const circuitBreakers = new Map<string, CircuitBreaker>();
+
+export function registerCircuitBreaker(name: string, breaker: CircuitBreaker): void {
+  circuitBreakers.set(name, breaker);
+}
+
+export function getCircuitBreaker(name: string): CircuitBreaker | undefined {
+  return circuitBreakers.get(name);
+}
+
+export function getCircuitBreakerNames(): string[] {
+  return Array.from(circuitBreakers.keys());
+}

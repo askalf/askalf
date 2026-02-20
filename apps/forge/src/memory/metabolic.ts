@@ -11,6 +11,7 @@ import { proposeAllRevisions, applyPromptRevision } from '../learning/prompt-rew
 import { proposeAllGoals, approveGoal } from '../orchestration/goal-proposer.js';
 import { selectOptimalModel } from '../orchestration/cost-router.js';
 import { getMemoryManager } from './singleton.js';
+import { healStuckExecutions } from '../orchestration/monitoring-agent.js';
 
 // ============================================
 // Cycle Status Tracking
@@ -587,16 +588,141 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Correction promotion error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted });
+  // Step 7: Anomaly detection + auto-heal (Level 8 — Vibe Self-Awareness)
+  let anomaliesDetected = 0;
+  let autoHealed = 0;
+  try {
+    // Compare last 1h failure rate vs 24h baseline
+    const lastHour = await query<{ total: string; failed: string; total_cost: string }>(
+      `SELECT COUNT(*)::text AS total,
+              COUNT(*) FILTER (WHERE status = 'failed')::text AS failed,
+              COALESCE(SUM(cost), 0)::text AS total_cost
+       FROM forge_executions
+       WHERE started_at > NOW() - INTERVAL '1 hour'`,
+    );
+    const baseline = await query<{ total: string; failed: string; total_cost: string }>(
+      `SELECT COUNT(*)::text AS total,
+              COUNT(*) FILTER (WHERE status = 'failed')::text AS failed,
+              COALESCE(SUM(cost), 0)::text AS total_cost
+       FROM forge_executions
+       WHERE started_at BETWEEN NOW() - INTERVAL '24 hours' AND NOW() - INTERVAL '1 hour'`,
+    );
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted;
+    const hourTotal = parseInt(lastHour[0]?.total ?? '0', 10);
+    const hourFailed = parseInt(lastHour[0]?.failed ?? '0', 10);
+    const hourCost = parseFloat(lastHour[0]?.total_cost ?? '0');
+    const baseTotal = parseInt(baseline[0]?.total ?? '0', 10);
+    const baseFailed = parseInt(baseline[0]?.failed ?? '0', 10);
+    const baseCost = parseFloat(baseline[0]?.total_cost ?? '0');
+    const baseHours = 23;
+
+    const hourFailRate = hourTotal > 0 ? hourFailed / hourTotal : 0;
+    const baseFailRate = baseTotal > 0 ? baseFailed / baseTotal : 0;
+    const hourlyBaseCost = baseHours > 0 ? baseCost / baseHours : 0;
+
+    // Failure rate spike: >2x baseline AND >30% absolute AND >=3 executions
+    if (hourTotal >= 3 && hourFailRate > baseFailRate * 2 && hourFailRate > 0.3) {
+      anomaliesDetected++;
+      const severity = hourFailRate > 0.6 ? 'critical' : 'warning';
+      const findingId = `ANOMALY-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+      await substrateQuery(
+        `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata)
+         VALUES ($1, 'system:autonomy', 'Autonomy Loop', $2, $3, 'anomaly', $4)
+         ON CONFLICT DO NOTHING`,
+        [
+          findingId,
+          `Failure rate spike: ${(hourFailRate * 100).toFixed(0)}% (last hour) vs ${(baseFailRate * 100).toFixed(0)}% (baseline). ${hourFailed}/${hourTotal} executions failed.`,
+          severity,
+          JSON.stringify({ type: 'failure_rate_spike', hour_rate: hourFailRate, base_rate: baseFailRate, hour_total: hourTotal }),
+        ],
+      );
+      console.log(`[Autonomy] Anomaly: failure rate ${(hourFailRate * 100).toFixed(0)}% (${severity})`);
+
+      // Auto-heal stuck executions on critical failure spikes
+      if (severity === 'critical') {
+        const healed = await healStuckExecutions();
+        if (healed > 0) {
+          autoHealed += healed;
+          console.log(`[Autonomy] Auto-healed ${healed} stuck execution(s)`);
+        }
+      }
+    }
+
+    // Cost spike: >3x baseline hourly cost
+    if (hourlyBaseCost > 0.01 && hourCost > hourlyBaseCost * 3) {
+      anomaliesDetected++;
+      const severity = hourCost > hourlyBaseCost * 5 ? 'critical' : 'warning';
+      const findingId = `ANOMALY-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+      await substrateQuery(
+        `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata)
+         VALUES ($1, 'system:autonomy', 'Autonomy Loop', $2, $3, 'anomaly', $4)
+         ON CONFLICT DO NOTHING`,
+        [
+          findingId,
+          `Cost spike: $${hourCost.toFixed(2)} (last hour) vs $${hourlyBaseCost.toFixed(2)}/hr (baseline). ${(hourCost / hourlyBaseCost).toFixed(1)}x normal.`,
+          severity,
+          JSON.stringify({ type: 'cost_spike', hour_cost: hourCost, baseline_hourly: hourlyBaseCost }),
+        ],
+      );
+      console.log(`[Autonomy] Anomaly: cost spike $${hourCost.toFixed(2)} vs $${hourlyBaseCost.toFixed(2)}/hr (${severity})`);
+    }
+
+    // Per-agent failure detection: >50% failure rate in last hour, min 3 executions
+    const failingAgentsNow = await query<{
+      agent_id: string; agent_name: string; total: string; failed: string; autonomy_level: number;
+    }>(
+      `SELECT e.agent_id, a.name AS agent_name,
+              COUNT(*)::text AS total,
+              COUNT(*) FILTER (WHERE e.status = 'failed')::text AS failed,
+              a.autonomy_level
+       FROM forge_executions e
+       JOIN forge_agents a ON e.agent_id = a.id
+       WHERE e.started_at > NOW() - INTERVAL '1 hour'
+       GROUP BY e.agent_id, a.name, a.autonomy_level
+       HAVING COUNT(*) >= 3
+          AND COUNT(*) FILTER (WHERE e.status = 'failed')::float / COUNT(*)::float > 0.5`,
+    );
+
+    for (const fa of failingAgentsNow) {
+      anomaliesDetected++;
+      const failRate = parseInt(fa.failed, 10) / parseInt(fa.total, 10);
+
+      // Auto-rebalance high-autonomy agents with >70% failure rate
+      if (fa.autonomy_level >= 4 && failRate > 0.7) {
+        try {
+          const schedule = await substrateQuery<{ schedule_interval_minutes: number }>(
+            `SELECT schedule_interval_minutes FROM agent_schedules WHERE agent_id = $1`,
+            [fa.agent_id],
+          );
+          if (schedule.length > 0) {
+            const current = schedule[0]!.schedule_interval_minutes;
+            const newInterval = Math.min(current * 2, 240);
+            if (newInterval > current) {
+              await substrateQuery(
+                `UPDATE agent_schedules SET schedule_interval_minutes = $1, next_run_at = NOW() + INTERVAL '1 minute' * $1 WHERE agent_id = $2`,
+                [newInterval, fa.agent_id],
+              );
+              autoHealed++;
+              console.log(`[Autonomy] Auto-rebalanced ${fa.agent_name}: ${current}m → ${newInterval}m (${(failRate * 100).toFixed(0)}% failure rate)`);
+            }
+          }
+        } catch { /* non-fatal */ }
+      }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Anomaly detection error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
       `${promptsApplied} prompts applied, ${modelsOptimized} models optimized, ` +
       `${agentsDecommissioned} decommissioned, ${agentsFlagged} flagged, ` +
-      `${correctionsPromoted} corrections promoted — ${elapsed}ms`,
+      `${correctionsPromoted} corrections promoted, ${anomaliesDetected} anomalies, ${autoHealed} auto-healed — ${elapsed}ms`,
     );
   }
 }
