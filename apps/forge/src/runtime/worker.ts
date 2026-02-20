@@ -38,6 +38,7 @@ import { gitOps } from '../tools/built-in/git-ops.js';
 import { deployOps } from '../tools/built-in/deploy-ops.js';
 import { securityScan } from '../tools/built-in/security-scan.js';
 import { codeAnalysis } from '../tools/built-in/code-analysis.js';
+import { agentCreate } from '../tools/built-in/agent-create.js';
 
 // ============================================
 // State
@@ -452,6 +453,40 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => codeAnalysis(input as unknown as Parameters<typeof codeAnalysis>[0]),
+  });
+
+  reg.register({
+    name: 'agent_create',
+    displayName: 'Agent Create',
+    description: 'Create new agents programmatically. All agent creation requires human approval via intervention gating. New agents start at autonomy level 1 with draft status. Can also add schedules to existing agents.',
+    type: 'built_in',
+    riskLevel: 'critical',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'schedule'],
+          description: 'Operation: create a new agent or add a schedule to an existing agent',
+        },
+        name: { type: 'string', description: 'Name for the new agent (for create)' },
+        description: { type: 'string', description: 'What the agent does (for create)' },
+        system_prompt: { type: 'string', description: 'System prompt for the new agent (for create)' },
+        type: { type: 'string', enum: ['dev', 'monitor', 'research', 'content', 'custom'], description: 'Agent type (for create)' },
+        enabled_tools: { type: 'array', items: { type: 'string' }, description: 'Tools the agent can use (for create)' },
+        model_id: { type: 'string', description: 'Model ID (default: claude-haiku-4-5)' },
+        autonomy_level: { type: 'number', description: 'Autonomy level 1-3 (default: 1)' },
+        schedule_minutes: { type: 'number', description: 'If set, auto-create schedule (for create)' },
+        agent_id: { type: 'string', description: 'Agent ID (for schedule action)' },
+        schedule_type: { type: 'string', enum: ['continuous', 'scheduled'], description: 'Schedule type (for schedule action)' },
+        interval_minutes: { type: 'number', description: 'Schedule interval in minutes (for schedule action, min 5)' },
+        intervention_id: { type: 'string', description: 'Approved intervention ID (required for create execution)' },
+        agent_name: { type: 'string', description: 'Your agent name' },
+        execution_id: { type: 'string', description: 'Your execution ID' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => agentCreate(input as unknown as Parameters<typeof agentCreate>[0]),
   });
 }
 
