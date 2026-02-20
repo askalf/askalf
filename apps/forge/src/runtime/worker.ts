@@ -21,6 +21,7 @@ import { updateCapabilityFromExecution } from '../orchestration/capability-regis
 import { getEventBus } from '../orchestration/event-bus.js';
 import { extractKnowledge } from '../orchestration/knowledge-graph.js';
 import { recordCostSample } from '../orchestration/cost-router.js';
+import { forgeExecutionsTotal, forgeExecutionDuration } from '../metrics.js';
 
 // Built-in tools
 import { apiCall } from '../tools/built-in/api-call.js';
@@ -1706,6 +1707,7 @@ export async function runDirectCliExecution(
   await acquireCliSlot();
 
   const startTime = Date.now();
+  forgeExecutionsTotal.inc();
   console.log(`[CLI] Processing execution ${executionId} for agent ${agentId}`);
 
   // Propagate execution context via AsyncLocalStorage so tools (agent_call, agent_delegate)
@@ -1770,6 +1772,7 @@ export async function runDirectCliExecution(
 
     // Parse result
     const parsed = parseCliOutput(result.stdout, result.stderr, result.exitCode);
+    forgeExecutionDuration.observe(durationMs);
 
     console.log(
       `[CLI] Execution ${executionId} ${parsed.isError ? 'FAILED' : 'completed'} ` +
@@ -1820,10 +1823,12 @@ export async function runDirectCliExecution(
     ).catch(() => {});
 
     // Update agent performance counters
-    const counterField = parsed.isError ? 'tasks_failed' : 'tasks_completed';
     await query(
-      `UPDATE forge_agents SET ${counterField} = ${counterField} + 1 WHERE id = $1`,
-      [agentId],
+      `UPDATE forge_agents
+       SET tasks_completed = tasks_completed + CASE WHEN $2 THEN 1 ELSE 0 END,
+           tasks_failed = tasks_failed + CASE WHEN $2 THEN 0 ELSE 1 END
+       WHERE id = $1`,
+      [agentId, !parsed.isError],
     ).catch(() => {});
 
     // Update capability proficiency from tools used in this execution
