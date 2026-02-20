@@ -12,6 +12,7 @@ import { proposeAllGoals, proposeGoals, approveGoal } from '../orchestration/goa
 import { selectOptimalModel } from '../orchestration/cost-router.js';
 import { getMemoryManager } from './singleton.js';
 import { healStuckExecutions } from '../orchestration/monitoring-agent.js';
+import { detectCapabilities } from '../orchestration/capability-registry.js';
 import { promoteVariant } from '../orchestration/evolution.js';
 import { orchestrateFromNL, getOrchestrationStatus } from '../orchestration/nl-orchestrator.js';
 import { shouldDecompose } from '../orchestration/task-decomposer.js';
@@ -1067,10 +1068,40 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Checkpoint cleanup error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated, goalsCompleted, goalsRequeued, goalsAutoProposed, autonomyIncreased, autonomyDecreased, guardrailViolationsReviewed, checkpointsExpired });
+  // ------------------------------------------------------------------
+  // Step 14: Capability drift detection (Level 15)
+  // ------------------------------------------------------------------
+  let capabilitiesRefreshed = 0;
+  const MAX_CAPABILITY_REFRESHES = 5;
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated + goalsCompleted + goalsAutoProposed + autonomyIncreased + autonomyDecreased + guardrailViolationsReviewed + checkpointsExpired;
+  try {
+    // Find agents whose top capability proficiency dropped below 30
+    const driftedAgents = await query<{ agent_id: string; agent_name: string; top_proficiency: string }>(
+      `SELECT c.agent_id, a.name AS agent_name, MAX(c.proficiency)::text AS top_proficiency
+       FROM forge_agent_capabilities c
+       JOIN forge_agents a ON a.id = c.agent_id
+       WHERE a.status = 'active'
+         AND (a.is_decommissioned IS NULL OR a.is_decommissioned = false)
+       GROUP BY c.agent_id, a.name
+       HAVING MAX(c.proficiency) < 30
+       LIMIT ${MAX_CAPABILITY_REFRESHES}`,
+    );
+
+    for (const agent of driftedAgents) {
+      try {
+        await detectCapabilities(agent.agent_id);
+        capabilitiesRefreshed++;
+        console.log(`[Autonomy] Refreshed capabilities for ${agent.agent_name} (top proficiency was ${agent.top_proficiency})`);
+      } catch { /* non-fatal */ }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Capability drift detection error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated, goalsCompleted, goalsRequeued, goalsAutoProposed, autonomyIncreased, autonomyDecreased, guardrailViolationsReviewed, checkpointsExpired, capabilitiesRefreshed });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated + goalsCompleted + goalsAutoProposed + autonomyIncreased + autonomyDecreased + guardrailViolationsReviewed + checkpointsExpired + capabilitiesRefreshed;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
@@ -1079,7 +1110,7 @@ async function runAutonomyLoop(): Promise<void> {
       `${correctionsPromoted} corrections promoted, ${anomaliesDetected} anomalies, ` +
       `${autoHealed} auto-healed, ${autoEvolved} auto-evolved, ${autoOrchestrated} auto-orchestrated, ` +
       `${goalsCompleted} goals completed, ${goalsRequeued} requeued, ${goalsAutoProposed} auto-proposed, ` +
-      `${autonomyIncreased} autonomy↑, ${autonomyDecreased} autonomy↓, ${guardrailViolationsReviewed} guardrail violations reviewed, ${checkpointsExpired} checkpoints expired — ${elapsed}ms`,
+      `${autonomyIncreased} autonomy↑, ${autonomyDecreased} autonomy↓, ${guardrailViolationsReviewed} guardrail violations reviewed, ${checkpointsExpired} checkpoints expired, ${capabilitiesRefreshed} capabilities refreshed — ${elapsed}ms`,
     );
   }
 }

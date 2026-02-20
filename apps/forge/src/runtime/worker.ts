@@ -58,6 +58,11 @@ import { agentChat } from '../tools/built-in/agent-chat.js';
 import { auditInspect } from '../tools/built-in/audit-inspect.js';
 import { checkpointOps } from '../tools/built-in/checkpoint-ops.js';
 import { contextOps } from '../tools/built-in/context-ops.js';
+import { capabilityOps } from '../tools/built-in/capability-ops.js';
+import { knowledgeGraphOps } from '../tools/built-in/knowledge-graph-ops.js';
+import { teamOps } from '../tools/built-in/team-ops.js';
+import { messaging } from '../tools/built-in/messaging.js';
+import { budgetCheck } from '../tools/built-in/budget-check.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -778,8 +783,8 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       properties: {
         action: {
           type: 'string',
-          enum: ['propose_revision', 'list_revisions', 'apply_revision', 'analyze_capabilities'],
-          description: 'propose_revision: generate prompt improvements. list_revisions: see revision history. apply_revision: apply an approved revision. analyze_capabilities: see your skills vs fleet.',
+          enum: ['propose_revision', 'list_revisions', 'apply_revision', 'reject_revision', 'analyze_capabilities'],
+          description: 'propose_revision: generate prompt improvements. list_revisions: see revision history. apply_revision: apply an approved revision. reject_revision: reject a pending revision. analyze_capabilities: see your skills vs fleet.',
         },
         revision_id: { type: 'string', description: 'Revision ID (for apply_revision)' },
         agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
@@ -893,8 +898,8 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       properties: {
         action: {
           type: 'string',
-          enum: ['propose', 'list', 'approve', 'complete'],
-          description: 'propose: generate improvement goals from history. list: see your goals. approve: self-approve a proposed goal (autonomy >= 4). complete: mark a goal done.',
+          enum: ['propose', 'list', 'approve', 'reject', 'complete'],
+          description: 'propose: generate improvement goals from history. list: see your goals. approve: self-approve a proposed goal (autonomy >= 4). reject: reject a proposed goal. complete: mark a goal done.',
         },
         status: { type: 'string', description: 'Filter goals by status: proposed, approved, rejected, in_progress, completed (for list)' },
         goal_id: { type: 'string', description: 'Goal ID (for approve, complete)' },
@@ -1091,6 +1096,145 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => contextOps(input as unknown as Parameters<typeof contextOps>[0]),
+  });
+
+  reg.register({
+    name: 'capability_ops',
+    displayName: 'Capability Ops',
+    description: 'Capability-based agent routing and discovery: find agents by capability, view your own capability profile, re-detect capabilities, and browse the full capability catalog.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['find', 'my_capabilities', 'detect', 'catalog'],
+          description: 'find: search agents by capability. my_capabilities: view own profile. detect: re-scan capabilities (autonomy >= 3). catalog: browse all capabilities.',
+        },
+        capability: { type: 'string', description: 'Capability name to search for (for find)' },
+        min_proficiency: { type: 'number', description: 'Minimum proficiency score 0-100 (for find, default 30)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => capabilityOps(input as unknown as Parameters<typeof capabilityOps>[0]),
+  });
+
+  reg.register({
+    name: 'knowledge_graph',
+    displayName: 'Knowledge Graph',
+    description: 'Graph traversal and fleet knowledge statistics: traverse node neighborhoods to explore entity relationships, view graph-wide stats, and search nodes semantically.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['traverse', 'stats', 'search'],
+          description: 'traverse: explore node neighborhood. stats: graph-wide statistics. search: semantic node search.',
+        },
+        node_id: { type: 'string', description: 'Node ID to traverse from (for traverse)' },
+        depth: { type: 'number', description: 'Traversal depth (for traverse, default 1)' },
+        query: { type: 'string', description: 'Search query text (for search)' },
+        entity_type: { type: 'string', enum: ['concept', 'person', 'tool', 'service', 'file', 'error', 'pattern'], description: 'Filter by entity type (for search)' },
+        limit: { type: 'number', description: 'Max results (for search, default 10, max 20)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => knowledgeGraphOps(input as unknown as Parameters<typeof knowledgeGraphOps>[0]),
+  });
+
+  reg.register({
+    name: 'team_ops',
+    displayName: 'Team Ops',
+    description: 'Fleet team management: start coordinated teams with multiple agents, monitor team sessions, list all sessions, cancel teams, and synthesize results from completed plans.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['start', 'status', 'list', 'cancel', 'synthesize'],
+          description: 'start: create team session (autonomy >= 3). status: check session. list: all sessions. cancel: stop session (autonomy >= 3). synthesize: generate result summary.',
+        },
+        title: { type: 'string', description: 'Team title (for start)' },
+        pattern: { type: 'string', enum: ['pipeline', 'fan-out', 'consensus'], description: 'Coordination pattern (for start, default: pipeline)' },
+        tasks: {
+          type: 'array',
+          description: 'Task definitions with title, description, agent_name, dependencies (for start)',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+              agent_name: { type: 'string' },
+              dependencies: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['title', 'description', 'agent_name'],
+          },
+        },
+        session_id: { type: 'string', description: 'Session ID (for status, cancel, synthesize)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => teamOps(input as unknown as Parameters<typeof teamOps>[0]),
+  });
+
+  reg.register({
+    name: 'messaging',
+    displayName: 'Messaging',
+    description: 'Agent-to-agent messaging: send direct messages to other agents via Redis pub/sub, publish to broadcast channels, and emit custom events on the forge event bus.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['send', 'publish', 'emit_event'],
+          description: 'send: direct message to agent. publish: broadcast to channel. emit_event: emit custom forge event.',
+        },
+        to_agent_id: { type: 'string', description: 'Target agent ID (for send)' },
+        type: { type: 'string', description: 'Message type: info, request, response, alert, etc. (for send)' },
+        payload: { description: 'Message payload (for send)' },
+        channel: { type: 'string', description: 'Channel name (for publish)' },
+        message: { description: 'Broadcast message content (for publish)' },
+        event_type: { type: 'string', description: 'Custom event type name (for emit_event)' },
+        event_data: { type: 'object', description: 'Event data payload (for emit_event)' },
+        agent_id: { type: 'string', description: 'Your agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => messaging(input as unknown as Parameters<typeof messaging>[0]),
+  });
+
+  reg.register({
+    name: 'budget_check',
+    displayName: 'Budget Check',
+    description: 'Cost estimation and budget monitoring: estimate costs for model usage before expensive operations, and check remaining budget to avoid overspending.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['estimate', 'check'],
+          description: 'estimate: calculate cost for token usage. check: verify budget remaining.',
+        },
+        input_tokens: { type: 'number', description: 'Number of input tokens (for estimate)' },
+        output_tokens: { type: 'number', description: 'Number of output tokens (for estimate)' },
+        model: { type: 'string', description: 'Model ID for pricing lookup (for estimate)' },
+        current_cost: { type: 'number', description: 'Current accumulated cost in USD (for check)' },
+        max_cost: { type: 'number', description: 'Maximum allowed cost in USD (for check)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => budgetCheck(input as unknown as Parameters<typeof budgetCheck>[0]),
   });
 }
 
