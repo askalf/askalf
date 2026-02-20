@@ -299,21 +299,18 @@ async function handleCapabilities(args: Record<string, unknown>): Promise<string
 
   switch (action) {
     case 'find': {
-      const params = new URLSearchParams();
-      if (args['capability']) params.set('capability', String(args['capability']));
-      if (args['min_proficiency']) params.set('min_proficiency', String(args['min_proficiency']));
-      const qs = params.toString();
-      // Use the fleet/capabilities endpoint or agents endpoint
-      const result = await forgePublic(`/capabilities/find${qs ? `?${qs}` : ''}`);
+      if (!args['capability']) return JSON.stringify({ error: 'capability is required' });
+      const cap = encodeURIComponent(String(args['capability']));
+      const result = await forgeAdmin(`/capabilities/${cap}/agents`);
       return JSON.stringify(result);
     }
     case 'catalog': {
-      const result = await forgePublic('/capabilities/catalog');
+      const result = await forgeAdmin('/capabilities/catalog');
       return JSON.stringify(result);
     }
     case 'agent_profile': {
       if (!args['agent_id']) return JSON.stringify({ error: 'agent_id is required' });
-      const result = await forgePublic(`/capabilities/agent/${args['agent_id']}`);
+      const result = await forgeAdmin(`/agents/${args['agent_id']}/capabilities`);
       return JSON.stringify(result);
     }
     default:
