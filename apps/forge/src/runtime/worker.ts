@@ -41,6 +41,10 @@ import { codeAnalysis } from '../tools/built-in/code-analysis.js';
 import { agentCreate } from '../tools/built-in/agent-create.js';
 import { agentDelegate } from '../tools/built-in/agent-delegate.js';
 import { agentCall, type AgentCallInput } from '../tools/built-in/agent-call.js';
+import { memorySearch, type MemorySearchInput } from '../tools/built-in/memory-search.js';
+import { memoryStore, type MemoryStoreInput } from '../tools/built-in/memory-store.js';
+import { knowledgeSearch } from '../tools/built-in/knowledge-search.js';
+import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
 // ============================================
@@ -582,6 +586,125 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       });
     },
   });
+
+  reg.register({
+    name: 'memory_search',
+    displayName: 'Memory Search',
+    description: 'Search agent memory (semantic, episodic, procedural). Use fleet=true to search across ALL agents\' memories for shared knowledge.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query text' },
+        memoryType: { type: 'string', enum: ['semantic', 'episodic', 'procedural'], description: 'Filter by memory type' },
+        limit: { type: 'number', description: 'Max results (default 5)' },
+        fleet: { type: 'boolean', description: 'Search across all agents (default false)' },
+      },
+      required: ['query'],
+    },
+    execute: async (rawInput) => {
+      const input = rawInput as unknown as MemorySearchInput;
+      const ctx = getExecutionContext();
+      const mgr = getMemoryManager();
+      return memorySearch(input, {
+        memoryManager: {
+          recall: async (params) => {
+            const result = await mgr.recall(params.agentId, params.query, {
+              tiers: params.memoryType
+                ? [params.memoryType as 'semantic' | 'episodic' | 'procedural']
+                : undefined,
+              k: params.limit,
+            });
+            // Flatten to MemoryRecallResult
+            const memories: Array<{ id: string; content: string; memoryType: string; similarity?: number; createdAt: string; metadata?: Record<string, unknown> }> = [];
+            for (const s of result.semantic ?? []) {
+              memories.push({ id: s.id, content: s.content, memoryType: 'semantic', similarity: s.similarity, createdAt: String(s.created_at), metadata: s.metadata as Record<string, unknown> | undefined });
+            }
+            for (const e of result.episodic ?? []) {
+              memories.push({ id: e.id, content: `${e.situation} → ${e.action} → ${e.outcome}`, memoryType: 'episodic', similarity: e.similarity, createdAt: String(e.created_at) });
+            }
+            for (const p of result.procedural ?? []) {
+              memories.push({ id: p.id, content: p.trigger_pattern, memoryType: 'procedural', similarity: p.similarity, createdAt: String(p.created_at) });
+            }
+            return { memories, total: memories.length };
+          },
+          recallFleet: async (q, options) => {
+            const result = await mgr.recallFleet(q, { k: options?.k });
+            const memories: Array<{ id: string; content: string; memoryType: string; similarity?: number; createdAt: string }> = [];
+            for (const s of result.semantic ?? []) {
+              memories.push({ id: s.id, content: s.content, memoryType: 'semantic', similarity: s.similarity, createdAt: String(s.created_at) });
+            }
+            for (const e of result.episodic ?? []) {
+              memories.push({ id: e.id, content: `${e.situation} → ${e.action} → ${e.outcome}`, memoryType: 'episodic', similarity: e.similarity, createdAt: String(e.created_at) });
+            }
+            for (const p of result.procedural ?? []) {
+              memories.push({ id: p.id, content: p.trigger_pattern, memoryType: 'procedural', similarity: p.similarity, createdAt: String(p.created_at) });
+            }
+            return { memories, total: memories.length };
+          },
+        },
+        agentId: ctx?.agentId ?? (rawInput as Record<string, unknown>)['agent_id'] as string ?? 'unknown',
+      });
+    },
+  });
+
+  reg.register({
+    name: 'memory_store',
+    displayName: 'Memory Store',
+    description: 'Store knowledge, experiences, and patterns into the cognitive memory system. Supports semantic (facts), episodic (experiences), and procedural (workflows) memory types.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['semantic', 'episodic', 'procedural'], description: 'Memory tier to store in' },
+        content: { type: 'string', description: 'Content to store (for semantic/episodic)' },
+        action: { type: 'string', description: 'Action taken (for episodic)' },
+        outcome: { type: 'string', description: 'Outcome observed (for episodic)' },
+        quality: { type: 'number', description: 'Outcome quality 0-1 (for episodic)' },
+        trigger_pattern: { type: 'string', description: 'Trigger pattern (for procedural)' },
+        tool_sequence: { type: 'array', description: 'Tool sequence [{tool, params, description}] (for procedural)' },
+        importance: { type: 'number', description: 'Importance 0-1 (for semantic)' },
+        source: { type: 'string', description: 'Source label (for semantic)' },
+        metadata: { type: 'object', description: 'Optional metadata' },
+      },
+      required: ['type'],
+    },
+    execute: async (rawInput) => {
+      const input = rawInput as unknown as MemoryStoreInput;
+      const ctx = getExecutionContext();
+      return memoryStore(input, {
+        memoryManager: getMemoryManager(),
+        agentId: ctx?.agentId ?? (rawInput as Record<string, unknown>)['agent_id'] as string ?? 'unknown',
+        ownerId: ctx?.ownerId ?? 'system:forge',
+      });
+    },
+  });
+
+  reg.register({
+    name: 'knowledge_search',
+    displayName: 'Knowledge Search',
+    description: 'Search the fleet-wide knowledge graph for entities and relationships extracted from all agent executions. Find concepts, tools, services, patterns, and their connections.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['search', 'related'],
+          description: 'search: find knowledge nodes. related: get relationships for a node.',
+        },
+        query: { type: 'string', description: 'Search query (for search action)' },
+        entity_type: { type: 'string', enum: ['concept', 'person', 'tool', 'service', 'file', 'error', 'pattern'], description: 'Filter by entity type' },
+        limit: { type: 'number', description: 'Max results (default 10, max 20)' },
+        node_id: { type: 'string', description: 'Node ID (for related action)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => knowledgeSearch(input as unknown as Parameters<typeof knowledgeSearch>[0]),
+  });
 }
 
 // ============================================
@@ -1059,7 +1182,7 @@ export async function runDirectCliExecution(
   const parentCtx = getExecutionContext();
   const depth = (parentCtx?.depth ?? 0) + (parentCtx ? 1 : 0);
 
-  await executionStore.run({ ownerId, executionId, depth }, async () => {
+  await executionStore.run({ ownerId, executionId, agentId, depth }, async () => {
 
   try {
     // Update execution status to running
