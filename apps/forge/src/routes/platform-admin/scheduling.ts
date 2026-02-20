@@ -240,7 +240,7 @@ async function runSchedulerTick(): Promise<void> {
     for (const schedule of dueAgents) {
       const agentId = schedule['agent_id'] as string;
       const agent = await queryOne<Record<string, unknown>>(
-        `SELECT id, name, status, model_id, system_prompt, max_cost_per_execution FROM forge_agents WHERE id = $1`,
+        `SELECT id, name, status, model_id, system_prompt, max_cost_per_execution, metadata FROM forge_agents WHERE id = $1`,
         [agentId],
       );
 
@@ -249,7 +249,18 @@ async function runSchedulerTick(): Promise<void> {
       }
 
       const intervalMinutes = (schedule['schedule_interval_minutes'] as number) || 60;
-      const input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are running on a ${intervalMinutes}-minute schedule.
+
+      // Check for custom scheduled input in agent metadata
+      const metadata = agent['metadata'] as Record<string, unknown> | null;
+      const customInput = metadata?.['custom_scheduled_input'] as string | undefined;
+
+      let input: string;
+      if (customInput) {
+        // Agent has a custom input template — use it
+        input = customInput.replace(/\{timestamp\}/g, new Date().toISOString());
+      } else {
+        // Default ticket lifecycle template
+        input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are running on a ${intervalMinutes}-minute schedule.
 
 MANDATORY TICKET LIFECYCLE — Follow this exact order every run:
 
@@ -268,6 +279,7 @@ MANDATORY TICKET LIFECYCLE — Follow this exact order every run:
 7. ROUTINE DUTIES: After ticket work, perform your standard monitoring/maintenance tasks.
 
 Be efficient and concise. Every action you take must be tracked through a ticket.`;
+      }
 
       batchAgents.push({
         agentId,
