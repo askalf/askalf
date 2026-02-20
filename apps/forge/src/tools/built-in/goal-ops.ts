@@ -5,7 +5,7 @@
  */
 
 import { query } from '../../database.js';
-import { proposeGoals, approveGoal, getAgentGoals } from '../../orchestration/goal-proposer.js';
+import { proposeGoals, approveGoal, rejectGoal, getAgentGoals } from '../../orchestration/goal-proposer.js';
 import { getExecutionContext } from '../../runtime/execution-context.js';
 import type { ToolResult } from '../registry.js';
 
@@ -14,7 +14,7 @@ import type { ToolResult } from '../registry.js';
 // ============================================
 
 export interface GoalOpsInput {
-  action: 'propose' | 'list' | 'approve' | 'complete';
+  action: 'propose' | 'list' | 'approve' | 'reject' | 'complete';
   // For list:
   status?: string;
   // For approve / complete:
@@ -40,12 +40,14 @@ export async function goalOps(input: GoalOpsInput): Promise<ToolResult> {
         return await handleList(input, startTime);
       case 'approve':
         return await handleApprove(input, startTime);
+      case 'reject':
+        return await handleReject(input, startTime);
       case 'complete':
         return await handleComplete(input, startTime);
       default:
         return {
           output: null,
-          error: `Unknown action: ${input.action}. Supported: propose, list, approve, complete`,
+          error: `Unknown action: ${input.action}. Supported: propose, list, approve, reject, complete`,
           durationMs: Math.round(performance.now() - startTime),
         };
     }
@@ -169,6 +171,29 @@ async function handleApprove(input: GoalOpsInput, startTime: number): Promise<To
       message: approved
         ? 'Goal approved. It will be picked up by the orchestration system if complex, or available for direct execution.'
         : 'Failed to approve goal. It may not exist, or it may not be in "proposed" status.',
+    },
+    durationMs: Math.round(performance.now() - startTime),
+  };
+}
+
+// ============================================
+// Reject Action
+// ============================================
+
+async function handleReject(input: GoalOpsInput, startTime: number): Promise<ToolResult> {
+  if (!input.goal_id) {
+    return { output: null, error: 'goal_id is required for reject', durationMs: 0 };
+  }
+
+  const rejected = await rejectGoal(input.goal_id);
+
+  return {
+    output: {
+      rejected,
+      goal_id: input.goal_id,
+      message: rejected
+        ? 'Goal rejected successfully.'
+        : 'Failed to reject goal. It may not exist, or it may not be in "proposed" status.',
     },
     durationMs: Math.round(performance.now() - startTime),
   };
