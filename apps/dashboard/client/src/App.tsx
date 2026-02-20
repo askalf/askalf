@@ -20,8 +20,6 @@ const Terms = lazy(() => import('./pages/Terms'));
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 
 // Lazy-loaded: app pages
-const AskAlf = lazy(() => import('./pages/AskAlf'));
-const AskAlfIntegrations = lazy(() => import('./pages/AskAlfIntegrations'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
 const Settings = lazy(() => import('./pages/Settings'));
 
@@ -54,15 +52,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function SuperAdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuthStore();
 
-  if (isLoading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'super_admin') return <Navigate to="/command-center" replace />;
-
-  return <>{children}</>;
-}
 
 function LoadingScreen() {
   return (
@@ -104,8 +94,6 @@ export default function App() {
         }
       >
         {/* Ask Alf — dev project, super_admin only */}
-        <Route path="/ask-alf" element={<SuperAdminRoute><AskAlf /></SuperAdminRoute>} />
-        <Route path="/ask-alf/integrations" element={<SuperAdminRoute><AskAlfIntegrations /></SuperAdminRoute>} />
 
 
         {/* Forge — agent orchestration */}
