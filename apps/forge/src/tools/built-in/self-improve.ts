@@ -5,7 +5,7 @@
  */
 
 import { query } from '../../database.js';
-import { proposePromptRevision, applyPromptRevision, getPromptRevisions } from '../../learning/prompt-rewriter.js';
+import { proposePromptRevision, applyPromptRevision, rejectPromptRevision, getPromptRevisions } from '../../learning/prompt-rewriter.js';
 import { detectCapabilities, getAgentCapabilities } from '../../orchestration/capability-registry.js';
 import { getExecutionContext } from '../../runtime/execution-context.js';
 import type { ToolResult } from '../registry.js';
@@ -15,7 +15,7 @@ import type { ToolResult } from '../registry.js';
 // ============================================
 
 export interface SelfImproveInput {
-  action: 'propose_revision' | 'list_revisions' | 'apply_revision' | 'analyze_capabilities';
+  action: 'propose_revision' | 'list_revisions' | 'apply_revision' | 'reject_revision' | 'analyze_capabilities';
   revision_id?: string;
   agent_id?: string;
 }
@@ -35,12 +35,14 @@ export async function selfImprove(input: SelfImproveInput): Promise<ToolResult> 
         return await handleListRevisions(input, startTime);
       case 'apply_revision':
         return await handleApplyRevision(input, startTime);
+      case 'reject_revision':
+        return await handleRejectRevision(input, startTime);
       case 'analyze_capabilities':
         return await handleAnalyzeCapabilities(input, startTime);
       default:
         return {
           output: null,
-          error: `Unknown action: ${input.action}. Supported: propose_revision, list_revisions, apply_revision, analyze_capabilities`,
+          error: `Unknown action: ${input.action}. Supported: propose_revision, list_revisions, apply_revision, reject_revision, analyze_capabilities`,
           durationMs: Math.round(performance.now() - startTime),
         };
     }
@@ -154,6 +156,37 @@ async function handleApplyRevision(input: SelfImproveInput, startTime: number): 
       message: applied
         ? 'Revision applied successfully. Your system prompt has been updated.'
         : 'Failed to apply revision. It may already be applied, rejected, or not found.',
+    },
+    durationMs: Math.round(performance.now() - startTime),
+  };
+}
+
+// ============================================
+// Reject Revision Action
+// ============================================
+
+async function handleRejectRevision(input: SelfImproveInput, startTime: number): Promise<ToolResult> {
+  if (!input.revision_id) {
+    return { output: null, error: 'revision_id is required for reject_revision', durationMs: 0 };
+  }
+
+  const ctx = getExecutionContext();
+  const agentId = ctx?.agentId ?? 'unknown';
+
+  const agents = await query<{ name: string }>(
+    `SELECT name FROM forge_agents WHERE id = $1`,
+    [agentId],
+  );
+  const rejectedBy = agentId !== 'unknown' ? `agent:${agents[0]?.name ?? agentId}` : 'system:self-improve';
+  const rejected = await rejectPromptRevision(input.revision_id, rejectedBy);
+
+  return {
+    output: {
+      rejected,
+      revision_id: input.revision_id,
+      message: rejected
+        ? 'Revision rejected successfully.'
+        : 'Failed to reject revision. It may not exist, or it may not be in "pending" status.',
     },
     durationMs: Math.round(performance.now() - startTime),
   };
