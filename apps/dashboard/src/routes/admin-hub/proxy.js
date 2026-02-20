@@ -397,6 +397,42 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   });
 
   // ============================================
+  // CHECKPOINTS (Human-in-the-loop)
+  // ============================================
+
+  fastify.get('/api/v1/admin/checkpoints', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { owner_id, status, limit } = request.query;
+    const params = new URLSearchParams();
+    if (owner_id) params.set('owner_id', owner_id);
+    if (status) params.set('status', status);
+    if (limit) params.set('limit', limit);
+    const qs = params.toString();
+    const res = await callForgeAdmin(`/checkpoints${qs ? `?${qs}` : ''}`);
+    if (res.error) return reply.code(res.status || 503).send({ checkpoints: [] });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/checkpoints/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/checkpoints/${encodeURIComponent(id)}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Checkpoint unavailable' });
+    return res;
+  });
+
+  fastify.post('/api/v1/admin/checkpoints/:id/respond', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/checkpoints/${encodeURIComponent(id)}/respond`, { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Checkpoint response failed' });
+    return res;
+  });
+
+  // ============================================
   // REAL-TIME EVENTS & SHARED CONTEXT
   // ============================================
 
