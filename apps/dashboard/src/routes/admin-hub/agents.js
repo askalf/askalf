@@ -8,7 +8,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
-    const agentsRes = await callForge('/agents?limit=100');
+    const agentsRes = await callForgeAdmin('/agents');
     if (agentsRes.error) {
       return reply.code(agentsRes.status || 503).send({
         error: 'Failed to fetch agents from Forge',
@@ -16,7 +16,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
       });
     }
 
-    const execsRes = await callForge('/executions?limit=100');
+    const execsRes = await callForgeAdmin('/executions?limit=100');
     const executions = execsRes.error ? [] : (execsRes.executions || []);
 
     // Get pending intervention counts per agent
@@ -45,8 +45,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
     const { id } = request.params;
     const [agentRes, execsRes] = await Promise.all([
-      callForge(`/agents/${id}`),
-      callForge(`/executions?agentId=${id}&limit=50`),
+      callForgeAdmin(`/agents/${id}`),
+      callForgeAdmin(`/executions?agentId=${id}&limit=50`),
     ]);
 
     if (agentRes.error) {
@@ -101,7 +101,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
       },
     };
 
-    const res = await callForge('/agents', { method: 'POST', body: forgeBody });
+    const res = await callForgeAdmin('/agents', { method: 'POST', body: forgeBody });
     if (res.error) {
       return reply.code(res.status || 500).send({ error: 'Failed to create agent', message: res.message });
     }
@@ -133,7 +133,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
     // Frontend may send {prompt: "..."} or {input: {prompt: "..."}} or {task_type, input: {prompt}}
     const prompt = body.prompt || (typeof body.input === 'object' ? body.input?.prompt : body.input) || 'Execute default task';
-    const res = await callForge('/executions', {
+    const res = await callForgeAdmin('/executions', {
       method: 'POST',
       body: {
         agentId: id,
@@ -155,7 +155,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     if (!admin) return { error: 'Admin access required' };
 
     const { id } = request.params;
-    const res = await callForge(`/agents/${id}`, {
+    const res = await callForgeAdmin(`/agents/${id}`, {
       method: 'PUT',
       body: { status: 'paused' },
     });
@@ -173,7 +173,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     if (!admin) return { error: 'Admin access required' };
 
     const { id } = request.params;
-    const res = await callForge(`/agents/${id}`, {
+    const res = await callForgeAdmin(`/agents/${id}`, {
       method: 'PUT',
       body: { status: 'archived' },
     });
@@ -191,7 +191,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     if (!admin) return { error: 'Admin access required' };
 
     const { id } = request.params;
-    const res = await callForge(`/agents/${id}`, {
+    const res = await callForgeAdmin(`/agents/${id}`, {
       method: 'PUT',
       body: { status: 'active' },
     });
@@ -209,7 +209,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     if (!admin) return { error: 'Admin access required' };
 
     const { id } = request.params;
-    const res = await callForge(`/agents/${id}`, { method: 'DELETE' });
+    const res = await callForgeAdmin(`/agents/${id}`, { method: 'DELETE' });
 
     if (res.error) {
       return reply.code(res.status || 500).send({ error: 'Failed to delete agent', message: res.message });
@@ -223,14 +223,14 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
-    const agentsRes = await callForge('/agents?status=active&limit=100');
+    const agentsRes = await callForgeAdmin('/agents?status=active');
     if (agentsRes.error) {
       return reply.code(503).send({ error: 'Failed to fetch agents' });
     }
 
     const results = [];
     for (const agent of (agentsRes.agents || [])) {
-      const execRes = await callForge('/executions', {
+      const execRes = await callForgeAdmin('/executions', {
         method: 'POST',
         body: {
           agentId: agent.id,
@@ -261,14 +261,14 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
 
-    const agentsRes = await callForge('/agents?status=active&limit=100');
+    const agentsRes = await callForgeAdmin('/agents?status=active');
     if (agentsRes.error) {
       return reply.code(503).send({ error: 'Failed to fetch agents' });
     }
 
     const results = [];
     for (const agent of (agentsRes.agents || [])) {
-      const res = await callForge(`/agents/${agent.id}`, {
+      const res = await callForgeAdmin(`/agents/${agent.id}`, {
         method: 'PUT',
         body: { status: 'paused' },
       });
@@ -295,7 +295,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     const { id } = request.params;
     const body = request.body || {};
 
-    const res = await callForge('/executions', {
+    const res = await callForgeAdmin('/executions', {
       method: 'POST',
       body: {
         agentId: id,
@@ -317,8 +317,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     if (!admin) return { error: 'Admin access required' };
 
     const [agentsRes, execsRes] = await Promise.all([
-      callForge('/agents?limit=100'),
-      callForge('/executions?limit=100'),
+      callForgeAdmin('/agents'),
+      callForgeAdmin('/executions?limit=100'),
     ]);
 
     const agents = agentsRes.error ? [] : (agentsRes.agents || []);

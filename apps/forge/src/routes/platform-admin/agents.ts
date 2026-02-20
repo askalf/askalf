@@ -73,6 +73,76 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     }
   );
 
+  // Create agent (admin — sets owner_id to system:forge for admin-created agents)
+  app.post(
+    '/api/v1/admin/agents',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as Record<string, unknown> || {};
+      const id = ulid();
+      const slug = ((body['name'] as string) || 'agent').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const agent = await queryOne<ForgeAgent>(
+        `INSERT INTO forge_agents (id, owner_id, name, slug, description, system_prompt, autonomy_level, model_id, metadata, status, type)
+         VALUES ($1, 'system:forge', $2, $3, $4, $5, $6, $7, $8, 'active', $9) RETURNING *`,
+        [
+          id,
+          body['name'] || 'New Agent',
+          slug,
+          body['description'] || '',
+          body['systemPrompt'] || body['system_prompt'] || '',
+          body['autonomyLevel'] ?? body['autonomy_level'] ?? 2,
+          body['model_id'] || null,
+          JSON.stringify(body['metadata'] || {}),
+          (body['metadata'] as Record<string, unknown>)?.['type'] || body['type'] || 'custom',
+        ]
+      );
+      if (!agent) return reply.code(500).send({ error: 'Failed to create agent' });
+      return reply.code(201).send({ agent: transformAgent(agent) });
+    }
+  );
+
+  // Create execution (admin — no owner_id check)
+  app.post(
+    '/api/v1/admin/executions',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as Record<string, unknown> || {};
+      const agentId = body['agentId'] as string;
+      const input = body['input'] as string;
+      if (!agentId || !input) return reply.code(400).send({ error: 'agentId and input required' });
+
+      const agent = await queryOne<{ id: string; name: string }>('SELECT id, name FROM forge_agents WHERE id = $1', [agentId]);
+      if (!agent) return reply.code(404).send({ error: 'Agent not found' });
+
+      const execId = ulid();
+      await query(
+        `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, metadata, created_at) VALUES ($1, $2, $3, 'pending', $4, $5, NOW())`,
+        [execId, agentId, request.userId || 'admin', input, JSON.stringify(body['metadata'] || {})]
+      );
+      void runDirectCliExecution(execId, agentId, input, request.userId || 'admin');
+      return { execution: { id: execId, agent_id: agentId, status: 'pending' } };
+    }
+  );
+
+  // List executions (admin — no owner_id filter)
+  app.get(
+    '/api/v1/admin/executions',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest) => {
+      const qs = request.query as { agentId?: string; limit?: string };
+      const limit = Math.min(parseInt(qs.limit || '100'), 500);
+      let sql = `SELECT * FROM forge_executions`;
+      const params: unknown[] = [];
+      if (qs.agentId) {
+        params.push(qs.agentId);
+        sql += ` WHERE agent_id = $1`;
+      }
+      sql += ` ORDER BY created_at DESC LIMIT ${limit}`;
+      const executions = await query<ForgeExecution>(sql, params);
+      return { executions };
+    }
+  );
+
   // Run agent
   app.post(
     '/api/v1/admin/agents/:id/run',
@@ -127,6 +197,41 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       const result = await queryOne<{ id: string }>(`UPDATE forge_agents SET status = 'active', updated_at = NOW() WHERE id = $1 RETURNING id`, [id]);
       if (!result) return reply.code(404).send({ error: 'Agent not found' });
       return { success: true };
+    }
+  );
+
+  // Generic update agent (admin — no owner_id filter)
+  app.put(
+    '/api/v1/admin/agents/:id',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as Record<string, unknown> || {};
+      const sets: string[] = [];
+      const params: unknown[] = [];
+      let idx = 1;
+
+      for (const field of ['name', 'description', 'system_prompt', 'model_id', 'status', 'autonomy_level'] as const) {
+        if (body[field] !== undefined) {
+          sets.push(`${field} = $${idx}`);
+          params.push(body[field]);
+          idx++;
+        }
+      }
+      if (body['metadata'] !== undefined) {
+        sets.push(`metadata = metadata || $${idx}::jsonb`);
+        params.push(JSON.stringify(body['metadata']));
+        idx++;
+      }
+      if (sets.length === 0) return reply.code(400).send({ error: 'No fields to update' });
+
+      sets.push(`updated_at = NOW()`);
+      params.push(id);
+      const agent = await queryOne<ForgeAgent>(
+        `UPDATE forge_agents SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`, params
+      );
+      if (!agent) return reply.code(404).send({ error: 'Agent not found' });
+      return { agent: transformAgent(agent) };
     }
   );
 
