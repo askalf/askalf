@@ -17,7 +17,7 @@ import {
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
-import { initializeDatabase, initializeSubstrateDatabase, closeDatabase } from './database.js';
+import { initializeDatabase, initializeSubstrateDatabase, closeDatabase, query as dbQuery } from './database.js';
 import { loadConfig } from './config.js';
 import { agentRoutes } from './routes/agents.js';
 import { executionRoutes } from './routes/executions.js';
@@ -38,7 +38,7 @@ import { initializeWorker } from './runtime/worker.js';
 import { initMemoryManager } from './memory/singleton.js';
 import { startMetabolicCycles } from './memory/metabolic.js';
 import { detectAllCapabilities } from './orchestration/capability-registry.js';
-import { initEventBus } from './orchestration/event-bus.js';
+import { initEventBus, getEventBus } from './orchestration/event-bus.js';
 import { initSharedContext } from './orchestration/shared-context.js';
 import { startMonitoring } from './orchestration/monitoring-agent.js';
 import { startEventLogger } from './orchestration/event-log.js';
@@ -148,11 +148,33 @@ app.addHook('onResponse', async (request, reply) => {
 // ============================================
 
 app.get('/health', { logLevel: 'silent' }, async () => {
+  let dbOk = false;
+  let redisOk = false;
+
+  // Check PostgreSQL
+  try {
+    await dbQuery('SELECT 1');
+    dbOk = true;
+  } catch { /* db unreachable */ }
+
+  // Check Redis via event bus
+  try {
+    const eventBus = getEventBus();
+    redisOk = eventBus !== null;
+  } catch { /* redis unreachable */ }
+
+  const allHealthy = dbOk && redisOk;
+
   return {
-    status: 'healthy',
+    status: allHealthy ? 'healthy' : 'degraded',
     service: 'forge',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
+    checks: {
+      database: dbOk,
+      redis: redisOk,
+    },
+    uptime: Math.round(process.uptime()),
   };
 });
 
