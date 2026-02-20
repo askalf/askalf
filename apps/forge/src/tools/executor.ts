@@ -7,6 +7,7 @@
 import { ulid } from 'ulid';
 import { query } from '../database.js';
 import type { ToolRegistry, ToolResult, ToolDefinition } from './registry.js';
+import { forgeToolCalls } from '../metrics.js';
 
 // ============================================
 // Types
@@ -77,6 +78,7 @@ export async function executeTools(
   const results: ToolResult[] = [];
 
   for (const call of toolCalls) {
+    forgeToolCalls.inc();
     const recordId = ulid();
     const tool = registry.get(call.name);
 

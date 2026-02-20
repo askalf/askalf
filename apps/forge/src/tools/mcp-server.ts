@@ -24,6 +24,7 @@ import { query, queryOne } from '../database.js';
 import { createExecutionRecord } from '../runtime/persistence.js';
 import { runExecution } from '../runtime/worker.js';
 import { getMetabolicStatus } from '../memory/metabolic.js';
+import { forgeMcpConnections } from '../metrics.js';
 
 // ============================================
 // Types
@@ -401,12 +402,14 @@ export async function registerMCPRoutes(app: FastifyInstance): Promise<void> {
     const transport = new SSEServerTransport('/mcp/message', res);
     const sessionId = transport.sessionId;
     transports.set(sessionId, transport);
+    forgeMcpConnections.inc();
 
     const server = createMCPServer();
 
     // Clean up on disconnect
     request.raw.on('close', () => {
       transports.delete(sessionId);
+      forgeMcpConnections.dec();
       void server.close().catch(() => {});
     });
 
