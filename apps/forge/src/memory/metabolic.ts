@@ -450,14 +450,84 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Cost optimization error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized });
+  // Step 5: Decommission failing agents (Level 5 — Vibe Reproduction)
+  let agentsDecommissioned = 0;
+  let agentsFlagged = 0;
+  try {
+    const failingAgents = await query<{
+      id: string; name: string; autonomy_level: number;
+      tasks_completed: string; tasks_failed: string;
+    }>(
+      `SELECT id, name, autonomy_level,
+              COALESCE(tasks_completed, 0)::text AS tasks_completed,
+              COALESCE(tasks_failed, 0)::text AS tasks_failed
+       FROM forge_agents
+       WHERE status = 'active'
+         AND (is_decommissioned IS NULL OR is_decommissioned = false)
+         AND (COALESCE(metadata->>'system_agent', 'false') != 'true')
+         AND (COALESCE(tasks_completed, 0) + COALESCE(tasks_failed, 0)) > 10
+         AND COALESCE(tasks_failed, 0)::float / GREATEST(COALESCE(tasks_completed, 0) + COALESCE(tasks_failed, 0), 1)::float > 0.6`,
+    );
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized;
+    for (const agent of failingAgents) {
+      const completed = parseInt(agent.tasks_completed);
+      const failed = parseInt(agent.tasks_failed);
+      const failRate = (failed / (completed + failed) * 100).toFixed(0);
+
+      if (agent.autonomy_level >= 3) {
+        // Auto-decommission high-autonomy failing agents
+        await query(
+          `UPDATE forge_agents SET is_decommissioned = true, status = 'paused', updated_at = NOW() WHERE id = $1`,
+          [agent.id],
+        );
+        agentsDecommissioned++;
+        console.log(`[Autonomy] Decommissioned ${agent.name} (${failRate}% failure rate, ${completed + failed} tasks)`);
+
+        // Audit trail
+        try {
+          await substrateQuery(
+            `INSERT INTO agent_audit_log (entity_type, entity_id, action, actor, old_value, new_value)
+             VALUES ('agent', $1, 'decommissioned', 'system:autonomy', $2, $3)`,
+            [
+              agent.id,
+              JSON.stringify({ status: 'active', is_decommissioned: false }),
+              JSON.stringify({ status: 'paused', is_decommissioned: true, reason: `${failRate}% failure rate`, tasks_completed: completed, tasks_failed: failed }),
+            ],
+          );
+        } catch { /* non-fatal */ }
+      } else {
+        // Flag lower-autonomy agents for human review via finding
+        try {
+          const findingId = `DECOMM-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+          await substrateQuery(
+            `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata)
+             VALUES ($1, $2, $3, $4, 'warning', 'performance', $5)
+             ON CONFLICT DO NOTHING`,
+            [
+              findingId,
+              agent.id,
+              agent.name,
+              `Agent "${agent.name}" has a ${failRate}% failure rate (${failed}/${completed + failed} tasks). Consider decommissioning.`,
+              JSON.stringify({ fail_rate: parseFloat(failRate), tasks_completed: completed, tasks_failed: failed }),
+            ],
+          );
+          agentsFlagged++;
+        } catch { /* non-fatal */ }
+      }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Decommission check error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
-      `${promptsApplied} prompts applied, ${modelsOptimized} models optimized — ${elapsed}ms`,
+      `${promptsApplied} prompts applied, ${modelsOptimized} models optimized, ` +
+      `${agentsDecommissioned} decommissioned, ${agentsFlagged} flagged — ${elapsed}ms`,
     );
   }
 }
