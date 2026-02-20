@@ -52,6 +52,8 @@ import { workflowOps } from '../tools/built-in/workflow-ops.js';
 import { orchestrate } from '../tools/built-in/orchestrate.js';
 import { goalOps } from '../tools/built-in/goal-ops.js';
 import { costOptimize } from '../tools/built-in/cost-optimize.js';
+import { feedbackOps } from '../tools/built-in/feedback-ops.js';
+import { eventQuery } from '../tools/built-in/event-query.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -922,6 +924,60 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => costOptimize(input as unknown as Parameters<typeof costOptimize>[0]),
+  });
+
+  reg.register({
+    name: 'feedback_ops',
+    displayName: 'Feedback Ops',
+    description: 'Self-assessment and learning from corrections: submit feedback on execution results (triggers full learning pipeline), view your feedback stats, and inspect correction patterns for self-improvement.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['submit', 'stats', 'patterns'],
+          description: 'submit: process feedback through learning pipeline. stats: see feedback breakdown. patterns: view correction patterns.',
+        },
+        execution_id: { type: 'string', description: 'Execution ID to attach feedback to (for submit)' },
+        feedback_type: {
+          type: 'string',
+          enum: ['correction', 'clarification', 'praise', 'warning', 'rejection'],
+          description: 'Type of feedback (for submit)',
+        },
+        human_response: { type: 'string', description: 'Feedback content / correction details (for submit)' },
+        agent_output: { type: 'string', description: 'Original agent output being assessed (for submit)' },
+        corrected_output: { type: 'string', description: 'Corrected version of the output (for submit with correction)' },
+        autonomy_delta: { type: 'number', description: 'Autonomy adjustment -2 to +2 (for submit)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => feedbackOps(input as unknown as Parameters<typeof feedbackOps>[0]),
+  });
+
+  reg.register({
+    name: 'event_query',
+    displayName: 'Event Query',
+    description: 'Fleet intelligence: replay execution events, query orchestration sessions, view fleet leaderboard rankings, and monitor event volume across the system.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['execution', 'session', 'recent', 'leaderboard', 'stats'],
+          description: 'execution: replay events for an execution. session: events for orchestration session. recent: latest fleet events. leaderboard: agent rankings. stats: event volume.',
+        },
+        execution_id: { type: 'string', description: 'Execution ID (for execution action)' },
+        session_id: { type: 'string', description: 'Orchestration session ID (for session action)' },
+        limit: { type: 'number', description: 'Max events to return (for recent, default 50, max 200)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => eventQuery(input as unknown as Parameters<typeof eventQuery>[0]),
   });
 }
 

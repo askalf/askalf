@@ -6,7 +6,7 @@
 
 import { query } from '../database.js';
 import { substrateQuery } from '../database.js';
-import { processUnprocessedFeedback } from '../learning/feedback-processor.js';
+import { processUnprocessedFeedback, getAgentFeedbackStats } from '../learning/feedback-processor.js';
 import { proposeAllRevisions, applyPromptRevision, proposePromptRevision } from '../learning/prompt-rewriter.js';
 import { proposeAllGoals, proposeGoals, approveGoal } from '../orchestration/goal-proposer.js';
 import { selectOptimalModel } from '../orchestration/cost-router.js';
@@ -939,10 +939,70 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Goal lifecycle error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated, goalsCompleted, goalsRequeued, goalsAutoProposed });
+  // ------------------------------------------------------------------
+  // Step 11: Feedback-driven autonomy review (Level 12)
+  // ------------------------------------------------------------------
+  let autonomyIncreased = 0;
+  let autonomyDecreased = 0;
+  const MAX_AUTONOMY_ADJUSTMENTS = 3;
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated + goalsCompleted + goalsAutoProposed;
+  try {
+    // Get agents with sufficient feedback history for review
+    const reviewAgents = await query<{
+      id: string;
+      name: string;
+      autonomy_level: number;
+    }>(
+      `SELECT a.id, a.name, a.autonomy_level
+       FROM forge_agents a
+       WHERE (a.is_decommissioned IS NULL OR a.is_decommissioned = false)
+         AND a.status != 'error'
+         AND EXISTS (
+           SELECT 1 FROM forge_execution_feedback f
+           WHERE f.agent_id = a.id
+           HAVING COUNT(*) >= 10
+         )
+       LIMIT 10`,
+    );
+
+    for (const agent of reviewAgents) {
+      if (autonomyIncreased + autonomyDecreased >= MAX_AUTONOMY_ADJUSTMENTS) break;
+
+      try {
+        const stats = await getAgentFeedbackStats(agent.id);
+        if (stats.total < 10) continue;
+
+        const correctionRate = stats.corrections / stats.total;
+        const praiseRate = stats.praises / stats.total;
+
+        // High correction rate → reduce autonomy
+        if (correctionRate > 0.4 && agent.autonomy_level > 2) {
+          await query(
+            `UPDATE forge_agents SET autonomy_level = autonomy_level - 1, updated_at = NOW() WHERE id = $1`,
+            [agent.id],
+          );
+          autonomyDecreased++;
+          console.log(`[Autonomy] Reduced autonomy for ${agent.name}: correction rate ${Math.round(correctionRate * 100)}% (${agent.autonomy_level} → ${agent.autonomy_level - 1})`);
+        }
+        // High praise rate → increase autonomy
+        else if (praiseRate > 0.7 && agent.autonomy_level < 4) {
+          await query(
+            `UPDATE forge_agents SET autonomy_level = autonomy_level + 1, updated_at = NOW() WHERE id = $1`,
+            [agent.id],
+          );
+          autonomyIncreased++;
+          console.log(`[Autonomy] Increased autonomy for ${agent.name}: praise rate ${Math.round(praiseRate * 100)}% (${agent.autonomy_level} → ${agent.autonomy_level + 1})`);
+        }
+      } catch { /* non-fatal */ }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Feedback review error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated, goalsCompleted, goalsRequeued, goalsAutoProposed, autonomyIncreased, autonomyDecreased });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated + goalsCompleted + goalsAutoProposed + autonomyIncreased + autonomyDecreased;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
@@ -950,7 +1010,8 @@ async function runAutonomyLoop(): Promise<void> {
       `${agentsDecommissioned} decommissioned, ${agentsFlagged} flagged, ` +
       `${correctionsPromoted} corrections promoted, ${anomaliesDetected} anomalies, ` +
       `${autoHealed} auto-healed, ${autoEvolved} auto-evolved, ${autoOrchestrated} auto-orchestrated, ` +
-      `${goalsCompleted} goals completed, ${goalsRequeued} requeued, ${goalsAutoProposed} auto-proposed — ${elapsed}ms`,
+      `${goalsCompleted} goals completed, ${goalsRequeued} requeued, ${goalsAutoProposed} auto-proposed, ` +
+      `${autonomyIncreased} autonomy↑, ${autonomyDecreased} autonomy↓ — ${elapsed}ms`,
     );
   }
 }
