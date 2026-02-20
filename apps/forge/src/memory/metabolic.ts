@@ -8,12 +8,12 @@ import { query } from '../database.js';
 import { substrateQuery } from '../database.js';
 import { processUnprocessedFeedback } from '../learning/feedback-processor.js';
 import { proposeAllRevisions, applyPromptRevision, proposePromptRevision } from '../learning/prompt-rewriter.js';
-import { proposeAllGoals, approveGoal } from '../orchestration/goal-proposer.js';
+import { proposeAllGoals, proposeGoals, approveGoal } from '../orchestration/goal-proposer.js';
 import { selectOptimalModel } from '../orchestration/cost-router.js';
 import { getMemoryManager } from './singleton.js';
 import { healStuckExecutions } from '../orchestration/monitoring-agent.js';
 import { promoteVariant } from '../orchestration/evolution.js';
-import { orchestrateFromNL } from '../orchestration/nl-orchestrator.js';
+import { orchestrateFromNL, getOrchestrationStatus } from '../orchestration/nl-orchestrator.js';
 import { shouldDecompose } from '../orchestration/task-decomposer.js';
 
 // ============================================
@@ -847,17 +847,110 @@ async function runAutonomyLoop(): Promise<void> {
     console.warn('[Autonomy] Auto-orchestration error:', err instanceof Error ? err.message : err);
   }
 
-  const elapsed = Date.now() - start;
-  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated });
+  // ------------------------------------------------------------------
+  // Step 10: Goal lifecycle management (Level 11)
+  // ------------------------------------------------------------------
+  let goalsCompleted = 0;
+  let goalsRequeued = 0;
+  let goalsAutoProposed = 0;
+  const MAX_GOAL_COMPLETIONS = 3;
+  const MAX_GOAL_PROPOSALS = 2;
 
-  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated;
+  try {
+    // Check in_progress goals with orchestration sessions — mark complete or requeue
+    const inProgressGoals = await query<{
+      id: string;
+      agent_id: string;
+      title: string;
+      metadata: Record<string, unknown> | null;
+    }>(
+      `SELECT id, agent_id, title, metadata
+       FROM forge_agent_goals
+       WHERE status = 'in_progress'
+         AND metadata->>'orchestration_session_id' IS NOT NULL
+       LIMIT 10`,
+    );
+
+    for (const goal of inProgressGoals) {
+      if (goalsCompleted + goalsRequeued >= MAX_GOAL_COMPLETIONS) break;
+
+      const sessionId = goal.metadata?.['orchestration_session_id'] as string | undefined;
+      if (!sessionId) continue;
+
+      try {
+        const status = await getOrchestrationStatus(sessionId);
+        // Only process if all tasks are done (no running or pending)
+        if (status.running > 0 || status.pending > 0) continue;
+
+        if (status.failed === 0 && status.completed > 0) {
+          // All tasks completed successfully → mark goal complete
+          await query(
+            `UPDATE forge_agent_goals
+             SET status = 'completed',
+                 metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('completed_at', NOW()::text, 'tasks_completed', $1::text),
+                 updated_at = NOW()
+             WHERE id = $2`,
+            [String(status.completed), goal.id],
+          );
+          goalsCompleted++;
+          console.log(`[Autonomy] Goal completed: "${goal.title}" (${status.completed} tasks succeeded)`);
+        } else if (status.completed === 0 && status.failed > 0) {
+          // All tasks failed → requeue for retry
+          await query(
+            `UPDATE forge_agent_goals
+             SET status = 'approved',
+                 metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('requeued_at', NOW()::text, 'tasks_failed', $1::text),
+                 updated_at = NOW()
+             WHERE id = $2`,
+            [String(status.failed), goal.id],
+          );
+          goalsRequeued++;
+          console.log(`[Autonomy] Goal requeued: "${goal.title}" (${status.failed} tasks failed)`);
+        }
+        // Mixed results: leave in_progress for manual review
+      } catch { /* non-fatal */ }
+    }
+
+    // Auto-propose goals for high-autonomy agents with stale goals
+    const staleAgents = await query<{ id: string; name: string }>(
+      `SELECT a.id, a.name
+       FROM forge_agents a
+       WHERE a.autonomy_level >= 4
+         AND (a.is_decommissioned IS NULL OR a.is_decommissioned = false)
+         AND a.tasks_completed + a.tasks_failed >= 5
+         AND NOT EXISTS (
+           SELECT 1 FROM forge_agent_goals g
+           WHERE g.agent_id = a.id AND g.created_at > NOW() - INTERVAL '7 days'
+         )
+       LIMIT 5`,
+    );
+
+    for (const agent of staleAgents) {
+      if (goalsAutoProposed >= MAX_GOAL_PROPOSALS) break;
+      try {
+        const goals = await proposeGoals(agent.id);
+        if (goals.length > 0) {
+          goalsAutoProposed++;
+          console.log(`[Autonomy] Auto-proposed ${goals.length} goals for ${agent.name}`);
+        }
+      } catch { /* non-fatal */ }
+    }
+  } catch (err) {
+    console.warn('[Autonomy] Goal lifecycle error:', err instanceof Error ? err.message : err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('autonomy-loop', elapsed, { goalsApproved, goalsTicketed, promptsApplied, modelsOptimized, agentsDecommissioned, agentsFlagged, correctionsPromoted, anomaliesDetected, autoHealed, autoEvolved, autoOrchestrated, goalsCompleted, goalsRequeued, goalsAutoProposed });
+
+  const total = goalsApproved + goalsTicketed + promptsApplied + modelsOptimized + agentsDecommissioned + agentsFlagged + correctionsPromoted + anomaliesDetected + autoEvolved + autoOrchestrated + goalsCompleted + goalsAutoProposed;
   if (total > 0) {
     console.log(
       `[Autonomy] Loop complete: ${goalsApproved} goals approved, ${goalsTicketed} ticketed, ` +
       `${promptsApplied} prompts applied, ${modelsOptimized} models optimized, ` +
       `${agentsDecommissioned} decommissioned, ${agentsFlagged} flagged, ` +
       `${correctionsPromoted} corrections promoted, ${anomaliesDetected} anomalies, ` +
-      `${autoHealed} auto-healed, ${autoEvolved} auto-evolved, ${autoOrchestrated} auto-orchestrated — ${elapsed}ms`,
+      `${autoHealed} auto-healed, ${autoEvolved} auto-evolved, ${autoOrchestrated} auto-orchestrated, ` +
+      `${goalsCompleted} goals completed, ${goalsRequeued} requeued, ${goalsAutoProposed} auto-proposed — ${elapsed}ms`,
     );
   }
 }

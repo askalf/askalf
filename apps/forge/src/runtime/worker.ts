@@ -50,6 +50,8 @@ import { selfImprove } from '../tools/built-in/self-improve.js';
 import { evolutionTest } from '../tools/built-in/evolution-test.js';
 import { workflowOps } from '../tools/built-in/workflow-ops.js';
 import { orchestrate } from '../tools/built-in/orchestrate.js';
+import { goalOps } from '../tools/built-in/goal-ops.js';
+import { costOptimize } from '../tools/built-in/cost-optimize.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -872,6 +874,54 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => orchestrate(input as unknown as Parameters<typeof orchestrate>[0]),
+  });
+
+  reg.register({
+    name: 'goal_ops',
+    displayName: 'Goal Ops',
+    description: 'Manage your own improvement goals: propose goals based on execution history, list existing goals, self-approve at high autonomy, and mark goals complete with results.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['propose', 'list', 'approve', 'complete'],
+          description: 'propose: generate improvement goals from history. list: see your goals. approve: self-approve a proposed goal (autonomy >= 4). complete: mark a goal done.',
+        },
+        status: { type: 'string', description: 'Filter goals by status: proposed, approved, rejected, in_progress, completed (for list)' },
+        goal_id: { type: 'string', description: 'Goal ID (for approve, complete)' },
+        result_summary: { type: 'string', description: 'Summary of what was accomplished (for complete)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => goalOps(input as unknown as Parameters<typeof goalOps>[0]),
+  });
+
+  reg.register({
+    name: 'cost_optimize',
+    displayName: 'Cost Optimize',
+    description: 'Make cost-aware decisions: view cost profiles across capabilities, get model recommendations for specific tasks, batch recommendations, and analyze your own spending patterns.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['dashboard', 'recommend', 'recommend_batch', 'my_costs'],
+          description: 'dashboard: view all cost profiles. recommend: get cheapest model for a capability. recommend_batch: recommendations for multiple capabilities. my_costs: your 7-day spending.',
+        },
+        capability: { type: 'string', description: 'Capability name (for recommend)' },
+        min_quality: { type: 'number', description: 'Minimum quality threshold 0-1 (default: 0.7)' },
+        capabilities: { type: 'array', items: { type: 'string' }, description: 'List of capabilities (for recommend_batch)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => costOptimize(input as unknown as Parameters<typeof costOptimize>[0]),
   });
 }
 
