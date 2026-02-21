@@ -39,12 +39,16 @@ export interface GitOpsInput {
 // ============================================
 
 const REPO_ROOT = process.env['REPO_ROOT'] ?? '/workspace';
+const WORKTREE_BASE = `${REPO_ROOT}/.worktrees`;
 const EXEC_TIMEOUT_MS = 30_000;
 const MAX_OUTPUT = 8_000;
 const MAX_DIFF_OUTPUT = 4_000;
 
 const BLOCKED_BRANCHES = ['main', 'master', 'production'];
 const BLOCKED_FILE_PATTERNS = ['.env', '.key', '.pem', 'credentials', 'secret'];
+
+// Track active worktrees per branch so subsequent operations (add, commit) target the right path
+const activeWorktrees = new Map<string, string>();
 
 // ============================================
 // Helpers
@@ -64,6 +68,30 @@ function git(args: string, timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: numbe
       },
     );
   });
+}
+
+/** Run git in a specific worktree directory (falls back to REPO_ROOT) */
+function gitIn(worktreePath: string, args: string, timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    exec(
+      `git -C "${worktreePath}" ${args}`,
+      { timeout, maxBuffer: 1_024_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
+      (error, stdout, stderr) => {
+        resolve({
+          exitCode: error ? (error.code ?? 1) : 0,
+          stdout: stdout.slice(0, MAX_OUTPUT),
+          stderr: stderr.slice(0, MAX_OUTPUT),
+        });
+      },
+    );
+  });
+}
+
+/** Resolve the worktree path for the current agent, if one exists */
+function resolveWorkdir(): string {
+  // Check execution context for a known worktree
+  // API-mode agents create worktrees via branch_create, so look up by current invocation
+  return REPO_ROOT;
 }
 
 function isBlockedFile(filePath: string): boolean {
@@ -155,22 +183,36 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
         const slug = input.branch_name.replace(/[^a-zA-Z0-9_-]/g, '-').toLowerCase();
         const agentSlug = input.agent_name.replace(/\s+/g, '-').toLowerCase();
         const branchName = `agent/${agentSlug}/${slug}`;
+        const worktreePath = `${WORKTREE_BASE}/${agentSlug}-${slug}`;
 
-        const res = await git(`checkout -b "${branchName}"`);
+        // Use git worktree for isolation — doesn't touch main's working tree
+        const res = await git(`worktree add "${worktreePath}" -b "${branchName}" main`);
         if (res.exitCode !== 0) {
-          // If branch already exists, try switching to it
+          // If branch already exists, try attaching worktree to existing branch
           if (res.stderr.includes('already exists')) {
-            const checkout = await git(`checkout "${branchName}"`);
-            return {
-              output: { branch: branchName, created: false, switched: true, exitCode: checkout.exitCode },
-              error: checkout.exitCode !== 0 ? checkout.stderr : undefined,
-              durationMs: Math.round(performance.now() - startTime),
-            };
+            const retry = await git(`worktree add "${worktreePath}" "${branchName}"`);
+            if (retry.exitCode === 0) {
+              activeWorktrees.set(branchName, worktreePath);
+              return {
+                output: { branch: branchName, worktree: worktreePath, created: false, switched: true, exitCode: 0 },
+                durationMs: Math.round(performance.now() - startTime),
+              };
+            }
+            // Worktree may already exist too — just register it
+            if (retry.stderr.includes('already checked out')) {
+              activeWorktrees.set(branchName, worktreePath);
+              return {
+                output: { branch: branchName, worktree: worktreePath, created: false, switched: true, exitCode: 0 },
+                durationMs: Math.round(performance.now() - startTime),
+              };
+            }
+            return { output: null, error: retry.stderr, durationMs: Math.round(performance.now() - startTime) };
           }
           return { output: null, error: res.stderr, durationMs: Math.round(performance.now() - startTime) };
         }
+        activeWorktrees.set(branchName, worktreePath);
         return {
-          output: { branch: branchName, created: true, exitCode: 0 },
+          output: { branch: branchName, worktree: worktreePath, created: true, exitCode: 0 },
           durationMs: Math.round(performance.now() - startTime),
         };
       }
@@ -179,11 +221,19 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
         if (!input.branch_name) {
           return { output: null, error: 'branch_name is required for checkout', durationMs: 0 };
         }
-        // Allow checking out agent/* branches or main (read-only view)
         const branch = input.branch_name;
         if (!branch.startsWith('agent/') && !['main', 'master'].includes(branch)) {
           return { output: null, error: 'Can only checkout agent/* branches or main/master', durationMs: 0 };
         }
+        // With worktrees, checkout is a no-op — each branch has its own worktree
+        const wt = activeWorktrees.get(branch);
+        if (wt) {
+          return {
+            output: { branch, worktree: wt, exitCode: 0, message: 'Worktree already active — no checkout needed' },
+            durationMs: Math.round(performance.now() - startTime),
+          };
+        }
+        // Fallback: traditional checkout for branches without worktrees (e.g. main read-only view)
         const res = await git(`checkout "${branch}"`);
         return {
           output: { branch, exitCode: res.exitCode },
@@ -205,10 +255,13 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
             durationMs: Math.round(performance.now() - startTime),
           };
         }
+        // Use worktree path if available (resolve from current branch)
+        const addBranch = await git('rev-parse --abbrev-ref HEAD');
+        const addWorkdir = activeWorktrees.get(addBranch.stdout.trim()) ?? REPO_ROOT;
         const pathArgs = input.paths.map((p) => `"${p}"`).join(' ');
-        const res = await git(`add -- ${pathArgs}`);
+        const res = await gitIn(addWorkdir, `add -- ${pathArgs}`);
         return {
-          output: { added: input.paths, exitCode: res.exitCode },
+          output: { added: input.paths, worktree: addWorkdir, exitCode: res.exitCode },
           error: res.exitCode !== 0 ? res.stderr : undefined,
           durationMs: Math.round(performance.now() - startTime),
         };
@@ -222,40 +275,61 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
           return { output: null, error: 'agent_name is required for commit', durationMs: 0 };
         }
 
-        // Verify we're on an agent/* branch
+        // Resolve worktree for the current branch
         const branchRes = await git('rev-parse --abbrev-ref HEAD');
         const currentBranch = branchRes.stdout.trim();
-        if (!currentBranch.startsWith('agent/')) {
-          return {
-            output: null,
-            error: `Cannot commit: must be on an agent/* branch (currently on '${currentBranch}')`,
-            durationMs: Math.round(performance.now() - startTime),
-          };
+        const commitWorkdir = activeWorktrees.get(currentBranch);
+
+        // If we have a worktree, use it; otherwise check we're on an agent/* branch in main repo
+        const commitDir = commitWorkdir ?? REPO_ROOT;
+        if (!commitWorkdir) {
+          // Fallback: verify branch in main repo
+          if (!currentBranch.startsWith('agent/')) {
+            return {
+              output: null,
+              error: `Cannot commit: must be on an agent/* branch (currently on '${currentBranch}')`,
+              durationMs: Math.round(performance.now() - startTime),
+            };
+          }
+        }
+
+        // Verify branch in worktree is agent/*
+        if (commitWorkdir) {
+          const wtBranch = await gitIn(commitWorkdir, 'rev-parse --abbrev-ref HEAD');
+          if (!wtBranch.stdout.trim().startsWith('agent/')) {
+            return {
+              output: null,
+              error: `Cannot commit: worktree branch is '${wtBranch.stdout.trim()}', expected agent/*`,
+              durationMs: Math.round(performance.now() - startTime),
+            };
+          }
         }
 
         // Auto-append agent attribution to commit message
         const agentEmail = `${input.agent_name.replace(/\s+/g, '').toLowerCase()}@forge.local`;
         const fullMessage = `${input.message}\n\n[Agent: ${input.agent_name} | Execution: ${input.agent_id ?? 'unknown'}]`;
 
-        const res = await git(
+        const res = await gitIn(
+          commitDir,
           `-c user.name="${input.agent_name}" -c user.email="${agentEmail}" commit -m "${fullMessage.replace(/"/g, '\\"')}"`,
         );
 
         if (res.exitCode !== 0 && res.stderr.includes('lock')) {
           // Git lock error — retry once after 2s
           await new Promise((r) => setTimeout(r, 2000));
-          const retry = await git(
+          const retry = await gitIn(
+            commitDir,
             `-c user.name="${input.agent_name}" -c user.email="${agentEmail}" commit -m "${fullMessage.replace(/"/g, '\\"')}"`,
           );
           return {
-            output: { committed: retry.exitCode === 0, branch: currentBranch, retried: true, stdout: retry.stdout },
+            output: { committed: retry.exitCode === 0, branch: currentBranch, worktree: commitDir, retried: true, stdout: retry.stdout },
             error: retry.exitCode !== 0 ? retry.stderr : undefined,
             durationMs: Math.round(performance.now() - startTime),
           };
         }
 
         return {
-          output: { committed: res.exitCode === 0, branch: currentBranch, stdout: res.stdout },
+          output: { committed: res.exitCode === 0, branch: currentBranch, worktree: commitDir, stdout: res.stdout },
           error: res.exitCode !== 0 ? res.stderr : undefined,
           durationMs: Math.round(performance.now() - startTime),
         };
@@ -266,9 +340,14 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
           return { output: null, error: 'agent_name is required for merge_to_main', durationMs: 0 };
         }
 
-        // Get current branch
-        const branchRes = await git('rev-parse --abbrev-ref HEAD');
-        const currentBranch = branchRes.stdout.trim();
+        // Resolve branch — check worktree first, then main repo HEAD
+        let currentBranch: string;
+        if (input.branch_name && activeWorktrees.has(input.branch_name)) {
+          currentBranch = input.branch_name;
+        } else {
+          const branchRes = await git('rev-parse --abbrev-ref HEAD');
+          currentBranch = branchRes.stdout.trim();
+        }
         if (!currentBranch.startsWith('agent/')) {
           return {
             output: null,
@@ -277,7 +356,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
           };
         }
 
-        // Get diff summary for the intervention description
+        // Get diff summary for the intervention description (always from main repo)
         const diffStat = await git(`diff main..${currentBranch} --stat`);
         const logSummary = await git(`log main..${currentBranch} --oneline`);
 
