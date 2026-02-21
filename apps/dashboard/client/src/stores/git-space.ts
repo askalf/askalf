@@ -231,9 +231,9 @@ export const useGitSpaceStore = create<GitSpaceState>((set, get) => ({
       const entry: DiffCacheEntry = {
         diffText: data.diff,
         diffTruncated: data.truncated,
-        diffStats: data.stats,
-        commits: data.commits,
-        diffFiles: data.files,
+        diffStats: data.stats || { files: 0, additions: 0, deletions: 0 },
+        commits: data.commits || [],
+        diffFiles: data.files || [],
         ts: Date.now(),
       };
       cache.set(branch, entry);
@@ -241,9 +241,9 @@ export const useGitSpaceStore = create<GitSpaceState>((set, get) => ({
       set({
         diffText: data.diff,
         diffTruncated: data.truncated,
-        diffStats: data.stats,
-        commits: data.commits,
-        diffFiles: data.files,
+        diffStats: data.stats || { files: 0, additions: 0, deletions: 0 },
+        commits: data.commits || [],
+        diffFiles: data.files || [],
       });
     } catch (err) {
       console.error('[GitSpace] Failed to fetch diff:', err);
