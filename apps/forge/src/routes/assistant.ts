@@ -9,7 +9,7 @@ import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { checkGuardrails } from '../observability/guardrails.js';
-import { runCliQuery } from '../runtime/worker.js';
+import { runCliQuery, runDirectCliExecution } from '../runtime/worker.js';
 
 interface UserAssistantRow {
   id: string;
@@ -170,7 +170,14 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
         [assistant.id],
       ).catch(() => {});
 
-      // In a full implementation, this would dispatch the execution to the runtime.
+      // Dispatch the execution to the CLI runtime asynchronously
+      void runDirectCliExecution(executionId, agent.id, body.message, userId, {
+        systemPrompt: agent.system_prompt,
+        maxBudgetUsd: agent.max_cost_per_execution,
+      }).catch((err) => {
+        console.error(`[Assistant] Execution ${executionId} failed:`, err instanceof Error ? err.message : err);
+      });
+
       return reply.status(201).send({
         execution,
         assistant: {
