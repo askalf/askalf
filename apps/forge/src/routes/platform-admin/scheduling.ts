@@ -214,6 +214,7 @@ async function processCoordinationTasks(): Promise<void> {
       id: string; title: string; pattern: string;
     }>(`SELECT id, title, pattern FROM coordination_sessions WHERE status = 'active'`);
 
+    console.log(`[Coordination] Found ${sessions.length} active session(s)`);
     if (sessions.length === 0) return;
 
     for (const session of sessions) {
@@ -225,12 +226,17 @@ async function processCoordinationTasks(): Promise<void> {
           FROM coordination_tasks WHERE session_id = $1`, [session.id]);
 
       const taskMap = new Map(tasks.map(t => [t.id, t]));
+      const taskByTitle = new Map(tasks.map(t => [t.title, t]));
 
       // 2. Advance pending tasks whose dependencies are all completed (or have no deps)
       for (const task of tasks) {
         if (task.status !== 'pending') continue;
         const deps = (task.dependencies || []).filter(d => d); // filter empty strings
-        const allDepsCompleted = deps.length === 0 || deps.every(depId => taskMap.get(depId)?.status === 'completed');
+        // Dependencies may be task IDs or task titles — check both maps
+        const allDepsCompleted = deps.length === 0 || deps.every(dep => {
+          const depTask = taskMap.get(dep) || taskByTitle.get(dep);
+          return depTask?.status === 'completed';
+        });
         if (allDepsCompleted) {
           await query(`UPDATE coordination_tasks SET status = 'running', started_at = NOW() WHERE id = $1`, [task.id]);
           task.status = 'running';
@@ -238,7 +244,10 @@ async function processCoordinationTasks(): Promise<void> {
         }
       }
 
-      // 3. Dispatch running tasks that don't have active executions
+      // 3. Dispatch running tasks
+      const runningTasks = tasks.filter(t => t.status === 'running');
+      console.log(`[Coordination] Session "${session.title}": ${runningTasks.length} running, ${tasks.filter(t => t.status === 'pending').length} pending`);
+      // Dispatch running tasks that don't have active executions
       //    Cap at 2 dispatches per tick to avoid exhausting the DB pool
       //    (each dispatch triggers buildMemoryContext which runs heavy pgvector queries)
       let dispatchedThisTick = 0;
@@ -271,25 +280,36 @@ async function processCoordinationTasks(): Promise<void> {
           continue;
         }
         if (completedExec?.status === 'failed') {
-          await query(
-            `UPDATE coordination_tasks SET status = 'failed', error = 'Execution failed', completed_at = NOW() WHERE id = $1`,
-            [task.id],
+          // Check if failure was due to SIGTERM (deploy) — treat as retryable, not permanent failure
+          const execDetail = await queryOne<{ error: string | null }>(
+            `SELECT error FROM forge_executions WHERE id = $1`, [completedExec.id],
           );
-          task.status = 'failed';
-          continue;
+          const isSigterm = execDetail?.error?.includes('SIGTERM') || execDetail?.error?.includes('shutting down');
+          if (isSigterm) {
+            console.log(`[Coordination] Task "${task.title}" execution killed by SIGTERM — will retry`);
+            // Fall through to dispatch block below (don't continue)
+          } else {
+            await query(
+              `UPDATE coordination_tasks SET status = 'failed', error = 'Execution failed', completed_at = NOW() WHERE id = $1`,
+              [task.id],
+            );
+            task.status = 'failed';
+            continue;
+          }
         }
 
-        // Look up agent details
+        // Dispatch: no active or recent exec — look up agent details
+        console.log(`[Coordination] Preparing to dispatch task "${task.title}" (id: ${task.id})`);
         const agent = await queryOne<Record<string, unknown>>(
           `SELECT id, name, model_id, system_prompt, max_cost_per_execution, max_iterations FROM forge_agents WHERE id = $1`,
           [task.assigned_agent_id],
         );
         if (!agent) continue;
 
-        // Build dependency context
+        // Build dependency context (deps may be IDs or titles)
         const depResults: string[] = [];
-        for (const depId of (task.dependencies || [])) {
-          const dep = taskMap.get(depId);
+        for (const depRef of (task.dependencies || [])) {
+          const dep = taskMap.get(depRef) || taskByTitle.get(depRef);
           if (dep?.result) {
             depResults.push(`- ${dep.title}: ${dep.result.substring(0, 500)}`);
           }
