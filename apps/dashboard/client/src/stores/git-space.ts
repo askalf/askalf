@@ -308,20 +308,42 @@ export const useGitSpaceStore = create<GitSpaceState>((set, get) => ({
       }
 
       try {
-        const data = await apiFetch<{ status: string; output: string | null; agent_name: string | null }>(
+        const data = await apiFetch<{
+          status: string;
+          summary?: string;
+          issues?: Array<{ severity: string; file?: string; line?: number; message: string }>;
+          suggestions?: Array<{ file?: string; message: string }>;
+          approved?: boolean;
+          error?: string;
+          output?: string;
+        }>(
           `/api/v1/admin/git-space/review-result/${currentId}`,
         );
 
-        if (data.status === 'completed' && data.output) {
+        if (data.status === 'completed') {
           clearInterval(interval);
+          // Format structured review into readable message
+          let content = data.summary || 'Review complete.';
+          if (data.issues && data.issues.length > 0) {
+            content += '\n\n**Issues:**\n' + data.issues.map(i =>
+              `- [${i.severity}] ${i.file ? `${i.file}${i.line ? `:${i.line}` : ''}: ` : ''}${i.message}`
+            ).join('\n');
+          }
+          if (data.suggestions && data.suggestions.length > 0) {
+            content += '\n\n**Suggestions:**\n' + data.suggestions.map(s =>
+              `- ${s.file ? `${s.file}: ` : ''}${s.message}`
+            ).join('\n');
+          }
+          content += `\n\n**Verdict:** ${data.approved ? 'Approved' : 'Changes Requested'}`;
+
           set((s) => ({
             reviewLoading: false,
             reviewCompleted: true,
-            canMerge: true,
+            canMerge: data.approved !== false,
             reviewExecutionId: null,
             reviewMessages: [
               ...s.reviewMessages,
-              { role: 'assistant' as const, content: data.output || 'Review completed (no output).' },
+              { role: 'assistant' as const, content },
             ],
           }));
         } else if (data.status === 'failed') {
@@ -331,7 +353,7 @@ export const useGitSpaceStore = create<GitSpaceState>((set, get) => ({
             reviewExecutionId: null,
             reviewMessages: [
               ...s.reviewMessages,
-              { role: 'assistant' as const, content: `Review failed: ${data.output || 'Unknown error'}` },
+              { role: 'assistant' as const, content: `Review failed: ${data.error || data.output || 'Unknown error'}` },
             ],
           }));
         }
@@ -349,16 +371,17 @@ export const useGitSpaceStore = create<GitSpaceState>((set, get) => ({
 
     set({ reviewLoading: true });
     try {
-      const data = await apiFetch<{ execution_id: string; agent_name: string }>(
+      const data = await apiFetch<{ review_id?: string; execution_id?: string; agent_name?: string }>(
         '/api/v1/admin/git-space/ai-review',
         { method: 'POST', body: JSON.stringify({ branch: selectedBranch, diff: diffText }) },
       );
 
+      const reviewId = data.review_id || data.execution_id || '';
       set((s) => ({
-        reviewExecutionId: data.execution_id,
+        reviewExecutionId: reviewId,
         reviewMessages: [
           ...s.reviewMessages,
-          { role: 'assistant' as const, content: `Review started by ${data.agent_name}. Waiting for results...` },
+          { role: 'assistant' as const, content: `Review started by ${data.agent_name || 'AI Reviewer'}. Waiting for results...` },
         ],
       }));
 
