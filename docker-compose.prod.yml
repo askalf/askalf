@@ -114,7 +114,7 @@ services:
       NODE_ENV: production
       PORT: 3001
       # Database (via pgbouncer for connection pooling)
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
       SESSION_SECRET: ${SESSION_SECRET}
       # Encryption key for API keys (shared with API)
       JWT_SECRET: ${JWT_SECRET}
@@ -175,8 +175,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3010
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/forge
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       SEARXNG_URL: http://searxng:8080
       FORGE_URL: http://forge:3005
@@ -237,8 +238,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3005
-      # Direct connection to postgres (not via pgbouncer - separate database)
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/forge
+      # Unified orcastr8r database (via pgbouncer)
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # AI Providers — ANTHROPIC_API_KEY empty to force OAuth subscription (CLI uses OAuth)
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -247,8 +249,6 @@ services:
       GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
       # Auth
       JWT_SECRET: ${JWT_SECRET}
-      # Substrate DB access for cross-database queries
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/substrate
       REPO_ROOT: /workspace
       WORKSPACE_ROOT: /workspace
       # CLI execution environment
@@ -384,8 +384,8 @@ services:
     image: edoburu/pgbouncer:v1.25.1-p0@sha256:c7bfcaa24de830e29588bb9ad1eb39cebaf07c27149e1974445899b695634bb4
     container_name: sprayberry-labs-pgbouncer
     environment:
-      # All 4 databases pooled — every service routes through pgbouncer
-      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/substrate,postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/forge
+      # Unified orcastr8r database pooled
+      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/orcastr8r
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 1000
       DEFAULT_POOL_SIZE: 20
