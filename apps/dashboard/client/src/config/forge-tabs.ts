@@ -28,9 +28,7 @@ export const ADMIN_TAB_SECTIONS: TabSection[] = [
       { key: 'overview', label: 'Overview' },
       { key: 'fleet', label: 'Agents' },
       { key: 'executions', label: 'Executions' },
-      { key: 'scheduler', label: 'Scheduler' },
-      { key: 'coordination', label: 'Coordination' },
-      { key: 'threads', label: 'Threads' },
+      { key: 'threads', label: 'Scheduler' },
     ],
   },
   {
