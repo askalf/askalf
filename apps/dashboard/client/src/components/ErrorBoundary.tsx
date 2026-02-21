@@ -12,9 +12,15 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  componentWillUnmount() {
+    if (this.retryTimer) clearTimeout(this.retryTimer);
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
@@ -31,6 +37,11 @@ class ErrorBoundary extends Component<Props, State> {
 
     // Send error to API for logging in production
     this.reportError(error, errorInfo);
+
+    // Auto-retry after 15 seconds (handles forge restarts gracefully)
+    this.retryTimer = setTimeout(() => {
+      this.setState({ hasError: false, error: null, errorInfo: null });
+    }, 15000);
   }
 
   private async reportError(error: Error, errorInfo: ErrorInfo) {
@@ -101,7 +112,7 @@ class ErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h1>
             <p style={{ color: '#a0a0a0', marginBottom: '1.5rem' }}>
-              We encountered an unexpected error. Our team has been notified.
+              A service may be restarting. Auto-retrying in a moment...
             </p>
 
             {this.state.error && (
