@@ -376,8 +376,8 @@ export const useGitSpaceStore = create<GitSpaceState>((set, get) => ({
   },
 
   sendReviewMessage: async (msg) => {
-    const { selectedBranch, diffText } = get();
-    if (!selectedBranch) return;
+    const { reviewExecutionId } = get();
+    if (!reviewExecutionId) return;
 
     set((s) => ({
       reviewMessages: [...s.reviewMessages, { role: 'user' as const, content: msg }],
@@ -387,7 +387,7 @@ export const useGitSpaceStore = create<GitSpaceState>((set, get) => ({
     try {
       const data = await apiFetch<{ execution_id: string; agent_name: string }>(
         '/api/v1/admin/git-space/ai-review/chat',
-        { method: 'POST', body: JSON.stringify({ branch: selectedBranch, diff: diffText, message: msg }) },
+        { method: 'POST', body: JSON.stringify({ review_id: reviewExecutionId, message: msg }) },
       );
 
       set({ reviewExecutionId: data.execution_id });

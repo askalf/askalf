@@ -19,6 +19,10 @@ export type ExecutionErrorCode =
   | 'CANCELLED'
   | 'INVALID_AGENT'
   | 'DATABASE_ERROR'
+  | 'CLI_NOT_FOUND'
+  | 'CLI_VALIDATION_ERROR'
+  | 'CLI_TRANSIENT_ERROR'
+  | 'RUNTIME_EXCEEDED'
   | 'UNKNOWN';
 
 export class ExecutionError extends Error {
@@ -246,4 +250,98 @@ export function getCircuitBreaker(name: string): CircuitBreaker | undefined {
 
 export function getCircuitBreakerNames(): string[] {
   return Array.from(circuitBreakers.keys());
+}
+
+// ============================================
+// CLI Error Classification
+// ============================================
+
+/** Patterns in stderr that indicate transient (retryable) failures */
+const TRANSIENT_PATTERNS = [
+  /overloaded/i,
+  /rate.?limit/i,
+  /too many requests/i,
+  /529/,
+  /503/,
+  /ECONNREFUSED/,
+  /ECONNRESET/,
+  /ETIMEDOUT/,
+  /ENETUNREACH/,
+  /socket hang up/i,
+  /network/i,
+  /temporarily unavailable/i,
+  /EAGAIN/,
+  /ENOMEM/,
+];
+
+/** Patterns in stderr that indicate fatal (non-retryable) failures */
+const FATAL_PATTERNS = [
+  /budget.?exceeded/i,
+  /max.?turns/i,
+  /invalid.*api.?key/i,
+  /authentication.*fail/i,
+  /unauthorized/i,
+  /forbidden/i,
+  /ENOENT.*claude/i,
+  /command not found/i,
+  /permission denied/i,
+];
+
+/**
+ * Classify a CLI execution result into a typed ExecutionError.
+ * Determines whether the failure is recoverable (retryable) or fatal.
+ */
+export function classifyCliError(
+  exitCode: number,
+  stderr: string,
+  stdout: string,
+): ExecutionError {
+  const combined = `${stderr} ${stdout}`;
+
+  // Exit code 124 = timeout (from our killTree)
+  if (exitCode === 124) {
+    return new ExecutionError(
+      `CLI execution timed out`,
+      'TIMEOUT',
+      true,
+      { exitCode, stderrSnippet: stderr.substring(0, 300) },
+    );
+  }
+
+  // Check for fatal patterns first (they take precedence)
+  for (const pattern of FATAL_PATTERNS) {
+    if (pattern.test(combined)) {
+      const code: ExecutionErrorCode =
+        /budget/i.test(combined) ? 'BUDGET_EXCEEDED' :
+        /max.?turns/i.test(combined) ? 'MAX_ITERATIONS' :
+        /ENOENT|command not found/i.test(combined) ? 'CLI_NOT_FOUND' :
+        'UNKNOWN';
+      return new ExecutionError(
+        `CLI fatal error: ${stderr.substring(0, 200)}`,
+        code,
+        false,
+        { exitCode, stderrSnippet: stderr.substring(0, 300) },
+      );
+    }
+  }
+
+  // Check for transient patterns (retryable)
+  for (const pattern of TRANSIENT_PATTERNS) {
+    if (pattern.test(combined)) {
+      return new ExecutionError(
+        `CLI transient error: ${stderr.substring(0, 200)}`,
+        'CLI_TRANSIENT_ERROR',
+        true,
+        { exitCode, stderrSnippet: stderr.substring(0, 300), matchedPattern: pattern.source },
+      );
+    }
+  }
+
+  // Default: non-zero exit with unknown cause — not retryable
+  return new ExecutionError(
+    `CLI exited with code ${exitCode}: ${stderr.substring(0, 200)}`,
+    'UNKNOWN',
+    false,
+    { exitCode, stderrSnippet: stderr.substring(0, 300) },
+  );
 }

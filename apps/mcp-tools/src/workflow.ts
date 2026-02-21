@@ -5,6 +5,7 @@
 
 import {
   getSubstratePool,
+  getForgePool,
   forgeQuery,
   generateId,
   audit,
@@ -103,6 +104,40 @@ export const TOOLS = [
         caller_agent_name: { type: 'string', description: 'Name of the calling agent' },
       },
       required: ['agent_id', 'input'],
+    },
+  },
+  {
+    name: 'proposal_ops',
+    description: 'Manage change proposals (code review pipeline). Actions: create, submit, review, list, get, apply, revise.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        action: { type: 'string', enum: ['create', 'submit', 'review', 'list', 'get', 'apply', 'revise'] },
+        proposal_id: { type: 'string', description: 'Proposal ID (submit/review/get/apply/revise)' },
+        proposal_type: { type: 'string', enum: ['prompt_revision', 'code_change', 'config_change', 'schema_change'], description: 'Type of change (create)' },
+        title: { type: 'string', description: 'Proposal title (create)' },
+        description: { type: 'string', description: 'Detailed reasoning (create/revise)' },
+        author_agent_id: { type: 'string', description: 'Author agent ID (create)' },
+        target_agent_id: { type: 'string', description: 'Target agent ID for prompt/config changes (create)' },
+        file_changes: { type: 'array', description: 'Array of {path, action, old_content, new_content, diff} (create/revise)' },
+        config_changes: { type: 'object', description: '{key: {old, new}} for config changes (create/revise)' },
+        prompt_revision_id: { type: 'string', description: 'Link to existing prompt revision (create)' },
+        risk_level: { type: 'string', enum: ['low', 'medium', 'high', 'critical'], description: 'Risk classification (create)' },
+        required_reviews: { type: 'number', description: 'Number of required approvals (create, default 1)' },
+        execution_id: { type: 'string', description: 'Execution context (create)' },
+        verdict: { type: 'string', enum: ['approve', 'reject', 'request_changes', 'comment'], description: 'Review verdict (review)' },
+        comment: { type: 'string', description: 'Review comment (review)' },
+        suggestions: { type: 'array', description: 'Inline suggestions [{file, line, suggestion}] (review)' },
+        analysis: { type: 'object', description: 'Automated analysis results (review)' },
+        reviewer_agent_id: { type: 'string', description: 'Reviewer agent ID (review)' },
+        filter_status: { type: 'string', description: 'Filter by status (list)' },
+        filter_author: { type: 'string', description: 'Filter by author agent ID (list)' },
+        filter_type: { type: 'string', description: 'Filter by proposal type (list)' },
+        agent_name: { type: 'string' },
+        agent_id: { type: 'string' },
+        limit: { type: 'number' },
+      },
+      required: ['action'],
     },
   },
 ];
@@ -481,6 +516,340 @@ async function handleAgentCall(args: Record<string, unknown>): Promise<string> {
 }
 
 // ============================================
+// Proposal Ops Handler
+// ============================================
+
+async function handleProposalOps(args: Record<string, unknown>): Promise<string> {
+  const fp = getForgePool();
+  const action = args['action'] as string;
+
+  switch (action) {
+    case 'create': {
+      const title = args['title'] as string | undefined;
+      const proposalType = args['proposal_type'] as string | undefined;
+      const authorAgentId = args['author_agent_id'] as string | undefined;
+      if (!title) return JSON.stringify({ error: 'title is required' });
+      if (!proposalType) return JSON.stringify({ error: 'proposal_type is required' });
+      if (!authorAgentId) return JSON.stringify({ error: 'author_agent_id is required' });
+
+      const validTypes = ['prompt_revision', 'code_change', 'config_change', 'schema_change'];
+      if (!validTypes.includes(proposalType)) {
+        return JSON.stringify({ error: `proposal_type must be one of: ${validTypes.join(', ')}` });
+      }
+
+      const id = generateId();
+      const riskLevel = (args['risk_level'] as string) ?? 'low';
+      const requiredReviews = (args['required_reviews'] as number) ?? 1;
+
+      const result = await fp.query(
+        `INSERT INTO forge_change_proposals (
+          id, proposal_type, title, description, author_agent_id,
+          prompt_revision_id, file_changes, config_changes,
+          target_agent_id, status, required_reviews, risk_level,
+          execution_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', $10, $11, $12)
+        RETURNING id, proposal_type, title, status, risk_level, created_at`,
+        [
+          id, proposalType, title,
+          (args['description'] as string) ?? null,
+          authorAgentId,
+          (args['prompt_revision_id'] as string) ?? null,
+          JSON.stringify(args['file_changes'] ?? []),
+          JSON.stringify(args['config_changes'] ?? {}),
+          (args['target_agent_id'] as string) ?? null,
+          requiredReviews,
+          riskLevel,
+          (args['execution_id'] as string) ?? null,
+        ],
+      );
+
+      // Audit in forge DB
+      try {
+        await fp.query(
+          `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details)
+           VALUES ($1, 'system:forge', $2, $3, $4, $5)`,
+          [generateId(), 'proposal.created', 'proposal', id, JSON.stringify({ title, proposal_type: proposalType, risk_level: riskLevel, author_agent_id: authorAgentId })],
+        );
+      } catch { /* non-fatal */ }
+
+      return JSON.stringify({ created: true, proposal: result.rows[0] });
+    }
+
+    case 'submit': {
+      const proposalId = args['proposal_id'] as string | undefined;
+      if (!proposalId) return JSON.stringify({ error: 'proposal_id is required' });
+
+      const existing = await fp.query(
+        `SELECT id, status, title, author_agent_id FROM forge_change_proposals WHERE id = $1`,
+        [proposalId],
+      );
+      if (existing.rows.length === 0) return JSON.stringify({ error: `Proposal not found: ${proposalId}` });
+      const proposal = existing.rows[0] as Record<string, unknown>;
+
+      if (proposal['status'] !== 'draft' && proposal['status'] !== 'revision_requested') {
+        return JSON.stringify({ error: `Cannot submit proposal in status '${proposal['status']}'. Must be 'draft' or 'revision_requested'` });
+      }
+
+      const result = await fp.query(
+        `UPDATE forge_change_proposals SET status = 'pending_review', updated_at = now()
+         WHERE id = $1 RETURNING id, title, status, updated_at`,
+        [proposalId],
+      );
+
+      try {
+        await fp.query(
+          `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details)
+           VALUES ($1, 'system:forge', $2, $3, $4, $5)`,
+          [generateId(), 'proposal.submitted', 'proposal', proposalId, JSON.stringify({ title: proposal['title'], from_status: proposal['status'] })],
+        );
+      } catch { /* non-fatal */ }
+
+      return JSON.stringify({ submitted: true, proposal: result.rows[0] });
+    }
+
+    case 'review': {
+      const proposalId = args['proposal_id'] as string | undefined;
+      const reviewerAgentId = args['reviewer_agent_id'] as string | undefined;
+      const verdict = args['verdict'] as string | undefined;
+      if (!proposalId) return JSON.stringify({ error: 'proposal_id is required' });
+      if (!reviewerAgentId) return JSON.stringify({ error: 'reviewer_agent_id is required' });
+      if (!verdict) return JSON.stringify({ error: 'verdict is required' });
+
+      const validVerdicts = ['approve', 'reject', 'request_changes', 'comment'];
+      if (!validVerdicts.includes(verdict)) {
+        return JSON.stringify({ error: `verdict must be one of: ${validVerdicts.join(', ')}` });
+      }
+
+      // Verify proposal exists and is pending review
+      const existing = await fp.query(
+        `SELECT id, status, title, required_reviews FROM forge_change_proposals WHERE id = $1`,
+        [proposalId],
+      );
+      if (existing.rows.length === 0) return JSON.stringify({ error: `Proposal not found: ${proposalId}` });
+      const proposal = existing.rows[0] as Record<string, unknown>;
+      if (proposal['status'] !== 'pending_review') {
+        return JSON.stringify({ error: `Cannot review proposal in status '${proposal['status']}'. Must be 'pending_review'` });
+      }
+
+      // Insert the review
+      const reviewId = generateId();
+      const reviewResult = await fp.query(
+        `INSERT INTO forge_proposal_reviews (id, proposal_id, reviewer_agent_id, verdict, comment, suggestions, analysis)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, proposal_id, verdict, created_at`,
+        [
+          reviewId, proposalId, reviewerAgentId, verdict,
+          (args['comment'] as string) ?? null,
+          JSON.stringify(args['suggestions'] ?? []),
+          JSON.stringify(args['analysis'] ?? {}),
+        ],
+      );
+
+      // Check if verdict changes proposal status
+      let newProposalStatus: string | null = null;
+      if (verdict === 'reject') {
+        newProposalStatus = 'rejected';
+      } else if (verdict === 'request_changes') {
+        newProposalStatus = 'revision_requested';
+      } else if (verdict === 'approve') {
+        // Count approvals to see if threshold met
+        const approvals = await fp.query(
+          `SELECT COUNT(*) as count FROM forge_proposal_reviews WHERE proposal_id = $1 AND verdict = 'approve'`,
+          [proposalId],
+        );
+        const approvalCount = parseInt((approvals.rows[0] as Record<string, unknown>)['count'] as string, 10);
+        if (approvalCount >= (proposal['required_reviews'] as number)) {
+          newProposalStatus = 'approved';
+        }
+      }
+
+      if (newProposalStatus) {
+        await fp.query(
+          `UPDATE forge_change_proposals SET status = $1, updated_at = now() WHERE id = $2`,
+          [newProposalStatus, proposalId],
+        );
+      }
+
+      try {
+        await fp.query(
+          `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details)
+           VALUES ($1, 'system:forge', $2, $3, $4, $5)`,
+          [generateId(), 'proposal.reviewed', 'proposal', proposalId, JSON.stringify({ review_id: reviewId, verdict, reviewer: reviewerAgentId, new_status: newProposalStatus })],
+        );
+      } catch { /* non-fatal */ }
+
+      return JSON.stringify({
+        reviewed: true,
+        review: reviewResult.rows[0],
+        proposal_status: newProposalStatus ?? proposal['status'],
+      });
+    }
+
+    case 'list': {
+      const conditions: string[] = [];
+      const params: unknown[] = [];
+      if (args['filter_status']) { params.push(args['filter_status']); conditions.push(`p.status = $${params.length}`); }
+      if (args['filter_author']) { params.push(args['filter_author']); conditions.push(`p.author_agent_id = $${params.length}`); }
+      if (args['filter_type']) { params.push(args['filter_type']); conditions.push(`p.proposal_type = $${params.length}`); }
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const limit = Math.min((args['limit'] as number) ?? 20, 50);
+
+      const result = await fp.query(
+        `SELECT p.id, p.proposal_type, p.title, p.status, p.risk_level,
+                p.author_agent_id, a.name as author_name,
+                p.required_reviews, p.created_at, p.updated_at,
+                (SELECT COUNT(*) FROM forge_proposal_reviews r WHERE r.proposal_id = p.id) as review_count,
+                (SELECT COUNT(*) FROM forge_proposal_reviews r WHERE r.proposal_id = p.id AND r.verdict = 'approve') as approval_count
+         FROM forge_change_proposals p
+         LEFT JOIN forge_agents a ON a.id = p.author_agent_id
+         ${where}
+         ORDER BY CASE p.status
+           WHEN 'pending_review' THEN 0
+           WHEN 'draft' THEN 1
+           WHEN 'revision_requested' THEN 2
+           WHEN 'approved' THEN 3
+           WHEN 'applied' THEN 4
+           WHEN 'rejected' THEN 5
+           WHEN 'closed' THEN 6
+         END, p.created_at DESC
+         LIMIT ${limit}`,
+        params,
+      );
+      return JSON.stringify({ proposals: result.rows, count: result.rows.length });
+    }
+
+    case 'get': {
+      const proposalId = args['proposal_id'] as string | undefined;
+      if (!proposalId) return JSON.stringify({ error: 'proposal_id is required' });
+
+      const proposalResult = await fp.query(
+        `SELECT p.*, a.name as author_name, ta.name as target_agent_name
+         FROM forge_change_proposals p
+         LEFT JOIN forge_agents a ON a.id = p.author_agent_id
+         LEFT JOIN forge_agents ta ON ta.id = p.target_agent_id
+         WHERE p.id = $1`,
+        [proposalId],
+      );
+      if (proposalResult.rows.length === 0) return JSON.stringify({ error: `Proposal not found: ${proposalId}` });
+
+      const reviewsResult = await fp.query(
+        `SELECT r.*, a.name as reviewer_name
+         FROM forge_proposal_reviews r
+         LEFT JOIN forge_agents a ON a.id = r.reviewer_agent_id
+         WHERE r.proposal_id = $1
+         ORDER BY r.created_at ASC`,
+        [proposalId],
+      );
+
+      return JSON.stringify({
+        proposal: proposalResult.rows[0],
+        reviews: reviewsResult.rows,
+      });
+    }
+
+    case 'apply': {
+      const proposalId = args['proposal_id'] as string | undefined;
+      if (!proposalId) return JSON.stringify({ error: 'proposal_id is required' });
+
+      const existing = await fp.query(
+        `SELECT id, status, title, risk_level FROM forge_change_proposals WHERE id = $1`,
+        [proposalId],
+      );
+      if (existing.rows.length === 0) return JSON.stringify({ error: `Proposal not found: ${proposalId}` });
+      const proposal = existing.rows[0] as Record<string, unknown>;
+
+      if (proposal['status'] !== 'approved') {
+        return JSON.stringify({ error: `Cannot apply proposal in status '${proposal['status']}'. Must be 'approved'` });
+      }
+
+      // For high/critical risk, check for checkpoint approval
+      const riskLevel = proposal['risk_level'] as string;
+      if (riskLevel === 'high' || riskLevel === 'critical') {
+        // Check if a checkpoint exists and is approved
+        const checkpoint = await fp.query(
+          `SELECT id, status FROM forge_checkpoints WHERE owner_id = $1 AND status = 'approved'
+           ORDER BY created_at DESC LIMIT 1`,
+          [proposalId],
+        );
+        if (checkpoint.rows.length === 0) {
+          return JSON.stringify({
+            error: `High/critical risk proposal requires checkpoint approval. Create a checkpoint for this proposal first.`,
+            needs_checkpoint: true,
+            risk_level: riskLevel,
+          });
+        }
+      }
+
+      const result = await fp.query(
+        `UPDATE forge_change_proposals SET status = 'applied', applied_at = now(), updated_at = now()
+         WHERE id = $1 RETURNING id, title, status, applied_at`,
+        [proposalId],
+      );
+
+      try {
+        await fp.query(
+          `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details)
+           VALUES ($1, 'system:forge', $2, $3, $4, $5)`,
+          [generateId(), 'proposal.applied', 'proposal', proposalId, JSON.stringify({ title: proposal['title'], risk_level: riskLevel })],
+        );
+      } catch { /* non-fatal */ }
+
+      return JSON.stringify({ applied: true, proposal: result.rows[0] });
+    }
+
+    case 'revise': {
+      const proposalId = args['proposal_id'] as string | undefined;
+      if (!proposalId) return JSON.stringify({ error: 'proposal_id is required' });
+
+      const existing = await fp.query(
+        `SELECT id, status, title FROM forge_change_proposals WHERE id = $1`,
+        [proposalId],
+      );
+      if (existing.rows.length === 0) return JSON.stringify({ error: `Proposal not found: ${proposalId}` });
+      const proposal = existing.rows[0] as Record<string, unknown>;
+
+      if (proposal['status'] !== 'draft' && proposal['status'] !== 'revision_requested') {
+        return JSON.stringify({ error: `Cannot revise proposal in status '${proposal['status']}'. Must be 'draft' or 'revision_requested'` });
+      }
+
+      const setClauses: string[] = ['updated_at = now()'];
+      const params: unknown[] = [];
+
+      if (args['title']) { params.push(args['title']); setClauses.push(`title = $${params.length}`); }
+      if (args['description']) { params.push(args['description']); setClauses.push(`description = $${params.length}`); }
+      if (args['file_changes']) { params.push(JSON.stringify(args['file_changes'])); setClauses.push(`file_changes = $${params.length}`); }
+      if (args['config_changes']) { params.push(JSON.stringify(args['config_changes'])); setClauses.push(`config_changes = $${params.length}`); }
+      if (args['risk_level']) { params.push(args['risk_level']); setClauses.push(`risk_level = $${params.length}`); }
+
+      if (params.length === 0) return JSON.stringify({ error: 'No fields to revise' });
+
+      // Reset to draft after revision
+      setClauses.push(`status = 'draft'`);
+      params.push(proposalId);
+
+      const result = await fp.query(
+        `UPDATE forge_change_proposals SET ${setClauses.join(', ')} WHERE id = $${params.length}
+         RETURNING id, title, status, updated_at`,
+        params,
+      );
+
+      try {
+        await fp.query(
+          `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details)
+           VALUES ($1, 'system:forge', $2, $3, $4, $5)`,
+          [generateId(), 'proposal.revised', 'proposal', proposalId, JSON.stringify({ title: proposal['title'] })],
+        );
+      } catch { /* non-fatal */ }
+
+      return JSON.stringify({ revised: true, proposal: result.rows[0] });
+    }
+
+    default:
+      return JSON.stringify({ error: `Unknown action: ${action}. Supported: create, submit, review, list, get, apply, revise` });
+  }
+}
+
+// ============================================
 // Tool Dispatcher
 // ============================================
 
@@ -490,6 +859,7 @@ export async function handleTool(name: string, args: Record<string, unknown>): P
     case 'finding_ops': return handleFindingOps(args);
     case 'intervention_ops': return handleInterventionOps(args);
     case 'agent_call': return handleAgentCall(args);
+    case 'proposal_ops': return handleProposalOps(args);
     default: throw new Error(`Unknown workflow tool: ${name}`);
   }
 }

@@ -119,6 +119,43 @@ export async function failExecutionRecord(
   );
 }
 
+/**
+ * Save iteration checkpoint — persists current progress so execution can
+ * survive infrastructure restarts. Called after each tool execution cycle.
+ */
+export async function saveIterationCheckpoint(
+  executionId: string,
+  messages: Array<{ role: string; content: string }>,
+  toolCalls: Array<{ id?: string; name: string; input: Record<string, unknown> }>,
+  iteration: number,
+  inputTokens: number,
+  outputTokens: number,
+  cost: number,
+): Promise<void> {
+  await query(
+    `UPDATE forge_executions
+     SET messages = $1,
+         tool_calls = $2,
+         iterations = $3,
+         input_tokens = $4,
+         output_tokens = $5,
+         total_tokens = $6,
+         cost = $7,
+         metadata = jsonb_set(COALESCE(metadata, '{}'), '{last_checkpoint_at}', to_jsonb(NOW()::text))
+     WHERE id = $8 AND status = 'running'`,
+    [
+      JSON.stringify(messages),
+      JSON.stringify(toolCalls),
+      iteration,
+      inputTokens,
+      outputTokens,
+      inputTokens + outputTokens,
+      cost,
+      executionId,
+    ],
+  );
+}
+
 export async function recordCostEvent(
   executionId: string,
   agentId: string,

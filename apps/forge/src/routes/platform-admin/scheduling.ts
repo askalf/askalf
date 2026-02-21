@@ -322,6 +322,7 @@ Be efficient. Ship something.`;
         systemPrompt: agent.systemPrompt,
         maxBudgetUsd: agent.maxBudget,
         maxTurns: agent.maxTurns,
+        scheduleIntervalMinutes: agent.intervalMinutes,
       }).catch((err) => {
         console.error(`[Scheduler] CLI execution failed for ${agent.agentName}:`, err);
       });

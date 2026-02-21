@@ -26,6 +26,7 @@ import {
   type SessionMessage,
 } from './context-manager.js';
 import { calculateCost, checkBudget } from './token-counter.js';
+import { checkRuntimeBudget } from './budget.js';
 import { createStateMachine, AgentState, type StateMachine } from './state-machine.js';
 import { ExecutionError, withRetry } from './error-handler.js';
 
@@ -39,6 +40,12 @@ export interface ExecutionContext {
   input: string;
   ownerId: string;
   executionId?: string | undefined;
+  /** Maximum execution duration in milliseconds (0 = no limit). */
+  maxDurationMs?: number | undefined;
+  /** Pre-loaded messages from a prior checkpoint for resumption. */
+  resumeFromMessages?: Message[] | undefined;
+  /** Iteration to resume from (used with resumeFromMessages). */
+  resumeFromIteration?: number | undefined;
 }
 
 export interface ToolExecutorFn {
@@ -268,6 +275,44 @@ async function failExecutionRecord(
   );
 }
 
+/**
+ * Persist current iteration progress to the execution record.
+ * Called after each tool execution cycle so that if Forge crashes,
+ * the execution can be resumed from the last saved state.
+ */
+async function saveIterationCheckpoint(
+  executionId: string,
+  messages: Message[],
+  toolCalls: ToolCall[],
+  iteration: number,
+  inputTokens: number,
+  outputTokens: number,
+  cost: number,
+): Promise<void> {
+  await query(
+    `UPDATE forge_executions
+     SET messages = $1,
+         tool_calls = $2,
+         iterations = $3,
+         input_tokens = $4,
+         output_tokens = $5,
+         total_tokens = $6,
+         cost = $7,
+         metadata = jsonb_set(COALESCE(metadata, '{}'), '{last_checkpoint_at}', to_jsonb(NOW()::text))
+     WHERE id = $8 AND status = 'running'`,
+    [
+      JSON.stringify(messages),
+      JSON.stringify(toolCalls),
+      iteration,
+      inputTokens,
+      outputTokens,
+      inputTokens + outputTokens,
+      cost,
+      executionId,
+    ],
+  );
+}
+
 async function recordCostEvent(
   executionId: string,
   agentId: string,
@@ -391,25 +436,34 @@ export async function execute(
   const toolDefs = await loadToolDefinitions(agent.enabled_tools);
 
   // ============================================
-  // Step 2: Build initial context
+  // Step 2: Build initial context (or resume from checkpoint)
   // ============================================
 
-  let sessionHistory: SessionMessage[] = [];
-  if (ctx.sessionId) {
-    sessionHistory = await loadSessionHistory(ctx.sessionId);
+  let messages: Message[];
+  const tokenBudget = contextWindow - maxOutput; // Leave room for the response
+
+  if (ctx.resumeFromMessages && ctx.resumeFromMessages.length > 0) {
+    // Resume from a prior checkpoint — skip context building
+    messages = ctx.resumeFromMessages;
+    iterations = ctx.resumeFromIteration ?? 0;
+    console.log(`[Engine] Resuming execution ${executionId} from iteration ${iterations} with ${messages.length} messages`);
+  } else {
+    let sessionHistory: SessionMessage[] = [];
+    if (ctx.sessionId) {
+      sessionHistory = await loadSessionHistory(ctx.sessionId);
+    }
+
+    messages = buildInitialContext(
+      {
+        systemPrompt: agent.system_prompt,
+        maxTokensPerTurn: maxOutput,
+      },
+      ctx.input,
+      sessionHistory.length > 0 ? sessionHistory : undefined,
+    );
   }
 
-  let messages: Message[] = buildInitialContext(
-    {
-      systemPrompt: agent.system_prompt,
-      maxTokensPerTurn: maxOutput,
-    },
-    ctx.input,
-    sessionHistory.length > 0 ? sessionHistory : undefined,
-  );
-
   // Truncate context if it's already too large
-  const tokenBudget = contextWindow - maxOutput; // Leave room for the response
   messages = truncateContext(messages, tokenBudget);
 
   // ============================================
@@ -446,6 +500,25 @@ export async function execute(
             usagePercent: budget.usagePercent,
           },
         );
+      }
+
+      // ---- Runtime duration check ----
+      const maxDurationMs = ctx.maxDurationMs ?? 0;
+      if (maxDurationMs > 0) {
+        const rtBudget = checkRuntimeBudget(Date.now() - Math.round(performance.now() - startTime), maxDurationMs);
+        if (!rtBudget.allowed) {
+          throw new ExecutionError(
+            `Execution runtime exceeded: ${Math.round(rtBudget.elapsedMs / 1000)}s of ${Math.round(maxDurationMs / 1000)}s limit`,
+            'RUNTIME_EXCEEDED',
+            false,
+            {
+              elapsedMs: rtBudget.elapsedMs,
+              maxDurationMs,
+              iterationsCompleted: iterations,
+              usagePercent: rtBudget.usagePercent,
+            },
+          );
+        }
       }
 
       // ---- Context window check ----
@@ -591,6 +664,17 @@ export async function execute(
         }
 
         appendToolResults(messages, response.content, toolResultMessages);
+
+        // Persist iteration progress for crash recovery
+        await saveIterationCheckpoint(
+          executionId,
+          messages,
+          allToolCalls,
+          iterations,
+          totalInputTokens,
+          totalOutputTokens,
+          totalCost,
+        );
 
         // Transition: TOOL_CALLING -> THINKING (for next iteration)
         if (stateMachine.canTransition(AgentState.THINKING)) {

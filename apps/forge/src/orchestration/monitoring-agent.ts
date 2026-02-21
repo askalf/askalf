@@ -149,6 +149,7 @@ export async function runHealthCheck(): Promise<HealthReport> {
   }
 
   // 3. Cost burn rate (last hour)
+  // Baseline with 16 agents is $7-10/hr. Warn at $10 (high-normal), fail at $15 (over budget).
   const costResult = await query<{ total_cost: string }>(
     `SELECT COALESCE(SUM(cost), 0)::text AS total_cost
      FROM forge_executions
@@ -158,18 +159,18 @@ export async function runHealthCheck(): Promise<HealthReport> {
 
   checks.push({
     name: 'hourly_cost',
-    status: hourlyCost > 10.0 ? 'fail' : hourlyCost > 5.0 ? 'warn' : 'pass',
+    status: hourlyCost > 15.0 ? 'fail' : hourlyCost > 10.0 ? 'warn' : 'pass',
     value: `$${hourlyCost.toFixed(2)}`,
-    threshold: '$5.00/$10.00',
+    threshold: '$10.00/$15.00',
   });
 
-  if (hourlyCost > 10.0) {
+  if (hourlyCost > 15.0) {
     alerts.push({
       severity: 'critical',
-      message: `High hourly cost: $${hourlyCost.toFixed(2)} in last hour`,
+      message: `High hourly cost: $${hourlyCost.toFixed(2)} in last hour (exceeds $15 budget)`,
       metric: 'hourly_cost',
       value: hourlyCost,
-      threshold: 10.0,
+      threshold: 15.0,
     });
   }
 
