@@ -609,21 +609,4 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     return callForgeAdmin(`/prompt-revisions${qs}`);
   });
 
-  fastify.get('/api/v1/admin/agents/:id/prompt-revisions', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
-    return callForgeAdmin(`/agents/${encodeURIComponent(request.params.id)}/prompt-revisions`);
-  });
-
-  fastify.post('/api/v1/admin/prompt-revisions/:revisionId/apply', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
-    return callForgeAdmin(`/prompt-revisions/${encodeURIComponent(request.params.revisionId)}/apply`, { method: 'POST', body: request.body || {} });
-  });
-
-  fastify.post('/api/v1/admin/prompt-revisions/:revisionId/reject', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
-    return callForgeAdmin(`/prompt-revisions/${encodeURIComponent(request.params.revisionId)}/reject`, { method: 'POST', body: request.body || {} });
-  });
 }
