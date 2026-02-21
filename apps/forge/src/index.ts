@@ -15,7 +15,9 @@ import { forgeActiveAgents } from './metrics.js';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
-import { initializeDatabase, initializeSubstrateDatabase, closeDatabase, query as dbQuery } from './database.js';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
+import { initializeDatabase, initializeSubstrateDatabase, closeDatabase, query as dbQuery, substrateQuery } from './database.js';
 import { loadConfig } from './config.js';
 import { agentRoutes } from './routes/agents.js';
 import { executionRoutes } from './routes/executions.js';
@@ -26,13 +28,14 @@ import { memoryRoutes } from './routes/memory.js';
 import { providerRoutes } from './routes/providers.js';
 import { assistantRoutes } from './routes/assistant.js';
 import { adminRoutes } from './routes/admin.js';
+import { proposalRoutes } from './routes/proposals.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { gitReviewRoutes } from './routes/git-review.js';
 import { authRoutes } from './routes/auth.js';
 import { platformAdminRoutes } from './routes/platform-admin/index.js';
 import { cliRoutes } from './routes/cli.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
-import { initializeWorker } from './runtime/worker.js';
+import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
 import { initMemoryManager } from './memory/singleton.js';
 import { startMetabolicCycles } from './memory/metabolic.js';
 import { detectAllCapabilities } from './orchestration/capability-registry.js';
@@ -41,6 +44,7 @@ import { initSharedContext } from './orchestration/shared-context.js';
 import { startMonitoring } from './orchestration/monitoring-agent.js';
 import { startEventLogger } from './orchestration/event-log.js';
 import { Redis } from 'ioredis';
+import { ulid } from 'ulid';
 
 const app = Fastify({
   logger: true,
@@ -66,6 +70,30 @@ await app.register(cors, {
 
 // Register Cookie parser (for session auth)
 await app.register(cookie);
+
+// Register Swagger (OpenAPI documentation)
+await app.register(swagger, {
+  openapi: {
+    info: {
+      title: 'Agent Forge API',
+      description: 'AI Agent Orchestration Platform API',
+      version: '1.0.0',
+    },
+    servers: [{ url: '/' }],
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'API Key' },
+        cookieAuth: { type: 'apiKey', in: 'cookie', name: 'session' },
+      },
+    },
+    security: [{ bearerAuth: [] }],
+  },
+});
+
+await app.register(swaggerUi, {
+  routePrefix: '/docs',
+  uiConfig: { docExpansion: 'list', deepLinking: true },
+});
 
 // ============================================
 // RATE LIMITING
@@ -185,6 +213,7 @@ await memoryRoutes(app);
 await providerRoutes(app);
 await assistantRoutes(app);
 await adminRoutes(app);
+await proposalRoutes(app);
 await webhookRoutes(app);
 await gitReviewRoutes(app);
 await platformAdminRoutes(app);
@@ -234,13 +263,133 @@ async function start(): Promise<void> {
     startMonitoring();
 
     // Clean up orphaned executions from previous process (restart recovery)
-    const orphaned = await dbQuery<{ id: string }>(
-      `UPDATE forge_executions SET status = 'failed', error = 'Orphaned: forge restarted', completed_at = NOW()
-       WHERE status IN ('running', 'pending') AND started_at < NOW() - INTERVAL '1 minute'
-       RETURNING id`,
-    ).catch(() => [] as { id: string }[]);
+    // Two-phase: first tag resumable orphans (have checkpoint data), then mark rest as failed.
+    // All get marked failed, but resumable ones carry metadata.resumable=true for smarter retries.
+    const orphaned = await dbQuery<{
+      id: string; agent_id: string; parent_execution_id: string | null;
+      input: string; owner_id: string; metadata: Record<string, unknown> | null;
+      iterations: number; messages: unknown;
+    }>(
+      `UPDATE forge_executions
+       SET status = 'failed',
+           error = CASE
+             WHEN iterations > 0 AND messages != '[]'::jsonb
+               THEN 'Orphaned: forge restarted mid-execution (resumable, ' || iterations || ' iterations completed)'
+               ELSE 'Orphaned: forge restarted mid-execution'
+           END,
+           completed_at = NOW(),
+           metadata = CASE
+             WHEN iterations > 0 AND messages != '[]'::jsonb
+               THEN jsonb_set(
+                 jsonb_set(COALESCE(metadata, '{}'), '{resumable}', 'true'),
+                 '{orphaned_at}', to_jsonb(NOW()::text)
+               )
+               ELSE COALESCE(metadata, '{}')
+           END
+       WHERE status IN ('running', 'pending') AND started_at < NOW() - INTERVAL '5 minutes'
+       RETURNING id, agent_id, parent_execution_id, input, owner_id, metadata, iterations, messages`,
+    ).catch(() => [] as {
+      id: string; agent_id: string; parent_execution_id: string | null;
+      input: string; owner_id: string; metadata: Record<string, unknown> | null;
+      iterations: number; messages: unknown;
+    }[]);
     if (orphaned.length > 0) {
-      console.log(`[Forge] Recovered ${orphaned.length} orphaned executions from previous process`);
+      const resumableCount = orphaned.filter(o => o.iterations > 0).length;
+      console.log(`[Forge] Recovered ${orphaned.length} orphaned executions (${resumableCount} with checkpoint data): ${orphaned.map(o => o.iterations > 0 ? `${o.id}@iter${o.iterations}` : o.id).join(', ')}`);
+      // Emit failure events so SSE clients and parent executions are notified
+      const eventBus = getEventBus();
+      for (const row of orphaned) {
+        void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
+          error: 'Orphaned: forge restarted mid-execution',
+        }).catch(() => {});
+      }
+      // Mark parent executions as failed if all their children are now failed
+      const parentIds = [...new Set(orphaned.filter(o => o.parent_execution_id).map(o => o.parent_execution_id!))];
+      for (const parentId of parentIds) {
+        void dbQuery(
+          `UPDATE forge_executions SET status = 'failed', error = 'Child execution orphaned during forge restart', completed_at = NOW()
+           WHERE id = $1 AND status = 'running'
+             AND NOT EXISTS (SELECT 1 FROM forge_executions WHERE parent_execution_id = $1 AND status NOT IN ('failed', 'completed'))`,
+          [parentId],
+        ).catch(() => {});
+      }
+
+      // Auto-retry eligible orphaned executions (scheduled agents only, max 1 retry)
+      let retried = 0;
+      for (const row of orphaned) {
+        // Only retry scheduler-dispatched executions (not manual, sub-agent, or already-retried)
+        if (row.owner_id !== 'system:scheduler') continue;
+        if (row.parent_execution_id) continue;
+        const meta = row.metadata ?? {};
+        if (meta['retry_of']) continue; // Already a retry — don't chain retries
+
+        try {
+          // Look up agent config (only retry active agents)
+          const agents = await dbQuery<{
+            name: string; model_id: string | null; system_prompt: string | null;
+            max_cost_per_execution: string | null; max_iterations: number | null;
+          }>(
+            `SELECT name, model_id, system_prompt, max_cost_per_execution, max_iterations
+             FROM forge_agents WHERE id = $1 AND status = 'active'`,
+            [row.agent_id],
+          );
+          if (agents.length === 0) continue;
+          const agent = agents[0]!;
+
+          // Get schedule interval for runtime budget
+          const schedules = await substrateQuery<{ schedule_interval_minutes: number }>(
+            `SELECT schedule_interval_minutes FROM agent_schedules WHERE agent_id = $1`,
+            [row.agent_id],
+          ).catch(() => [] as { schedule_interval_minutes: number }[]);
+          const intervalMinutes = schedules[0]?.schedule_interval_minutes ?? 60;
+
+          // Create retry execution with continuation context (include checkpoint progress if available)
+          const retryId = ulid();
+          const hasCheckpoint = row.iterations > 0;
+          const retryMeta = JSON.stringify({
+            retry_of: row.id,
+            retry_reason: 'forge_restart',
+            ...(hasCheckpoint ? { resumed_from_iteration: row.iterations, has_checkpoint: true } : {}),
+          });
+          const checkpointInfo = hasCheckpoint
+            ? ` You completed ${row.iterations} iteration(s) before the restart. Your progress (messages & tool calls) was checkpointed — the scheduler preserved your state.`
+            : '';
+          const retryInput = `[RESTART RECOVERY — ${new Date().toISOString()}] Your previous execution (${row.id}) was interrupted by a forge restart.${checkpointInfo} Check ticket status and continue where you left off.\n\n${row.input}`;
+
+          await dbQuery(
+            `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata)
+             VALUES ($1, $2, $3, $4, 'pending', $5)`,
+            [retryId, row.agent_id, row.owner_id, retryInput, retryMeta],
+          );
+
+          // Push forward next_run_at so the scheduler doesn't double-dispatch this agent
+          await substrateQuery(
+            `UPDATE agent_schedules
+             SET next_run_at = NOW() + (schedule_interval_minutes || ' minutes')::INTERVAL
+             WHERE agent_id = $1`,
+            [row.agent_id],
+          ).catch(() => {});
+
+          // Spawn retry execution asynchronously
+          void runDirectCliExecution(retryId, row.agent_id, retryInput, row.owner_id, {
+            modelId: agent.model_id ?? undefined,
+            systemPrompt: agent.system_prompt ?? undefined,
+            maxBudgetUsd: agent.max_cost_per_execution ?? undefined,
+            maxTurns: agent.max_iterations ?? undefined,
+            scheduleIntervalMinutes: intervalMinutes,
+          }).catch((err) => {
+            console.error(`[Recovery] Retry execution ${retryId} failed to start:`, err);
+          });
+
+          retried++;
+          console.log(`[Recovery] Auto-retrying orphaned execution ${row.id} → ${retryId} for agent ${agent.name}`);
+        } catch (err) {
+          console.warn(`[Recovery] Failed to create retry for ${row.id}:`, err instanceof Error ? err.message : err);
+        }
+      }
+      if (retried > 0) {
+        console.log(`[Recovery] Auto-retried ${retried}/${orphaned.length} orphaned executions`);
+      }
     }
 
     // Auto-detect agent capabilities on startup (non-blocking)
@@ -315,6 +464,24 @@ async function shutdown(signal: string): Promise<void> {
   }, shutdownTimeout);
 
   try {
+    // Mark in-flight executions as failed before closing (prevents orphaning on planned shutdowns)
+    const shutdownError = `Forge shutting down (${signal})`;
+    const inflight = await dbQuery<{ id: string; agent_id: string }>(
+      `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW()
+       WHERE status IN ('running', 'pending')
+       RETURNING id, agent_id`,
+      [shutdownError],
+    ).catch(() => [] as { id: string; agent_id: string }[]);
+    if (inflight.length > 0) {
+      console.log(`[Forge] Marked ${inflight.length} in-flight executions as failed before shutdown`);
+      const eventBus = getEventBus();
+      for (const row of inflight) {
+        void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
+          error: `Forge shutting down (${signal})`,
+        }).catch(() => {});
+      }
+    }
+
     await app.close();
     console.log('[Forge] Server closed');
 

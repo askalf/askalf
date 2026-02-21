@@ -124,6 +124,67 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     }
   );
 
+  // Create batch executions (admin — no owner_id check)
+  app.post(
+    '/api/v1/admin/executions/batch',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as { executions?: Array<{ agentId: string; input: string; metadata?: Record<string, unknown> }> } || {};
+      const executions = body.executions || [];
+
+      if (!Array.isArray(executions) || executions.length === 0) {
+        return reply.code(400).send({ error: 'executions array required and must not be empty' });
+      }
+
+      if (executions.length > 100) {
+        return reply.code(400).send({ error: 'Maximum 100 executions per batch' });
+      }
+
+      // Validate all executions have required fields
+      for (let i = 0; i < executions.length; i++) {
+        const exec = executions[i];
+        if (!exec?.agentId || !exec?.input) {
+          return reply.code(400).send({ error: `Execution at index ${i} missing agentId or input` });
+        }
+      }
+
+      // Verify all agents exist
+      const agentIds = [...new Set(executions.map(e => e.agentId))];
+      const agents = await query<{ id: string; name: string }>(
+        `SELECT id, name FROM forge_agents WHERE id = ANY($1)`,
+        [agentIds]
+      );
+      const agentMap = new Map(agents.map(a => [a.id, a.name]));
+
+      for (const exec of executions) {
+        if (!agentMap.has(exec.agentId)) {
+          return reply.code(404).send({ error: `Agent ${exec.agentId} not found` });
+        }
+      }
+
+      // Create all executions and launch them
+      const results: { id: string; agent_id: string; agent_name: string; status: string }[] = [];
+      const userId = request.userId || 'admin';
+
+      for (const exec of executions) {
+        const execId = ulid();
+        await query(
+          `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, metadata, created_at) VALUES ($1, $2, $3, 'pending', $4, $5, NOW())`,
+          [execId, exec.agentId, userId, exec.input, JSON.stringify(exec.metadata || {})]
+        );
+        void runDirectCliExecution(execId, exec.agentId, exec.input, userId);
+        results.push({
+          id: execId,
+          agent_id: exec.agentId,
+          agent_name: agentMap.get(exec.agentId) || 'unknown',
+          status: 'pending'
+        });
+      }
+
+      return { executions: results, count: results.length };
+    }
+  );
+
   // List executions (admin — no owner_id filter)
   app.get(
     '/api/v1/admin/executions',

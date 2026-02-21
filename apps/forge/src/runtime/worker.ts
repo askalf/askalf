@@ -23,6 +23,13 @@ import { extractKnowledge } from '../orchestration/knowledge-graph.js';
 import { recordCostSample } from '../orchestration/cost-router.js';
 import { trackCost } from '../observability/cost-tracker.js';
 import { forgeExecutionsTotal, forgeExecutionDuration } from '../metrics.js';
+import { withRetry, classifyCliError, ExecutionError } from './error-handler.js';
+import {
+  calculateRuntimeBudget,
+  estimateTaskComplexity,
+  suggestMaxTurns,
+  formatBudgetPromptHint,
+} from './budget.js';
 
 // Built-in tools
 import { apiCall } from '../tools/built-in/api-call.js';
@@ -65,6 +72,7 @@ import { knowledgeGraphOps } from '../tools/built-in/knowledge-graph-ops.js';
 import { teamOps } from '../tools/built-in/team-ops.js';
 import { messaging } from '../tools/built-in/messaging.js';
 import { budgetCheck } from '../tools/built-in/budget-check.js';
+import { proposalOps } from '../tools/built-in/proposal-ops.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -1238,6 +1246,43 @@ function registerBuiltInTools(reg: ToolRegistry): void {
     },
     execute: (input) => budgetCheck(input as unknown as Parameters<typeof budgetCheck>[0]),
   });
+
+  reg.register({
+    name: 'proposal_ops',
+    displayName: 'Proposal Operations',
+    description: 'Manage change proposals for agent code review. Actions: create (draft a proposal), submit (send for review), review (approve/reject/request_changes), list (filter proposals), get (detail with reviews), apply (mark approved proposal as applied), revise (update draft/revision_requested proposal).',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'submit', 'review', 'list', 'get', 'apply', 'revise'],
+          description: 'Operation to perform',
+        },
+        agent_id: { type: 'string', description: 'Author agent ID (for create/submit/apply/revise)' },
+        agent_name: { type: 'string', description: 'Author agent name' },
+        proposal_type: { type: 'string', enum: ['prompt_revision', 'code_change', 'config_change', 'schema_change'], description: 'Type of change (for create)' },
+        title: { type: 'string', description: 'Proposal title (for create)' },
+        description: { type: 'string', description: 'Detailed description (for create/revise)' },
+        target_agent_id: { type: 'string', description: 'Agent being modified (for create)' },
+        file_changes: { type: 'array', description: 'Array of {path, action, content, diff} (for create/revise)' },
+        config_changes: { type: 'object', description: 'Config changes object (for create/revise)' },
+        risk_level: { type: 'string', enum: ['low', 'medium', 'high', 'critical'], description: 'Risk classification (for create)' },
+        proposal_id: { type: 'string', description: 'Proposal ID (for submit/get/apply/revise/review)' },
+        reviewer_agent_id: { type: 'string', description: 'Reviewing agent ID (for review)' },
+        verdict: { type: 'string', enum: ['approve', 'reject', 'request_changes', 'comment'], description: 'Review verdict (for review)' },
+        comment: { type: 'string', description: 'Review comment (for review)' },
+        filter_status: { type: 'string', description: 'Filter by status (for list)' },
+        filter_type: { type: 'string', description: 'Filter by proposal_type (for list)' },
+        filter_author: { type: 'string', description: 'Filter by author_agent_id (for list)' },
+        limit: { type: 'number', description: 'Max results (for list, default 20, max 50)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => proposalOps(input as unknown as Parameters<typeof proposalOps>[0]),
+  });
 }
 
 // ============================================
@@ -1678,10 +1723,83 @@ function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
   return { output, costUsd, inputTokens, outputTokens, numTurns, isError };
 }
 
+/** Cached result of CLI availability check */
+let cliAvailable: boolean | null = null;
+
+/**
+ * Validate prerequisites before spawning a CLI execution.
+ * Checks command availability and validates required arguments.
+ * Throws ExecutionError if prerequisites are not met.
+ */
+function validateCliPrerequisites(
+  executionId: string,
+  agentId: string,
+  input: string,
+): void {
+  // Check CLI binary availability (cached after first successful check)
+  if (cliAvailable === null) {
+    try {
+      execSync('which claude', { stdio: 'ignore', timeout: 5000 });
+      cliAvailable = true;
+    } catch {
+      cliAvailable = false;
+    }
+  }
+
+  if (!cliAvailable) {
+    throw new ExecutionError(
+      'Claude CLI binary not found in PATH',
+      'CLI_NOT_FOUND',
+      false,
+      { executionId, agentId },
+    );
+  }
+
+  // Validate required arguments
+  if (!input || input.trim().length === 0) {
+    throw new ExecutionError(
+      'CLI execution requires a non-empty input prompt',
+      'CLI_VALIDATION_ERROR',
+      false,
+      { executionId, agentId },
+    );
+  }
+
+  if (!agentId || !executionId) {
+    throw new ExecutionError(
+      'CLI execution requires valid executionId and agentId',
+      'CLI_VALIDATION_ERROR',
+      false,
+      { executionId, agentId },
+    );
+  }
+
+  // Verify workspace directory is accessible (catches mount/permission issues)
+  try {
+    execSync(`test -w ${WORKSPACE_DIR}`, { stdio: 'ignore', timeout: 3000 });
+  } catch {
+    throw new ExecutionError(
+      `Workspace directory ${WORKSPACE_DIR} is not writable`,
+      'CLI_VALIDATION_ERROR',
+      true, // Retryable — mount may recover
+      { executionId, agentId },
+    );
+  }
+
+  // Verify MCP config exists (written by setupCliEnvironment, but could be deleted)
+  try {
+    execSync(`test -f ${MCP_CONFIG_PATH}`, { stdio: 'ignore', timeout: 3000 });
+  } catch {
+    // MCP config missing — reset environment setup flag so it gets recreated
+    cliEnvironmentReady = false;
+  }
+}
+
 /**
  * Run an agent execution via Claude Code CLI (Phase 7).
  * Spawns the CLI as a child process with OAuth credentials and MCP tools.
  * This is the primary execution path — agents use Claude Max subscription.
+ * Includes pre-execution validation and retry logic for transient failures.
  */
 export async function runDirectCliExecution(
   executionId: string,
@@ -1694,6 +1812,8 @@ export async function runDirectCliExecution(
     sessionId?: string;
     maxBudgetUsd?: string;
     maxTurns?: number;
+    /** Agent's schedule interval in minutes — used for runtime budgeting. */
+    scheduleIntervalMinutes?: number;
   },
 ): Promise<void> {
   if (!initialized) {
@@ -1701,6 +1821,9 @@ export async function runDirectCliExecution(
   }
 
   const cfg = config ?? loadConfig();
+
+  // Pre-execution validation — fail fast before acquiring resources
+  validateCliPrerequisites(executionId, agentId, input);
 
   // One-time CLI environment setup
   await setupCliEnvironment();
@@ -1738,14 +1861,49 @@ export async function runDirectCliExecution(
     // Refresh OAuth credentials
     await refreshCredentials();
 
+    // ---- Runtime budget calculation ----
+    const runtimeBudget = calculateRuntimeBudget(
+      options?.scheduleIntervalMinutes,
+      cfg.cliTimeout,
+    );
+    const dynamicTimeout = runtimeBudget.maxDurationMs;
+
+    // Estimate task complexity to adjust max turns
+    const complexity = estimateTaskComplexity(input);
+    const agentMaxTurns = options?.maxTurns ?? cfg.cliMaxTurns;
+    const budgetAwareTurns = suggestMaxTurns(agentMaxTurns, complexity, dynamicTimeout);
+
+    console.log(
+      `[CLI] Runtime budget: ${Math.round(dynamicTimeout / 1000)}s timeout, ` +
+      `complexity=${complexity}, turns=${budgetAwareTurns}/${agentMaxTurns} ` +
+      `(schedule=${options?.scheduleIntervalMinutes ?? 'manual'}min)`,
+    );
+
     // Copy agent's system prompt as CLAUDE.md in workspace
     if (options?.systemPrompt) {
       try {
         // Inject relevant memories into the system prompt
         const memoryContext = await buildMemoryContext(agentId, input, { fleetWide: true }).catch(() => '');
-        const fullPrompt = memoryContext
-          ? `${options.systemPrompt}\n${memoryContext}`
-          : options.systemPrompt;
+        // Inject runtime budget hint so agents self-regulate
+        const budgetHint = formatBudgetPromptHint(runtimeBudget, agentName);
+        const agentSlug = agentName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        const branchName = `agent/${agentSlug}/${executionId}`;
+        const branchInstruction = [
+          '',
+          '## GIT WORKFLOW — MANDATORY',
+          `You are working on git branch: ${branchName}`,
+          '1. FIRST ACTION: Create your branch with git_ops action=branch_create',
+          '2. Write all code changes via file_ops',
+          '3. Stage and commit via git_ops action=add then action=commit',
+          '4. Request merge via git_ops action=merge_to_main (creates review for human)',
+          '5. NEVER leave uncommitted changes on disk',
+          '6. Do NOT switch to main or any other branch',
+          'Your changes will be reviewed by a human in the Push Panel before merging.',
+          '',
+        ].join('\n');
+        const fullPrompt = [options.systemPrompt, memoryContext, budgetHint, branchInstruction]
+          .filter(Boolean)
+          .join('\n');
         await writeFile(`${WORKSPACE_DIR}/CLAUDE.md`, fullPrompt);
       } catch {
         console.warn('[CLI] Could not write CLAUDE.md to workspace');
@@ -1756,7 +1914,7 @@ export async function runDirectCliExecution(
     const args: string[] = [
       '-p', input,
       '--output-format', 'json',
-      '--max-turns', String(options?.maxTurns ?? cfg.cliMaxTurns),
+      '--max-turns', String(budgetAwareTurns),
       '--max-budget-usd', options?.maxBudgetUsd ?? cfg.cliBudgetUsd,
       '--dangerously-skip-permissions',
       '--add-dir', '/workspace',
@@ -1769,8 +1927,31 @@ export async function runDirectCliExecution(
       console.log(`[CLI] Using model: ${options.modelId}`);
     }
 
-    // Execute CLI
-    const result = await executeClaudeCode(args, WORKSPACE_DIR, cfg.cliTimeout);
+    // Execute CLI with retry for transient failures
+    const result = await withRetry(
+      async () => {
+        const res = await executeClaudeCode(args, WORKSPACE_DIR, dynamicTimeout);
+        // Classify non-zero exits — throw retryable errors so withRetry can retry them
+        if (res.exitCode !== 0) {
+          const classified = classifyCliError(res.exitCode, res.stderr, res.stdout);
+          if (classified.retryable) {
+            console.warn(
+              `[CLI] Execution ${executionId} transient failure (${classified.code}): ${classified.message} — will retry`,
+            );
+            throw classified;
+          }
+        }
+        return res;
+      },
+      {
+        maxRetries: 2,
+        baseDelayMs: 3000,
+        maxDelayMs: 15_000,
+        backoffMultiplier: 2,
+        jitter: 0.2,
+        shouldRetry: (err) => err instanceof ExecutionError && err.retryable,
+      },
+    );
     const durationMs = Date.now() - startTime;
 
     // Parse result
@@ -1894,11 +2075,22 @@ export async function runDirectCliExecution(
   } catch (err) {
     const durationMs = Date.now() - startTime;
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[CLI] Execution ${executionId} error: ${errorMsg}`);
+
+    // Structured error logging with classification
+    if (err instanceof ExecutionError) {
+      console.error(
+        `[CLI] Execution ${executionId} ${err.retryable ? 'TRANSIENT' : 'FATAL'} error ` +
+        `(${err.code}): ${err.message}`,
+        JSON.stringify(err.metadata),
+      );
+    } else {
+      console.error(`[CLI] Execution ${executionId} error: ${errorMsg}`);
+    }
 
     // Emit failure event
+    const errorCode = err instanceof ExecutionError ? err.code : 'UNKNOWN';
     void getEventBus()?.emitExecution('failed', executionId, agentId, agentId, {
-      error: errorMsg.substring(0, 500),
+      error: `[${errorCode}] ${errorMsg.substring(0, 500)}`,
       durationMs,
     }).catch(() => {});
 

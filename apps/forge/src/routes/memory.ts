@@ -339,18 +339,31 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
 
       const memories: Array<Record<string, unknown>> = [];
 
-      // Build agent filter
-      const agentFilter = qs.agent_id ? `AND agent_id = '${qs.agent_id.replace(/'/g, "''")}'` : '';
-      const dateFromFilter = qs.dateFrom ? `AND created_at >= '${qs.dateFrom.replace(/'/g, "''")}'` : '';
-      const dateToFilter = qs.dateTo ? `AND created_at <= '${qs.dateTo.replace(/'/g, "''")}'` : '';
-      const dateFilters = `${dateFromFilter} ${dateToFilter}`;
+      // Build parameterized filters to prevent SQL injection
+      const filterParams: unknown[] = [];
+      let filterClause = '';
+      let nextIdx = 1;
+      if (qs.agent_id) {
+        filterClause += ` AND agent_id = $${nextIdx++}`;
+        filterParams.push(qs.agent_id);
+      }
+      if (qs.dateFrom) {
+        filterClause += ` AND created_at >= $${nextIdx++}`;
+        filterParams.push(qs.dateFrom);
+      }
+      if (qs.dateTo) {
+        filterClause += ` AND created_at <= $${nextIdx++}`;
+        filterParams.push(qs.dateTo);
+      }
+      const limitIdx = nextIdx;
 
       if (!qs.tier || qs.tier === 'semantic') {
         const rows = await query<SemanticMemoryRow>(
           `SELECT id, agent_id, content, importance as score, source, metadata, created_at
            FROM forge_semantic_memories
-           WHERE 1=1 ${agentFilter} ${dateFilters}
-           ORDER BY created_at DESC LIMIT ${limit}`,
+           WHERE 1=1${filterClause}
+           ORDER BY created_at DESC LIMIT $${limitIdx}`,
+          [...filterParams, limit],
         );
         for (const r of rows) {
           memories.push({
@@ -366,8 +379,9 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
         const rows = await query<EpisodicMemoryRow>(
           `SELECT id, agent_id, situation, action, outcome, outcome_quality, metadata, created_at
            FROM forge_episodic_memories
-           WHERE 1=1 ${agentFilter} ${dateFilters}
-           ORDER BY created_at DESC LIMIT ${limit}`,
+           WHERE 1=1${filterClause}
+           ORDER BY created_at DESC LIMIT $${limitIdx}`,
+          [...filterParams, limit],
         );
         for (const r of rows) {
           memories.push({
@@ -385,8 +399,9 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
         const rows = await query<ProceduralMemoryRow>(
           `SELECT id, agent_id, trigger_pattern, tool_sequence, confidence, metadata, created_at
            FROM forge_procedural_memories
-           WHERE 1=1 ${agentFilter} ${dateFilters}
-           ORDER BY created_at DESC LIMIT ${limit}`,
+           WHERE 1=1${filterClause}
+           ORDER BY created_at DESC LIMIT $${limitIdx}`,
+          [...filterParams, limit],
         );
         for (const r of rows) {
           memories.push({
@@ -438,8 +453,16 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
       const limit = Math.min(parseInt(qs.limit ?? '20', 10) || 20, 100);
       const page = parseInt(qs.page ?? '1', 10) || 1;
       const offset = (page - 1) * limit;
+      // Build parameterized search query to prevent SQL injection
       const searchTerm = `%${qs.q}%`;
-      const agentFilter = qs.agent_id ? `AND agent_id = '${qs.agent_id.replace(/'/g, "''")}'` : '';
+      const searchParams: unknown[] = [searchTerm];
+      let searchAgentClause = '';
+      let sIdx = 2;
+      if (qs.agent_id) {
+        searchAgentClause = ` AND agent_id = $${sIdx++}`;
+        searchParams.push(qs.agent_id);
+      }
+      const searchLimitIdx = sIdx;
 
       const memories: Array<Record<string, unknown>> = [];
 
@@ -447,9 +470,9 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
         const rows = await query<SemanticMemoryRow>(
           `SELECT id, agent_id, content, importance as score, source, metadata, created_at
            FROM forge_semantic_memories
-           WHERE content ILIKE $1 ${agentFilter}
-           ORDER BY importance DESC, created_at DESC LIMIT ${limit}`,
-          [searchTerm],
+           WHERE content ILIKE $1${searchAgentClause}
+           ORDER BY importance DESC, created_at DESC LIMIT $${searchLimitIdx}`,
+          [...searchParams, limit],
         );
         for (const r of rows) {
           memories.push({
@@ -465,9 +488,9 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
         const rows = await query<EpisodicMemoryRow>(
           `SELECT id, agent_id, situation, action, outcome, outcome_quality, metadata, created_at
            FROM forge_episodic_memories
-           WHERE (situation ILIKE $1 OR action ILIKE $1 OR outcome ILIKE $1) ${agentFilter}
-           ORDER BY outcome_quality DESC, created_at DESC LIMIT ${limit}`,
-          [searchTerm],
+           WHERE (situation ILIKE $1 OR action ILIKE $1 OR outcome ILIKE $1)${searchAgentClause}
+           ORDER BY outcome_quality DESC, created_at DESC LIMIT $${searchLimitIdx}`,
+          [...searchParams, limit],
         );
         for (const r of rows) {
           memories.push({
@@ -485,9 +508,9 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
         const rows = await query<ProceduralMemoryRow>(
           `SELECT id, agent_id, trigger_pattern, tool_sequence, confidence, metadata, created_at
            FROM forge_procedural_memories
-           WHERE trigger_pattern ILIKE $1 ${agentFilter}
-           ORDER BY confidence DESC, created_at DESC LIMIT ${limit}`,
-          [searchTerm],
+           WHERE trigger_pattern ILIKE $1${searchAgentClause}
+           ORDER BY confidence DESC, created_at DESC LIMIT $${searchLimitIdx}`,
+          [...searchParams, limit],
         );
         for (const r of rows) {
           memories.push({
@@ -572,6 +595,118 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
         limit,
         totalPages: 1,
       });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/fleet/store - Store a fleet memory (no ownership check)
+   */
+  app.post(
+    '/api/v1/forge/fleet/store',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as {
+        type?: string;
+        content: string;
+        agent_id?: string;
+        source?: string;
+        importance?: number;
+        metadata?: Record<string, unknown>;
+        // Episodic fields
+        action?: string;
+        outcome?: string;
+        quality?: number;
+        execution_id?: string;
+        // Procedural fields
+        trigger_pattern?: string;
+        tool_sequence?: unknown[];
+      };
+
+      const memoryType = body.type ?? 'semantic';
+
+      if (!['semantic', 'episodic', 'procedural'].includes(memoryType)) {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: 'type must be one of: semantic, episodic, procedural',
+        });
+      }
+
+      if (!body.content && memoryType !== 'episodic') {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: 'content is required',
+        });
+      }
+
+      // Validate agent_id exists if provided (FK constraint)
+      let agentId = body.agent_id ?? null;
+      if (agentId) {
+        const agent = await queryOne<{ id: string }>(
+          `SELECT id FROM forge_agents WHERE id = $1`,
+          [agentId],
+        );
+        if (!agent) {
+          return reply.status(400).send({
+            error: 'Validation Error',
+            message: `agent_id '${agentId}' does not exist in forge_agents. Memory tables have a FK constraint on agent_id.`,
+          });
+        }
+      }
+
+      // agent_id is required by the DB schema (NOT NULL + FK)
+      if (!agentId) {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: 'agent_id is required. The memory tables require a valid agent_id that exists in forge_agents.',
+        });
+      }
+
+      const id = ulid();
+      const userId = request.userId!;
+
+      try {
+        if (memoryType === 'semantic') {
+          const memory = await queryOne<SemanticMemoryRow>(
+            `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, source, importance, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING *`,
+            [id, agentId, userId, body.content, body.source ?? null, body.importance ?? 0.5, JSON.stringify(body.metadata ?? {})],
+          );
+          return reply.status(201).send({ type: 'semantic', memory });
+        } else if (memoryType === 'episodic') {
+          if (!body.content) {
+            return reply.status(400).send({
+              error: 'Validation Error',
+              message: 'content (situation) is required for episodic memories',
+            });
+          }
+          const memory = await queryOne<EpisodicMemoryRow>(
+            `INSERT INTO forge_episodic_memories (id, agent_id, owner_id, situation, action, outcome, outcome_quality, execution_id, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             RETURNING *`,
+            [id, agentId, userId, body.content, body.action ?? '', body.outcome ?? '', body.quality ?? 0.5, body.execution_id ?? null, JSON.stringify(body.metadata ?? {})],
+          );
+          return reply.status(201).send({ type: 'episodic', memory });
+        } else {
+          // procedural
+          const memory = await queryOne<ProceduralMemoryRow>(
+            `INSERT INTO forge_procedural_memories (id, agent_id, owner_id, trigger_pattern, tool_sequence, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING *`,
+            [id, agentId, userId, body.trigger_pattern ?? body.content, JSON.stringify(body.tool_sequence ?? []), JSON.stringify(body.metadata ?? {})],
+          );
+          return reply.status(201).send({ type: 'procedural', memory });
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('violates foreign key constraint')) {
+          return reply.status(400).send({
+            error: 'FK Constraint',
+            message: `agent_id '${agentId}' does not exist in forge_agents. Cannot store memory.`,
+          });
+        }
+        throw err;
+      }
     },
   );
 }

@@ -4,12 +4,17 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { Static } from '@sinclair/typebox';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails } from '../observability/guardrails.js';
 import { runDirectCliExecution } from '../runtime/worker.js';
+import {
+  CreateExecutionBody, ListExecutionsQuery, BatchExecutionBody,
+  IdParam, ErrorResponse,
+} from './schemas.js';
 
 interface ExecutionRow {
   id: string;
@@ -53,22 +58,18 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/executions',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'Start an agent execution',
+        body: CreateExecutionBody,
+        response: { 400: ErrorResponse, 403: ErrorResponse, 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const body = request.body as {
-        agentId: string;
-        input: string;
-        sessionId?: string;
-        metadata?: Record<string, unknown>;
-      };
-
-      if (!body.agentId || !body.input) {
-        return reply.status(400).send({
-          error: 'Validation Error',
-          message: 'agentId and input are required',
-        });
-      }
+      const body = request.body as Static<typeof CreateExecutionBody>;
 
       // Verify agent exists and is accessible
       const agent = await queryOne<AgentCheckRow>(
@@ -147,6 +148,13 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         },
       ).catch((err) => {
         console.error(`[Executions] Async CLI execution failed for ${executionId}:`, err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        void query(
+          `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status IN ('pending', 'running')`,
+          [`Failed to start: ${errMsg}`, executionId],
+        ).catch((dbErr) => {
+          console.error(`[Executions] Failed to update execution ${executionId} status:`, dbErr);
+        });
       });
 
       return reply.status(201).send({ execution });
@@ -158,10 +166,18 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/executions/:id',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'Get execution details',
+        params: IdParam,
+        response: { 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const { id } = request.params as { id: string };
+      const { id } = request.params as Static<typeof IdParam>;
 
       const execution = await queryOne<ExecutionRow>(
         `SELECT * FROM forge_executions WHERE id = $1 AND owner_id = $2`,
@@ -184,7 +200,15 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/executions/:id/stream',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'SSE stream for execution updates',
+        params: IdParam,
+        response: { 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const { id } = request.params as { id: string };
@@ -306,16 +330,17 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/executions',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'List executions for owner',
+        querystring: ListExecutionsQuery,
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const qs = request.query as {
-        agentId?: string;
-        sessionId?: string;
-        status?: string;
-        limit?: string;
-        offset?: string;
-      };
+      const qs = request.query as Static<typeof ListExecutionsQuery>;
 
       const conditions: string[] = ['owner_id = $1'];
       const params: unknown[] = [userId];
@@ -373,26 +398,18 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/executions/batch',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'Batch execute multiple agents',
+        body: BatchExecutionBody,
+        response: { 400: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const body = request.body as {
-        agents: Array<{ agentId: string; input: string }>;
-      };
-
-      if (!body.agents || !Array.isArray(body.agents) || body.agents.length === 0) {
-        return reply.status(400).send({
-          error: 'Validation Error',
-          message: 'agents array is required with at least one {agentId, input} entry',
-        });
-      }
-
-      if (body.agents.length > 20) {
-        return reply.status(400).send({
-          error: 'Validation Error',
-          message: 'Maximum 20 agents per batch',
-        });
-      }
+      const body = request.body as Static<typeof BatchExecutionBody>;
 
       // Dispatch each agent as an individual CLI execution
       const executionIds: string[] = [];
@@ -429,6 +446,34 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         agentCount: executionIds.length,
         executionIds,
         mode: 'cli',
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/executions/resumable - List failed executions with checkpoint data
+   * These are orphaned executions that saved iteration progress and can potentially be resumed.
+   */
+  app.get(
+    '/api/v1/forge/executions/resumable',
+    { preHandler: authMiddleware },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const rows = await query<ExecutionRow>(
+        `SELECT id, agent_id, session_id, owner_id, status, input, output,
+                messages, tool_calls, iterations, input_tokens, output_tokens,
+                total_tokens, cost, duration_ms, error, metadata, started_at,
+                completed_at, created_at
+         FROM forge_executions
+         WHERE status = 'failed'
+           AND (metadata->>'resumable')::boolean = true
+           AND iterations > 0
+         ORDER BY completed_at DESC
+         LIMIT 50`,
+      );
+
+      return reply.send({
+        executions: rows,
+        count: rows.length,
       });
     },
   );

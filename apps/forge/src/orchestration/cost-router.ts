@@ -115,9 +115,12 @@ export async function getCostDashboard(): Promise<{
     if (caps.length < 2) continue;
     const cheapest = caps[0]!;
     const expensive = caps[caps.length - 1]!;
-    if (expensive.avg_cost > 0) {
-      savingsSum += 1 - cheapest.avg_cost / expensive.avg_cost;
-      capabilitiesWithSavings++;
+    if (expensive.avg_cost > 0 && Number.isFinite(cheapest.avg_cost) && Number.isFinite(expensive.avg_cost)) {
+      const reduction = 1 - cheapest.avg_cost / expensive.avg_cost;
+      if (Number.isFinite(reduction)) {
+        savingsSum += reduction;
+        capabilitiesWithSavings++;
+      }
     }
   }
 

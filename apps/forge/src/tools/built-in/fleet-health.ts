@@ -88,9 +88,9 @@ async function handleLeaderboard(startTime: number): Promise<ToolResult> {
         tasks_completed: a.tasksCompleted,
         tasks_failed: a.tasksFailed,
         success_rate: Math.round(a.successRate * 100),
-        avg_cost: parseFloat(a.avgCost.toFixed(4)),
-        avg_duration_ms: Math.round(a.avgDuration),
-        total_cost: parseFloat(a.totalCost.toFixed(4)),
+        avg_cost: parseFloat((a.avgCost || 0).toFixed(4)),
+        avg_duration_ms: Math.round(a.avgDuration || 0),
+        total_cost: parseFloat((a.totalCost || 0).toFixed(4)),
         memory_count: a.memoryCount,
       })),
       total_agents: leaderboard.length,
@@ -162,10 +162,10 @@ async function handleExecutionStats(startTime: number): Promise<ToolResult> {
   const anomalies: Array<{ type: string; message: string; severity: string }> = [];
   const hourTotal = parseInt(lastHour[0]?.total ?? '0', 10);
   const hourFailed = parseInt(lastHour[0]?.failed ?? '0', 10);
-  const hourCost = parseFloat(lastHour[0]?.total_cost ?? '0');
-  const baseTotal = parseInt(baseline[0]?.total ?? '0', 10);
-  const baseFailed = parseInt(baseline[0]?.failed ?? '0', 10);
-  const baseCost = parseFloat(baseline[0]?.total_cost ?? '0');
+  const hourCost = parseFloat(lastHour[0]?.total_cost ?? '0') || 0;
+  const baseTotal = parseInt(baseline[0]?.total ?? '0', 10) || 0;
+  const baseFailed = parseInt(baseline[0]?.failed ?? '0', 10) || 0;
+  const baseCost = parseFloat(baseline[0]?.total_cost ?? '0') || 0;
   const baseHours = 23;
 
   const hourFailRate = hourTotal > 0 ? hourFailed / hourTotal : 0;
@@ -199,8 +199,8 @@ async function handleExecutionStats(startTime: number): Promise<ToolResult> {
         success_rate: parseInt(s.total, 10) > 0
           ? Math.round(parseInt(s.completed, 10) / parseInt(s.total, 10) * 100)
           : 0,
-        avg_cost: parseFloat(parseFloat(s.avg_cost).toFixed(4)),
-        avg_duration_ms: Math.round(parseFloat(s.avg_duration)),
+        avg_cost: parseFloat((parseFloat(s.avg_cost) || 0).toFixed(4)),
+        avg_duration_ms: Math.round(parseFloat(s.avg_duration) || 0),
       })),
       anomalies,
       last_hour: { total: hourTotal, failed: hourFailed, cost: parseFloat(hourCost.toFixed(4)) },

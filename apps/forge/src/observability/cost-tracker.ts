@@ -127,10 +127,10 @@ export async function getCostSummary(
   );
 
   return {
-    totalCost: row ? parseFloat(row.total_cost) : 0,
-    totalInputTokens: row ? parseInt(row.total_input_tokens, 10) : 0,
-    totalOutputTokens: row ? parseInt(row.total_output_tokens, 10) : 0,
-    totalEvents: row ? parseInt(row.total_events, 10) : 0,
+    totalCost: row ? (parseFloat(row.total_cost ?? '0') || 0) : 0,
+    totalInputTokens: row ? (parseInt(row.total_input_tokens ?? '0', 10) || 0) : 0,
+    totalOutputTokens: row ? (parseInt(row.total_output_tokens ?? '0', 10) || 0) : 0,
+    totalEvents: row ? (parseInt(row.total_events ?? '0', 10) || 0) : 0,
   };
 }
 
@@ -166,9 +166,9 @@ export async function getDailyCosts(
 
   return rows.map((row) => ({
     date: row.date,
-    totalCost: parseFloat(row.total_cost),
-    totalInputTokens: parseInt(row.total_input_tokens, 10),
-    totalOutputTokens: parseInt(row.total_output_tokens, 10),
-    eventCount: parseInt(row.event_count, 10),
+    totalCost: parseFloat(row.total_cost ?? '0') || 0,
+    totalInputTokens: parseInt(row.total_input_tokens ?? '0', 10) || 0,
+    totalOutputTokens: parseInt(row.total_output_tokens ?? '0', 10) || 0,
+    eventCount: parseInt(row.event_count ?? '0', 10) || 0,
   }));
 }

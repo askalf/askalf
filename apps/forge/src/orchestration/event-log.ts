@@ -156,9 +156,9 @@ export async function getFleetLeaderboard(): Promise<Array<{
       tasksCompleted: a.tasks_completed,
       tasksFailed: a.tasks_failed,
       successRate: total > 0 ? a.tasks_completed / total : 0,
-      avgCost: parseFloat(a.avg_cost),
-      avgDuration: parseFloat(a.avg_duration),
-      totalCost: parseFloat(a.total_cost),
+      avgCost: parseFloat(a.avg_cost) || 0,
+      avgDuration: parseFloat(a.avg_duration) || 0,
+      totalCost: parseFloat(a.total_cost) || 0,
       memoryCount: memMap.get(a.id) ?? 0,
     };
   });
@@ -182,8 +182,8 @@ export async function getEventLogStats(): Promise<{
   ]);
 
   return {
-    totalEvents: parseInt(total[0]?.count ?? '0'),
-    eventsLast24h: parseInt(recent[0]?.count ?? '0'),
+    totalEvents: parseInt(total[0]?.count ?? '0', 10) || 0,
+    eventsLast24h: parseInt(recent[0]?.count ?? '0', 10) || 0,
     topEventTypes: types.map((t) => ({ type: t.event_type, count: parseInt(t.count) })),
   };
 }

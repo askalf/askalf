@@ -50,7 +50,7 @@ export async function proposeGoals(agentId: string): Promise<AgentGoal[]> {
   if (recentExecs.length < 3) return []; // Not enough history
 
   const failedTasks = recentExecs.filter((e) => e.status === 'failed');
-  const avgCost = recentExecs.reduce((sum, e) => sum + (e.cost || 0), 0) / recentExecs.length;
+  const avgCost = recentExecs.reduce((sum, e) => sum + (parseFloat(String(e.cost)) || 0), 0) / recentExecs.length;
   const successRate = tasks_completed / Math.max(1, tasks_completed + tasks_failed);
 
   // Get correction patterns

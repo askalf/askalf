@@ -8,13 +8,21 @@ import { query, queryOne } from '../../database.js';
 import { respondToCheckpoint, type CheckpointRow } from '../../orchestration/checkpoint.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { requireAdmin } from '../../middleware/session-auth.js';
+import { ListCheckpointsQuery, RespondCheckpointBody, IdParam } from '../schemas.js';
 
 export async function registerCheckpointRoutes(app: FastifyInstance): Promise<void> {
 
   // List checkpoints (default: pending only, optionally all)
   app.get(
     '/api/v1/admin/checkpoints',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Checkpoints'],
+        summary: 'List checkpoints (default: pending)',
+        querystring: ListCheckpointsQuery,
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest) => {
       const { owner_id, status, limit = '50' } = request.query as {
         owner_id?: string;
@@ -57,7 +65,14 @@ export async function registerCheckpointRoutes(app: FastifyInstance): Promise<vo
   // Get single checkpoint
   app.get(
     '/api/v1/admin/checkpoints/:id',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Checkpoints'],
+        summary: 'Get a single checkpoint',
+        params: IdParam,
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
 
@@ -77,7 +92,15 @@ export async function registerCheckpointRoutes(app: FastifyInstance): Promise<vo
   // Respond to a checkpoint
   app.post(
     '/api/v1/admin/checkpoints/:id/respond',
-    { preHandler: [authMiddleware, requireAdmin] },
+    {
+      schema: {
+        tags: ['Checkpoints'],
+        summary: 'Respond to a checkpoint (approve/reject)',
+        params: IdParam,
+        body: RespondCheckpointBody,
+      },
+      preHandler: [authMiddleware, requireAdmin],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
       const body = request.body as {

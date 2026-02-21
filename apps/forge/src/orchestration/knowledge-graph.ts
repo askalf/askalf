@@ -242,6 +242,163 @@ export async function getNodeNeighborhood(nodeId: string, depth: number = 1): Pr
 /**
  * Get knowledge graph stats.
  */
+/**
+ * Get full graph data for visualization (paginated).
+ * Returns nodes + edges suitable for force-directed graph rendering.
+ */
+export async function getFullGraph(options?: {
+  limit?: number;
+  offset?: number;
+  entityType?: string;
+  agentId?: string;
+  minMentions?: number;
+}): Promise<{
+  nodes: Array<KnowledgeNode & { created_at: string; last_mentioned: string | null }>;
+  edges: KnowledgeEdge[];
+  total: number;
+}> {
+  const filters: string[] = [];
+  const params: unknown[] = [];
+  let idx = 1;
+
+  if (options?.entityType) {
+    filters.push(`n.entity_type = $${idx++}`);
+    params.push(options.entityType);
+  }
+  if (options?.agentId) {
+    filters.push(`n.agent_id = $${idx++}`);
+    params.push(options.agentId);
+  }
+  if (options?.minMentions) {
+    filters.push(`n.mention_count >= $${idx++}`);
+    params.push(options.minMentions);
+  }
+
+  const where = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+  const limit = Math.min(options?.limit ?? 500, 2000);
+  const offset = options?.offset ?? 0;
+
+  const [nodes, countResult] = await Promise.all([
+    query<KnowledgeNode & { created_at: string; last_mentioned: string | null }>(
+      `SELECT id, agent_id, label, entity_type, description, properties, mention_count,
+              created_at::text, last_mentioned::text
+       FROM forge_knowledge_nodes n
+       ${where}
+       ORDER BY mention_count DESC, created_at DESC
+       LIMIT ${limit} OFFSET ${offset}`,
+      params,
+    ),
+    query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM forge_knowledge_nodes n ${where}`,
+      params,
+    ),
+  ]);
+
+  // Get edges for the returned nodes
+  const nodeIds = nodes.map((n) => n.id);
+  const edges = nodeIds.length > 0
+    ? await query<KnowledgeEdge>(
+        `SELECT id, source_id, target_id, relation, weight::float AS weight, properties
+         FROM forge_knowledge_edges
+         WHERE source_id = ANY($1) AND target_id = ANY($1)`,
+        [nodeIds],
+      )
+    : [];
+
+  return {
+    nodes,
+    edges,
+    total: parseInt(countResult[0]?.count ?? '0'),
+  };
+}
+
+/**
+ * Get a single node by ID with its edge count.
+ */
+export async function getNodeById(nodeId: string): Promise<
+  (KnowledgeNode & { created_at: string; last_mentioned: string | null; edge_count: number; agent_name: string | null }) | null
+> {
+  const row = await query<
+    KnowledgeNode & { created_at: string; last_mentioned: string | null; edge_count: string; agent_name: string | null }
+  >(
+    `SELECT n.id, n.agent_id, n.label, n.entity_type, n.description, n.properties, n.mention_count,
+            n.created_at::text, n.last_mentioned::text,
+            (SELECT COUNT(*)::text FROM forge_knowledge_edges e
+             WHERE e.source_id = n.id OR e.target_id = n.id) AS edge_count,
+            a.name AS agent_name
+     FROM forge_knowledge_nodes n
+     LEFT JOIN forge_agents a ON a.id = n.agent_id
+     WHERE n.id = $1`,
+    [nodeId],
+  );
+  if (row.length === 0) return null;
+  return { ...row[0]!, edge_count: parseInt(row[0]!.edge_count) };
+}
+
+/**
+ * Get entity type distribution for visualization.
+ */
+export async function getEntityTypeDistribution(): Promise<
+  Array<{ entity_type: string; count: number; avg_mentions: number }>
+> {
+  const rows = await query<{ entity_type: string; count: string; avg_mentions: string }>(
+    `SELECT entity_type,
+            COUNT(*)::text AS count,
+            ROUND(AVG(mention_count), 1)::text AS avg_mentions
+     FROM forge_knowledge_nodes
+     GROUP BY entity_type
+     ORDER BY COUNT(*) DESC`,
+  );
+  return rows.map((r) => ({
+    entity_type: r.entity_type,
+    count: parseInt(r.count),
+    avg_mentions: parseFloat(r.avg_mentions),
+  }));
+}
+
+/**
+ * Get agent contributions to the knowledge graph.
+ */
+export async function getAgentContributions(): Promise<
+  Array<{ agent_id: string; agent_name: string | null; node_count: number; top_types: string[] }>
+> {
+  const rows = await query<{ agent_id: string; agent_name: string | null; node_count: string; top_types: string }>(
+    `SELECT n.agent_id,
+            a.name AS agent_name,
+            COUNT(*)::text AS node_count,
+            STRING_AGG(DISTINCT n.entity_type, ',' ORDER BY n.entity_type) AS top_types
+     FROM forge_knowledge_nodes n
+     LEFT JOIN forge_agents a ON a.id = n.agent_id
+     WHERE n.agent_id IS NOT NULL
+     GROUP BY n.agent_id, a.name
+     ORDER BY COUNT(*) DESC`,
+  );
+  return rows.map((r) => ({
+    agent_id: r.agent_id,
+    agent_name: r.agent_name,
+    node_count: parseInt(r.node_count),
+    top_types: r.top_types ? r.top_types.split(',') : [],
+  }));
+}
+
+/**
+ * Get most-connected hub nodes.
+ */
+export async function getTopConnectedNodes(limit: number = 20): Promise<
+  Array<KnowledgeNode & { edge_count: number }>
+> {
+  const rows = await query<KnowledgeNode & { edge_count: string }>(
+    `SELECT n.id, n.agent_id, n.label, n.entity_type, n.description, n.properties, n.mention_count,
+            (SELECT COUNT(*) FROM forge_knowledge_edges e
+             WHERE e.source_id = n.id OR e.target_id = n.id)::text AS edge_count
+     FROM forge_knowledge_nodes n
+     ORDER BY (SELECT COUNT(*) FROM forge_knowledge_edges e
+               WHERE e.source_id = n.id OR e.target_id = n.id) DESC
+     LIMIT ${Math.min(limit, 100)}`,
+  );
+  return rows.map((r) => ({ ...r, edge_count: parseInt(r.edge_count) }));
+}
+
 export async function getGraphStats(): Promise<{
   totalNodes: number;
   totalEdges: number;

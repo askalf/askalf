@@ -8,6 +8,7 @@ import http from 'node:http';
 import pg from 'pg';
 import crypto from 'crypto';
 import type { ToolResult } from '../registry.js';
+import { checkServiceHealth } from '../../utils/health-check.js';
 
 // ============================================
 // Types
@@ -51,6 +52,18 @@ const SERVICE_MAP: Record<string, string> = {
 };
 
 const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
+
+const HEALTH_ENDPOINTS: Record<string, string> = {
+  dashboard: 'http://sprayberry-labs-dashboard:3001/health',
+  forge: 'http://sprayberry-labs-forge:3005/health',
+  'mcp-tools': 'http://sprayberry-labs-mcp-tools:3010/health',
+  mcp: 'http://sprayberry-labs-mcp-tools:3010/health',
+  nginx: 'http://sprayberry-labs-nginx:80/nginx-health',
+};
+
+const POST_DEPLOY_WAIT_MS = 10_000;
+const POST_DEPLOY_RETRIES = 3;
+const POST_DEPLOY_RETRY_DELAY_MS = 5_000;
 
 // ============================================
 // Helpers
@@ -240,14 +253,59 @@ export async function deployOps(input: DeployOpsInput): Promise<ToolResult> {
         }
 
         // Approved — execute restart
-        const res = await dockerRequest('POST', `/v1.44/containers/${containerName}/restart?t=10`);
+        const restartRes = await dockerRequest('POST', `/v1.44/containers/${containerName}/restart?t=10`);
+        const restartSuccess = restartRes.statusCode === 204;
+
+        // Post-deploy health check: wait, then verify the service is healthy
+        let healthResult: { healthy: boolean; latency?: number; error?: string; retries?: number } | undefined;
+        const healthUrl = HEALTH_ENDPOINTS[input.service.toLowerCase()];
+
+        if (restartSuccess && healthUrl) {
+          // Wait for the container to start up before checking health
+          await new Promise((r) => setTimeout(r, POST_DEPLOY_WAIT_MS));
+
+          for (let attempt = 1; attempt <= POST_DEPLOY_RETRIES; attempt++) {
+            const hc = await checkServiceHealth(input.service, healthUrl);
+            if (hc.healthy) {
+              healthResult = { healthy: true, latency: hc.latency, retries: attempt };
+              break;
+            }
+            if (attempt < POST_DEPLOY_RETRIES) {
+              await new Promise((r) => setTimeout(r, POST_DEPLOY_RETRY_DELAY_MS));
+            } else {
+              healthResult = { healthy: false, error: hc.error, latency: hc.latency, retries: attempt };
+            }
+          }
+        }
+
+        // Log deployment event and alert on health failure
+        try {
+          const deployStatus = !restartSuccess ? 'restart_failed' : healthResult?.healthy === false ? 'unhealthy' : 'healthy';
+          // Log to agent_findings as deployment record
+          await p.query(
+            `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, created_at)
+             VALUES ($1, $2, $3, $4, $5, 'deployment', NOW())`,
+            [
+              generateId(),
+              input.agent_id ?? 'unknown',
+              input.agent_name ?? 'unknown',
+              `Deploy ${input.service}: restart ${deployStatus}. Container: ${containerName}. ` +
+                (healthResult ? `Health: ${healthResult.healthy ? 'OK' : 'FAILED'} (${healthResult.retries} attempts, ${healthResult.latency ?? '?'}ms). ${healthResult.error ?? ''}` : 'No health endpoint.'),
+              deployStatus === 'healthy' ? 'info' : 'warning',
+            ],
+          );
+        } catch {
+          // Non-critical: don't fail the restart if logging fails
+        }
+
         return {
           output: {
-            success: res.statusCode === 204,
+            success: restartSuccess,
             service: input.service,
             container: containerName,
-            statusCode: res.statusCode,
+            statusCode: restartRes.statusCode,
             intervention_id: input.intervention_id,
+            healthCheck: healthResult ?? (restartSuccess ? { healthy: null, message: 'No health endpoint configured for this service' } : undefined),
           },
           durationMs: Math.round(performance.now() - startTime),
         };
