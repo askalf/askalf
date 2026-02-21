@@ -393,6 +393,16 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     return res;
   });
 
+  // Get execution detail
+  fastify.get('/api/v1/admin/executions/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/executions/${id}`);
+    if (res.error) return reply.code(res.status || 404).send({ error: 'Execution not found' });
+    return res;
+  });
+
   // Submit feedback on an execution
   fastify.post('/api/v1/admin/executions/:id/feedback', async (request, reply) => {
     const { id } = request.params;
