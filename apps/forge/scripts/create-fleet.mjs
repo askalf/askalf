@@ -1,4 +1,4 @@
-const key = 'fk_a9061ee9b9a863ba4b6c27961cc81d96c6c6c0e2ccee0eca';
+const key = process.env.FORGE_API_KEY || 'REPLACE_WITH_API_KEY';
 const BASE = 'http://127.0.0.1:3005/api/v1/forge/agents';
 
 async function create(body) {
