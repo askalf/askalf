@@ -250,4 +250,53 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
       };
     },
   );
+
+  // Execution timeline — last 24 hours of executions for timeline visualization
+  app.get(
+    '/api/v1/admin/executions/timeline',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const { hours = '24' } = request.query as { hours?: string };
+      const hoursNum = Math.min(Math.max(parseInt(hours) || 24, 1), 72);
+
+      const executions = await query<Record<string, unknown>>(
+        `SELECT
+          e.id, e.agent_id, e.status, e.started_at, e.completed_at,
+          e.created_at, e.duration_ms, e.cost, e.input_tokens, e.output_tokens,
+          a.name as agent_name,
+          COALESCE((a.metadata->>'model_id')::text, m.name, 'unknown') as model_name
+         FROM forge_executions e
+         LEFT JOIN forge_agents a ON a.id = e.agent_id
+         LEFT JOIN forge_models m ON m.id = a.model_id
+         WHERE e.created_at > NOW() - make_interval(hours => $1)
+         ORDER BY e.created_at ASC`,
+        [hoursNum],
+      );
+
+      // Derive model tier from model name for color coding
+      const items = executions.map((e) => {
+        const modelName = String(e['model_name'] || 'unknown').toLowerCase();
+        let modelTier: 'opus' | 'sonnet' | 'haiku' | 'unknown' = 'unknown';
+        if (modelName.includes('opus')) modelTier = 'opus';
+        else if (modelName.includes('sonnet')) modelTier = 'sonnet';
+        else if (modelName.includes('haiku')) modelTier = 'haiku';
+
+        return {
+          id: e['id'],
+          agent_id: e['agent_id'],
+          agent_name: e['agent_name'] || 'Unknown',
+          status: e['status'],
+          model_tier: modelTier,
+          started_at: e['started_at'] || e['created_at'],
+          completed_at: e['completed_at'],
+          created_at: e['created_at'],
+          duration_ms: e['duration_ms'] ? Number(e['duration_ms']) : null,
+          cost: e['cost'] ? Number(e['cost']) : 0,
+          tokens: (Number(e['input_tokens']) || 0) + (Number(e['output_tokens']) || 0),
+        };
+      });
+
+      return { executions: items, hours: hoursNum };
+    },
+  );
 }

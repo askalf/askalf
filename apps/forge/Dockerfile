@@ -22,6 +22,8 @@ RUN pnpm --filter @substrate/core build && \
     pnpm --filter @substrate/email build && \
     pnpm --filter @substrate/forge build
 
+# Note: unit tests excluded from Docker context via .dockerignore — run tests in CI instead
+
 # Deploy to a self-contained directory
 RUN pnpm deploy --filter @substrate/forge --prod /app/deploy
 

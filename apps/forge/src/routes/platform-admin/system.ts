@@ -18,7 +18,7 @@ import { orchestrateFromNL, getOrchestrationStatus } from '../../orchestration/n
 import { createChatSession, getChatSession, listChatSessions, addModeratorMessage, getAgentResponse, runChatRound, endChatSession } from '../../orchestration/multi-agent-chat.js';
 import { proposeGoals, approveGoal, rejectGoal, getAgentGoals } from '../../orchestration/goal-proposer.js';
 import { selectOptimalModel, getCostDashboard, getModelRecommendations } from '../../orchestration/cost-router.js';
-import { searchNodes, getNodeNeighborhood, getGraphStats } from '../../orchestration/knowledge-graph.js';
+import { searchNodes, getNodeNeighborhood, getGraphStats, getFullGraph, getNodeById, getEntityTypeDistribution, getAgentContributions, getTopConnectedNodes } from '../../orchestration/knowledge-graph.js';
 import { runHealthCheck, getLastHealthReport } from '../../orchestration/monitoring-agent.js';
 import { cloneAgent, runExperiment, getExperiments, promoteVariant } from '../../orchestration/evolution.js';
 import { getExecutionEvents, getSessionEvents, getRecentEvents, getFleetLeaderboard, getEventLogStats } from '../../orchestration/event-log.js';
@@ -691,6 +691,63 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: [authMiddleware, requireAdmin] },
     async (request) => {
       return getNodeNeighborhood(request.params.nodeId);
+    },
+  );
+
+  // Full graph data for visualization (force-directed graph)
+  app.get(
+    '/api/v1/admin/knowledge/graph',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { limit, offset, type, agent_id, min_mentions } = request.query as {
+        limit?: string; offset?: string; type?: string; agent_id?: string; min_mentions?: string;
+      };
+      return getFullGraph({
+        limit: limit ? parseInt(limit) : undefined,
+        offset: offset ? parseInt(offset) : undefined,
+        entityType: type,
+        agentId: agent_id,
+        minMentions: min_mentions ? parseInt(min_mentions) : undefined,
+      });
+    },
+  );
+
+  // Single node detail
+  app.get<{ Params: { nodeId: string } }>(
+    '/api/v1/admin/knowledge/nodes/:nodeId',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request, reply) => {
+      const node = await getNodeById(request.params.nodeId);
+      if (!node) return reply.code(404).send({ error: 'Node not found' });
+      return node;
+    },
+  );
+
+  // Entity type distribution
+  app.get(
+    '/api/v1/admin/knowledge/entity-types',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      return getEntityTypeDistribution();
+    },
+  );
+
+  // Agent contributions to the knowledge graph
+  app.get(
+    '/api/v1/admin/knowledge/agents',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      return getAgentContributions();
+    },
+  );
+
+  // Most-connected hub nodes
+  app.get(
+    '/api/v1/admin/knowledge/top-connected',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request) => {
+      const { limit } = request.query as { limit?: string };
+      return getTopConnectedNodes(limit ? parseInt(limit) : undefined);
     },
   );
 

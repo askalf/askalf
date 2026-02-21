@@ -7,14 +7,20 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:unit": "tsx tests/unit.ts",
+    "test:integration": "tsx tests/integration.ts",
+    "test": "tsx tests/unit.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^10.0.0",
+    "@fastify/swagger": "^9.4.2",
+    "@fastify/swagger-ui": "^5.2.1",
+    "@sinclair/typebox": "^0.34.0",
     "@google/generative-ai": "^0.21.0",
-    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.0.0",
     "dotenv": "^17.2.3",

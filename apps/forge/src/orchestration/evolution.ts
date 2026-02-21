@@ -192,7 +192,7 @@ async function scoreExperiment(
     let score = 0;
     if (exec.status === 'completed') score += 50;
     // Lower cost is better (max 25 pts at $0, 0 pts at $1+)
-    score += Math.max(0, 25 - (exec.cost || 0) * 25);
+    score += Math.max(0, 25 - (parseFloat(String(exec.cost)) || 0) * 25);
     // Faster is better (max 25 pts at 0s, 0 pts at 300s+)
     score += Math.max(0, 25 - ((exec.duration_ms || 0) / 300000) * 25);
     return Math.round(score * 100) / 100;

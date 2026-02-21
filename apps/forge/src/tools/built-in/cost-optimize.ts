@@ -76,9 +76,9 @@ async function handleDashboard(startTime: number): Promise<ToolResult> {
       total_profiles: dashboard.profiles.length,
       savings: {
         total_samples: dashboard.savings.totalSamples,
-        avg_cost_reduction_pct: Math.round(dashboard.savings.avgCostReduction * 100),
+        avg_cost_reduction_pct: Number.isFinite(dashboard.savings.avgCostReduction) ? Math.round(dashboard.savings.avgCostReduction * 100) : 0,
       },
-      message: `${dashboard.profiles.length} cost profiles across ${new Set(dashboard.profiles.map((p) => p.capability)).size} capabilities. Potential average savings: ${Math.round(dashboard.savings.avgCostReduction * 100)}%.`,
+      message: `${dashboard.profiles.length} cost profiles across ${new Set(dashboard.profiles.map((p) => p.capability)).size} capabilities. Potential average savings: ${Number.isFinite(dashboard.savings.avgCostReduction) ? Math.round(dashboard.savings.avgCostReduction * 100) : 0}%.`,
     },
     durationMs: Math.round(performance.now() - startTime),
   };
@@ -178,13 +178,13 @@ async function handleMyCosts(input: CostOptimizeInput, startTime: number): Promi
     output: {
       agent_id: agentId,
       period: '7 days',
-      total_cost: parseFloat(totals[0]?.total_cost ?? '0'),
-      avg_cost_per_execution: parseFloat(totals[0]?.avg_cost ?? '0'),
-      total_executions: parseInt(totals[0]?.execution_count ?? '0', 10),
+      total_cost: parseFloat(totals[0]?.total_cost ?? '0') || 0,
+      avg_cost_per_execution: parseFloat(totals[0]?.avg_cost ?? '0') || 0,
+      total_executions: parseInt(totals[0]?.execution_count ?? '0', 10) || 0,
       by_model: costs.map((c) => ({
         model_id: c.model_id,
-        cost: parseFloat(c.model_cost),
-        executions: parseInt(c.model_count, 10),
+        cost: parseFloat(c.model_cost ?? '0') || 0,
+        executions: parseInt(c.model_count ?? '0', 10) || 0,
       })),
     },
     durationMs: Math.round(performance.now() - startTime),

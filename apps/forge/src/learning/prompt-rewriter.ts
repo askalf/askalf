@@ -126,6 +126,15 @@ RULES:
 
     console.log(`[PromptRewriter] Proposed revision ${revisionId} for ${agentName}: ${parsed.reasoning.substring(0, 100)}`);
 
+    // Phase 2: Create a linked change proposal and auto-submit for review
+    try {
+      await createLinkedProposal(revisionId, agentId, agentName, parsed.reasoning);
+    } catch (proposalErr) {
+      // Don't fail the revision if proposal creation fails (table may not exist yet)
+      console.warn(`[PromptRewriter] Could not create change proposal for revision ${revisionId}:`,
+        proposalErr instanceof Error ? proposalErr.message : proposalErr);
+    }
+
     return {
       id: revisionId,
       agent_id: agentId,
@@ -202,6 +211,93 @@ export async function getPromptRevisions(agentId: string): Promise<PromptRevisio
      LIMIT 20`,
     [agentId],
   );
+}
+
+// ============================================
+// Phase 2: Change Proposal Integration
+// ============================================
+
+const REVIEWER_META_ID = '01METAAGENT0000000000000000';
+const REVIEWER_ARCHITECT_ID = '01KGXGV6QBPG0S0VGRY64T7D1W';
+
+/**
+ * Create a forge_change_proposals record linked to a prompt revision,
+ * auto-submit for review, and notify reviewer agents.
+ */
+async function createLinkedProposal(
+  revisionId: string,
+  agentId: string,
+  agentName: string,
+  reasoning: string,
+): Promise<void> {
+  const proposalId = ulid();
+
+  await query(
+    `INSERT INTO forge_change_proposals
+     (id, proposal_type, title, description, author_agent_id, target_agent_id,
+      prompt_revision_id, risk_level, status)
+     VALUES ($1, 'prompt_revision', $2, $3, $4, $5, $6, 'medium', 'pending_review')`,
+    [
+      proposalId,
+      `Prompt revision for ${agentName}`,
+      reasoning,
+      agentId,
+      agentId,
+      revisionId,
+    ],
+  );
+
+  // Audit trail for proposal creation + auto-submit
+  void query(
+    `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [ulid(), agentId, 'proposal.auto_submitted', 'proposal', proposalId,
+     JSON.stringify({ revision_id: revisionId, agent_name: agentName, reviewers: ['Meta', 'Architect'] })],
+  ).catch(() => {});
+
+  // Notify reviewers via audit log entries they can discover
+  for (const reviewerId of [REVIEWER_META_ID, REVIEWER_ARCHITECT_ID]) {
+    void query(
+      `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [ulid(), reviewerId, 'proposal.review_requested', 'proposal', proposalId,
+       JSON.stringify({ revision_id: revisionId, target_agent: agentName, proposal_type: 'prompt_revision' })],
+    ).catch(() => {});
+  }
+
+  console.log(`[PromptRewriter] Created change proposal ${proposalId} for revision ${revisionId}, assigned to Meta + Architect for review`);
+}
+
+/**
+ * Sync change proposal status changes back to the linked prompt revision.
+ * Called by proposal-ops review/apply actions and proposal routes respond handler.
+ */
+export async function syncProposalStatusToRevision(proposalId: string, newStatus: string): Promise<void> {
+  const rows = await query<{ prompt_revision_id: string | null; target_agent_id: string | null }>(
+    `SELECT prompt_revision_id, target_agent_id FROM forge_change_proposals WHERE id = $1`,
+    [proposalId],
+  );
+
+  if (rows.length === 0 || !rows[0]!.prompt_revision_id) return;
+
+  const revisionId = rows[0]!.prompt_revision_id;
+
+  if (newStatus === 'approved') {
+    await query(
+      `UPDATE forge_prompt_revisions SET status = 'approved' WHERE id = $1`,
+      [revisionId],
+    );
+    console.log(`[PromptRewriter] Synced proposal approval to revision ${revisionId}`);
+  } else if (newStatus === 'rejected') {
+    await query(
+      `UPDATE forge_prompt_revisions SET status = 'rejected' WHERE id = $1`,
+      [revisionId],
+    );
+    console.log(`[PromptRewriter] Synced proposal rejection to revision ${revisionId}`);
+  } else if (newStatus === 'applied') {
+    await applyPromptRevision(revisionId, 'system:proposal-pipeline');
+    console.log(`[PromptRewriter] Applied prompt revision ${revisionId} via proposal pipeline`);
+  }
 }
 
 /**

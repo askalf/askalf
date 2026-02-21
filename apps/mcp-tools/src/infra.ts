@@ -284,7 +284,76 @@ const HEALTH_ENDPOINTS: Record<string, string> = {
   forge: 'http://sprayberry-labs-forge:3005/health',
   dashboard: 'http://sprayberry-labs-dashboard:3001/health',
   'mcp-tools': 'http://sprayberry-labs-mcp-tools:3010/health',
+  nginx: 'http://sprayberry-labs-nginx:80/nginx-health',
 };
+
+const POST_DEPLOY_WAIT_MS = 10_000;
+const POST_DEPLOY_RETRIES = 3;
+const POST_DEPLOY_RETRY_DELAY_MS = 5_000;
+
+async function checkHttpHealth(service: string, url: string): Promise<{ healthy: boolean; latency: number; error?: string }> {
+  const start = Date.now();
+  return new Promise((resolve) => {
+    const parsedUrl = new URL(url);
+    const req = http.get({ hostname: parsedUrl.hostname, port: parsedUrl.port, path: parsedUrl.pathname, timeout: 5000 }, (res) => {
+      let data = '';
+      res.on('data', (c: Buffer) => { data += c.toString(); });
+      res.on('end', () => {
+        const latency = Date.now() - start;
+        resolve(res.statusCode && res.statusCode >= 200 && res.statusCode < 400
+          ? { healthy: true, latency }
+          : { healthy: false, latency, error: `HTTP ${res.statusCode}` });
+      });
+    });
+    req.on('error', (err) => resolve({ healthy: false, latency: Date.now() - start, error: err.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ healthy: false, latency: Date.now() - start, error: 'timeout' }); });
+  });
+}
+
+async function postDeployHealthCheck(service: string): Promise<{ healthy: boolean; latency?: number; error?: string; retries: number }> {
+  const healthUrl = HEALTH_ENDPOINTS[service.toLowerCase()];
+  if (!healthUrl) return { healthy: true, retries: 0 }; // No endpoint configured
+
+  await new Promise((r) => setTimeout(r, POST_DEPLOY_WAIT_MS));
+
+  for (let attempt = 1; attempt <= POST_DEPLOY_RETRIES; attempt++) {
+    const hc = await checkHttpHealth(service, healthUrl);
+    if (hc.healthy) return { healthy: true, latency: hc.latency, retries: attempt };
+    if (attempt < POST_DEPLOY_RETRIES) {
+      await new Promise((r) => setTimeout(r, POST_DEPLOY_RETRY_DELAY_MS));
+    } else {
+      return { healthy: false, error: hc.error, latency: hc.latency, retries: attempt };
+    }
+  }
+  return { healthy: false, retries: POST_DEPLOY_RETRIES, error: 'exhausted retries' };
+}
+
+async function logDeployment(service: string, action: string, status: string, healthResult: { healthy?: boolean; latency?: number; retries?: number; error?: string } | null, agentName: string): Promise<void> {
+  try {
+    const forgePool = getForgePool();
+    await forgePool.query(
+      `INSERT INTO deployment_logs (id, service, action, status, health_result, latency_ms, agent_name, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+      [generateId(), service, action, status, healthResult ? JSON.stringify(healthResult) : null, healthResult?.latency ?? null, agentName],
+    );
+  } catch { /* non-critical — don't fail deploys if logging fails */ }
+}
+
+async function alertFleetOnHealthFailure(service: string, containerName: string, healthResult: { error?: string; retries?: number }, agentName: string, agentId: string): Promise<void> {
+  try {
+    const p = getSubstratePool();
+    await p.query(
+      `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, created_at)
+       VALUES ($1, $2, $3, $4, 'critical', 'deployment', NOW())`,
+      [
+        generateId(),
+        agentId,
+        agentName,
+        `HEALTH CHECK FAILED after restart of ${service} (${containerName}). Error: ${healthResult.error ?? 'unknown'}. Retries: ${healthResult.retries ?? '?'}. Service may be down — manual intervention needed.`,
+      ],
+    );
+  } catch { /* non-critical */ }
+}
 
 async function verifyContainerHealth(containerName: string, service: string, maxWaitMs = 30000): Promise<{ healthy: boolean; status: string; detail?: unknown }> {
   const pollInterval = 3000;
@@ -386,13 +455,24 @@ async function handleDeployOps(args: Record<string, unknown>): Promise<string> {
       if (check.rows.length === 0) return JSON.stringify({ error: `Intervention not found: ${interventionId}` });
       if ((check.rows[0] as Record<string, unknown>)['status'] !== 'approved') return JSON.stringify({ approved: false, status: (check.rows[0] as Record<string, unknown>)['status'], message: 'Not yet approved' });
 
+      const agentId = (args['agent_id'] as string) ?? 'unknown';
       const res = await dockerRequest('POST', `/v1.44/containers/${containerName}/restart?t=10`);
       if (res.statusCode !== 204) {
+        await logDeployment(service, 'restart', 'restart_failed', null, agentName);
         return JSON.stringify({ success: false, service, container: containerName, intervention_id: interventionId, error: `Restart failed with status ${res.statusCode}` });
       }
 
-      // Post-restart health verification
-      const healthResult = await verifyContainerHealth(containerName, service.toLowerCase(), 60000);
+      // Post-restart health verification: wait 10s, then check HTTP health endpoint 3x
+      const healthResult = await postDeployHealthCheck(service);
+
+      // Alert fleet on health failure
+      if (!healthResult.healthy && HEALTH_ENDPOINTS[service.toLowerCase()]) {
+        await alertFleetOnHealthFailure(service, containerName, healthResult, agentName, agentId);
+      }
+
+      const deployStatus = healthResult.healthy ? 'healthy' : (HEALTH_ENDPOINTS[service.toLowerCase()] ? 'unhealthy' : 'healthy');
+      await logDeployment(service, 'restart', deployStatus, healthResult, agentName);
+
       return JSON.stringify({ success: true, service, container: containerName, intervention_id: interventionId, health: healthResult });
     }
 

@@ -4,11 +4,17 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { Static } from '@sinclair/typebox';
 import { ulid } from 'ulid';
 import Anthropic from '@anthropic-ai/sdk';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
+import {
+  CreateAgentBody, UpdateAgentBody, ListAgentsQuery,
+  ForkAgentBody, OptimizePromptBody,
+  IdParam, ErrorResponse,
+} from './schemas.js';
 
 interface AgentRow {
   id: string;
@@ -53,33 +59,18 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/agents',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'Create a new agent',
+        body: CreateAgentBody,
+        response: { 400: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const body = request.body as {
-        name: string;
-        description?: string;
-        systemPrompt?: string;
-        modelId?: string;
-        providerConfig?: Record<string, unknown>;
-        autonomyLevel?: number;
-        enabledTools?: string[];
-        mcpServers?: unknown[];
-        memoryConfig?: Record<string, unknown>;
-        maxIterations?: number;
-        maxTokensPerTurn?: number;
-        maxCostPerExecution?: number;
-        isPublic?: boolean;
-        isTemplate?: boolean;
-        metadata?: Record<string, unknown>;
-      };
-
-      if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
-        return reply.status(400).send({
-          error: 'Validation Error',
-          message: 'Agent name is required',
-        });
-      }
+      const body = request.body as Static<typeof CreateAgentBody>;
 
       const id = ulid();
       const slug = slugify(body.name);
@@ -151,15 +142,17 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/agents',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'List agents for the authenticated owner',
+        querystring: ListAgentsQuery,
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const qs = request.query as {
-        status?: string;
-        limit?: string;
-        offset?: string;
-        search?: string;
-      };
+      const qs = request.query as Static<typeof ListAgentsQuery>;
 
       const conditions: string[] = ['owner_id = $1', "status != 'archived'"];
       const params: unknown[] = [userId];
@@ -210,10 +203,18 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/agents/:id',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'Get a single agent',
+        params: IdParam,
+        response: { 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const { id } = request.params as { id: string };
+      const { id } = request.params as Static<typeof IdParam>;
 
       const agent = await queryOne<AgentRow>(
         `SELECT * FROM forge_agents WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
@@ -236,7 +237,16 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
    */
   app.put(
     '/api/v1/forge/agents/:id',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'Update an agent',
+        params: IdParam,
+        body: UpdateAgentBody,
+        response: { 400: ErrorResponse, 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const { id } = request.params as { id: string };
@@ -335,7 +345,15 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
    */
   app.delete(
     '/api/v1/forge/agents/:id',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'Archive an agent (soft delete)',
+        params: IdParam,
+        response: { 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const { id } = request.params as { id: string };
@@ -376,7 +394,16 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/agents/:id/fork',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'Fork an agent',
+        params: IdParam,
+        body: ForkAgentBody,
+        response: { 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const { id } = request.params as { id: string };
@@ -447,7 +474,14 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/v1/forge/agents/optimize-prompt — Optimize a system prompt using LLM
   app.post(
     '/api/v1/forge/agents/optimize-prompt',
-    { preHandler: authMiddleware },
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'Optimize a system prompt using LLM',
+        body: OptimizePromptBody,
+      },
+      preHandler: authMiddleware,
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const body = request.body as {
         prompt?: string;

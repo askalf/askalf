@@ -4,11 +4,16 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { Static } from '@sinclair/typebox';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails } from '../observability/guardrails.js';
+import {
+  CreateSessionBody, ListSessionsQuery, SendMessageBody,
+  IdParam, ErrorResponse,
+} from './schemas.js';
 
 interface SessionRow {
   id: string;
@@ -61,21 +66,18 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/sessions',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Sessions'],
+        summary: 'Create a new session',
+        body: CreateSessionBody,
+        response: { 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const body = request.body as {
-        agentId: string;
-        title?: string;
-        metadata?: Record<string, unknown>;
-      };
-
-      if (!body.agentId) {
-        return reply.status(400).send({
-          error: 'Validation Error',
-          message: 'agentId is required',
-        });
-      }
+      const body = request.body as Static<typeof CreateSessionBody>;
 
       // Verify agent exists and is accessible
       const agent = await queryOne<AgentCheckRow>(
@@ -125,15 +127,17 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/sessions',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Sessions'],
+        summary: 'List sessions',
+        querystring: ListSessionsQuery,
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const qs = request.query as {
-        agentId?: string;
-        active?: string;
-        limit?: string;
-        offset?: string;
-      };
+      const qs = request.query as Static<typeof ListSessionsQuery>;
 
       const conditions: string[] = ['owner_id = $1'];
       const params: unknown[] = [userId];
@@ -183,10 +187,18 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/sessions/:id',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Sessions'],
+        summary: 'Get session with message history',
+        params: IdParam,
+        response: { 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const { id } = request.params as { id: string };
+      const { id } = request.params as Static<typeof IdParam>;
 
       const session = await queryOne<SessionRow>(
         `SELECT * FROM forge_sessions WHERE id = $1 AND owner_id = $2`,
@@ -217,21 +229,20 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/sessions/:id/messages',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Sessions'],
+        summary: 'Send a message (triggers an execution)',
+        params: IdParam,
+        body: SendMessageBody,
+        response: { 400: ErrorResponse, 403: ErrorResponse, 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const { id: sessionId } = request.params as { id: string };
-      const body = request.body as {
-        message: string;
-        metadata?: Record<string, unknown>;
-      };
-
-      if (!body.message || typeof body.message !== 'string' || body.message.trim() === '') {
-        return reply.status(400).send({
-          error: 'Validation Error',
-          message: 'message is required',
-        });
-      }
+      const { id: sessionId } = request.params as Static<typeof IdParam>;
+      const body = request.body as Static<typeof SendMessageBody>;
 
       // Verify session exists and belongs to user
       const session = await queryOne<SessionRow>(
@@ -323,10 +334,18 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.delete(
     '/api/v1/forge/sessions/:id',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Sessions'],
+        summary: 'Deactivate a session',
+        params: IdParam,
+        response: { 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
-      const { id } = request.params as { id: string };
+      const { id } = request.params as Static<typeof IdParam>;
 
       const session = await queryOne<SessionRow>(
         `UPDATE forge_sessions
