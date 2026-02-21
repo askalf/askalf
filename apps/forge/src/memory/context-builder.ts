@@ -23,6 +23,7 @@ export async function buildMemoryContext(
   input: string,
   options?: ContextOptions,
 ): Promise<string> {
+  const start = Date.now();
   const manager = getMemoryManager();
   const k = options?.k ?? 5;
 
@@ -92,5 +93,11 @@ export async function buildMemoryContext(
   }
 
   const result = memoryBlock + awarenessBlock;
+  const elapsed = Date.now() - start;
+  const total = lines.length;
+  const agentCount = agentRecall.semantic.length + agentRecall.episodic.length + agentRecall.procedural.length;
+  console.log(
+    `[Memory] Context built for agent ${agentId}: ${total} memories recalled (${agentCount} agent, ${total - agentCount} fleet) in ${elapsed}ms`,
+  );
   return result || '';
 }

@@ -57,8 +57,8 @@ export default function BranchList() {
       const q = search.toLowerCase();
       list = list.filter(b =>
         b.name.toLowerCase().includes(q) ||
-        b.agent_name.toLowerCase().includes(q) ||
-        b.agent_slug.toLowerCase().includes(q),
+        (b.agent_name || '').toLowerCase().includes(q) ||
+        (b.agent_slug || '').toLowerCase().includes(q),
       );
     }
 
@@ -155,7 +155,7 @@ export default function BranchList() {
               <StatusBadge status={branch.review_status} />
               <span className="cr-branch-name-text">{shortName}</span>
             </div>
-            <div className="cr-branch-agent">{branch.agent_name}</div>
+            <div className="cr-branch-agent">{branch.agent_name || branch.agent_slug}</div>
             <div className="cr-branch-meta">
               <span>{branch.commits} commit{branch.commits !== 1 ? 's' : ''}</span>
               <span>{branch.files_changed} file{branch.files_changed !== 1 ? 's' : ''}</span>

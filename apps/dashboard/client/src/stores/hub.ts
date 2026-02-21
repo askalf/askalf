@@ -756,7 +756,19 @@ export const useHubStore = create<HubState>((set, get) => ({
         dateTo: contentDateTo || undefined,
         search: contentSearch || undefined,
       });
-      set({ contentItems: data.items || [], contentPagination: data.pagination || null });
+      // Map raw agent_findings rows to ContentFeedItem shape
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const items = ((data.items || []) as any[]).map((raw) => ({
+        ...raw,
+        content: raw.content || raw.finding || '',
+        source: raw.source || 'finding',
+        sort_date: raw.sort_date || raw.created_at || '',
+        tokens: raw.tokens || 0,
+        cost: raw.cost || 0,
+        duration_ms: raw.duration_ms || 0,
+        input: raw.input || '',
+      })) as ContentFeedItem[];
+      set({ contentItems: items, contentPagination: data.pagination || null });
     } catch (err) {
       console.error('Failed to fetch content feed:', err);
     } finally {
