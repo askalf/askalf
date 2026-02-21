@@ -175,46 +175,26 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.post('/api/v1/admin/git-space/ai-review', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    try {
-      const res = await fetch(`${FORGE_URL}/api/v1/admin/git-space/ai-review`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request.body),
-      });
-      const data = await res.json();
-      return reply.code(res.status).send(data);
-    } catch (err) {
-      return reply.code(503).send({ error: 'AI review unavailable' });
-    }
+    const res = await callForgeAdmin('/git-space/ai-review', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'AI review unavailable', message: res.message });
+    return res;
   });
 
   fastify.get('/api/v1/admin/git-space/review-result/:id', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    try {
-      const { id } = request.params;
-      const res = await fetch(`${FORGE_URL}/api/v1/admin/git-space/review-result/${encodeURIComponent(id)}`);
-      const data = await res.json();
-      return reply.code(res.status).send(data);
-    } catch (err) {
-      return reply.code(503).send({ error: 'Review result unavailable' });
-    }
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/git-space/review-result/${encodeURIComponent(id)}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Review result unavailable', message: res.message });
+    return res;
   });
 
   fastify.post('/api/v1/admin/git-space/ai-review/chat', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    try {
-      const res = await fetch(`${FORGE_URL}/api/v1/admin/git-space/ai-review/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request.body),
-      });
-      const data = await res.json();
-      return reply.code(res.status).send(data);
-    } catch (err) {
-      return reply.code(503).send({ error: 'AI review chat unavailable' });
-    }
+    const res = await callForgeAdmin('/git-space/ai-review/chat', { method: 'POST', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'AI review chat unavailable', message: res.message });
+    return reply.send(res);
   });
 
   // ============================================
