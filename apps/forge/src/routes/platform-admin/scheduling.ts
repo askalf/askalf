@@ -226,12 +226,11 @@ async function processCoordinationTasks(): Promise<void> {
 
       const taskMap = new Map(tasks.map(t => [t.id, t]));
 
-      // 2. Advance pending tasks whose dependencies are all completed
+      // 2. Advance pending tasks whose dependencies are all completed (or have no deps)
       for (const task of tasks) {
         if (task.status !== 'pending') continue;
-        const deps = task.dependencies || [];
-        if (deps.length === 0) continue; // No deps = should already be running (set at creation)
-        const allDepsCompleted = deps.every(depId => taskMap.get(depId)?.status === 'completed');
+        const deps = (task.dependencies || []).filter(d => d); // filter empty strings
+        const allDepsCompleted = deps.length === 0 || deps.every(depId => taskMap.get(depId)?.status === 'completed');
         if (allDepsCompleted) {
           await query(`UPDATE coordination_tasks SET status = 'running', started_at = NOW() WHERE id = $1`, [task.id]);
           task.status = 'running';
@@ -320,6 +319,7 @@ INSTRUCTIONS:
           systemPrompt: (agent['system_prompt'] as string) ?? undefined,
           maxBudgetUsd: (agent['max_cost_per_execution'] as string) ?? undefined,
           maxTurns: (agent['max_iterations'] as number) ?? undefined,
+          scheduleIntervalMinutes: 120, // Give coordination tasks a generous runtime budget
         }).catch((err) => {
           console.error(`[Coordination] Execution failed for task "${task.title}":`, err);
         });
