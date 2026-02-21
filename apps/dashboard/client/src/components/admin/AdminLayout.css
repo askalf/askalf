@@ -291,6 +291,40 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .admin-sidebar {
+    width: 200px;
+  }
+
+  .admin-main {
+    margin-left: 200px;
+  }
+
+  .admin-nav-label {
+    font-size: 0.8125rem;
+  }
+
+  .admin-logo-wordmark {
+    font-size: 1.125rem;
+  }
+
+  .admin-sidebar-header {
+    padding: 1rem;
+  }
+
+  .admin-nav-item {
+    padding: 0.5rem 1rem;
+  }
+
+  .admin-nav-item.active {
+    padding-left: calc(1rem - 2px);
+  }
+
+  .admin-sidebar-footer {
+    padding: 0.75rem 1rem;
+  }
+}
+
 @media (max-width: 768px) {
   .admin-sidebar {
     width: 100%;
