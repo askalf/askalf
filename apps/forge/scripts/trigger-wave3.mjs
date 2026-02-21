@@ -1,6 +1,6 @@
 import http from 'http';
 
-const API_KEY = 'fk_a9061ee9b9a863ba4b6c27961cc81d96c6c6c0e2ccee0eca';
+const API_KEY = process.env.FORGE_API_KEY || 'REPLACE_WITH_API_KEY';
 
 function triggerAgent(agentId, prompt) {
   return new Promise((resolve, reject) => {
