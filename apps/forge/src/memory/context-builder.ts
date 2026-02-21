@@ -23,6 +23,21 @@ export async function buildMemoryContext(
   input: string,
   options?: ContextOptions,
 ): Promise<string> {
+  // Hard timeout: never let memory context block agent dispatch for more than 15s
+  const TIMEOUT_MS = 15_000;
+  return Promise.race([
+    buildMemoryContextInner(agentId, input, options),
+    new Promise<string>((_, reject) =>
+      setTimeout(() => reject(new Error(`Memory context timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
+    ),
+  ]);
+}
+
+async function buildMemoryContextInner(
+  agentId: string,
+  input: string,
+  options?: ContextOptions,
+): Promise<string> {
   const start = Date.now();
   const manager = getMemoryManager();
   const k = options?.k ?? 5;
@@ -48,9 +63,9 @@ export async function buildMemoryContext(
     lines.push(`- [procedural] (confidence: ${(p.confidence * 100).toFixed(0)}%): ${p.trigger_pattern}`);
   }
 
-  // Fleet-wide recall (cross-agent knowledge sharing)
+  // Fleet-wide recall (cross-agent knowledge sharing) — reuse embedding from agent recall
   if (options?.fleetWide) {
-    const fleetRecall = await manager.recallFleet(input, { k: 3 });
+    const fleetRecall = await manager.recallFleet(input, { k: 3, embedding: agentRecall._embedding });
 
     // Only include fleet results not already in agent results
     const agentSemanticIds = new Set(agentRecall.semantic.map((s) => s.id));

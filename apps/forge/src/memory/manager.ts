@@ -75,6 +75,8 @@ export interface RecallResult {
   semantic: SemanticSearchResult[];
   episodic: EpisodicSearchResult[];
   procedural: ProceduralSearchResult[];
+  /** The embedding generated for this recall, reusable for fleet recall. */
+  _embedding?: number[];
 }
 
 /** Discriminated union for store() input. */
@@ -217,6 +219,7 @@ export class MemoryManager {
       semantic: semanticResult,
       episodic: episodicResult,
       procedural: proceduralResult,
+      _embedding: embedding,
     };
   }
 
@@ -226,9 +229,9 @@ export class MemoryManager {
    */
   async recallFleet(
     queryText: string,
-    options?: { k?: number; minSimilarity?: number },
+    options?: { k?: number; minSimilarity?: number; embedding?: number[] },
   ): Promise<Omit<RecallResult, 'working'>> {
-    const embedding = await this.embed(queryText);
+    const embedding = options?.embedding ?? await this.embed(queryText);
     const k = options?.k ?? 5;
 
     const [semanticResult, episodicResult, proceduralResult] =
