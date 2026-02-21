@@ -106,6 +106,10 @@ const RATE_WINDOW = 60000;
 
 app.addHook('onRequest', async (request, reply) => {
   const ip = request.ip || 'unknown';
+  // Skip rate limiting for internal Docker network IPs (service-to-service calls)
+  if (ip.startsWith('172.') || ip.startsWith('10.') || ip === '127.0.0.1') {
+    return;
+  }
   const now = Date.now();
   const record = rateLimitMap.get(ip);
 
