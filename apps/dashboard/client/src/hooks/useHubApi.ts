@@ -10,19 +10,33 @@ const getApiBase = () => {
 const API_BASE = getApiBase();
 
 async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: 'include',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(text || res.statusText);
+  const maxRetries = options?.method && options.method !== 'GET' ? 0 : 2;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        credentials: 'include',
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(text || res.statusText);
+      }
+      return res.json();
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxRetries) {
+        // Wait before retry (2s, 4s) — handles forge restarts
+        await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      }
+    }
   }
-  return res.json();
+  throw lastError!;
 }
 
 function buildParams(obj: Record<string, string | number | boolean | undefined | null>): string {

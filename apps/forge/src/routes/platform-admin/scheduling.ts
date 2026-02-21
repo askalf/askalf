@@ -256,31 +256,39 @@ async function runSchedulerTick(): Promise<void> {
       const customInput = metadata?.['custom_scheduled_input'] as string | undefined;
 
       const agentName = agent['name'] as string;
+
+      // Pre-load this agent's assigned tickets to inject into prompt
+      const assignedTickets = await substrateQuery<{ id: string; title: string; priority: string; description: string }>(
+        `SELECT id, title, priority, substring(description from 1 for 300) as description
+         FROM agent_tickets
+         WHERE assigned_to = $1 AND status IN ('open', 'in_progress')
+         ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, created_at
+         LIMIT 3`,
+        [agentName],
+      ).catch(() => [] as { id: string; title: string; priority: string; description: string }[]);
+
+      const ticketBlock = assignedTickets.length > 0
+        ? `\n\nYOUR ASSIGNED TICKETS (work on these NOW):\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket. Set it to in_progress. DO THE WORK. Resolve with detailed notes when done.`
+        : `\n\nNO TICKETS ASSIGNED. Proactively find work in your domain: analyze the codebase, fix bugs, add features, improve the system. Create a ticket for what you build.`;
+
       let input: string;
       if (customInput) {
-        // Agent has a custom input template — use it
-        input = customInput.replace(/\{timestamp\}/g, new Date().toISOString());
+        // Agent has a custom input template — append ticket context
+        input = customInput.replace(/\{timestamp\}/g, new Date().toISOString()) + ticketBlock;
       } else {
-        // Default work-driven template
+        // Default work-driven template with pre-loaded tickets
         input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are ${agentName}, running on a ${intervalMinutes}-minute schedule.
 
-YOUR MISSION: Do real work every cycle. Check tickets first, then proactively build.
+YOUR MISSION: Build something real every cycle. Ship code, fix bugs, create features.${ticketBlock}
 
-1. CHECK TICKETS: Use ticket_ops action=list filter_assigned_to=${agentName} filter_status=open — also check filter_status=in_progress.
+RULES:
+- BUILD > OBSERVE: Writing code beats monitoring reports every time.
+- Use finding_ops ONLY for genuinely important discoveries. No noise.
+- Search the knowledge graph (forge_knowledge_graph) before starting — another agent may have solved your problem.
+- Store what you learn in memory_store so other agents benefit.
+- The system must be measurably better after every cycle you run.
 
-2. IF YOU HAVE TICKETS: Pick the highest priority one. Update to in_progress. Do the work. Resolve with detailed notes.
-
-3. IF NO TICKETS: Do NOT just monitor and report "all clear." Instead, proactively use your skills:
-   - Analyze the codebase for improvements in your domain
-   - Fix bugs, add missing features, improve test coverage
-   - Build something that makes the system better
-   - Create a ticket for what you're about to do, assign it to yourself, then do it
-
-4. REPORT: Use finding_ops only for genuinely important discoveries (severity=info for observations, warning/critical sparingly). Do NOT file findings about "no tickets" or "all systems healthy."
-
-5. BUILD > OBSERVE: Writing code, fixing bugs, and shipping features is always more valuable than monitoring reports.
-
-Be efficient. Ship something every cycle.`;
+Be efficient. Ship something.`;
       }
 
       batchAgents.push({
