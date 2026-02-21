@@ -239,9 +239,15 @@ async function processCoordinationTasks(): Promise<void> {
       }
 
       // 3. Dispatch running tasks that don't have active executions
+      //    Cap at 2 dispatches per tick to avoid exhausting the DB pool
+      //    (each dispatch triggers buildMemoryContext which runs heavy pgvector queries)
+      let dispatchedThisTick = 0;
+      const MAX_DISPATCHES_PER_TICK = 2;
+
       for (const task of tasks) {
         if (task.status !== 'running') continue;
         if (!task.assigned_agent_id) continue;
+        if (dispatchedThisTick >= MAX_DISPATCHES_PER_TICK) break;
 
         // Check for existing active execution
         const activeExec = await queryOne<{ id: string }>(
@@ -325,6 +331,7 @@ INSTRUCTIONS:
         });
 
         console.log(`[Coordination] Dispatched "${task.title}" → ${task.assigned_agent} (exec ${execId})`);
+        dispatchedThisTick++;
       }
 
       // 4. Check session completion
