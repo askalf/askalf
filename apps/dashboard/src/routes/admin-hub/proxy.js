@@ -12,7 +12,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   fastify.get('/api/v1/admin/metabolic/status', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForge('/metabolic/status');
+    const res = await callForgeAdmin('/metabolic/status');
     if (res.error) return reply.code(res.status || 503).send({ error: 'Metabolic status unavailable' });
     return res;
   });
