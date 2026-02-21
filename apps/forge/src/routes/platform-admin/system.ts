@@ -646,9 +646,12 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
   app.post(
     '/api/v1/admin/cost/recommend',
     { preHandler: [authMiddleware, requireAdmin] },
-    async (request) => {
-      const { capabilities, minQuality } = request.body as { capabilities: string[]; minQuality?: number };
-      return getModelRecommendations(capabilities, minQuality);
+    async (request, reply) => {
+      const { capabilities, minQuality } = request.body as { capabilities?: unknown; minQuality?: number };
+      if (!Array.isArray(capabilities) || capabilities.length === 0) {
+        return reply.code(400).send({ error: 'capabilities must be a non-empty array of strings' });
+      }
+      return getModelRecommendations(capabilities as string[], minQuality);
     },
   );
 

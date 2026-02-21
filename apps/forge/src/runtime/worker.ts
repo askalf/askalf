@@ -1822,11 +1822,11 @@ export async function runDirectCliExecution(
 
   const cfg = config ?? loadConfig();
 
+  // One-time CLI environment setup (must run before validation to create dirs)
+  await setupCliEnvironment();
+
   // Pre-execution validation — fail fast before acquiring resources
   validateCliPrerequisites(executionId, agentId, input);
-
-  // One-time CLI environment setup
-  await setupCliEnvironment();
 
   // Wait for concurrency slot
   await acquireCliSlot();
@@ -1893,7 +1893,7 @@ export async function runDirectCliExecution(
     try {
       // Create worktree with a new branch based on main
       execSync(`git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" -b "${agentBranchName}" main 2>/dev/null || git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" "${agentBranchName}"`, {
-        timeout: 15_000,
+        timeout: 60_000,
         stdio: 'pipe',
         env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
       });
