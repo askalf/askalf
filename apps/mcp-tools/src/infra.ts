@@ -322,7 +322,7 @@ async function postDeployHealthCheck(service: string): Promise<{ healthy: boolea
     if (attempt < POST_DEPLOY_RETRIES) {
       await new Promise((r) => setTimeout(r, POST_DEPLOY_RETRY_DELAY_MS));
     } else {
-      return { healthy: false, error: hc.error, latency: hc.latency, retries: attempt };
+      return { healthy: false, error: hc.error ?? 'unknown', latency: hc.latency, retries: attempt };
     }
   }
   return { healthy: false, retries: POST_DEPLOY_RETRIES, error: 'exhausted retries' };
