@@ -291,12 +291,12 @@ async function handleFindingOps(args: Record<string, unknown>): Promise<string> 
         const tId = generateId();
         const priority = severity === 'critical' ? 'urgent' : 'high';
         let assignTo: string | null = null;
-        if (category === 'security') assignTo = 'Nightwatch';
-        else if (category === 'performance' || category === 'optimization') assignTo = 'Data Engineer';
-        else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'DevOps';
-        else if (category === 'bug') assignTo = 'Backend Dev';
-        else if (category === 'service_outage') assignTo = 'DevOps';
-        if (!assignTo) assignTo = 'Overseer';
+        if (category === 'security') assignTo = 'Aegis';
+        else if (category === 'performance' || category === 'optimization') assignTo = 'Oracle';
+        else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'Anvil';
+        else if (category === 'bug') assignTo = 'Anvil';
+        else if (category === 'service_outage') assignTo = 'Anvil';
+        if (!assignTo) assignTo = 'Nexus';
 
         try {
           await p.query(
