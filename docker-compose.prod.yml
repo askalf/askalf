@@ -258,6 +258,8 @@ services:
       GIT_CONFIG_KEY_0: safe.directory
       GIT_CONFIG_VALUE_0: /workspace
       DOCKER_HOST: tcp://docker-proxy:2375
+      # CLI concurrency
+      MAX_CLI_CONCURRENCY: ${MAX_CLI_CONCURRENCY:-8}
       # Web search
       SEARXNG_URL: http://searxng:8080
       # Email (SendGrid via orcastr8r.com)
@@ -303,11 +305,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 768M
+          cpus: '2.0'
+          memory: 2048M
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.5'
+          memory: 512M
 
   # self: RETIRED — conversation-first AI service (archived to archive/apps/self/)
 
