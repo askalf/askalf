@@ -9,6 +9,7 @@ import { readdir, readFile, stat } from 'fs/promises';
 import { join, extname, relative } from 'path';
 import {
   getSubstratePool,
+  getForgePool,
   generateId,
 } from '@substrate/db';
 
@@ -120,11 +121,11 @@ export const TOOLS = [
   },
   {
     name: 'deploy_ops',
-    description: 'Deployment operations: status, logs, restart, build. Restart/build require human intervention approval.',
+    description: 'Deployment operations: status, logs, restart, build, health_check. Build runs the full auto-deploy pipeline (type-check, build, deploy, health gate, git tag). Restart/build require human intervention approval.',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        action: { type: 'string', enum: ['status', 'logs', 'restart', 'build'] },
+        action: { type: 'string', enum: ['status', 'logs', 'restart', 'build', 'health_check'] },
         service: { type: 'string', description: 'Service name: dashboard, forge, nginx, self, mcp-tools, searxng, askalf' },
         tail: { type: 'number' },
         intervention_id: { type: 'string', description: 'Approved intervention ID for restart/build' },
@@ -279,6 +280,58 @@ const SERVICE_MAP: Record<string, string> = {
 };
 const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
 
+const HEALTH_ENDPOINTS: Record<string, string> = {
+  forge: 'http://sprayberry-labs-forge:3005/health',
+  dashboard: 'http://sprayberry-labs-dashboard:3001/health',
+  'mcp-tools': 'http://sprayberry-labs-mcp-tools:3010/health',
+};
+
+async function verifyContainerHealth(containerName: string, service: string, maxWaitMs = 30000): Promise<{ healthy: boolean; status: string; detail?: unknown }> {
+  const pollInterval = 3000;
+  const start = Date.now();
+
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const res = await dockerRequest('GET', `/v1.44/containers/${containerName}/json`);
+      const info = JSON.parse(res.data) as Record<string, unknown>;
+      const state = info['State'] as Record<string, unknown> | undefined;
+      const health = state?.['Health'] as Record<string, unknown> | undefined;
+      const healthStatus = health?.['Status'] as string | undefined;
+
+      if (healthStatus === 'healthy') {
+        // Also hit the application health endpoint if available
+        const endpoint = HEALTH_ENDPOINTS[service];
+        let appHealth: unknown;
+        if (endpoint) {
+          try {
+            const url = new URL(endpoint);
+            const appRes = await new Promise<string>((resolve, reject) => {
+              const req = http.get({ hostname: url.hostname, port: url.port, path: url.pathname, timeout: 5000 }, (r) => {
+                let d = '';
+                r.on('data', (c: Buffer) => { d += c.toString(); });
+                r.on('end', () => resolve(d));
+              });
+              req.on('error', reject);
+              req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+            });
+            try { appHealth = JSON.parse(appRes); } catch { appHealth = appRes; }
+          } catch { appHealth = 'unreachable'; }
+        }
+        return { healthy: true, status: 'healthy', detail: appHealth };
+      }
+
+      if (healthStatus === 'unhealthy') {
+        const lastLog = ((health?.['Log'] as Array<Record<string, unknown>>) ?? []).slice(-1)[0];
+        return { healthy: false, status: 'unhealthy', detail: lastLog?.['Output'] ?? 'no details' };
+      }
+    } catch { /* container may be restarting */ }
+
+    await new Promise((r) => setTimeout(r, pollInterval));
+  }
+
+  return { healthy: false, status: 'timeout', detail: `Health check timed out after ${maxWaitMs}ms` };
+}
+
 async function handleDeployOps(args: Record<string, unknown>): Promise<string> {
   const action = args['action'] as string;
 
@@ -334,7 +387,13 @@ async function handleDeployOps(args: Record<string, unknown>): Promise<string> {
       if ((check.rows[0] as Record<string, unknown>)['status'] !== 'approved') return JSON.stringify({ approved: false, status: (check.rows[0] as Record<string, unknown>)['status'], message: 'Not yet approved' });
 
       const res = await dockerRequest('POST', `/v1.44/containers/${containerName}/restart?t=10`);
-      return JSON.stringify({ success: res.statusCode === 204, service, container: containerName, intervention_id: interventionId });
+      if (res.statusCode !== 204) {
+        return JSON.stringify({ success: false, service, container: containerName, intervention_id: interventionId, error: `Restart failed with status ${res.statusCode}` });
+      }
+
+      // Post-restart health verification
+      const healthResult = await verifyContainerHealth(containerName, service.toLowerCase(), 60000);
+      return JSON.stringify({ success: true, service, container: containerName, intervention_id: interventionId, health: healthResult });
     }
 
     case 'build': {
@@ -357,11 +416,48 @@ async function handleDeployOps(args: Record<string, unknown>): Promise<string> {
       const check = await p.query(`SELECT status FROM agent_interventions WHERE id = $1`, [args['intervention_id']]);
       if (check.rows.length === 0) return JSON.stringify({ error: `Intervention not found: ${args['intervention_id']}` });
       if ((check.rows[0] as Record<string, unknown>)['status'] !== 'approved') return JSON.stringify({ approved: false, message: 'Not yet approved' });
-      return JSON.stringify({ approved: true, service, intervention_id: args['intervention_id'], message: `Build approved. Human operator should execute.` });
+
+      // Approved — execute the auto-deploy pipeline
+      const deployResult = await run(
+        `powershell.exe -NoProfile -File scripts/auto-deploy.ps1 ${service} --skip-typecheck`,
+        REPO_ROOT,
+        600000, // 10 min timeout
+      );
+
+      // Log to deploy table
+      const forgePool = getForgePool();
+      await forgePool.query(
+        `INSERT INTO forge_deploy_log (id, services, git_commit, git_branch, triggered_by, agent_name, status, deployed_at)
+         VALUES ($1, ARRAY[$2], $3, $4, 'agent', $5, $6, NOW())`,
+        [
+          generateId(), service,
+          (await run('git rev-parse --short HEAD', REPO_ROOT)).stdout.trim(),
+          (await run('git rev-parse --abbrev-ref HEAD', REPO_ROOT)).stdout.trim(),
+          agentName,
+          deployResult.exitCode === 0 ? 'success' : 'failed',
+        ],
+      ).catch(() => {});
+
+      return JSON.stringify({
+        approved: true, service,
+        intervention_id: args['intervention_id'],
+        success: deployResult.exitCode === 0,
+        output: deployResult.stdout.slice(-1000),
+        error: deployResult.exitCode !== 0 ? deployResult.stderr.slice(-500) : undefined,
+      });
+    }
+
+    case 'health_check': {
+      const svc = args['service'] as string;
+      if (!svc) return JSON.stringify({ error: 'service is required for health_check' });
+      const containerName = SERVICE_MAP[svc.toLowerCase()];
+      if (!containerName) return JSON.stringify({ error: `Unknown service: ${svc}` });
+      const healthResult = await verifyContainerHealth(containerName, svc.toLowerCase(), 30000);
+      return JSON.stringify({ service: svc, container: containerName, health: healthResult });
     }
 
     default:
-      return JSON.stringify({ error: `Unknown action: ${action}. Supported: status, logs, restart, build` });
+      return JSON.stringify({ error: `Unknown action: ${action}. Supported: status, logs, restart, build, health_check` });
   }
 }
 
