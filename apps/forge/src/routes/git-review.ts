@@ -91,7 +91,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return reply.send(branchCache.data);
       }
 
-      const branchRes = await git('branch --list "agent/*" --format="%(refname:short)|%(committerdate:iso8601)|%(committername)"');
+      const branchRes = await git('branch --list "agent/*" --no-merged main --format="%(refname:short)|%(committerdate:iso8601)|%(committername)"');
       if (branchRes.exitCode !== 0) {
         return reply.status(500).send({ error: 'Failed to list branches', detail: branchRes.stderr });
       }
@@ -126,7 +126,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       const batchRes = await new Promise<{ exitCode: number; stdout: string; stderr: string }>((resolve) => {
         exec(
           `sh -c '${batchScript.replace(/'/g, "'\\''")}'`,
-          { timeout: EXEC_TIMEOUT_MS, maxBuffer: 2_048_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
+          { timeout: 60_000, maxBuffer: 2_048_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
           (error, stdout, stderr) => {
             resolve({ exitCode: error ? (error.code ?? 1) : 0, stdout, stderr: stderr?.slice(0, 4000) ?? '' });
           },
