@@ -3,7 +3,7 @@ set -e
 
 DATE=$(date +%Y-%m-%d_%H%M)
 BACKUP_DIR=/backups
-DATABASES="substrate forge self askalf"
+DATABASES="orcastr8r"
 
 echo "[Backup] $(date) — starting"
 
