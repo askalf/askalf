@@ -8,6 +8,7 @@ import { exec } from 'child_process';
 import http from 'http';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authMiddleware } from '../middleware/auth.js';
+import { query } from '../database.js';
 
 const REPO_ROOT = process.env['REPO_ROOT'] ?? '/workspace';
 const EXEC_TIMEOUT_MS = 30_000;
@@ -147,15 +148,33 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
+      // Look up agent names from DB
+      const agents = await query<{ id: string; name: string }>(
+        'SELECT id, name FROM forge_agents',
+      ).catch(() => []);
+      const agentNameMap = new Map<string, { id: string; name: string }>();
+      for (const a of agents) {
+        agentNameMap.set(a.name.toLowerCase().replace(/\s+/g, '-'), a);
+        agentNameMap.set(a.name.toLowerCase().replace(/\s+/g, '_'), a);
+        agentNameMap.set(a.name.toLowerCase().replace(/\s+/g, ''), a);
+        agentNameMap.set(a.name.toLowerCase(), a);
+      }
+
       const branches = branchMeta.map(b => {
         const stats = statsMap.get(b.name) ?? { commits: 0, filesChanged: 0 };
+        const agentMatch = agentNameMap.get(b.agentSlug.toLowerCase());
         return {
           name: b.name,
           agent_slug: b.agentSlug,
+          agent_name: agentMatch?.name ?? b.agentSlug.charAt(0).toUpperCase() + b.agentSlug.slice(1),
+          agent_id: agentMatch?.id ?? null,
           commits: stats.commits,
           files_changed: stats.filesChanged,
           last_date: b.date,
           author: b.author,
+          review_status: null,
+          intervention_id: null,
+          intervention_status: null,
         };
       });
 

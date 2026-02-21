@@ -81,6 +81,7 @@
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   overflow-y: auto;
   padding: var(--space-lg);
+  padding-top: 56px;
   animation: forge-slide-in-right 0.3s ease-out;
 }
 

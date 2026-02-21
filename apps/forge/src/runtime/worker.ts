@@ -1909,9 +1909,28 @@ export async function runDirectCliExecution(
     if (options?.systemPrompt) {
       try {
         // Inject relevant memories into the system prompt
-        const memoryContext = await buildMemoryContext(agentId, input, { fleetWide: true }).catch(() => '');
+        const memoryContext = await buildMemoryContext(agentId, input, { fleetWide: true }).catch((err) => {
+          console.warn(`[CLI] Memory context build failed for ${agentName}: ${err instanceof Error ? err.message : err}`);
+          return '';
+        });
         // Inject runtime budget hint so agents self-regulate
         const budgetHint = formatBudgetPromptHint(runtimeBudget, agentName);
+        const memoryInstruction = [
+          '',
+          '## COGNITIVE MEMORY — USE IT',
+          'You have access to a fleet-wide cognitive memory system via the `memory_search` MCP tool.',
+          '',
+          '**Before starting work:**',
+          '- Search memory for knowledge relevant to your task: `memory_search(query="<your task keywords>")`',
+          '- Check if another agent already solved a similar problem',
+          '- Look for procedural patterns that match your workflow',
+          '',
+          '**After completing work:**',
+          '- Store key learnings via `memory_store` (type: "semantic" for facts, "episodic" for outcomes)',
+          '- Include what worked, what failed, and any discoveries about the codebase',
+          '- This helps the entire fleet learn from your experience',
+          '',
+        ].join('\n');
         const branchInstruction = [
           '',
           '## GIT WORKFLOW — MANDATORY',
@@ -1927,7 +1946,7 @@ export async function runDirectCliExecution(
           '5. NEVER leave uncommitted changes on disk',
           '',
         ].join('\n');
-        const fullPrompt = [options.systemPrompt, memoryContext, budgetHint, branchInstruction]
+        const fullPrompt = [options.systemPrompt, memoryContext, memoryInstruction, budgetHint, branchInstruction]
           .filter(Boolean)
           .join('\n');
         await writeFile(`${agentWorkDir}/CLAUDE.md`, fullPrompt);
