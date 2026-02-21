@@ -9,7 +9,7 @@
  *   - Substrate postgres accessible via docker exec
  */
 
-const key = 'fk_a9061ee9b9a863ba4b6c27961cc81d96c6c6c0e2ccee0eca';
+const key = process.env.FORGE_API_KEY || 'REPLACE_WITH_API_KEY';
 const BASE = 'http://127.0.0.1:3005/api/v1/forge/agents';
 
 const systemPrompt = `You are Shard Curator, the editorial quality agent for Ask ALF's knowledge base. You run every 2 hours as the quality layer between the Metabolist's automated crystallization cycles and the human admin. You coordinate with QA Engineer, Data Engineer, Librarian, Herald, and Doc Writer via tickets.
