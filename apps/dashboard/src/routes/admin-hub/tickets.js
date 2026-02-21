@@ -235,7 +235,7 @@ export async function registerTicketRoutes(fastify, requireAdmin, query, queryOn
     try {
       const notes = await query(
         `SELECT id, ticket_id, content, author, created_at
-         FROM agent_ticket_notes
+         FROM ticket_notes
          WHERE ticket_id = $1
          ORDER BY created_at ASC`,
         [id]
@@ -256,12 +256,12 @@ export async function registerTicketRoutes(fastify, requireAdmin, query, queryOn
     const noteId = ulid();
     try {
       await query(
-        `INSERT INTO agent_ticket_notes (id, ticket_id, content, author, created_at)
+        `INSERT INTO ticket_notes (id, ticket_id, content, author, created_at)
          VALUES ($1, $2, $3, $4, NOW())`,
         [noteId, id, content, admin.email || 'admin']
       );
       const note = await queryOne(
-        `SELECT id, ticket_id, content, author, created_at FROM agent_ticket_notes WHERE id = $1`,
+        `SELECT id, ticket_id, content, author, created_at FROM ticket_notes WHERE id = $1`,
         [noteId]
       );
       return { note };

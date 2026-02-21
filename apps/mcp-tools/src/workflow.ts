@@ -285,39 +285,48 @@ async function handleFindingOps(args: Record<string, unknown>): Promise<string> 
       );
       await audit(p, 'finding', id, 'created', agentName, (args['agent_id'] as string) ?? null, {}, { finding, severity, category }, (args['execution_id'] as string) ?? null);
 
-      // Auto-create ticket for warning/critical findings
+      // Auto-create ticket only for critical findings (with dedup)
       let ticketId: string | null = null;
-      if (severity === 'warning' || severity === 'critical') {
-        const tId = generateId();
-        const priority = severity === 'critical' ? 'urgent' : 'high';
-        let assignTo: string | null = null;
-        if (category === 'security') assignTo = 'Aegis';
-        else if (category === 'performance' || category === 'optimization') assignTo = 'Oracle';
-        else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'DevOps';
-        else if (category === 'bug') assignTo = 'Backend Dev';
-        else if (category === 'service_outage') assignTo = 'DevOps';
-        if (!assignTo) assignTo = 'Nexus';
+      if (severity === 'critical') {
+        // Dedup: skip if an open/in_progress ticket already exists for same category from same agent
+        const existing = await p.query(
+          `SELECT id FROM agent_tickets WHERE status IN ('open', 'in_progress') AND category = $1 AND created_by = $2 LIMIT 1`,
+          [category, agentName],
+        );
+        if (existing.rows.length === 0) {
+          const tId = generateId();
+          let assignTo: string | null = null;
+          if (category === 'security') assignTo = 'Aegis';
+          else if (category === 'performance' || category === 'optimization') assignTo = 'Oracle';
+          else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'DevOps';
+          else if (category === 'bug') assignTo = 'Backend Dev';
+          else if (category === 'service_outage') assignTo = 'DevOps';
+          if (!assignTo) assignTo = 'Nexus';
 
-        try {
-          await p.query(
-            `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, agent_id, agent_name, is_agent_ticket, source, metadata)
-             VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, $9, true, 'agent', $10)`,
-            [tId, `[${severity.toUpperCase()}] ${finding.substring(0, 100)}`, finding, priority, category, agentName, assignTo, (args['agent_id'] as string) ?? null, agentName, JSON.stringify({ finding_id: id, auto_created: true })],
-          );
-          ticketId = tId;
-        } catch { /* non-fatal */ }
+          try {
+            await p.query(
+              `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, agent_id, agent_name, is_agent_ticket, source, metadata)
+               VALUES ($1, $2, $3, 'open', 'urgent', $4, $5, $6, $7, $8, true, 'agent', $9)`,
+              [tId, `[CRITICAL] ${finding.substring(0, 100)}`, finding, category, agentName, assignTo, (args['agent_id'] as string) ?? null, agentName, JSON.stringify({ finding_id: id, auto_created: true })],
+            );
+            ticketId = tId;
+          } catch { /* non-fatal */ }
+        }
       }
 
-      // Auto-store finding as semantic memory
-      try {
-        const importanceMap: Record<string, number> = { critical: 1.0, warning: 0.7, info: 0.4 };
-        const memId = generateId();
-        await forgeQuery(
-          `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, source, importance, metadata, created_at, updated_at)
-           VALUES ($1, $2, 'fleet:system', $3, 'finding', $4, $5, NOW(), NOW())`,
-          [memId, (args['agent_id'] as string) ?? 'unknown', finding, importanceMap[severity] ?? 0.4, JSON.stringify({ source_type: 'finding', category, severity, agent_name: agentName, finding_id: id })],
-        );
-      } catch { /* non-fatal */ }
+      // Auto-store finding as semantic memory (only if valid agent_id provided)
+      const findingAgentId = args['agent_id'] as string | undefined;
+      if (findingAgentId) {
+        try {
+          const importanceMap: Record<string, number> = { critical: 1.0, warning: 0.7, info: 0.4 };
+          const memId = generateId();
+          await forgeQuery(
+            `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, source, importance, metadata, created_at, updated_at)
+             VALUES ($1, $2, 'fleet:system', $3, 'finding', $4, $5, NOW(), NOW())`,
+            [memId, findingAgentId, finding, importanceMap[severity] ?? 0.4, JSON.stringify({ source_type: 'finding', category, severity, agent_name: agentName, finding_id: id })],
+          );
+        } catch { /* non-fatal */ }
+      }
 
       return JSON.stringify({ created: true, finding: result.rows[0], ticket_created: ticketId !== null, ticket_id: ticketId });
     }
