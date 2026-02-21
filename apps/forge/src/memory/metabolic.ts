@@ -610,17 +610,18 @@ async function runAutonomyLoop(): Promise<void> {
   let anomaliesDetected = 0;
   let autoHealed = 0;
   try {
-    // Compare last 1h failure rate vs 24h baseline
+    // Compare last 1h failure rate vs 24h baseline (exclude operational failures: SIGTERM deploys, orphaned)
+    const excludeOps = `AND error NOT LIKE '%SIGTERM%' AND error NOT LIKE '%shutting down%' AND error NOT LIKE '%Orphaned%'`;
     const lastHour = await query<{ total: string; failed: string; total_cost: string }>(
       `SELECT COUNT(*)::text AS total,
-              COUNT(*) FILTER (WHERE status = 'failed')::text AS failed,
+              COUNT(*) FILTER (WHERE status = 'failed' ${excludeOps})::text AS failed,
               COALESCE(SUM(cost), 0)::text AS total_cost
        FROM forge_executions
        WHERE started_at > NOW() - INTERVAL '1 hour'`,
     );
     const baseline = await query<{ total: string; failed: string; total_cost: string }>(
       `SELECT COUNT(*)::text AS total,
-              COUNT(*) FILTER (WHERE status = 'failed')::text AS failed,
+              COUNT(*) FILTER (WHERE status = 'failed' ${excludeOps})::text AS failed,
               COALESCE(SUM(cost), 0)::text AS total_cost
        FROM forge_executions
        WHERE started_at BETWEEN NOW() - INTERVAL '24 hours' AND NOW() - INTERVAL '1 hour'`,

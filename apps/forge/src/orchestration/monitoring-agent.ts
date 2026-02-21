@@ -96,10 +96,10 @@ export async function runHealthCheck(): Promise<HealthReport> {
   const checks: HealthCheck[] = [];
   const alerts: Alert[] = [];
 
-  // 1. Execution failure rate (last hour)
+  // 1. Execution failure rate (last hour) — exclude operational failures (SIGTERM from deploys, orphaned)
   const failureRate = await query<{ total: string; failed: string }>(
     `SELECT COUNT(*)::text AS total,
-            COUNT(*) FILTER (WHERE status = 'failed')::text AS failed
+            COUNT(*) FILTER (WHERE status = 'failed' AND error NOT LIKE '%SIGTERM%' AND error NOT LIKE '%shutting down%' AND error NOT LIKE '%Orphaned%')::text AS failed
      FROM forge_executions
      WHERE started_at > NOW() - INTERVAL '1 hour'`,
   );
