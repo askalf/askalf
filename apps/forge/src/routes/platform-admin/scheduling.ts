@@ -167,12 +167,12 @@ async function processInterventions(): Promise<void> {
         continue;
       }
 
-      // Escalate errors/escalations older than 60 min → create Overseer ticket
+      // Escalate errors/escalations older than 60 min → create Nexus ticket
       if ((intervention['type'] === 'escalation' || intervention['type'] === 'error') && ageMinutes > 60) {
         try {
           await substrateQuery(
             `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, is_agent_ticket, source, metadata)
-             VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Overseer', true, 'agent', $4)
+             VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Nexus', true, 'agent', $4)
              ON CONFLICT DO NOTHING`,
             [
               'INT-' + (intervention['id'] as string).substring(0, 20),
@@ -182,7 +182,7 @@ async function processInterventions(): Promise<void> {
             ],
           );
           await substrateQuery(
-            `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Overseer ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
+            `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Nexus ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
             [intervention['id']],
           );
         } catch { /* non-fatal */ }
@@ -234,13 +234,14 @@ async function runSchedulerTick(): Promise<void> {
       modelId?: string;
       systemPrompt?: string;
       maxBudget?: string;
+      maxTurns?: number;
     }
     const batchAgents: ScheduledAgent[] = [];
 
     for (const schedule of dueAgents) {
       const agentId = schedule['agent_id'] as string;
       const agent = await queryOne<Record<string, unknown>>(
-        `SELECT id, name, status, model_id, system_prompt, max_cost_per_execution, metadata FROM forge_agents WHERE id = $1`,
+        `SELECT id, name, status, model_id, system_prompt, max_cost_per_execution, max_iterations, metadata FROM forge_agents WHERE id = $1`,
         [agentId],
       );
 
@@ -289,6 +290,7 @@ Be efficient and concise. Every action you take must be tracked through a ticket
         modelId: (agent['model_id'] as string) ?? undefined,
         systemPrompt: (agent['system_prompt'] as string) ?? undefined,
         maxBudget: (agent['max_cost_per_execution'] as string) ?? undefined,
+        maxTurns: (agent['max_iterations'] as number) ?? undefined,
       });
     }
 
@@ -310,6 +312,7 @@ Be efficient and concise. Every action you take must be tracked through a ticket
         modelId: agent.modelId,
         systemPrompt: agent.systemPrompt,
         maxBudgetUsd: agent.maxBudget,
+        maxTurns: agent.maxTurns,
       }).catch((err) => {
         console.error(`[Scheduler] CLI execution failed for ${agent.agentName}:`, err);
       });

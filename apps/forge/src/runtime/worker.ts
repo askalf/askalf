@@ -1692,6 +1692,7 @@ export async function runDirectCliExecution(
     systemPrompt?: string;
     sessionId?: string;
     maxBudgetUsd?: string;
+    maxTurns?: number;
   },
 ): Promise<void> {
   if (!initialized) {
@@ -1753,7 +1754,7 @@ export async function runDirectCliExecution(
     const args: string[] = [
       '-p', input,
       '--output-format', 'json',
-      '--max-turns', String(cfg.cliMaxTurns),
+      '--max-turns', String(options?.maxTurns || cfg.cliMaxTurns),
       '--max-budget-usd', options?.maxBudgetUsd ?? cfg.cliBudgetUsd,
       '--dangerously-skip-permissions',
       '--add-dir', '/workspace',
