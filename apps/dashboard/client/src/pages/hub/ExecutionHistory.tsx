@@ -46,6 +46,9 @@ const formatTokens = (tokens: number | undefined) => {
 const getHandoffInfo = (task: { handoff_to_agent_name?: string | null; parent_task_id?: string | null; metadata?: Record<string, unknown> }) => {
   if (task.handoff_to_agent_name) return { type: 'handoff' as const, label: task.handoff_to_agent_name };
   if (task.parent_task_id) return { type: 'child' as const, label: 'Child' };
+  // Check metadata for fleet-dispatched tasks (pipeline handoffs via FleetCoordinator)
+  const source = task.metadata?.source as string | undefined;
+  if (source === 'fleet-dispatch') return { type: 'handoff' as const, label: (task.metadata?.planId as string)?.slice(0, 8) ?? 'Fleet' };
   // Check metadata for parent_execution_id (how forge stores parent relationships)
   const parentId = task.metadata?.parent_execution_id as string | undefined;
   if (parentId) return { type: 'child' as const, label: 'Child' };
@@ -103,7 +106,6 @@ export default function ExecutionHistory() {
       {taskStats && (
         <div className="hub-hist-stats">
           <StatCard value={taskStats.totals.total} label="Total Tasks" />
-          <StatCard value={taskStats.totals.pending} label="Pending" />
           <StatCard value={taskStats.totals.in_progress} label="In Progress" variant={taskStats.totals.in_progress > 0 ? 'warning' : 'default'} />
           <StatCard value={taskStats.totals.completed} label="Completed" variant="success" />
           <StatCard value={taskStats.totals.failed} label="Failed" variant={taskStats.totals.failed > 0 ? 'danger' : 'default'} />

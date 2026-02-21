@@ -103,27 +103,41 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/admin/tasks/stats',
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
-      const [executions, agents] = await Promise.all([
-        query<Record<string, unknown>>('SELECT id, agent_id, status FROM forge_executions ORDER BY created_at DESC LIMIT 200'),
+      const [statusCounts, agentStats, agents, handoffCount] = await Promise.all([
+        query<{ status: string; count: string }>(
+          `SELECT status, COUNT(*) as count FROM forge_executions GROUP BY status`,
+        ),
+        query<{ agent_id: string; status: string; count: string }>(
+          `SELECT agent_id, status, COUNT(*) as count FROM forge_executions GROUP BY agent_id, status`,
+        ),
         query<Record<string, unknown>>('SELECT id, name FROM forge_agents'),
+        queryOne<{ count: string }>(
+          `SELECT COUNT(*) as count FROM forge_executions WHERE parent_execution_id IS NOT NULL OR metadata->>'source' = 'fleet-dispatch'`,
+        ),
       ]);
 
       const agentMap = new Map(agents.map((a) => [a['id'] as string, a['name'] as string]));
-      const total = executions.length;
-      const pending = executions.filter((e) => e['status'] === 'pending').length;
-      const running = executions.filter((e) => e['status'] === 'running').length;
-      const completed = executions.filter((e) => e['status'] === 'completed').length;
-      const failed = executions.filter((e) => e['status'] === 'failed').length;
+
+      // Aggregate status counts
+      let total = 0, pending = 0, running = 0, completed = 0, failed = 0;
+      for (const row of statusCounts) {
+        const c = parseInt(row.count, 10);
+        total += c;
+        if (row.status === 'pending') pending = c;
+        else if (row.status === 'running') running = c;
+        else if (row.status === 'completed') completed = c;
+        else if (row.status === 'failed') failed = c;
+      }
 
       // Per-agent stats
       const byAgent = new Map<string, { completed: number; failed: number; total: number }>();
-      for (const e of executions) {
-        const agentId = e['agent_id'] as string;
-        if (!byAgent.has(agentId)) byAgent.set(agentId, { completed: 0, failed: 0, total: 0 });
-        const stats = byAgent.get(agentId)!;
-        stats.total++;
-        if (e['status'] === 'completed') stats.completed++;
-        if (e['status'] === 'failed') stats.failed++;
+      for (const row of agentStats) {
+        const c = parseInt(row.count, 10);
+        if (!byAgent.has(row.agent_id)) byAgent.set(row.agent_id, { completed: 0, failed: 0, total: 0 });
+        const stats = byAgent.get(row.agent_id)!;
+        stats.total += c;
+        if (row.status === 'completed') stats.completed += c;
+        if (row.status === 'failed') stats.failed += c;
       }
 
       const recentByAgent = Array.from(byAgent.entries()).map(([agentId, stats]) => ({
@@ -133,7 +147,10 @@ export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {
         successRate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
       }));
 
-      return { total, pending, running, completed, failed, recentByAgent };
+      return {
+        totals: { total, pending, in_progress: running, completed, failed, handoffs: parseInt(handoffCount?.count ?? '0', 10) },
+        recentByAgent,
+      };
     },
   );
 }
