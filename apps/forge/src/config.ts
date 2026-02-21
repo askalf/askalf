@@ -64,6 +64,6 @@ export function loadConfig(): ForgeConfig {
     cliTimeout: parseInt(process.env['CLI_TIMEOUT'] ?? '900000', 10),
     cliMaxTurns: parseInt(process.env['CLI_MAX_TURNS'] ?? '15', 10),
     cliBudgetUsd: process.env['CLI_BUDGET_USD'] ?? '0.50',
-    substrateDatabaseUrl: process.env['SUBSTRATE_DATABASE_URL'],
+    substrateDatabaseUrl: process.env['SUBSTRATE_DATABASE_URL'] || databaseUrl,
   };
 }

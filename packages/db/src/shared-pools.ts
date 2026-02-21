@@ -1,9 +1,9 @@
 /**
- * Shared Database Connection Pools
+ * Shared Database Connection Pool
  *
- * Provides lazy-initialized connection pools for the forge and substrate
- * databases, plus Redis. Used by all MCP servers to avoid duplicating
- * connection pool setup in every tool implementation.
+ * Single lazy-initialized pool for the unified orcastr8r database,
+ * plus Redis. Used by MCP servers and other services.
+ * Forge/substrate query functions are aliases for backwards compatibility.
  */
 
 import pg from 'pg';
@@ -12,86 +12,54 @@ import { Redis } from 'ioredis';
 const { Pool } = pg;
 
 // ============================================
-// Forge Database Pool
+// Unified Database Pool
 // ============================================
 
-let forgePool: pg.Pool | null = null;
+let pool: pg.Pool | null = null;
 
-export function getForgePool(): pg.Pool {
-  if (!forgePool) {
-    const connectionString = process.env['FORGE_DATABASE_URL'];
+function getPool(): pg.Pool {
+  if (!pool) {
+    const connectionString = process.env['DATABASE_URL']
+      || process.env['FORGE_DATABASE_URL'];
     if (!connectionString) {
-      throw new Error('FORGE_DATABASE_URL not configured');
+      throw new Error('DATABASE_URL (or FORGE_DATABASE_URL) not configured');
     }
-    forgePool = new Pool({
+    pool = new Pool({
       connectionString,
-      max: 10,
+      max: 15,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
     });
-    forgePool.on('error', (err) => {
-      console.error('[shared-pools] Forge pool error:', err.message);
+    pool.on('error', (err) => {
+      console.error('[shared-pools] Pool error:', err.message);
     });
   }
-  return forgePool;
+  return pool;
 }
 
-export async function forgeQuery<T extends pg.QueryResultRow = pg.QueryResultRow>(
+async function dbQuery<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
   params?: unknown[],
 ): Promise<T[]> {
-  const result = await getForgePool().query<T>(text, params);
+  const result = await getPool().query<T>(text, params);
   return result.rows;
 }
 
-export async function forgeQueryOne<T extends pg.QueryResultRow = pg.QueryResultRow>(
+async function dbQueryOne<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
   params?: unknown[],
 ): Promise<T | null> {
-  const rows = await forgeQuery<T>(text, params);
+  const rows = await dbQuery<T>(text, params);
   return rows[0] ?? null;
 }
 
-// ============================================
-// Substrate Database Pool
-// ============================================
-
-let substratePool: pg.Pool | null = null;
-
-export function getSubstratePool(): pg.Pool {
-  if (!substratePool) {
-    const connectionString = process.env['SUBSTRATE_DATABASE_URL'];
-    if (!connectionString) {
-      throw new Error('SUBSTRATE_DATABASE_URL not configured');
-    }
-    substratePool = new Pool({
-      connectionString,
-      max: 10,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    });
-    substratePool.on('error', (err) => {
-      console.error('[shared-pools] Substrate pool error:', err.message);
-    });
-  }
-  return substratePool;
-}
-
-export async function substrateQuery<T extends pg.QueryResultRow = pg.QueryResultRow>(
-  text: string,
-  params?: unknown[],
-): Promise<T[]> {
-  const result = await getSubstratePool().query<T>(text, params);
-  return result.rows;
-}
-
-export async function substrateQueryOne<T extends pg.QueryResultRow = pg.QueryResultRow>(
-  text: string,
-  params?: unknown[],
-): Promise<T | null> {
-  const rows = await substrateQuery<T>(text, params);
-  return rows[0] ?? null;
-}
+// All aliases point to the same pool
+export const getForgePool = getPool;
+export const getSubstratePool = getPool;
+export const forgeQuery = dbQuery;
+export const forgeQueryOne = dbQueryOne;
+export const substrateQuery = dbQuery;
+export const substrateQueryOne = dbQueryOne;
 
 // ============================================
 // Redis Connection
@@ -132,7 +100,7 @@ export function generateId(): string {
 
 /** Record an audit log entry. Non-fatal on failure. */
 export async function audit(
-  pool: pg.Pool,
+  _pool: pg.Pool,
   entityType: string,
   entityId: string,
   action: string,
@@ -143,7 +111,7 @@ export async function audit(
   executionId?: string | null,
 ): Promise<void> {
   try {
-    await pool.query(
+    await getPool().query(
       `INSERT INTO agent_audit_log (entity_type, entity_id, action, actor, actor_id, old_value, new_value, execution_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [entityType, entityId, action, actor, actorId ?? null, JSON.stringify(oldValue), JSON.stringify(newValue), executionId ?? null],
@@ -159,11 +127,8 @@ export async function audit(
 
 export async function closeAll(): Promise<void> {
   const promises: Promise<void>[] = [];
-  if (forgePool) {
-    promises.push(forgePool.end().then(() => { forgePool = null; }));
-  }
-  if (substratePool) {
-    promises.push(substratePool.end().then(() => { substratePool = null; }));
+  if (pool) {
+    promises.push(pool.end().then(() => { pool = null; }));
   }
   if (redis) {
     promises.push(redis.quit().then(() => { redis = null; }));
