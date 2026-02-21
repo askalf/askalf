@@ -147,13 +147,13 @@ export async function findingOps(input: FindingOpsInput): Promise<ToolResult> {
 
           // Determine who should work on it based on category
           let assignTo: string | null = null;
-          if (category === 'security') assignTo = 'Nightwatch';
-          else if (category === 'performance' || category === 'optimization') assignTo = 'Data Engineer';
-          else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'DevOps';
-          else if (category === 'bug') assignTo = 'Backend Dev';
-          else if (category === 'service_outage') assignTo = 'DevOps';
-          // Default: assign to Overseer to triage
-          if (!assignTo) assignTo = 'Overseer';
+          if (category === 'security') assignTo = 'Aegis';
+          else if (category === 'performance' || category === 'optimization') assignTo = 'Oracle';
+          else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'Anvil';
+          else if (category === 'bug') assignTo = 'Anvil';
+          else if (category === 'service_outage') assignTo = 'Anvil';
+          // Default: assign to Nexus to triage
+          if (!assignTo) assignTo = 'Nexus';
 
           try {
             await p.query(
