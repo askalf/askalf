@@ -35,9 +35,9 @@ let lastReport: HealthReport | null = null;
 /** Map alert metrics to the agent responsible for handling them */
 const ALERT_ASSIGNMENT: Record<string, string> = {
   execution_failure_rate: 'Nexus',
-  stuck_executions: 'Anvil',
+  stuck_executions: 'DevOps',
   hourly_cost: 'Crucible',
-  agents_in_error: 'Anvil',
+  agents_in_error: 'DevOps',
 };
 
 /**
