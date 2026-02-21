@@ -35,7 +35,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
       const [agents, schedules] = await Promise.all([
-        query<Record<string, unknown>>('SELECT id, name, status, metadata FROM forge_agents LIMIT 100'),
+        query<Record<string, unknown>>('SELECT id, name, status, metadata, model_id FROM forge_agents LIMIT 100'),
         substrateQuery<Record<string, unknown>>('SELECT * FROM agent_schedules'),
       ]);
 
@@ -46,6 +46,9 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
           const agent = agentMap.get(s['agent_id'] as string);
           return {
             ...s,
+            id: s['agent_id'],
+            name: agent?.['name'] || 'Unknown',
+            model_id: agent?.['model_id'] || null,
             agent_name: agent?.['name'] || 'Unknown',
             agent_status: agent?.['status'] || 'unknown',
             agent_type: mapAgentType(agent?.['metadata'] as Record<string, unknown> | null),
@@ -65,6 +68,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
         schedule_type?: string;
         schedule_interval_minutes?: number;
         is_continuous?: boolean;
+        execution_mode?: string;
       };
 
       let nextRunAt: string | null = null;
@@ -73,15 +77,16 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
       }
 
       const result = await substrateQueryOne(
-        `INSERT INTO agent_schedules (agent_id, schedule_type, schedule_interval_minutes, next_run_at, is_continuous)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO agent_schedules (agent_id, schedule_type, schedule_interval_minutes, next_run_at, is_continuous, execution_mode)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (agent_id) DO UPDATE SET
            schedule_type = EXCLUDED.schedule_type,
            schedule_interval_minutes = EXCLUDED.schedule_interval_minutes,
            next_run_at = EXCLUDED.next_run_at,
-           is_continuous = EXCLUDED.is_continuous
+           is_continuous = EXCLUDED.is_continuous,
+           execution_mode = EXCLUDED.execution_mode
          RETURNING *`,
-        [id, body.schedule_type || 'manual', body.schedule_interval_minutes || null, nextRunAt, body.is_continuous || false],
+        [id, body.schedule_type || 'manual', body.schedule_interval_minutes || null, nextRunAt, body.is_continuous || false, body.execution_mode || 'cli'],
       );
 
       return { schedule: result };

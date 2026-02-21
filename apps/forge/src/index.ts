@@ -36,6 +36,7 @@ import { platformAdminRoutes } from './routes/platform-admin/index.js';
 import { cliRoutes } from './routes/cli.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
+import { startTaskDispatcher, stopTaskDispatcher } from './runtime/task-dispatcher.js';
 import { initMemoryManager } from './memory/singleton.js';
 import { startMetabolicCycles } from './memory/metabolic.js';
 import { detectAllCapabilities } from './orchestration/capability-registry.js';
@@ -397,6 +398,11 @@ async function start(): Promise<void> {
       console.warn('[Capabilities] Initial detection failed:', err instanceof Error ? err.message : err);
     });
 
+    // Start fleet task dispatcher (bridges FleetCoordinator → CLI execution)
+    void startTaskDispatcher(config.redisUrl).catch((err) => {
+      console.warn('[TaskDispatcher] Failed to start:', err instanceof Error ? err.message : err);
+    });
+
     // Periodic active agents gauge update (every 60s)
     setInterval(async () => {
       try {
@@ -485,6 +491,7 @@ async function shutdown(signal: string): Promise<void> {
     await app.close();
     console.log('[Forge] Server closed');
 
+    await stopTaskDispatcher().catch(() => {});
     await closeDatabase();
     console.log('[Forge] Database connection closed');
 
