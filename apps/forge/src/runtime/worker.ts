@@ -1754,7 +1754,7 @@ export async function runDirectCliExecution(
     const args: string[] = [
       '-p', input,
       '--output-format', 'json',
-      '--max-turns', String(options?.maxTurns || cfg.cliMaxTurns),
+      '--max-turns', String(options?.maxTurns ?? cfg.cliMaxTurns),
       '--max-budget-usd', options?.maxBudgetUsd ?? cfg.cliBudgetUsd,
       '--dangerously-skip-permissions',
       '--add-dir', '/workspace',

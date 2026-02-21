@@ -62,7 +62,7 @@ export function loadConfig(): ForgeConfig {
     // CLI execution
     maxCliConcurrency: parseInt(process.env['MAX_CLI_CONCURRENCY'] ?? '2', 10),
     cliTimeout: parseInt(process.env['CLI_TIMEOUT'] ?? '900000', 10),
-    cliMaxTurns: parseInt(process.env['CLI_MAX_TURNS'] ?? '5', 10),
+    cliMaxTurns: parseInt(process.env['CLI_MAX_TURNS'] ?? '15', 10),
     cliBudgetUsd: process.env['CLI_BUDGET_USD'] ?? '0.50',
     substrateDatabaseUrl: process.env['SUBSTRATE_DATABASE_URL'],
   };

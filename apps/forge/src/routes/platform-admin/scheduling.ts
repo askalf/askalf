@@ -255,31 +255,32 @@ async function runSchedulerTick(): Promise<void> {
       const metadata = agent['metadata'] as Record<string, unknown> | null;
       const customInput = metadata?.['custom_scheduled_input'] as string | undefined;
 
+      const agentName = agent['name'] as string;
       let input: string;
       if (customInput) {
         // Agent has a custom input template — use it
         input = customInput.replace(/\{timestamp\}/g, new Date().toISOString());
       } else {
-        // Default ticket lifecycle template
-        input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are running on a ${intervalMinutes}-minute schedule.
+        // Default work-driven template
+        input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are ${agentName}, running on a ${intervalMinutes}-minute schedule.
 
-MANDATORY TICKET LIFECYCLE — Follow this exact order every run:
+YOUR MISSION: Do real work every cycle. Check tickets first, then proactively build.
 
-1. CHECK ASSIGNED TICKETS: Use ticket_ops action=list filter_assigned_to=YOUR_NAME filter_status=open to find work assigned to you. Also check filter_status=in_progress for your ongoing work.
+1. CHECK TICKETS: Use ticket_ops action=list filter_assigned_to=${agentName} filter_status=open — also check filter_status=in_progress.
 
-2. PICK UP WORK: For each open ticket assigned to you, update it to in_progress with ticket_ops action=update ticket_id=ID status=in_progress BEFORE starting work.
+2. IF YOU HAVE TICKETS: Pick the highest priority one. Update to in_progress. Do the work. Resolve with detailed notes.
 
-3. DO THE WORK: Execute your core duties. Use your tools to investigate, fix, monitor, or build as needed.
+3. IF NO TICKETS: Do NOT just monitor and report "all clear." Instead, proactively use your skills:
+   - Analyze the codebase for improvements in your domain
+   - Fix bugs, add missing features, improve test coverage
+   - Build something that makes the system better
+   - Create a ticket for what you're about to do, assign it to yourself, then do it
 
-4. RESOLVE WITH NOTES: When work is done, update the ticket with ticket_ops action=update ticket_id=ID status=resolved resolution="Detailed description of what you did and the outcome."
+4. REPORT: Use finding_ops only for genuinely important discoveries (severity=info for observations, warning/critical sparingly). Do NOT file findings about "no tickets" or "all systems healthy."
 
-5. REPORT FINDINGS: Use finding_ops to report anything noteworthy (security issues, bugs, performance problems, optimization opportunities).
+5. BUILD > OBSERVE: Writing code, fixing bugs, and shipping features is always more valuable than monitoring reports.
 
-6. CREATE FOLLOW-UP TICKETS: If your work reveals new tasks needed, create tickets with ticket_ops action=create and assign them to the appropriate agent.
-
-7. ROUTINE DUTIES: After ticket work, perform your standard monitoring/maintenance tasks.
-
-Be efficient and concise. Every action you take must be tracked through a ticket.`;
+Be efficient. Ship something every cycle.`;
       }
 
       batchAgents.push({
