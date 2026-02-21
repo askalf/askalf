@@ -139,58 +139,70 @@ export async function findingOps(input: FindingOpsInput): Promise<ToolResult> {
         // Audit the finding creation
         await audit(p, 'finding', id, 'created', input.agent_name, input.agent_id || null, {}, findingData, input.execution_id);
 
-        // Auto-create ticket for warning/critical findings so they get tracked and worked
+        // Auto-create ticket only for critical findings (warnings are logged but don't create tickets)
         let ticketId: string | null = null;
-        if (severity === 'warning' || severity === 'critical') {
-          const tId = generateId();
-          const priority = severity === 'critical' ? 'urgent' : 'high';
+        if (severity === 'critical') {
+          // Dedup: skip if an open/in_progress ticket already exists with similar category from same agent
+          const existing = await p.query(
+            `SELECT id FROM agent_tickets
+             WHERE status IN ('open', 'in_progress')
+               AND category = $1
+               AND created_by = $2
+             LIMIT 1`,
+            [category, input.agent_name],
+          );
 
-          // Determine who should work on it based on category
-          let assignTo: string | null = null;
-          if (category === 'security') assignTo = 'Aegis';
-          else if (category === 'performance' || category === 'optimization') assignTo = 'Oracle';
-          else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'DevOps';
-          else if (category === 'bug') assignTo = 'Backend Dev';
-          else if (category === 'service_outage') assignTo = 'DevOps';
-          // Default: assign to Nexus to triage
-          if (!assignTo) assignTo = 'Nexus';
+          if (existing.rows.length === 0) {
+            const tId = generateId();
+            const priority = 'urgent';
 
-          try {
-            await p.query(
-              `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, agent_id, agent_name, is_agent_ticket, source, metadata)
-               VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, $9, true, 'agent', $10)`,
-              [
-                tId,
-                `[${severity.toUpperCase()}] ${input.finding.substring(0, 100)}`,
-                input.finding,
+            // Determine who should work on it based on category
+            let assignTo: string | null = null;
+            if (category === 'security') assignTo = 'Aegis';
+            else if (category === 'performance' || category === 'optimization') assignTo = 'Oracle';
+            else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'DevOps';
+            else if (category === 'bug') assignTo = 'Backend Dev';
+            else if (category === 'service_outage') assignTo = 'DevOps';
+            // Default: assign to Nexus to triage
+            if (!assignTo) assignTo = 'Nexus';
+
+            try {
+              await p.query(
+                `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, agent_id, agent_name, is_agent_ticket, source, metadata)
+                 VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, $9, true, 'agent', $10)`,
+                [
+                  tId,
+                  `[CRITICAL] ${input.finding.substring(0, 100)}`,
+                  input.finding,
+                  priority,
+                  category,
+                  input.agent_name,
+                  assignTo,
+                  input.agent_id || null,
+                  input.agent_name,
+                  JSON.stringify({ finding_id: id, auto_created: true }),
+                ],
+              );
+              ticketId = tId;
+
+              // Audit the auto-created ticket
+              await audit(p, 'ticket', tId, 'created', input.agent_name, input.agent_id || null, {}, {
+                title: `[CRITICAL] ${input.finding.substring(0, 100)}`,
                 priority,
                 category,
-                input.agent_name,
-                assignTo,
-                input.agent_id || null,
-                input.agent_name,
-                JSON.stringify({ finding_id: id, auto_created: true }),
-              ],
-            );
-            ticketId = tId;
+                assigned_to: assignTo,
+                source: 'auto_from_finding',
+                finding_id: id,
+              }, input.execution_id);
 
-            // Audit the auto-created ticket
-            await audit(p, 'ticket', tId, 'created', input.agent_name, input.agent_id || null, {}, {
-              title: `[${severity.toUpperCase()}] ${input.finding.substring(0, 100)}`,
-              priority,
-              category,
-              assigned_to: assignTo,
-              source: 'auto_from_finding',
-              finding_id: id,
-            }, input.execution_id);
-
-            // Audit the cross-reference on the finding
-            await audit(p, 'finding', id, 'ticket_created', input.agent_name, input.agent_id || null, {}, {
-              ticket_id: tId,
-              assigned_to: assignTo,
-            }, input.execution_id);
-          } catch {
-            // Non-fatal — finding was still created
+              // Audit the cross-reference on the finding
+              await audit(p, 'finding', id, 'ticket_created', input.agent_name, input.agent_id || null, {}, {
+                ticket_id: tId,
+                assigned_to: assignTo,
+              }, input.execution_id);
+            } catch {
+              // Non-fatal — finding was still created
+            }
           }
         }
 

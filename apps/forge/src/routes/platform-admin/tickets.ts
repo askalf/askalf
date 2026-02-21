@@ -216,7 +216,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     async (request: FastifyRequest) => {
       const { id } = request.params as { id: string };
       const notes = await substrateQuery<Record<string, unknown>>(
-        `SELECT * FROM agent_ticket_notes WHERE ticket_id = $1 ORDER BY created_at ASC`, [id],
+        `SELECT * FROM ticket_notes WHERE ticket_id = $1 ORDER BY created_at ASC`, [id],
       ).catch(() => [] as Record<string, unknown>[]);
       return { notes };
     },
@@ -232,7 +232,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       const noteId = ulid();
       try {
         const note = await substrateQueryOne<Record<string, unknown>>(
-          `INSERT INTO agent_ticket_notes (id, ticket_id, content, author, created_at)
+          `INSERT INTO ticket_notes (id, ticket_id, content, author, created_at)
            VALUES ($1, $2, $3, $4, NOW()) RETURNING *`,
           [noteId, id, content, request.userId || 'admin'],
         );

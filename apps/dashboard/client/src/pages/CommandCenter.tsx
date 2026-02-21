@@ -37,8 +37,6 @@ function lazyRetry<T extends { default: React.ComponentType }>(
 const ForgeOverview = lazyRetry(() => import('./forge/ForgeOverview'));
 const AgentFleet = lazyRetry(() => import('./hub/AgentFleet'));
 const ExecutionHistory = lazyRetry(() => import('./hub/ExecutionHistory'));
-const SchedulerControl = lazyRetry(() => import('./hub/SchedulerControl'));
-const FleetCoordination = lazyRetry(() => import('./hub/FleetCoordination'));
 const InterventionGateway = lazyRetry(() => import('./hub/InterventionGateway'));
 const Checkpoints = lazyRetry(() => import('./hub/Checkpoints'));
 const Tickets = lazyRetry(() => import('./hub/Tickets'));
@@ -67,8 +65,8 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
   overview: ForgeOverview,
   fleet: AgentFleet,
   executions: ExecutionHistory,
-  scheduler: SchedulerControl,
-  coordination: FleetCoordination,
+  scheduler: Threads,
+  coordination: Threads,
   interventions: InterventionGateway,
   checkpoints: Checkpoints,
   tickets: Tickets,
