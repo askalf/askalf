@@ -233,6 +233,16 @@ async function start(): Promise<void> {
     // Start production monitoring (health checks + auto-heal)
     startMonitoring();
 
+    // Clean up orphaned executions from previous process (restart recovery)
+    const orphaned = await dbQuery<{ id: string }>(
+      `UPDATE forge_executions SET status = 'failed', error = 'Orphaned: forge restarted', completed_at = NOW()
+       WHERE status IN ('running', 'pending') AND started_at < NOW() - INTERVAL '1 minute'
+       RETURNING id`,
+    ).catch(() => [] as { id: string }[]);
+    if (orphaned.length > 0) {
+      console.log(`[Forge] Recovered ${orphaned.length} orphaned executions from previous process`);
+    }
+
     // Auto-detect agent capabilities on startup (non-blocking)
     void detectAllCapabilities().catch((err) => {
       console.warn('[Capabilities] Initial detection failed:', err instanceof Error ? err.message : err);
