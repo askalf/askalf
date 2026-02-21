@@ -73,6 +73,7 @@ import { teamOps } from '../tools/built-in/team-ops.js';
 import { messaging } from '../tools/built-in/messaging.js';
 import { budgetCheck } from '../tools/built-in/budget-check.js';
 import { proposalOps } from '../tools/built-in/proposal-ops.js';
+import { webSearch } from '../tools/built-in/web-search.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 
@@ -1282,6 +1283,23 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => proposalOps(input as unknown as Parameters<typeof proposalOps>[0]),
+  });
+
+  reg.register({
+    name: 'web_search',
+    displayName: 'Web Search',
+    description: 'Search the web via SearXNG meta search engine. Returns titles, URLs, and snippets.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        maxResults: { type: 'number', description: 'Max results to return (1-10, default 5)' },
+      },
+      required: ['query'],
+    },
+    execute: (input) => webSearch(input as unknown as Parameters<typeof webSearch>[0]),
   });
 }
 

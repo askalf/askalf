@@ -45,6 +45,7 @@ import { initSharedContext } from './orchestration/shared-context.js';
 import { startMonitoring } from './orchestration/monitoring-agent.js';
 import { startEventLogger } from './orchestration/event-log.js';
 import { startReactiveTriggers } from './orchestration/reactive-triggers.js';
+import { initAgentCommunication, closeAgentCommunication } from './orchestration/communication.js';
 import { Redis } from 'ioredis';
 import { ulid } from 'ulid';
 
@@ -260,7 +261,10 @@ async function start(): Promise<void> {
     await initEventBus(config.redisUrl);
     const sharedRedis = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
     initSharedContext(sharedRedis);
-    console.log('[Forge] Event bus + shared context initialized');
+    // Initialize agent-to-agent communication
+    initAgentCommunication(config.redisUrl);
+
+    console.log('[Forge] Event bus + shared context + agent communication initialized');
 
     // Start persistent event logger (logs all events to postgres)
     startEventLogger();
@@ -500,6 +504,7 @@ async function shutdown(signal: string): Promise<void> {
     console.log('[Forge] Server closed');
 
     await stopTaskDispatcher().catch(() => {});
+    await closeAgentCommunication().catch(() => {});
     await closeDatabase();
     console.log('[Forge] Database connection closed');
 

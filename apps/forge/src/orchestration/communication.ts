@@ -157,6 +157,13 @@ export class AgentCommunication {
   // Internal
   // -----------------------------------------------------------------------
 
+  /**
+   * Check if this instance is still open.
+   */
+  get isOpen(): boolean {
+    return !this.closed;
+  }
+
   private async handleIncoming(channel: string, raw: string): Promise<void> {
     const handlerSet = this.handlers.get(channel);
     if (!handlerSet || handlerSet.size === 0) return;
@@ -184,5 +191,38 @@ export class AgentCommunication {
     if (promises.length > 0) {
       await Promise.allSettled(promises);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Singleton
+// ---------------------------------------------------------------------------
+
+let instance: AgentCommunication | null = null;
+
+/**
+ * Initialize the global AgentCommunication singleton.
+ */
+export function initAgentCommunication(redisUrl: string): AgentCommunication {
+  if (instance) return instance;
+  instance = new AgentCommunication(redisUrl);
+  console.log('[AgentCommunication] Initialized');
+  return instance;
+}
+
+/**
+ * Get the global AgentCommunication instance.
+ */
+export function getAgentCommunication(): AgentCommunication | null {
+  return instance;
+}
+
+/**
+ * Close the global AgentCommunication instance.
+ */
+export async function closeAgentCommunication(): Promise<void> {
+  if (instance) {
+    await instance.close();
+    instance = null;
   }
 }
