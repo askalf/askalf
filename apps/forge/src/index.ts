@@ -44,6 +44,7 @@ import { initEventBus, getEventBus } from './orchestration/event-bus.js';
 import { initSharedContext } from './orchestration/shared-context.js';
 import { startMonitoring } from './orchestration/monitoring-agent.js';
 import { startEventLogger } from './orchestration/event-log.js';
+import { startReactiveTriggers } from './orchestration/reactive-triggers.js';
 import { Redis } from 'ioredis';
 import { ulid } from 'ulid';
 
@@ -266,6 +267,9 @@ async function start(): Promise<void> {
 
     // Start production monitoring (health checks + auto-heal)
     startMonitoring();
+
+    // Start reactive coordination triggers (cross-domain signal detection)
+    startReactiveTriggers();
 
     // Clean up orphaned executions from previous process (restart recovery)
     // Two-phase: first tag resumable orphans (have checkpoint data), then mark rest as failed.
