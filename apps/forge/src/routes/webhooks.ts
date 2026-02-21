@@ -8,6 +8,7 @@ import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails } from '../observability/guardrails.js';
+import { runDirectCliExecution } from '../runtime/worker.js';
 
 interface AgentRow {
   id: string;
@@ -154,12 +155,18 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         userAgent: request.headers['user-agent'],
       }).catch(() => {});
 
-      // In a full implementation, this would dispatch the execution to the runtime.
+      // Dispatch the execution to the CLI runtime asynchronously
+      void runDirectCliExecution(executionId, agent.id, inputText, agent.owner_id, {
+        maxBudgetUsd: agent.max_cost_per_execution,
+      }).catch((err) => {
+        console.error(`[Webhook] Execution ${executionId} failed:`, err instanceof Error ? err.message : err);
+      });
+
       return reply.status(201).send({
         executionId: execution?.id,
         agentId: agent.id,
-        status: 'pending',
-        message: 'Webhook trigger accepted. Execution has been queued.',
+        status: 'running',
+        message: 'Webhook trigger accepted. Execution has been dispatched.',
       });
     },
   );
