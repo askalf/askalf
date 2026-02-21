@@ -1842,6 +1842,12 @@ export async function runDirectCliExecution(
 
   await executionStore.run({ ownerId, executionId, agentId, depth }, async () => {
 
+  // Worktree state — hoisted above try/catch so finally can clean up
+  const AGENT_REPO_ROOT = '/workspace';
+  let agentWorktreeDir = '';
+  let agentBranchName = '';
+  let worktreeCreated = false;
+
   try {
     // Update execution status to running
     await query(
@@ -1879,6 +1885,26 @@ export async function runDirectCliExecution(
       `(schedule=${options?.scheduleIntervalMinutes ?? 'manual'}min)`,
     );
 
+    // --- Git worktree isolation: each agent gets its own branch + working tree ---
+    const agentSlug = agentName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    agentBranchName = `agent/${agentSlug}/${executionId}`;
+    agentWorktreeDir = `${AGENT_REPO_ROOT}/.worktrees/${agentSlug}-${executionId}`;
+
+    try {
+      // Create worktree with a new branch based on main
+      execSync(`git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" -b "${agentBranchName}" main 2>/dev/null || git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" "${agentBranchName}"`, {
+        timeout: 15_000,
+        stdio: 'pipe',
+        env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
+      });
+      worktreeCreated = true;
+      console.log(`[CLI] Created worktree for ${agentName}: ${agentWorktreeDir} (branch: ${agentBranchName})`);
+    } catch (wtErr) {
+      console.error(`[CLI] Failed to create worktree, falling back to shared workspace: ${wtErr instanceof Error ? wtErr.message : wtErr}`);
+    }
+
+    const agentWorkDir = worktreeCreated ? agentWorktreeDir : WORKSPACE_DIR;
+
     // Copy agent's system prompt as CLAUDE.md in workspace
     if (options?.systemPrompt) {
       try {
@@ -1886,25 +1912,25 @@ export async function runDirectCliExecution(
         const memoryContext = await buildMemoryContext(agentId, input, { fleetWide: true }).catch(() => '');
         // Inject runtime budget hint so agents self-regulate
         const budgetHint = formatBudgetPromptHint(runtimeBudget, agentName);
-        const agentSlug = agentName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        const branchName = `agent/${agentSlug}/${executionId}`;
         const branchInstruction = [
           '',
           '## GIT WORKFLOW — MANDATORY',
-          `You are working on git branch: ${branchName}`,
-          '1. FIRST ACTION: Create your branch with git_ops action=branch_create',
-          '2. Write all code changes via file_ops',
-          '3. Stage and commit via git_ops action=add then action=commit',
-          '4. Request merge via git_ops action=merge_to_main (creates review for human)',
+          `You are working on git branch: ${agentBranchName}`,
+          `Your working directory is: ${agentWorkDir}`,
+          'All your file changes are isolated in your own git worktree.',
+          '',
+          'When you finish your work:',
+          '1. Stage your changes: run `git add -A` in your working directory',
+          '2. Commit with a descriptive message: run `git commit -m "your message"`',
+          '3. Do NOT merge to main — a human will review and merge via the Push Panel',
+          '4. Do NOT switch branches or run git checkout',
           '5. NEVER leave uncommitted changes on disk',
-          '6. Do NOT switch to main or any other branch',
-          'Your changes will be reviewed by a human in the Push Panel before merging.',
           '',
         ].join('\n');
         const fullPrompt = [options.systemPrompt, memoryContext, budgetHint, branchInstruction]
           .filter(Boolean)
           .join('\n');
-        await writeFile(`${WORKSPACE_DIR}/CLAUDE.md`, fullPrompt);
+        await writeFile(`${agentWorkDir}/CLAUDE.md`, fullPrompt);
       } catch {
         console.warn('[CLI] Could not write CLAUDE.md to workspace');
       }
@@ -1917,7 +1943,6 @@ export async function runDirectCliExecution(
       '--max-turns', String(budgetAwareTurns),
       '--max-budget-usd', options?.maxBudgetUsd ?? cfg.cliBudgetUsd,
       '--dangerously-skip-permissions',
-      '--add-dir', '/workspace',
       '--mcp-config', MCP_CONFIG_PATH,
     ];
 
@@ -1930,7 +1955,7 @@ export async function runDirectCliExecution(
     // Execute CLI with retry for transient failures
     const result = await withRetry(
       async () => {
-        const res = await executeClaudeCode(args, WORKSPACE_DIR, dynamicTimeout);
+        const res = await executeClaudeCode(args, agentWorkDir, dynamicTimeout);
         // Classify non-zero exits — throw retryable errors so withRetry can retry them
         if (res.exitCode !== 0) {
           const classified = classifyCliError(res.exitCode, res.stderr, res.stdout);
@@ -2107,6 +2132,19 @@ export async function runDirectCliExecution(
       [agentId],
     ).catch(() => {});
   } finally {
+    // Clean up git worktree (branch stays for Push Panel review)
+    if (worktreeCreated) {
+      try {
+        execSync(`git -C "${AGENT_REPO_ROOT}" worktree remove "${agentWorktreeDir}" --force 2>/dev/null || true`, {
+          timeout: 10_000,
+          stdio: 'pipe',
+          env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
+        });
+        console.log(`[CLI] Removed worktree: ${agentWorktreeDir} (branch ${agentBranchName} preserved for review)`);
+      } catch (cleanupErr) {
+        console.warn(`[CLI] Worktree cleanup failed: ${cleanupErr instanceof Error ? cleanupErr.message : cleanupErr}`);
+      }
+    }
     releaseCliSlot();
   }
 
