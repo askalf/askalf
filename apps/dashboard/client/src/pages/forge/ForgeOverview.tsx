@@ -109,7 +109,7 @@ export default function ForgeOverview() {
 
   const upcomingRuns = useMemo(() => {
     return schedules
-      .filter((s) => s.schedule_type === 'scheduled' && s.next_run_at)
+      .filter((s) => s.next_run_at)
       .sort((a, b) => new Date(a.next_run_at!).getTime() - new Date(b.next_run_at!).getTime())
       .slice(0, 6);
   }, [schedules]);
