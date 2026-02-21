@@ -220,8 +220,8 @@ async function processCoordinationTasks(): Promise<void> {
       const tasks = await query<{
         id: string; title: string; description: string | null;
         assigned_agent: string; assigned_agent_id: string | null;
-        dependencies: string[]; status: string; result: string | null;
-      }>(`SELECT id, title, description, assigned_agent, assigned_agent_id, dependencies, status, result
+        dependencies: string[]; status: string; result: string | null; started_at: string | null;
+      }>(`SELECT id, title, description, assigned_agent, assigned_agent_id, dependencies, status, result, started_at
           FROM coordination_tasks WHERE session_id = $1`, [session.id]);
 
       const taskMap = new Map(tasks.map(t => [t.id, t]));
@@ -256,10 +256,10 @@ async function processCoordinationTasks(): Promise<void> {
         );
         if (activeExec) continue; // Already dispatched
 
-        // Check if a previous execution already completed this task
+        // Check if a recent execution (since task was set to running) completed or failed
         const completedExec = await queryOne<{ id: string; status: string; output: string | null }>(
-          `SELECT id, status, output FROM forge_executions WHERE metadata->>'coordination_task_id' = $1 ORDER BY created_at DESC LIMIT 1`,
-          [task.id],
+          `SELECT id, status, output FROM forge_executions WHERE metadata->>'coordination_task_id' = $1 AND created_at >= $2 ORDER BY created_at DESC LIMIT 1`,
+          [task.id, task.started_at || '1970-01-01'],
         );
         if (completedExec?.status === 'completed') {
           await query(
