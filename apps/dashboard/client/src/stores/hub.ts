@@ -41,7 +41,7 @@ export type HubTab =
   | 'workflows' | 'push'
   | 'prompt-lab' | 'nl-orchestrate' | 'agent-chat' | 'goals'
   | 'cost-optimizer' | 'knowledge' | 'health' | 'evolution'
-  | 'events' | 'leaderboard' | 'metabolic';
+  | 'events' | 'leaderboard' | 'metabolic' | 'timeline';
 
 export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural';
 

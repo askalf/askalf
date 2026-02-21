@@ -3,20 +3,25 @@ import { Component, ErrorInfo, ReactNode } from 'react';
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  /** If true, show a compact inline error instead of fullscreen */
+  inline?: boolean;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  retryCount: number;
 }
+
+const MAX_AUTO_RETRIES = 3;
 
 class ErrorBoundary extends Component<Props, State> {
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    this.state = { hasError: false, error: null, errorInfo: null, retryCount: 0 };
   }
 
   componentWillUnmount() {
@@ -28,7 +33,8 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    this.setState({ errorInfo });
+    const nextRetry = this.state.retryCount + 1;
+    this.setState({ errorInfo, retryCount: nextRetry });
 
     // Log error to console in development
     if (process.env.NODE_ENV === 'development') {
@@ -38,10 +44,12 @@ class ErrorBoundary extends Component<Props, State> {
     // Send error to API for logging in production
     this.reportError(error, errorInfo);
 
-    // Auto-retry after 15 seconds (handles forge restarts gracefully)
-    this.retryTimer = setTimeout(() => {
-      this.setState({ hasError: false, error: null, errorInfo: null });
-    }, 15000);
+    // Auto-retry up to MAX_AUTO_RETRIES times, then stop (prevents infinite crash loop)
+    if (nextRetry <= MAX_AUTO_RETRIES) {
+      this.retryTimer = setTimeout(() => {
+        this.setState({ hasError: false, error: null, errorInfo: null });
+      }, 10000 + nextRetry * 5000); // 15s, 20s, 25s
+    }
   }
 
   private async reportError(error: Error, errorInfo: ErrorInfo) {
@@ -78,11 +86,52 @@ class ErrorBoundary extends Component<Props, State> {
     window.location.href = '/';
   };
 
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null, retryCount: 0 });
+  };
+
   render() {
     if (this.state.hasError) {
       // Custom fallback UI
       if (this.props.fallback) {
         return this.props.fallback;
+      }
+
+      const stillRetrying = this.state.retryCount <= MAX_AUTO_RETRIES;
+      const statusMessage = stillRetrying
+        ? `Auto-retrying... (attempt ${this.state.retryCount}/${MAX_AUTO_RETRIES})`
+        : 'Auto-retry exhausted. Click reload to try again.';
+
+      // Inline mode — compact error for per-panel boundaries
+      if (this.props.inline) {
+        return (
+          <div style={{
+            padding: '1.5rem',
+            margin: '0.5rem',
+            background: 'rgba(255, 107, 107, 0.08)',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 107, 107, 0.2)',
+            color: '#e0e0e0',
+            textAlign: 'center',
+          }}>
+            <p style={{ margin: '0 0 0.5rem', color: '#ff6b6b', fontWeight: 500 }}>This panel failed to load</p>
+            <p style={{ margin: '0 0 0.75rem', color: '#a0a0a0', fontSize: '0.8rem' }}>{statusMessage}</p>
+            <button
+              onClick={this.handleRetry}
+              style={{
+                padding: '0.4rem 1rem',
+                background: '#4f46e5',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        );
       }
 
       return (
@@ -112,7 +161,7 @@ class ErrorBoundary extends Component<Props, State> {
               Something went wrong
             </h1>
             <p style={{ color: '#a0a0a0', marginBottom: '1.5rem' }}>
-              A service may be restarting. Auto-retrying in a moment...
+              {statusMessage}
             </p>
 
             {this.state.error && (

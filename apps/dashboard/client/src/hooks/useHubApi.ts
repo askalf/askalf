@@ -27,6 +27,12 @@ async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promi
         const text = await res.text().catch(() => '');
         throw new Error(text || res.statusText);
       }
+      // Guard against non-JSON responses (e.g. nginx error pages during restarts)
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Expected JSON but got ${contentType}: ${text.slice(0, 200)}`);
+      }
       return res.json();
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -532,6 +538,20 @@ export interface WorkflowRun {
 // API functions
 // ============================
 
+export interface TimelineExecution {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  status: string;
+  model_tier: 'opus' | 'sonnet' | 'haiku' | 'unknown';
+  started_at: string;
+  completed_at: string | null;
+  created_at: string;
+  duration_ms: number | null;
+  cost: number;
+  tokens: number;
+}
+
 export const hubApi = {
   agents: {
     list: (includeDecommissioned = false) =>
@@ -901,6 +921,14 @@ export const hubApi = {
       apiFetch<{ totalEvents: number; eventsLast24h: number; topEventTypes: unknown[] }>('/api/v1/admin/events/stats'),
     leaderboard: () =>
       apiFetch<unknown[]>('/api/v1/admin/fleet/leaderboard'),
+  },
+
+  // Execution Timeline
+  timeline: {
+    executions: (hours?: number) =>
+      apiFetch<{ executions: TimelineExecution[]; hours: number }>(
+        `/api/v1/admin/executions/timeline?${buildParams({ hours })}`,
+      ),
   },
 
   // Checkpoints (human-in-the-loop)

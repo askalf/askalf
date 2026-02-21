@@ -6,6 +6,7 @@ import { usePolling } from '../hooks/usePolling';
 import { hubApi } from '../hooks/useHubApi';
 import { AGENT_TYPE_INFO } from './hub/shared/AgentIcon';
 import AdminAssistantPanel from '../components/admin/AdminAssistantPanel';
+import ErrorBoundary from '../components/ErrorBoundary';
 import Modal from './hub/shared/Modal';
 import './hub/shared/hub-shared.css';
 import './hub/hub-pages.css';
@@ -60,6 +61,7 @@ const Evolution = lazyRetry(() => import('./forge/Evolution'));
 const EventLog = lazyRetry(() => import('./forge/EventLog'));
 const Leaderboard = lazyRetry(() => import('./forge/Leaderboard'));
 const MetabolicDashboard = lazyRetry(() => import('./forge/MetabolicDashboard'));
+const ExecutionTimeline = lazyRetry(() => import('./forge/ExecutionTimeline'));
 
 const PANEL_MAP: Record<HubTab, React.FC> = {
   overview: ForgeOverview,
@@ -90,6 +92,7 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
   events: EventLog,
   leaderboard: Leaderboard,
   metabolic: MetabolicDashboard,
+  timeline: ExecutionTimeline,
 };
 
 export default function CommandCenter() {
@@ -232,11 +235,13 @@ export default function CommandCenter() {
         </div>
       </header>
 
-      {/* Content */}
+      {/* Content — per-panel error boundary prevents one bad panel from killing the whole app */}
       <div className="fc-content">
-        <Suspense fallback={<div className="fc-tab-loading">Loading...</div>}>
-          <ActivePanel />
-        </Suspense>
+        <ErrorBoundary inline key={currentTab}>
+          <Suspense fallback={<div className="fc-tab-loading">Loading...</div>}>
+            <ActivePanel />
+          </Suspense>
+        </ErrorBoundary>
       </div>
 
       {/* Hub-level Modals */}
