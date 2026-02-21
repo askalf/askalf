@@ -21,6 +21,7 @@ import { updateCapabilityFromExecution } from '../orchestration/capability-regis
 import { getEventBus } from '../orchestration/event-bus.js';
 import { extractKnowledge } from '../orchestration/knowledge-graph.js';
 import { recordCostSample } from '../orchestration/cost-router.js';
+import { trackCost } from '../observability/cost-tracker.js';
 import { forgeExecutionsTotal, forgeExecutionDuration } from '../metrics.js';
 
 // Built-in tools
@@ -1726,8 +1727,9 @@ export async function runDirectCliExecution(
     );
 
     // Emit execution started event
-    const agentRow = await query<{ name: string }>(`SELECT name FROM forge_agents WHERE id = $1`, [agentId]);
+    const agentRow = await query<{ name: string; model_id: string }>(`SELECT name, model_id FROM forge_agents WHERE id = $1`, [agentId]);
     const agentName = agentRow[0]?.name ?? agentId;
+    const agentModelId = agentRow[0]?.model_id ?? 'claude-sonnet-4-6';
     const eventBus = getEventBus();
     void eventBus?.emitExecution('started', executionId, agentId, agentName, {
       input: input.substring(0, 200),
@@ -1809,6 +1811,23 @@ export async function runDirectCliExecution(
       ],
     );
 
+    // Record cost event for the cost dashboard
+    if (parsed.costUsd > 0) {
+      void trackCost({
+        executionId,
+        agentId,
+        ownerId,
+        provider: 'anthropic',
+        model: agentModelId,
+        inputTokens: parsed.inputTokens,
+        outputTokens: parsed.outputTokens,
+        cost: parsed.costUsd,
+        metadata: { turns: parsed.numTurns, durationMs },
+      }).catch((err) => {
+        console.warn('[Cost] Failed to track cost event:', err instanceof Error ? err.message : err);
+      });
+    }
+
     // Emit execution completed/failed event
     void eventBus?.emitExecution(
       parsed.isError ? 'failed' : 'completed',
@@ -1866,16 +1885,11 @@ export async function runDirectCliExecution(
     }
 
     // Record cost sample for optimization (Phase 10)
-    if (toolExecs.length > 0 && parsed.costUsd > 0) {
+    if (parsed.costUsd > 0) {
       const quality = parsed.isError ? 0.2 : 0.8;
-      const agentMeta = await query<{ model_id: string }>(
-        `SELECT COALESCE(metadata->>'model_id', 'claude-sonnet-4-6') AS model_id FROM forge_agents WHERE id = $1`,
-        [agentId],
-      ).catch(() => [] as { model_id: string }[]);
-      const modelId = agentMeta[0]?.model_id ?? 'claude-sonnet-4-6';
-      for (const tool of toolExecs) {
-        void recordCostSample(tool.tool_name, modelId, parsed.costUsd / toolExecs.length, (parsed.inputTokens + parsed.outputTokens) / toolExecs.length, quality).catch(() => {});
-      }
+      const totalTokens = parsed.inputTokens + parsed.outputTokens;
+      // Record at agent level (CLI mode doesn't populate forge_tool_executions)
+      void recordCostSample(agentName, agentModelId, parsed.costUsd, totalTokens, quality).catch(() => {});
     }
   } catch (err) {
     const durationMs = Date.now() - startTime;

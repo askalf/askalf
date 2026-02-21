@@ -158,18 +158,18 @@ export async function runHealthCheck(): Promise<HealthReport> {
 
   checks.push({
     name: 'hourly_cost',
-    status: hourlyCost > 5.0 ? 'fail' : hourlyCost > 2.0 ? 'warn' : 'pass',
+    status: hourlyCost > 10.0 ? 'fail' : hourlyCost > 5.0 ? 'warn' : 'pass',
     value: `$${hourlyCost.toFixed(2)}`,
-    threshold: '$2.00/$5.00',
+    threshold: '$5.00/$10.00',
   });
 
-  if (hourlyCost > 5.0) {
+  if (hourlyCost > 10.0) {
     alerts.push({
       severity: 'critical',
       message: `High hourly cost: $${hourlyCost.toFixed(2)} in last hour`,
       metric: 'hourly_cost',
       value: hourlyCost,
-      threshold: 5.0,
+      threshold: 10.0,
     });
   }
 

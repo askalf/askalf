@@ -52,41 +52,48 @@ async function sense(): Promise<IntegrationSignals> {
   // Recent events
   const eventCounts = await query<Record<string, unknown>>(
     `SELECT COUNT(*) as count FROM forge_event_log
-     WHERE timestamp > NOW() - INTERVAL '5 minutes'`,
+     WHERE created_at > NOW() - INTERVAL '5 minutes'`,
   );
 
   // Goal state
   const goalCounts = await query<Record<string, unknown>>(
     `SELECT
-      COUNT(*) FILTER (WHERE status = 'completed' AND updated_at > NOW() - INTERVAL '5 minutes') as completed,
+      COUNT(*) FILTER (WHERE status = 'completed' AND completed_at > NOW() - INTERVAL '5 minutes') as completed,
       COUNT(*) FILTER (WHERE status = 'proposed') as proposed
-     FROM forge_goals`,
+     FROM forge_agent_goals`,
   );
   const gc = goalCounts[0] ?? {};
 
-  // Findings (anomalies, critical)
-  const findingCounts = await query<Record<string, unknown>>(
-    `SELECT
-      COUNT(*) FILTER (WHERE severity = 'anomaly' OR severity = 'warning') as anomalies,
-      COUNT(*) FILTER (WHERE severity = 'critical') as critical
-     FROM forge_findings
-     WHERE created_at > NOW() - INTERVAL '1 hour' AND status = 'open'`,
-  );
-  const fc = findingCounts[0] ?? {};
+  // Findings (anomalies, critical) — agent_findings lives in substrate DB,
+  // so we query forge_audit_log as a proxy for recent anomalous activity
+  let fc: Record<string, unknown> = {};
+  try {
+    const findingCounts = await query<Record<string, unknown>>(
+      `SELECT
+        COUNT(*) FILTER (WHERE action LIKE '%error%' OR action LIKE '%fail%') as anomalies,
+        COUNT(*) FILTER (WHERE action LIKE '%critical%') as critical
+       FROM forge_audit_log
+       WHERE created_at > NOW() - INTERVAL '1 hour'`,
+    );
+    fc = findingCounts[0] ?? {};
+  } catch { /* table may not exist yet — degrade gracefully */ }
 
   // Feedback
-  const feedbackCounts = await query<Record<string, unknown>>(
-    `SELECT
-      COUNT(*) FILTER (WHERE rating >= 4) as positive,
-      COUNT(*) FILTER (WHERE rating <= 2) as negative
-     FROM forge_feedback
-     WHERE created_at > NOW() - INTERVAL '1 hour'`,
-  );
-  const fb = feedbackCounts[0] ?? {};
+  let fb: Record<string, unknown> = {};
+  try {
+    const feedbackCounts = await query<Record<string, unknown>>(
+      `SELECT
+        COUNT(*) FILTER (WHERE quality_delta > 0) as positive,
+        COUNT(*) FILTER (WHERE quality_delta < 0) as negative
+       FROM forge_execution_feedback
+       WHERE created_at > NOW() - INTERVAL '1 hour'`,
+    );
+    fb = feedbackCounts[0] ?? {};
+  } catch { /* degrade gracefully */ }
 
   // New knowledge (semantic memories stored recently)
   const knowledgeCounts = await query<Record<string, unknown>>(
-    `SELECT COUNT(*) as count FROM forge_memory_semantic
+    `SELECT COUNT(*) as count FROM forge_semantic_memories
      WHERE created_at > NOW() - INTERVAL '5 minutes'`,
   );
 
