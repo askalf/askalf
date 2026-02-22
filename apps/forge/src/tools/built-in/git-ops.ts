@@ -4,7 +4,7 @@
  * All work happens on `agent/*` branches — merging to main requires human approval.
  */
 
-import { execFile } from 'child_process';
+import { exec } from 'child_process';
 import pg from 'pg';
 import crypto from 'crypto';
 import type { ToolResult } from '../registry.js';
@@ -54,12 +54,11 @@ const activeWorktrees = new Map<string, string>();
 // Helpers
 // ============================================
 
-function git(args: string[], timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+function git(args: string, timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    execFile(
-      'git',
-      ['-C', REPO_ROOT, ...args],
-      { timeout, maxBuffer: 1_024_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' }, shell: false },
+    exec(
+      `git -C "${REPO_ROOT}" ${args}`,
+      { timeout, maxBuffer: 1_024_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
       (error, stdout, stderr) => {
         resolve({
           exitCode: error ? (error.code ?? 1) : 0,
@@ -72,12 +71,11 @@ function git(args: string[], timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: num
 }
 
 /** Run git in a specific worktree directory (falls back to REPO_ROOT) */
-function gitIn(worktreePath: string, args: string[], timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+function gitIn(worktreePath: string, args: string, timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    execFile(
-      'git',
-      ['-C', worktreePath, ...args],
-      { timeout, maxBuffer: 1_024_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' }, shell: false },
+    exec(
+      `git -C "${worktreePath}" ${args}`,
+      { timeout, maxBuffer: 1_024_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
       (error, stdout, stderr) => {
         resolve({
           exitCode: error ? (error.code ?? 1) : 0,
@@ -130,7 +128,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
       // ----- Read-only operations -----
 
       case 'status': {
-        const res = await git(['status', '--porcelain', '-b']);
+        const res = await git('status --porcelain -b');
         return {
           output: { branch: res.stdout.split('\n')[0]?.replace('## ', ''), status: res.stdout, exitCode: res.exitCode },
           error: res.exitCode !== 0 ? res.stderr : undefined,
@@ -139,10 +137,10 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
       }
 
       case 'diff': {
-        const args: string[] = ['diff'];
-        if (input.cached) args.push('--cached');
-        if (input.file_path) args.push('--', input.file_path);
-        const res = await git(args);
+        let cmd = 'diff';
+        if (input.cached) cmd += ' --cached';
+        if (input.file_path) cmd += ` -- "${input.file_path}"`;
+        const res = await git(cmd);
         const diff = res.stdout.length > MAX_DIFF_OUTPUT
           ? res.stdout.slice(0, MAX_DIFF_OUTPUT) + '\n... [truncated]'
           : res.stdout;
@@ -155,7 +153,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
 
       case 'log': {
         const count = Math.min(input.max_count ?? 20, 50);
-        const res = await git(['log', '--oneline', '-n', String(count)]);
+        const res = await git(`log --oneline -n ${count}`);
         return {
           output: { log: res.stdout, exitCode: res.exitCode },
           error: res.exitCode !== 0 ? res.stderr : undefined,
@@ -164,7 +162,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
       }
 
       case 'branch_list': {
-        const res = await git(['branch', '-a']);
+        const res = await git('branch -a');
         return {
           output: { branches: res.stdout, exitCode: res.exitCode },
           error: res.exitCode !== 0 ? res.stderr : undefined,
@@ -188,11 +186,11 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
         const worktreePath = `${WORKTREE_BASE}/${agentSlug}-${slug}`;
 
         // Use git worktree for isolation — doesn't touch main's working tree
-        const res = await git(['worktree', 'add', worktreePath, '-b', branchName, 'main']);
+        const res = await git(`worktree add "${worktreePath}" -b "${branchName}" main`);
         if (res.exitCode !== 0) {
           // If branch already exists, try attaching worktree to existing branch
           if (res.stderr.includes('already exists')) {
-            const retry = await git(['worktree', 'add', worktreePath, branchName]);
+            const retry = await git(`worktree add "${worktreePath}" "${branchName}"`);
             if (retry.exitCode === 0) {
               activeWorktrees.set(branchName, worktreePath);
               return {
@@ -236,7 +234,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
           };
         }
         // Fallback: traditional checkout for branches without worktrees (e.g. main read-only view)
-        const res = await git(['checkout', branch]);
+        const res = await git(`checkout "${branch}"`);
         return {
           output: { branch, exitCode: res.exitCode },
           error: res.exitCode !== 0 ? res.stderr : undefined,
@@ -258,9 +256,10 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
           };
         }
         // Use worktree path if available (resolve from current branch)
-        const addBranch = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
+        const addBranch = await git('rev-parse --abbrev-ref HEAD');
         const addWorkdir = activeWorktrees.get(addBranch.stdout.trim()) ?? REPO_ROOT;
-        const res = await gitIn(addWorkdir, ['add', '--', ...input.paths]);
+        const pathArgs = input.paths.map((p) => `"${p}"`).join(' ');
+        const res = await gitIn(addWorkdir, `add -- ${pathArgs}`);
         return {
           output: { added: input.paths, worktree: addWorkdir, exitCode: res.exitCode },
           error: res.exitCode !== 0 ? res.stderr : undefined,
@@ -277,7 +276,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
         }
 
         // Resolve worktree for the current branch
-        const branchRes = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
+        const branchRes = await git('rev-parse --abbrev-ref HEAD');
         const currentBranch = branchRes.stdout.trim();
         const commitWorkdir = activeWorktrees.get(currentBranch);
 
@@ -296,7 +295,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
 
         // Verify branch in worktree is agent/*
         if (commitWorkdir) {
-          const wtBranch = await gitIn(commitWorkdir, ['rev-parse', '--abbrev-ref', 'HEAD']);
+          const wtBranch = await gitIn(commitWorkdir, 'rev-parse --abbrev-ref HEAD');
           if (!wtBranch.stdout.trim().startsWith('agent/')) {
             return {
               output: null,
@@ -312,7 +311,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
 
         const res = await gitIn(
           commitDir,
-          ['-c', `user.name=${input.agent_name}`, `-c`, `user.email=${agentEmail}`, 'commit', '-m', fullMessage],
+          `-c user.name="${input.agent_name}" -c user.email="${agentEmail}" commit -m "${fullMessage.replace(/"/g, '\\"')}"`,
         );
 
         if (res.exitCode !== 0 && res.stderr.includes('lock')) {
@@ -320,7 +319,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
           await new Promise((r) => setTimeout(r, 2000));
           const retry = await gitIn(
             commitDir,
-            ['-c', `user.name=${input.agent_name}`, `-c`, `user.email=${agentEmail}`, 'commit', '-m', fullMessage],
+            `-c user.name="${input.agent_name}" -c user.email="${agentEmail}" commit -m "${fullMessage.replace(/"/g, '\\"')}"`,
           );
           return {
             output: { committed: retry.exitCode === 0, branch: currentBranch, worktree: commitDir, retried: true, stdout: retry.stdout },
@@ -346,7 +345,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
         if (input.branch_name && activeWorktrees.has(input.branch_name)) {
           currentBranch = input.branch_name;
         } else {
-          const branchRes = await git(['rev-parse', '--abbrev-ref', 'HEAD']);
+          const branchRes = await git('rev-parse --abbrev-ref HEAD');
           currentBranch = branchRes.stdout.trim();
         }
         if (!currentBranch.startsWith('agent/')) {
@@ -358,8 +357,8 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
         }
 
         // Get diff summary for the intervention description (always from main repo)
-        const diffStat = await git(['diff', `main..${currentBranch}`, '--stat']);
-        const logSummary = await git(['log', `main..${currentBranch}`, '--oneline']);
+        const diffStat = await git(`diff main..${currentBranch} --stat`);
+        const logSummary = await git(`log main..${currentBranch} --oneline`);
 
         // Create intervention request — never merge directly
         const p = getPool();
