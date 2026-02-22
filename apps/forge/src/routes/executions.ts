@@ -256,8 +256,15 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         const eventBus = getEventBus();
         let closed = false;
 
+        reply.raw.on('error', cleanup);
+
         const heartbeat = setInterval(() => {
-          if (!closed) reply.raw.write(`: heartbeat\n\n`);
+          if (closed) return;
+          try {
+            reply.raw.write(`: heartbeat\n\n`);
+          } catch {
+            cleanup();
+          }
         }, 15_000);
 
         // Poll for status changes (in case events are missed)
@@ -298,7 +305,12 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
             status: eventName,
             ...eventData,
           });
-          reply.raw.write(`data: ${sseEvent}\n\n`);
+          try {
+            reply.raw.write(`data: ${sseEvent}\n\n`);
+          } catch {
+            cleanup();
+            return;
+          }
 
           if (eventName === 'completed' || eventName === 'failed') {
             cleanup();
@@ -317,7 +329,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           clearInterval(pollInterval);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (eventBus) eventBus.off('execution', handler as any);
-          reply.raw.end();
+          try { reply.raw.end(); } catch { /* already closed */ }
         }
 
         request.raw.on('close', cleanup);
