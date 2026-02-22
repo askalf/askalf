@@ -5,8 +5,9 @@
  */
 
 import { exec } from 'child_process';
-import pg from 'pg';
 import crypto from 'crypto';
+import { getPool as getSharedPool } from '../../database.js';
+import type pg from 'pg';
 import type { ToolResult } from '../registry.js';
 
 // ============================================
@@ -99,15 +100,9 @@ function isBlockedFile(filePath: string): boolean {
   return BLOCKED_FILE_PATTERNS.some((p) => lower.includes(p));
 }
 
-// Substrate DB pool for creating interventions
-let pool: pg.Pool | null = null;
+// Substrate DB pool (shared forge pool — no separate pool)
 function getPool(): pg.Pool {
-  if (!pool) {
-    const connectionString = process.env['SUBSTRATE_DATABASE_URL'];
-    if (!connectionString) throw new Error('SUBSTRATE_DATABASE_URL not configured');
-    pool = new pg.Pool({ connectionString, max: 2, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 10_000 });
-  }
-  return pool;
+  return getSharedPool();
 }
 
 function generateId(): string {

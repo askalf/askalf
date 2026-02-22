@@ -13,12 +13,22 @@ import { type ForgeAgent, type ForgeExecution, transformAgent, mapAgentType } fr
 
 export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
 
-  // List all agents with stats
+  // List all agents with stats (optimized — SQL aggregation, no full execution rows)
+  // In-memory cache to avoid hammering DB on 15s dashboard polls
+  let agentsCache: { data: unknown; ts: number } | null = null;
+  const AGENTS_CACHE_TTL = 10_000; // 10s — dashboard polls every 15s
+
   app.get(
     '/api/v1/admin/agents',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, _reply: FastifyReply) => {
       const qs = request.query as { status?: string; include_decommissioned?: string };
+
+      // Only use cache for the default (no-filter) request
+      if (!qs.status && qs.include_decommissioned !== 'true' && agentsCache && Date.now() - agentsCache.ts < AGENTS_CACHE_TTL) {
+        return agentsCache.data;
+      }
+
       let whereClause = '';
       const params: unknown[] = [];
       if (qs.status) {
@@ -30,15 +40,70 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       } else if (qs.include_decommissioned !== 'true' && whereClause) {
         whereClause += ` AND (is_decommissioned IS NULL OR is_decommissioned = false)`;
       }
-      const agents = await query<ForgeAgent>(`SELECT * FROM forge_agents ${whereClause} ORDER BY name`, params);
-      const executions = await query<ForgeExecution>(
-        `SELECT * FROM forge_executions WHERE created_at > NOW() - INTERVAL '7 days' ORDER BY created_at DESC LIMIT 500`
-      );
-      const interventionCounts = await substrateQuery<{ agent_id: string; count: string }>(
-        `SELECT agent_id, COUNT(*)::text as count FROM agent_interventions WHERE status = 'pending' GROUP BY agent_id`
-      );
+
+      // Single query: agents + aggregated execution stats + running exec + interventions
+      const [agents, execStats, runningExecs, interventionCounts] = await Promise.all([
+        query<ForgeAgent>(`SELECT * FROM forge_agents ${whereClause} ORDER BY name`, params),
+        query<{ agent_id: string; completed: string; failed: string; last_completed_at: string | null }>(
+          `SELECT agent_id,
+                  COUNT(*) FILTER (WHERE status = 'completed')::text AS completed,
+                  COUNT(*) FILTER (WHERE status = 'failed')::text AS failed,
+                  MAX(CASE WHEN status = 'completed' THEN COALESCE(completed_at, created_at) END)::text AS last_completed_at
+           FROM forge_executions
+           WHERE created_at > NOW() - INTERVAL '7 days'
+           GROUP BY agent_id`
+        ),
+        query<{ agent_id: string; id: string }>(
+          `SELECT agent_id, id FROM forge_executions WHERE status IN ('running', 'pending') ORDER BY created_at DESC`
+        ),
+        substrateQuery<{ agent_id: string; count: string }>(
+          `SELECT agent_id, COUNT(*)::text as count FROM agent_interventions WHERE status = 'pending' GROUP BY agent_id`
+        ),
+      ]);
+
+      const statsMap = new Map(execStats.map(r => [r.agent_id, r]));
+      const runningMap = new Map<string, string>();
+      for (const r of runningExecs) {
+        if (!runningMap.has(r.agent_id)) runningMap.set(r.agent_id, r.id);
+      }
       const iMap = new Map(interventionCounts.map(r => [r.agent_id, parseInt(r.count)]));
-      return { agents: agents.map(a => transformAgent(a, executions, iMap.get(a.id) || 0)) };
+
+      const result = {
+        agents: agents.map(a => {
+          const stats = statsMap.get(a.id);
+          const running = runningMap.get(a.id);
+          return {
+            id: a.id,
+            name: a.name,
+            type: mapAgentType(a.metadata),
+            status: running ? 'running' : (a.status === 'paused' ? 'paused' : 'idle'),
+            description: a.description || '',
+            system_prompt: a.system_prompt || '',
+            schedule: null,
+            config: a.provider_config || {},
+            autonomy_level: a.autonomy_level ?? 2,
+            is_decommissioned: a.status === 'archived',
+            decommissioned_at: a.status === 'archived' ? a.updated_at : null,
+            tasks_completed: parseInt(stats?.completed || '0'),
+            tasks_failed: parseInt(stats?.failed || '0'),
+            current_task: running || null,
+            last_run_at: stats?.last_completed_at || null,
+            pending_interventions: iMap.get(a.id) || 0,
+            created_at: a.created_at,
+            updated_at: a.updated_at,
+            metadata: a.metadata || {},
+            model_id: a.model_id || null,
+            raw_status: a.status,
+          };
+        }),
+      };
+
+      // Cache the default (no-filter) result
+      if (!qs.status && qs.include_decommissioned !== 'true') {
+        agentsCache = { data: result, ts: Date.now() };
+      }
+
+      return result;
     }
   );
 

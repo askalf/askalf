@@ -5,8 +5,9 @@
  */
 
 import http from 'node:http';
-import pg from 'pg';
 import crypto from 'crypto';
+import { getPool as getSharedPool } from '../../database.js';
+import type pg from 'pg';
 import type { ToolResult } from '../registry.js';
 import { checkServiceHealth } from '../../utils/health-check.js';
 
@@ -106,14 +107,8 @@ function dockerRequest(
   });
 }
 
-let pool: pg.Pool | null = null;
 function getPool(): pg.Pool {
-  if (!pool) {
-    const connectionString = process.env['SUBSTRATE_DATABASE_URL'];
-    if (!connectionString) throw new Error('SUBSTRATE_DATABASE_URL not configured');
-    pool = new pg.Pool({ connectionString, max: 2, idleTimeoutMillis: 30_000, connectionTimeoutMillis: 10_000 });
-  }
-  return pool;
+  return getSharedPool();
 }
 
 function generateId(): string {

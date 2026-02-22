@@ -261,7 +261,7 @@ async function processCoordinationTasks(): Promise<void> {
       //    Cap at 2 dispatches per tick to avoid exhausting the DB pool
       //    (each dispatch triggers buildMemoryContext which runs heavy pgvector queries)
       let dispatchedThisTick = 0;
-      const MAX_DISPATCHES_PER_TICK = 2;
+      const MAX_DISPATCHES_PER_TICK = 8;
 
       for (const task of tasks) {
         if (task.status !== 'running') continue;
@@ -497,7 +497,7 @@ async function runSchedulerTick(): Promise<void> {
         continue;
       }
 
-      const ticketBlock = `\n\nYOUR ASSIGNED TICKETS:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket. Set it to in_progress. Do the work. Resolve with detailed notes when done.`;
+      const ticketBlock = `\n\nYOUR ASSIGNED TICKETS:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket and follow the TICKET LIFECYCLE below.`;
 
       let input: string;
       if (customInput) {
@@ -507,6 +507,18 @@ async function runSchedulerTick(): Promise<void> {
 
 You have tickets to work on. Focus on these and nothing else.${ticketBlock}
 
+TICKET LIFECYCLE (you MUST follow every step):
+1. CLAIM: Update ticket status to in_progress immediately.
+2. NOTE: Add a progress note (add_note) describing what you're about to do.
+3. WORK: Do the actual work.
+4. NOTE: Add progress notes as you go — every significant step, finding, or decision gets a timestamped note.
+5. NOTE: If blocked or waiting, add a note explaining why. No ticket sits stale without explanation.
+6. RESOLVE: When done, update status to resolved WITH a detailed resolution note. The resolution MUST include:
+   - What was done (specific files changed, queries run, configs updated)
+   - What the outcome was (test results, verification steps)
+   - Any follow-up needed
+   Resolution is REQUIRED — the system will reject a resolve/close without one.
+
 RULES:
 - ONLY work on your assigned tickets. Do NOT invent new work or create speculative tickets.
 - BEFORE starting: search memory (memory_search) for context another agent may have left.
@@ -514,6 +526,7 @@ RULES:
 - Only create tickets for other agents if your work DIRECTLY requires it (e.g. you found a bug in another domain). Include FULL context.
 - Do NOT create ADR docs, architecture proposals, or analysis reports unless your ticket specifically asks for one.
 - Do NOT run exploratory analysis "just in case." Stick to the ticket.
+- EVERY execution must leave at least one progress note. No silent runs.
 
 Be focused. Finish your ticket. Stop.${fleetContext}`;
       }
@@ -534,8 +547,8 @@ Be focused. Finish your ticket. Stop.${fleetContext}`;
 
     console.log(`[Scheduler] Dispatching ${batchAgents.length} agents (staggered 3s): ${batchAgents.map((a) => a.agentName).join(', ')}`);
 
-    // Stagger dispatches 3s apart — enough to spread connection init, fast enough to evolve
-    const STAGGER_DELAY_MS = 3_000;
+    // Stagger dispatches 1s apart — spread connection init without wasting time
+    const STAGGER_DELAY_MS = 1_000;
 
     for (let i = 0; i < batchAgents.length; i++) {
       const agent = batchAgents[i]!;
