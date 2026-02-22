@@ -4,7 +4,7 @@
  * All commands run against /workspace where the repo is mounted.
  */
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import http from 'http';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authMiddleware } from '../middleware/auth.js';
@@ -54,11 +54,12 @@ function dockerApi(method: string, path: string, body?: unknown, timeout = 30_00
   });
 }
 
-function git(args: string, timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+function git(args: string[], timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    exec(
-      `git -C "${REPO_ROOT}" ${args}`,
-      { timeout, maxBuffer: 2_048_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
+    execFile(
+      'git',
+      ['-C', REPO_ROOT, ...args],
+      { timeout, maxBuffer: 2_048_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' }, shell: false },
       (error, stdout, stderr) => {
         resolve({
           exitCode: error ? (error.code ?? 1) : 0,

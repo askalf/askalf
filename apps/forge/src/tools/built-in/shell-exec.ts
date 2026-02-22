@@ -4,7 +4,7 @@
  * Includes safety checks for destructive commands.
  */
 
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import type { ToolResult } from '../registry.js';
 
 // ============================================
@@ -64,13 +64,16 @@ export async function shellExec(input: ShellExecInput): Promise<ToolResult> {
   }
 
   return new Promise((resolve) => {
-    exec(
-      input.command,
+    // Use /bin/sh with arguments array to avoid shell injection
+    execFile(
+      '/bin/sh',
+      ['-c', input.command],
       {
         cwd: input.cwd ?? '/app',
         timeout,
         maxBuffer: MAX_OUTPUT_SIZE,
         env: { ...process.env, HOME: '/app' },
+        shell: false,
       },
       (error, stdout, stderr) => {
         const durationMs = Math.round(performance.now() - startTime);
