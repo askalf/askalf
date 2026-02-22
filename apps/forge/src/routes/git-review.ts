@@ -70,6 +70,20 @@ function git(args: string, timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: numbe
   });
 }
 
+// Strict branch name validation — prevents command injection via shell metacharacters
+const SAFE_BRANCH_RE = /^agent\/[a-zA-Z0-9._\-/]+$/;
+function validateBranch(branch: string, reply: FastifyReply): boolean {
+  if (!branch.startsWith('agent/')) {
+    reply.status(400).send({ error: 'Only agent/* branches can be reviewed' });
+    return false;
+  }
+  if (!SAFE_BRANCH_RE.test(branch)) {
+    reply.status(400).send({ error: 'Invalid branch name — only alphanumeric, hyphens, underscores, dots, and slashes allowed' });
+    return false;
+  }
+  return true;
+}
+
 // Branch cache — git on Docker Desktop 9P is slow (~1s per subprocess)
 let branchCache: { data: unknown; ts: number } | null = null;
 const BRANCH_CACHE_TTL = 30_000; // 30 second TTL
@@ -194,10 +208,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { branch: rawBranch } = request.params as { branch: string };
       const branch = decodeURIComponent(rawBranch);
-
-      if (!branch.startsWith('agent/')) {
-        return reply.status(400).send({ error: 'Only agent/* branches can be reviewed' });
-      }
+      if (!validateBranch(branch, reply)) return;
 
       // Parallel: get diff and stats simultaneously
       const [diffRes, statRes] = await Promise.all([
@@ -243,10 +254,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { branch: rawBranch } = request.params as { branch: string };
       const branch = decodeURIComponent(rawBranch);
-
-      if (!branch.startsWith('agent/')) {
-        return reply.status(400).send({ error: 'Only agent/* branches can be reviewed' });
-      }
+      if (!validateBranch(branch, reply)) return;
 
       const logRes = await git(`log main..${branch} --format="%H|%s|%an|%aI" -n 50`);
       if (logRes.exitCode !== 0) {
@@ -272,10 +280,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { branch: rawBranch } = request.params as { branch: string };
       const branch = decodeURIComponent(rawBranch);
-
-      if (!branch.startsWith('agent/')) {
-        return reply.status(400).send({ error: 'Only agent/* branches can be reviewed' });
-      }
+      if (!validateBranch(branch, reply)) return;
 
       const numstatRes = await git(`diff --numstat main...${branch}`);
       if (numstatRes.exitCode !== 0) {
@@ -304,10 +309,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { branch } = request.body as { branch: string };
-
-      if (!branch || !branch.startsWith('agent/')) {
-        return reply.status(400).send({ error: 'Only agent/* branches can be merged' });
-      }
+      if (!branch || !validateBranch(branch, reply)) return;
 
       // Ensure we're on main and up to date
       const checkoutRes = await git('checkout main');

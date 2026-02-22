@@ -2,8 +2,8 @@
 
 const getApiBase = () => {
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com')) return '';
-  return 'http://localhost:3005';
+  if (host.includes('orcastr8r.com') || host.includes('askalf.org') || host.includes('integration.tax')) return '';
+  return 'http://localhost:3001';
 };
 
 const API_BASE = getApiBase();

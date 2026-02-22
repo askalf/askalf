@@ -426,16 +426,16 @@ async function start(): Promise<void> {
     // Stale execution cleanup (every 5 min)
     setInterval(async () => {
       try {
-        // Mark pending executions older than 15 min as failed
+        // Mark pending executions older than 20 min as failed (allows 10 min queue wait + margin)
         const stalePending = await dbQuery<{ id: string; agent_id: string }>(
           `UPDATE forge_executions SET status = 'failed', error = 'Timed out in pending state', completed_at = NOW()
-           WHERE status = 'pending' AND created_at < NOW() - INTERVAL '15 minutes'
+           WHERE status = 'pending' AND created_at < NOW() - INTERVAL '20 minutes'
            RETURNING id, agent_id`,
         );
-        // Mark running executions older than 16 min as failed
+        // Mark running executions older than 20 min as failed
         const staleRunning = await dbQuery<{ id: string; agent_id: string }>(
           `UPDATE forge_executions SET status = 'failed', error = 'Exceeded maximum runtime', completed_at = NOW()
-           WHERE status = 'running' AND started_at < NOW() - INTERVAL '16 minutes'
+           WHERE status = 'running' AND started_at < NOW() - INTERVAL '20 minutes'
            RETURNING id, agent_id`,
         );
         const cleaned = [...stalePending, ...staleRunning];
