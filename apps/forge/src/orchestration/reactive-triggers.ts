@@ -104,8 +104,8 @@ async function checkCooldown(sourceAgentId: string, targetCapability: string): P
   const rows = await query<{ count: string }>(
     `SELECT COUNT(*) AS count FROM forge_reactive_triggers
      WHERE source_agent_id = $1 AND target_capability = $2
-       AND created_at > NOW() - INTERVAL '${COOLDOWN_MINUTES} minutes'`,
-    [sourceAgentId, targetCapability],
+       AND created_at > NOW() - make_interval(mins => $3)`,
+    [sourceAgentId, targetCapability, COOLDOWN_MINUTES],
   );
   return parseInt(rows[0]?.count ?? '0', 10) === 0;
 }
