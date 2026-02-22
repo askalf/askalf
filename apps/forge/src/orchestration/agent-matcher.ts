@@ -207,7 +207,7 @@ function scoreAgents(
 /**
  * Check if two agent types are compatible (close enough to work).
  */
-function isTypeCompatible(agentType: string, suggestedType: string): boolean {
+export function isTypeCompatible(agentType: string, suggestedType: string): boolean {
   const compatMap: Record<string, string[]> = {
     dev: ['custom', 'research'],
     research: ['custom', 'dev', 'content'],
@@ -223,7 +223,7 @@ function isTypeCompatible(agentType: string, suggestedType: string): boolean {
  * Simple keyword overlap score between two texts.
  * Returns 0-1 based on shared significant words.
  */
-function computeKeywordOverlap(textA: string, textB: string): number {
+export function computeKeywordOverlap(textA: string, textB: string): number {
   const stopWords = new Set([
     'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
     'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
