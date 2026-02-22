@@ -1168,7 +1168,7 @@ export const useHubStore = create<HubState>((set, get) => ({
     set({ batchRunning: true, batchResult: null });
     try {
       const result = await hubApi.agents.batchPause();
-      set({ batchResult: { started: 0, agents: result.agents } });
+      set({ batchResult: { started: result.paused ?? 0, agents: result.agents } });
       await get().fetchAgents();
     } catch (err) {
       console.error('Failed to batch pause:', err);
