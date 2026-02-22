@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
 import StatusBadge from './shared/StatusBadge';
@@ -33,6 +33,149 @@ function estimateDailyCost(modelId: string | null, intervalMinutes: number | nul
   const discount = executionMode === 'batch' ? BATCH_DISCOUNT : 1;
   const daily = runsPerDay * costPerRun * discount;
   return `~$${daily.toFixed(2)}/day`;
+}
+
+// Extracted card component so each card owns its own interval state
+function ScheduleCard({
+  agent,
+  updateSchedule,
+  updateAgentModel,
+}: {
+  agent: { id: string; name: string; type: string; status: string; schedule_type: string; schedule_interval_minutes: number | null; execution_mode: string; model_id: string | null; last_run_at: string | null; next_run_at: string | null };
+  updateSchedule: (id: string, type: string, interval: number | undefined, mode: string) => void;
+  updateAgentModel: (id: string, modelId: string) => void;
+}) {
+  const [pendingInterval, setPendingInterval] = useState(
+    String(agent.schedule_interval_minutes || 60),
+  );
+
+  const applyInterval = () => {
+    const mins = parseInt(pendingInterval, 10);
+    if (mins > 0) updateSchedule(agent.id, 'scheduled', mins, agent.execution_mode);
+  };
+
+  const handleIntervalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') applyInterval();
+  };
+
+  return (
+    <div className={`hub-sched-card ${agent.schedule_type}`}>
+      <div className="hub-sched-card-header">
+        <h3>{agent.name}</h3>
+        <span className={`hub-sched-type-badge ${agent.schedule_type}`}>
+          {agent.schedule_type === 'continuous' ? '24/7' : agent.schedule_type}
+        </span>
+      </div>
+
+      <div className="hub-sched-info">
+        <span>{agent.type}</span>
+        <StatusBadge status={agent.status} />
+      </div>
+
+      {agent.last_run_at && (
+        <div className="hub-sched-run-info">Last run: {formatDate(agent.last_run_at)}</div>
+      )}
+      {agent.next_run_at && (
+        <div className="hub-sched-run-info">Next run: {formatDate(agent.next_run_at)}</div>
+      )}
+
+      {/* Execution mode toggle */}
+      <div className="hub-sched-controls">
+        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Execution Mode</label>
+        <select
+          value={agent.execution_mode || 'batch'}
+          onChange={(e) => {
+            updateSchedule(agent.id, agent.schedule_type, agent.schedule_interval_minutes || undefined, e.target.value);
+          }}
+          style={{ fontSize: '0.8rem' }}
+        >
+          <option value="cli">CLI (OAuth)</option>
+          <option value="batch">Batch API (50% off)</option>
+          <option value="individual">Individual API (fast)</option>
+        </select>
+      </div>
+
+      {/* Model selector */}
+      <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Model</label>
+        <select
+          value={agent.model_id || ''}
+          onChange={(e) => updateAgentModel(agent.id, e.target.value)}
+          style={{ fontSize: '0.8rem' }}
+        >
+          <option value="">Default (Sonnet 4.6)</option>
+          <option value="claude-haiku-4-5">Haiku 4.5 ($1/$5)</option>
+          <option value="claude-sonnet-4-6">Sonnet 4.6 ($3/$15)</option>
+          <option value="claude-opus-4-6">Opus 4.6 ($5/$25)</option>
+        </select>
+      </div>
+
+      {/* Schedule type */}
+      <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
+        <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Schedule</label>
+        <select
+          value={agent.schedule_type}
+          onChange={(e) => {
+            const type = e.target.value;
+            if (type === 'scheduled') {
+              updateSchedule(agent.id, type, parseInt(pendingInterval, 10) || 60, agent.execution_mode);
+            } else {
+              updateSchedule(agent.id, type, undefined, agent.execution_mode);
+            }
+          }}
+        >
+          <option value="manual">Manual</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="continuous">24/7 Continuous</option>
+        </select>
+      </div>
+
+      {/* Inline interval editor (replaces prompt()) */}
+      {agent.schedule_type === 'scheduled' && (
+        <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
+          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>
+            Interval (minutes)
+          </label>
+          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+            <input
+              type="number"
+              min="1"
+              value={pendingInterval}
+              onChange={(e) => setPendingInterval(e.target.value)}
+              onKeyDown={handleIntervalKeyDown}
+              style={{ width: '64px', fontSize: '0.8rem', padding: '3px 6px', background: 'var(--deep)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text)' }}
+            />
+            <button className="hub-btn hub-btn--sm" onClick={applyInterval}>
+              Set
+            </button>
+            {agent.schedule_interval_minutes && (
+              <span className="hub-sched-interval">now: {agent.schedule_interval_minutes}m</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Cost estimate badge */}
+      {agent.schedule_type === 'scheduled' && (
+        <div style={{
+          marginTop: '6px',
+          padding: '3px 8px',
+          borderRadius: '4px',
+          fontSize: '0.72rem',
+          fontWeight: 500,
+          background: (agent.execution_mode || 'batch') === 'batch'
+            ? 'rgba(124, 58, 237, 0.15)'
+            : 'rgba(245, 158, 11, 0.15)',
+          color: (agent.execution_mode || 'batch') === 'batch'
+            ? 'var(--success, #7c3aed)'
+            : 'var(--warning, #f59e0b)',
+          display: 'inline-block',
+        }}>
+          {estimateDailyCost(agent.model_id, agent.schedule_interval_minutes, agent.execution_mode || 'batch')}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function SchedulerControl() {
@@ -102,110 +245,12 @@ export default function SchedulerControl() {
       {/* Schedule Grid */}
       <div className="hub-sched-grid">
         {schedules.map((agent) => (
-          <div key={agent.id} className={`hub-sched-card ${agent.schedule_type}`}>
-            <div className="hub-sched-card-header">
-              <h3>{agent.name}</h3>
-              <span className={`hub-sched-type-badge ${agent.schedule_type}`}>
-                {agent.schedule_type === 'continuous' ? '24/7' : agent.schedule_type}
-              </span>
-            </div>
-
-            <div className="hub-sched-info">
-              <span>{agent.type}</span>
-              <StatusBadge status={agent.status} />
-            </div>
-
-            {agent.last_run_at && (
-              <div className="hub-sched-run-info">Last run: {formatDate(agent.last_run_at)}</div>
-            )}
-            {agent.next_run_at && (
-              <div className="hub-sched-run-info">Next run: {formatDate(agent.next_run_at)}</div>
-            )}
-
-            {/* Execution mode toggle */}
-            <div className="hub-sched-controls">
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Execution Mode</label>
-              <select
-                value={agent.execution_mode || 'batch'}
-                onChange={(e) => {
-                  const mode = e.target.value;
-                  updateSchedule(
-                    agent.id,
-                    agent.schedule_type,
-                    agent.schedule_interval_minutes || undefined,
-                    mode,
-                  );
-                }}
-                style={{ fontSize: '0.8rem' }}
-              >
-                <option value="cli">CLI (OAuth)</option>
-                <option value="batch">Batch API (50% off)</option>
-                <option value="individual">Individual API (fast)</option>
-              </select>
-            </div>
-
-            {/* Model selector */}
-            <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Model</label>
-              <select
-                value={agent.model_id || ''}
-                onChange={(e) => {
-                  const modelId = e.target.value;
-                  updateAgentModel(agent.id, modelId);
-                }}
-                style={{ fontSize: '0.8rem' }}
-              >
-                <option value="">Default (Sonnet 4.6)</option>
-                <option value="claude-haiku-4-5">Haiku 4.5 ($1/$5)</option>
-                <option value="claude-sonnet-4-6">Sonnet 4.6 ($3/$15)</option>
-                <option value="claude-opus-4-6">Opus 4.6 ($5/$25)</option>
-              </select>
-            </div>
-
-            {/* Schedule type */}
-            <div className="hub-sched-controls" style={{ marginTop: '4px' }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>Schedule</label>
-              <select
-                value={agent.schedule_type}
-                onChange={(e) => {
-                  const type = e.target.value;
-                  if (type === 'scheduled') {
-                    const mins = prompt('Run every X minutes:', '60');
-                    if (mins) updateSchedule(agent.id, type, parseInt(mins), agent.execution_mode);
-                  } else {
-                    updateSchedule(agent.id, type, undefined, agent.execution_mode);
-                  }
-                }}
-              >
-                <option value="manual">Manual</option>
-                <option value="scheduled">Scheduled</option>
-                <option value="continuous">24/7 Continuous</option>
-              </select>
-              {agent.schedule_type === 'scheduled' && agent.schedule_interval_minutes && (
-                <span className="hub-sched-interval">Every {agent.schedule_interval_minutes}m</span>
-              )}
-            </div>
-
-            {/* Cost estimate badge */}
-            {agent.schedule_type === 'scheduled' && (
-              <div style={{
-                marginTop: '6px',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                fontSize: '0.72rem',
-                fontWeight: 500,
-                background: (agent.execution_mode || 'batch') === 'batch'
-                  ? 'rgba(124, 58, 237, 0.15)'
-                  : 'rgba(245, 158, 11, 0.15)',
-                color: (agent.execution_mode || 'batch') === 'batch'
-                  ? 'var(--success, #7c3aed)'
-                  : 'var(--warning, #f59e0b)',
-                display: 'inline-block',
-              }}>
-                {estimateDailyCost(agent.model_id, agent.schedule_interval_minutes, agent.execution_mode || 'batch')}
-              </div>
-            )}
-          </div>
+          <ScheduleCard
+            key={agent.id}
+            agent={agent}
+            updateSchedule={updateSchedule}
+            updateAgentModel={updateAgentModel}
+          />
         ))}
       </div>
 

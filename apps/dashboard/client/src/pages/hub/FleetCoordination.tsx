@@ -219,7 +219,7 @@ function StartTeamModal({
       <div className="coord-modal" onClick={(e) => e.stopPropagation()}>
         <div className="coord-modal-header">
           <h3>Start Team Session</h3>
-          <button className="coord-modal-close" onClick={onClose} aria-label="Close">X</button>
+          <button className="coord-modal-close" onClick={onClose} aria-label="Close">&times;</button>
         </div>
 
         <div className="coord-modal-body">

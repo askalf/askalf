@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { hubApi } from '../../hooks/useHubApi';
+import { usePolling } from '../../hooks/usePolling';
 import StatCard from '../hub/shared/StatCard';
 import './forge-observe.css';
 
@@ -44,6 +45,9 @@ export default function GoalManager() {
   }, [selectedAgent, statusFilter]);
 
   useEffect(() => { loadGoals(); }, [loadGoals]);
+
+  // Poll every 20s so newly proposed goals appear automatically
+  usePolling(loadGoals, 20000);
 
   const handlePropose = async () => {
     if (!selectedAgent) return;
