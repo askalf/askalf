@@ -15,6 +15,7 @@ import { registerSchedulingRoutes } from './scheduling.js';
 import { registerSystemRoutes } from './system.js';
 import { registerCheckpointRoutes } from './checkpoints.js';
 import { registerAnalyticsRoutes } from './analytics.js';
+import { registerExecutionCostRoutes } from './executions.js';
 
 export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
   await registerAgentRoutes(app);
@@ -28,4 +29,5 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
   await registerSystemRoutes(app);
   await registerCheckpointRoutes(app);
   await registerAnalyticsRoutes(app);
+  await registerExecutionCostRoutes(app);
 }
