@@ -14,13 +14,13 @@ import { ulid } from 'ulid';
 // Config
 // ============================================
 
-const MIN_OUTPUT_LENGTH = 300;
-const SCAN_LENGTH = 1500;
-const MIN_SIGNAL_STRENGTH = 3;
-const COOLDOWN_MINUTES = 120;
-const MAX_TRIGGERS_PER_HOUR = 6;
-const MIN_PROFICIENCY = 40;
-const MAX_SIGNALS_PER_EVENT = 2;
+const MIN_OUTPUT_LENGTH = 200;
+const SCAN_LENGTH = 3000;
+const MIN_SIGNAL_STRENGTH = 2;
+const COOLDOWN_MINUTES = 30;
+const MAX_TRIGGERS_PER_HOUR = 20;
+const MIN_PROFICIENCY = 30;
+const MAX_SIGNALS_PER_EVENT = 3;
 
 // ============================================
 // Signal Map Cache
