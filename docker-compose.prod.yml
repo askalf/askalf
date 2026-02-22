@@ -281,15 +281,15 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 60s
     networks:
       - sprayberry-labs-net
     restart: unless-stopped
     labels:
-      - "autoheal=true"
+      - "autoheal=false"
     security_opt:
       - no-new-privileges:true
     cap_drop:

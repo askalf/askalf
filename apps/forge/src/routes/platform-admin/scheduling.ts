@@ -501,10 +501,10 @@ Be efficient. Ship something.${fleetContext}`;
 
     if (batchAgents.length === 0) return;
 
-    console.log(`[Scheduler] Dispatching ${batchAgents.length} agents (staggered 10s): ${batchAgents.map((a) => a.agentName).join(', ')}`);
+    console.log(`[Scheduler] Dispatching ${batchAgents.length} agents (staggered 3s): ${batchAgents.map((a) => a.agentName).join(', ')}`);
 
-    // Stagger dispatches 10s apart to avoid thundering herd on DB pool
-    const STAGGER_DELAY_MS = 10_000;
+    // Stagger dispatches 3s apart — enough to spread connection init, fast enough to evolve
+    const STAGGER_DELAY_MS = 3_000;
 
     for (let i = 0; i < batchAgents.length; i++) {
       const agent = batchAgents[i]!;
