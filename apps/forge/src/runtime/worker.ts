@@ -1992,7 +1992,14 @@ export async function runDirectCliExecution(
           '5. NEVER leave uncommitted changes on disk',
           '',
         ].join('\n');
-        const fullPrompt = [options.systemPrompt, memoryContext, memoryInstruction, budgetHint, branchInstruction]
+        // Load organism vision — the DNA every agent carries
+        let visionContext = '';
+        try {
+          visionContext = await readFile('/workspace/VISION.md', 'utf-8');
+        } catch {
+          // Vision file not available — continue without it
+        }
+        const fullPrompt = [visionContext, options.systemPrompt, memoryContext, memoryInstruction, budgetHint, branchInstruction]
           .filter(Boolean)
           .join('\n');
         await writeFile(`${agentWorkDir}/CLAUDE.md`, fullPrompt);
