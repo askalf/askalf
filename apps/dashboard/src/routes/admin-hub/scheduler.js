@@ -385,11 +385,11 @@ Be efficient and concise. Every action you take must be tracked through a ticket
     console.log('[Retention] Daily cleanup complete');
   }
 
-  // Start the scheduler loop
-  console.log('[Scheduler] Agent scheduler daemon started (60s interval)');
-  setInterval(runSchedulerTick, SCHEDULER_INTERVAL_MS);
-  setTimeout(runSchedulerTick, 10_000);
+  // Scheduler daemon disabled — forge runs the authoritative scheduler
+  // (scheduling.ts startSchedulerDaemon). Keeping routes for status/control.
+  console.log('[Scheduler] Dashboard scheduler daemon DISABLED (forge is authoritative)');
 
+  // Retention cleanup still runs here (dashboard-owned tables)
   setInterval(runRetentionCleanup, SCHEDULER_INTERVAL_MS);
   setTimeout(runRetentionCleanup, 30_000);
 }
