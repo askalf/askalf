@@ -1,7 +1,7 @@
 // Pure proxy routes to Forge: memory, git, workflows, costs, guardrails, providers,
 // coordination, orchestration, events, context, handoffs, chat, NL orchestration,
 // cost optimization, knowledge graph, monitoring
-import { callForge, callForgeAdmin, FORGE_URL } from './utils.js';
+import { callForge, callForgeAdmin, FORGE_URL, FORGE_API_KEY } from './utils.js';
 
 export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne) {
 
@@ -262,7 +262,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     if (endDate) params.set('endDate', endDate);
     if (agentId) params.set('agentId', agentId);
     if (days) params.set('days', days);
-    const res = await callForge(`/admin/costs?${params.toString()}`);
+    const res = await callForgeAdmin(`/costs?${params.toString()}`);
     if (res.error) return reply.code(res.status || 503).send({ error: 'Cost data unavailable', message: res.message });
     return res;
   });
@@ -433,7 +433,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
       const res = await fetch(url, {
         headers: {
           'Accept': 'text/event-stream',
-          'Cookie': request.headers.cookie || '',
+          ...(FORGE_API_KEY ? { 'Authorization': `Bearer ${FORGE_API_KEY}` } : {}),
           'x-user-id': request.userId || '',
           'x-user-role': request.userRole || '',
         },
@@ -467,12 +467,16 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
 
   // Shared context
   fastify.post('/api/v1/admin/context/:sessionId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const { sessionId } = request.params;
     const res = await callForgeAdmin(`/context/${sessionId}`, { method: 'POST', body: request.body });
     return res;
   });
 
   fastify.get('/api/v1/admin/context/:sessionId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const { sessionId } = request.params;
     const qs = new URLSearchParams(request.query).toString();
     const res = await callForgeAdmin(`/context/${sessionId}${qs ? `?${qs}` : ''}`);
@@ -481,11 +485,15 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
 
   // Handoffs
   fastify.post('/api/v1/admin/handoff', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const res = await callForgeAdmin('/handoff', { method: 'POST', body: request.body });
     return res;
   });
 
   fastify.get('/api/v1/admin/handoff/:sessionId/:handoffId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const { sessionId, handoffId } = request.params;
     const res = await callForgeAdmin(`/handoff/${sessionId}/${handoffId}`);
     return res;
