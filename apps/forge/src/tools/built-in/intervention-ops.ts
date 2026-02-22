@@ -6,8 +6,9 @@
  * All mutations are recorded in agent_audit_log (immutable trail).
  */
 
-import pg from 'pg';
 import crypto from 'crypto';
+import { getPool as getSharedPool } from '../../database.js';
+import type pg from 'pg';
 import type { ToolResult } from '../registry.js';
 
 // ============================================
@@ -35,25 +36,11 @@ export interface InterventionOpsInput {
 }
 
 // ============================================
-// Connection Pool (reuse substrate pool)
+// Connection Pool (shared forge pool — no separate pool)
 // ============================================
 
-let pool: pg.Pool | null = null;
-
 function getPool(): pg.Pool {
-  if (!pool) {
-    const connectionString = process.env['SUBSTRATE_DATABASE_URL'];
-    if (!connectionString) {
-      throw new Error('SUBSTRATE_DATABASE_URL not configured');
-    }
-    pool = new pg.Pool({
-      connectionString,
-      max: 3,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    });
-  }
-  return pool;
+  return getSharedPool();
 }
 
 function generateId(): string {
