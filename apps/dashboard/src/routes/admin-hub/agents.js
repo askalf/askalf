@@ -405,6 +405,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // Submit feedback on an execution
   fastify.post('/api/v1/admin/executions/:id/feedback', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/executions/${id}/feedback`, {
       method: 'POST',
@@ -415,6 +417,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // Get feedback stats for an agent
   fastify.get('/api/v1/admin/agents/:id/feedback', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/agents/${id}/feedback`);
     return res;
@@ -422,6 +426,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // Get correction patterns for an agent
   fastify.get('/api/v1/admin/agents/:id/corrections', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/agents/${id}/corrections`);
     return res;
@@ -429,6 +435,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // Get capabilities for a specific agent
   fastify.get('/api/v1/admin/agents/:id/capabilities', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/agents/${id}/capabilities`);
     return res;
@@ -436,6 +444,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // Detect capabilities for a specific agent
   fastify.post('/api/v1/admin/agents/:id/capabilities/detect', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/agents/${id}/capabilities/detect`, { method: 'POST' });
     return res;
@@ -443,12 +453,16 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // Detect capabilities for all agents
   fastify.post('/api/v1/admin/capabilities/detect-all', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const res = await callForgeAdmin('/capabilities/detect-all', { method: 'POST' });
     return res;
   });
 
   // Find agents with a specific capability
   fastify.get('/api/v1/admin/capabilities/:name/agents', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const { name } = request.params;
     const res = await callForgeAdmin(`/capabilities/${name}/agents`);
     return res;
@@ -456,56 +470,84 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // Get capability catalog
   fastify.get('/api/v1/admin/capabilities/catalog', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const res = await callForgeAdmin('/capabilities/catalog');
     return res;
   });
 
   // Get all agents' capabilities summary
   fastify.get('/api/v1/admin/capabilities/summary', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const res = await callForgeAdmin('/capabilities/summary');
     return res;
   });
 
   // Phase 6: Self-Rewriting Prompts
-  fastify.post('/api/v1/admin/agents/:id/propose-revision', async (request) => {
+  fastify.post('/api/v1/admin/agents/:id/propose-revision', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/agents/${request.params.id}/propose-revision`, { method: 'POST', body: request.body || {} });
   });
-  fastify.get('/api/v1/admin/agents/:id/prompt-revisions', async (request) => {
+  fastify.get('/api/v1/admin/agents/:id/prompt-revisions', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/agents/${request.params.id}/prompt-revisions`);
   });
-  fastify.post('/api/v1/admin/prompt-revisions/:revisionId/apply', async (request) => {
+  fastify.post('/api/v1/admin/prompt-revisions/:revisionId/apply', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/prompt-revisions/${request.params.revisionId}/apply`, { method: 'POST', body: request.body || {} });
   });
-  fastify.post('/api/v1/admin/prompt-revisions/:revisionId/reject', async (request) => {
+  fastify.post('/api/v1/admin/prompt-revisions/:revisionId/reject', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/prompt-revisions/${request.params.revisionId}/reject`, { method: 'POST', body: request.body || {} });
   });
 
   // Phase 9: Autonomous Goals
-  fastify.post('/api/v1/admin/agents/:id/propose-goals', async (request) => {
+  fastify.post('/api/v1/admin/agents/:id/propose-goals', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/agents/${request.params.id}/propose-goals`, { method: 'POST', body: request.body || {} });
   });
-  fastify.get('/api/v1/admin/agents/:id/goals', async (request) => {
+  fastify.get('/api/v1/admin/agents/:id/goals', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const qs = request.query.status ? `?status=${request.query.status}` : '';
     return callForgeAdmin(`/agents/${request.params.id}/goals${qs}`);
   });
-  fastify.post('/api/v1/admin/goals/:goalId/approve', async (request) => {
+  fastify.post('/api/v1/admin/goals/:goalId/approve', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/goals/${request.params.goalId}/approve`, { method: 'POST', body: request.body || {} });
   });
-  fastify.post('/api/v1/admin/goals/:goalId/reject', async (request) => {
+  fastify.post('/api/v1/admin/goals/:goalId/reject', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/goals/${request.params.goalId}/reject`, { method: 'POST', body: request.body || {} });
   });
 
   // Phase 13: Evolution
-  fastify.post('/api/v1/admin/agents/:id/clone', async (request) => {
+  fastify.post('/api/v1/admin/agents/:id/clone', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/agents/${request.params.id}/clone`, { method: 'POST', body: request.body });
   });
-  fastify.post('/api/v1/admin/evolution/experiment', async (request) => {
+  fastify.post('/api/v1/admin/evolution/experiment', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/evolution/experiment', { method: 'POST', body: request.body });
   });
-  fastify.get('/api/v1/admin/agents/:id/experiments', async (request) => {
+  fastify.get('/api/v1/admin/agents/:id/experiments', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/agents/${request.params.id}/experiments`);
   });
-  fastify.post('/api/v1/admin/evolution/:experimentId/promote', async (request) => {
+  fastify.post('/api/v1/admin/evolution/:experimentId/promote', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/evolution/${request.params.experimentId}/promote`, { method: 'POST', body: request.body || {} });
   });
 }

@@ -49,9 +49,10 @@ export const useThemeStore = create<ThemeState>()(
         const { theme, fontSize, fontFamily, reducedMotion } = get();
         const root = document.documentElement;
 
-        // Only apply user preferences on dashboard routes (/app/*)
+        // Apply user preferences on dashboard routes (command-center, settings, users, etc.)
         // Public pages (landing, login, about, etc.) use defaults
-        const isDashboard = window.location.pathname.startsWith('/app');
+        const publicPaths = ['/', '/login', '/signup', '/register', '/forgot-password', '/reset-password', '/verify-email', '/privacy', '/terms', '/about'];
+        const isDashboard = !publicPaths.includes(window.location.pathname);
 
         // Determine actual theme (handle 'system')
         let actualTheme: string = isDashboard ? theme : 'dark';
