@@ -474,9 +474,19 @@ Be efficient. Ship something.`;
 
     if (batchAgents.length === 0) return;
 
-    console.log(`[Scheduler] Dispatching ${batchAgents.length} agents: ${batchAgents.map((a) => a.agentName).join(', ')}`);
+    console.log(`[Scheduler] Dispatching ${batchAgents.length} agents (staggered 10s): ${batchAgents.map((a) => a.agentName).join(', ')}`);
 
-    for (const agent of batchAgents) {
+    // Stagger dispatches 10s apart to avoid thundering herd on DB pool
+    const STAGGER_DELAY_MS = 10_000;
+
+    for (let i = 0; i < batchAgents.length; i++) {
+      const agent = batchAgents[i]!;
+
+      // Wait before dispatching (skip delay for first agent)
+      if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, STAGGER_DELAY_MS));
+      }
+
       const execId = ulid();
       const ownerId = 'system:scheduler';
 
@@ -495,6 +505,8 @@ Be efficient. Ship something.`;
       }).catch((err) => {
         console.error(`[Scheduler] CLI execution failed for ${agent.agentName}:`, err);
       });
+
+      console.log(`[Scheduler] Dispatched ${agent.agentName} (${i + 1}/${batchAgents.length})`);
     }
 
     for (const agent of batchAgents) {
