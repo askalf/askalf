@@ -4,10 +4,10 @@
  * All creations are gated by intervention (approval required).
  */
 
-import pg from 'pg';
 import crypto from 'crypto';
-import { query } from '../../database.js';
+import { query, getPool as getSharedPool } from '../../database.js';
 import { detectCapabilities } from '../../orchestration/capability-registry.js';
+import type pg from 'pg';
 import type { ToolResult } from '../registry.js';
 
 // ============================================
@@ -53,21 +53,9 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, '');
 }
 
-// Substrate DB pool (for interventions + schedules)
-let substratePool: pg.Pool | null = null;
-
+// Substrate DB pool (shared forge pool — no separate pool)
 function getSubstratePool(): pg.Pool {
-  if (!substratePool) {
-    const connectionString = process.env['SUBSTRATE_DATABASE_URL'];
-    if (!connectionString) throw new Error('SUBSTRATE_DATABASE_URL not configured');
-    substratePool = new pg.Pool({
-      connectionString,
-      max: 2,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    });
-  }
-  return substratePool;
+  return getSharedPool();
 }
 
 const MAX_AGENTS_PER_CREATOR = 10;

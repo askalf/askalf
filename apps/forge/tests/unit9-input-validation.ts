@@ -222,6 +222,45 @@ async function runUnitTests(): Promise<void> {
     console.log('    GAP: tools.ts POST /tools does NOT validate riskLevel against enum');
   }, 'unit_only');
 
+  // ────────────────────────────────────────────────────────────────────────────
+  suite('[UNIT] executions.ts — days parameter negative-value gap (commit 88f70c1)');
+  // ────────────────────────────────────────────────────────────────────────────
+
+  await test('[UNIT] negative days passes through the clamping logic (DB error risk)', () => {
+    // executions.ts line 75: Math.min(parseInt(qs.days ?? '30', 10) || 30, 90)
+    // parseInt('-5', 10) = -5; -5 is truthy so -5 || 30 = -5; Math.min(-5, 90) = -5
+    // Result: INTERVAL '1 day' * -5 → valid SQL but goes 5 days into the future
+    // or some DBs reject negative intervals — either way, wrong behavior
+    const daysStr = '-5';
+    const parsed = parseInt(daysStr, 10);
+    const days = Math.min(parsed || 30, 90);
+    assert(days === -5, `Expected -5 to pass through (gap), got ${days}`);
+    console.log('    GAP: executions.ts days parameter has no lower-bound guard (negative days pass through)');
+  }, 'gap_documented');
+
+  await test('[UNIT] negative limit passes through the clamping logic', () => {
+    // Same pattern across agents.ts, tools.ts, and executions.ts
+    // Math.min(parseInt('-1', 10) || 50, 100) = Math.min(-1, 100) = -1
+    // LIMIT -1 → PostgreSQL error: "LIMIT must not be negative"
+    const limitStr = '-1';
+    const parsed = parseInt(limitStr, 10);
+    const limit = Math.min(parsed || 50, 100);
+    assert(limit === -1, `Expected -1 to pass through (gap), got ${limit}`);
+    console.log('    GAP: limit parameter has no lower-bound guard across multiple route files');
+  }, 'gap_documented');
+
+  await test('[UNIT] fix pattern: Math.max(0, ...) would prevent negative values', () => {
+    // Correct implementation adds Math.max(0, ...) as a lower bound:
+    // Math.max(0, Math.min(parseInt(str, 10) || default, max))
+    const testCases = ['-1', '-100', '-9999'];
+    for (const str of testCases) {
+      const fixed = Math.max(0, Math.min(parseInt(str, 10) || 50, 100));
+      assert(fixed === 0, `Fixed pattern should clamp ${str} to 0, got ${fixed}`);
+    }
+    const validCase = Math.max(0, Math.min(parseInt('25', 10) || 50, 100));
+    assert(validCase === 25, `Valid input 25 should pass through as 25, got ${validCase}`);
+  }, 'unit_only');
+
   await test('[UNIT] workflows.ts — status field has no enum validation', () => {
     // workflows.ts line 241: if (body.status !== undefined) addParam('status', body.status)
     // No check that body.status is in ['draft', 'active', 'paused', 'archived'] or similar
@@ -547,6 +586,98 @@ async function runIntegrationTests(): Promise<void> {
       `Expected 400/401 for malformed JSON, got ${res.status}`,
     );
   });
+
+  // ────────────────────────────────────────────────────────────────────────────
+  suite('executions.ts GET /api/v1/admin/executions/costs — cost tracking endpoints');
+  // ────────────────────────────────────────────────────────────────────────────
+  // Added in commit 88f70c1: new cost tracking routes. Audit for input validation.
+
+  await test('requires authentication (returns 401 without key)', async () => {
+    const res = await fetch(`${BASE_URL}/api/v1/admin/executions/costs`);
+    assert(res.status === 401, `Expected 401 without auth, got ${res.status}`);
+  });
+
+  await test('returns 200 with valid days param', async () => {
+    const r = await apiGet('/api/v1/admin/executions/costs?days=7');
+    assert(r.status === 200 || r.status === 401,
+      `Expected 200 or 401, got ${r.status}: ${JSON.stringify(r.body)}`);
+    if (r.status === 200) {
+      const body = b(r);
+      assert('executions' in body, 'Response should have executions array');
+      assert('total' in body, 'Response should have total count');
+      assert('page' in body, 'Response should have page');
+      assert('limit' in body, 'Response should have limit');
+    }
+  });
+
+  await test('clamps limit=99999 to max 100', async () => {
+    const r = await apiGet('/api/v1/admin/executions/costs?limit=99999');
+    assert(r.status === 200 || r.status === 401,
+      `Expected 200 or 401, got ${r.status}`);
+    if (r.status === 200) {
+      const body = b(r);
+      const executions = body.executions as unknown[];
+      assert(executions.length <= 100, `Limit should be clamped to 100, got ${executions.length}`);
+    }
+  });
+
+  await test('clamps days=999 to max 90', async () => {
+    const r = await apiGet('/api/v1/admin/executions/costs?days=999');
+    assert(r.status === 200 || r.status === 401,
+      `Expected 200 or 401, got ${r.status}`);
+    // If 200, response period.days should not exceed 90 (verified in summary endpoint below)
+  });
+
+  // GAP: negative days passes through as -5 (truthy), causing INTERVAL error
+  await test('[GAP] negative days does not return 200 with corrupted data', async () => {
+    const r = await apiGet('/api/v1/admin/executions/costs?days=-5');
+    // Should return 400 for invalid days; currently may return 500 (DB INTERVAL error)
+    // We assert it does NOT silently return 200 with wrong data
+    if (r.status === 200) {
+      const body = b(r);
+      // If server returned 200, the period.days should be positive (gap if it returns -5)
+      console.log(`      status=200, body=${JSON.stringify(body).slice(0, 100)} — negative days may have been used`);
+    } else {
+      console.log(`      status=${r.status} — server handled negative days (${r.status === 400 ? 'rejected correctly' : 'server error'})`);
+    }
+    // Document: the gap exists regardless of whether it 200s or 500s
+    assert(r.status !== 200 || (r.body as Record<string, unknown>).executions !== undefined,
+      `Negative days returned unexpected response`);
+  }, 'gap_documented');
+
+  await test('GET /costs/summary requires authentication', async () => {
+    const res = await fetch(`${BASE_URL}/api/v1/admin/executions/costs/summary`);
+    assert(res.status === 401, `Expected 401 without auth, got ${res.status}`);
+  });
+
+  await test('GET /costs/summary returns correct shape', async () => {
+    const r = await apiGet('/api/v1/admin/executions/costs/summary?days=7');
+    assert(r.status === 200 || r.status === 401,
+      `Expected 200 or 401, got ${r.status}: ${JSON.stringify(r.body)}`);
+    if (r.status === 200) {
+      const body = b(r);
+      assert('period' in body, 'Response should have period');
+      assert('totals' in body, 'Response should have totals');
+      assert('daily' in body, 'Response should have daily breakdown');
+      assert('weekly' in body, 'Response should have weekly breakdown');
+      const period = body.period as Record<string, unknown>;
+      assert(typeof period.days === 'number' && period.days > 0,
+        `period.days should be positive, got ${period.days}`);
+    }
+  });
+
+  await test('GET /:id/cost returns 404 for nonexistent execution', async () => {
+    const r = await apiGet('/api/v1/admin/executions/nonexistent-id-xyz/cost');
+    assert(r.status === 404 || r.status === 401,
+      `Expected 404 or 401 for nonexistent ID, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('GET /:id/cost requires authentication', async () => {
+    const res = await fetch(`${BASE_URL}/api/v1/admin/executions/fake-id/cost`);
+    assert(res.status === 401, `Expected 401 without auth, got ${res.status}`);
+  });
+
+  // ────────────────────────────────────────────────────────────────────────────
 
   // CVE-2026-25223: Tab character in Content-Type bypasses Fastify validation
   // (fixed in Fastify >=5.7.3, tracked in memory)

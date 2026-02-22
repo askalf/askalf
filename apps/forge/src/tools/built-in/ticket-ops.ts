@@ -5,8 +5,9 @@
  * All mutations are recorded in agent_audit_log (immutable trail).
  */
 
-import pg from 'pg';
 import crypto from 'crypto';
+import { getPool as getSharedPool } from '../../database.js';
+import type pg from 'pg';
 import type { ToolResult } from '../registry.js';
 
 // ============================================
@@ -14,7 +15,7 @@ import type { ToolResult } from '../registry.js';
 // ============================================
 
 export interface TicketOpsInput {
-  action: 'create' | 'update' | 'assign' | 'list' | 'get' | 'audit_history';
+  action: 'create' | 'update' | 'assign' | 'list' | 'get' | 'audit_history' | 'add_note';
   // create fields
   title?: string;
   description?: string;
@@ -28,6 +29,8 @@ export interface TicketOpsInput {
   status?: 'open' | 'in_progress' | 'resolved' | 'closed';
   /** Resolution note — what was done to resolve this ticket */
   resolution?: string;
+  /** Progress note — timestamped update on work in progress */
+  note?: string;
   // list filters
   filter_status?: string;
   filter_assigned_to?: string;
@@ -35,25 +38,11 @@ export interface TicketOpsInput {
 }
 
 // ============================================
-// Connection Pool (reuse substrate pool)
+// Connection Pool (shared forge pool — no separate pool)
 // ============================================
 
-let pool: pg.Pool | null = null;
-
 function getPool(): pg.Pool {
-  if (!pool) {
-    const connectionString = process.env['SUBSTRATE_DATABASE_URL'];
-    if (!connectionString) {
-      throw new Error('SUBSTRATE_DATABASE_URL not configured');
-    }
-    pool = new pg.Pool({
-      connectionString,
-      max: 3,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    });
-  }
-  return pool;
+  return getSharedPool();
 }
 
 function generateId(): string {
@@ -162,6 +151,30 @@ export async function ticketOps(input: TicketOpsInput): Promise<ToolResult> {
         const setClauses: string[] = [];
         const params: unknown[] = [];
         const changes: Record<string, unknown> = {};
+
+        // Enforce: cannot resolve/close without resolution notes
+        if ((input.status === 'resolved' || input.status === 'closed') && !input.resolution) {
+          return {
+            output: null,
+            error: `Cannot ${input.status} a ticket without a resolution. Provide a detailed resolution note describing what was done, what changed, and the outcome.`,
+            durationMs: Math.round(performance.now() - startTime),
+          };
+        }
+
+        // Enforce: must have at least 1 progress note before resolving/closing
+        if (input.status === 'resolved' || input.status === 'closed') {
+          const noteCount = await p.query(
+            `SELECT count(*)::int as cnt FROM ticket_notes WHERE ticket_id = $1`,
+            [input.ticket_id],
+          );
+          if ((noteCount.rows[0]?.cnt ?? 0) === 0) {
+            return {
+              output: null,
+              error: `Cannot ${input.status} ticket ${input.ticket_id} — zero progress notes found. You MUST use add_note to log at least one progress update BEFORE resolving. Describe what you investigated, what you changed, and what you found.`,
+              durationMs: Math.round(performance.now() - startTime),
+            };
+          }
+        }
 
         if (input.status) {
           params.push(input.status);
@@ -337,10 +350,46 @@ export async function ticketOps(input: TicketOpsInput): Promise<ToolResult> {
         };
       }
 
+      case 'add_note': {
+        if (!input.ticket_id) {
+          return { output: null, error: 'ticket_id is required for add_note', durationMs: 0 };
+        }
+        if (!input.note) {
+          return { output: null, error: 'note is required for add_note — describe what you did, what you found, or what blocked you', durationMs: 0 };
+        }
+
+        const noteId = generateId();
+        const timestamp = new Date().toISOString();
+        const author = input.agent_name || 'unknown';
+
+        await p.query(
+          `INSERT INTO ticket_notes (id, ticket_id, author, content, created_at)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [noteId, input.ticket_id, author, input.note, timestamp],
+        );
+
+        // Also touch updated_at on the ticket so it doesn't look stale
+        await p.query(
+          `UPDATE agent_tickets SET updated_at = NOW() WHERE id = $1`,
+          [input.ticket_id],
+        );
+
+        await audit(
+          p, 'ticket', input.ticket_id, 'note_added',
+          author, input.agent_id || null,
+          {}, { note: input.note, timestamp },
+        );
+
+        return {
+          output: { note_added: true, note_id: noteId, ticket_id: input.ticket_id, timestamp },
+          durationMs: Math.round(performance.now() - startTime),
+        };
+      }
+
       default:
         return {
           output: null,
-          error: `Unknown action: ${input.action}. Supported: create, update, assign, list, get, audit_history`,
+          error: `Unknown action: ${input.action}. Supported: create, update, assign, list, get, add_note, audit_history`,
           durationMs: Math.round(performance.now() - startTime),
         };
     }

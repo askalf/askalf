@@ -4,7 +4,7 @@
  * Uses a separate connection pool from the forge database.
  */
 
-import pg from 'pg';
+import { getPool as getSharedPool } from '../../database.js';
 import type { ToolResult } from '../registry.js';
 
 // ============================================
@@ -17,25 +17,11 @@ export interface SubstrateDbQueryInput {
 }
 
 // ============================================
-// Connection Pool
+// Connection Pool (shared forge pool — no separate pool)
 // ============================================
 
-let pool: pg.Pool | null = null;
-
-function getPool(): pg.Pool {
-  if (!pool) {
-    const connectionString = process.env['SUBSTRATE_DATABASE_URL'];
-    if (!connectionString) {
-      throw new Error('SUBSTRATE_DATABASE_URL not configured');
-    }
-    pool = new pg.Pool({
-      connectionString,
-      max: 3, // Small pool since this is a secondary connection
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    });
-  }
-  return pool;
+function getPool() {
+  return getSharedPool();
 }
 
 // ============================================
@@ -99,11 +85,9 @@ export async function substrateDbQuery(input: SubstrateDbQueryInput): Promise<To
 }
 
 /**
- * Close the substrate database pool. Called during graceful shutdown.
+ * Close the substrate database pool.
+ * No-op — pool lifecycle is managed by the shared forge pool in database.ts.
  */
 export async function closeSubstratePool(): Promise<void> {
-  if (pool) {
-    await pool.end();
-    pool = null;
-  }
+  // No-op — shared pool is closed via closeDatabase() in database.ts
 }

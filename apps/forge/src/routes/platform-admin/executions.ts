@@ -58,7 +58,7 @@ export async function registerExecutionCostRoutes(app: FastifyInstance): Promise
    * Joins cost_events for accurate cost; includes agent name and model.
    */
   app.get(
-    '/api/v1/admin/executions',
+    '/api/v1/admin/executions/costs',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const qs = request.query as {

@@ -295,7 +295,7 @@ function registerBuiltInTools(reg: ToolRegistry): void {
   reg.register({
     name: 'ticket_ops',
     displayName: 'Ticket Operations',
-    description: 'Create, update, assign, list, get tickets, and view audit history. Use this to track all work — open tickets for new tasks, update status as you work, close when done, and assign work to other agents. Use audit_history to see the full immutable trail of changes for any ticket.',
+    description: 'Create, update, assign, list, get tickets, add progress notes, and view audit history. IMPORTANT: Use add_note to log timestamped progress on every ticket as you work. Every significant step must have a note. Use update with resolution to resolve tickets — resolution is REQUIRED to close/resolve. No ticket should sit stale without notes.',
     type: 'built_in',
     riskLevel: 'medium',
     inputSchema: {
@@ -303,8 +303,8 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       properties: {
         action: {
           type: 'string',
-          enum: ['create', 'update', 'assign', 'list', 'get', 'audit_history'],
-          description: 'Operation to perform',
+          enum: ['create', 'update', 'assign', 'list', 'get', 'add_note', 'audit_history'],
+          description: 'Operation to perform. Use add_note to add timestamped progress notes to a ticket.',
         },
         title: { type: 'string', description: 'Ticket title (required for create)' },
         description: { type: 'string', description: 'Detailed ticket description' },
@@ -315,7 +315,8 @@ function registerBuiltInTools(reg: ToolRegistry): void {
         agent_name: { type: 'string', description: 'Your agent name' },
         ticket_id: { type: 'string', description: 'Ticket ID (for update/assign/get)' },
         status: { type: 'string', enum: ['open', 'in_progress', 'resolved', 'closed'], description: 'Ticket status' },
-        resolution: { type: 'string', description: 'Resolution note — what was done to resolve this ticket (use when setting status to resolved)' },
+        resolution: { type: 'string', description: 'Resolution note — what was done to resolve this ticket (REQUIRED when setting status to resolved or closed)' },
+        note: { type: 'string', description: 'Progress note content — timestamped update on work in progress (use with add_note action)' },
         filter_status: { type: 'string', description: 'Filter by status (for list)' },
         filter_assigned_to: { type: 'string', description: 'Filter by assigned agent (for list)' },
         limit: { type: 'number', description: 'Max results (default 20, max 50)' },
