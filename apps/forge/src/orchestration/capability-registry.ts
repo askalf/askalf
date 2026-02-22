@@ -125,7 +125,7 @@ export async function detectCapabilities(agentId: string): Promise<AgentCapabili
  */
 export async function detectAllCapabilities(): Promise<number> {
   const agents = await query<{ id: string }>(
-    `SELECT id FROM forge_agents WHERE status != 'archived' AND is_decommissioned = false`,
+    `SELECT id FROM forge_agents WHERE status != 'archived' AND (is_decommissioned IS NULL OR is_decommissioned = false)`,
   );
 
   let total = 0;

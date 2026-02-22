@@ -428,14 +428,16 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
 
   // SSE event stream (proxy to Forge)
   fastify.get('/api/v1/admin/events/stream', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const url = `${FORGE_URL}/api/v1/admin/events/stream`;
     try {
       const res = await fetch(url, {
         headers: {
           'Accept': 'text/event-stream',
           ...(FORGE_API_KEY ? { 'Authorization': `Bearer ${FORGE_API_KEY}` } : {}),
-          'x-user-id': request.userId || '',
-          'x-user-role': request.userRole || '',
+          'x-user-id': admin.id || '',
+          'x-user-role': admin.role || '',
         },
       });
       reply.raw.writeHead(200, {
@@ -500,80 +502,122 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   });
 
   // Phase 7: Natural Language Orchestration
-  fastify.post('/api/v1/admin/orchestrate-nl', async (request) => {
+  fastify.post('/api/v1/admin/orchestrate-nl', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/orchestrate-nl', { method: 'POST', body: request.body });
   });
-  fastify.get('/api/v1/admin/orchestration/:sessionId/status', async (request) => {
+  fastify.get('/api/v1/admin/orchestration/:sessionId/status', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/orchestration/${request.params.sessionId}/status`);
   });
 
   // Phase 8: Multi-Agent Chat
-  fastify.post('/api/v1/admin/chat/create', async (request) => {
+  fastify.post('/api/v1/admin/chat/create', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/chat/create', { method: 'POST', body: request.body });
   });
-  fastify.get('/api/v1/admin/chat/sessions', async () => {
+  fastify.get('/api/v1/admin/chat/sessions', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/chat/sessions');
   });
-  fastify.get('/api/v1/admin/chat/:sessionId', async (request) => {
+  fastify.get('/api/v1/admin/chat/:sessionId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/chat/${request.params.sessionId}`);
   });
-  fastify.post('/api/v1/admin/chat/:sessionId/message', async (request) => {
+  fastify.post('/api/v1/admin/chat/:sessionId/message', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/chat/${request.params.sessionId}/message`, { method: 'POST', body: request.body });
   });
-  fastify.post('/api/v1/admin/chat/:sessionId/respond/:agentId', async (request) => {
+  fastify.post('/api/v1/admin/chat/:sessionId/respond/:agentId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/chat/${request.params.sessionId}/respond/${request.params.agentId}`, { method: 'POST', body: request.body || {} });
   });
-  fastify.post('/api/v1/admin/chat/:sessionId/round', async (request) => {
+  fastify.post('/api/v1/admin/chat/:sessionId/round', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/chat/${request.params.sessionId}/round`, { method: 'POST', body: request.body || {} });
   });
-  fastify.post('/api/v1/admin/chat/:sessionId/end', async (request) => {
+  fastify.post('/api/v1/admin/chat/:sessionId/end', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/chat/${request.params.sessionId}/end`, { method: 'POST', body: request.body || {} });
   });
 
   // Phase 10: Cost Optimization
-  fastify.get('/api/v1/admin/cost/dashboard', async () => {
+  fastify.get('/api/v1/admin/cost/dashboard', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/cost/dashboard');
   });
-  fastify.post('/api/v1/admin/cost/recommend', async (request) => {
+  fastify.post('/api/v1/admin/cost/recommend', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/cost/recommend', { method: 'POST', body: request.body });
   });
-  fastify.get('/api/v1/admin/cost/optimal-model', async (request) => {
+  fastify.get('/api/v1/admin/cost/optimal-model', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const qs = new URLSearchParams(request.query).toString();
     return callForgeAdmin(`/cost/optimal-model?${qs}`);
   });
 
   // Phase 11: Knowledge Graph
-  fastify.get('/api/v1/admin/knowledge/stats', async () => {
+  fastify.get('/api/v1/admin/knowledge/stats', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/knowledge/stats');
   });
-  fastify.get('/api/v1/admin/knowledge/search', async (request) => {
+  fastify.get('/api/v1/admin/knowledge/search', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const qs = new URLSearchParams(request.query).toString();
     return callForgeAdmin(`/knowledge/search?${qs}`);
   });
-  fastify.get('/api/v1/admin/knowledge/nodes/:nodeId/neighborhood', async (request) => {
+  fastify.get('/api/v1/admin/knowledge/nodes/:nodeId/neighborhood', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/knowledge/nodes/${request.params.nodeId}/neighborhood`);
   });
 
   // Phase 12: Monitoring
-  fastify.get('/api/v1/admin/monitoring/health', async () => {
+  fastify.get('/api/v1/admin/monitoring/health', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/monitoring/health');
   });
 
   // Phase 14: Event Log, Leaderboard, Replay
-  fastify.get('/api/v1/admin/events/recent', async (request) => {
+  fastify.get('/api/v1/admin/events/recent', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     const qs = request.query.limit ? `?limit=${request.query.limit}` : '';
     return callForgeAdmin(`/events/recent${qs}`);
   });
-  fastify.get('/api/v1/admin/events/execution/:executionId', async (request) => {
+  fastify.get('/api/v1/admin/events/execution/:executionId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/events/execution/${request.params.executionId}`);
   });
-  fastify.get('/api/v1/admin/events/session/:sessionId', async (request) => {
+  fastify.get('/api/v1/admin/events/session/:sessionId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/events/session/${request.params.sessionId}`);
   });
-  fastify.get('/api/v1/admin/events/stats', async () => {
+  fastify.get('/api/v1/admin/events/stats', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/events/stats');
   });
-  fastify.get('/api/v1/admin/fleet/leaderboard', async () => {
+  fastify.get('/api/v1/admin/fleet/leaderboard', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin('/fleet/leaderboard');
   });
 

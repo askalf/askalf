@@ -115,8 +115,8 @@ export async function cliRoutes(app: FastifyInstance): Promise<void> {
       // Run agent
       if (cmd.startsWith('run ') || cmd.startsWith('execute ') || cmd.startsWith('start ')) {
         const agentName = command.replace(/^(run|execute|start)\s+/i, '').trim();
-        const agent = await queryOne<{ id: string; name: string }>(
-          `SELECT id, name FROM forge_agents WHERE LOWER(name) LIKE $1 LIMIT 1`,
+        const agent = await queryOne<{ id: string; name: string; owner_id: string }>(
+          `SELECT id, name, owner_id FROM forge_agents WHERE LOWER(name) LIKE $1 LIMIT 1`,
           [`%${agentName.toLowerCase()}%`]
         );
         if (!agent) return { result: `Agent not found: "${agentName}"` };
@@ -125,9 +125,9 @@ export async function cliRoutes(app: FastifyInstance): Promise<void> {
         const { ulid } = await import('ulid');
         const execId = ulid();
         await query(
-          `INSERT INTO forge_executions (id, agent_id, status, input, created_at)
-           VALUES ($1, $2, 'pending', $3, NOW())`,
-          [execId, agent.id, JSON.stringify({ prompt: 'Run triggered via CLI', source: 'cli' })]
+          `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, created_at)
+           VALUES ($1, $2, $3, 'pending', $4, NOW())`,
+          [execId, agent.id, agent.owner_id, JSON.stringify({ prompt: 'Run triggered via CLI', source: 'cli' })]
         );
 
         // Dispatch

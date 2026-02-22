@@ -6,7 +6,7 @@ import './Login.css';
 
 function getApiUrl() {
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com')) return '';
+  if (host.includes('orcastr8r.com') || host.includes('askalf.org') || host.includes('integration.tax')) return '';
   return 'http://localhost:3001';
 }
 

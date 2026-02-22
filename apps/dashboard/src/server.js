@@ -216,13 +216,13 @@ fastify.addHook('onResponse', async (request, reply) => {
 });
 
 // Health check endpoint for container orchestration
-fastify.get('/health', { logLevel: 'silent' }, async () => {
+fastify.get('/health', { logLevel: 'silent' }, async (_request, reply) => {
   // Validate database connectivity
   try {
     await queryOne('SELECT 1');
     return { status: 'healthy', service: 'dashboard', database: 'connected' };
   } catch (err) {
-    return { status: 'degraded', service: 'dashboard', database: 'disconnected', error: err.message };
+    return reply.code(503).send({ status: 'degraded', service: 'dashboard', database: 'disconnected', error: err.message });
   }
 });
 
@@ -1603,7 +1603,8 @@ fastify.get('/api/v1/admin/stats', async (request, reply) => {
   if (!admin) return { error: 'Admin access required' };
 
   const tenantScope = admin.role !== 'super_admin';
-  const tenantWhere = tenantScope ? `WHERE tenant_id = '${admin.tenant_id}'` : '';
+  const tenantParams = tenantScope ? [admin.tenant_id] : [];
+  const tenantWhere = tenantScope ? `WHERE tenant_id = $1` : '';
 
   const [users, shards, traces, executions] = await Promise.all([
     queryOne(`
@@ -1613,7 +1614,7 @@ fastify.get('/api/v1/admin/stats', async (request, reply) => {
         COUNT(*) FILTER (WHERE status = 'suspended') as suspended,
         COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as today
       FROM users ${tenantWhere}
-    `),
+    `, tenantParams),
     queryOne(`
       SELECT COUNT(*) as total
       FROM procedural_shards

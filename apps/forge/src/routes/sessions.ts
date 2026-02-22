@@ -10,6 +10,7 @@ import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails } from '../observability/guardrails.js';
+import { runDirectCliExecution } from '../runtime/worker.js';
 import {
   CreateSessionBody, ListSessionsQuery, SendMessageBody,
   IdParam, ErrorResponse,
@@ -57,6 +58,7 @@ interface AgentCheckRow {
   id: string;
   owner_id: string;
   status: string;
+  system_prompt?: string;
   max_cost_per_execution: string;
 }
 
@@ -266,7 +268,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
 
       // Load agent to run guardrails
       const agent = await queryOne<AgentCheckRow>(
-        `SELECT id, owner_id, status, max_cost_per_execution FROM forge_agents WHERE id = $1`,
+        `SELECT id, owner_id, status, max_cost_per_execution, system_prompt FROM forge_agents WHERE id = $1`,
         [session.agent_id],
       );
 
@@ -308,6 +310,14 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
           JSON.stringify(body.metadata ?? {}),
         ],
       );
+
+      // Dispatch the execution
+      void runDirectCliExecution(executionId, session.agent_id, body.message, userId, {
+        systemPrompt: agent.system_prompt,
+        maxBudgetUsd: agent.max_cost_per_execution,
+      }).catch((err) => {
+        console.error(`[Sessions] Execution ${executionId} failed:`, err instanceof Error ? err.message : err);
+      });
 
       // Update session's updated_at
       void query(

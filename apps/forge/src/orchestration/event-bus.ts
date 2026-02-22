@@ -129,12 +129,8 @@ export class ForgeEventBus {
 
     const channel = `forge:events:${event.type}`;
 
-    // Publish to Redis for cross-process delivery
+    // Publish to Redis — the psubscribe handler will emit locally when it arrives back
     await this.pub.publish(channel, JSON.stringify(event)).catch(() => {});
-
-    // Also emit locally for in-process listeners (faster)
-    this.emitter.emit(event.type, event);
-    this.emitter.emit('*', event);
   }
 
   // -----------------------------------------------------------------------

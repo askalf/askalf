@@ -297,9 +297,23 @@ export default function ExecutionHistory() {
             {(() => {
               const output = detailTask?.output || selectedTask.output;
               if (!output || (typeof output === 'object' && Object.keys(output).length === 0)) return null;
-              const outputText = typeof output === 'object' && 'response' in output
-                ? String(output.response)
-                : JSON.stringify(output, null, 2);
+              const rawOutput = typeof output === 'string' ? output : typeof output === 'object' && output && 'response' in output ? String((output as Record<string, unknown>).response) : JSON.stringify(output, null, 2);
+              let outputText: string = rawOutput;
+              // Try to extract 'result' from raw CLI JSON output (legacy format)
+              if (typeof rawOutput === 'string' && rawOutput.trim().startsWith('{')) {
+                try {
+                  const parsed = JSON.parse(rawOutput) as Record<string, unknown>;
+                  if (parsed['result'] && typeof parsed['result'] === 'string' && (parsed['result'] as string).trim().length > 0) {
+                    outputText = parsed['result'] as string;
+                  } else if (parsed['subtype'] === 'error_max_budget_usd') {
+                    outputText = `[Budget exceeded after ${parsed['num_turns'] || 0} turn(s), $${(Number(parsed['total_cost_usd']) || 0).toFixed(4)} spent]`;
+                  } else if (parsed['subtype'] === 'error_max_turns') {
+                    outputText = `[Max turns reached (${parsed['num_turns'] || 0}), $${(Number(parsed['total_cost_usd']) || 0).toFixed(4)} spent]`;
+                  }
+                } catch {
+                  // Not valid JSON, keep raw output
+                }
+              }
               if (!outputText || outputText === 'null' || outputText === '{}') return null;
               return (
                 <div className="hub-detail-section">

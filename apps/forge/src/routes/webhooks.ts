@@ -3,6 +3,7 @@
  * Incoming webhook triggers for agent execution
  */
 
+import { timingSafeEqual } from 'crypto';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
@@ -83,8 +84,10 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       // Verify webhook secret if configured
       const webhookSecret = agent.metadata['webhookSecret'] as string | undefined;
       if (webhookSecret) {
-        const providedSecret = body?.secret ?? request.headers['x-webhook-secret'];
-        if (providedSecret !== webhookSecret) {
+        const providedSecret = String(body?.secret ?? request.headers['x-webhook-secret'] ?? '');
+        const expected = Buffer.from(webhookSecret);
+        const provided = Buffer.from(providedSecret);
+        if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) {
           return reply.status(401).send({
             error: 'Unauthorized',
             message: 'Invalid webhook secret',

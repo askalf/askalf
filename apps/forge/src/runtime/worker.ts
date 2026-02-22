@@ -1454,18 +1454,31 @@ async function setupCliEnvironment(): Promise<void> {
 /**
  * Semaphore: acquire a CLI execution slot.
  * Blocks if MAX_CLI_CONCURRENCY is reached.
+ * Times out after 10 minutes to prevent indefinite queueing.
  */
+const CLI_SLOT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
 function acquireCliSlot(): Promise<void> {
   const cfg = config ?? loadConfig();
   if (cliConcurrent < cfg.maxCliConcurrency) {
     cliConcurrent++;
     return Promise.resolve();
   }
-  return new Promise<void>((resolve) => {
-    cliQueue.push(() => {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      // Remove from queue if still waiting
+      const idx = cliQueue.indexOf(callback);
+      if (idx >= 0) cliQueue.splice(idx, 1);
+      reject(new Error(`CLI slot timeout: waited ${CLI_SLOT_TIMEOUT_MS / 1000}s, all ${cfg.maxCliConcurrency} slots occupied`));
+    }, CLI_SLOT_TIMEOUT_MS);
+
+    const callback = () => {
+      clearTimeout(timer);
       cliConcurrent++;
       resolve();
-    });
+    };
+    cliQueue.push(callback);
+    console.log(`[CLI] Execution queued — ${cliConcurrent}/${cfg.maxCliConcurrency} slots occupied, ${cliQueue.length} in queue`);
   });
 }
 
@@ -1716,7 +1729,6 @@ function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
     }
 
     const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
-    output = (parsed['result'] as string) ?? stdout;
     costUsd = (parsed['total_cost_usd'] as number) ?? 0;
     numTurns = (parsed['num_turns'] as number) ?? 0;
 
@@ -1724,6 +1736,22 @@ function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
     if (usage) {
       inputTokens = usage['input_tokens'] ?? 0;
       outputTokens = usage['output_tokens'] ?? 0;
+    }
+
+    // Extract the agent's actual text response — prefer 'result' field
+    const resultText = parsed['result'] as string | undefined;
+    const subtype = parsed['subtype'] as string | undefined;
+
+    if (resultText && resultText.trim().length > 0) {
+      output = resultText;
+    } else if (subtype === 'error_max_budget_usd') {
+      output = `[Budget exceeded after ${numTurns} turn(s), $${costUsd.toFixed(4)} spent] No output produced — budget was exhausted before the agent could complete its work.`;
+      isError = true;
+    } else if (subtype === 'error_max_turns') {
+      output = `[Max turns reached (${numTurns}), $${costUsd.toFixed(4)} spent] Agent ran out of turns before completing. Partial work may exist in git worktree.`;
+    } else {
+      // Last resort: store a clean summary, not the raw JSON blob
+      output = `[Execution completed: ${numTurns} turns, $${costUsd.toFixed(4)}] No text output captured.`;
     }
 
     // Only mark as error if explicitly errored AND no useful output
