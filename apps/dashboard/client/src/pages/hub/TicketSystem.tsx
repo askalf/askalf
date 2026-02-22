@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useHubStore } from '../../stores/hub';
+import { usePolling } from '../../hooks/usePolling';
 import StatusBadge from './shared/StatusBadge';
 import PaginationBar from './shared/PaginationBar';
 import FilterBar from './shared/FilterBar';
@@ -55,6 +56,10 @@ export default function TicketSystem() {
   useEffect(() => {
     fetchTickets();
   }, [filter, source, page, searchDebounce, fetchTickets]);
+
+  // Auto-refresh so agent-created tickets appear without a full reload
+  const poll = useCallback(() => { fetchTickets(); }, [fetchTickets]);
+  usePolling(poll, 15000);
 
   // Also update hub store search for API call
   useEffect(() => {

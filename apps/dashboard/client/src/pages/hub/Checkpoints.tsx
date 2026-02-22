@@ -27,16 +27,21 @@ const formatDate = (iso: string | null) => {
 export default function Checkpoints() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
   const [responseText, setResponseText] = useState('');
 
   const load = useCallback(async () => {
+    setError(null);
     try {
       const data = await hubApi.checkpoints.list({ status: statusFilter || undefined });
       const list = (data as { checkpoints?: Checkpoint[] })?.checkpoints ?? [];
       setCheckpoints(Array.isArray(list) ? list : []);
-    } catch { setCheckpoints([]); }
+    } catch (err) {
+      console.error('Failed to load checkpoints:', err);
+      setError('Failed to load checkpoints. The API may be unavailable.');
+    }
     setLoading(false);
   }, [statusFilter]);
 
@@ -54,6 +59,17 @@ export default function Checkpoints() {
 
   if (loading && checkpoints.length === 0) {
     return <div className="hub-loading">Loading checkpoints...</div>;
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        icon="⚠"
+        title="Failed to load checkpoints"
+        message={error}
+        action={{ label: 'Retry', onClick: load }}
+      />
+    );
   }
 
   if (checkpoints.length === 0) {

@@ -29,12 +29,17 @@ interface HealthReport {
 export default function HealthMonitor() {
   const [report, setReport] = useState<HealthReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchHealth = useCallback(async () => {
+    setError(null);
     try {
       const data = await hubApi.monitoring.health() as unknown as HealthReport;
       setReport(data);
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Failed to fetch health report:', err);
+      setError('Health API unavailable. Check that the forge service is running.');
+    }
     setLoading(false);
   }, []);
 
@@ -90,7 +95,13 @@ export default function HealthMonitor() {
           </button>
         </div>
 
-        {loading && !report && <div className="fo-empty">Running health checks...</div>}
+        {loading && !report && !error && <div className="fo-empty">Running health checks...</div>}
+        {error && (
+          <div className="fo-card" style={{ borderLeft: '3px solid #ef4444', marginBottom: '8px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', color: '#ef4444' }}>⚠ {error}</span>
+            <button className="hub-btn hub-btn--sm" onClick={fetchHealth}>Retry</button>
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '8px' }}>
           {report?.checks?.map((check) => (
