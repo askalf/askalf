@@ -14,19 +14,19 @@ import { ulid } from 'ulid';
 // Config
 // ============================================
 
-const MIN_OUTPUT_LENGTH = 200;
-const SCAN_LENGTH = 3000;
-const MIN_SIGNAL_STRENGTH = 2;
-const COOLDOWN_MINUTES = 30;
-const MAX_TRIGGERS_PER_HOUR = 20;
-const MIN_PROFICIENCY = 30;
-const MAX_SIGNALS_PER_EVENT = 3;
+const MIN_OUTPUT_LENGTH = 500;
+const SCAN_LENGTH = 2000;
+const MIN_SIGNAL_STRENGTH = 4;
+const COOLDOWN_MINUTES = 240;
+const MAX_TRIGGERS_PER_HOUR = 3;
+const MIN_PROFICIENCY = 50;
+const MAX_SIGNALS_PER_EVENT = 1;
 
 // ============================================
 // Signal Map Cache
 // ============================================
 
-interface SignalMap {
+export interface SignalMap {
   [capability: string]: RegExp;
 }
 
@@ -61,13 +61,13 @@ async function getSignalMap(): Promise<SignalMap> {
 // Signal Detection
 // ============================================
 
-interface Signal {
+export interface Signal {
   capability: string;
   strength: number;
   keywords: string[];
 }
 
-function detectSignals(output: string, signalMap: SignalMap): Signal[] {
+export function detectSignals(output: string, signalMap: SignalMap): Signal[] {
   const text = output.substring(0, SCAN_LENGTH).toLowerCase();
   const signals: Signal[] = [];
 
