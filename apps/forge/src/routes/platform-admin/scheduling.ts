@@ -407,6 +407,31 @@ async function runSchedulerTick(): Promise<void> {
     }
     const batchAgents: ScheduledAgent[] = [];
 
+    // Build fleet awareness context — what's running and what just completed
+    const [runningExecs, recentCompletions] = await Promise.all([
+      query<{ agent_name: string; input: string; started_at: string }>(
+        `SELECT a.name as agent_name, substring(e.input from 1 for 100) as input, e.started_at
+         FROM forge_executions e JOIN forge_agents a ON e.agent_id = a.id
+         WHERE e.status IN ('running', 'pending') ORDER BY e.started_at DESC LIMIT 10`,
+      ).catch(() => [] as { agent_name: string; input: string; started_at: string }[]),
+      query<{ agent_name: string; input: string; completed_at: string }>(
+        `SELECT a.name as agent_name, substring(e.input from 1 for 100) as input, e.completed_at
+         FROM forge_executions e JOIN forge_agents a ON e.agent_id = a.id
+         WHERE e.status = 'completed' AND e.completed_at > NOW() - INTERVAL '2 hours'
+         ORDER BY e.completed_at DESC LIMIT 8`,
+      ).catch(() => [] as { agent_name: string; input: string; completed_at: string }[]),
+    ]);
+
+    const fleetContext = [
+      '\n\nFLEET AWARENESS (avoid duplicate work):',
+      runningExecs.length > 0
+        ? `Currently running: ${runningExecs.map((e) => `${e.agent_name}`).join(', ')}`
+        : 'No agents currently running.',
+      recentCompletions.length > 0
+        ? `Recent completions (last 2h): ${recentCompletions.map((e) => `${e.agent_name}: ${e.input}`).join(' | ')}`
+        : '',
+    ].filter(Boolean).join('\n');
+
     for (const schedule of dueAgents) {
       const agentId = schedule['agent_id'] as string;
       const agent = await queryOne<Record<string, unknown>>(
@@ -428,11 +453,11 @@ async function runSchedulerTick(): Promise<void> {
 
       // Pre-load this agent's assigned tickets to inject into prompt
       const assignedTickets = await substrateQuery<{ id: string; title: string; priority: string; description: string }>(
-        `SELECT id, title, priority, substring(description from 1 for 300) as description
+        `SELECT id, title, priority, substring(description from 1 for 1000) as description
          FROM agent_tickets
          WHERE assigned_to = $1 AND status IN ('open', 'in_progress')
          ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, created_at
-         LIMIT 3`,
+         LIMIT 5`,
         [agentName],
       ).catch(() => [] as { id: string; title: string; priority: string; description: string }[]);
 
@@ -443,7 +468,7 @@ async function runSchedulerTick(): Promise<void> {
       let input: string;
       if (customInput) {
         // Agent has a custom input template — append ticket context
-        input = customInput.replace(/\{timestamp\}/g, new Date().toISOString()) + ticketBlock;
+        input = customInput.replace(/\{timestamp\}/g, new Date().toISOString()) + ticketBlock + fleetContext;
       } else {
         // Default work-driven template with pre-loaded tickets
         input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are ${agentName}, running on a ${intervalMinutes}-minute schedule.
@@ -452,12 +477,14 @@ YOUR MISSION: Build something real every cycle. Ship code, fix bugs, create feat
 
 RULES:
 - BUILD > OBSERVE: Writing code beats monitoring reports every time.
-- Use finding_ops ONLY for genuinely important discoveries. No noise.
-- Search the knowledge graph (forge_knowledge_graph) before starting — another agent may have solved your problem.
-- Store what you learn in memory_store so other agents benefit.
+- BEFORE starting: search memory (memory_search) AND knowledge graph (knowledge_search) — another agent may have solved your problem or left critical context.
+- AFTER completing: store what you learned (memory_store) so the fleet benefits.
+- Create tickets for other agents when work crosses domains — include FULL context (files, line numbers, what you found).
+- Report critical findings with finding_ops — they auto-route to the right specialist.
+- If you see an ADR doc in docs/adr/, READ IT — it contains architectural decisions that guide your work.
 - The system must be measurably better after every cycle you run.
 
-Be efficient. Ship something.`;
+Be efficient. Ship something.${fleetContext}`;
       }
 
       batchAgents.push({

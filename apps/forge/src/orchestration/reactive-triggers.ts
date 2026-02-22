@@ -243,7 +243,9 @@ export function startReactiveTriggers(): void {
 
   eventBus.on('execution', (event) => {
     if (event.type !== 'execution') return;
-    void handleExecutionCompleted(event as ExecutionEvent).catch((err) => {
+    const execEvent = event as ExecutionEvent;
+    console.log(`[ReactiveTrigger] Event received: ${execEvent.event} for ${execEvent.agentName} (output: ${execEvent.data?.output?.length ?? 0} chars)`);
+    void handleExecutionCompleted(execEvent).catch((err) => {
       console.error('[ReactiveTrigger] Error handling execution:', err instanceof Error ? err.message : err);
     });
   });
