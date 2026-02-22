@@ -4,6 +4,29 @@ import crypto from 'crypto';
 export const FORGE_URL = process.env.FORGE_URL || 'http://forge:3005';
 export const FORGE_API_KEY = process.env.FORGE_API_KEY || '';
 
+// Circuit breaker: if forge is down, fail fast instead of waiting 30s per request
+let forgeCircuitOpen = false;
+let forgeCircuitOpenedAt = 0;
+const CIRCUIT_RESET_MS = 10_000; // retry after 10s
+
+function checkCircuit() {
+  if (!forgeCircuitOpen) return true;
+  if (Date.now() - forgeCircuitOpenedAt > CIRCUIT_RESET_MS) {
+    forgeCircuitOpen = false; // half-open: allow one attempt
+    return true;
+  }
+  return false;
+}
+
+function tripCircuit() {
+  forgeCircuitOpen = true;
+  forgeCircuitOpenedAt = Date.now();
+}
+
+function closeCircuit() {
+  forgeCircuitOpen = false;
+}
+
 export function ulid() {
   const timestamp = Date.now().toString(36).padStart(10, '0');
   const random = crypto.randomBytes(10).toString('hex').slice(0, 16);
@@ -20,6 +43,10 @@ export function paginationResponse(total, page, limit) {
 export const schedulerPausedTenants = new Set();
 
 export async function callForgeAdmin(path, options = {}) {
+  if (!checkCircuit()) {
+    return { error: true, status: 503, message: 'Forge unreachable (circuit open)' };
+  }
+
   const url = `${FORGE_URL}/api/v1/admin${path}`;
   const headers = {
     'Content-Type': 'application/json',
@@ -32,8 +59,10 @@ export async function callForgeAdmin(path, options = {}) {
       method: options.method || 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(options.timeout || 8000),
     });
+
+    closeCircuit();
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -42,11 +71,16 @@ export async function callForgeAdmin(path, options = {}) {
 
     return await res.json();
   } catch (err) {
+    tripCircuit();
     return { error: true, status: 503, message: err.message || 'Forge admin unreachable' };
   }
 }
 
 export async function callForge(path, options = {}) {
+  if (!checkCircuit()) {
+    return { error: true, status: 503, message: 'Forge unreachable (circuit open)' };
+  }
+
   const url = `${FORGE_URL}/api/v1/forge${path}`;
   const headers = {
     'Content-Type': 'application/json',
@@ -59,8 +93,10 @@ export async function callForge(path, options = {}) {
       method: options.method || 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(options.timeout || 8000),
     });
+
+    closeCircuit();
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -69,6 +105,7 @@ export async function callForge(path, options = {}) {
 
     return await res.json();
   } catch (err) {
+    tripCircuit();
     return { error: true, status: 503, message: `Forge unreachable: ${err.message}` };
   }
 }
