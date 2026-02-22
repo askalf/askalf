@@ -45,6 +45,7 @@ import { initSharedContext } from './orchestration/shared-context.js';
 import { startMonitoring } from './orchestration/monitoring-agent.js';
 import { startEventLogger } from './orchestration/event-log.js';
 import { startReactiveTriggers } from './orchestration/reactive-triggers.js';
+import { startAutonomyLoop } from './orchestration/autonomy-loop.js';
 import { initAgentCommunication, closeAgentCommunication } from './orchestration/communication.js';
 import { Redis } from 'ioredis';
 import { ulid } from 'ulid';
@@ -273,6 +274,9 @@ async function start(): Promise<void> {
 
     // Start reactive coordination triggers (cross-domain signal detection)
     startReactiveTriggers();
+
+    // Start autonomy loop (auto-review → merge → deploy pipeline)
+    startAutonomyLoop();
 
     // Clean up orphaned executions from previous process (restart recovery)
     // Two-phase: first tag resumable orphans (have checkpoint data), then mark rest as failed.
@@ -519,5 +523,17 @@ async function shutdown(signal: string): Promise<void> {
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+process.on('uncaughtException', (err) => {
+  console.error('[Forge] FATAL uncaught exception:', err);
+  shutdown('UNCAUGHT_EXCEPTION');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Forge] Unhandled rejection at:', promise, 'reason:', reason);
+  // Log but don't crash — many fire-and-forget patterns exist.
+  // TODO: After transaction adoption reduces fire-and-forget patterns,
+  // escalate this to shutdown.
+});
 
 start();
