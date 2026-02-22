@@ -17,8 +17,20 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
   app.get(
     '/api/v1/admin/agents',
     { preHandler: [authMiddleware] },
-    async (_request: FastifyRequest, _reply: FastifyReply) => {
-      const agents = await query<ForgeAgent>('SELECT * FROM forge_agents ORDER BY name');
+    async (request: FastifyRequest, _reply: FastifyReply) => {
+      const qs = request.query as { status?: string; include_decommissioned?: string };
+      let whereClause = '';
+      const params: unknown[] = [];
+      if (qs.status) {
+        params.push(qs.status);
+        whereClause = `WHERE status = $${params.length}`;
+      }
+      if (qs.include_decommissioned !== 'true' && !whereClause) {
+        whereClause = `WHERE (is_decommissioned IS NULL OR is_decommissioned = false)`;
+      } else if (qs.include_decommissioned !== 'true' && whereClause) {
+        whereClause += ` AND (is_decommissioned IS NULL OR is_decommissioned = false)`;
+      }
+      const agents = await query<ForgeAgent>(`SELECT * FROM forge_agents ${whereClause} ORDER BY name`, params);
       const executions = await query<ForgeExecution>(
         `SELECT * FROM forge_executions WHERE created_at > NOW() - INTERVAL '7 days' ORDER BY created_at DESC LIMIT 500`
       );

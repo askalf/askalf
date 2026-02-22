@@ -3,8 +3,10 @@
 
 const getApiBase = () => {
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com')) return '';
-  return 'http://localhost:3005';
+  // Production: same-origin (nginx routes to dashboard)
+  if (host.includes('askalf.org') || host.includes('orcastr8r.com') || host.includes('integration.tax')) return '';
+  // Local dev: dashboard proxy on port 3001 (not forge directly)
+  return 'http://localhost:3001';
 };
 
 const API_BASE = getApiBase();
