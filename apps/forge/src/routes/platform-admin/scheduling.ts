@@ -476,30 +476,36 @@ async function runSchedulerTick(): Promise<void> {
         [agentName],
       ).catch(() => [] as { id: string; title: string; priority: string; description: string }[]);
 
-      const ticketBlock = assignedTickets.length > 0
-        ? `\n\nYOUR ASSIGNED TICKETS (work on these NOW):\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket. Set it to in_progress. DO THE WORK. Resolve with detailed notes when done.`
-        : `\n\nNO TICKETS ASSIGNED. Proactively find work in your domain: analyze the codebase, fix bugs, add features, improve the system. Create a ticket for what you build.`;
+      // If no tickets assigned, skip this agent entirely — don't waste money on busywork
+      if (assignedTickets.length === 0) {
+        // Advance next_run_at so we check again later
+        await substrateQuery(
+          `UPDATE agent_schedules SET next_run_at = NOW() + ($1 || ' minutes')::INTERVAL WHERE agent_id = $2`,
+          [String(intervalMinutes), agentId],
+        );
+        console.log(`[Scheduler] Skipping ${agentName} — no tickets assigned`);
+        continue;
+      }
+
+      const ticketBlock = `\n\nYOUR ASSIGNED TICKETS:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket. Set it to in_progress. Do the work. Resolve with detailed notes when done.`;
 
       let input: string;
       if (customInput) {
-        // Agent has a custom input template — append ticket context
         input = customInput.replace(/\{timestamp\}/g, new Date().toISOString()) + ticketBlock + fleetContext;
       } else {
-        // Default work-driven template with pre-loaded tickets
-        input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are ${agentName}, running on a ${intervalMinutes}-minute schedule.
+        input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are ${agentName}.
 
-YOUR MISSION: Build something real every cycle. Ship code, fix bugs, create features.${ticketBlock}
+You have tickets to work on. Focus on these and nothing else.${ticketBlock}
 
 RULES:
-- BUILD > OBSERVE: Writing code beats monitoring reports every time.
-- BEFORE starting: search memory (memory_search) AND knowledge graph (knowledge_search) — another agent may have solved your problem or left critical context.
+- ONLY work on your assigned tickets. Do NOT invent new work or create speculative tickets.
+- BEFORE starting: search memory (memory_search) for context another agent may have left.
 - AFTER completing: store what you learned (memory_store) so the fleet benefits.
-- Create tickets for other agents when work crosses domains — include FULL context (files, line numbers, what you found).
-- Report critical findings with finding_ops — they auto-route to the right specialist.
-- If you see an ADR doc in docs/adr/, READ IT — it contains architectural decisions that guide your work.
-- The system must be measurably better after every cycle you run.
+- Only create tickets for other agents if your work DIRECTLY requires it (e.g. you found a bug in another domain). Include FULL context.
+- Do NOT create ADR docs, architecture proposals, or analysis reports unless your ticket specifically asks for one.
+- Do NOT run exploratory analysis "just in case." Stick to the ticket.
 
-Be efficient. Ship something.${fleetContext}`;
+Be focused. Finish your ticket. Stop.${fleetContext}`;
       }
 
       batchAgents.push({
