@@ -432,8 +432,25 @@ async function runSchedulerTick(): Promise<void> {
         : '',
     ].filter(Boolean).join('\n');
 
+    // Get agents that already have running/pending executions — skip re-dispatch
+    const inFlightAgents = await query<{ agent_id: string }>(
+      `SELECT DISTINCT agent_id FROM forge_executions WHERE status IN ('running', 'pending')`,
+    ).catch(() => [] as { agent_id: string }[]);
+    const inFlightSet = new Set(inFlightAgents.map((r) => r.agent_id));
+
     for (const schedule of dueAgents) {
       const agentId = schedule['agent_id'] as string;
+      const intervalMinutes = (schedule['schedule_interval_minutes'] as number) || 60;
+
+      // Skip agents already running — just advance their next_run_at
+      if (inFlightSet.has(agentId)) {
+        await substrateQuery(
+          `UPDATE agent_schedules SET next_run_at = NOW() + ($1 || ' minutes')::INTERVAL WHERE agent_id = $2`,
+          [String(intervalMinutes), agentId],
+        );
+        continue;
+      }
+
       const agent = await queryOne<Record<string, unknown>>(
         `SELECT id, name, status, model_id, system_prompt, max_cost_per_execution, max_iterations, metadata FROM forge_agents WHERE id = $1`,
         [agentId],
@@ -442,8 +459,6 @@ async function runSchedulerTick(): Promise<void> {
       if (!agent || agent['status'] !== 'active') {
         continue;
       }
-
-      const intervalMinutes = (schedule['schedule_interval_minutes'] as number) || 60;
 
       // Check for custom scheduled input in agent metadata
       const metadata = agent['metadata'] as Record<string, unknown> | null;
