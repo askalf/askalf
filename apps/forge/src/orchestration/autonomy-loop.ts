@@ -82,15 +82,22 @@ function git(args: string, timeout = 30_000): Promise<{ exitCode: number; stdout
   });
 }
 
-function dockerApi(method: string, path: string, timeout = 30_000): Promise<{ statusCode: number; data: string }> {
+function dockerApi(method: string, path: string, body?: unknown, timeout = 30_000): Promise<{ statusCode: number; data: string }> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Docker API timeout')), timeout);
-    const req = http.request({ ...DOCKER_CONN, path, method } as http.RequestOptions, (res) => {
+    const bodyStr = body ? JSON.stringify(body) : undefined;
+    const headers: Record<string, string> = {};
+    if (bodyStr) {
+      headers['Content-Type'] = 'application/json';
+      headers['Content-Length'] = String(Buffer.byteLength(bodyStr));
+    }
+    const req = http.request({ ...DOCKER_CONN, path, method, headers } as http.RequestOptions, (res) => {
       let data = '';
       res.on('data', (c: Buffer) => { data += c.toString(); });
       res.on('end', () => { clearTimeout(timer); resolve({ statusCode: res.statusCode ?? 500, data }); });
     });
     req.on('error', (err) => { clearTimeout(timer); reject(err); });
+    if (bodyStr) req.write(bodyStr);
     req.end();
   });
 }
@@ -99,6 +106,30 @@ function generateId(): string {
   const t = Date.now().toString(36);
   const r = Math.random().toString(36).substring(2, 10);
   return `auto-${t}-${r}`;
+}
+
+// ============================================
+// Cleanup Helper
+// ============================================
+
+async function cleanupBranchAndWorktree(branch: string): Promise<void> {
+  try {
+    // Find and remove worktree for this branch
+    const wtList = await git('worktree list --porcelain');
+    for (const entry of wtList.stdout.split('\n\n').filter(Boolean)) {
+      if (entry.includes(`branch refs/heads/${branch}`)) {
+        const pathMatch = entry.match(/^worktree\s+(.+)/m);
+        if (pathMatch?.[1]) {
+          await git(`worktree remove "${pathMatch[1]}" --force`).catch(() => {});
+          console.log(`[AutonomyLoop] Removed worktree: ${pathMatch[1]}`);
+        }
+        break;
+      }
+    }
+  } catch { /* non-fatal */ }
+
+  // Delete the branch
+  await git(`branch -D ${branch}`).catch(() => {});
 }
 
 // ============================================
@@ -284,6 +315,7 @@ async function mergeApprovedProposals(): Promise<void> {
     if (check.exitCode !== 0 || parseInt(check.stdout.trim(), 10) === 0) {
       console.log(`[AutonomyLoop] Branch ${branch} no longer exists or has no commits — closing proposal`);
       await query(`UPDATE forge_change_proposals SET status = 'closed', closed_at = NOW() WHERE id = $1`, [proposal.id]);
+      await cleanupBranchAndWorktree(branch);
       continue;
     }
 
@@ -310,9 +342,11 @@ async function mergeApprovedProposals(): Promise<void> {
         );
         await query(`UPDATE forge_change_proposals SET status = 'revision_requested', updated_at = NOW() WHERE id = $1`, [proposal.id]);
         console.log(`[AutonomyLoop] CONFLICT merging ${branch} — created rebase ticket`);
+        await cleanupBranchAndWorktree(branch);
       } else {
         console.error(`[AutonomyLoop] Merge failed for ${branch}: ${mergeRes.stderr}`);
         await query(`UPDATE forge_change_proposals SET status = 'closed', closed_at = NOW() WHERE id = $1`, [proposal.id]);
+        await cleanupBranchAndWorktree(branch);
       }
       continue;
     }
@@ -321,8 +355,8 @@ async function mergeApprovedProposals(): Promise<void> {
     const hashRes = await git('rev-parse HEAD');
     const mergeCommit = hashRes.stdout.trim();
 
-    // Clean up branch
-    await git(`branch -d ${branch}`).catch(() => {/* non-fatal */});
+    // Clean up branch and worktree
+    await cleanupBranchAndWorktree(branch);
 
     // Mark proposal applied
     await query(`UPDATE forge_change_proposals SET status = 'applied', applied_at = NOW(), updated_at = NOW() WHERE id = $1`, [proposal.id]);
@@ -341,10 +375,10 @@ async function mergeApprovedProposals(): Promise<void> {
 
     // Log deployment
     await query(
-      `INSERT INTO forge_deploy_log (id, services, git_commit, git_branch, triggered_by, status)
-       VALUES ($1, $2, $3, $4, 'autonomy-loop', 'pending')`,
-      [generateId(), [...services], mergeCommit, branch],
-    );
+      `INSERT INTO deployment_logs (id, service, action, status, health_result, agent_name)
+       VALUES ($1, $2, 'auto-deploy', 'pending', $3, 'autonomy-loop')`,
+      [generateId(), [...services].join(','), JSON.stringify({ git_commit: mergeCommit, git_branch: branch })],
+    ).catch(() => {/* non-fatal */});
 
     // Stage D: Deploy if services affected
     if (services.size > 0) {
@@ -359,6 +393,10 @@ async function mergeApprovedProposals(): Promise<void> {
 // Stage D: Auto-Deploy
 // ============================================
 
+// Service classification for deployment strategy
+const BAKED_SERVICES = new Set(['dashboard', 'mcp-tools']); // need docker compose build + up
+const PROTECTED_SERVICES = new Set(['postgres', 'redis', 'pgbouncer', 'cloudflared']);
+
 async function autoDeploy(services: string[], mergeCommit: string, proposalId: string): Promise<void> {
   // Rate limit
   if (Date.now() > deployHourReset) {
@@ -367,85 +405,251 @@ async function autoDeploy(services: string[], mergeCommit: string, proposalId: s
   }
   if (deploysThisHour >= MAX_DEPLOYS_PER_HOUR) {
     console.log(`[AutonomyLoop] Deploy rate limit reached (${MAX_DEPLOYS_PER_HOUR}/hour). Skipping deploy for ${services.join(', ')}`);
-    // Create ticket for manual deploy
     await query(
       `INSERT INTO agent_tickets (id, title, description, status, priority, category, assigned_to, is_agent_ticket, source, metadata)
        VALUES ($1, $2, $3, 'open', 'medium', 'deploy', 'DevOps', true, 'autonomy-loop', $4)
        ON CONFLICT DO NOTHING`,
-      [
-        generateId(),
-        `[DEPLOY] Rate-limited: ${services.join(', ')} needs restart`,
-        `Auto-deploy rate limit reached. Services ${services.join(', ')} have new code (commit ${mergeCommit}) but need manual restart.`,
-        JSON.stringify({ services, merge_commit: mergeCommit, proposal_id: proposalId }),
-      ],
+      [generateId(), `[DEPLOY] Rate-limited: ${services.join(', ')} needs restart`,
+       `Auto-deploy rate limit reached. Services ${services.join(', ')} have new code (commit ${mergeCommit}) but need manual restart.`,
+       JSON.stringify({ services, merge_commit: mergeCommit, proposal_id: proposalId })],
     );
     return;
   }
 
   deploysThisHour++;
-  console.log(`[AutonomyLoop] Deploying ${services.join(', ')} (${deploysThisHour}/${MAX_DEPLOYS_PER_HOUR} this hour)`);
 
-  // Don't auto-deploy forge (would kill this process)
-  const safeServices = services.filter(s => s !== 'forge');
+  // Tag deployment
+  const tag = `deploy-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
+  await git(`tag ${tag} ${mergeCommit}`).catch(() => {});
+  console.log(`[AutonomyLoop] Deploying ${services.join(', ')} — tag: ${tag}`);
+
+  const safeServices = services.filter(s => !PROTECTED_SERVICES.has(s) && s !== 'forge');
   const needsForge = services.includes('forge');
+  const needsRebuild = safeServices.filter(s => BAKED_SERVICES.has(s));
+  const restartOnly = safeServices.filter(s => !BAKED_SERVICES.has(s));
 
-  for (const service of safeServices) {
+  // Restart volume-mounted services (e.g. nginx)
+  for (const service of restartOnly) {
     const container = `sprayberry-labs-${service}`;
     try {
       const res = await dockerApi('POST', `/v1.44/containers/${container}/restart?t=10`);
       if (res.statusCode === 204 || res.statusCode === 200) {
         console.log(`[AutonomyLoop] Restarted ${service}`);
-
-        // Health check after delay
-        await new Promise(r => setTimeout(r, HEALTH_CHECK_DELAY_MS));
-        let healthy = false;
-        for (let i = 0; i < HEALTH_CHECK_RETRIES; i++) {
-          const hc = await dockerApi('GET', `/v1.44/containers/${container}/json`);
-          if (hc.statusCode === 200) {
-            const info = JSON.parse(hc.data);
-            const state = info?.State?.Status;
-            if (state === 'running') { healthy = true; break; }
-          }
-          await new Promise(r => setTimeout(r, 5000));
+        if (!await healthCheck(container)) {
+          console.error(`[AutonomyLoop] ${service} unhealthy — rolling back`);
+          await rollbackDeploy(mergeCommit, [service], tag);
+          return;
         }
-
-        if (!healthy) {
-          console.error(`[AutonomyLoop] HEALTH CHECK FAILED for ${service} — creating urgent ticket`);
-          await query(
-            `INSERT INTO agent_tickets (id, title, description, status, priority, category, assigned_to, is_agent_ticket, source, metadata)
-             VALUES ($1, $2, $3, 'open', 'urgent', 'deploy-failure', 'DevOps', true, 'autonomy-loop', $4)
-             ON CONFLICT DO NOTHING`,
-            [
-              generateId(),
-              `[DEPLOY FAILURE] ${service} unhealthy after auto-deploy`,
-              `Service ${service} failed health check after auto-restart (commit ${mergeCommit}). May need rollback.`,
-              JSON.stringify({ service, merge_commit: mergeCommit, proposal_id: proposalId }),
-            ],
-          );
-        }
-      } else {
-        console.error(`[AutonomyLoop] Restart failed for ${service}: HTTP ${res.statusCode}`);
       }
     } catch (err) {
-      console.error(`[AutonomyLoop] Deploy error for ${service}:`, err);
+      console.error(`[AutonomyLoop] Restart error for ${service}:`, err);
     }
   }
 
+  // Rebuild baked-in services via ephemeral builder container
+  if (needsRebuild.length > 0) {
+    await rebuildServices(needsRebuild, mergeCommit, tag);
+  }
+
+  // Forge can't restart itself
   if (needsForge) {
-    // Create ticket — forge can't restart itself
     await query(
       `INSERT INTO agent_tickets (id, title, description, status, priority, category, assigned_to, is_agent_ticket, source, metadata)
        VALUES ($1, $2, $3, 'open', 'high', 'deploy', 'DevOps', true, 'autonomy-loop', $4)
        ON CONFLICT DO NOTHING`,
-      [
-        generateId(),
-        `[DEPLOY] Forge needs restart to pick up merged changes`,
-        `New code merged for forge (commit ${mergeCommit}). Forge cannot self-restart — needs manual deploy.`,
-        JSON.stringify({ services: ['forge'], merge_commit: mergeCommit, proposal_id: proposalId }),
-      ],
+      [generateId(), `[DEPLOY] Forge needs restart (${mergeCommit.slice(0, 8)})`,
+       `New code merged for forge (commit ${mergeCommit}). Forge cannot self-restart — needs manual deploy.`,
+       JSON.stringify({ services: ['forge'], merge_commit: mergeCommit, deploy_tag: tag })],
     );
     console.log(`[AutonomyLoop] Forge needs manual restart — created DevOps ticket`);
   }
+
+  // Log deployment result
+  await query(
+    `INSERT INTO deployment_logs (id, service, action, status, health_result, agent_name)
+     VALUES ($1, $2, 'auto-deploy', 'completed', $3, 'autonomy-loop')`,
+    [generateId(), services.join(','), JSON.stringify({ commit: mergeCommit, tag })],
+  ).catch(() => {});
+}
+
+async function healthCheck(container: string): Promise<boolean> {
+  await new Promise(r => setTimeout(r, HEALTH_CHECK_DELAY_MS));
+  for (let i = 0; i < HEALTH_CHECK_RETRIES; i++) {
+    try {
+      const hc = await dockerApi('GET', `/v1.44/containers/${container}/json`);
+      if (hc.statusCode === 200) {
+        const state = JSON.parse(hc.data)?.State?.Status;
+        if (state === 'running') return true;
+      }
+    } catch { /* retry */ }
+    await new Promise(r => setTimeout(r, 5000));
+  }
+  return false;
+}
+
+async function rebuildServices(services: string[], mergeCommit: string, deployTag: string): Promise<void> {
+  const BUILDER_IMAGE = 'docker:27-cli';
+
+  try {
+    // Get host workspace path from forge container mount
+    const inspectRes = await dockerApi('GET', '/v1.44/containers/sprayberry-labs-forge/json');
+    if (inspectRes.statusCode !== 200) {
+      console.error('[AutonomyLoop] Cannot inspect forge container for rebuild');
+      return;
+    }
+    const forgeInfo = JSON.parse(inspectRes.data);
+    const workspaceMount = (forgeInfo.Mounts || []).find(
+      (m: { Destination: string }) => m.Destination === '/workspace',
+    );
+    if (!workspaceMount?.Source) {
+      console.error('[AutonomyLoop] Workspace mount not found on forge container');
+      return;
+    }
+    const hostPath = workspaceMount.Source;
+
+    // Build command: build then recreate each service
+    const ordered = [...services].sort((a, b) => {
+      const order = ['mcp-tools', 'dashboard', 'nginx'];
+      return (order.indexOf(a) === -1 ? 999 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 999 : order.indexOf(b));
+    });
+
+    const cmds = ordered.flatMap(s => [
+      `docker compose -f /workspace/docker-compose.prod.yml --env-file /workspace/.env.production build ${s}`,
+      `docker compose -f /workspace/docker-compose.prod.yml --env-file /workspace/.env.production up -d --no-deps --force-recreate ${s}`,
+    ]);
+
+    const builderId = `autonomy-builder-${Date.now()}`;
+    const createRes = await dockerApi('POST', `/v1.44/containers/create?name=${builderId}`, {
+      Image: BUILDER_IMAGE,
+      Cmd: ['sh', '-c', cmds.join(' && ')],
+      WorkingDir: '/workspace',
+      HostConfig: {
+        Binds: [`${hostPath}:/workspace`, '/var/run/docker.sock:/var/run/docker.sock'],
+        AutoRemove: true,
+      },
+      Labels: { 'substrate.role': 'builder', 'substrate.services': ordered.join(','), 'substrate.commit': mergeCommit },
+    });
+
+    if (createRes.statusCode !== 201) {
+      console.error(`[AutonomyLoop] Failed to create builder: ${createRes.data.slice(0, 500)}`);
+      return;
+    }
+
+    const containerId = JSON.parse(createRes.data).Id;
+    const startRes = await dockerApi('POST', `/v1.44/containers/${containerId}/start`);
+    if (startRes.statusCode !== 204 && startRes.statusCode !== 200) {
+      await dockerApi('DELETE', `/v1.44/containers/${containerId}?force=true`).catch(() => {});
+      console.error('[AutonomyLoop] Failed to start builder');
+      return;
+    }
+
+    console.log(`[AutonomyLoop] Rebuild started for ${ordered.join(', ')} (builder: ${builderId})`);
+
+    // Poll for completion (max 5 minutes)
+    const maxWait = 300_000;
+    const startTime = Date.now();
+    let exitCode = -1;
+
+    while (Date.now() - startTime < maxWait) {
+      await new Promise(r => setTimeout(r, 10_000));
+      const inspect = await dockerApi('GET', `/v1.44/containers/${containerId}/json`);
+      if (inspect.statusCode === 404) { exitCode = 0; break; } // AutoRemove = success
+      if (inspect.statusCode === 200) {
+        const info = JSON.parse(inspect.data);
+        if (!info.State?.Running) {
+          exitCode = info.State?.ExitCode ?? -1;
+          await dockerApi('DELETE', `/v1.44/containers/${containerId}?force=true`).catch(() => {});
+          break;
+        }
+      }
+    }
+
+    if (exitCode !== 0) {
+      console.error(`[AutonomyLoop] Rebuild FAILED (exit ${exitCode}) for ${ordered.join(', ')} — rolling back`);
+      await rollbackDeploy(mergeCommit, ordered, deployTag);
+      return;
+    }
+
+    console.log(`[AutonomyLoop] Rebuild completed for ${ordered.join(', ')}`);
+
+    // Health check each rebuilt service
+    for (const svc of ordered) {
+      if (!await healthCheck(`sprayberry-labs-${svc}`)) {
+        console.error(`[AutonomyLoop] ${svc} unhealthy after rebuild — rolling back`);
+        await rollbackDeploy(mergeCommit, ordered, deployTag);
+        return;
+      }
+      console.log(`[AutonomyLoop] ${svc} healthy after rebuild`);
+    }
+  } catch (err) {
+    console.error('[AutonomyLoop] Rebuild error:', err);
+  }
+}
+
+async function rollbackDeploy(mergeCommit: string, services: string[], deployTag: string): Promise<void> {
+  console.error(`[AutonomyLoop] ROLLING BACK — reverting ${mergeCommit.slice(0, 8)}`);
+
+  try {
+    await git('checkout main');
+    const revertRes = await git(`revert --no-edit ${mergeCommit}`);
+
+    if (revertRes.exitCode !== 0) {
+      console.error(`[AutonomyLoop] Revert failed: ${revertRes.stderr}`);
+      await query(
+        `INSERT INTO agent_tickets (id, title, description, status, priority, category, assigned_to, is_agent_ticket, source, metadata)
+         VALUES ($1, $2, $3, 'open', 'urgent', 'deploy-failure', 'DevOps', true, 'autonomy-loop', $4)
+         ON CONFLICT DO NOTHING`,
+        [generateId(), `[ROLLBACK FAILED] Manual intervention — ${mergeCommit.slice(0, 8)}`,
+         `Auto-revert failed. Deploy tag: ${deployTag}. Services: ${services.join(', ')}. Error: ${revertRes.stderr.slice(0, 500)}`,
+         JSON.stringify({ merge_commit: mergeCommit, deploy_tag: deployTag, services })],
+      );
+      await notifyAdmin('error', `ROLLBACK FAILED — ${mergeCommit.slice(0, 8)}`,
+        `Auto-revert failed. Services ${services.join(', ')} may be broken. Deploy tag: ${deployTag}. Manual intervention required.`, 'high');
+      return;
+    }
+
+    console.log(`[AutonomyLoop] Reverted ${mergeCommit.slice(0, 8)} on main`);
+
+    // Re-deploy reverted state
+    const needsRebuild = services.filter(s => BAKED_SERVICES.has(s));
+    if (needsRebuild.length > 0) {
+      await rebuildServices(needsRebuild, 'HEAD', deployTag + '-rollback');
+    }
+    for (const svc of services.filter(s => !BAKED_SERVICES.has(s) && s !== 'forge')) {
+      await dockerApi('POST', `/v1.44/containers/sprayberry-labs-${svc}/restart?t=10`).catch(() => {});
+    }
+
+    await query(
+      `INSERT INTO deployment_logs (id, service, action, status, health_result, agent_name)
+       VALUES ($1, $2, 'rollback', 'completed', $3, 'autonomy-loop')`,
+      [generateId(), services.join(','), JSON.stringify({ reverted: mergeCommit, tag: deployTag })],
+    ).catch(() => {});
+
+    await notifyAdmin('error', `Auto-rollback: ${services.join(', ')}`,
+      `Deployment of commit ${mergeCommit.slice(0, 8)} failed health checks. Automatically reverted. Tag: ${deployTag}`);
+  } catch (err) {
+    console.error('[AutonomyLoop] Rollback error:', err);
+  }
+}
+
+async function notifyAdmin(type: string, title: string, description: string, riskLevel?: string): Promise<void> {
+  const adminEmail = process.env['ADMIN_EMAIL'];
+  if (!adminEmail) return;
+  try {
+    const { sendInterventionAlert } = await import('@substrate/email');
+    const baseUrl = process.env['DASHBOARD_URL'] ?? 'https://orcastr8r.com';
+    await sendInterventionAlert(adminEmail, {
+      agentName: 'Autonomy Loop',
+      interventionType: type,
+      title,
+      description,
+      riskLevel: riskLevel as 'low' | 'medium' | 'high' | undefined,
+      approveUrl: `${baseUrl}/admin/hub/agents`,
+      denyUrl: `${baseUrl}/admin/hub/agents`,
+      dashboardUrl: `${baseUrl}/admin/hub/agents`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch { /* non-fatal */ }
 }
 
 // ============================================

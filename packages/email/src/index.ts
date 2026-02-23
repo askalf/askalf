@@ -26,6 +26,7 @@ import type {
   WaitlistUpdateEmailVars,
   BetaInviteEmailVars,
   AdminNotificationVars,
+  InterventionAlertVars,
 } from './types.js';
 import type { EmailTemplate, EmailTemplateVars } from './templates.js';
 
@@ -358,4 +359,14 @@ export async function sendAdminNotification(
   vars: AdminNotificationVars
 ): Promise<EmailResult> {
   return getEmailService().sendTemplate(to, 'admin-notification', vars);
+}
+
+/**
+ * Send intervention alert email to admin
+ */
+export async function sendInterventionAlert(
+  to: string,
+  vars: InterventionAlertVars
+): Promise<EmailResult> {
+  return getEmailService().sendTemplate(to, 'intervention-alert', vars);
 }
