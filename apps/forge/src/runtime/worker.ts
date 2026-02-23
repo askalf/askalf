@@ -2093,7 +2093,7 @@ export async function runDirectCliExecution(
       ],
     );
 
-    // Record cost event for the cost dashboard
+    // Record cost event for the cost dashboard (trackCost retries internally)
     if (parsed.costUsd > 0) {
       void trackCost({
         executionId,
@@ -2105,8 +2105,8 @@ export async function runDirectCliExecution(
         outputTokens: parsed.outputTokens,
         cost: parsed.costUsd,
         metadata: { turns: parsed.numTurns, durationMs },
-      }).catch((err) => {
-        console.warn('[Cost] Failed to track cost event:', err instanceof Error ? err.message : err);
+      }).catch(() => {
+        // trackCost logs full details on final failure — nothing more to do here
       });
     }
 
