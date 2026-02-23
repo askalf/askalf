@@ -236,7 +236,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
   app.post(
     '/api/v1/admin/tickets/:id/notes',
     { preHandler: [authMiddleware] },
-    async (request: FastifyRequest) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
       const { content } = request.body as { content: string };
       if (!content || typeof content !== 'string' || !content.trim()) {
