@@ -470,12 +470,15 @@ async function runSchedulerTick(): Promise<void> {
     ).catch(() => [] as { agent_id: string }[]);
     const inFlightSet = new Set(inFlightAgents.map((r) => r.agent_id));
 
+    // Track agents queued this tick to prevent duplicate dispatches
+    const queuedThisTick = new Set<string>();
+
     for (const schedule of dueAgents) {
       const agentId = schedule['agent_id'] as string;
       const intervalMinutes = (schedule['schedule_interval_minutes'] as number) || 60;
 
-      // Skip agents already running — just advance their next_run_at
-      if (inFlightSet.has(agentId)) {
+      // Skip agents already running or already queued this tick
+      if (inFlightSet.has(agentId) || queuedThisTick.has(agentId)) {
         await substrateQuery(
           `UPDATE agent_schedules SET next_run_at = NOW() + ($1 || ' minutes')::INTERVAL WHERE agent_id = $2`,
           [String(intervalMinutes), agentId],
@@ -593,6 +596,7 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
         maxBudget: (agent['max_cost_per_execution'] as string) ?? undefined,
         maxTurns: (agent['max_iterations'] as number) ?? undefined,
       });
+      queuedThisTick.add(agentId);
     }
 
     if (batchAgents.length === 0) return;

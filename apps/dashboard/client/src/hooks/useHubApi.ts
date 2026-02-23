@@ -999,4 +999,24 @@ export const hubApi = {
     stats: () =>
       apiFetch<CoordinationStats>('/api/v1/admin/coordination/stats'),
   },
+
+  // Deployment Logs
+  deployments: {
+    list: (limit?: number) =>
+      apiFetch<{ logs: DeploymentLog[] }>(
+        `/api/v1/admin/deployment-logs${limit ? `?limit=${limit}` : ''}`,
+      ),
+  },
 };
+
+export interface DeploymentLog {
+  id: string;
+  timestamp: string;
+  service: string;
+  action: 'deploy' | 'rollback' | 'restart';
+  status: 'success' | 'failed' | 'pending';
+  agent_name: string | null;
+  commit_hash: string | null;
+}
+
+// Deployment logs section appended to hubApi below — see exports
