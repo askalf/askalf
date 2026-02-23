@@ -520,13 +520,13 @@ TICKET LIFECYCLE (you MUST follow every step):
    Resolution is REQUIRED — the system will reject a resolve/close without one.
 
 RULES:
-- ONLY work on your assigned tickets. Do NOT invent new work or create speculative tickets.
+- ONLY work on your assigned tickets. Do NOT invent new work.
+- DO NOT CREATE NEW TICKETS. You are forbidden from using ticket_ops create. If you find something that needs a ticket, add a note to your current ticket mentioning it — a human will triage.
 - BEFORE starting: search memory (memory_search) for context another agent may have left.
 - AFTER completing: store what you learned (memory_store) so the fleet benefits.
-- Only create tickets for other agents if your work DIRECTLY requires it (e.g. you found a bug in another domain). Include FULL context.
 - Do NOT create ADR docs, architecture proposals, or analysis reports unless your ticket specifically asks for one.
 - Do NOT run exploratory analysis "just in case." Stick to the ticket.
-- EVERY execution must leave at least one progress note. No silent runs.
+- EVERY execution must leave at least one progress note via add_note. No silent runs. The system WILL reject resolution without notes.
 
 Be focused. Finish your ticket. Stop.${fleetContext}`;
       }
