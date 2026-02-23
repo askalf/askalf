@@ -51,6 +51,18 @@ export async function shellExec(input: ShellExecInput): Promise<ToolResult> {
   const startTime = performance.now();
   const timeout = Math.min(input.timeout ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
 
+  // Validate cwd — restrict to safe directories only
+  const ALLOWED_CWD_PREFIXES = ['/app', '/tmp/agent-workspace', '/tmp/claude-home'];
+  const cwd = input.cwd ?? '/app';
+  const normalizedCwd = cwd.replace(/\/+$/, ''); // strip trailing slashes
+  if (!ALLOWED_CWD_PREFIXES.some(prefix => normalizedCwd === prefix || normalizedCwd.startsWith(prefix + '/'))) {
+    return {
+      output: null,
+      error: `Blocked: cwd '${cwd}' is outside allowed directories (${ALLOWED_CWD_PREFIXES.join(', ')})`,
+      durationMs: Math.round(performance.now() - startTime),
+    };
+  }
+
   // Block dangerous commands
   const cmdLower = input.command.toLowerCase();
   for (const pattern of BLOCKED_PATTERNS) {
@@ -67,7 +79,7 @@ export async function shellExec(input: ShellExecInput): Promise<ToolResult> {
     exec(
       input.command,
       {
-        cwd: input.cwd ?? '/app',
+        cwd,
         timeout,
         maxBuffer: MAX_OUTPUT_SIZE,
         env: { ...process.env, HOME: '/app' },

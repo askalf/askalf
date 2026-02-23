@@ -40,7 +40,7 @@ async function buildMemoryContextInner(
 ): Promise<string> {
   const start = Date.now();
   const manager = getMemoryManager();
-  const k = options?.k ?? 5;
+  const k = Math.min(options?.k ?? 5, 50); // Hard cap at 50 to prevent unbounded vector scans
 
   // Agent-specific recall
   const agentRecall = await manager.recall(agentId, input, {
