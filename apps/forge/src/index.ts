@@ -42,6 +42,7 @@ import { startMetabolicCycles } from './memory/metabolic.js';
 import { detectAllCapabilities } from './orchestration/capability-registry.js';
 import { initEventBus, getEventBus } from './orchestration/event-bus.js';
 import { initSharedContext } from './orchestration/shared-context.js';
+import { ForgeScheduler } from './orchestration/scheduler.js';
 import { startMonitoring } from './orchestration/monitoring-agent.js';
 import { startEventLogger } from './orchestration/event-log.js';
 import { startReactiveTriggers } from './orchestration/reactive-triggers.js';
@@ -277,6 +278,37 @@ async function start(): Promise<void> {
 
     // Start autonomy loop (auto-review → merge → deploy pipeline)
     startAutonomyLoop();
+
+    // Initialize workflow scheduler (BullMQ DAG engine)
+    const workflowScheduler = new ForgeScheduler(config.redisUrl, async (node, context, runId) => {
+      // Agent nodes: dispatch via CLI execution
+      const agentId = (node.config['agentId'] as string) ?? null;
+      if (!agentId) return { error: 'No agentId configured for agent node' };
+      const agent = await dbQuery<{ id: string; name: string; model_id: string; system_prompt: string; max_cost_per_execution: string; max_iterations: number }>(
+        `SELECT id, name, model_id, system_prompt, max_cost_per_execution, max_iterations FROM forge_agents WHERE id = $1`, [agentId],
+      );
+      if (agent.length === 0) return { error: `Agent not found: ${agentId}` };
+      const a = agent[0]!;
+      const input = `[WORKFLOW NODE: ${node.label ?? node.id}]\n\n${(node.config['prompt'] as string) ?? 'Execute this workflow step.'}\n\nContext: ${JSON.stringify(context).substring(0, 2000)}`;
+      const execId = ulid();
+      await dbQuery(
+        `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at) VALUES ($1, $2, 'system:workflow', $3, 'pending', $4, NOW())`,
+        [execId, agentId, input, JSON.stringify({ workflow_run_id: runId, workflow_node_id: node.id })],
+      );
+      // Run synchronously and return output
+      const { runDirectCliExecution: runCli } = await import('./runtime/worker.js');
+      await runCli(execId, agentId, input, 'system:workflow', {
+        modelId: a.model_id, systemPrompt: a.system_prompt,
+        maxBudgetUsd: a.max_cost_per_execution, maxTurns: a.max_iterations,
+        scheduleIntervalMinutes: 60,
+      });
+      const result = await dbQuery<{ output: string }>(`SELECT output FROM forge_executions WHERE id = $1`, [execId]);
+      return result[0]?.output ?? 'Execution completed';
+    });
+    workflowScheduler.processWorkflowJobs(config.redisUrl, 2);
+    // Expose scheduler for workflow routes
+    app.decorate('workflowScheduler', workflowScheduler);
+    console.log('[Forge] Workflow scheduler initialized (BullMQ DAG engine)');
 
     // Clean up orphaned executions from previous process (restart recovery)
     // Two-phase: first tag resumable orphans (have checkpoint data), then mark rest as failed.
