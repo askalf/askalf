@@ -3,7 +3,7 @@
 
 import { ulid } from 'ulid';
 import { query, queryOne } from '@substrate/database';
-import { generateApiKey, hashToken } from './password.js';
+import { generateApiKey, hashToken, verifyTokenHash } from './password.js';
 import type { ApiKey, SafeApiKey, ApiKeyScope } from './types.js';
 
 /**
@@ -88,32 +88,34 @@ export async function createApiKey(
  * Returns the API key record if valid, null otherwise
  */
 export async function validateApiKey(key: string): Promise<ApiKey | null> {
-  const keyHash = await hashToken(key);
-
+  // Fetch all active, non-expired API keys (we'll verify the hash in memory)
   const sql = `
     SELECT * FROM api_keys
-    WHERE key_hash = $1
-      AND status = 'active'
+    WHERE status = 'active'
       AND (expires_at IS NULL OR expires_at > NOW())
   `;
 
-  const row = await queryOne<Record<string, unknown>>(sql, [keyHash]);
+  const rows = await query<Record<string, unknown>>(sql, []);
 
-  if (!row) {
-    return null;
+  // Find matching key by verifying hash
+  for (const row of rows) {
+    const storedHash = row['key_hash'] as string;
+    if (await verifyTokenHash(key, storedHash)) {
+      // Update usage stats
+      await query(
+        `
+        UPDATE api_keys
+        SET last_used_at = NOW(), usage_count = usage_count + 1
+        WHERE id = $1
+      `,
+        [row['id']]
+      );
+
+      return rowToApiKey(row);
+    }
   }
 
-  // Update usage stats
-  await query(
-    `
-    UPDATE api_keys
-    SET last_used_at = NOW(), usage_count = usage_count + 1
-    WHERE id = $1
-  `,
-    [row['id']]
-  );
-
-  return rowToApiKey(row);
+  return null;
 }
 
 /**
