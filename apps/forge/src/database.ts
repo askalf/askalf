@@ -15,11 +15,17 @@ export function initializeDatabase(connectionString: string): void {
     max: 40,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 15000,
-    statement_timeout: 30000, // 30s — prevent runaway queries from starving the pool
   });
 
   pool.on('error', (err) => {
     console.error('[DB] Unexpected error on idle client:', err);
+  });
+
+  // Set statement_timeout per-connection (not as startup param — PGBouncer doesn't support it)
+  pool.on('connect', (client) => {
+    client.query('SET statement_timeout = 30000').catch((err) => {
+      console.warn('[DB] Failed to set statement_timeout:', err.message);
+    });
   });
 }
 
