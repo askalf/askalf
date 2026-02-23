@@ -45,6 +45,7 @@ export const ADMIN_TAB_SECTIONS: TabSection[] = [
     label: 'Observe',
     tabs: [
       { key: 'costs', label: 'Costs' },
+      { key: 'performance', label: 'Performance' },
       { key: 'providers', label: 'Providers' },
       { key: 'guardrails', label: 'Guardrails' },
       { key: 'audit', label: 'Audit' },

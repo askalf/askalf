@@ -214,6 +214,31 @@ export interface AgentActivity {
   has_interventions: boolean;
 }
 
+export interface AgentPerformanceEntry {
+  agentId: string;
+  agentName: string;
+  totalExecutions: number;
+  completed: number;
+  failed: number;
+  cancelled: number;
+  successRate: number;
+  failureRate: number;
+  avgDurationMs: number;
+  totalCost: number;
+  ticketsCompleted: number;
+}
+
+export interface AgentPerformanceReport {
+  days: number;
+  fleet: {
+    totalExecutions: number;
+    successRate: number;
+    failureRate: number;
+    totalCost: number;
+  };
+  agents: AgentPerformanceEntry[];
+}
+
 export interface SystemMetrics {
   users: { total: number; active_24h: number; new_7d: number };
   shards: { total: number; high_confidence: number; success_rate: number };
@@ -604,6 +629,9 @@ export const hubApi = {
 
     updateModel: (id: string, model_id: string) =>
       apiFetch(`/api/v1/admin/agents/${id}/model`, { method: 'PATCH', body: JSON.stringify({ model_id }) }),
+
+    performance: (days = 7) =>
+      apiFetch<AgentPerformanceReport>(`/api/v1/admin/agents/performance?days=${days}`),
   },
 
   orchestration: {
