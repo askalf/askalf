@@ -292,4 +292,31 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       return reply.send({ success: true, deleted: id });
     },
   );
+
+  /**
+   * GET /api/v1/forge/admin/deployment-logs - Last 50 deployment log entries
+   */
+  app.get(
+    '/api/v1/forge/admin/deployment-logs',
+    { preHandler: [authMiddleware] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const rows = await query<{
+        id: string;
+        service: string;
+        action: string;
+        status: string;
+        health_result: Record<string, unknown> | null;
+        latency_ms: number | null;
+        agent_name: string | null;
+        created_at: string;
+      }>(
+        `SELECT id, service, action, status, health_result, latency_ms, agent_name, created_at
+         FROM deployment_logs
+         ORDER BY created_at DESC
+         LIMIT 50`,
+      );
+
+      return reply.send({ logs: rows, count: rows.length });
+    },
+  );
 }
