@@ -5,7 +5,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
-import { query, queryOne } from '../database.js';
+import { query, queryOne, retryQuery } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 interface SemanticMemoryRow {
@@ -105,15 +105,17 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
           [agentId, userId, `%${qs.q}%`, limit],
         );
 
-        // Update access counts
+        // Update access counts with retry on transient DB errors
         if (memories.length > 0) {
           const memoryIds = memories.map((m) => m.id);
-          void query(
+          void retryQuery(
             `UPDATE forge_semantic_memories
              SET access_count = access_count + 1, last_accessed = NOW()
              WHERE id = ANY($1)`,
             [memoryIds],
-          ).catch(() => {});
+          ).catch((err) => {
+            console.warn('[Memory] Failed to update access counts after retries:', err instanceof Error ? err.message : err);
+          });
         }
 
         return reply.send({ type: 'semantic', memories, total: memories.length });
