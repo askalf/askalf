@@ -7,6 +7,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireAdmin } from '../middleware/session-auth.js';
 import { getCostSummary, getDailyCosts } from '../observability/cost-tracker.js';
 import { getAuditLog, logAudit } from '../observability/audit.js';
 
@@ -31,7 +32,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/admin/costs',
-    { preHandler: [authMiddleware] },
+    { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const qs = request.query as {
@@ -59,7 +60,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/admin/audit',
-    { preHandler: [authMiddleware] },
+    { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const qs = request.query as {
@@ -90,7 +91,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/admin/guardrails',
-    { preHandler: [authMiddleware] },
+    { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const body = request.body as {
@@ -206,7 +207,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/admin/guardrails',
-    { preHandler: [authMiddleware] },
+    { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
 
@@ -226,7 +227,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    */
   app.patch(
     '/api/v1/forge/admin/guardrails/:id',
-    { preHandler: [authMiddleware] },
+    { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const { id } = request.params as { id: string };
@@ -275,7 +276,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    */
   app.delete(
     '/api/v1/forge/admin/guardrails/:id',
-    { preHandler: [authMiddleware] },
+    { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const { id } = request.params as { id: string };
@@ -352,7 +353,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/admin/deployment-logs',
-    { preHandler: [authMiddleware] },
+    { preHandler: [authMiddleware, requireAdmin] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const rows = await query<{
         id: string;

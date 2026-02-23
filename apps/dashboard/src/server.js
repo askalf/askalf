@@ -26,6 +26,8 @@ import {
   changePassword,
   createUser,
 } from '@substrate/auth';
+import { getMasterSession } from './master-session.js';
+import { createEventBridge } from './event-bridge.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -358,6 +360,76 @@ fastify.get('/ws', { websocket: true }, async (socket, req) => {
   });
 });
 
+// ===========================================
+// WEBSOCKET - Master Session (Claude Code PTY)
+// ===========================================
+
+const masterSession = getMasterSession();
+
+fastify.get('/ws/master', { websocket: true }, async (socket, req) => {
+  // Admin-only: require authenticated admin session
+  const user = await getUserFromSession(req);
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+    socket.close(4403, 'Admin access required');
+    return;
+  }
+
+  // Register this WebSocket as a subscriber
+  masterSession.addSubscriber(socket);
+  console.log(`[MasterSession] WS client connected (user: ${user.id})`);
+
+  // Send history buffer for reconnection
+  const history = masterSession.getHistory();
+  if (history.length > 0) {
+    socket.send(JSON.stringify({ type: 'history', data: history }));
+  }
+
+  // Send current status
+  socket.send(JSON.stringify({ type: 'status', data: masterSession.getStatus() }));
+
+  socket.on('message', (msg) => {
+    try {
+      const parsed = JSON.parse(msg.toString());
+      switch (parsed.type) {
+        case 'input':
+          masterSession.sendInput(parsed.data || '');
+          break;
+        case 'signal':
+          masterSession.sendSignal(parsed.signal || 'SIGINT');
+          break;
+        case 'resize':
+          if (parsed.cols && parsed.rows) {
+            masterSession.resize(parsed.cols, parsed.rows);
+          }
+          break;
+        case 'restart':
+          masterSession.restart();
+          break;
+        default:
+          break;
+      }
+    } catch {
+      // ignore invalid messages
+    }
+  });
+
+  socket.on('close', () => {
+    masterSession.removeSubscriber(socket);
+    console.log(`[MasterSession] WS client disconnected`);
+  });
+
+  socket.on('error', () => {
+    masterSession.removeSubscriber(socket);
+  });
+});
+
+// Master session status endpoint (REST)
+fastify.get('/api/v1/admin/master-session/status', async (request, reply) => {
+  const admin = await requireAdmin(request, reply);
+  if (!admin) return { error: 'Admin access required' };
+  return masterSession.getStatus();
+});
+
 // Periodic broadcast (every 30 seconds - reduced from 5s to prevent database overload)
 // 6 queries per broadcast * 2 broadcasts/minute = 12 queries/minute (vs 72 before)
 setInterval(async () => {
@@ -375,105 +447,65 @@ setInterval(async () => {
 // API ENDPOINTS
 // ===========================================
 
-// Reusable stats function - only counts PUBLIC data (excludes system shards)
+// Reusable stats function - uses forge tables (legacy SUBSTRATE tables removed)
 async function getStats() {
-  const publicFilter = "(visibility = 'public' OR (owner_id IS NULL AND visibility != 'system'))";
-
-  const [shards, traces, executions, episodes, facts, working] = await Promise.all([
+  const [agents, executions, tickets, costs] = await Promise.all([
     queryOne(`
       SELECT
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE lifecycle = 'promoted') as promoted,
-        COUNT(*) FILTER (WHERE lifecycle = 'candidate') as candidate,
-        COUNT(*) FILTER (WHERE lifecycle = 'deprecated') as deprecated,
-        AVG(confidence) as avg_confidence
-      FROM procedural_shards
-      WHERE ${publicFilter}
+        COUNT(*) FILTER (WHERE status = 'running') as running,
+        COUNT(*) FILTER (WHERE status = 'idle') as idle,
+        COUNT(*) FILTER (WHERE status = 'paused') as paused,
+        COUNT(*) FILTER (WHERE status = 'error') as errored
+      FROM agents
+      WHERE is_decommissioned = false
     `),
     queryOne(`
       SELECT
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE synthesized = true) as synthesized,
-        COUNT(*) FILTER (WHERE timestamp > NOW() - INTERVAL '24 hours') as last_24h
-      FROM reasoning_traces
-      WHERE ${publicFilter}
-    `),
-    queryOne(`
-      SELECT
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE success = true) as successful,
-        COALESCE(SUM(tokens_saved), 0) as tokens_saved,
-        COALESCE(AVG(execution_ms), 0) as avg_ms
-      FROM shard_executions
-    `),
-    queryOne(`
-      SELECT
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE success = true) as successful,
+        COUNT(*) FILTER (WHERE status = 'completed') as completed,
+        COUNT(*) FILTER (WHERE status = 'failed') as failed,
         COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') as last_24h
-      FROM episodes
-      WHERE ${publicFilter}
+      FROM forge_executions
     `),
     queryOne(`
       SELECT
         COUNT(*) as total,
-        AVG(confidence) as avg_confidence
-      FROM knowledge_facts
-      WHERE ${publicFilter}
+        COUNT(*) FILTER (WHERE status = 'open') as open,
+        COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress
+      FROM tickets
     `),
     queryOne(`
       SELECT
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE status = 'raw') as raw,
-        COUNT(*) FILTER (WHERE status = 'liquidated') as liquidated,
-        COUNT(*) FILTER (WHERE status = 'promoted') as promoted,
-        COALESCE(AVG(compression_ratio) FILTER (WHERE compression_ratio IS NOT NULL), 0) as avg_compression,
-        COALESCE(AVG(importance), 0) as avg_importance
-      FROM working_contexts
-      WHERE (expires_at IS NULL OR expires_at > NOW()) AND ${publicFilter}
+        COALESCE(SUM(cost), 0) as total_cost,
+        COALESCE(SUM(cost) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours'), 0) as today_cost
+      FROM forge_cost_events
     `),
   ]);
 
-  const successRate = executions?.total > 0
-    ? (Number(executions.successful) / Number(executions.total) * 100).toFixed(1)
-    : '0';
-
   return {
-    shards: {
-      total: Number(shards?.total ?? 0),
-      promoted: Number(shards?.promoted ?? 0),
-      candidate: Number(shards?.candidate ?? 0),
-      deprecated: Number(shards?.deprecated ?? 0),
-      avgConfidence: Number(shards?.avg_confidence ?? 0).toFixed(2),
-    },
-    traces: {
-      total: Number(traces?.total ?? 0),
-      synthesized: Number(traces?.synthesized ?? 0),
-      last24h: Number(traces?.last_24h ?? 0),
+    agents: {
+      total: Number(agents?.total ?? 0),
+      running: Number(agents?.running ?? 0),
+      idle: Number(agents?.idle ?? 0),
+      paused: Number(agents?.paused ?? 0),
+      errored: Number(agents?.errored ?? 0),
     },
     executions: {
       total: Number(executions?.total ?? 0),
-      successful: Number(executions?.successful ?? 0),
-      successRate: successRate + '%',
-      tokensSaved: Number(executions?.tokens_saved ?? 0),
-      avgMs: Number(executions?.avg_ms ?? 0).toFixed(1),
+      completed: Number(executions?.completed ?? 0),
+      failed: Number(executions?.failed ?? 0),
+      last24h: Number(executions?.last_24h ?? 0),
     },
-    episodes: {
-      total: Number(episodes?.total ?? 0),
-      successful: Number(episodes?.successful ?? 0),
-      last24h: Number(episodes?.last_24h ?? 0),
+    tickets: {
+      total: Number(tickets?.total ?? 0),
+      open: Number(tickets?.open ?? 0),
+      inProgress: Number(tickets?.in_progress ?? 0),
     },
-    facts: {
-      total: Number(facts?.total ?? 0),
-      avgConfidence: Number(facts?.avg_confidence ?? 0).toFixed(2),
-    },
-    working: {
-      total: Number(working?.total ?? 0),
-      raw: Number(working?.raw ?? 0),
-      liquidated: Number(working?.liquidated ?? 0),
-      promoted: Number(working?.promoted ?? 0),
-      avgCompression: Number(working?.avg_compression ?? 0).toFixed(2),
-      avgImportance: Number(working?.avg_importance ?? 0).toFixed(2),
+    costs: {
+      total: Number(costs?.total_cost ?? 0),
+      today: Number(costs?.today_cost ?? 0),
     },
   };
 }
@@ -2191,6 +2223,18 @@ fastify.setNotFoundHandler((request, reply) => {
 });
 
 // ===========================================
+// EVENT BRIDGE - Redis subscriber for forge events
+// ===========================================
+
+let eventBridge = null;
+try {
+  eventBridge = await createEventBridge(broadcast);
+  console.log('[EventBridge] Initialized');
+} catch (err) {
+  console.warn('[EventBridge] Failed to initialize (dashboard will work without live forge events):', err.message);
+}
+
+// ===========================================
 // START SERVER
 // ===========================================
 
@@ -2198,10 +2242,18 @@ fastify.setNotFoundHandler((request, reply) => {
 const port = process.env['PORT'] ?? 3001;
 const host = process.env['HOST'] ?? '0.0.0.0';
 
-fastify.listen({ port: Number(port), host }, (err, address) => {
+fastify.listen({ port: Number(port), host }, async (err, address) => {
   if (err) {
     fastify.log.error(err);
     process.exit(1);
   }
   console.log(`SUBSTRATE Dashboard running at ${address}`);
+
+  // Start master session once at boot — not lazily on WS connect
+  try {
+    await masterSession.start();
+    console.log('[MasterSession] Started at boot');
+  } catch (startErr) {
+    console.error('[MasterSession] Failed to start at boot:', startErr.message);
+  }
 });

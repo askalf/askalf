@@ -54,6 +54,10 @@ RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
 # Production stage - minimal Alpine
 FROM node:22-alpine AS runner
 
+# Install runtime deps for node-pty + Claude Code CLI
+RUN apk add --no-cache bash git python3 make g++ && \
+    npm install -g @anthropic-ai/claude-code
+
 # Security: run as non-root
 RUN addgroup -g 1001 -S substrate && \
     adduser -S -u 1001 -G substrate substrate

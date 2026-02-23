@@ -1,0 +1,155 @@
+import { useEffect, useRef, useState } from 'react';
+import { useMasterSession } from '../../hooks/useMasterSession';
+import '@xterm/xterm/css/xterm.css';
+
+// Dynamic imports for xterm (loaded client-side only)
+let Terminal: typeof import('@xterm/xterm').Terminal | null = null;
+let FitAddon: typeof import('@xterm/addon-fit').FitAddon | null = null;
+let WebLinksAddon: typeof import('@xterm/addon-web-links').WebLinksAddon | null = null;
+
+export default function MasterSession() {
+  const termRef = useRef<HTMLDivElement>(null);
+  const terminalRef = useRef<InstanceType<typeof import('@xterm/xterm').Terminal> | null>(null);
+  const fitAddonRef = useRef<InstanceType<typeof import('@xterm/addon-fit').FitAddon> | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const { connected, status, send, sendSignal, resize, restart, onData, onHistory } = useMasterSession();
+
+  // Load xterm dynamically
+  useEffect(() => {
+    Promise.all([
+      import('@xterm/xterm'),
+      import('@xterm/addon-fit'),
+      import('@xterm/addon-web-links'),
+    ]).then(([xtermModule, fitModule, linksModule]) => {
+      Terminal = xtermModule.Terminal;
+      FitAddon = fitModule.FitAddon;
+      WebLinksAddon = linksModule.WebLinksAddon;
+      setLoaded(true);
+    });
+  }, []);
+
+  // Initialize terminal once loaded
+  useEffect(() => {
+    if (!loaded || !termRef.current || !Terminal || !FitAddon || !WebLinksAddon) return;
+    if (terminalRef.current) return; // already init
+
+    const term = new Terminal({
+      theme: {
+        background: '#0a0a0f',
+        foreground: '#e4e4e7',
+        cursor: '#a78bfa',
+        cursorAccent: '#0a0a0f',
+        selectionBackground: 'rgba(167, 139, 250, 0.3)',
+        black: '#18181b',
+        red: '#ef4444',
+        green: '#22c55e',
+        yellow: '#eab308',
+        blue: '#3b82f6',
+        magenta: '#a78bfa',
+        cyan: '#06b6d4',
+        white: '#e4e4e7',
+        brightBlack: '#52525b',
+        brightRed: '#f87171',
+        brightGreen: '#4ade80',
+        brightYellow: '#facc15',
+        brightBlue: '#60a5fa',
+        brightMagenta: '#c4b5fd',
+        brightCyan: '#22d3ee',
+        brightWhite: '#fafafa',
+      },
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+      fontSize: 13,
+      lineHeight: 1.4,
+      scrollback: 10000,
+      cursorBlink: true,
+      cursorStyle: 'block',
+      allowProposedApi: true,
+    });
+
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.loadAddon(new WebLinksAddon());
+
+    term.open(termRef.current);
+    fitAddon.fit();
+
+    terminalRef.current = term;
+    fitAddonRef.current = fitAddon;
+
+    // Forward user input to backend
+    term.onData((data) => {
+      send(data);
+    });
+
+    // Handle resize
+    const resizeObserver = new ResizeObserver(() => {
+      try {
+        fitAddon.fit();
+        resize(term.cols, term.rows);
+      } catch {
+        // ignore
+      }
+    });
+    resizeObserver.observe(termRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      term.dispose();
+      terminalRef.current = null;
+      fitAddonRef.current = null;
+    };
+  }, [loaded, send, resize]);
+
+  // Wire up data/history callbacks
+  useEffect(() => {
+    onData.current = (data: string) => {
+      terminalRef.current?.write(data);
+    };
+    onHistory.current = (history: string[]) => {
+      if (terminalRef.current) {
+        for (const chunk of history) {
+          terminalRef.current.write(chunk);
+        }
+      }
+    };
+  }, [onData, onHistory]);
+
+  const statusLabel = status?.status || 'connecting';
+  const statusColor = connected
+    ? status?.status === 'running' ? '#22c55e' : '#eab308'
+    : '#ef4444';
+
+  return (
+    <div className="ud-master-session">
+      <div className="ud-master-toolbar">
+        <div className="ud-master-status">
+          <span className="ud-health-dot" style={{ background: statusColor }} />
+          <span>{statusLabel}</span>
+          {status?.pid && <span className="ud-master-pid">PID {status.pid}</span>}
+        </div>
+        <div className="ud-master-actions">
+          <button
+            className="ud-btn-sm"
+            onClick={() => sendSignal('SIGINT')}
+            title="Send Ctrl+C"
+          >
+            Ctrl+C
+          </button>
+          <button
+            className="ud-btn-sm"
+            onClick={restart}
+            title="Restart session"
+          >
+            Restart
+          </button>
+        </div>
+      </div>
+      <div className="ud-master-terminal" ref={termRef} />
+      {!connected && (
+        <div className="ud-master-overlay">
+          <span>Reconnecting...</span>
+        </div>
+      )}
+    </div>
+  );
+}
