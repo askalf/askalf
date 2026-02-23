@@ -134,6 +134,16 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       const fields: string[] = [];
       const params: unknown[] = [];
 
+      const VALID_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
+      const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
+
+      if (body['status'] !== undefined && !VALID_STATUSES.includes(body['status'] as typeof VALID_STATUSES[number])) {
+        return reply.code(400).send({ error: 'Validation Error', message: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` });
+      }
+      if (body['priority'] !== undefined && !VALID_PRIORITIES.includes(body['priority'] as typeof VALID_PRIORITIES[number])) {
+        return reply.code(400).send({ error: 'Validation Error', message: `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}` });
+      }
+
       for (const key of ['status', 'priority', 'assigned_to', 'title', 'description', 'category', 'resolution']) {
         if (body[key] !== undefined) {
           params.push(body[key]);
@@ -229,6 +239,9 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     async (request: FastifyRequest) => {
       const { id } = request.params as { id: string };
       const { content } = request.body as { content: string };
+      if (!content || typeof content !== 'string' || !content.trim()) {
+        return reply.code(400).send({ error: 'Validation Error', message: 'content is required' });
+      }
       const noteId = ulid();
       try {
         const note = await substrateQueryOne<Record<string, unknown>>(

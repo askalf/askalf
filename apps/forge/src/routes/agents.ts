@@ -170,8 +170,8 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
         paramIndex++;
       }
 
-      const limit = Math.min(parseInt(qs.limit ?? '50', 10) || 50, 100);
-      const offset = parseInt(qs.offset ?? '0', 10) || 0;
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 100));
+      const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
 
       const whereClause = conditions.join(' AND ');
 

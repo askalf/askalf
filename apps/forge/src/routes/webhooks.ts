@@ -114,6 +114,13 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
+      if (inputText.length > 50_000) {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: 'input exceeds maximum length of 50000 characters',
+        });
+      }
+
       // Run guardrail checks
       const guardrailResult = await checkGuardrails({
         ownerId: agent.owner_id,
