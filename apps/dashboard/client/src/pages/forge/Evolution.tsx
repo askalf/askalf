@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { hubApi } from '../../hooks/useHubApi';
+import { usePolling } from '../../hooks/usePolling';
 import StatCard from '../hub/shared/StatCard';
 import './forge-observe.css';
 
@@ -51,6 +52,7 @@ export default function Evolution() {
   }, [selectedAgent]);
 
   useEffect(() => { loadExperiments(); }, [loadExperiments]);
+  usePolling(loadExperiments, 30000);
 
   const handleClone = async () => {
     if (!selectedAgent || !mutationDesc) return;

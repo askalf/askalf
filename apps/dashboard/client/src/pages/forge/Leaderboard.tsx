@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { hubApi } from '../../hooks/useHubApi';
+import { usePolling } from '../../hooks/usePolling';
 import StatCard from '../hub/shared/StatCard';
 import './forge-observe.css';
 
@@ -20,12 +21,16 @@ export default function Leaderboard() {
   const [sortBy, setSortBy] = useState<'tasksCompleted' | 'successRate' | 'avgCost' | 'totalCost'>('tasksCompleted');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    hubApi.events.leaderboard()
-      .then((data) => setEntries(Array.isArray(data) ? data as LeaderboardEntry[] : []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadLeaderboard = useCallback(async () => {
+    try {
+      const data = await hubApi.events.leaderboard();
+      setEntries(Array.isArray(data) ? data as LeaderboardEntry[] : []);
+    } catch { /* ignore */ }
+    setLoading(false);
   }, []);
+
+  useEffect(() => { loadLeaderboard(); }, [loadLeaderboard]);
+  usePolling(loadLeaderboard, 30000);
 
   const sorted = [...entries].sort((a, b) => {
     if (sortBy === 'avgCost') return a.avgCost - b.avgCost;

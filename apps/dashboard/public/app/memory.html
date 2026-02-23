@@ -949,7 +949,7 @@
       "args": [
         "-y",
         "mcp-remote",
-        "https://mcp.askalf.org/sse",
+        "https://orcastr8r.com/mcp/sse",
         "--header",
         "Authorization:${AUTH_HEADER}"
       ],
@@ -998,14 +998,12 @@
     // Dynamic URLs based on current domain
     const API_BASE = (() => {
       const host = window.location.hostname;
-      if (host.includes('askalf.org')) return 'https://api.askalf.org';
-      if (host.includes('askalf.org')) return 'https://api.askalf.org';
+      if (host.includes('orcastr8r.com')) return 'https://orcastr8r.com';
       return 'http://localhost:3000';
     })();
     const WEBSITE_URL = (() => {
       const host = window.location.hostname;
-      if (host.includes('askalf.org')) return 'https://askalf.org';
-      if (host.includes('askalf.org')) return 'https://askalf.org';
+      if (host.includes('orcastr8r.com')) return 'https://orcastr8r.com';
       return 'http://localhost:8080';
     })();
     let ws = null;
@@ -1241,7 +1239,7 @@
       "args": [
         "-y",
         "mcp-remote",
-        "https://mcp.askalf.org/sse",
+        "https://orcastr8r.com/mcp/sse",
         "--header",
         "Authorization:\${AUTH_HEADER}"
       ],

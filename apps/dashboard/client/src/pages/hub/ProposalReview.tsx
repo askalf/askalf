@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { hubApi, type Proposal, type ProposalDetail, type ProposalReview as Review } from '../../hooks/useHubApi';
+import { usePolling } from '../../hooks/usePolling';
 import FilterBar from './shared/FilterBar';
 import StatusBadge from './shared/StatusBadge';
 import Modal from './shared/Modal';
@@ -56,6 +57,22 @@ export default function ProposalReviewPage() {
   useEffect(() => {
     fetchProposals();
   }, [fetchProposals]);
+
+  // Auto-refresh proposals every 15s (human decision page)
+  const pollProposals = useCallback(async () => {
+    try {
+      const params: { status?: string; proposalType?: string; limit: number; offset: number } = {
+        limit: PAGE_SIZE,
+        offset,
+      };
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (typeFilter) params.proposalType = typeFilter;
+      const data = await hubApi.proposals.list(params);
+      setProposals(data.proposals);
+      setTotal(data.total);
+    } catch { /* swallow */ }
+  }, [statusFilter, typeFilter, offset]);
+  usePolling(pollProposals, 15000);
 
   // Reset offset when filters change
   useEffect(() => {

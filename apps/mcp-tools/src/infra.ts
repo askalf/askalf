@@ -126,7 +126,7 @@ export const TOOLS = [
       type: 'object' as const,
       properties: {
         action: { type: 'string', enum: ['status', 'logs', 'restart', 'build', 'health_check'] },
-        service: { type: 'string', description: 'Service name: dashboard, forge, nginx, self, mcp-tools, searxng, askalf' },
+        service: { type: 'string', description: 'Service name: dashboard, forge, nginx, self, mcp-tools, searxng' },
         tail: { type: 'number' },
         intervention_id: { type: 'string', description: 'Approved intervention ID for restart/build' },
         agent_name: { type: 'string' },
@@ -173,7 +173,7 @@ const PROTECTED_CONTAINERS = [
   'sprayberry-labs-dashboard', 'sprayberry-labs-forge',
   'sprayberry-labs-nginx', 'sprayberry-labs-postgres', 'sprayberry-labs-redis',
   'sprayberry-labs-pgbouncer', 'sprayberry-labs-cloudflared', 'sprayberry-labs-self',
-  'sprayberry-labs-mcp-tools', 'sprayberry-labs-searxng', 'sprayberry-labs-askalf',
+  'sprayberry-labs-mcp-tools', 'sprayberry-labs-searxng',
 ];
 
 async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
@@ -276,7 +276,6 @@ const SERVICE_MAP: Record<string, string> = {
   dashboard: 'sprayberry-labs-dashboard', forge: 'sprayberry-labs-forge',
   nginx: 'sprayberry-labs-nginx', self: 'sprayberry-labs-self',
   'mcp-tools': 'sprayberry-labs-mcp-tools', searxng: 'sprayberry-labs-searxng',
-  askalf: 'sprayberry-labs-askalf',
 };
 const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
 
