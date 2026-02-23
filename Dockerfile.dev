@@ -1,6 +1,6 @@
 # Shared development Dockerfile for all TypeScript services
 # No multi-stage build, no compilation — tsx watch handles everything
-FROM node:20-slim
+FROM node:22-alpine
 
 # Build tools for native modules (isolated-vm, bcrypt, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
