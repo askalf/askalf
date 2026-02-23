@@ -6,7 +6,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Static } from '@sinclair/typebox';
 import { ulid } from 'ulid';
-import { query, queryOne } from '../database.js';
+import { query, queryOne, retryQuery } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails } from '../observability/guardrails.js';
@@ -319,11 +319,13 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         console.error(`[Sessions] Execution ${executionId} failed:`, err instanceof Error ? err.message : err);
       });
 
-      // Update session's updated_at
-      void query(
+      // Update session's updated_at with retry on transient DB errors
+      void retryQuery(
         `UPDATE forge_sessions SET updated_at = NOW() WHERE id = $1`,
         [sessionId],
-      ).catch(() => {});
+      ).catch((err) => {
+        console.warn('[Sessions] Failed to update updated_at after retries:', err instanceof Error ? err.message : err);
+      });
 
       void logAudit({
         ownerId: userId,

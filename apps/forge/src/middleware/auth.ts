@@ -7,7 +7,7 @@
 
 import { createHash } from 'node:crypto';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { query, queryOne } from '../database.js';
+import { query, queryOne, retryQuery } from '../database.js';
 import { sessionAuthMiddleware } from './session-auth.js';
 
 interface ApiKeyRow {
@@ -59,11 +59,13 @@ async function tryApiKeyAuth(request: FastifyRequest): Promise<boolean> {
   if (!apiKey || !apiKey.is_active) return false;
   if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) return false;
 
-  // Update last_used_at asynchronously
-  void query(
+  // Update last_used_at asynchronously with retry on transient DB errors
+  void retryQuery(
     `UPDATE forge_api_keys SET last_used_at = NOW() WHERE id = $1`,
     [apiKey.id],
-  ).catch(() => {});
+  ).catch((err) => {
+    console.warn('[Auth] Failed to update last_used_at after retries:', err instanceof Error ? err.message : err);
+  });
 
   request.userId = apiKey.owner_id;
   request.apiKeyId = apiKey.id;
