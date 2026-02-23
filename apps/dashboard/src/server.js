@@ -1412,9 +1412,12 @@ fastify.patch('/api/user/profile', async (request, reply) => {
     return { error: 'Not authenticated' };
   }
 
-  const { name } = request.body || {};
+  const { name, preferredName } = request.body || {};
   if (name !== undefined) {
     await query('UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2', [name, user.id]);
+  }
+  if (preferredName !== undefined) {
+    await query('UPDATE users SET display_name = $1, updated_at = NOW() WHERE id = $2', [preferredName, user.id]);
   }
 
   return { success: true };

@@ -8,6 +8,7 @@ import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
+import type { ForgeScheduler } from '../orchestration/scheduler.js';
 
 interface WorkflowRow {
   id: string;
@@ -304,23 +305,30 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      const runId = ulid();
+      // Use the ForgeScheduler to create and enqueue the workflow run
+      const scheduler = (app as unknown as { workflowScheduler?: ForgeScheduler }).workflowScheduler;
+      if (!scheduler) {
+        // Fallback: create record but don't execute (scheduler not initialized)
+        const runId = ulid();
+        const nodes = workflow.definition.nodes as Array<{ id: string }>;
+        const firstNode = nodes.length > 0 ? (nodes[0]?.id ?? null) : null;
+        const run = await queryOne<WorkflowRunRow>(
+          `INSERT INTO forge_workflow_runs (id, workflow_id, owner_id, input, status, current_node, started_at)
+           VALUES ($1, $2, $3, $4, 'pending', $5, NOW()) RETURNING *`,
+          [runId, workflowId, userId, JSON.stringify(body?.input ?? {}), firstNode],
+        );
+        return reply.status(201).send({ run, warning: 'Workflow scheduler not available — run created but not executing' });
+      }
 
-      // Determine the first node from the workflow definition
-      const nodes = workflow.definition.nodes as Array<{ id: string }>;
-      const firstNode = nodes.length > 0 ? (nodes[0]?.id ?? null) : null;
+      const { runId } = await scheduler.scheduleWorkflowRun(
+        workflowId,
+        body?.input ?? {},
+        userId,
+      );
 
       const run = await queryOne<WorkflowRunRow>(
-        `INSERT INTO forge_workflow_runs (id, workflow_id, owner_id, input, status, current_node, started_at)
-         VALUES ($1, $2, $3, $4, 'pending', $5, NOW())
-         RETURNING *`,
-        [
-          runId,
-          workflowId,
-          userId,
-          JSON.stringify(body?.input ?? {}),
-          firstNode,
-        ],
+        `SELECT * FROM forge_workflow_runs WHERE id = $1`,
+        [runId],
       );
 
       void logAudit({
@@ -333,7 +341,6 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
         userAgent: request.headers['user-agent'],
       }).catch(() => {});
 
-      // In a full implementation, this would enqueue the workflow execution.
       return reply.status(201).send({ run });
     },
   );
