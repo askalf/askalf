@@ -294,6 +294,60 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
+   * GET /api/v1/forge/user/export - GDPR user data export
+   * Returns all user data as a downloadable JSON file.
+   */
+  app.get(
+    '/api/v1/forge/user/export',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+
+      const [profile, apiKeys, usageHistory, activityLog] = await Promise.all([
+        queryOne<Record<string, unknown>>(
+          `SELECT id, email, display_name, role, status, timezone, created_at, last_login_at
+           FROM users WHERE id = $1`,
+          [userId],
+        ),
+        query<{
+          id: string; name: string; key_prefix: string;
+          permissions: string[]; last_used_at: string | null;
+          expires_at: string | null; is_active: boolean; created_at: string;
+        }>(
+          `SELECT id, name, key_prefix, permissions, last_used_at, expires_at, is_active, created_at
+           FROM forge_api_keys WHERE owner_id = $1 ORDER BY created_at DESC`,
+          [userId],
+        ),
+        query<{ id: string; agent_id: string; input: string; status: string; cost: string | null; started_at: string }>(
+          `SELECT id, agent_id, input, status, cost, started_at
+           FROM forge_executions WHERE owner_id = $1
+           ORDER BY started_at DESC LIMIT 200`,
+          [userId],
+        ),
+        query<{ id: string; action: string; resource_type: string | null; ip_address: string | null; created_at: string }>(
+          `SELECT id, action, resource_type, ip_address, created_at
+           FROM audit_logs WHERE user_id = $1
+           ORDER BY created_at DESC LIMIT 500`,
+          [userId],
+        ),
+      ]);
+
+      const exportData = {
+        exported_at: new Date().toISOString(),
+        user_id: userId,
+        profile,
+        api_keys: apiKeys.map((k) => ({ ...k, key_prefix: `${k.key_prefix}...` })),
+        usage_history: usageHistory,
+        activity_log: activityLog,
+      };
+
+      void reply.header('Content-Type', 'application/json');
+      void reply.header('Content-Disposition', `attachment; filename="user-export-${userId}-${Date.now()}.json"`);
+      return reply.send(exportData);
+    },
+  );
+
+  /**
    * GET /api/v1/forge/admin/deployment-logs - Last 50 deployment log entries
    */
   app.get(
