@@ -34,6 +34,7 @@ import { gitReviewRoutes } from './routes/git-review.js';
 import { authRoutes } from './routes/auth.js';
 import { platformAdminRoutes } from './routes/platform-admin/index.js';
 import { cliRoutes } from './routes/cli.js';
+import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
 import { startTaskDispatcher, stopTaskDispatcher } from './runtime/task-dispatcher.js';
@@ -59,16 +60,21 @@ const app = Fastify({
 });
 
 // Register CORS
-await app.register(cors, {
-  origin: process.env['ALLOWED_ORIGINS']?.split(',') || [
-    'https://orcastr8r.com',
-    'https://www.orcastr8r.com',
-    'https://integration.tax',
-    'https://www.integration.tax',
+const nodeEnv = process.env['NODE_ENV'] ?? 'development';
+const corsOrigins = process.env['ALLOWED_ORIGINS']?.split(',') || [
+  'https://orcastr8r.com',
+  'https://www.orcastr8r.com',
+  'https://integration.tax',
+  'https://www.integration.tax',
+  ...(nodeEnv !== 'production' ? [
     'http://localhost:3005',
     'http://localhost:5173',
     'http://localhost:5174',
-  ],
+  ] : []),
+];
+
+await app.register(cors, {
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
 });
@@ -126,6 +132,12 @@ app.addHook('onRequest', async (request, reply) => {
     }
   }
 });
+
+// ============================================
+// CSRF PROTECTION
+// ============================================
+
+app.addHook('preHandler', csrfProtectionMiddleware);
 
 // Security headers
 app.addHook('onSend', async (_request, reply) => {

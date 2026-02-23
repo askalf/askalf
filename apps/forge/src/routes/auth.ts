@@ -9,6 +9,7 @@ import { ulid } from 'ulid';
 import { createHash } from 'node:crypto';
 import { substrateQuery, substrateQueryOne } from '../database.js';
 import { sendEmailVerificationEmail, sendPasswordResetEmail } from '@substrate/email';
+import { generateCsrfToken } from '../middleware/csrf-protection.js';
 
 // ============================================
 // Types
@@ -31,7 +32,7 @@ const isProduction = process.env['NODE_ENV'] === 'production';
 const SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: isProduction,
-  sameSite: (isProduction ? 'none' : 'lax') as 'lax' | 'none' | 'strict',
+  sameSite: (isProduction ? 'strict' : 'lax') as 'lax' | 'strict',
   path: '/',
   maxAge: 7 * 24 * 60 * 60, // 7 days (seconds)
 };
@@ -265,11 +266,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const tokenHash = await hashToken(sessionToken);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const deviceType = detectDeviceType(request.headers['user-agent'] as string);
+    const csrfToken = generateCsrfToken();
 
     await substrateQuery(
-      `INSERT INTO sessions (id, user_id, token_hash, ip_address, user_agent, device_type, expires_at, last_active_at, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
-      [sessionId, user['id'], tokenHash, request.ip, request.headers['user-agent'], deviceType, expiresAt],
+      `INSERT INTO sessions (id, user_id, token_hash, csrf_token, ip_address, user_agent, device_type, expires_at, last_active_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
+      [sessionId, user['id'], tokenHash, csrfToken, request.ip, request.headers['user-agent'], deviceType, expiresAt],
     );
 
     // Reset failed attempts + update last login
@@ -302,6 +304,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         role: user['role'],
         tenant_id: user['tenant_id'],
       },
+      csrf_token: csrfToken,
     };
   });
 
