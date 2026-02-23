@@ -225,8 +225,12 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
         };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error('[assistant/query] CLI error:', message);
-        return reply.status(500).send({ error: `Assistant query failed: ${message}` });
+        request.log.error({ err }, '[assistant/query] CLI error');
+        const isProd = process.env['NODE_ENV'] === 'production';
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: isProd ? 'Internal Server Error' : `Assistant query failed: ${message}`,
+        });
       }
     },
   );
