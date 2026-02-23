@@ -156,6 +156,9 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const body = request.body as Record<string, unknown> || {};
+      if (!body['name'] || typeof body['name'] !== 'string' || !(body['name'] as string).trim()) {
+        return reply.code(400).send({ error: 'Validation Error', message: 'name is required' });
+      }
       const id = ulid();
       const slug = ((body['name'] as string) || 'agent').toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const agent = await queryOne<ForgeAgent>(
@@ -223,6 +226,9 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         if (!exec?.agentId || !exec?.input) {
           return reply.code(400).send({ error: `Execution at index ${i} missing agentId or input` });
         }
+        if (exec.input.length > 100_000) {
+          return reply.code(400).send({ error: `Execution at index ${i} input exceeds maximum length of 100000 characters` });
+        }
       }
 
       // Verify all agents exist
@@ -268,14 +274,15 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest) => {
       const qs = request.query as { agentId?: string; limit?: string };
-      const limit = Math.min(parseInt(qs.limit || '100'), 500);
+      const limit = Math.max(1, Math.min(parseInt(qs.limit || '100') || 100, 500));
       let sql = `SELECT * FROM forge_executions`;
       const params: unknown[] = [];
       if (qs.agentId) {
         params.push(qs.agentId);
         sql += ` WHERE agent_id = $1`;
       }
-      sql += ` ORDER BY created_at DESC LIMIT ${limit}`;
+      params.push(limit);
+      sql += ` ORDER BY created_at DESC LIMIT $${params.length}`;
       const executions = await query<ForgeExecution>(sql, params);
       return { executions };
     }

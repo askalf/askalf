@@ -90,7 +90,7 @@ export const UpdateAgentBody = Type.Object({
   maxCostPerExecution: Type.Optional(Type.Number({ minimum: 0 })),
   isPublic: Type.Optional(Type.Boolean()),
   isTemplate: Type.Optional(Type.Boolean()),
-  status: Type.Optional(Type.String()),
+  status: Type.Optional(Type.Union([Type.Literal('draft'), Type.Literal('active'), Type.Literal('paused'), Type.Literal('archived')])),
   metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
 });
 

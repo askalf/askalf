@@ -78,16 +78,16 @@ export async function registerSchedulingRoutes(app: FastifyInstance): Promise<vo
       if (qs.action) { params.push(qs.action); conditions.push(`action = $${params.length}`); }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-      const limit = Math.min(parseInt(qs.limit ?? '50'), 100);
-      const offset = parseInt(qs.offset ?? '0') || 0;
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50') || 50, 100));
+      const offset = Math.max(0, parseInt(qs.offset ?? '0') || 0);
 
       const [entries, countResult] = await Promise.all([
         substrateQuery(
           `SELECT id, entity_type, entity_id, action, actor, actor_id, old_value, new_value, execution_id, created_at
            FROM agent_audit_log ${where}
            ORDER BY created_at DESC
-           LIMIT ${limit} OFFSET ${offset}`,
-          params,
+           LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+          [...params, limit, offset],
         ),
         substrateQueryOne<{ total: number }>(`SELECT COUNT(*)::int as total FROM agent_audit_log ${where}`, params),
       ]);

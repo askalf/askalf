@@ -236,6 +236,11 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
         paramIndex++;
       };
 
+      const VALID_WORKFLOW_STATUSES = ['draft', 'active', 'paused', 'archived'] as const;
+      if (body.status !== undefined && !VALID_WORKFLOW_STATUSES.includes(body.status as typeof VALID_WORKFLOW_STATUSES[number])) {
+        return reply.status(400).send({ error: 'Validation Error', message: `Invalid status. Must be one of: ${VALID_WORKFLOW_STATUSES.join(', ')}` });
+      }
+
       if (body.name !== undefined) addParam('name', body.name);
       if (body.description !== undefined) addParam('description', body.description);
       if (body.definition !== undefined) addParam('definition', JSON.stringify(body.definition));
