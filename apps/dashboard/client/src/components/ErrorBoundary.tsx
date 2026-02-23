@@ -164,7 +164,7 @@ class ErrorBoundary extends Component<Props, State> {
               {statusMessage}
             </p>
 
-            {this.state.error && (
+            {this.state.error && import.meta.env.DEV && (
               <details style={{
                 marginBottom: '1.5rem',
                 textAlign: 'left',
@@ -175,7 +175,7 @@ class ErrorBoundary extends Component<Props, State> {
                 overflow: 'auto',
               }}>
                 <summary style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
-                  Error Details
+                  Error Details (dev only)
                 </summary>
                 <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                   {this.state.error.toString()}
