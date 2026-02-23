@@ -1,5 +1,5 @@
 # SUBSTRATE Dashboard - Optimized production build
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Install build dependencies for native modules
 RUN apk add --no-cache python3 make g++ linux-headers
@@ -52,7 +52,7 @@ RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
     cp /app/apps/dashboard/public/docs.html /app/deploy/public/docs.html
 
 # Production stage - minimal Alpine
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 # Security: run as non-root
 RUN addgroup -g 1001 -S substrate && \
