@@ -307,8 +307,8 @@ export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> 
 
         return reply.send({ response: result.output });
       } catch (err) {
-        console.error(`[AI Review Chat] Failed:`, err);
-        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
+        request.log.error({ err }, '[AI Review Chat] Failed');
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'AI review chat failed' });
       }
     },
   );

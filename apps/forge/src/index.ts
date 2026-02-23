@@ -136,6 +136,54 @@ app.addHook('onSend', async (_request, reply) => {
   reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');
 });
 
+// ============================================
+// GLOBAL ERROR HANDLER
+// ============================================
+
+// Catches any unhandled throws from route handlers.
+// Ensures: consistent {error, message, statusCode} shape, no stack traces in production.
+app.setErrorHandler((error, request, reply) => {
+  const status = error.statusCode ?? 500;
+  const isProd = process.env['NODE_ENV'] === 'production';
+
+  request.log.error({ err: { message: error.message, name: error.name, code: (error as NodeJS.ErrnoException).code } }, 'Route error');
+
+  // In production, never reveal internal error details for 5xx
+  const message = (isProd && status >= 500)
+    ? 'Internal Server Error'
+    : (error.message || 'An unexpected error occurred');
+
+  const errorName = status >= 500
+    ? 'Internal Server Error'
+    : (error.name === 'Error' ? 'Error' : error.name) || 'Error';
+
+  reply.code(status).send({ error: errorName, message, statusCode: status });
+});
+
+// Normalize all 4xx/5xx JSON responses to include statusCode field.
+// This covers manually sent errors (reply.code(404).send({error: '...'}))
+// without requiring changes to every individual route.
+app.addHook('onSend', async (_request, reply, payload) => {
+  if (reply.statusCode < 400) return payload;
+  if (typeof payload !== 'string') return payload;
+
+  const contentType = reply.getHeader('content-type') as string | undefined;
+  if (!contentType?.includes('application/json')) return payload;
+
+  try {
+    const body = JSON.parse(payload) as Record<string, unknown>;
+    // Add statusCode if missing
+    if (body.statusCode === undefined) {
+      body.statusCode = reply.statusCode;
+    }
+    // Strip stack traces (defence in depth — should never be present but ensure it)
+    delete body.stack;
+    return JSON.stringify(body);
+  } catch {
+    return payload;
+  }
+});
+
 // Clean up rate limit map periodically
 const rateLimitCleanupInterval = setInterval(() => {
   const now = Date.now();
