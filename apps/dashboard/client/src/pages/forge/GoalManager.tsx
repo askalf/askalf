@@ -24,6 +24,7 @@ export default function GoalManager() {
   const [selectedAgent, setSelectedAgent] = useState('');
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [proposing, setProposing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -31,6 +32,7 @@ export default function GoalManager() {
 
   const loadGoals = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       if (selectedAgent) {
         const data = await hubApi.goals.list(selectedAgent, statusFilter || undefined) as Goal[];
@@ -40,7 +42,10 @@ export default function GoalManager() {
         const list = (data as { goals?: Goal[] })?.goals ?? [];
         setGoals(Array.isArray(list) ? list : []);
       }
-    } catch { setGoals([]); }
+    } catch {
+      setError('Failed to load goals. The goals API may be unavailable.');
+      setGoals([]);
+    }
     setLoading(false);
   }, [selectedAgent, statusFilter]);
 
@@ -100,9 +105,16 @@ export default function GoalManager() {
           </div>
         </div>
 
-        {loading && <div className="fo-empty">Loading goals...</div>}
+        {loading && <div className="fo-loading-state">Loading goals...</div>}
 
-        {!loading && goals.length === 0 && (
+        {!loading && error && (
+          <div className="fo-error-state">
+            <span>{error}</span>
+            <button className="hub-btn hub-btn--sm" onClick={loadGoals} style={{ marginLeft: '12px' }}>Retry</button>
+          </div>
+        )}
+
+        {!loading && !error && goals.length === 0 && (
           <div className="fo-empty">{selectedAgent ? 'No goals for this agent. Click "Propose Goals" to analyze performance and suggest improvements.' : 'No goals across the fleet yet. Select an agent to propose goals.'}</div>
         )}
 

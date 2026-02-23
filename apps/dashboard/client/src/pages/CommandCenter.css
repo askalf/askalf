@@ -458,6 +458,45 @@
   margin: 0;
 }
 
+.fo-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  gap: 0.5rem;
+}
+
+.fo-loading-state::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--color-primary, #818cf8);
+  border-radius: 50%;
+  animation: fo-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes fo-spin {
+  to { transform: rotate(360deg); }
+}
+
+.fo-error-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  margin: 0.5rem 0;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  color: #fca5a5;
+  font-size: 0.875rem;
+}
+
 /* Fleet Grid */
 .fo-fleet-grid {
   display: flex;
