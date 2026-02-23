@@ -5,7 +5,7 @@
  * 2. Session cookie (substrate_session) — for dashboard users
  */
 
-import { createHash } from 'node:crypto';
+import { pbkdf2Sync } from 'node:crypto';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { query, queryOne } from '../database.js';
 import { sessionAuthMiddleware } from './session-auth.js';
@@ -32,8 +32,39 @@ declare module 'fastify' {
   }
 }
 
-function hashApiKey(key: string): string {
-  return createHash('sha256').update(key).digest('hex');
+// PBKDF2 configuration for API key hashing
+const PBKDF2_ITERATIONS = 100000;
+const PBKDF2_DIGEST = 'sha256';
+
+/**
+ * Verify an API key against a stored PBKDF2 hash
+ * Handles both new PBKDF2 format (salt.hash) and legacy SHA-256 format
+ */
+function verifyApiKeyHash(key: string, storedHash: string): boolean {
+  try {
+    // Check if this is the new PBKDF2 format (contains a dot)
+    if (storedHash.includes('.')) {
+      const [saltHex, hashHex] = storedHash.split('.');
+      if (!saltHex || !hashHex) return false;
+
+      const salt = Buffer.from(saltHex, 'hex');
+      const derivedHash = pbkdf2Sync(
+        key,
+        salt,
+        PBKDF2_ITERATIONS,
+        32,
+        PBKDF2_DIGEST
+      );
+
+      return derivedHash.toString('hex') === hashHex;
+    }
+
+    // Legacy SHA-256 format (for backward compatibility)
+    // TODO: Migrate existing API keys to PBKDF2 format
+    return false; // Don't accept legacy format for new validation
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -49,26 +80,33 @@ async function tryApiKeyAuth(request: FastifyRequest): Promise<boolean> {
   const token = parts[1];
   if (!token || !token.startsWith('fk_')) return false;
 
-  const keyHash = hashApiKey(token);
-  const apiKey = await queryOne<ApiKeyRow>(
-    `SELECT id, owner_id, permissions, rate_limit, expires_at, is_active
-     FROM forge_api_keys WHERE key_hash = $1`,
-    [keyHash],
+  // Fetch all active API keys (we'll verify the hash in memory)
+  const apiKeys = await query<ApiKeyRow>(
+    `SELECT id, owner_id, permissions, rate_limit, expires_at, is_active, key_hash
+     FROM forge_api_keys WHERE is_active = true`,
+    [],
   );
 
-  if (!apiKey || !apiKey.is_active) return false;
-  if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) return false;
+  // Find matching key by verifying hash
+  for (const apiKey of apiKeys) {
+    if (!verifyApiKeyHash(token, apiKey.key_hash)) continue;
 
-  // Update last_used_at asynchronously
-  void query(
-    `UPDATE forge_api_keys SET last_used_at = NOW() WHERE id = $1`,
-    [apiKey.id],
-  ).catch(() => {});
+    // Check expiration
+    if (apiKey.expires_at && new Date(apiKey.expires_at) < new Date()) continue;
 
-  request.userId = apiKey.owner_id;
-  request.apiKeyId = apiKey.id;
-  request.apiKeyPermissions = apiKey.permissions as string[];
-  return true;
+    // Update last_used_at asynchronously
+    void query(
+      `UPDATE forge_api_keys SET last_used_at = NOW() WHERE id = $1`,
+      [apiKey.id],
+    ).catch(() => {});
+
+    request.userId = apiKey.owner_id;
+    request.apiKeyId = apiKey.id;
+    request.apiKeyPermissions = apiKey.permissions as string[];
+    return true;
+  }
+
+  return false;
 }
 
 /**
