@@ -13,6 +13,7 @@ const STATUS_COLORS: Record<string, string> = {
   // Ticket statuses
   open: '#3b82f6',
   resolved: '#10b981',
+  closed: '#6b7280',
   decommissioned: '#6b7280',
   // Intervention statuses
   approved: '#10b981',

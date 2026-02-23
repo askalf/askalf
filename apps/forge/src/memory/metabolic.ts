@@ -140,10 +140,11 @@ export function startMetabolicCycles(): void {
     void proposeAllRevisions().catch(logErr('prompt-rewrite'));
   }, 6 * 60 * 60 * 1000);
 
-  // Goal proposals: every 8 hours (Phase 9)
-  goalProposalTimer = setInterval(() => {
-    void proposeAllGoals().catch(logErr('goal-proposal'));
-  }, 8 * 60 * 60 * 1000);
+  // Goal proposals: DISABLED — generated non-actionable tickets that cluttered the queue.
+  // Goals can still be manually proposed via the API.
+  // goalProposalTimer = setInterval(() => {
+  //   void proposeAllGoals().catch(logErr('goal-proposal'));
+  // }, 8 * 60 * 60 * 1000);
 
   // Autonomy loop: every 15 minutes (Level 4)
   // Auto-approves goals, converts to tickets, applies prompt revisions, optimizes models
