@@ -1645,11 +1645,14 @@ function executeClaudeCode(
       let stdout = '';
       let stderr = '';
       let killed = false;
+      const MAX_BUFFER = 2 * 1024 * 1024; // 2MB cap — prevent OOM from verbose agents
 
-      proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+      proc.stdout.on('data', (chunk: Buffer) => {
+        if (stdout.length < MAX_BUFFER) stdout += chunk.toString().slice(0, MAX_BUFFER - stdout.length);
+      });
       proc.stderr.on('data', (chunk: Buffer) => {
         const text = chunk.toString();
-        stderr += text;
+        if (stderr.length < MAX_BUFFER) stderr += text.slice(0, MAX_BUFFER - stderr.length);
         // Log first few lines in real-time for diagnostics
         const lines = text.trim().split('\n');
         for (const line of lines.slice(0, 3)) {

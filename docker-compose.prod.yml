@@ -668,11 +668,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.5'
+          memory: 1024M
         reservations:
-          cpus: '0.05'
-          memory: 64M
+          cpus: '0.1'
+          memory: 256M
 
 # Production volumes (isolated from dev)
 volumes:
