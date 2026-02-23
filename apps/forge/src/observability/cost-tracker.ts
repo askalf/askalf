@@ -55,28 +55,52 @@ interface CostEventRow {
 
 /**
  * Record a cost event for an execution.
+ * Retries up to 3 times with exponential backoff to prevent silent data loss.
  */
 export async function trackCost(opts: TrackCostOptions): Promise<string> {
   const id = ulid();
+  const MAX_RETRIES = 3;
 
-  await query(
-    `INSERT INTO forge_cost_events (id, execution_id, agent_id, owner_id, provider, model, input_tokens, output_tokens, cost, metadata)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-    [
-      id,
-      opts.executionId,
-      opts.agentId,
-      opts.ownerId,
-      opts.provider,
-      opts.model,
-      opts.inputTokens,
-      opts.outputTokens,
-      opts.cost,
-      JSON.stringify(opts.metadata ?? {}),
-    ],
-  );
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await query(
+        `INSERT INTO forge_cost_events (id, execution_id, agent_id, owner_id, provider, model, input_tokens, output_tokens, cost, metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          id,
+          opts.executionId,
+          opts.agentId,
+          opts.ownerId,
+          opts.provider,
+          opts.model,
+          opts.inputTokens,
+          opts.outputTokens,
+          opts.cost,
+          JSON.stringify(opts.metadata ?? {}),
+        ],
+      );
+      return id;
+    } catch (err) {
+      if (attempt < MAX_RETRIES) {
+        const delayMs = 500 * Math.pow(2, attempt); // 500ms, 1s, 2s
+        console.warn(`[Cost] Retry ${attempt + 1}/${MAX_RETRIES} for execution ${opts.executionId} (waiting ${delayMs}ms):`, err instanceof Error ? err.message : err);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      } else {
+        // Final failure — log enough detail to reconstruct manually
+        console.error(`[Cost] FAILED to record cost after ${MAX_RETRIES} retries. MANUAL RECOVERY NEEDED:`, JSON.stringify({
+          executionId: opts.executionId,
+          agentId: opts.agentId,
+          cost: opts.cost,
+          inputTokens: opts.inputTokens,
+          outputTokens: opts.outputTokens,
+          model: opts.model,
+        }));
+        throw err;
+      }
+    }
+  }
 
-  return id;
+  return id; // unreachable but satisfies TS
 }
 
 /**
