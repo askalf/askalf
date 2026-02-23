@@ -504,8 +504,12 @@ async function runSchedulerTick(): Promise<void> {
         [agentName],
       ).catch(() => [] as { id: string; title: string; priority: string; description: string }[]);
 
-      // If no tickets assigned, skip this agent entirely — don't waste money on busywork
-      if (assignedTickets.length === 0) {
+      // Monitor agents (create tickets/findings for others) are exempt from ticket-gating
+      const MONITOR_AGENTS = ['Heartbeat', 'QA Engineer'];
+      const isMonitor = MONITOR_AGENTS.includes(agentName);
+
+      // If no tickets assigned and not a monitor agent, skip entirely — don't waste money on busywork
+      if (assignedTickets.length === 0 && !isMonitor) {
         // Advance next_run_at so we check again later
         await substrateQuery(
           `UPDATE agent_schedules SET next_run_at = NOW() + ($1 || ' minutes')::INTERVAL WHERE agent_id = $2`,
@@ -515,10 +519,46 @@ async function runSchedulerTick(): Promise<void> {
         continue;
       }
 
-      const ticketBlock = `\n\nYOUR ASSIGNED TICKETS:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket and work on it.`;
+      let input: string;
 
-      // Always use the standard ticket-focused prompt — no custom busywork prompts
-      const input = `[WORK CYCLE — ${new Date().toISOString()}] You are ${agentName}.
+      if (isMonitor) {
+        // Monitor agents get a patrol/audit prompt — they CREATE tickets, not work them
+        const ownTicketBlock = assignedTickets.length > 0
+          ? `\n\nYOU ALSO HAVE ${assignedTickets.length} TICKET(S) ASSIGNED TO YOU:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nWork these first before doing your patrol.`
+          : '';
+
+        input = `[PATROL CYCLE — ${new Date().toISOString()}] You are ${agentName}.
+
+You are a MONITOR agent. Your job is to patrol the system, detect issues, and create tickets/findings for other agents to act on.${ownTicketBlock}
+
+PATROL PROTOCOL:
+1. CHECK: Run your standard checks as defined in your system prompt.
+2. FINDINGS: Create findings (finding_ops) for any issues detected — categorize and describe clearly.
+3. TICKETS: For actionable issues, create tickets (ticket_ops action=create) assigned to the correct agent:
+   - Security issues → Aegis
+   - Infrastructure/container issues → DevOps
+   - Code bugs → Backend Dev
+   - UI/dashboard issues → Frontend Dev
+   - Documentation gaps → Doc Writer
+   - Architecture concerns → Architect
+4. DEDUP: Before creating any ticket, check for existing open tickets with similar title (ticket_ops action=list).
+5. SUMMARY: Create one summary finding with what you checked and what you found.
+
+RULES:
+- Do NOT fix issues yourself — create tickets for the right agent.
+- Do NOT create duplicate tickets. Check existing tickets first.
+- Batch similar issues into single tickets (e.g., "Fix 3 health check failures" not 3 tickets).
+- If everything is healthy, create a brief "all clear" finding and stop. Do NOT create tickets for non-issues.
+- BEFORE starting: search memory (memory_search) for your last patrol results.
+- AFTER completing: store what you found (memory_store) so you can compare next time.
+- EVERY patrol must leave at least one finding. No silent runs.
+
+PATROL. Detect. Report. Stop.${fleetContext}`;
+      } else {
+        const ticketBlock = `\n\nYOUR ASSIGNED TICKETS:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket and work on it.`;
+
+        // Standard ticket-focused prompt for worker agents
+        input = `[WORK CYCLE — ${new Date().toISOString()}] You are ${agentName}.
 
 You have ${assignedTickets.length} ticket(s) assigned. Work on the highest priority one.${ticketBlock}
 
@@ -541,6 +581,7 @@ RULES:
 - If you cannot complete the ticket in this cycle, add a note explaining what's left and what's blocking you.
 
 FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
+      }
 
       batchAgents.push({
         agentId,
