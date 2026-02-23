@@ -162,8 +162,11 @@ export async function cliRoutes(app: FastifyInstance): Promise<void> {
         result: `Unknown command: "${command}"\nType "help" for available commands.`,
       };
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      request.log.error({ err }, 'CLI handler error');
       return reply.status(500).send({
-        error: `CLI error: ${err instanceof Error ? err.message : String(err)}`,
+        error: 'Internal Server Error',
+        message: process.env['NODE_ENV'] === 'production' ? 'Internal Server Error' : `CLI error: ${message}`,
       });
     }
   });

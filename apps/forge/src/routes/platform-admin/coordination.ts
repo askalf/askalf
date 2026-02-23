@@ -382,10 +382,13 @@ export async function registerCoordinationRoutes(app: FastifyInstance): Promise<
           },
         });
       } catch (err) {
-        console.error('[Orchestrate] Failed:', err instanceof Error ? err.message : err);
+        request.log.error({ err }, '[Orchestrate] Failed');
+        const message = process.env['NODE_ENV'] === 'production'
+          ? 'Internal Server Error'
+          : (err instanceof Error ? err.message : String(err));
         return reply.code(500).send({
-          error: 'Orchestration failed',
-          message: err instanceof Error ? err.message : String(err),
+          error: 'Internal Server Error',
+          message,
         });
       }
     },
