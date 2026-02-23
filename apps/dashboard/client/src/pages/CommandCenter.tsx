@@ -95,6 +95,8 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
   metabolic: MetabolicDashboard,
   timeline: ExecutionTimeline,
   performance: AgentPerformance,
+  deployments: ForgeOverview,
+  master: ForgeOverview,
 };
 
 export default function CommandCenter() {

@@ -20,6 +20,7 @@ const Terms = lazy(() => import('./pages/Terms'));
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 
 // Lazy-loaded: app pages
+const UnifiedDashboard = lazy(() => import('./pages/UnifiedDashboard'));
 const CommandCenter = lazy(() => import('./pages/CommandCenter'));
 const Settings = lazy(() => import('./pages/Settings'));
 
@@ -96,8 +97,9 @@ export default function App() {
         {/* Ask Alf — dev project, super_admin only */}
 
 
-        {/* Forge — agent orchestration */}
-        <Route path="/command-center" element={<CommandCenter />} />
+        {/* Unified Dashboard — default view */}
+        <Route path="/command-center" element={<UnifiedDashboard />} />
+        {/* Old command center tabs — deep links still work */}
         <Route path="/command-center/:tab" element={<CommandCenter />} />
 
         {/* Legacy redirect */}

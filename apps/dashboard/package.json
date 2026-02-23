@@ -16,6 +16,8 @@
     "@substrate/database": "workspace:*",
     "@substrate/email": "workspace:*",
     "fastify": "^5.2.1",
+    "ioredis": "^5.4.2",
+    "node-pty": "^1.0.0",
     "@substrate/observability": "workspace:*"
   }
 }

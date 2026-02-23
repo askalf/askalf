@@ -42,7 +42,8 @@ export type HubTab =
   | 'prompt-lab' | 'nl-orchestrate' | 'agent-chat' | 'goals'
   | 'cost-optimizer' | 'knowledge' | 'health' | 'evolution'
   | 'events' | 'leaderboard' | 'metabolic' | 'timeline' | 'performance'
-  | 'deployments';
+  | 'deployments'
+  | 'master';
 
 export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural';
 
