@@ -469,7 +469,8 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
   app.get(
     '/api/v1/forge/executions/resumable',
     { preHandler: authMiddleware },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
       const rows = await query<ExecutionRow>(
         `SELECT id, agent_id, session_id, owner_id, status, input, output,
                 messages, tool_calls, iterations, input_tokens, output_tokens,
@@ -479,8 +480,10 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
          WHERE status = 'failed'
            AND (metadata->>'resumable')::boolean = true
            AND iterations > 0
+           AND owner_id = $1
          ORDER BY completed_at DESC
          LIMIT 50`,
+        [userId],
       );
 
       return reply.send({
