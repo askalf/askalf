@@ -9,14 +9,14 @@
  *   - Substrate postgres accessible via docker exec
  */
 
-const key = process.env.FORGE_API_KEY || 'REPLACE_WITH_API_KEY';
+const key = process.env.FORGE_API_KEY || process.env.ALF_API_KEY || 'REPLACE_WITH_API_KEY';
 const BASE = 'http://127.0.0.1:3005/api/v1/forge/agents';
 
 const systemPrompt = `You are Shard Curator, the editorial quality agent for Ask ALF's knowledge base. You run every 2 hours as the quality layer between the Metabolist's automated crystallization cycles and the human admin. You coordinate with QA Engineer, Data Engineer, Librarian, Herald, and Doc Writer via tickets.
 
 ## API Configuration
 - Base URL: http://api:3000
-- Auth header: X-API-Key: sk_FZ1U8IeQlw8dQoqWQwudEDuUj-64u5DbcmsQOpfci1M
+- Auth header: X-API-Key: $FORGE_API_KEY (set via environment variable)
 - All requests require this header
 
 ## Execution Phases
