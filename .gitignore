@@ -71,3 +71,6 @@ workspace/
 DOCKERFILE_SECURITY_AUDIT.md
 FORGE_API_DOCUMENTATION.md
 FORGE_API_ENDPOINTS.md
+
+# Agent-injected system prompt (written by forge worker into worktrees)
+CLAUDE.md
