@@ -15,20 +15,34 @@ const getApiUrl = () => {
 const API_BASE = getApiUrl();
 
 // Retry configuration
-const MAX_RETRIES = 2;
-const RETRY_DELAY = 1000; // ms
+const MAX_ATTEMPTS = 3; // 3 total attempts: delays of 1s, 2s, 4s between them
+const RETRY_BASE_DELAY = 1000; // ms — doubles each attempt (exponential backoff)
+const RETRYABLE_STATUS = new Set([429, 503]);
 
-async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, attempt = 0): Promise<Response> {
   try {
     const res = await fetch(url, options);
+    if (RETRYABLE_STATUS.has(res.status) && attempt < MAX_ATTEMPTS - 1) {
+      const delay = RETRY_BASE_DELAY * Math.pow(2, attempt); // 1s → 2s → 4s
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchWithRetry(url, options, attempt + 1);
+    }
     return res;
   } catch (err) {
-    if (retries > 0) {
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-      return fetchWithRetry(url, options, retries - 1);
+    if (attempt < MAX_ATTEMPTS - 1) {
+      const delay = RETRY_BASE_DELAY * Math.pow(2, attempt); // 1s → 2s → 4s
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchWithRetry(url, options, attempt + 1);
     }
     throw err;
   }
+}
+
+function getErrorMessage(res: Response, fallback: string): string {
+  if (res.status === 429) return 'Too many attempts. Please wait a moment before trying again.';
+  if (res.status === 503) return 'Service temporarily unavailable. Please try again shortly.';
+  if (res.status === 401 || res.status === 403) return 'Invalid email or password.';
+  return fallback;
 }
 
 export interface User {
@@ -66,17 +80,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       } else {
         set({ user: null, isLoading: false, error: null });
       }
-    } catch (err) {
-      // Log network errors but don't expose to user
-      console.error('Auth check failed:', err instanceof Error ? err.message : 'Network error');
-      set({ user: null, isLoading: false, error: 'Network error - please check your connection' });
+    } catch {
+      set({ user: null, isLoading: false, error: 'Network error — please check your connection.' });
     }
   },
 
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+      const res = await fetchWithRetry(`${API_BASE}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -84,16 +96,23 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Login failed');
+        let message = getErrorMessage(res, 'Login failed');
+        try {
+          const data = await res.json();
+          if (data.error && res.status !== 429 && res.status !== 503) message = data.error;
+        } catch { /* ignore parse errors */ }
+        throw new Error(message);
       }
 
       // Login successful - now fetch complete user data (including plan)
       // The login response doesn't include plan data, so we call /auth/me
       await useAuthStore.getState().checkAuth();
     } catch (err) {
+      const isNetworkError = err instanceof TypeError && err.message.includes('fetch');
       set({
-        error: err instanceof Error ? err.message : 'Login failed',
+        error: isNetworkError
+          ? 'Network error — please check your connection.'
+          : err instanceof Error ? err.message : 'Login failed',
         isLoading: false,
       });
       throw err;
@@ -103,7 +122,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (email: string, password: string, displayName?: string, deploymentName?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
+      const res = await fetchWithRetry(`${API_BASE}/api/v1/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -117,15 +136,22 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Registration failed');
+        let message = getErrorMessage(res, 'Registration failed');
+        try {
+          const data = await res.json();
+          if (data.error && res.status !== 429 && res.status !== 503) message = data.error;
+        } catch { /* ignore parse errors */ }
+        throw new Error(message);
       }
 
       // Auto-login after registration
       await useAuthStore.getState().login(email, password);
     } catch (err) {
+      const isNetworkError = err instanceof TypeError && err.message.includes('fetch');
       set({
-        error: err instanceof Error ? err.message : 'Registration failed',
+        error: isNetworkError
+          ? 'Network error — please check your connection.'
+          : err instanceof Error ? err.message : 'Registration failed',
         isLoading: false,
       });
       throw err;
