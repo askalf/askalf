@@ -14,7 +14,7 @@ import { ToolRegistry } from '../tools/registry.js';
 import { executeTools, type ToolCall as ExecutorToolCall } from '../tools/executor.js';
 import { execute, type ExecutionContext, type ExecutionDeps } from './engine.js';
 import { executeBatch, type BatchAgentExecution, type BatchExecutionResult } from './batch-engine.js';
-import { query } from '../database.js';
+import { query, retryQuery } from '../database.js';
 import { extractMemories } from '../memory/extractor.js';
 import { buildMemoryContext } from '../memory/context-builder.js';
 import { updateCapabilityFromExecution } from '../orchestration/capability-registry.js';
@@ -2130,8 +2130,8 @@ export async function runDirectCliExecution(
       },
     ).catch(() => {});
 
-    // Update agent performance counters
-    await query(
+    // Update agent performance counters (retry on transient DB errors)
+    void retryQuery(
       `UPDATE forge_agents
        SET tasks_completed = tasks_completed + CASE WHEN $2 THEN 1 ELSE 0 END,
            tasks_failed = tasks_failed + CASE WHEN $2 THEN 0 ELSE 1 END
