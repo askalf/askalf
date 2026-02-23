@@ -2,6 +2,7 @@
 // Secure password hashing and validation
 
 import bcrypt from 'bcrypt';
+import { pbkdf2Sync, randomBytes } from 'node:crypto';
 import type { PasswordStrength } from './types.js';
 
 // Cost factor for bcrypt (12 is recommended for production)
@@ -9,6 +10,11 @@ const BCRYPT_COST = 12;
 
 // Minimum password requirements
 const MIN_PASSWORD_LENGTH = 12;
+
+// PBKDF2 configuration for token hashing
+const PBKDF2_ITERATIONS = 100000;
+const PBKDF2_DIGEST = 'sha256';
+const PBKDF2_SALT_LENGTH = 16; // 16 bytes = 128 bits
 
 /**
  * Hash a password using bcrypt
@@ -141,12 +147,53 @@ export function generateApiKey(
 
 /**
  * Hash a token for storage (API keys, session tokens)
- * Uses SHA-256
+ * Uses PBKDF2 with SHA-256 and a random salt
+ * Format: salt.hash (both hex-encoded)
  */
 export async function hashToken(token: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(token);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  // Generate a random salt
+  const salt = randomBytes(PBKDF2_SALT_LENGTH);
+
+  // Use PBKDF2 to derive the hash
+  const hash = pbkdf2Sync(
+    token,
+    salt,
+    PBKDF2_ITERATIONS,
+    32, // 32 bytes for SHA-256
+    PBKDF2_DIGEST
+  );
+
+  // Return salt.hash so verification can extract the salt
+  return `${salt.toString('hex')}.${hash.toString('hex')}`;
+}
+
+/**
+ * Verify a token against a PBKDF2 hash
+ * Extracts salt from the stored hash and compares
+ */
+export async function verifyTokenHash(
+  token: string,
+  storedHash: string
+): Promise<boolean> {
+  try {
+    // Parse stored hash format: salt.hash
+    const [saltHex, hashHex] = storedHash.split('.');
+    if (!saltHex || !hashHex) return false;
+
+    const salt = Buffer.from(saltHex, 'hex');
+
+    // Derive hash from token using the stored salt
+    const derivedHash = pbkdf2Sync(
+      token,
+      salt,
+      PBKDF2_ITERATIONS,
+      32,
+      PBKDF2_DIGEST
+    );
+
+    // Compare derived hash with stored hash
+    return derivedHash.toString('hex') === hashHex;
+  } catch {
+    return false;
+  }
 }
