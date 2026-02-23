@@ -13,6 +13,7 @@ import type {
   WaitlistUpdateEmailVars,
   BetaInviteEmailVars,
   AdminNotificationVars,
+  InterventionAlertVars,
 } from './types.js';
 
 /**
@@ -1217,6 +1218,70 @@ orcastr8r admin notification
 }
 
 // ============================================
+// Intervention Alert Email
+// ============================================
+
+export function interventionAlertHtml(vars: InterventionAlertVars): string {
+  const noteType = vars.riskLevel === 'high' ? 'error' : vars.interventionType === 'error' || vars.interventionType === 'escalation' ? 'error' : 'warning';
+
+  return wrapHtml(`
+    <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
+      Intervention Required
+    </h1>
+
+    <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
+      Agent <strong style="color: #a78bfa;">${vars.agentName}</strong> needs your attention.
+    </p>
+
+    ${noteBox(`
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr><td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;"><strong style="color: #fafafa;">Type:</strong> ${vars.interventionType.toUpperCase()}</td></tr>
+        ${vars.riskLevel ? `<tr><td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;"><strong style="color: #fafafa;">Risk:</strong> ${vars.riskLevel.toUpperCase()}</td></tr>` : ''}
+        <tr><td style="padding: 4px 0; font-size: 14px; color: #a1a1aa;"><strong style="color: #fafafa;">Action:</strong> ${vars.title}</td></tr>
+      </table>
+    `, noteType)}
+
+    <p style="margin: 16px 0; font-size: 15px; color: #a1a1aa; line-height: 1.6;">
+      ${vars.description}
+    </p>
+
+    ${vars.proposedAction ? `
+    ${sectionLabel('Proposed Action')}
+    <pre style="background: #0f0f12; border: 1px solid #1e1e22; border-radius: 8px; padding: 16px; color: #a1a1aa; font-size: 13px; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace;">${vars.proposedAction}</pre>
+    ` : ''}
+
+    ${button('Approve', vars.approveUrl)}
+
+    <p style="margin: 0 0 16px 0; font-size: 13px; color: #52525b;">
+      Or <a href="${vars.denyUrl}" style="color: #ef4444; text-decoration: underline;">deny this request</a>
+    </p>
+
+    <p style="margin: 24px 0 0 0; font-size: 13px; color: #3f3f46;">
+      ${vars.timestamp} &middot; <a href="${vars.dashboardUrl}" style="color: #7c3aed;">View in Dashboard</a>
+    </p>
+  `);
+}
+
+export function interventionAlertText(vars: InterventionAlertVars): string {
+  return `INTERVENTION REQUIRED
+
+Agent: ${vars.agentName}
+Type: ${vars.interventionType.toUpperCase()}
+${vars.riskLevel ? `Risk: ${vars.riskLevel.toUpperCase()}\n` : ''}Action: ${vars.title}
+
+${vars.description}
+${vars.proposedAction ? `\nProposed Action:\n${vars.proposedAction}\n` : ''}
+Approve: ${vars.approveUrl}
+Deny: ${vars.denyUrl}
+
+${vars.timestamp}
+View in Dashboard: ${vars.dashboardUrl}
+
+---
+orcastr8r admin notification`.trim();
+}
+
+// ============================================
 // Template Factory
 // ============================================
 
@@ -1233,7 +1298,8 @@ export type EmailTemplate =
   | 'waitlist-claw'
   | 'waitlist-update'
   | 'beta-invite'
-  | 'admin-notification';
+  | 'admin-notification'
+  | 'intervention-alert';
 
 export type EmailTemplateVars =
   | WelcomeEmailVars
@@ -1246,7 +1312,8 @@ export type EmailTemplateVars =
   | WaitlistEmailVars
   | WaitlistUpdateEmailVars
   | BetaInviteEmailVars
-  | AdminNotificationVars;
+  | AdminNotificationVars
+  | InterventionAlertVars;
 
 interface TemplateResult {
   subject: string;
@@ -1357,6 +1424,16 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
         subject,
         html: adminNotificationHtml(adminVars),
         text: adminNotificationText(adminVars),
+      };
+    }
+
+    case 'intervention-alert': {
+      const alertVars = vars as InterventionAlertVars;
+      const riskPrefix = alertVars.riskLevel === 'high' ? '[HIGH RISK] ' : '';
+      return {
+        subject: `${riskPrefix}Intervention: ${alertVars.title} — orcastr8r`,
+        html: interventionAlertHtml(alertVars),
+        text: interventionAlertText(alertVars),
       };
     }
 

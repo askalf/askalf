@@ -78,16 +78,16 @@ export async function registerSchedulingRoutes(app: FastifyInstance): Promise<vo
       if (qs.action) { params.push(qs.action); conditions.push(`action = $${params.length}`); }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50') || 50, 100));
-      const offset = Math.max(0, parseInt(qs.offset ?? '0') || 0);
+      const limit = Math.min(parseInt(qs.limit ?? '50'), 100);
+      const offset = parseInt(qs.offset ?? '0') || 0;
 
       const [entries, countResult] = await Promise.all([
         substrateQuery(
           `SELECT id, entity_type, entity_id, action, actor, actor_id, old_value, new_value, execution_id, created_at
            FROM agent_audit_log ${where}
            ORDER BY created_at DESC
-           LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-          [...params, limit, offset],
+           LIMIT ${limit} OFFSET ${offset}`,
+          params,
         ),
         substrateQueryOne<{ total: number }>(`SELECT COUNT(*)::int as total FROM agent_audit_log ${where}`, params),
       ]);
@@ -143,6 +143,28 @@ async function processInterventions(): Promise<void> {
 
     for (const intervention of pending) {
       const ageMinutes = (Date.now() - new Date(intervention['created_at'] as string).getTime()) / 60_000;
+
+      // Email notification for fresh interventions (< 2 min old)
+      if (ageMinutes < 2) {
+        const adminEmail = process.env['ADMIN_EMAIL'];
+        if (adminEmail) {
+          try {
+            const { sendInterventionAlert } = await import('@substrate/email');
+            const baseUrl = process.env['DASHBOARD_URL'] ?? 'https://orcastr8r.com';
+            await sendInterventionAlert(adminEmail, {
+              agentName: intervention['agent_name'] as string,
+              interventionType: (intervention['type'] as string) ?? 'approval',
+              title: intervention['title'] as string,
+              description: (intervention['description'] as string) ?? '',
+              proposedAction: (intervention['proposed_action'] as string) ?? undefined,
+              approveUrl: `${baseUrl}/admin/hub/interventions`,
+              denyUrl: `${baseUrl}/admin/hub/interventions`,
+              dashboardUrl: `${baseUrl}/admin/hub/interventions`,
+              timestamp: new Date().toISOString(),
+            });
+          } catch { /* non-fatal — don't block intervention processing */ }
+        }
+      }
 
       // Auto-approve low-risk feedback/resource requests
       if (intervention['type'] === 'feedback' || intervention['type'] === 'resource') {
@@ -470,10 +492,6 @@ async function runSchedulerTick(): Promise<void> {
         continue;
       }
 
-      // Check for custom scheduled input in agent metadata
-      const metadata = agent['metadata'] as Record<string, unknown> | null;
-      const customInput = metadata?.['custom_scheduled_input'] as string | undefined;
-
       const agentName = agent['name'] as string;
 
       // Pre-load this agent's assigned tickets to inject into prompt
@@ -497,39 +515,32 @@ async function runSchedulerTick(): Promise<void> {
         continue;
       }
 
-      const ticketBlock = `\n\nYOUR ASSIGNED TICKETS:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket and follow the TICKET LIFECYCLE below.`;
+      const ticketBlock = `\n\nYOUR ASSIGNED TICKETS:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket and work on it.`;
 
-      let input: string;
-      if (customInput) {
-        input = customInput.replace(/\{timestamp\}/g, new Date().toISOString()) + ticketBlock + fleetContext;
-      } else {
-        input = `[SCHEDULED RUN - ${new Date().toISOString()}] You are ${agentName}.
+      // Always use the standard ticket-focused prompt — no custom busywork prompts
+      const input = `[WORK CYCLE — ${new Date().toISOString()}] You are ${agentName}.
 
-You have tickets to work on. Focus on these and nothing else.${ticketBlock}
+You have ${assignedTickets.length} ticket(s) assigned. Work on the highest priority one.${ticketBlock}
 
 TICKET LIFECYCLE (you MUST follow every step):
-1. CLAIM: Update ticket status to in_progress immediately.
-2. NOTE: Add a progress note (add_note) describing what you're about to do.
-3. WORK: Do the actual work.
-4. NOTE: Add progress notes as you go — every significant step, finding, or decision gets a timestamped note.
-5. NOTE: If blocked or waiting, add a note explaining why. No ticket sits stale without explanation.
-6. RESOLVE: When done, update status to resolved WITH a detailed resolution note. The resolution MUST include:
-   - What was done (specific files changed, queries run, configs updated)
-   - What the outcome was (test results, verification steps)
-   - Any follow-up needed
-   Resolution is REQUIRED — the system will reject a resolve/close without one.
+1. CLAIM: Update ticket status to in_progress (ticket_ops action=update).
+2. NOTE: Add a progress note (ticket_ops action=add_note) describing what you're about to do.
+3. WORK: Do the actual work — write code, fix bugs, run commands. Use your tools.
+4. COMMIT: Stage and commit your changes (git add + git commit). Every execution must produce a commit if code was changed.
+5. NOTE: Add a completion note with what was done, files changed, and outcome.
+6. RESOLVE: When done, update ticket status to resolved with a detailed resolution note.
 
 RULES:
 - ONLY work on your assigned tickets. Do NOT invent new work.
-- DO NOT CREATE NEW TICKETS. You are forbidden from using ticket_ops create. If you find something that needs a ticket, add a note to your current ticket mentioning it — a human will triage.
+- DO NOT CREATE NEW TICKETS. If you find something that needs a ticket, add a note to your current ticket mentioning it — a human will triage.
 - BEFORE starting: search memory (memory_search) for context another agent may have left.
 - AFTER completing: store what you learned (memory_store) so the fleet benefits.
-- Do NOT create ADR docs, architecture proposals, or analysis reports unless your ticket specifically asks for one.
-- Do NOT run exploratory analysis "just in case." Stick to the ticket.
-- EVERY execution must leave at least one progress note via add_note. No silent runs. The system WILL reject resolution without notes.
+- Do NOT write analysis reports, architecture docs, or proposals unless the ticket specifically asks for one.
+- Do NOT explore the codebase without purpose. Read only the files your ticket requires.
+- EVERY execution must leave at least one progress note. No silent runs.
+- If you cannot complete the ticket in this cycle, add a note explaining what's left and what's blocking you.
 
-Be focused. Finish your ticket. Stop.${fleetContext}`;
-      }
+FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
 
       batchAgents.push({
         agentId,

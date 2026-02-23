@@ -24,6 +24,7 @@ export interface GitOpsInput {
     | 'checkout'
     | 'add'
     | 'commit'
+    | 'push'
     | 'merge_to_main';
   branch_name?: string;
   paths?: string[];
@@ -330,6 +331,40 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
         };
       }
 
+      case 'push': {
+        if (!input.branch_name) {
+          return { output: null, error: 'branch_name is required for push', durationMs: 0 };
+        }
+        if (!input.branch_name.startsWith('agent/')) {
+          return { output: null, error: 'Can only push agent/* branches', durationMs: Math.round(performance.now() - startTime) };
+        }
+
+        // Verify remote exists
+        const remoteCheck = await git('remote get-url origin');
+        if (remoteCheck.exitCode !== 0) {
+          return {
+            output: null,
+            error: 'Remote \'origin\' not configured. Set up a git remote first.',
+            durationMs: Math.round(performance.now() - startTime),
+          };
+        }
+
+        // Push from worktree if one exists for this branch
+        const pushWt = activeWorktrees.get(input.branch_name);
+        const pushDir = pushWt ?? REPO_ROOT;
+        const pushRes = await gitIn(pushDir, `push -u origin ${input.branch_name}`, 60_000);
+        return {
+          output: {
+            pushed: pushRes.exitCode === 0,
+            branch: input.branch_name,
+            remote: 'origin',
+            stdout: pushRes.stdout,
+          },
+          error: pushRes.exitCode !== 0 ? pushRes.stderr : undefined,
+          durationMs: Math.round(performance.now() - startTime),
+        };
+      }
+
       case 'merge_to_main': {
         if (!input.agent_name) {
           return { output: null, error: 'agent_name is required for merge_to_main', durationMs: 0 };
@@ -392,7 +427,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
       default:
         return {
           output: null,
-          error: `Unknown action: ${input.action}. Supported: status, diff, log, branch_list, branch_create, checkout, add, commit, merge_to_main`,
+          error: `Unknown action: ${input.action}. Supported: status, diff, log, branch_list, branch_create, checkout, add, commit, push, merge_to_main`,
           durationMs: Math.round(performance.now() - startTime),
         };
     }

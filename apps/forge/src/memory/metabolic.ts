@@ -4,6 +4,7 @@
  * Three cycles: decay (prune stale), lessons (learn from failures), promote (boost winners).
  */
 
+import { exec } from 'child_process';
 import { query } from '../database.js';
 import { substrateQuery } from '../database.js';
 import { processUnprocessedFeedback, getAgentFeedbackStats } from '../learning/feedback-processor.js';
@@ -80,6 +81,7 @@ let feedbackTimer: ReturnType<typeof setInterval> | null = null;
 let promptRewriteTimer: ReturnType<typeof setInterval> | null = null;
 let goalProposalTimer: ReturnType<typeof setInterval> | null = null;
 let autonomyLoopTimer: ReturnType<typeof setInterval> | null = null;
+let worktreeCleanupTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Start all metabolic cycles on intervals.
@@ -95,6 +97,7 @@ export function startMetabolicCycles(): void {
   initCycleStatus('goal-proposal', 8);
   initCycleStatus('autonomy-loop', 0.25);
   initCycleStatus('integration', 0.083); // 5 minutes
+  initCycleStatus('worktree-cleanup', 6);
 
   // Initialize consciousness layer
   const redis = getMemoryRedis();
@@ -153,7 +156,12 @@ export function startMetabolicCycles(): void {
     void runAutonomyLoop().catch(logErr('autonomy-loop'));
   }, 2 * 60 * 1000);
 
-  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), goals(8h), autonomy(15m), integration(5m)');
+  // Worktree/branch cleanup: every 6 hours
+  worktreeCleanupTimer = setInterval(() => {
+    void runWorktreeCleanup().catch(logErr('worktree-cleanup'));
+  }, 6 * 60 * 60 * 1000);
+
+  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), goals(8h), autonomy(15m), integration(5m), worktree-cleanup(6h)');
 }
 
 /**
@@ -167,6 +175,7 @@ export function stopMetabolicCycles(): void {
   if (promptRewriteTimer) clearInterval(promptRewriteTimer);
   if (goalProposalTimer) clearInterval(goalProposalTimer);
   if (autonomyLoopTimer) clearInterval(autonomyLoopTimer);
+  if (worktreeCleanupTimer) clearInterval(worktreeCleanupTimer);
   stopIntegrationCycle();
   decayTimer = null;
   lessonsTimer = null;
@@ -175,6 +184,7 @@ export function stopMetabolicCycles(): void {
   promptRewriteTimer = null;
   goalProposalTimer = null;
   autonomyLoopTimer = null;
+  worktreeCleanupTimer = null;
 }
 
 // --------------------------------------------------------------------------
@@ -330,83 +340,9 @@ async function runAutonomyLoop(): Promise<void> {
   let promptsApplied = 0;
   let modelsOptimized = 0;
 
-  // Step 1: Auto-approve goals for high-autonomy agents (autonomy >= 4)
-  try {
-    const proposedGoals = await query<{ id: string; agent_id: string; title: string; agent_name: string }>(
-      `SELECT g.id, g.agent_id, g.title, a.name AS agent_name
-       FROM forge_agent_goals g
-       JOIN forge_agents a ON g.agent_id = a.id
-       WHERE g.status = 'proposed' AND a.autonomy_level >= 4
-       LIMIT 10`,
-    );
-
-    for (const goal of proposedGoals) {
-      const approved = await approveGoal(goal.id, 'system:autonomy');
-      if (approved) {
-        goalsApproved++;
-        console.log(`[Autonomy] Auto-approved goal "${goal.title}" for ${goal.agent_name}`);
-      }
-    }
-  } catch (err) {
-    console.warn('[Autonomy] Goal auto-approval error:', err instanceof Error ? err.message : err);
-  }
-
-  // Step 2: Convert approved goals to tickets (all agents, not just high-autonomy)
-  try {
-    const approvedGoals = await query<{
-      id: string; agent_id: string; title: string; description: string;
-      priority: string; agent_name: string;
-    }>(
-      `SELECT g.id, g.agent_id, g.title, g.description, g.priority, a.name AS agent_name
-       FROM forge_agent_goals g
-       JOIN forge_agents a ON g.agent_id = a.id
-       WHERE g.status = 'approved'
-       LIMIT 10`,
-    );
-
-    for (const goal of approvedGoals) {
-      // Check if ticket already exists for this goal
-      const existing = await substrateQuery<{ id: string }>(
-        `SELECT id FROM agent_tickets
-         WHERE metadata->>'goal_id' = $1 AND status IN ('open', 'in_progress')
-         LIMIT 1`,
-        [goal.id],
-      );
-      if (existing.length > 0) continue;
-
-      const ticketId = `GOAL-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
-      const priority = goal.priority === 'critical' ? 'urgent' : goal.priority === 'high' ? 'high' : 'medium';
-
-      await substrateQuery(
-        `INSERT INTO agent_tickets
-         (id, title, description, status, priority, category, created_by, assigned_to,
-          agent_id, agent_name, is_agent_ticket, source, metadata)
-         VALUES ($1, $2, $3, 'open', $4, 'goal', 'system:autonomy', $5,
-          $6, $7, true, 'agent', $8)`,
-        [
-          ticketId,
-          `[GOAL] ${goal.title}`,
-          goal.description,
-          priority,
-          goal.agent_name,
-          goal.agent_id,
-          goal.agent_name,
-          JSON.stringify({ goal_id: goal.id, auto_created: true }),
-        ],
-      );
-
-      // Mark goal as in_progress
-      await query(
-        `UPDATE forge_agent_goals SET status = 'in_progress' WHERE id = $1`,
-        [goal.id],
-      );
-
-      goalsTicketed++;
-      console.log(`[Autonomy] Created ticket for goal "${goal.title}" → assigned to ${goal.agent_name}`);
-    }
-  } catch (err) {
-    console.warn('[Autonomy] Goal→ticket conversion error:', err instanceof Error ? err.message : err);
-  }
+  // Step 1 & 2: Goal auto-approval and goal→ticket conversion DISABLED
+  // These generated non-actionable GOAL tickets that cluttered the ticket queue.
+  // Goals can still be manually proposed and approved via the API.
 
   // Step 3: Auto-apply prompt revisions for high-autonomy agents (autonomy >= 4)
   try {
@@ -927,30 +863,7 @@ async function runAutonomyLoop(): Promise<void> {
       } catch { /* non-fatal */ }
     }
 
-    // Auto-propose goals for high-autonomy agents with stale goals
-    const staleAgents = await query<{ id: string; name: string }>(
-      `SELECT a.id, a.name
-       FROM forge_agents a
-       WHERE a.autonomy_level >= 4
-         AND (a.is_decommissioned IS NULL OR a.is_decommissioned = false)
-         AND a.tasks_completed + a.tasks_failed >= 5
-         AND NOT EXISTS (
-           SELECT 1 FROM forge_agent_goals g
-           WHERE g.agent_id = a.id AND g.created_at > NOW() - INTERVAL '7 days'
-         )
-       LIMIT 5`,
-    );
-
-    for (const agent of staleAgents) {
-      if (goalsAutoProposed >= MAX_GOAL_PROPOSALS) break;
-      try {
-        const goals = await proposeGoals(agent.id);
-        if (goals.length > 0) {
-          goalsAutoProposed++;
-          console.log(`[Autonomy] Auto-proposed ${goals.length} goals for ${agent.name}`);
-        }
-      } catch { /* non-fatal */ }
-    }
+    // Goal auto-proposal DISABLED — generated non-actionable tickets
   } catch (err) {
     console.warn('[Autonomy] Goal lifecycle error:', err instanceof Error ? err.message : err);
   }
@@ -1140,4 +1053,89 @@ function logErr(cycle: string) {
     recordCycleError(cycle, msg);
     console.error(`[Metabolic] ${cycle} cycle error:`, msg);
   };
+}
+
+// ============================================
+// Worktree & Branch Cleanup
+// ============================================
+
+function gitCmd(args: string): Promise<{ exitCode: number; stdout: string }> {
+  const REPO_ROOT = process.env['REPO_ROOT'] ?? '/workspace';
+  return new Promise((resolve) => {
+    exec(
+      `git -C "${REPO_ROOT}" ${args}`,
+      { timeout: 30_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
+      (error, stdout) => { resolve({ exitCode: error ? 1 : 0, stdout: stdout ?? '' }); },
+    );
+  });
+}
+
+async function runWorktreeCleanup(): Promise<void> {
+  const start = Date.now();
+  let worktreesPruned = 0;
+  let branchesCleaned = 0;
+  const STALE_HOURS = 24;
+
+  try {
+    // 1. Prune worktree refs pointing to deleted dirs
+    await gitCmd('worktree prune');
+
+    // 2. List remaining worktrees, remove stale ones (>24h since last commit)
+    const listRes = await gitCmd('worktree list --porcelain');
+    const entries = listRes.stdout.split('\n\n').filter(Boolean);
+    for (const entry of entries) {
+      const pathMatch = entry.match(/^worktree\s+(.+)/m);
+      const branchMatch = entry.match(/^branch\s+refs\/heads\/(agent\/.+)/m);
+      if (!pathMatch?.[1] || !branchMatch?.[1]) continue;
+
+      const wtPath = pathMatch[1];
+      const branch = branchMatch[1];
+
+      // Check last commit age
+      const logRes = await new Promise<{ stdout: string }>((resolve) => {
+        exec(
+          `git -C "${wtPath}" log -1 --format="%aI"`,
+          { timeout: 10_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
+          (_, stdout) => { resolve({ stdout: stdout?.trim() ?? '' }); },
+        );
+      });
+
+      if (logRes.stdout) {
+        const ageMs = Date.now() - new Date(logRes.stdout).getTime();
+        if (ageMs > STALE_HOURS * 3_600_000) {
+          await gitCmd(`worktree remove "${wtPath}" --force`);
+          await gitCmd(`branch -D "${branch}"`);
+          worktreesPruned++;
+          branchesCleaned++;
+        }
+      }
+    }
+
+    // 3. Clean orphan agent/* branches (no worktree, no active proposal, stale)
+    const branchRes = await gitCmd('branch --list "agent/*" --format="%(refname:short)|%(committerdate:iso8601)"');
+    for (const line of branchRes.stdout.trim().split('\n').filter(Boolean)) {
+      const [branch, dateStr] = line.split('|');
+      if (!branch || !dateStr) continue;
+      const ageMs = Date.now() - new Date(dateStr.trim()).getTime();
+      if (ageMs > STALE_HOURS * 3_600_000) {
+        // Skip branches with active proposals
+        const activeProposal = await query<{ id: string }>(
+          `SELECT id FROM forge_change_proposals WHERE title LIKE $1 AND status IN ('pending_review', 'approved') LIMIT 1`,
+          [`%${branch}%`],
+        );
+        if (activeProposal.length === 0) {
+          await gitCmd(`branch -D "${branch}"`);
+          branchesCleaned++;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Metabolic] Worktree cleanup error:', err);
+  }
+
+  const elapsed = Date.now() - start;
+  recordCycleRun('worktree-cleanup', elapsed, { worktreesPruned, branchesCleaned });
+  if (worktreesPruned > 0 || branchesCleaned > 0) {
+    console.log(`[Metabolic] Worktree cleanup: ${worktreesPruned} worktrees, ${branchesCleaned} branches cleaned — ${elapsed}ms`);
+  }
 }
