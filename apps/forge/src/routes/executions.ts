@@ -434,6 +434,18 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         );
         if (!agent || agent.status === 'archived') continue;
 
+        // Enforce guardrails per-execution (mirrors single-execution handler)
+        const guardrailResult = await checkGuardrails({
+          ownerId: userId,
+          agentId: a.agentId,
+          input: a.input,
+          estimatedCost: parseFloat(agent.max_cost_per_execution),
+        });
+        if (!guardrailResult.allowed) {
+          console.warn(`[Batch] Agent ${a.agentId} blocked by guardrails: ${guardrailResult.reason}`);
+          continue;
+        }
+
         await queryOne<ExecutionRow>(
           `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
            VALUES ($1, $2, $3, $4, 'pending', '{}', NOW()) RETURNING *`,
