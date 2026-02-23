@@ -142,7 +142,7 @@ app.addHook('onSend', async (_request, reply) => {
 
 // Catches any unhandled throws from route handlers.
 // Ensures: consistent {error, message, statusCode} shape, no stack traces in production.
-app.setErrorHandler((error, request, reply) => {
+app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => {
   const status = error.statusCode ?? 500;
   const isProd = process.env['NODE_ENV'] === 'production';
 
@@ -173,11 +173,11 @@ app.addHook('onSend', async (_request, reply, payload) => {
   try {
     const body = JSON.parse(payload) as Record<string, unknown>;
     // Add statusCode if missing
-    if (body.statusCode === undefined) {
-      body.statusCode = reply.statusCode;
+    if (body['statusCode'] === undefined) {
+      body['statusCode'] = reply.statusCode;
     }
     // Strip stack traces (defence in depth — should never be present but ensure it)
-    delete body.stack;
+    delete body['stack'];
     return JSON.stringify(body);
   } catch {
     return payload;
