@@ -92,6 +92,51 @@ export async function ticketOps(input: TicketOpsInput): Promise<ToolResult> {
         if (!input.title) {
           return { output: null, error: 'title is required to create a ticket', durationMs: 0 };
         }
+        if (!input.agent_name) {
+          return { output: null, error: 'agent_name is required to create a ticket', durationMs: 0 };
+        }
+
+        // Force status to open — agents cannot create pre-resolved tickets
+        if (input.status && input.status !== 'open' && input.status !== 'in_progress') {
+          return {
+            output: null,
+            error: `Cannot create a ticket with status '${input.status}'. New tickets must be 'open' or 'in_progress'. Use the update action to change status after doing work.`,
+            durationMs: Math.round(performance.now() - startTime),
+          };
+        }
+
+        // Dedup: check for similar open tickets with the same title (case-insensitive)
+        const existing = await p.query(
+          `SELECT id, title, status, assigned_to FROM agent_tickets
+           WHERE LOWER(title) = LOWER($1) AND status IN ('open', 'in_progress') AND deleted_at IS NULL
+           LIMIT 1`,
+          [input.title],
+        );
+        if (existing.rows.length > 0) {
+          return {
+            output: {
+              created: false,
+              duplicate: true,
+              existing_ticket: existing.rows[0],
+              message: `A ticket with this title already exists (${existing.rows[0].id}). Work on the existing ticket instead of creating duplicates.`,
+            },
+            durationMs: Math.round(performance.now() - startTime),
+          };
+        }
+
+        // Rate limit: max 3 tickets per agent per hour
+        const recentCount = await p.query(
+          `SELECT COUNT(*)::int as cnt FROM agent_tickets
+           WHERE created_by = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
+          [input.agent_name],
+        );
+        if ((recentCount.rows[0]?.cnt ?? 0) >= 3) {
+          return {
+            output: null,
+            error: `Rate limit: ${input.agent_name} has created 3+ tickets in the last hour. Focus on existing tickets instead of creating new ones.`,
+            durationMs: Math.round(performance.now() - startTime),
+          };
+        }
 
         const id = generateId();
         const ticketData = {
@@ -101,10 +146,10 @@ export async function ticketOps(input: TicketOpsInput): Promise<ToolResult> {
           status: input.status || 'open',
           priority: input.priority || 'medium',
           category: input.category || 'task',
-          created_by: input.agent_name || 'system',
+          created_by: input.agent_name,
           assigned_to: input.assigned_to || null,
           agent_id: input.agent_id || null,
-          agent_name: input.agent_name || null,
+          agent_name: input.agent_name,
         };
 
         const result = await p.query(
@@ -125,7 +170,7 @@ export async function ticketOps(input: TicketOpsInput): Promise<ToolResult> {
           ],
         );
 
-        await audit(p, 'ticket', id, 'created', input.agent_name || 'system', input.agent_id || null, {}, ticketData);
+        await audit(p, 'ticket', id, 'created', input.agent_name, input.agent_id || null, {}, ticketData);
 
         return {
           output: { created: true, ticket: result.rows[0] },
