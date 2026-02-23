@@ -62,6 +62,7 @@ const EventLog = lazyRetry(() => import('./forge/EventLog'));
 const Leaderboard = lazyRetry(() => import('./forge/Leaderboard'));
 const MetabolicDashboard = lazyRetry(() => import('./forge/MetabolicDashboard'));
 const ExecutionTimeline = lazyRetry(() => import('./forge/ExecutionTimeline'));
+const AgentPerformance = lazyRetry(() => import('./forge/AgentPerformance'));
 
 const PANEL_MAP: Record<HubTab, React.FC> = {
   overview: ForgeOverview,
@@ -93,6 +94,7 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
   leaderboard: Leaderboard,
   metabolic: MetabolicDashboard,
   timeline: ExecutionTimeline,
+  performance: AgentPerformance,
 };
 
 export default function CommandCenter() {
