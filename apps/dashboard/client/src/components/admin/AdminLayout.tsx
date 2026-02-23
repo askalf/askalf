@@ -73,8 +73,22 @@ export default function AdminLayout() {
   // Determine if we're on a command-center page
   const isOnCommandCenter = location.pathname.startsWith('/command-center');
 
+  // Hide sidebar on unified dashboard (exact /command-center path)
+  const isUnifiedDashboard = location.pathname === '/command-center';
+
   // For admin users with groups, check if user sections are flat (no sub-groups)
   const showFlatForge = !isAdmin;
+
+  // Unified dashboard gets full-width layout, no sidebar
+  if (isUnifiedDashboard) {
+    return (
+      <div className="admin-layout admin-layout--full">
+        <main className="admin-main admin-main--full">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-layout">

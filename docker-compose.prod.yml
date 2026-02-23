@@ -127,10 +127,21 @@ services:
       # Agent Forge proxy
       FORGE_URL: http://forge:3005
       FORGE_API_KEY: ${FORGE_API_KEY:-}
+      # Master session (Claude Code PTY) — OAuth, not API key
+      ANTHROPIC_API_KEY: ''
+      WORKSPACE_DIR: /workspace
+      # Event bridge (Redis subscriber for forge events)
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    volumes:
+      - .:/workspace:rw
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:rw
+      - master-claude-home:/tmp/master-claude-home
     depends_on:
       pgbouncer:
         condition: service_healthy
       forge:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
@@ -144,14 +155,13 @@ services:
     labels:
       - "autoheal=true"
     stop_grace_period: 15s
-    # Security hardening
+    # Security hardening (read_only disabled — master session needs PTY + workspace write)
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    read_only: true
     tmpfs:
-      - /tmp:mode=1777,size=64m
+      - /tmp:mode=1777,size=128m
     logging:
       driver: "json-file"
       options:
@@ -161,10 +171,10 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 384M
+          memory: 512M
         reservations:
           cpus: '0.25'
-          memory: 128M
+          memory: 192M
 
   # Unified MCP Tools Server — 15 tools (workflow, data, infra, agent)
   mcp-tools:
@@ -693,6 +703,9 @@ volumes:
     external: true
   sprayberry_labs_backups:
     name: sprayberry_labs_backups
+  master-claude-home:
+    name: master_claude_home
+    external: true
 
 networks:
   sprayberry-labs-net:
