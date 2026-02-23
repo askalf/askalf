@@ -30,7 +30,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
       if (qs.filter === 'open') {
         conditions.push(`status IN ('open', 'in_progress')`);
       } else if (qs.filter === 'resolved') {
-        conditions.push(`status = 'resolved'`);
+        conditions.push(`status IN ('resolved', 'closed')`);
       } else if (qs.filter === 'critical') {
         conditions.push(`priority IN ('urgent', 'high')`);
       }

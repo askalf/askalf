@@ -132,7 +132,7 @@ export default function AgentPerformance() {
         )}
 
         {!loading && !error && sorted.length === 0 && (
-          <EmptyState message="No execution data for this period" />
+          <EmptyState icon="📊" title="No Data" message="No execution data for this period" />
         )}
 
         {!loading && !error && sorted.length > 0 && (
