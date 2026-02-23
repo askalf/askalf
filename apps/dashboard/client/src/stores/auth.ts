@@ -3,9 +3,7 @@ import { create } from 'zustand';
 // Determine API base URL based on environment or hostname
 const getApiUrl = () => {
   // Allow environment override via Vite
-  // @ts-expect-error - Vite injects import.meta.env at build time
   if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
-    // @ts-expect-error - Vite injects import.meta.env at build time
     return import.meta.env.VITE_API_URL as string;
   }
   const host = window.location.hostname;
