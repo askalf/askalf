@@ -15,6 +15,7 @@ export function initializeDatabase(connectionString: string): void {
     max: 40,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 15000,
+    statement_timeout: 30000, // 30s — prevent runaway queries from starving the pool
   });
 
   pool.on('error', (err) => {

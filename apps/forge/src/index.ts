@@ -137,7 +137,7 @@ app.addHook('onSend', async (_request, reply) => {
 });
 
 // Clean up rate limit map periodically
-setInterval(() => {
+const rateLimitCleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [ip, record] of rateLimitMap.entries()) {
     if (now > record.resetTime) {
@@ -450,16 +450,16 @@ async function start(): Promise<void> {
       console.warn('[TaskDispatcher] Failed to start:', err instanceof Error ? err.message : err);
     });
 
-    // Periodic active agents gauge update (every 60s)
-    setInterval(async () => {
+    // Periodic active agents gauge update (every 60s) — stored for cleanup in shutdown()
+    agentGaugeInterval = setInterval(async () => {
       try {
         const rows = await dbQuery<{ count: string }>(`SELECT COUNT(*) AS count FROM forge_agents WHERE status = 'active'`);
         forgeActiveAgents.set(parseInt(rows[0]?.count ?? '0', 10));
       } catch { /* ignore metric update failures */ }
     }, 60_000);
 
-    // Stale execution cleanup (every 5 min)
-    setInterval(async () => {
+    // Stale execution cleanup (every 5 min) — stored for cleanup in shutdown()
+    staleCleanupInterval = setInterval(async () => {
       try {
         // Mark pending executions older than 20 min as failed (allows 10 min queue wait + margin)
         const stalePending = await dbQuery<{ id: string; agent_id: string }>(
@@ -502,6 +502,8 @@ async function start(): Promise<void> {
 // ============================================
 
 let isShuttingDown = false;
+let agentGaugeInterval: ReturnType<typeof setInterval> | undefined;
+let staleCleanupInterval: ReturnType<typeof setInterval> | undefined;
 
 async function shutdown(signal: string): Promise<void> {
   if (isShuttingDown) return;
@@ -533,6 +535,18 @@ async function shutdown(signal: string): Promise<void> {
           error: `Forge shutting down (${signal})`,
         }).catch(() => {});
       }
+    }
+
+    // Clear periodic timers
+    clearInterval(rateLimitCleanupInterval);
+    clearInterval(agentGaugeInterval);
+    clearInterval(staleCleanupInterval);
+
+    // Close workflow scheduler (BullMQ worker + queue)
+    const scheduler = (app as unknown as { workflowScheduler?: ForgeScheduler }).workflowScheduler;
+    if (scheduler) {
+      await scheduler.close().catch((err: unknown) => console.warn('[Forge] Scheduler close error:', err));
+      console.log('[Forge] Workflow scheduler closed');
     }
 
     await app.close();

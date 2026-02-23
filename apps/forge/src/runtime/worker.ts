@@ -1667,20 +1667,25 @@ function executeClaudeCode(
       };
 
       const killTree = () => {
+        if (killed) return; // Guard against double-kill race
         killed = true;
         try {
-          proc.kill('SIGTERM');
-          try {
-            execSync(`kill -TERM $(pgrep -P ${proc.pid}) 2>/dev/null || true`, { stdio: 'ignore' });
-          } catch { /* no children or already dead */ }
+          // Check process is still alive before killing
+          if (proc.exitCode === null) {
+            proc.kill('SIGTERM');
+            try {
+              execSync(`kill -TERM $(pgrep -P ${proc.pid}) 2>/dev/null || true`, { stdio: 'ignore', timeout: 3000 });
+            } catch { /* no children or already dead */ }
+            setTimeout(() => {
+              try { if (proc.exitCode === null) proc.kill('SIGKILL'); } catch { /* already dead */ }
+            }, 5000);
+          }
         } catch { /* already dead */ }
-        setTimeout(() => {
-          try { proc.kill('SIGKILL'); } catch { /* already dead */ }
-        }, 5000);
       };
 
-      proc.on('close', async (code) => {
-        await cleanup();
+      proc.on('close', (code) => {
+        proc.removeAllListeners(); // Prevent listener leak across 1000s of executions
+        cleanup().catch(() => {});
         const cleanStdout = stdout.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
         resolve({
           exitCode: killed ? 124 : (code ?? 1),
@@ -1689,8 +1694,9 @@ function executeClaudeCode(
         });
       });
 
-      proc.on('error', async (err) => {
-        await cleanup();
+      proc.on('error', (err) => {
+        proc.removeAllListeners();
+        cleanup().catch(() => {});
         resolve({ exitCode: 1, stdout: '', stderr: err.message });
       });
 
