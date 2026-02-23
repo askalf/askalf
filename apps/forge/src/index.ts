@@ -289,7 +289,7 @@ async function start(): Promise<void> {
       );
       if (agent.length === 0) return { error: `Agent not found: ${agentId}` };
       const a = agent[0]!;
-      const input = `[WORKFLOW NODE: ${node.label ?? node.id}]\n\n${(node.config['prompt'] as string) ?? 'Execute this workflow step.'}\n\nContext: ${JSON.stringify(context).substring(0, 2000)}`;
+      const input = `[WORKFLOW NODE: ${(node.config['label'] as string) ?? node.id}]\n\n${(node.config['prompt'] as string) ?? 'Execute this workflow step.'}\n\nContext: ${JSON.stringify(context).substring(0, 2000)}`;
       const execId = ulid();
       await dbQuery(
         `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at) VALUES ($1, $2, 'system:workflow', $3, 'pending', $4, NOW())`,
