@@ -15,6 +15,7 @@ import {
   CreateExecutionBody, ListExecutionsQuery, BatchExecutionBody,
   IdParam, ErrorResponse,
 } from './schemas.js';
+import { cancelCliExecution } from '../runtime/worker.js';
 
 interface ExecutionRow {
   id: string;
@@ -473,6 +474,179 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         executionIds,
         mode: 'cli',
       });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/executions/:id/retry - Re-queue a failed or cancelled execution
+   */
+  app.post(
+    '/api/v1/forge/executions/:id/retry',
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'Retry a failed or cancelled execution',
+        params: IdParam,
+        response: { 400: ErrorResponse, 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as Static<typeof IdParam>;
+
+      // Fetch the original execution — must belong to this user
+      const original = await queryOne<ExecutionRow>(
+        `SELECT * FROM forge_executions WHERE id = $1 AND owner_id = $2`,
+        [id, userId],
+      );
+
+      if (!original) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Execution not found' });
+      }
+
+      if (original.status !== 'failed' && original.status !== 'cancelled') {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: `Only failed or cancelled executions can be retried (current status: ${original.status})`,
+        });
+      }
+
+      // Verify the agent is still accessible and not archived
+      const agent = await queryOne<AgentCheckRow>(
+        `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt
+         FROM forge_agents
+         WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
+        [original.agent_id, userId],
+      );
+
+      if (!agent) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Agent not found or not accessible' });
+      }
+
+      if (agent.status === 'archived') {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Cannot retry: agent is archived' });
+      }
+
+      // Run guardrail checks
+      const guardrailResult = await checkGuardrails({
+        ownerId: userId,
+        agentId: original.agent_id,
+        input: original.input,
+        estimatedCost: parseFloat(agent.max_cost_per_execution),
+      });
+
+      if (!guardrailResult.allowed) {
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: guardrailResult.reason ?? 'Blocked by guardrails',
+        });
+      }
+
+      const newExecutionId = ulid();
+
+      const newExecution = await queryOne<ExecutionRow>(
+        `INSERT INTO forge_executions (id, agent_id, session_id, owner_id, input, status, metadata, started_at)
+         VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW())
+         RETURNING *`,
+        [
+          newExecutionId,
+          original.agent_id,
+          original.session_id,
+          userId,
+          original.input,
+          JSON.stringify({ retried_from: id }),
+        ],
+      );
+
+      void logAudit({
+        ownerId: userId,
+        action: 'execution.retry',
+        resourceType: 'execution',
+        resourceId: newExecutionId,
+        details: { originalExecutionId: id, agentId: original.agent_id },
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+      }).catch(() => {});
+
+      void runDirectCliExecution(
+        newExecutionId,
+        original.agent_id,
+        original.input,
+        userId,
+        {
+          modelId: agent.model_id ?? undefined,
+          systemPrompt: agent.system_prompt ?? undefined,
+          sessionId: original.session_id ?? undefined,
+          maxBudgetUsd: agent.max_cost_per_execution,
+        },
+      ).catch((err) => {
+        console.error(`[Executions] Retry CLI execution failed for ${newExecutionId}:`, err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        void query(
+          `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status IN ('pending', 'running')`,
+          [`Failed to start retry: ${errMsg}`, newExecutionId],
+        ).catch(() => {});
+      });
+
+      return reply.status(201).send({ execution: newExecution });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/executions/:id/cancel - Cancel a pending or running execution
+   */
+  app.post(
+    '/api/v1/forge/executions/:id/cancel',
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'Cancel a pending or running execution',
+        params: IdParam,
+        response: { 400: ErrorResponse, 404: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as Static<typeof IdParam>;
+
+      const execution = await queryOne<ExecutionRow>(
+        `SELECT id, status, agent_id FROM forge_executions WHERE id = $1 AND owner_id = $2`,
+        [id, userId],
+      );
+
+      if (!execution) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Execution not found' });
+      }
+
+      if (execution.status !== 'pending' && execution.status !== 'running') {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: `Only pending or running executions can be cancelled (current status: ${execution.status})`,
+        });
+      }
+
+      // Mark as cancelled in DB first
+      await query(
+        `UPDATE forge_executions SET status = 'cancelled', completed_at = NOW() WHERE id = $1 AND status IN ('pending', 'running')`,
+        [id],
+      );
+
+      // Attempt to kill the running process (best-effort)
+      const killed = cancelCliExecution(id);
+
+      void logAudit({
+        ownerId: userId,
+        action: 'execution.cancel',
+        resourceType: 'execution',
+        resourceId: id,
+        details: { agentId: execution.agent_id, processKilled: killed },
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+      }).catch(() => {});
+
+      return reply.send({ cancelled: true, processKilled: killed });
     },
   );
 

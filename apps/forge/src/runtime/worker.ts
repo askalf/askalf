@@ -5,7 +5,7 @@
  * Also retains `runExecution()` for SDK-based execution as fallback.
  */
 
-import { spawn, execSync } from 'child_process';
+import { spawn, execSync, type ChildProcess } from 'child_process';
 import { readFile, writeFile, access, copyFile, mkdir, unlink, rm } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
 import { AnthropicAdapter } from '../providers/adapters/anthropic.js';
@@ -85,6 +85,34 @@ let config: ForgeConfig;
 let provider: IProviderAdapter;
 let registry: ToolRegistry;
 let initialized = false;
+
+/**
+ * Registry of active CLI processes keyed by executionId.
+ * Used by cancelCliExecution() to send SIGTERM to running processes.
+ */
+const runningCliProcesses = new Map<string, ChildProcess>();
+
+/**
+ * Cancel a running CLI execution by sending SIGTERM to its process.
+ * Returns true if a running process was found and signalled, false otherwise.
+ */
+export function cancelCliExecution(executionId: string): boolean {
+  const proc = runningCliProcesses.get(executionId);
+  if (!proc) return false;
+  try {
+    if (proc.exitCode === null) {
+      proc.kill('SIGTERM');
+      try {
+        execSync(`kill -TERM $(pgrep -P ${proc.pid}) 2>/dev/null || true`, { stdio: 'ignore', timeout: 3000 });
+      } catch { /* no children or already dead */ }
+      setTimeout(() => {
+        try { if (proc.exitCode === null) proc.kill('SIGKILL'); } catch { /* already dead */ }
+      }, 5000);
+    }
+  } catch { /* already dead */ }
+  runningCliProcesses.delete(executionId);
+  return true;
+}
 
 // ============================================
 // Initialization
@@ -1608,11 +1636,14 @@ async function refreshCredentials(): Promise<void> {
 /**
  * Execute Claude Code CLI with the given arguments.
  * Returns exit code, stdout, and stderr.
+ * If executionId is provided, the child process is registered in runningCliProcesses
+ * so it can be cancelled via cancelCliExecution().
  */
 function executeClaudeCode(
   args: string[],
   cwd = '/workspace',
   timeout = 900_000,
+  executionId?: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     // Write prompt to temp file to avoid shell escaping issues
@@ -1641,6 +1672,11 @@ function executeClaudeCode(
           HOME: '/tmp/claude-home',
         },
       });
+
+      // Register process so cancelCliExecution() can signal it
+      if (executionId) {
+        runningCliProcesses.set(executionId, proc);
+      }
 
       let stdout = '';
       let stderr = '';
@@ -1685,6 +1721,7 @@ function executeClaudeCode(
 
       proc.on('close', (code) => {
         proc.removeAllListeners(); // Prevent listener leak across 1000s of executions
+        if (executionId) runningCliProcesses.delete(executionId);
         cleanup().catch(() => {});
         const cleanStdout = stdout.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
         resolve({
@@ -1696,6 +1733,7 @@ function executeClaudeCode(
 
       proc.on('error', (err) => {
         proc.removeAllListeners();
+        if (executionId) runningCliProcesses.delete(executionId);
         cleanup().catch(() => {});
         resolve({ exitCode: 1, stdout: '', stderr: err.message });
       });
@@ -2037,7 +2075,7 @@ export async function runDirectCliExecution(
     // Execute CLI with retry for transient failures
     const result = await withRetry(
       async () => {
-        const res = await executeClaudeCode(args, agentWorkDir, dynamicTimeout);
+        const res = await executeClaudeCode(args, agentWorkDir, dynamicTimeout, executionId);
         // Classify non-zero exits — throw retryable errors so withRetry can retry them
         if (res.exitCode !== 0) {
           const classified = classifyCliError(res.exitCode, res.stderr, res.stdout);
