@@ -108,6 +108,15 @@ const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT = 100;
 const RATE_WINDOW = 60000;
 
+// Auth endpoint dedicated rate limits (brute-force protection)
+const authLoginRateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const AUTH_LOGIN_LIMIT = 5;              // 5 attempts per window
+const AUTH_LOGIN_WINDOW = 5 * 60 * 1000; // 5 minutes
+
+const authRegisterRateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const AUTH_REGISTER_LIMIT = 3;              // 3 attempts per window
+const AUTH_REGISTER_WINDOW = 60 * 60 * 1000; // 1 hour
+
 app.addHook('onRequest', async (request, reply) => {
   const ip = request.ip || 'unknown';
   // Skip rate limiting for internal Docker network IPs (service-to-service calls)
@@ -123,6 +132,34 @@ app.addHook('onRequest', async (request, reply) => {
     record.count++;
     if (record.count > RATE_LIMIT) {
       return reply.status(429).send({ error: 'Too many requests' });
+    }
+  }
+
+  // Auth-specific rate limiting (stricter, with Retry-After header)
+  const url = request.url.split('?')[0]; // strip query string
+  if (url === '/api/v1/auth/login') {
+    const loginRecord = authLoginRateLimitMap.get(ip);
+    if (!loginRecord || now > loginRecord.resetTime) {
+      authLoginRateLimitMap.set(ip, { count: 1, resetTime: now + AUTH_LOGIN_WINDOW });
+    } else {
+      loginRecord.count++;
+      if (loginRecord.count > AUTH_LOGIN_LIMIT) {
+        const retryAfter = Math.ceil((loginRecord.resetTime - now) / 1000);
+        reply.header('Retry-After', String(retryAfter));
+        return reply.status(429).send({ error: 'Too many login attempts. Please try again later.' });
+      }
+    }
+  } else if (url === '/api/v1/auth/register') {
+    const regRecord = authRegisterRateLimitMap.get(ip);
+    if (!regRecord || now > regRecord.resetTime) {
+      authRegisterRateLimitMap.set(ip, { count: 1, resetTime: now + AUTH_REGISTER_WINDOW });
+    } else {
+      regRecord.count++;
+      if (regRecord.count > AUTH_REGISTER_LIMIT) {
+        const retryAfter = Math.ceil((regRecord.resetTime - now) / 1000);
+        reply.header('Retry-After', String(retryAfter));
+        return reply.status(429).send({ error: 'Too many registration attempts. Please try again later.' });
+      }
     }
   }
 });
@@ -184,13 +221,17 @@ app.addHook('onSend', async (_request, reply, payload) => {
   }
 });
 
-// Clean up rate limit map periodically
+// Clean up rate limit maps periodically
 const rateLimitCleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [ip, record] of rateLimitMap.entries()) {
-    if (now > record.resetTime) {
-      rateLimitMap.delete(ip);
-    }
+    if (now > record.resetTime) rateLimitMap.delete(ip);
+  }
+  for (const [ip, record] of authLoginRateLimitMap.entries()) {
+    if (now > record.resetTime) authLoginRateLimitMap.delete(ip);
+  }
+  for (const [ip, record] of authRegisterRateLimitMap.entries()) {
+    if (now > record.resetTime) authRegisterRateLimitMap.delete(ip);
   }
 }, 60000);
 
