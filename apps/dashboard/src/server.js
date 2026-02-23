@@ -167,7 +167,7 @@ await fastify.register(fastifyCookie, {
   parseOptions: {
     httpOnly: true,
     secure: process.env['NODE_ENV'] === 'production',
-    sameSite: process.env['NODE_ENV'] === 'production' ? 'none' : 'lax',
+    sameSite: 'lax', // Same-site dashboard — 'lax' is correct (not 'none' which exposes to CSRF)
   }
 });
 
@@ -302,6 +302,12 @@ fastify.get('/ws', { websocket: true }, async (socket, req) => {
   // Authenticate WebSocket connection via session cookie
   const user = await getUserFromSession(req);
 
+  // Reject unauthenticated connections — no anonymous access to live stats
+  if (!user) {
+    socket.close(4401, 'Authentication required');
+    return;
+  }
+
   // Track connection with heartbeat
   const pingInterval = setInterval(() => {
     if (socket.readyState === 1) {
@@ -309,8 +315,8 @@ fastify.get('/ws', { websocket: true }, async (socket, req) => {
     }
   }, 30000);
 
-  wsClients.set(socket, { lastPing: Date.now(), pingInterval, userId: user?.id || null, isAuthenticated: !!user });
-  console.log(`WebSocket client connected (${wsClients.size} total, authenticated: ${!!user})`);
+  wsClients.set(socket, { lastPing: Date.now(), pingInterval, userId: user.id, isAuthenticated: true });
+  console.log(`WebSocket client connected (${wsClients.size} total, user: ${user.id})`);
 
   socket.on('pong', () => {
     const data = wsClients.get(socket);

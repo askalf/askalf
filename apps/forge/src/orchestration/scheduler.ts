@@ -172,6 +172,15 @@ export class ForgeScheduler {
         `[ForgeScheduler] Job ${job?.id ?? 'unknown'} failed:`,
         err.message,
       );
+      // Persist failure to DB so workflow runs don't get stuck in 'running'
+      if (job?.data?.runId) {
+        import('../database.js').then(({ query: dbQuery }) =>
+          dbQuery(
+            `UPDATE forge_workflow_runs SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status != 'failed'`,
+            [err.message.substring(0, 2000), job.data.runId],
+          ),
+        ).catch((dbErr) => console.error('[ForgeScheduler] Failed to persist job failure:', dbErr));
+      }
     });
 
     this.worker.on('completed', (job: Job<WorkflowJobData>) => {

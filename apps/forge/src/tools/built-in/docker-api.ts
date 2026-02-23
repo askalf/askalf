@@ -97,6 +97,14 @@ function dockerRequest(
 export async function dockerApi(input: DockerApiInput): Promise<ToolResult> {
   const startTime = performance.now();
 
+  // Validate container name/ID to prevent path traversal in Docker API URLs
+  if (input.container) {
+    const CONTAINER_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
+    if (!CONTAINER_ID_RE.test(input.container) || input.container.length > 128) {
+      return { output: null, error: `Invalid container name or ID: ${input.container}`, durationMs: 0 };
+    }
+  }
+
   try {
     switch (input.action) {
       case 'list': {
