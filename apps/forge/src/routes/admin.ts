@@ -220,4 +220,76 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       return reply.send({ guardrails });
     },
   );
+
+  /**
+   * PATCH /api/v1/forge/admin/guardrails/:id - Toggle or update a guardrail
+   */
+  app.patch(
+    '/api/v1/forge/admin/guardrails/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+      const body = request.body as { is_enabled?: boolean; config?: Record<string, unknown>; priority?: number } | undefined;
+
+      if (!body) {
+        return reply.status(400).send({ error: 'Request body required' });
+      }
+
+      const setClauses: string[] = ['updated_at = NOW()'];
+      const params: unknown[] = [];
+
+      if (body.is_enabled !== undefined) {
+        params.push(body.is_enabled);
+        setClauses.push(`is_enabled = $${params.length}`);
+      }
+      if (body.config !== undefined) {
+        params.push(JSON.stringify(body.config));
+        setClauses.push(`config = $${params.length}`);
+      }
+      if (body.priority !== undefined) {
+        params.push(body.priority);
+        setClauses.push(`priority = $${params.length}`);
+      }
+
+      if (params.length === 0) {
+        return reply.status(400).send({ error: 'No fields to update' });
+      }
+
+      params.push(id, userId);
+      const result = await query<GuardrailRow>(
+        `UPDATE forge_guardrails SET ${setClauses.join(', ')} WHERE id = $${params.length - 1} AND owner_id = $${params.length} RETURNING *`,
+        params,
+      );
+
+      if (result.length === 0) {
+        return reply.status(404).send({ error: 'Guardrail not found' });
+      }
+
+      return reply.send({ guardrail: result[0] });
+    },
+  );
+
+  /**
+   * DELETE /api/v1/forge/admin/guardrails/:id - Delete a guardrail
+   */
+  app.delete(
+    '/api/v1/forge/admin/guardrails/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+
+      const deleted = await query(
+        `DELETE FROM forge_guardrails WHERE id = $1 AND owner_id = $2 AND is_global = false RETURNING id`,
+        [id, userId],
+      );
+
+      if (deleted.length === 0) {
+        return reply.status(404).send({ error: 'Guardrail not found or cannot delete global guardrails' });
+      }
+
+      return reply.send({ success: true, deleted: id });
+    },
+  );
 }
