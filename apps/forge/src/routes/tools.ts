@@ -71,8 +71,8 @@ export async function toolRoutes(app: FastifyInstance): Promise<void> {
         paramIndex++;
       }
 
-      const limit = Math.min(parseInt(qs.limit ?? '100', 10) || 100, 200);
-      const offset = parseInt(qs.offset ?? '0', 10) || 0;
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '100', 10) || 100, 200));
+      const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
       const tools = await query<ToolRow>(
@@ -112,6 +112,11 @@ export async function toolRoutes(app: FastifyInstance): Promise<void> {
           error: 'Validation Error',
           message: 'name, displayName, and description are required',
         });
+      }
+
+      const VALID_RISK_LEVELS = ['low', 'medium', 'high', 'critical'] as const;
+      if (body.riskLevel && !VALID_RISK_LEVELS.includes(body.riskLevel as typeof VALID_RISK_LEVELS[number])) {
+        return reply.status(400).send({ error: 'Validation Error', message: 'Invalid riskLevel. Must be low, medium, high, or critical' });
       }
 
       // Check for name collision
