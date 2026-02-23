@@ -11,6 +11,7 @@ interface CheckGuardrailsOptions {
   agentId: string;
   input: string;
   toolName?: string;
+  /** Estimated cost for this execution. If not provided, falls back to agent's max_cost_per_execution. */
   estimatedCost?: number;
 }
 
@@ -127,15 +128,24 @@ async function evaluateCostLimit(
     maxCostPerDay?: number;
   };
 
+  // Resolve estimated cost: use provided value, or fall back to agent's max_cost_per_execution
+  let estimatedCost = opts.estimatedCost;
+  if (estimatedCost === undefined) {
+    const agentRow = await query<{ max_cost_per_execution: string }>(
+      `SELECT max_cost_per_execution FROM forge_agents WHERE id = $1`,
+      [opts.agentId],
+    );
+    estimatedCost = agentRow[0] ? parseFloat(agentRow[0].max_cost_per_execution) || 0 : 0;
+  }
+
   // Check estimated cost against per-execution limit
   if (
     config.maxCostPerExecution !== undefined &&
-    opts.estimatedCost !== undefined &&
-    opts.estimatedCost > config.maxCostPerExecution
+    estimatedCost > config.maxCostPerExecution
   ) {
     return {
       allowed: false,
-      reason: `Estimated cost ($${opts.estimatedCost.toFixed(4)}) exceeds per-execution limit ($${config.maxCostPerExecution.toFixed(2)})`,
+      reason: `Estimated cost ($${estimatedCost.toFixed(4)}) exceeds per-execution limit ($${config.maxCostPerExecution.toFixed(2)})`,
     };
   }
 
@@ -153,11 +163,11 @@ async function evaluateCostLimit(
       ? parseFloat(dailyCostResult[0].total_cost)
       : 0;
 
-    const projected = todaysCost + (opts.estimatedCost ?? 0);
+    const projected = todaysCost + estimatedCost;
     if (projected > config.maxCostPerDay) {
       return {
         allowed: false,
-        reason: `Daily cost ($${todaysCost.toFixed(2)}) would exceed daily limit ($${config.maxCostPerDay.toFixed(2)}) with this execution`,
+        reason: `Daily cost ($${todaysCost.toFixed(2)}) would exceed daily limit ($${config.maxCostPerDay.toFixed(2)}) with this execution (+$${estimatedCost.toFixed(2)})`,
       };
     }
   }
