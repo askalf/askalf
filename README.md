@@ -1,11 +1,12 @@
-# SUBSTRATE / Ask ALF
+# SUBSTRATE / Orcastr8r
 
-**The Universal AI Platform** - One account, every AI model, with perpetual memory.
+**AI Agent Orchestration Platform** - Coordinate autonomous agent fleets, manage workflows, monitor execution.
 
 Production URLs:
-- https://askalf.org - Main website
-- https://app.askalf.org - Dashboard
-- https://api.askalf.org - API
+- https://orcastr8r.com - Dashboard / Main site
+- https://amnesia.tax - Search engine
+- https://integration.tax - Claw Replay
+- Note: askalf.org redirects to amnesia.tax (retired)
 
 ## Architecture
 

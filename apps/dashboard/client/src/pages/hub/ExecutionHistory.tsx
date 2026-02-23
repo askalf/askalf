@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useHubStore } from '../../stores/hub';
+import { usePolling } from '../../hooks/usePolling';
 import StatCard from './shared/StatCard';
 import StatusBadge from './shared/StatusBadge';
 import PaginationBar from './shared/PaginationBar';
@@ -86,6 +87,12 @@ export default function ExecutionHistory() {
   useEffect(() => {
     fetchTasks();
   }, [page, statusFilter, fetchTasks]);
+
+  // Auto-refresh every 15s (task monitoring)
+  const pollTasks = useCallback(async () => {
+    await Promise.all([fetchTasks(), fetchTaskStats()]);
+  }, [fetchTasks, fetchTaskStats]);
+  usePolling(pollTasks, 15000);
 
   // Fetch detail when task selected
   useEffect(() => {

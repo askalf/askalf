@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { hubApi } from '../../hooks/useHubApi';
+import { usePolling } from '../../hooks/usePolling';
 import StatCard from '../hub/shared/StatCard';
 import './forge-observe.css';
 
@@ -37,6 +38,11 @@ export default function KnowledgeGraph() {
   useEffect(() => {
     hubApi.knowledge.stats().then((d) => setStats(d as unknown as GraphStats)).catch(() => {});
   }, []);
+
+  const pollStats = useCallback(async () => {
+    try { const d = await hubApi.knowledge.stats(); setStats(d as unknown as GraphStats); } catch { /* ignore */ }
+  }, []);
+  usePolling(pollStats, 30000);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;

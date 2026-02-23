@@ -2072,7 +2072,7 @@ fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
   }
 
   // Sanitize source
-  const VALID_SOURCES = ['orcastr8r', 'claw-replay', 'askalf'];
+  const VALID_SOURCES = ['orcastr8r', 'claw-replay', 'amnesia'];
   const trimmedSource = VALID_SOURCES.includes(String(source || '').trim()) ? String(source).trim() : 'orcastr8r';
 
   try {

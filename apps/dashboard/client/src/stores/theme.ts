@@ -72,7 +72,7 @@ export const useThemeStore = create<ThemeState>()(
       },
     }),
     {
-      name: 'askalf-theme',
+      name: 'orcastr8r-theme',
     }
   )
 );

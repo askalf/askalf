@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { hubApi } from '../../hooks/useHubApi';
+import { usePolling } from '../../hooks/usePolling';
 import StatCard from '../hub/shared/StatCard';
 import './forge-observe.css';
 
@@ -20,6 +21,9 @@ export default function CostOptimizer() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const pollData = useCallback(async () => { await loadData(); }, []);
+  usePolling(pollData, 30000);
 
   const loadData = async () => {
     setLoading(true);

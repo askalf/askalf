@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { hubApi } from '../../hooks/useHubApi';
+import { usePolling } from '../../hooks/usePolling';
 import './forge-observe.css';
 
 interface ChatMessage {
@@ -32,6 +33,18 @@ export default function AgentChat() {
 
   useEffect(() => { fetchAgents(); loadSessions(); }, [fetchAgents]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [activeSession?.messages]);
+
+  // Auto-refresh: poll sessions list + active session messages every 10s
+  const pollChat = useCallback(async () => {
+    await loadSessions();
+    if (activeSession?.id && activeSession.status === 'active') {
+      try {
+        const session = await hubApi.chat.get(activeSession.id) as ChatSession;
+        setActiveSession(session);
+      } catch { /* ignore */ }
+    }
+  }, [activeSession?.id, activeSession?.status]);
+  usePolling(pollChat, 10000);
 
   const loadSessions = async () => {
     try {
