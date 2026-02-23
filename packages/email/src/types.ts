@@ -143,6 +143,19 @@ export interface AdminNotificationVars {
   totalWaitlistCount?: number;
 }
 
+export interface InterventionAlertVars {
+  agentName: string;
+  interventionType: string;
+  title: string;
+  description: string;
+  proposedAction?: string;
+  riskLevel?: 'low' | 'medium' | 'high';
+  approveUrl: string;
+  denyUrl: string;
+  dashboardUrl: string;
+  timestamp: string;
+}
+
 /**
  * Email provider interface
  */

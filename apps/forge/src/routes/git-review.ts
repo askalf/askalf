@@ -588,8 +588,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
           message: `Rebuilding ${ordered.length} service(s): ${ordered.join(', ')}`,
         });
       } catch (err) {
-        request.log.error({ err }, 'Rebuild failed');
-        return reply.status(500).send({ error: 'Internal Server Error', message: 'Rebuild failed' });
+        return reply.status(500).send({ error: 'Rebuild failed', detail: err instanceof Error ? err.message : String(err) });
       }
     },
   );
@@ -639,8 +638,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
           logs,
         });
       } catch (err) {
-        request.log.error({ err }, 'Builder status check failed');
-        return reply.status(500).send({ error: 'Internal Server Error', message: 'Failed to check builder status' });
+        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
       }
     },
   );
@@ -668,10 +666,9 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
           return reply.send({ status: 'cancelled', builder_id: builderId });
         }
 
-        return reply.status(500).send({ error: 'Internal Server Error', message: `Failed to cancel: HTTP ${deleteRes.statusCode}` });
+        return reply.status(500).send({ error: `Failed to cancel: HTTP ${deleteRes.statusCode}` });
       } catch (err) {
-        request.log.error({ err }, 'Builder cancel failed');
-        return reply.status(500).send({ error: 'Internal Server Error', message: 'Failed to cancel builder' });
+        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
       }
     },
   );
@@ -720,8 +717,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
         return reply.send({ tasks });
       } catch (err) {
-        request.log.error({ err }, 'Failed to list builder tasks');
-        return reply.status(500).send({ error: 'Internal Server Error', message: 'Failed to list builder tasks' });
+        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
       }
     },
   );
