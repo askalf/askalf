@@ -134,16 +134,35 @@ async function getCsrfTokenFromSession(sessionToken: string): Promise<string | n
 
 /**
  * Require admin role. Use after sessionAuthMiddleware or authMiddleware.
+ * For API key auth, checks if key has 'write' or 'execute' scope.
  */
 export async function requireAdmin(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
   const sessionUser = (request as FastifyRequest & { sessionUser?: SessionUser }).sessionUser;
-  if (sessionUser && sessionUser.role !== 'admin' && sessionUser.role !== 'super_admin') {
-    return reply.status(403).send({ error: 'Admin access required' });
+
+  // Check session user role
+  if (sessionUser) {
+    if (sessionUser.role !== 'admin' && sessionUser.role !== 'super_admin') {
+      return reply.status(403).send({ error: 'Admin access required' });
+    }
+    return; // Admin session user is allowed
   }
-  // If no sessionUser, it's API key auth — assume admin (API keys are admin-only)
+
+  // Check API key permissions
+  const apiKeyPermissions = request.apiKeyPermissions;
+  if (apiKeyPermissions) {
+    // API keys require 'write' or 'execute' scope for admin-level operations
+    const hasAdminScope = apiKeyPermissions.includes('write') || apiKeyPermissions.includes('execute');
+    if (!hasAdminScope) {
+      return reply.status(403).send({ error: 'Admin access required (write or execute scope needed)' });
+    }
+    return; // API key with proper scope is allowed
+  }
+
+  // No valid authentication found
+  return reply.status(401).send({ error: 'Unauthorized' });
 }
 
 // Extend Fastify request type
