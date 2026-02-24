@@ -11,6 +11,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails } from '../observability/guardrails.js';
 import { runDirectCliExecution } from '../runtime/worker.js';
+import { calculateCost } from '../runtime/token-counter.js';
 import {
   CreateExecutionBody, ListExecutionsQuery, BatchExecutionBody,
   IdParam, ErrorResponse,
@@ -20,6 +21,7 @@ import { cancelCliExecution } from '../runtime/worker.js';
 interface ExecutionRow {
   id: string;
   agent_id: string;
+  agent_name: string | null;
   session_id: string | null;
   owner_id: string;
   status: string;
@@ -32,12 +34,46 @@ interface ExecutionRow {
   output_tokens: number;
   total_tokens: number;
   cost: string;
+  cost_events_total: string | null;
+  model: string | null;
   duration_ms: number | null;
   error: string | null;
   metadata: Record<string, unknown>;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
+}
+
+interface DailyCostSummaryRow {
+  date: string;
+  total_cost: string;
+  total_input_tokens: string;
+  total_output_tokens: string;
+  execution_count: string;
+}
+
+interface WeeklyCostSummaryRow {
+  week_start: string;
+  total_cost: string;
+  total_input_tokens: string;
+  total_output_tokens: string;
+  execution_count: string;
+}
+
+/** Resolve the best available cost: cost_events > stored execution cost > estimated from tokens */
+function resolveCost(row: ExecutionRow): number {
+  if (row.cost_events_total !== null) {
+    const v = parseFloat(row.cost_events_total);
+    if (v > 0) return v;
+  }
+  const stored = parseFloat(row.cost);
+  if (stored > 0) return stored;
+  // Fall back to model-pricing estimate from token counts
+  const model = row.model ?? 'claude-sonnet-4-6';
+  const input = row.input_tokens || 0;
+  const output = row.output_tokens || 0;
+  if (input > 0 || output > 0) return calculateCost(input, output, model);
+  return 0;
 }
 
 interface ExecutionCountRow {
@@ -181,7 +217,26 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params as Static<typeof IdParam>;
 
       const execution = await queryOne<ExecutionRow>(
-        `SELECT * FROM forge_executions WHERE id = $1 AND owner_id = $2`,
+        `SELECT
+           e.*,
+           COALESCE(a.name, 'Unknown') AS agent_name,
+           COALESCE(ce.total_input_tokens, e.input_tokens, 0)::int AS input_tokens,
+           COALESCE(ce.total_output_tokens, e.output_tokens, 0)::int AS output_tokens,
+           (COALESCE(ce.total_input_tokens, e.input_tokens, 0) + COALESCE(ce.total_output_tokens, e.output_tokens, 0))::int AS total_tokens,
+           COALESCE(ce.total_cost, e.cost, 0)::text AS cost,
+           ce.total_cost::text AS cost_events_total,
+           ce.model
+         FROM forge_executions e
+         LEFT JOIN forge_agents a ON a.id = e.agent_id
+         LEFT JOIN (
+           SELECT execution_id,
+             COALESCE(SUM(cost), 0) AS total_cost,
+             COALESCE(SUM(input_tokens), 0) AS total_input_tokens,
+             COALESCE(SUM(output_tokens), 0) AS total_output_tokens,
+             MAX(model) AS model
+           FROM forge_cost_events GROUP BY execution_id
+         ) ce ON ce.execution_id = e.id
+         WHERE e.id = $1 AND e.owner_id = $2`,
         [id, userId],
       );
 
@@ -192,7 +247,18 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      return reply.send({ execution });
+      return reply.send({
+        execution: {
+          ...execution,
+          agentName: execution.agent_name,
+          cost: resolveCost(execution),
+          estimatedCost: resolveCost(execution),
+          inputTokens: execution.input_tokens || 0,
+          outputTokens: execution.output_tokens || 0,
+          totalTokens: execution.total_tokens || 0,
+          model: execution.model ?? null,
+        },
+      });
     },
   );
 
@@ -383,9 +449,34 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
 
       const [executions, countResult] = await Promise.all([
         query<ExecutionRow>(
-          `SELECT * FROM forge_executions
+          `SELECT
+             e.id, e.agent_id,
+             COALESCE(a.name, 'Unknown') AS agent_name,
+             e.session_id, e.owner_id, e.status,
+             e.input, e.output, e.messages, e.tool_calls,
+             e.iterations,
+             COALESCE(ce.total_input_tokens, e.input_tokens, 0)::int AS input_tokens,
+             COALESCE(ce.total_output_tokens, e.output_tokens, 0)::int AS output_tokens,
+             (COALESCE(ce.total_input_tokens, e.input_tokens, 0) + COALESCE(ce.total_output_tokens, e.output_tokens, 0))::int AS total_tokens,
+             COALESCE(ce.total_cost, e.cost, 0)::text AS cost,
+             ce.total_cost::text AS cost_events_total,
+             ce.model,
+             e.duration_ms, e.error, e.metadata,
+             e.started_at, e.completed_at, e.created_at
+           FROM forge_executions e
+           LEFT JOIN forge_agents a ON a.id = e.agent_id
+           LEFT JOIN (
+             SELECT
+               execution_id,
+               COALESCE(SUM(cost), 0) AS total_cost,
+               COALESCE(SUM(input_tokens), 0) AS total_input_tokens,
+               COALESCE(SUM(output_tokens), 0) AS total_output_tokens,
+               MAX(model) AS model
+             FROM forge_cost_events
+             GROUP BY execution_id
+           ) ce ON ce.execution_id = e.id
            WHERE ${whereClause}
-           ORDER BY created_at DESC
+           ORDER BY e.created_at DESC
            LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
           [...params, limit, offset],
         ),
@@ -396,7 +487,16 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       ]);
 
       return reply.send({
-        executions,
+        executions: executions.map((e) => ({
+          ...e,
+          agentName: e.agent_name,
+          cost: resolveCost(e),
+          estimatedCost: resolveCost(e),
+          inputTokens: e.input_tokens || 0,
+          outputTokens: e.output_tokens || 0,
+          totalTokens: e.total_tokens || 0,
+          model: e.model ?? null,
+        })),
         total: countResult ? parseInt(countResult.total, 10) : 0,
         limit,
         offset,
@@ -674,6 +774,104 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       return reply.send({
         executions: rows,
         count: rows.length,
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/executions/costs/summary
+   * Daily and weekly cost summaries for the authenticated user.
+   * Source of truth: forge_cost_events joined to forge_executions (owner-scoped).
+   * Query param: days (default 30, max 90)
+   */
+  app.get(
+    '/api/v1/forge/executions/costs/summary',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const qs = request.query as { days?: string };
+      const days = Math.min(parseInt(qs.days ?? '30', 10) || 30, 90);
+
+      const [daily, weekly, totals] = await Promise.all([
+        query<DailyCostSummaryRow>(
+          `SELECT
+             DATE(ce.created_at)::text AS date,
+             COALESCE(SUM(ce.cost), 0)::text AS total_cost,
+             COALESCE(SUM(ce.input_tokens), 0)::text AS total_input_tokens,
+             COALESCE(SUM(ce.output_tokens), 0)::text AS total_output_tokens,
+             COUNT(DISTINCT ce.execution_id)::text AS execution_count
+           FROM forge_cost_events ce
+           JOIN forge_executions e ON e.id = ce.execution_id
+           WHERE e.owner_id = $1
+             AND ce.created_at >= NOW() - INTERVAL '1 day' * $2
+           GROUP BY DATE(ce.created_at)
+           ORDER BY date DESC`,
+          [userId, days],
+        ),
+
+        query<WeeklyCostSummaryRow>(
+          `SELECT
+             DATE_TRUNC('week', ce.created_at)::text AS week_start,
+             COALESCE(SUM(ce.cost), 0)::text AS total_cost,
+             COALESCE(SUM(ce.input_tokens), 0)::text AS total_input_tokens,
+             COALESCE(SUM(ce.output_tokens), 0)::text AS total_output_tokens,
+             COUNT(DISTINCT ce.execution_id)::text AS execution_count
+           FROM forge_cost_events ce
+           JOIN forge_executions e ON e.id = ce.execution_id
+           WHERE e.owner_id = $1
+             AND ce.created_at >= NOW() - INTERVAL '1 day' * $2
+           GROUP BY DATE_TRUNC('week', ce.created_at)
+           ORDER BY week_start DESC`,
+          [userId, days],
+        ),
+
+        queryOne<{
+          total_cost: string;
+          total_input_tokens: string;
+          total_output_tokens: string;
+          execution_count: string;
+          avg_cost_per_execution: string;
+        }>(
+          `SELECT
+             COALESCE(SUM(ce.cost), 0)::text AS total_cost,
+             COALESCE(SUM(ce.input_tokens), 0)::text AS total_input_tokens,
+             COALESCE(SUM(ce.output_tokens), 0)::text AS total_output_tokens,
+             COUNT(DISTINCT ce.execution_id)::text AS execution_count,
+             CASE WHEN COUNT(DISTINCT ce.execution_id) > 0
+               THEN (SUM(ce.cost) / COUNT(DISTINCT ce.execution_id))::text
+               ELSE '0'
+             END AS avg_cost_per_execution
+           FROM forge_cost_events ce
+           JOIN forge_executions e ON e.id = ce.execution_id
+           WHERE e.owner_id = $1
+             AND ce.created_at >= NOW() - INTERVAL '1 day' * $2`,
+          [userId, days],
+        ),
+      ]);
+
+      return reply.send({
+        period: { days },
+        totals: {
+          totalCost: parseFloat(totals?.total_cost ?? '0') || 0,
+          totalInputTokens: parseInt(totals?.total_input_tokens ?? '0', 10) || 0,
+          totalOutputTokens: parseInt(totals?.total_output_tokens ?? '0', 10) || 0,
+          executionCount: parseInt(totals?.execution_count ?? '0', 10) || 0,
+          avgCostPerExecution: parseFloat(totals?.avg_cost_per_execution ?? '0') || 0,
+        },
+        daily: daily.map((r) => ({
+          date: r.date,
+          totalCost: parseFloat(r.total_cost) || 0,
+          totalInputTokens: parseInt(r.total_input_tokens, 10) || 0,
+          totalOutputTokens: parseInt(r.total_output_tokens, 10) || 0,
+          executionCount: parseInt(r.execution_count, 10) || 0,
+        })),
+        weekly: weekly.map((r) => ({
+          weekStart: r.week_start,
+          totalCost: parseFloat(r.total_cost) || 0,
+          totalInputTokens: parseInt(r.total_input_tokens, 10) || 0,
+          totalOutputTokens: parseInt(r.total_output_tokens, 10) || 0,
+          executionCount: parseInt(r.execution_count, 10) || 0,
+        })),
       });
     },
   );
