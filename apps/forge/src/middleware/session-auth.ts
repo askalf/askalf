@@ -111,6 +111,25 @@ export async function sessionAuthMiddleware(
   // Set user info on request (same field names as API key auth)
   request.userId = user.id;
   (request as FastifyRequest & { sessionUser?: SessionUser }).sessionUser = user;
+
+  // Load CSRF token from session (stored during login)
+  const csrfToken = await getCsrfTokenFromSession(token);
+  if (csrfToken) {
+    (request as FastifyRequest & { sessionCsrfToken?: string }).sessionCsrfToken = csrfToken;
+  }
+}
+
+/**
+ * Get CSRF token stored in session
+ */
+async function getCsrfTokenFromSession(sessionToken: string): Promise<string | null> {
+  const tokenHash = await hashToken(sessionToken);
+  const session = await substrateQueryOne<{ csrf_token?: string }>(
+    `SELECT csrf_token FROM sessions WHERE token_hash = $1 AND expires_at > NOW() AND revoked = false`,
+    [tokenHash],
+  ).catch(() => null);
+
+  return session?.csrf_token ?? null;
 }
 
 /**
