@@ -6,7 +6,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
-import { query, queryOne } from '../database.js';
+import { query, queryOne, retryQuery } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { checkGuardrails } from '../observability/guardrails.js';
 import { runCliQuery, runDirectCliExecution } from '../runtime/worker.js';
@@ -164,11 +164,13 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
         ],
       );
 
-      // Update last_interaction
-      void query(
+      // Update last_interaction with retry on transient DB errors
+      void retryQuery(
         `UPDATE forge_user_assistants SET last_interaction = NOW() WHERE id = $1`,
         [assistant.id],
-      ).catch(() => {});
+      ).catch((err) => {
+        console.warn('[Assistant] Failed to update last_interaction after retries:', err instanceof Error ? err.message : err);
+      });
 
       // Dispatch the execution to the CLI runtime asynchronously
       void runDirectCliExecution(executionId, agent.id, body.message, userId, {
