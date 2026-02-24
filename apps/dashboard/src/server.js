@@ -135,7 +135,6 @@ function getTenantId(request) {
 const ALLOWED_ORIGINS = [
   'https://orcastr8r.com',
   'https://www.orcastr8r.com',
-  'https://integration.tax',
   // Development origins
   ...(process.env['NODE_ENV'] !== 'production' ? [
     'http://localhost:3001',
@@ -2104,7 +2103,7 @@ fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
   }
 
   // Sanitize source
-  const VALID_SOURCES = ['orcastr8r', 'claw-replay', 'amnesia'];
+  const VALID_SOURCES = ['orcastr8r', 'amnesia'];
   const trimmedSource = VALID_SOURCES.includes(String(source || '').trim()) ? String(source).trim() : 'orcastr8r';
 
   try {
