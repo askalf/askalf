@@ -67,8 +67,6 @@ const nodeEnv = process.env['NODE_ENV'] ?? 'development';
 const corsOrigins = process.env['ALLOWED_ORIGINS']?.split(',') || [
   'https://orcastr8r.com',
   'https://www.orcastr8r.com',
-  'https://integration.tax',
-  'https://www.integration.tax',
   ...(nodeEnv !== 'production' ? [
     'http://localhost:3005',
     'http://localhost:5173',

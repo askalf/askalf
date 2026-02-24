@@ -325,9 +325,6 @@ export async function sendWaitlistEmail(
   vars: WaitlistEmailVars,
   source?: string
 ): Promise<EmailResult> {
-  if (source === 'claw-replay') {
-    return getEmailService().sendTemplate(to, 'waitlist-claw', vars);
-  }
   return getEmailService().sendWaitlist(to, vars);
 }
 
