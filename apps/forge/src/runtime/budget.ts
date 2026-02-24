@@ -115,7 +115,7 @@ export function estimateTaskComplexity(prompt: string): TaskComplexity {
   const length = prompt.length;
 
   // Keywords that signal heavy work
-  const heavyPatterns = /\b(implement|refactor|build|create|architect|design|migrate|deploy|pipeline)\b/i;
+  const heavyPatterns = /\b(implement|refactor|build|create|architect|design|migrate|deploy|pipeline|research|analyze|investigate|comprehensive|comparison)\b/i;
   const multiTaskPatterns = /\b(and then|after that|next|also|additionally|step \d|phase \d)\b/i;
   const listPattern = /(?:^|\n)\s*(?:\d+[.):]|\*|-)\s+/gm;
   const listItems = prompt.match(listPattern);
