@@ -7,7 +7,10 @@
     "dev": "pnpm exec vite",
     "build": "pnpm exec tsc && pnpm exec vite build",
     "preview": "pnpm exec vite preview",
-    "typecheck": "pnpm exec tsc --noEmit"
+    "typecheck": "pnpm exec tsc --noEmit",
+    "test": "pnpm exec vitest run",
+    "test:watch": "pnpm exec vitest",
+    "test:coverage": "pnpm exec vitest run --coverage"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
@@ -27,7 +30,10 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^2.1.0",
+    "jsdom": "^25.0.0",
     "typescript": "^5.7.3",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "vitest": "^2.1.0"
   }
 }
