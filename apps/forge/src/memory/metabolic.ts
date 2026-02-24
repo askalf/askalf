@@ -9,7 +9,6 @@ import { query } from '../database.js';
 import { substrateQuery } from '../database.js';
 import { processUnprocessedFeedback, getAgentFeedbackStats } from '../learning/feedback-processor.js';
 import { proposeAllRevisions, applyPromptRevision, proposePromptRevision } from '../learning/prompt-rewriter.js';
-import { proposeAllGoals, proposeGoals, approveGoal } from '../orchestration/goal-proposer.js';
 import { selectOptimalModel } from '../orchestration/cost-router.js';
 import { getMemoryManager } from './singleton.js';
 import { healStuckExecutions } from '../orchestration/monitoring-agent.js';
@@ -77,7 +76,6 @@ let lessonsTimer: ReturnType<typeof setInterval> | null = null;
 let promoteTimer: ReturnType<typeof setInterval> | null = null;
 let feedbackTimer: ReturnType<typeof setInterval> | null = null;
 let promptRewriteTimer: ReturnType<typeof setInterval> | null = null;
-let goalProposalTimer: ReturnType<typeof setInterval> | null = null;
 let autonomyLoopTimer: ReturnType<typeof setInterval> | null = null;
 let worktreeCleanupTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -92,7 +90,6 @@ export function startMetabolicCycles(): void {
   initCycleStatus('promote', 2);
   initCycleStatus('feedback', 0.5);
   initCycleStatus('prompt-rewrite', 6);
-  initCycleStatus('goal-proposal', 8);
   initCycleStatus('autonomy-loop', 0.25);
   initCycleStatus('worktree-cleanup', 6);
 
@@ -127,12 +124,6 @@ export function startMetabolicCycles(): void {
     void proposeAllRevisions().catch(logErr('prompt-rewrite'));
   }, 6 * 60 * 60 * 1000);
 
-  // Goal proposals: DISABLED — generated non-actionable tickets that cluttered the queue.
-  // Goals can still be manually proposed via the API.
-  // goalProposalTimer = setInterval(() => {
-  //   void proposeAllGoals().catch(logErr('goal-proposal'));
-  // }, 8 * 60 * 60 * 1000);
-
   // Autonomy loop: every 15 minutes (Level 4)
   // Auto-approves goals, converts to tickets, applies prompt revisions, optimizes models
   autonomyLoopTimer = setInterval(() => {
@@ -149,7 +140,7 @@ export function startMetabolicCycles(): void {
     void runWorktreeCleanup().catch(logErr('worktree-cleanup'));
   }, 6 * 60 * 60 * 1000);
 
-  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), goals(8h), autonomy(15m), worktree-cleanup(6h)');
+  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), autonomy(15m), worktree-cleanup(6h)');
 }
 
 /**
@@ -161,7 +152,6 @@ export function stopMetabolicCycles(): void {
   if (promoteTimer) clearInterval(promoteTimer);
   if (feedbackTimer) clearInterval(feedbackTimer);
   if (promptRewriteTimer) clearInterval(promptRewriteTimer);
-  if (goalProposalTimer) clearInterval(goalProposalTimer);
   if (autonomyLoopTimer) clearInterval(autonomyLoopTimer);
   if (worktreeCleanupTimer) clearInterval(worktreeCleanupTimer);
   decayTimer = null;
@@ -169,7 +159,6 @@ export function stopMetabolicCycles(): void {
   promoteTimer = null;
   feedbackTimer = null;
   promptRewriteTimer = null;
-  goalProposalTimer = null;
   autonomyLoopTimer = null;
   worktreeCleanupTimer = null;
 }
