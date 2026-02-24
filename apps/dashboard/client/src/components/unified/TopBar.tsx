@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { hubApi } from '../../hooks/useHubApi';
 import type { SchedulerStatus } from '../../hooks/useHubApi';
 
@@ -9,9 +9,19 @@ interface TopBarProps {
   todayCost: number;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  role?: string;
+}
+
 export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost }: TopBarProps) {
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const [toggling, setToggling] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     hubApi.reports.scheduler().then(setSchedulerStatus).catch(() => {});
@@ -20,6 +30,24 @@ export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost
     }, 30000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch current user
+  useEffect(() => {
+    fetch('/api/v1/auth/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.user) setUser(data.user); })
+      .catch(() => {});
+  }, []);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
 
   const toggleScheduler = async () => {
     if (toggling || !schedulerStatus) return;
@@ -35,8 +63,18 @@ export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost
     setToggling(false);
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {
+      // ignore
+    }
+    window.location.href = '/login';
+  };
+
   const healthColor = wsConnected ? '#22c55e' : '#ef4444';
   const healthLabel = wsConnected ? 'Healthy' : 'Disconnected';
+  const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : user?.email?.[0]?.toUpperCase() ?? '?';
 
   return (
     <div className="ud-topbar">
@@ -59,6 +97,33 @@ export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost
         >
           {schedulerStatus?.running ? '⏸' : '▶'}
         </button>
+        <div className="ud-account-menu" ref={menuRef}>
+          <button
+            className="ud-account-btn"
+            onClick={() => setMenuOpen(!menuOpen)}
+            title={user?.email ?? 'Account'}
+          >
+            {initials}
+          </button>
+          {menuOpen && (
+            <div className="ud-account-dropdown">
+              {user && (
+                <div className="ud-account-info">
+                  <div className="ud-account-name">{user.name ?? user.email}</div>
+                  {user.name && <div className="ud-account-email">{user.email}</div>}
+                  {user.role && <div className="ud-account-role">{user.role}</div>}
+                </div>
+              )}
+              <div className="ud-account-divider" />
+              <a className="ud-account-link" href="/settings">Settings</a>
+              <a className="ud-account-link" href="/admin/users">Users</a>
+              <div className="ud-account-divider" />
+              <button className="ud-account-link ud-account-logout" onClick={handleLogout}>
+                Sign Out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

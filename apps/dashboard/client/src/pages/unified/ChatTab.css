@@ -76,10 +76,64 @@
   max-width: 100%;
 }
 
+.chat-conv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 2px;
+}
+
 .chat-conv-date {
   font-size: 11px;
   opacity: 0.5;
-  margin-top: 2px;
+}
+
+.chat-conv-actions {
+  display: none;
+  gap: 2px;
+}
+
+.chat-conv-item:hover .chat-conv-actions {
+  display: flex;
+}
+
+.chat-conv-action {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted, #666);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+
+.chat-conv-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary, #e0e0e0);
+}
+
+.chat-conv-action-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.chat-conv-rename-input {
+  width: 100%;
+  padding: 4px 6px;
+  background: var(--bg-primary, #0a0a0f);
+  border: 1px solid var(--accent, #6366f1);
+  border-radius: 4px;
+  color: var(--text-primary, #e0e0e0);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
 }
 
 .chat-conv-empty {

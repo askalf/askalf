@@ -55,12 +55,19 @@ RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
 FROM node:22-alpine AS runner
 
 # Install runtime deps for node-pty + Claude Code CLI
-RUN apk add --no-cache bash git python3 make g++ && \
-    npm install -g @anthropic-ai/claude-code
+RUN apk add --no-cache bash git python3 make g++ curl && \
+    npm install -g @anthropic-ai/claude-code && \
+    claude install --force && \
+    npm uninstall -g @anthropic-ai/claude-code && \
+    ln -sf /root/.local/bin/claude /usr/local/bin/claude
 
 # Security: run as non-root
 RUN addgroup -g 1001 -S substrate && \
-    adduser -S -u 1001 -G substrate substrate
+    adduser -S -u 1001 -G substrate substrate && \
+    mkdir -p /home/substrate/.local/bin && \
+    cp /root/.local/bin/claude /home/substrate/.local/bin/claude && \
+    chown -R substrate:substrate /home/substrate/.local && \
+    ln -sf /home/substrate/.local/bin/claude /usr/local/bin/claude
 
 WORKDIR /app
 

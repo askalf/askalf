@@ -218,6 +218,48 @@ export async function conversationRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
+   * PATCH /api/v1/forge/conversations/:id - Rename a conversation
+   */
+  app.patch(
+    '/api/v1/forge/conversations/:id',
+    {
+      schema: {
+        tags: ['Conversations'],
+        summary: 'Rename a conversation',
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+      const body = (request.body ?? {}) as { title?: string };
+
+      if (!body.title || body.title.trim().length === 0) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Title is required',
+        });
+      }
+
+      const result = await query<ConversationRow>(
+        `UPDATE forge_conversations SET title = $1, updated_at = NOW()
+         WHERE id = $2 AND owner_id = $3
+         RETURNING *`,
+        [body.title.trim(), id, userId],
+      );
+
+      if (result.length === 0) {
+        return reply.status(404).send({
+          error: 'Not Found',
+          message: 'Conversation not found',
+        });
+      }
+
+      return result[0];
+    },
+  );
+
+  /**
    * DELETE /api/v1/forge/conversations/:id - Archive a conversation
    */
   app.delete(

@@ -97,6 +97,8 @@ interface ChatState {
   fetchTemplates: () => Promise<void>;
   createConversation: (title?: string) => Promise<string>;
   selectConversation: (id: string) => Promise<void>;
+  renameConversation: (id: string, title: string) => Promise<void>;
+  deleteConversation: (id: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   parseIntent: (message: string) => Promise<ParsedIntent>;
   confirmIntent: (intent: ParsedIntent) => Promise<void>;
@@ -163,6 +165,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  renameConversation: async (id: string, title: string) => {
+    try {
+      const updated = await chatFetch<Conversation>(
+        `/api/v1/admin/chat/conversations/${id}`,
+        { method: 'PATCH', body: JSON.stringify({ title }) },
+      );
+      set(s => ({
+        conversations: s.conversations.map(c => c.id === id ? { ...c, title: updated.title } : c),
+      }));
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to rename conversation' });
+    }
+  },
+
+  deleteConversation: async (id: string) => {
+    try {
+      await chatFetch(`/api/v1/admin/chat/conversations/${id}`, { method: 'DELETE' });
+      set(s => ({
+        conversations: s.conversations.filter(c => c.id !== id),
+        activeConversationId: s.activeConversationId === id ? null : s.activeConversationId,
+        messages: s.activeConversationId === id ? [] : s.messages,
+        pendingIntent: s.activeConversationId === id ? null : s.pendingIntent,
+      }));
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to delete conversation' });
+    }
+  },
+
   sendMessage: async (content: string) => {
     const { activeConversationId } = get();
     let convId = activeConversationId;
@@ -199,6 +229,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Parse intent
       const intent = await get().parseIntent(content);
+
+      // Persist the intent response as an assistant message immediately
+      const summary = `**${intent.agentConfig.name}** (${intent.category})\n${intent.summary}\n\nModel: ${intent.agentConfig.model} | Tools: ${intent.agentConfig.tools.join(', ')} | Est. cost: $${intent.estimatedCost.toFixed(2)}`;
+      await get().addAssistantMessage(summary, undefined, intent);
+
       set({ pendingIntent: intent, isProcessing: false });
     } catch (err) {
       set({
@@ -223,11 +258,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ isProcessing: true, pendingIntent: null });
 
     try {
-      // Add assistant preview message
-      const previewContent = `Creating "${intent.agentConfig.name}" agent (${intent.category})...\nEstimated cost: $${intent.estimatedCost.toFixed(2)}`;
-
-      await get().addAssistantMessage(previewContent, undefined, intent);
-
       // If there's a matching template, instantiate it
       if (intent.templateId) {
         const result = await chatFetch<{ agent: { id: string; name: string }; message: string }>(
