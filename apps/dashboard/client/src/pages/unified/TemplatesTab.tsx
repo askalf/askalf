@@ -95,8 +95,8 @@ export default function TemplatesTab({
     const fetchTemplates = async () => {
       try {
         const data = await hubApi.templates.list();
-        setTemplates(data.templates);
-        setCategories(data.categories);
+        setTemplates(data.templates as Template[]);
+        setCategories(data.categories as Record<string, Template[]>);
       } catch (err) {
         console.error('Failed to fetch templates:', err);
       } finally {

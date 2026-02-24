@@ -35,7 +35,8 @@ export default function UnifiedDashboard() {
   const { connected, events } = useWebSocket();
 
   // State for cross-tab communication (Templates → Builder)
-  const [builderTemplate, setBuilderTemplate] = useState<Record<string, unknown> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [builderTemplate, setBuilderTemplate] = useState<any>(null);
 
   // Aggregated counts for topbar
   const [agentCount, setAgentCount] = useState(0);
@@ -65,7 +66,8 @@ export default function UnifiedDashboard() {
   }, []);
 
   // Template → Builder navigation
-  const handleUseTemplate = useCallback((template: Record<string, unknown>) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleUseTemplate = useCallback((template: any) => {
     setBuilderTemplate(template);
     setActiveTab('builder');
   }, []);

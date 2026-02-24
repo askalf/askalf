@@ -33,7 +33,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Initialize database
-const databaseUrl = process.env['DATABASE_URL'] ?? 'postgresql://substrate:substrate_dev@localhost:5432/substrate';
+const databaseUrl = process.env['DATABASE_URL'] ?? 'postgresql://substrate:substrate_dev@localhost:5432/orcastr8r';
 initializePool({ connectionString: databaseUrl });
 initializeEmailFromEnv();
 

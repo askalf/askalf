@@ -383,7 +383,11 @@ export default function BuilderTab({
   // Load provider status
   useEffect(() => {
     hubApi.providers.health().then(data => {
-      if (data.providers) setProviders(data.providers);
+      if (data.providers) setProviders(data.providers.map((p: Record<string, unknown>) => ({
+        name: p.name as string,
+        status: (p.healthStatus as string) ?? 'unknown',
+        models: p.models as string[] | undefined,
+      })));
     }).catch(() => {});
   }, []);
 
