@@ -42,7 +42,7 @@ function extractCsrfToken(request: FastifyRequest): string | null {
   }
 
   // Check query parameters
-  const queryToken = request.query?.[CSRF_FORM_FIELD];
+  const queryToken = (request.query as Record<string, unknown>)?.[CSRF_FORM_FIELD];
   if (typeof queryToken === 'string' && queryToken) {
     return queryToken;
   }
