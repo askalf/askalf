@@ -96,7 +96,8 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
       );
 
       // Use Anthropic SDK to classify intent (cheap, fast with haiku)
-      const apiKey = process.env['ANTHROPIC_API_KEY'];
+      // CLI mode blanks ANTHROPIC_API_KEY; fall back to ANTHROPIC_API_KEY_FALLBACK
+      const apiKey = process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
       if (!apiKey) {
         return reply.status(503).send({
           error: 'Service Unavailable',
