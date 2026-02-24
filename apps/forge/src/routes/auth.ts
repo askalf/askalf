@@ -7,7 +7,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { createHash } from 'node:crypto';
-import { substrateQuery, substrateQueryOne } from '../database.js';
+import { substrateQuery, substrateQueryOne, retryQuery } from '../database.js';
 import { sendEmailVerificationEmail, sendPasswordResetEmail } from '@substrate/email';
 
 // ============================================
@@ -363,8 +363,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(401).send({ error: 'Session expired or invalid' });
     }
 
-    // Update last active (fire-and-forget)
-    void substrateQuery(
+    // Update last active (retry on transient DB errors)
+    void retryQuery(
       'UPDATE sessions SET last_active_at = NOW() WHERE id = $1',
       [session['id']],
     ).catch(() => {});
