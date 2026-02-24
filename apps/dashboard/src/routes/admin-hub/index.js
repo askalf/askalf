@@ -7,6 +7,7 @@ import { registerReportRoutes } from './reports.js';
 import { registerTicketRoutes } from './tickets.js';
 import { registerProxyRoutes } from './proxy.js';
 import { registerSchedulerRoutes } from './scheduler.js';
+import { registerChatRoutes } from './chat.js';
 
 export async function registerAdminHubRoutes(fastify, requireAdmin, query, queryOne) {
   await registerAgentRoutes(fastify, requireAdmin, query, queryOne);
@@ -15,4 +16,5 @@ export async function registerAdminHubRoutes(fastify, requireAdmin, query, query
   await registerTicketRoutes(fastify, requireAdmin, query, queryOne);
   await registerProxyRoutes(fastify, requireAdmin, query, queryOne);
   await registerSchedulerRoutes(fastify, requireAdmin, query, queryOne);
+  await registerChatRoutes(fastify, requireAdmin, query, queryOne);
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import TopBar from '../components/unified/TopBar';
 import MasterSession from '../components/unified/MasterSession';
 import AgentFleetCompact from '../components/unified/AgentFleetCompact';
@@ -13,10 +13,16 @@ const PushPanel = lazy(() => import('./forge/PushPanel'));
 const ExecutionHistory = lazy(() => import('./hub/ExecutionHistory'));
 const CostDashboard = lazy(() => import('./forge/CostDashboard'));
 const FleetTab = lazy(() => import('./unified/FleetTab'));
+const ChatTab = lazy(() => import('./unified/ChatTab'));
+const BuilderTab = lazy(() => import('./unified/BuilderTab'));
+const TemplatesTab = lazy(() => import('./unified/TemplatesTab'));
 
-type TabKey = 'master' | 'fleet' | 'deploy' | 'executions' | 'costs';
+type TabKey = 'chat' | 'templates' | 'builder' | 'master' | 'fleet' | 'deploy' | 'executions' | 'costs';
 
 const TABS: { key: TabKey; label: string }[] = [
+  { key: 'chat', label: 'Chat' },
+  { key: 'templates', label: 'Templates' },
+  { key: 'builder', label: 'Builder' },
   { key: 'master', label: 'Master' },
   { key: 'fleet', label: 'Fleet' },
   { key: 'deploy', label: 'Deploy' },
@@ -27,6 +33,9 @@ const TABS: { key: TabKey; label: string }[] = [
 export default function UnifiedDashboard() {
   const [activeTab, setActiveTab] = useState<TabKey>('master');
   const { connected, events } = useWebSocket();
+
+  // State for cross-tab communication (Templates → Builder)
+  const [builderTemplate, setBuilderTemplate] = useState<Record<string, unknown> | null>(null);
 
   // Aggregated counts for topbar
   const [agentCount, setAgentCount] = useState(0);
@@ -55,8 +64,32 @@ export default function UnifiedDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Template → Builder navigation
+  const handleUseTemplate = useCallback((template: Record<string, unknown>) => {
+    setBuilderTemplate(template);
+    setActiveTab('builder');
+  }, []);
+
   const tabContent = () => {
     switch (activeTab) {
+      case 'chat':
+        return (
+          <Suspense fallback={<div className="ud-loading">Loading Chat...</div>}>
+            <ChatTab />
+          </Suspense>
+        );
+      case 'templates':
+        return (
+          <Suspense fallback={<div className="ud-loading">Loading Templates...</div>}>
+            <TemplatesTab onUseTemplate={handleUseTemplate} />
+          </Suspense>
+        );
+      case 'builder':
+        return (
+          <Suspense fallback={<div className="ud-loading">Loading Builder...</div>}>
+            <BuilderTab prefilledTemplate={builderTemplate} />
+          </Suspense>
+        );
       case 'master':
         return <MasterSession />;
       case 'fleet':
