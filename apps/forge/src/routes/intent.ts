@@ -95,9 +95,8 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
          FROM forge_agent_templates WHERE is_active = true ORDER BY sort_order ASC`,
       );
 
-      // Use Anthropic SDK to classify intent (cheap, fast with haiku)
-      // CLI mode blanks ANTHROPIC_API_KEY; fall back to ANTHROPIC_API_KEY_FALLBACK
-      const apiKey = process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
+      // Dedicated key for intent parsing (isolated from CLI OAuth flow)
+      const apiKey = process.env['ANTHROPIC_INTENT_API_KEY'] || process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
       if (!apiKey) {
         return reply.status(503).send({
           error: 'Service Unavailable',
