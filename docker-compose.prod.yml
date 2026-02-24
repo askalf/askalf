@@ -22,7 +22,7 @@ services:
     # Shared memory for PostgreSQL (matches shared_buffers)
     shm_size: 256m
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U substrate"]
+      test: ["CMD-SHELL", "pg_isready -U substrate -d orcastr8r"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -417,7 +417,7 @@ services:
       LOG_CONNECTIONS: 0
       LOG_DISCONNECTIONS: 0
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U substrate || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U substrate -d orcastr8r || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
