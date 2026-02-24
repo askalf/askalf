@@ -68,6 +68,33 @@ export async function transaction<T>(
   }
 }
 
+/**
+ * Retries a query up to maxRetries times with exponential backoff.
+ * Designed for non-critical fire-and-forget updates (e.g. last_used_at, access_count)
+ * that silently lose data on transient DB connection issues.
+ *
+ * Backoff: 100ms → 200ms → 400ms before each retry.
+ * Throws after all attempts are exhausted so the caller can log the final error.
+ */
+export async function retryQuery<T extends pg.QueryResultRow = pg.QueryResultRow>(
+  text: string,
+  params?: unknown[],
+  maxRetries = 3,
+): Promise<T[]> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await query<T>(text, params);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxRetries) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 100 * Math.pow(2, attempt)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export async function clientQuery<T extends pg.QueryResultRow = pg.QueryResultRow>(
   client: pg.PoolClient,
   text: string,
