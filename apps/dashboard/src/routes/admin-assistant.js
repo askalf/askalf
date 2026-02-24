@@ -24,7 +24,7 @@ function checkRateLimit(key) {
 async function callForge(path, options = {}) {
   const url = `${FORGE_URL}/api/v1/forge${path}`;
   const headers = {
-    'Content-Type': 'application/json',
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     ...(FORGE_API_KEY ? { 'Authorization': `Bearer ${FORGE_API_KEY}` } : {}),
   };
   try {

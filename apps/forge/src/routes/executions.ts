@@ -87,6 +87,7 @@ interface AgentCheckRow {
   max_cost_per_execution: string;
   model_id: string | null;
   system_prompt: string | null;
+  max_iterations: number | null;
 }
 
 export async function executionRoutes(app: FastifyInstance): Promise<void> {
@@ -110,7 +111,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
 
       // Verify agent exists and is accessible
       const agent = await queryOne<AgentCheckRow>(
-        `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt
+        `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
          FROM forge_agents
          WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
         [body.agentId, userId],
@@ -191,6 +192,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           systemPrompt: agent.system_prompt ?? undefined,
           sessionId: body.sessionId,
           maxBudgetUsd: agent.max_cost_per_execution,
+          maxTurns: agent.max_iterations ?? undefined,
         },
       ).catch((err) => {
         console.error(`[Executions] Async CLI execution failed for ${executionId}:`, err);
@@ -538,7 +540,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       for (const a of body.agents) {
         const execId = ulid();
         const agent = await queryOne<AgentCheckRow>(
-          `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt
+          `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
            FROM forge_agents WHERE id = $1`,
           [a.agentId],
         );
@@ -566,6 +568,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           modelId: agent.model_id ?? undefined,
           systemPrompt: agent.system_prompt ?? undefined,
           maxBudgetUsd: agent.max_cost_per_execution,
+          maxTurns: agent.max_iterations ?? undefined,
         }).catch((err) => {
           console.error(`[Batch→CLI] Execution ${execId} failed:`, err);
         });
@@ -621,7 +624,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
 
       // Verify the agent is still accessible and not archived
       const agent = await queryOne<AgentCheckRow>(
-        `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt
+        `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
          FROM forge_agents
          WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
         [original.agent_id, userId],
@@ -686,6 +689,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           systemPrompt: agent.system_prompt ?? undefined,
           sessionId: original.session_id ?? undefined,
           maxBudgetUsd: agent.max_cost_per_execution,
+          maxTurns: agent.max_iterations ?? undefined,
         },
       ).catch((err) => {
         console.error(`[Executions] Retry CLI execution failed for ${newExecutionId}:`, err);
