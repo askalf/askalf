@@ -39,6 +39,7 @@ export const ADMIN_TAB_SECTIONS: TabSection[] = [
       { key: 'tickets', label: 'Tickets' },
       { key: 'deployments', label: 'Deployments' },
       { key: 'content', label: 'Content' },
+      { key: 'documents', label: 'Documents' },
       { key: 'memory', label: 'Memory' },
     ],
   },

@@ -63,6 +63,7 @@ const Leaderboard = lazyRetry(() => import('./forge/Leaderboard'));
 const MetabolicDashboard = lazyRetry(() => import('./forge/MetabolicDashboard'));
 const ExecutionTimeline = lazyRetry(() => import('./forge/ExecutionTimeline'));
 const AgentPerformance = lazyRetry(() => import('./forge/AgentPerformance'));
+const Documents = lazyRetry(() => import('./hub/Documents'));
 
 const PANEL_MAP: Record<HubTab, React.FC> = {
   overview: ForgeOverview,
@@ -74,6 +75,7 @@ const PANEL_MAP: Record<HubTab, React.FC> = {
   checkpoints: Checkpoints,
   tickets: Tickets,
   content: ContentFeed,
+  documents: Documents,
   memory: FleetMemory,
   threads: Threads,
   costs: CostDashboard,

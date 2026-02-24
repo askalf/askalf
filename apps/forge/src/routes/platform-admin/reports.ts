@@ -304,4 +304,142 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
       return { executions: items, hours: hoursNum };
     },
   );
+
+  // ============================================
+  // Documents — completed execution outputs as browsable documents
+  // ============================================
+
+  // List documents (paginated, filterable)
+  app.get(
+    '/api/v1/admin/reports/documents',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest) => {
+      const qs = request.query as Record<string, string>;
+      const page = Math.max(1, parseInt(qs['page'] ?? '1'));
+      const limit = Math.min(100, Math.max(1, parseInt(qs['limit'] ?? '20')));
+      const offset = (page - 1) * limit;
+
+      const conditions: string[] = [
+        `e.status = 'completed'`,
+        `e.output IS NOT NULL`,
+        `LENGTH(e.output) > 100`,
+      ];
+      const params: unknown[] = [];
+
+      if (qs['agent']) {
+        params.push(qs['agent']);
+        conditions.push(`a.name = $${params.length}`);
+      }
+      if (qs['search']) {
+        params.push(`%${qs['search']}%`);
+        conditions.push(`(e.output ILIKE $${params.length} OR e.input ILIKE $${params.length})`);
+      }
+      if (qs['dateFrom']) {
+        params.push(qs['dateFrom']);
+        conditions.push(`e.completed_at >= $${params.length}`);
+      }
+      if (qs['dateTo']) {
+        params.push(qs['dateTo']);
+        conditions.push(`e.completed_at <= $${params.length}`);
+      }
+
+      const where = `WHERE ${conditions.join(' AND ')}`;
+
+      const [items, countResult] = await Promise.all([
+        query<Record<string, unknown>>(
+          `SELECT e.id, e.agent_id, e.input, SUBSTRING(e.output, 1, 500) AS preview,
+                  e.total_tokens, e.cost, e.duration_ms, e.metadata,
+                  e.started_at, e.completed_at, e.created_at,
+                  a.name AS agent_name, a.metadata AS agent_metadata
+           FROM forge_executions e
+           LEFT JOIN forge_agents a ON a.id = e.agent_id
+           ${where}
+           ORDER BY e.completed_at DESC
+           LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+          [...params, limit, offset],
+        ),
+        queryOne<{ count: string }>(
+          `SELECT COUNT(*)::text AS count FROM forge_executions e LEFT JOIN forge_agents a ON a.id = e.agent_id ${where}`,
+          params,
+        ),
+      ]);
+
+      const total = parseInt(countResult?.count || '0');
+      const documents = items.map((e) => ({
+        id: e['id'],
+        agent_id: e['agent_id'],
+        agent_name: e['agent_name'] || 'Unknown',
+        agent_type: mapAgentType(e['agent_metadata'] as Record<string, unknown> | null),
+        input: e['input'] || '',
+        preview: e['preview'] || '',
+        tokens: Number(e['total_tokens']) || 0,
+        cost: e['cost'] ? Number(e['cost']) : 0,
+        duration_ms: e['duration_ms'] ? Number(e['duration_ms']) : 0,
+        metadata: (e['metadata'] as Record<string, unknown>) || {},
+        started_at: e['started_at'],
+        completed_at: e['completed_at'],
+        created_at: e['created_at'],
+      }));
+
+      return { documents, pagination: paginationResponse(total, page, limit) };
+    },
+  );
+
+  // Document agent filter options (must be before :id route)
+  app.get(
+    '/api/v1/admin/reports/documents/agents',
+    { preHandler: [authMiddleware] },
+    async () => {
+      const rows = await query<{ agent_name: string }>(
+        `SELECT DISTINCT a.name AS agent_name
+         FROM forge_executions e
+         JOIN forge_agents a ON a.id = e.agent_id
+         WHERE e.status = 'completed' AND e.output IS NOT NULL AND LENGTH(e.output) > 100
+         ORDER BY a.name`,
+      );
+      return { agents: rows.map((r) => r.agent_name) };
+    },
+  );
+
+  // Single document detail (full output)
+  app.get(
+    '/api/v1/admin/reports/documents/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const e = await queryOne<Record<string, unknown>>(
+        `SELECT e.id, e.agent_id, e.input, e.output, e.messages, e.tool_calls,
+                e.total_tokens, e.cost, e.duration_ms, e.metadata, e.iterations,
+                e.started_at, e.completed_at, e.created_at,
+                a.name AS agent_name, a.metadata AS agent_metadata
+         FROM forge_executions e
+         LEFT JOIN forge_agents a ON a.id = e.agent_id
+         WHERE e.id = $1 AND e.status = 'completed'`,
+        [id],
+      );
+      if (!e) return reply.code(404).send({ error: 'Document not found' });
+
+      return {
+        document: {
+          id: e['id'],
+          agent_id: e['agent_id'],
+          agent_name: e['agent_name'] || 'Unknown',
+          agent_type: mapAgentType(e['agent_metadata'] as Record<string, unknown> | null),
+          input: e['input'] || '',
+          output: e['output'] || '',
+          preview: String(e['output'] || '').substring(0, 500),
+          messages: e['messages'] || [],
+          tool_calls: e['tool_calls'] || [],
+          tokens: Number(e['total_tokens']) || 0,
+          cost: e['cost'] ? Number(e['cost']) : 0,
+          duration_ms: e['duration_ms'] ? Number(e['duration_ms']) : 0,
+          iterations: Number(e['iterations']) || 0,
+          metadata: (e['metadata'] as Record<string, unknown>) || {},
+          started_at: e['started_at'],
+          completed_at: e['completed_at'],
+          created_at: e['created_at'],
+        },
+      };
+    },
+  );
 }
