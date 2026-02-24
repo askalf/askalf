@@ -5,7 +5,7 @@
  * 2. Session cookie (substrate_session) — for dashboard users
  */
 
-import { pbkdf2Sync } from 'node:crypto';
+import { createHash, pbkdf2Sync } from 'node:crypto';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { query, queryOne, retryQuery } from '../database.js';
 import { sessionAuthMiddleware } from './session-auth.js';
@@ -59,9 +59,9 @@ function verifyApiKeyHash(key: string, storedHash: string): boolean {
       return derivedHash.toString('hex') === hashHex;
     }
 
-    // Legacy SHA-256 format (for backward compatibility)
-    // TODO: Migrate existing API keys to PBKDF2 format
-    return false; // Don't accept legacy format for new validation
+    // Legacy SHA-256 format (for backward compatibility with existing keys)
+    const sha256Hash = createHash('sha256').update(key).digest('hex');
+    return sha256Hash === storedHash;
   } catch {
     return false;
   }
