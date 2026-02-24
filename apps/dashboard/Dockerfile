@@ -51,23 +51,30 @@ RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
     cp -r /app/apps/dashboard/public/app /app/deploy/public/app && \
     cp /app/apps/dashboard/public/docs.html /app/deploy/public/docs.html
 
-# Production stage - minimal Alpine
-FROM node:22-alpine AS runner
+# Claude Code CLI stage - install in isolation, extract only the binary
+FROM node:22-alpine AS claude-installer
 
-# Install runtime deps for node-pty + Claude Code CLI
-RUN apk add --no-cache bash git python3 make g++ curl && \
+RUN apk add --no-cache bash curl python3 make g++ && \
     npm install -g @anthropic-ai/claude-code && \
     claude install --force && \
     npm uninstall -g @anthropic-ai/claude-code && \
-    ln -sf /root/.local/bin/claude /usr/local/bin/claude
+    apk del python3 make g++
+
+# Production stage - minimal Alpine
+FROM node:22-alpine AS runner
+
+# Runtime deps only: bash (node-pty), git (claude), curl (healthchecks)
+RUN apk add --no-cache bash git curl
+
+# Copy Claude binary from installer stage
+COPY --from=claude-installer /root/.local/bin/claude /usr/local/bin/claude
 
 # Security: run as non-root
 RUN addgroup -g 1001 -S substrate && \
     adduser -S -u 1001 -G substrate substrate && \
     mkdir -p /home/substrate/.local/bin && \
-    cp /root/.local/bin/claude /home/substrate/.local/bin/claude && \
-    chown -R substrate:substrate /home/substrate/.local && \
-    ln -sf /home/substrate/.local/bin/claude /usr/local/bin/claude
+    cp /usr/local/bin/claude /home/substrate/.local/bin/claude && \
+    chown -R substrate:substrate /home/substrate/.local
 
 WORKDIR /app
 
