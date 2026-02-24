@@ -24,9 +24,9 @@ export const PaginationQuery = Type.Object({
 // ── Agents ──────────────────────────────────────────────────────────
 
 export const CreateAgentBody = Type.Object({
-  name: Type.String({ minLength: 1, description: 'Agent name' }),
-  description: Type.Optional(Type.String()),
-  systemPrompt: Type.Optional(Type.String()),
+  name: Type.String({ minLength: 1, maxLength: 100, description: 'Agent name' }),
+  description: Type.Optional(Type.String({ maxLength: 2048 })),
+  systemPrompt: Type.Optional(Type.String({ maxLength: 10240 })),
   modelId: Type.Optional(Type.String()),
   providerConfig: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
   autonomyLevel: Type.Optional(Type.Number({ minimum: 0, maximum: 5 })),
@@ -76,9 +76,9 @@ export const AgentResponse = Type.Object({
 });
 
 export const UpdateAgentBody = Type.Object({
-  name: Type.Optional(Type.String()),
-  description: Type.Optional(Type.String()),
-  systemPrompt: Type.Optional(Type.String()),
+  name: Type.Optional(Type.String({ maxLength: 100 })),
+  description: Type.Optional(Type.String({ maxLength: 2048 })),
+  systemPrompt: Type.Optional(Type.String({ maxLength: 10240 })),
   modelId: Type.Optional(Type.String()),
   providerConfig: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
   autonomyLevel: Type.Optional(Type.Number({ minimum: 0, maximum: 5 })),
@@ -109,7 +109,7 @@ export const ForkAgentBody = Type.Object({
 
 export const CreateExecutionBody = Type.Object({
   agentId: Type.String({ description: 'Agent to execute' }),
-  input: Type.String({ minLength: 1, description: 'Input prompt' }),
+  input: Type.String({ minLength: 1, maxLength: 102400, description: 'Input prompt' }),
   sessionId: Type.Optional(Type.String()),
   metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
 });
@@ -148,7 +148,7 @@ export const BatchExecutionBody = Type.Object({
   agents: Type.Array(
     Type.Object({
       agentId: Type.String({ description: 'Agent to execute' }),
-      input: Type.String({ description: 'Input prompt' }),
+      input: Type.String({ maxLength: 102400, description: 'Input prompt' }),
     }),
     { minItems: 1, maxItems: 20, description: 'Array of agent execution requests' },
   ),
