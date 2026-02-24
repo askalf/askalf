@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useChatStore } from '../../stores/chat';
-import type { ConversationMessage, ParsedIntent, Conversation } from '../../stores/chat';
+import type { ConversationMessage, ParsedIntent, IntentSubtask, Conversation } from '../../stores/chat';
 import './ChatTab.css';
 
 // ── Sub-components ──
@@ -101,6 +101,47 @@ function ChatMessage({ message }: { message: ConversationMessage }) {
   );
 }
 
+const PATTERN_LABELS: Record<string, { label: string; color: string }> = {
+  single: { label: 'Single Agent', color: '#6366f1' },
+  pipeline: { label: 'Pipeline', color: '#3b82f6' },
+  'fan-out': { label: 'Fan-Out', color: '#8b5cf6' },
+  consensus: { label: 'Consensus', color: '#06b6d4' },
+};
+
+function SubtaskList({
+  subtasks,
+  pattern,
+}: {
+  subtasks: IntentSubtask[];
+  pattern: string;
+}) {
+  const header = pattern === 'pipeline' ? 'Sequential Steps'
+    : pattern === 'fan-out' ? 'Parallel Tasks'
+    : 'Consensus Agents';
+
+  return (
+    <div className="chat-intent-subtasks">
+      <div className="chat-intent-subtasks-header">{header}</div>
+      {subtasks.map((st, i) => (
+        <div key={i} className="chat-intent-subtask">
+          <div className="chat-intent-subtask-connector">
+            {pattern === 'pipeline'
+              ? <span className="chat-intent-subtask-arrow">{i > 0 ? '\u2193' : '\u25CF'}</span>
+              : <span className="chat-intent-subtask-parallel">\u2502</span>}
+          </div>
+          <div className="chat-intent-subtask-content">
+            <div className="chat-intent-subtask-title">
+              {st.title}
+              <span className="chat-intent-subtask-type">{st.suggestedAgentType}</span>
+            </div>
+            <div className="chat-intent-subtask-desc">{st.description}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function IntentPreview({
   intent,
   onConfirm,
@@ -110,35 +151,52 @@ function IntentPreview({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const isMultiAgent = intent.executionMode !== 'single' && intent.subtasks?.length;
+  const patternInfo = PATTERN_LABELS[intent.executionMode] ?? PATTERN_LABELS['single']!;
+
   return (
     <div className="chat-intent-preview">
       <div className="chat-intent-header">
-        <span className="chat-intent-category">{intent.category}</span>
+        <div className="chat-intent-header-left">
+          <span className="chat-intent-category">{intent.category}</span>
+          {isMultiAgent && (
+            <span className="chat-intent-mode-badge" style={{ background: patternInfo.color }}>
+              {patternInfo.label}
+            </span>
+          )}
+        </div>
         <span className="chat-intent-confidence">
           {Math.round(intent.confidence * 100)}% match
         </span>
       </div>
       <div className="chat-intent-summary">{intent.summary}</div>
-      <div className="chat-intent-details">
-        <div><strong>Agent:</strong> {intent.agentConfig.name}</div>
-        <div><strong>Model:</strong> {intent.agentConfig.model}</div>
-        <div><strong>Tools:</strong> {intent.agentConfig.tools.join(', ')}</div>
-        {intent.templateName && (
-          <div><strong>Template:</strong> {intent.templateName}</div>
-        )}
-        {intent.schedule && (
-          <div><strong>Schedule:</strong> Every {intent.schedule}</div>
-        )}
-      </div>
+
+      {isMultiAgent && intent.subtasks ? (
+        <SubtaskList subtasks={intent.subtasks} pattern={intent.executionMode} />
+      ) : (
+        <div className="chat-intent-details">
+          <div><strong>Agent:</strong> {intent.agentConfig.name}</div>
+          <div><strong>Model:</strong> {intent.agentConfig.model}</div>
+          <div><strong>Tools:</strong> {intent.agentConfig.tools.join(', ')}</div>
+          {intent.templateName && (
+            <div><strong>Template:</strong> {intent.templateName}</div>
+          )}
+          {intent.schedule && (
+            <div><strong>Schedule:</strong> Every {intent.schedule}</div>
+          )}
+        </div>
+      )}
+
       <div className="chat-intent-cost">
         Estimated cost: <strong>${intent.estimatedCost.toFixed(2)}</strong>
+        {isMultiAgent && <span className="chat-intent-agent-count"> ({intent.subtasks?.length} agents)</span>}
         {intent.requiresApproval && (
           <span className="chat-intent-approval"> (requires approval)</span>
         )}
       </div>
       <div className="chat-intent-actions">
         <button className="chat-btn chat-btn-primary" onClick={onConfirm}>
-          Confirm & Create
+          {isMultiAgent ? 'Launch Orchestration' : 'Confirm & Create'}
         </button>
         <button className="chat-btn chat-btn-secondary" onClick={onCancel}>
           Cancel
