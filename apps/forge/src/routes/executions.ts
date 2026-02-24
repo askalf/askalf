@@ -9,7 +9,7 @@ import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
-import { checkGuardrails } from '../observability/guardrails.js';
+import { checkGuardrails, checkUserBudget } from '../observability/guardrails.js';
 import { runDirectCliExecution } from '../runtime/worker.js';
 import { calculateCost } from '../runtime/token-counter.js';
 import {
@@ -145,6 +145,15 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
+      // Check user budget limits (from forge_user_preferences)
+      const budgetResult = await checkUserBudget(userId);
+      if (!budgetResult.allowed) {
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: budgetResult.reason ?? 'Budget exceeded',
+        });
+      }
+
       const executionId = ulid();
 
       const execution = await queryOne<ExecutionRow>(
@@ -157,7 +166,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           body.sessionId ?? null,
           userId,
           body.input,
-          JSON.stringify(body.metadata ?? {}),
+          JSON.stringify({ source_layer: 'api', ...body.metadata }),
         ],
       );
 

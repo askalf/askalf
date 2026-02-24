@@ -34,6 +34,9 @@ import { gitReviewRoutes } from './routes/git-review.js';
 import { authRoutes } from './routes/auth.js';
 import { platformAdminRoutes } from './routes/platform-admin/index.js';
 import { cliRoutes } from './routes/cli.js';
+import { templateRoutes } from './routes/templates.js';
+import { intentRoutes } from './routes/intent.js';
+import { conversationRoutes } from './routes/conversations.js';
 import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
@@ -327,6 +330,9 @@ await webhookRoutes(app);
 await gitReviewRoutes(app);
 await platformAdminRoutes(app);
 await cliRoutes(app);
+await templateRoutes(app);
+await intentRoutes(app);
+await conversationRoutes(app);
 await registerMCPRoutes(app);
 
 // ============================================

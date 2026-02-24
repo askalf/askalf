@@ -1000,6 +1000,21 @@ export const hubApi = {
       apiFetch<CoordinationStats>('/api/v1/admin/coordination/stats'),
   },
 
+  // Templates (Layer 2)
+  templates: {
+    list: () =>
+      apiFetch<{ templates: unknown[]; categories: Record<string, unknown[]>; total: number }>('/api/v1/admin/chat/templates'),
+
+    detail: (id: string) =>
+      apiFetch('/api/v1/admin/chat/templates/' + id),
+
+    instantiate: (id: string, overrides?: Record<string, unknown>) =>
+      apiFetch<{ agent: unknown; templateId: string; message: string }>(
+        `/api/v1/admin/chat/templates/${id}/instantiate`,
+        { method: 'POST', body: JSON.stringify(overrides ?? {}) },
+      ),
+  },
+
   // Deployment Logs
   deployments: {
     list: (limit?: number) =>

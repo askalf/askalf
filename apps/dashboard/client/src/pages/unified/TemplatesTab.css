@@ -1,0 +1,175 @@
+/* Templates Tab — Layer 2 template gallery */
+
+.tmpl-container {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.tmpl-loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted, #666);
+}
+
+.tmpl-header {
+  margin-bottom: 20px;
+}
+
+.tmpl-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0e0);
+  margin-bottom: 4px;
+}
+
+.tmpl-header p {
+  font-size: 13px;
+  color: var(--text-secondary, #a0a0b0);
+}
+
+/* ── Filters ── */
+
+.tmpl-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.tmpl-search {
+  padding: 8px 14px;
+  background: var(--bg-secondary, #0d0d14);
+  border: 1px solid var(--border, #1e1e2e);
+  border-radius: 6px;
+  color: var(--text-primary, #e0e0e0);
+  font-size: 13px;
+  outline: none;
+  max-width: 300px;
+  transition: border-color 0.15s;
+}
+
+.tmpl-search:focus {
+  border-color: var(--accent, #6366f1);
+}
+
+.tmpl-search::placeholder {
+  color: var(--text-muted, #666);
+}
+
+.tmpl-category-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tmpl-pill {
+  padding: 4px 12px;
+  background: var(--bg-secondary, #0d0d14);
+  border: 1px solid var(--border, #1e1e2e);
+  border-radius: 16px;
+  color: var(--text-secondary, #a0a0b0);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tmpl-pill:hover {
+  border-color: var(--text-muted, #666);
+}
+
+.tmpl-pill.active {
+  background: var(--accent, #6366f1);
+  border-color: var(--accent, #6366f1);
+  color: white;
+}
+
+/* ── Grid ── */
+
+.tmpl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.tmpl-empty {
+  grid-column: 1 / -1;
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted, #666);
+  font-size: 14px;
+}
+
+/* ── Card ── */
+
+.tmpl-card {
+  background: var(--bg-secondary, #0d0d14);
+  border: 1px solid var(--border, #1e1e2e);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s;
+}
+
+.tmpl-card:hover {
+  border-color: var(--accent, #6366f1);
+}
+
+.tmpl-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tmpl-card-icon {
+  font-size: 24px;
+}
+
+.tmpl-card-category {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid;
+  text-transform: capitalize;
+}
+
+.tmpl-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0e0);
+  margin: 0;
+}
+
+.tmpl-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary, #a0a0b0);
+  line-height: 1.4;
+  margin: 0;
+  flex: 1;
+}
+
+.tmpl-card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-muted, #666);
+}
+
+.tmpl-card-use {
+  padding: 8px 16px;
+  background: var(--accent, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tmpl-card-use:hover {
+  background: var(--accent-hover, #5558e6);
+}

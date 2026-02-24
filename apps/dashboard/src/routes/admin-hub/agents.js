@@ -46,7 +46,11 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
       name: body.name,
       description: body.description,
       systemPrompt: body.system_prompt || body.systemPrompt,
+      modelId: body.modelId || body.model_id,
       autonomyLevel: body.autonomy_level ?? body.autonomyLevel ?? 2,
+      enabledTools: body.enabledTools || body.enabled_tools,
+      maxIterations: body.maxIterations || body.max_iterations,
+      maxCostPerExecution: body.maxCostPerExecution || body.max_cost_per_execution,
       metadata: {
         ...(body.metadata || {}),
         type: body.type || body.metadata?.type || 'custom',

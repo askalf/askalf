@@ -254,6 +254,68 @@ function evaluateContentFilter(
   return { allowed: true };
 }
 
+/**
+ * Check user budget from forge_user_preferences.
+ * Returns { allowed: true } if no budget set or within limits.
+ * Called before every execution across all layers.
+ */
+export async function checkUserBudget(userId: string): Promise<GuardrailResult> {
+  // Load user preferences
+  const prefs = await query<{
+    budget_limit_daily: string | null;
+    budget_limit_monthly: string | null;
+  }>(
+    `SELECT budget_limit_daily, budget_limit_monthly
+     FROM forge_user_preferences WHERE user_id = $1`,
+    [userId],
+  );
+
+  if (prefs.length === 0) return { allowed: true };
+  const pref = prefs[0]!;
+
+  // Check daily budget
+  if (pref.budget_limit_daily !== null) {
+    const dailyLimit = parseFloat(pref.budget_limit_daily);
+    if (dailyLimit > 0) {
+      const dailyCost = await query<CostSumRow>(
+        `SELECT COALESCE(SUM(cost), 0) AS total_cost
+         FROM forge_cost_events
+         WHERE owner_id = $1 AND created_at >= DATE_TRUNC('day', NOW())`,
+        [userId],
+      );
+      const todaysCost = dailyCost[0] ? parseFloat(dailyCost[0].total_cost) : 0;
+      if (todaysCost >= dailyLimit) {
+        return {
+          allowed: false,
+          reason: `Daily budget exceeded: $${todaysCost.toFixed(2)}/$${dailyLimit.toFixed(2)}`,
+        };
+      }
+    }
+  }
+
+  // Check monthly budget
+  if (pref.budget_limit_monthly !== null) {
+    const monthlyLimit = parseFloat(pref.budget_limit_monthly);
+    if (monthlyLimit > 0) {
+      const monthlyCost = await query<CostSumRow>(
+        `SELECT COALESCE(SUM(cost), 0) AS total_cost
+         FROM forge_cost_events
+         WHERE owner_id = $1 AND created_at >= DATE_TRUNC('month', NOW())`,
+        [userId],
+      );
+      const monthCost = monthlyCost[0] ? parseFloat(monthlyCost[0].total_cost) : 0;
+      if (monthCost >= monthlyLimit) {
+        return {
+          allowed: false,
+          reason: `Monthly budget exceeded: $${monthCost.toFixed(2)}/$${monthlyLimit.toFixed(2)}`,
+        };
+      }
+    }
+  }
+
+  return { allowed: true };
+}
+
 function evaluateToolRestriction(
   guardrail: GuardrailRow,
   opts: CheckGuardrailsOptions,
