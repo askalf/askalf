@@ -10,26 +10,73 @@ function ConversationList({
   activeId,
   onSelect,
   onCreate,
+  onRename,
+  onDelete,
 }: {
   conversations: Conversation[];
   activeId: string | null;
   onSelect: (id: string) => void;
   onCreate: () => void;
+  onRename: (id: string, title: string) => void;
+  onDelete: (id: string) => void;
 }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const editRef = useRef<HTMLInputElement>(null);
+
+  const startRename = (e: React.MouseEvent, c: Conversation) => {
+    e.stopPropagation();
+    setEditingId(c.id);
+    setEditTitle(c.title ?? '');
+  };
+
+  const commitRename = (id: string) => {
+    const trimmed = editTitle.trim();
+    if (trimmed) onRename(id, trimmed);
+    setEditingId(null);
+  };
+
+  useEffect(() => {
+    if (editingId) editRef.current?.focus();
+  }, [editingId]);
+
   return (
     <div className="chat-sidebar">
       <button className="chat-new-btn" onClick={onCreate}>+ New Chat</button>
       <div className="chat-conv-list">
         {conversations.map(c => (
-          <button
+          <div
             key={c.id}
             className={`chat-conv-item ${c.id === activeId ? 'active' : ''}`}
-            onClick={() => onSelect(c.id)}
+            onClick={() => { if (editingId !== c.id) onSelect(c.id); }}
             title={c.title ?? 'Untitled'}
           >
-            <span className="chat-conv-title">{c.title ?? 'Untitled'}</span>
-            <span className="chat-conv-date">{new Date(c.updated_at).toLocaleDateString()}</span>
-          </button>
+            {editingId === c.id ? (
+              <input
+                ref={editRef}
+                className="chat-conv-rename-input"
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                onBlur={() => commitRename(c.id)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') commitRename(c.id);
+                  if (e.key === 'Escape') setEditingId(null);
+                }}
+                onClick={e => e.stopPropagation()}
+              />
+            ) : (
+              <>
+                <span className="chat-conv-title">{c.title ?? 'Untitled'}</span>
+                <div className="chat-conv-row">
+                  <span className="chat-conv-date">{new Date(c.updated_at).toLocaleDateString()}</span>
+                  <span className="chat-conv-actions">
+                    <button className="chat-conv-action" onClick={e => startRename(e, c)} title="Rename">R</button>
+                    <button className="chat-conv-action chat-conv-action-delete" onClick={e => { e.stopPropagation(); onDelete(c.id); }} title="Delete">X</button>
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
         ))}
         {conversations.length === 0 && (
           <div className="chat-conv-empty">No conversations yet</div>
@@ -159,6 +206,7 @@ export default function ChatTab() {
     conversations, activeConversationId, messages, isProcessing,
     pendingIntent, error,
     fetchConversations, createConversation, selectConversation,
+    renameConversation, deleteConversation,
     sendMessage, confirmIntent, cancelIntent, clearError,
   } = useChatStore();
 
@@ -194,6 +242,8 @@ export default function ChatTab() {
         activeId={activeConversationId}
         onSelect={selectConversation}
         onCreate={handleNewChat}
+        onRename={renameConversation}
+        onDelete={deleteConversation}
       />
       <div className="chat-main">
         <div className="chat-messages">

@@ -3,7 +3,7 @@
 
 import { ulid } from 'ulid';
 import { query, queryOne } from '@substrate/database';
-import { generateApiKey, hashToken, verifyTokenHash } from './password.js';
+import { generateApiKey, hashTokenPbkdf2, verifyTokenHash } from './password.js';
 import type { ApiKey, SafeApiKey, ApiKeyScope } from './types.js';
 
 /**
@@ -54,7 +54,7 @@ export async function createApiKey(
 ): Promise<{ key: string; apiKey: SafeApiKey }> {
   const id = `apikey_${ulid()}`;
   const { key, prefix } = generateApiKey('live');
-  const keyHash = await hashToken(key);
+  const keyHash = await hashTokenPbkdf2(key);
 
   const sql = `
     INSERT INTO api_keys (

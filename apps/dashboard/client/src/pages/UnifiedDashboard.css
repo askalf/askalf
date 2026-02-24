@@ -481,6 +481,110 @@
   z-index: 10;
 }
 
+/* ---- Full-width body (no sidebar) ---- */
+
+.ud-body-full {
+  grid-template-columns: 1fr;
+}
+
+.ud-body-full .ud-main {
+  border-right: none;
+}
+
+/* ---- Account Menu ---- */
+
+.ud-account-menu {
+  position: relative;
+}
+
+.ud-account-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.ud-account-btn:hover {
+  border-color: rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.25);
+}
+
+.ud-account-dropdown {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  width: 200px;
+  background: #141419;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  padding: 4px 0;
+}
+
+.ud-account-info {
+  padding: 10px 14px;
+}
+
+.ud-account-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e4e4e7;
+}
+
+.ud-account-email {
+  font-size: 11px;
+  color: #71717a;
+  margin-top: 2px;
+}
+
+.ud-account-role {
+  font-size: 10px;
+  color: #a78bfa;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.ud-account-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 4px 0;
+}
+
+.ud-account-link {
+  display: block;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #a1a1aa;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.1s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.ud-account-link:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e4e4e7;
+}
+
+.ud-account-logout:hover {
+  color: #ef4444;
+}
+
 /* ---- Shared ---- */
 
 .ud-empty {

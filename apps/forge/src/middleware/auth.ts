@@ -102,7 +102,9 @@ async function tryApiKeyAuth(request: FastifyRequest): Promise<boolean> {
       console.warn('[Auth] Failed to update last_used_at after retries:', err instanceof Error ? err.message : err);
     });
 
-    request.userId = apiKey.owner_id;
+    // If dashboard forwards a real user ID via X-User-Id, use it instead of the API key owner
+    const forwardedUserId = request.headers['x-user-id'];
+    request.userId = (typeof forwardedUserId === 'string' && forwardedUserId) ? forwardedUserId : apiKey.owner_id;
     request.apiKeyId = apiKey.id;
     request.apiKeyPermissions = apiKey.permissions as string[];
     return true;

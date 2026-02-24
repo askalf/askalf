@@ -146,24 +146,31 @@ export function generateApiKey(
 }
 
 /**
- * Hash a token for storage (API keys, session tokens)
- * Uses PBKDF2 with SHA-256 and a random salt
- * Format: salt.hash (both hex-encoded)
+ * Hash a token deterministically for storage and lookup (session tokens).
+ * Uses SHA-256 — suitable for DB lookups via WHERE token_hash = $1.
  */
 export async function hashToken(token: string): Promise<string> {
-  // Generate a random salt
-  const salt = randomBytes(PBKDF2_SALT_LENGTH);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
-  // Use PBKDF2 to derive the hash
+/**
+ * Hash a token with PBKDF2 and random salt for secure storage (API keys).
+ * Format: salt.hash (both hex-encoded). Cannot be used for DB lookups —
+ * must iterate and verify with verifyTokenHash().
+ */
+export async function hashTokenPbkdf2(token: string): Promise<string> {
+  const salt = randomBytes(PBKDF2_SALT_LENGTH);
   const hash = pbkdf2Sync(
     token,
     salt,
     PBKDF2_ITERATIONS,
-    32, // 32 bytes for SHA-256
+    32,
     PBKDF2_DIGEST
   );
-
-  // Return salt.hash so verification can extract the salt
   return `${salt.toString('hex')}.${hash.toString('hex')}`;
 }
 
