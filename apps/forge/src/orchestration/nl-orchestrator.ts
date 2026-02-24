@@ -142,6 +142,121 @@ export async function orchestrateFromNL(
   };
 }
 
+// ── Chat-layer orchestration dispatch ──
+
+export interface OrchestrationPlanRequest {
+  subtasks: Array<{
+    title: string;
+    description: string;
+    suggestedAgentType: string;
+    dependencies: string[];
+    estimatedComplexity: 'low' | 'medium' | 'high';
+  }>;
+  ownerId: string;
+  conversationId?: string;
+  originalInstruction: string;
+  pattern: 'pipeline' | 'fan-out' | 'consensus';
+}
+
+/**
+ * Dispatch a pre-decomposed orchestration plan from the chat layer.
+ * Skips LLM decomposition (already done by intent parser).
+ * Matches agents via scoring, creates executions, dispatches.
+ */
+export async function dispatchOrchestrationPlan(
+  request: OrchestrationPlanRequest,
+): Promise<NLOrchestrationResult> {
+  const sessionId = ulid();
+
+  // Convert subtasks to DecomposedTask format for agent-matcher
+  const decomposedTasks: DecomposedTask[] = request.subtasks.map((st) => ({
+    title: st.title,
+    description: st.description,
+    suggestedAgentType: st.suggestedAgentType,
+    dependencies: st.dependencies,
+    estimatedComplexity: st.estimatedComplexity,
+  }));
+
+  // Match agents (cheap — DB + scoring, no LLM)
+  const matches = await matchAgentsToTasks(decomposedTasks);
+
+  // Create executions and dispatch
+  const results: NLOrchestrationResult['tasks'] = [];
+  let taskIndex = 0;
+
+  for (const match of matches) {
+    const task = decomposedTasks.find((t) => t.title === match.taskTitle);
+    if (!task) continue;
+
+    const executionId = ulid();
+
+    // Determine if this task should start immediately
+    const shouldStart = request.pattern === 'fan-out'
+      || request.pattern === 'consensus'
+      || taskIndex === 0; // Pipeline: start first task only
+
+    await query(
+      `INSERT INTO forge_executions
+       (id, agent_id, owner_id, input, status, metadata, started_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+      [
+        executionId,
+        match.agentId,
+        request.ownerId,
+        task.description,
+        shouldStart ? 'pending' : 'queued',
+        JSON.stringify({
+          source: 'chat-orchestration',
+          source_layer: 'chat',
+          sessionId,
+          taskTitle: task.title,
+          matchScore: match.score,
+          pattern: request.pattern,
+          conversationId: request.conversationId,
+          originalInstruction: request.originalInstruction.substring(0, 500),
+        }),
+      ],
+    );
+
+    if (shouldStart) {
+      // Get agent config and dispatch
+      const agentRow = await query<{ system_prompt: string; model_id: string; max_budget: string }>(
+        `SELECT system_prompt,
+                COALESCE(metadata->>'model_id', 'claude-sonnet-4-6') AS model_id,
+                COALESCE(metadata->>'max_budget', '0.50') AS max_budget
+         FROM forge_agents WHERE id = $1`,
+        [match.agentId],
+      );
+      const cfg = agentRow[0];
+
+      void runDirectCliExecution(executionId, match.agentId, task.description, request.ownerId, {
+        systemPrompt: cfg?.system_prompt,
+        modelId: cfg?.model_id,
+        maxBudgetUsd: cfg?.max_budget,
+      }).catch((err) => {
+        console.error(`[Chat-Orch] Execution ${executionId} failed:`, err instanceof Error ? err.message : err);
+      });
+    }
+
+    results.push({
+      title: task.title,
+      agentId: match.agentId,
+      agentName: match.agentName,
+      executionId,
+      status: shouldStart ? 'pending' : 'queued',
+    });
+
+    taskIndex++;
+  }
+
+  console.log(
+    `[Chat-Orch] Dispatched ${results.length} tasks (${request.pattern}): ` +
+    results.map((r) => `${r.title} → ${r.agentName} [${r.status}]`).join(', '),
+  );
+
+  return { sessionId, tasks: results, totalTasks: results.length };
+}
+
 /**
  * Get the status of an NL orchestration session.
  */

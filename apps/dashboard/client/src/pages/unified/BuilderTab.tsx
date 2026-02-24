@@ -37,21 +37,35 @@ const STEPS: { key: BuilderStep; label: string }[] = [
 ];
 
 const AVAILABLE_TOOLS = [
-  { id: 'web_search', name: 'Web Search', desc: 'Search the web for information' },
-  { id: 'web_browse', name: 'Web Browse', desc: 'Browse and extract content from URLs' },
-  { id: 'code_analysis', name: 'Code Analysis', desc: 'Analyze codebase files and patterns' },
-  { id: 'security_scan', name: 'Security Scan', desc: 'Scan for security vulnerabilities' },
+  // Workflow
   { id: 'ticket_ops', name: 'Ticket Operations', desc: 'Create and manage tickets' },
   { id: 'finding_ops', name: 'Finding Operations', desc: 'Create and manage findings' },
-  { id: 'git_ops', name: 'Git Operations', desc: 'Git status, diff, and history' },
-  { id: 'docker_api', name: 'Docker API', desc: 'Container management operations' },
-  { id: 'deploy_ops', name: 'Deploy Operations', desc: 'Build and deploy services' },
-  { id: 'db_query', name: 'Database Query', desc: 'Query the database' },
-  { id: 'memory_search', name: 'Memory Search', desc: 'Search agent memory store' },
-  { id: 'memory_store', name: 'Memory Store', desc: 'Store information in memory' },
-  { id: 'team_coordinate', name: 'Team Coordinate', desc: 'Coordinate with other agents' },
   { id: 'intervention_ops', name: 'Intervention Ops', desc: 'Request human intervention' },
   { id: 'agent_call', name: 'Agent Call', desc: 'Invoke another agent' },
+  { id: 'proposal_ops', name: 'Proposal Operations', desc: 'Create and manage proposals' },
+  // Data
+  { id: 'db_query', name: 'Database Query', desc: 'Query the database' },
+  { id: 'substrate_db_query', name: 'Substrate DB Query', desc: 'Query the substrate database directly' },
+  { id: 'memory_search', name: 'Memory Search', desc: 'Search agent memory store' },
+  { id: 'memory_store', name: 'Memory Store', desc: 'Store information in memory' },
+  // Infrastructure
+  { id: 'docker_api', name: 'Docker API', desc: 'Container management operations' },
+  { id: 'deploy_ops', name: 'Deploy Operations', desc: 'Build and deploy services' },
+  { id: 'security_scan', name: 'Security Scan', desc: 'Scan for security vulnerabilities' },
+  { id: 'code_analysis', name: 'Code Analysis', desc: 'Analyze codebase files and patterns' },
+  // Agent
+  { id: 'web_search', name: 'Web Search', desc: 'Search the web for information' },
+  { id: 'web_browse', name: 'Web Browse', desc: 'Browse and extract content from URLs' },
+  { id: 'team_coordinate', name: 'Team Coordinate', desc: 'Coordinate with other agents' },
+  // Forge
+  { id: 'forge_checkpoints', name: 'Forge Checkpoints', desc: 'Save and restore agent execution state' },
+  { id: 'forge_capabilities', name: 'Forge Capabilities', desc: 'Manage agent capabilities and skills' },
+  { id: 'forge_knowledge_graph', name: 'Knowledge Graph', desc: 'Store and query knowledge relationships' },
+  { id: 'forge_goals', name: 'Forge Goals', desc: 'Track and manage agent objectives' },
+  { id: 'forge_fleet_intel', name: 'Fleet Intel', desc: 'Get fleet-wide status and intelligence' },
+  { id: 'forge_memory', name: 'Forge Memory', desc: 'Agent long-term memory management' },
+  { id: 'forge_cost', name: 'Forge Cost', desc: 'Track execution costs and budgets' },
+  { id: 'forge_coordination', name: 'Forge Coordination', desc: 'Coordinate multi-agent workflows' },
 ];
 
 const DEFAULT_CONFIG: AgentConfig = {

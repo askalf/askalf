@@ -2150,6 +2150,49 @@ export async function runDirectCliExecution(
       [agentId, !parsed.isError],
     ).catch(() => {});
 
+    // Pipeline chaining: if this execution is part of a pipeline, start the next task
+    if (!parsed.isError) {
+      void (async () => {
+        try {
+          const execMeta = await query<{ metadata: Record<string, unknown> }>(
+            `SELECT metadata FROM forge_executions WHERE id = $1`,
+            [executionId],
+          );
+          const meta = execMeta[0]?.metadata;
+          if (meta?.['pattern'] === 'pipeline' && meta?.['sessionId']) {
+            const nextExec = await query<{ id: string; agent_id: string; input: string }>(
+              `SELECT id, agent_id, input FROM forge_executions
+               WHERE metadata->>'sessionId' = $1 AND status = 'queued'
+               ORDER BY started_at ASC LIMIT 1`,
+              [meta['sessionId'] as string],
+            );
+            if (nextExec[0]) {
+              const next = nextExec[0];
+              console.log(`[Pipeline] Chaining: ${executionId} completed, starting ${next.id}`);
+              const nextAgent = await query<{ system_prompt: string; model_id: string; max_budget: string }>(
+                `SELECT system_prompt,
+                        COALESCE(metadata->>'model_id', 'claude-sonnet-4-6') AS model_id,
+                        COALESCE(metadata->>'max_budget', '0.50') AS max_budget
+                 FROM forge_agents WHERE id = $1`,
+                [next.agent_id],
+              );
+              const cfg = nextAgent[0];
+              await query(`UPDATE forge_executions SET status = 'pending' WHERE id = $1`, [next.id]);
+              void runDirectCliExecution(next.id, next.agent_id, next.input, ownerId, {
+                systemPrompt: cfg?.system_prompt,
+                modelId: cfg?.model_id,
+                maxBudgetUsd: cfg?.max_budget,
+              }).catch((err) => {
+                console.error(`[Pipeline] Next execution ${next.id} failed:`, err instanceof Error ? err.message : err);
+              });
+            }
+          }
+        } catch (err) {
+          console.error('[Pipeline] Chain check failed:', err instanceof Error ? err.message : err);
+        }
+      })();
+    }
+
     // Update capability proficiency from tools used in this execution
     const toolExecs = await query<{ tool_name: string }>(
       `SELECT DISTINCT tool_name FROM forge_tool_executions WHERE execution_id = $1`,

@@ -113,4 +113,24 @@ export async function registerChatRoutes(fastify, requireAuth, query, queryOne) 
     if (res.error) return reply.code(res.status || 503).send({ error: res.message });
     return reply.code(201).send(res);
   });
+
+  // Dispatch multi-agent orchestration plan
+  fastify.post('/api/v1/admin/chat/dispatch-orchestration', async (request, reply) => {
+    const auth = await requireAuth(request, reply); if (!auth) return;
+    const res = await callForgeAsUser('/intent/dispatch-orchestration', auth.id, {
+      method: 'POST',
+      body: request.body,
+      timeout: 30000,
+    });
+    if (res.error) return reply.code(res.status || 503).send({ error: res.message });
+    return res;
+  });
+
+  // Get orchestration session status
+  fastify.get('/api/v1/admin/chat/orchestration/:sessionId/status', async (request, reply) => {
+    const auth = await requireAuth(request, reply); if (!auth) return;
+    const res = await callForge(`/orchestration/${request.params.sessionId}/status`);
+    if (res.error) return reply.code(res.status || 503).send({ error: res.message });
+    return res;
+  });
 }

@@ -22,6 +22,14 @@ export interface ConversationMessage {
   created_at: string;
 }
 
+export interface IntentSubtask {
+  title: string;
+  description: string;
+  suggestedAgentType: string;
+  dependencies: string[];
+  estimatedComplexity: 'low' | 'medium' | 'high';
+}
+
 export interface ParsedIntent {
   category: string;
   confidence: number;
@@ -39,6 +47,8 @@ export interface ParsedIntent {
   estimatedCost: number;
   requiresApproval: boolean;
   summary: string;
+  executionMode: 'single' | 'pipeline' | 'fan-out' | 'consensus';
+  subtasks: IntentSubtask[] | null;
 }
 
 export interface Template {
@@ -90,6 +100,7 @@ interface ChatState {
   // UI state
   isProcessing: boolean;
   pendingIntent: ParsedIntent | null;
+  activeOrchestrationSessionId: string | null;
   error: string | null;
 
   // Actions
@@ -114,6 +125,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   templates: [],
   isProcessing: false,
   pendingIntent: null,
+  activeOrchestrationSessionId: null,
   error: null,
 
   fetchConversations: async () => {
@@ -231,7 +243,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const intent = await get().parseIntent(content);
 
       // Persist the intent response as an assistant message immediately
-      const summary = `**${intent.agentConfig.name}** (${intent.category})\n${intent.summary}\n\nModel: ${intent.agentConfig.model} | Tools: ${intent.agentConfig.tools.join(', ')} | Est. cost: $${intent.estimatedCost.toFixed(2)}`;
+      const modeLabel = intent.executionMode !== 'single' ? ` | Mode: ${intent.executionMode}` : '';
+      const agentCount = intent.subtasks?.length ? ` | ${intent.subtasks.length} agents` : '';
+      const summary = `**${intent.agentConfig.name}** (${intent.category})\n${intent.summary}\n\nModel: ${intent.agentConfig.model} | Tools: ${intent.agentConfig.tools.join(', ')} | Est. cost: $${intent.estimatedCost.toFixed(2)}${modeLabel}${agentCount}`;
       await get().addAssistantMessage(summary, undefined, intent);
 
       set({ pendingIntent: intent, isProcessing: false });
@@ -258,8 +272,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ isProcessing: true, pendingIntent: null });
 
     try {
-      // If there's a matching template, instantiate it
-      if (intent.templateId) {
+      if (intent.executionMode !== 'single' && intent.subtasks?.length) {
+        // ── Multi-agent orchestration ──
+        const result = await chatFetch<{
+          sessionId: string;
+          tasks: Array<{ title: string; agentId: string; agentName: string; executionId: string; status: string }>;
+          totalTasks: number;
+          message: string;
+        }>(
+          '/api/v1/admin/chat/dispatch-orchestration',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              intent,
+              conversationId: activeConversationId,
+            }),
+          },
+        );
+
+        const taskSummary = result.tasks.map(t => `- ${t.title} → ${t.agentName}`).join('\n');
+        await get().addAssistantMessage(
+          `Orchestration launched! ${result.totalTasks} agents dispatched in **${intent.executionMode}** mode.\n\n${taskSummary}\n\nSession: \`${result.sessionId}\`\nTrack progress in the Fleet tab.`,
+        );
+
+        set({ activeOrchestrationSessionId: result.sessionId, isProcessing: false });
+      } else if (intent.templateId) {
+        // ── Single-agent template instantiation ──
         const result = await chatFetch<{ agent: { id: string; name: string }; message: string }>(
           `/api/v1/admin/chat/templates/${intent.templateId}/instantiate`,
           {
@@ -279,17 +317,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
         await get().addAssistantMessage(
           `Agent "${result.agent.name}" created successfully! You can find it in the Fleet tab.\n\nTo run it, go to Fleet → select the agent → Execute.`,
         );
+        set({ isProcessing: false });
       } else {
+        // ── Single-agent manual config ──
         await get().addAssistantMessage(
           `I've prepared the configuration for "${intent.agentConfig.name}". You can create it manually in the Builder tab with these settings:\n\n- Model: ${intent.agentConfig.model}\n- Tools: ${intent.agentConfig.tools.join(', ')}\n- Max cost: $${intent.agentConfig.maxCostPerExecution.toFixed(2)}`,
         );
+        set({ isProcessing: false });
       }
-
-      set({ isProcessing: false });
     } catch (err) {
       set({
         isProcessing: false,
-        error: err instanceof Error ? err.message : 'Failed to create agent',
+        error: err instanceof Error ? err.message : 'Failed to dispatch',
       });
     }
   },
