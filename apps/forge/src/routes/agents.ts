@@ -495,7 +495,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'prompt is required' });
       }
 
-      const apiKey = process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
+      const apiKey = process.env['ANTHROPIC_INTENT_API_KEY'] || process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
       if (!apiKey) {
         return reply.status(503).send({ error: 'AI provider not configured' });
       }
