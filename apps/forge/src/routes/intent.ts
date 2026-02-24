@@ -123,8 +123,8 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
         });
 
         const responseText = response.content
-          .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
-          .map(block => block.text)
+          .filter((block) => block.type === 'text')
+          .map(block => (block as { type: 'text'; text: string }).text)
           .join('');
 
         // Parse the JSON response

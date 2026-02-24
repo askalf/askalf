@@ -104,32 +104,6 @@ export async function clientQuery<T extends pg.QueryResultRow = pg.QueryResultRo
   return result.rows;
 }
 
-/**
- * Retry a non-critical query up to maxRetries times with exponential backoff.
- * Use for fire-and-forget updates (last_active_at, performance counters) where
- * a transient connection error should not silently drop the write.
- * Throws on final failure — caller decides whether to swallow via .catch().
- */
-export async function retryQuery<T extends pg.QueryResultRow = pg.QueryResultRow>(
-  text: string,
-  params?: unknown[],
-  maxRetries = 3,
-): Promise<T[]> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await query<T>(text, params);
-    } catch (err) {
-      lastError = err;
-      if (attempt < maxRetries) {
-        const delayMs = 100 * Math.pow(2, attempt); // 100ms, 200ms, 400ms
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-      }
-    }
-  }
-  throw lastError;
-}
-
 export async function closeDatabase(): Promise<void> {
   if (pool) {
     await pool.end();

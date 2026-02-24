@@ -186,7 +186,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
 
       // Audit log
       void logAudit({
-        userId,
+        ownerId: userId,
         action: 'template.instantiate',
         resourceType: 'agent',
         resourceId: agentId,

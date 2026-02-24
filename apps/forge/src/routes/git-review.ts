@@ -62,7 +62,7 @@ function git(args: string[], timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: num
       { timeout, maxBuffer: 2_048_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
       (error, stdout, stderr) => {
         resolve({
-          exitCode: error ? (error.code ?? 1) : 0,
+          exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0,
           stdout,
           stderr: stderr?.slice(0, 4000) ?? '',
         });
