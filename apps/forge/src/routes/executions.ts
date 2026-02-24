@@ -535,7 +535,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         );
         if (!agent || agent.status === 'archived') continue;
 
-        // Enforce guardrails per execution — prevents cost/resource abuse via batch
+        // Enforce guardrails per-execution — prevents cost/resource abuse via batch
         const guardrailResult = await checkGuardrails({
           ownerId: userId,
           agentId: a.agentId,
@@ -543,10 +543,8 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           estimatedCost: parseFloat(agent.max_cost_per_execution),
         });
         if (!guardrailResult.allowed) {
-          return reply.status(403).send({
-            error: 'Forbidden',
-            message: guardrailResult.reason ?? 'Blocked by guardrails',
-          });
+          console.warn(`[Batch] Agent ${a.agentId} blocked by guardrails: ${guardrailResult.reason}`);
+          continue;
         }
 
         await queryOne<ExecutionRow>(
