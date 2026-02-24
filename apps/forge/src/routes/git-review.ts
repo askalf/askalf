@@ -4,7 +4,7 @@
  * All commands run against /workspace where the repo is mounted.
  */
 
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import http from 'http';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authMiddleware } from '../middleware/auth.js';
@@ -54,10 +54,11 @@ function dockerApi(method: string, path: string, body?: unknown, timeout = 30_00
   });
 }
 
-function git(args: string, timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+function git(args: string[], timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    exec(
-      `git -C "${REPO_ROOT}" ${args}`,
+    execFile(
+      'git',
+      ['-C', REPO_ROOT, ...args],
       { timeout, maxBuffer: 2_048_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
       (error, stdout, stderr) => {
         resolve({
@@ -105,7 +106,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return reply.send(branchCache.data);
       }
 
-      const branchRes = await git('branch --list "agent/*" --no-merged main --format="%(refname:short)|%(committerdate:iso8601)|%(committername)"');
+      const branchRes = await git(['branch', '--list', 'agent/*', '--no-merged', 'main', '--format=%(refname:short)|%(committerdate:iso8601)|%(committername)']);
       if (branchRes.exitCode !== 0) {
         return reply.status(500).send({ error: 'Failed to list branches', detail: branchRes.stderr });
       }
@@ -123,29 +124,25 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return { name, date: date.trim() || null, author: author.trim() || null, agentSlug };
       }).filter(b => b.name);
 
-      // Single shell exec for all counts + stats to minimize subprocess overhead
-      // (avoids 2N sequential git calls — one shell call instead)
+      // Fetch stats for all branches in parallel (safe: array-based git calls)
       const branchNames = branchMeta.map(b => b.name);
       if (branchNames.length === 0) {
         const response = { branches: [] };
         branchCache = { data: response, ts: Date.now() };
         return reply.send(response);
       }
-      const batchScript = branchNames.map(n =>
-        `C=$(git -C "${REPO_ROOT}" rev-list --count main..${n} 2>/dev/null || echo 0) && ` +
-        `S=$(git -C "${REPO_ROOT}" diff --shortstat main...${n} 2>/dev/null || echo "") && ` +
-        `echo "${n}|$C|$S"`
-      ).join(' && ');
 
-      const batchRes = await new Promise<{ exitCode: number; stdout: string; stderr: string }>((resolve) => {
-        exec(
-          `sh -c '${batchScript.replace(/'/g, "'\\''")}'`,
-          { timeout: 60_000, maxBuffer: 2_048_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
-          (error, stdout, stderr) => {
-            resolve({ exitCode: error ? (error.code ?? 1) : 0, stdout, stderr: stderr?.slice(0, 4000) ?? '' });
-          },
-        );
-      });
+      // Parallel stats fetch using safe execFile calls (no shell injection risk)
+      const statsResults = await Promise.all(
+        branchNames.map(async (n) => {
+          const countRes = await git(['rev-list', '--count', `main..${n}`], 30_000).catch(() => ({ exitCode: 1, stdout: '0', stderr: '' }));
+          const statRes = await git(['diff', '--shortstat', `main...${n}`], 30_000).catch(() => ({ exitCode: 0, stdout: '', stderr: '' }));
+          const count = countRes.exitCode === 0 ? countRes.stdout.trim() : '0';
+          const stats = statRes.exitCode === 0 ? statRes.stdout.trim() : '';
+          return `${n}|${count}|${stats}`;
+        })
+      );
+      const batchRes = { exitCode: 0, stdout: statsResults.join('\n'), stderr: '' };
 
       // Parse batch results into a map
       const statsMap = new Map<string, { commits: number; filesChanged: number }>();
@@ -210,10 +207,10 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       const branch = decodeURIComponent(rawBranch);
       if (!validateBranch(branch, reply)) return;
 
-      // Parallel: get diff and stats simultaneously
+      // Parallel: get diff and stats simultaneously (safe: array args)
       const [diffRes, statRes] = await Promise.all([
-        git(`diff --unified=5 main...${branch}`),
-        git(`diff --shortstat main...${branch}`),
+        git(['diff', '--unified=5', `main...${branch}`]),
+        git(['diff', '--shortstat', `main...${branch}`]),
       ]);
       if (diffRes.exitCode !== 0) {
         return reply.status(500).send({ error: 'Failed to get diff', detail: diffRes.stderr });
@@ -256,7 +253,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       const branch = decodeURIComponent(rawBranch);
       if (!validateBranch(branch, reply)) return;
 
-      const logRes = await git(`log main..${branch} --format="%H|%s|%an|%aI" -n 50`);
+      const logRes = await git(['log', `main..${branch}`, '--format=%H|%s|%an|%aI', '-n', '50']);
       if (logRes.exitCode !== 0) {
         return reply.status(500).send({ error: 'Failed to get log', detail: logRes.stderr });
       }
@@ -282,7 +279,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       const branch = decodeURIComponent(rawBranch);
       if (!validateBranch(branch, reply)) return;
 
-      const numstatRes = await git(`diff --numstat main...${branch}`);
+      const numstatRes = await git(['diff', '--numstat', `main...${branch}`]);
       if (numstatRes.exitCode !== 0) {
         return reply.status(500).send({ error: 'Failed to get file stats', detail: numstatRes.stderr });
       }
@@ -312,17 +309,17 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       if (!branch || !validateBranch(branch, reply)) return;
 
       // Ensure we're on main and up to date
-      const checkoutRes = await git('checkout main');
+      const checkoutRes = await git(['checkout', 'main']);
       if (checkoutRes.exitCode !== 0) {
         return reply.status(500).send({ error: 'Failed to checkout main', detail: checkoutRes.stderr });
       }
 
-      // Merge with no-ff to preserve merge commit
-      const mergeRes = await git(`merge --no-ff ${branch} -m "Merge ${branch} [Git Space Approved]"`);
+      // Merge with no-ff to preserve merge commit (safe: array args prevent shell injection)
+      const mergeRes = await git(['merge', '--no-ff', branch, '-m', `Merge ${branch} [Git Space Approved]`]);
       if (mergeRes.exitCode !== 0) {
         // Check for conflicts
         if (mergeRes.stderr.includes('CONFLICT') || mergeRes.stdout.includes('CONFLICT')) {
-          await git('merge --abort');
+          await git(['merge', '--abort']);
           return reply.status(409).send({
             error: 'Merge conflict',
             detail: mergeRes.stdout.substring(0, 4000),
@@ -333,11 +330,11 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Get the merge commit hash
-      const hashRes = await git('rev-parse HEAD');
+      const hashRes = await git(['rev-parse', 'HEAD']);
       const mergeCommit = hashRes.stdout.trim();
 
       // Clean up the branch
-      await git(`branch -d ${branch}`);
+      await git(['branch', '-d', branch]);
 
       // Invalidate branch cache after merge
       branchCache = null;
