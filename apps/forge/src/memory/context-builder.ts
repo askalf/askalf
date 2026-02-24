@@ -5,7 +5,6 @@
  */
 
 import { getMemoryManager } from './singleton.js';
-import { getConsciousnessState } from '../consciousness/index.js';
 
 export interface ContextOptions {
   /** Include fleet-wide memories from all agents. */
@@ -98,16 +97,7 @@ async function buildMemoryContextInner(
     ].join('\n');
   }
 
-  // Inject system awareness (consciousness state)
-  let awarenessBlock = '';
-  try {
-    const consciousness = getConsciousnessState();
-    awarenessBlock = consciousness.formatForContext();
-  } catch {
-    // Consciousness not initialized yet — skip silently
-  }
-
-  const result = memoryBlock + awarenessBlock;
+  const result = memoryBlock;
   const elapsed = Date.now() - start;
   const total = lines.length;
   const agentCount = agentRecall.semantic.length + agentRecall.episodic.length + agentRecall.procedural.length;
