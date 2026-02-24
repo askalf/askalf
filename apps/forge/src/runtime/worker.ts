@@ -13,7 +13,6 @@ import type { IProviderAdapter } from '../providers/interface.js';
 import { ToolRegistry } from '../tools/registry.js';
 import { executeTools, type ToolCall as ExecutorToolCall } from '../tools/executor.js';
 import { execute, type ExecutionContext, type ExecutionDeps } from './engine.js';
-import { executeBatch, type BatchAgentExecution, type BatchExecutionResult } from './batch-engine.js';
 import { query, retryQuery } from '../database.js';
 import { extractMemories } from '../memory/extractor.js';
 import { buildMemoryContext } from '../memory/context-builder.js';
@@ -1380,32 +1379,6 @@ export async function runExecution(
   } catch (err) {
     console.error(`[Worker] Execution ${executionId} failed:`, err);
   }
-}
-
-/**
- * Run multiple agent executions as a batch (50% cost reduction).
- * Uses the Anthropic Batches API — results typically available within minutes.
- * Called from the scheduler or batch endpoint.
- */
-export async function runBatchExecution(
-  agents: BatchAgentExecution[],
-): Promise<BatchExecutionResult[]> {
-  if (!initialized) {
-    await initializeWorker();
-  }
-
-  const toolExecutor = async (
-    toolCalls: Array<{ name: string; input: Record<string, unknown> }>,
-    execId: string,
-  ) => {
-    const calls: ExecutorToolCall[] = toolCalls.map((tc) => ({
-      name: tc.name,
-      input: tc.input,
-    }));
-    return executeTools(calls, registry, execId);
-  };
-
-  return executeBatch(agents, provider, toolExecutor, config);
 }
 
 /**
