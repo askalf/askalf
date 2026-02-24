@@ -382,6 +382,29 @@ export interface ContentFeedItem {
   notes?: TicketNote[];
 }
 
+export interface DocumentItem {
+  id: string;
+  agent_id: string;
+  agent_name: string;
+  agent_type: string;
+  input: string;
+  preview: string;
+  tokens: number;
+  cost: number;
+  duration_ms: number;
+  metadata: Record<string, unknown>;
+  started_at: string;
+  completed_at: string;
+  created_at: string;
+}
+
+export interface DocumentDetail extends DocumentItem {
+  output: string;
+  messages: Array<{ role: string; content: string }>;
+  tool_calls: Array<{ name: string; input: unknown }>;
+  iterations: number;
+}
+
 export interface CoordinationTask {
   id: string;
   title: string;
@@ -737,6 +760,19 @@ export const hubApi = {
 
     feedCategories: () =>
       apiFetch<{ categories: string[] }>('/api/v1/admin/reports/feed/categories'),
+  },
+
+  documents: {
+    list: (params: { agent?: string; search?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number } = {}) =>
+      apiFetch<{ documents: DocumentItem[]; pagination: Pagination }>(
+        `/api/v1/admin/reports/documents?${buildParams({ agent: params.agent, search: params.search, dateFrom: params.dateFrom, dateTo: params.dateTo, page: params.page, limit: params.limit || 20 })}`
+      ),
+
+    detail: (id: string) =>
+      apiFetch<{ document: DocumentDetail }>(`/api/v1/admin/reports/documents/${id}`),
+
+    agents: () =>
+      apiFetch<{ agents: string[] }>('/api/v1/admin/reports/documents/agents'),
   },
 
   memory: {
