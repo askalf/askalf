@@ -32,6 +32,8 @@ import {
   type Provider,
   type ProviderModel,
   type ProviderHealth,
+  type DocumentItem,
+  type DocumentDetail,
 } from '../hooks/useHubApi';
 
 export type HubTab =
@@ -42,7 +44,7 @@ export type HubTab =
   | 'prompt-lab' | 'nl-orchestrate' | 'agent-chat' | 'goals'
   | 'cost-optimizer' | 'knowledge' | 'health' | 'evolution'
   | 'events' | 'leaderboard' | 'metabolic' | 'timeline' | 'performance'
-  | 'deployments'
+  | 'deployments' | 'documents'
   | 'master';
 
 export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural';
@@ -166,6 +168,23 @@ interface HubState {
   setContentSearch: (s: string) => void;
   setSelectedContentItem: (item: ContentFeedItem | null) => void;
 
+  // Documents (completed execution outputs)
+  documents: DocumentItem[];
+  documentsPagination: Pagination | null;
+  documentsPage: number;
+  documentsAgentFilter: string;
+  documentsSearch: string;
+  documentsDateFrom: string;
+  documentsDateTo: string;
+  documentsAgents: string[];
+  selectedDocument: DocumentDetail | null;
+  setDocumentsPage: (p: number) => void;
+  setDocumentsAgentFilter: (s: string) => void;
+  setDocumentsSearch: (s: string) => void;
+  setDocumentsDateFrom: (s: string) => void;
+  setDocumentsDateTo: (s: string) => void;
+  setSelectedDocument: (doc: DocumentDetail | null) => void;
+
   // Fleet Memory
   memoryStats: FleetMemoryStats | null;
   memorySearchResults: FleetMemoryItem[];
@@ -280,6 +299,9 @@ interface HubState {
   fetchContentFeed: () => Promise<void>;
   fetchContentAgents: () => Promise<void>;
   fetchContentCategories: () => Promise<void>;
+  fetchDocuments: () => Promise<void>;
+  fetchDocumentDetail: (id: string) => Promise<void>;
+  fetchDocumentsAgents: () => Promise<void>;
   fetchMemoryStats: () => Promise<void>;
   searchMemory: (q: string) => Promise<void>;
   fetchMemoryRecent: () => Promise<void>;
@@ -467,6 +489,23 @@ export const useHubStore = create<HubState>((set, get) => ({
   setContentDateTo: (s) => set({ contentDateTo: s, contentPage: 1 }),
   setContentSearch: (s) => set({ contentSearch: s, contentPage: 1 }),
   setSelectedContentItem: (item) => set({ selectedContentItem: item }),
+
+  // Documents
+  documents: [],
+  documentsPagination: null,
+  documentsPage: 1,
+  documentsAgentFilter: '',
+  documentsSearch: '',
+  documentsDateFrom: '',
+  documentsDateTo: '',
+  documentsAgents: [],
+  selectedDocument: null,
+  setDocumentsPage: (p) => set({ documentsPage: p }),
+  setDocumentsAgentFilter: (s) => set({ documentsAgentFilter: s, documentsPage: 1 }),
+  setDocumentsSearch: (s) => set({ documentsSearch: s, documentsPage: 1 }),
+  setDocumentsDateFrom: (s) => set({ documentsDateFrom: s, documentsPage: 1 }),
+  setDocumentsDateTo: (s) => set({ documentsDateTo: s, documentsPage: 1 }),
+  setSelectedDocument: (doc) => set({ selectedDocument: doc }),
 
   // Fleet Memory
   memoryStats: null,
@@ -796,6 +835,42 @@ export const useHubStore = create<HubState>((set, get) => ({
     }
   },
 
+  fetchDocuments: async () => {
+    set((s) => ({ loading: { ...s.loading, documents: true } }));
+    try {
+      const { documentsPage, documentsAgentFilter, documentsSearch, documentsDateFrom, documentsDateTo } = get();
+      const data = await hubApi.documents.list({
+        page: documentsPage,
+        agent: documentsAgentFilter || undefined,
+        search: documentsSearch || undefined,
+        dateFrom: documentsDateFrom || undefined,
+        dateTo: documentsDateTo || undefined,
+      });
+      set({ documents: data.documents || [], documentsPagination: data.pagination || null });
+    } catch (err) {
+      console.error('Failed to fetch documents:', err);
+    } finally {
+      set((s) => ({ loading: { ...s.loading, documents: false } }));
+    }
+  },
+
+  fetchDocumentDetail: async (id: string) => {
+    try {
+      const data = await hubApi.documents.detail(id);
+      set({ selectedDocument: data.document || null });
+    } catch (err) {
+      console.error('Failed to fetch document detail:', err);
+    }
+  },
+
+  fetchDocumentsAgents: async () => {
+    try {
+      const data = await hubApi.documents.agents();
+      set({ documentsAgents: data.agents || [] });
+    } catch (err) {
+      console.error('Failed to fetch documents agents:', err);
+    }
+  },
 
   fetchMemoryStats: async () => {
     try {

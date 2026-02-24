@@ -237,4 +237,31 @@ export async function registerReportRoutes(fastify, requireAdmin, query, queryOn
     if (res.error) return reply.code(res.status || 503).send({ error: 'Feed categories unavailable' });
     return res;
   });
+
+  // Documents — completed execution outputs as browsable documents
+  fastify.get('/api/v1/admin/reports/documents', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const qs = new URL(request.url, 'http://localhost').search;
+    const res = await callForgeAdmin(`/reports/documents${qs}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Documents unavailable' });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/reports/documents/agents', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/reports/documents/agents');
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Document agents unavailable' });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/reports/documents/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForgeAdmin(`/reports/documents/${id}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Document not found' });
+    return res;
+  });
 }
