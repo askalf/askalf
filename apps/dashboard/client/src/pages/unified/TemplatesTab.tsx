@@ -46,9 +46,8 @@ function TemplateCard({
   template: Template;
   onUse: (t: Template) => void;
 }) {
-  const cost = template.estimated_cost_per_run
-    ? `$${parseFloat(template.estimated_cost_per_run).toFixed(2)}`
-    : 'Free';
+  const budgetCap = (template.agent_config as Record<string, unknown>)?.maxCostPerExecution;
+  const budgetLabel = typeof budgetCap === 'number' ? `$${budgetCap.toFixed(2)} cap` : null;
   const catColor = CATEGORY_COLORS[template.category] ?? '#666';
 
   return (
@@ -65,7 +64,7 @@ function TemplateCard({
       <h3 className="tmpl-card-name">{template.name}</h3>
       <p className="tmpl-card-desc">{template.description}</p>
       <div className="tmpl-card-meta">
-        <span className="tmpl-card-cost">{cost}/run</span>
+        {budgetLabel && <span className="tmpl-card-cost">{budgetLabel}</span>}
         <span className="tmpl-card-tools">{template.required_tools.length} tools</span>
         {template.usage_count > 0 && (
           <span className="tmpl-card-usage">{template.usage_count} uses</span>
