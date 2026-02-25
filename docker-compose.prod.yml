@@ -341,6 +341,9 @@ services:
       WORKSPACE_DIR: /workspace
       ADMIN_CONSOLE_TOKEN: ${ADMIN_CONSOLE_TOKEN}
       DOCKER_HOST: unix:///var/run/docker.sock
+      SSH_HOST_USER: masterm1nd
+      SSH_HOST_ADDR: host.docker.internal
+      SSH_HOST_KEY: /tmp/admin-claude-home/.ssh/id_ed25519
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - .:/workspace:rw
@@ -348,6 +351,8 @@ services:
       - admin-claude-home:/tmp/admin-claude-home
     group_add:
       - "0"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       pgbouncer:
         condition: service_healthy
