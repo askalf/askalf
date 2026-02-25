@@ -24,8 +24,8 @@ RUN npm install --omit=dev
 # Stage 3: Production runner
 FROM node:22-alpine AS runner
 
-# Runtime deps: bash (node-pty), git (claude), curl (healthchecks), docker-cli (container management)
-RUN apk add --no-cache bash git curl docker-cli
+# Runtime deps: bash (node-pty), git (claude), curl (healthchecks), docker-cli (container management), openssh-client (SSH to host)
+RUN apk add --no-cache bash git curl docker-cli openssh-client
 
 # Copy Claude binary from installer stage
 COPY --from=claude-installer /root/.local/bin/claude /usr/local/bin/claude
@@ -50,8 +50,10 @@ COPY --from=deps --chown=substrate:substrate /app/node_modules ./node_modules
 COPY --chown=substrate:substrate apps/admin-console/package.json ./
 COPY --chown=substrate:substrate apps/admin-console/src ./src
 
-# Pre-create the claude home dir so Docker initializes empty volumes with correct ownership
-RUN mkdir -p /tmp/admin-claude-home && chown substrate:substrate /tmp/admin-claude-home
+# Pre-create the claude home dir and SSH config so Docker initializes empty volumes with correct ownership
+RUN mkdir -p /tmp/admin-claude-home/.ssh && \
+    chmod 700 /tmp/admin-claude-home/.ssh && \
+    chown -R substrate:substrate /tmp/admin-claude-home
 
 ENV NODE_ENV=production
 ENV PORT=3002
