@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { usePolling } from '../../hooks/usePolling';
 import { hubApi } from '../../hooks/useHubApi';
-import { useHubStore } from '../../stores/hub';
 import type {
   Agent,
   AgentDetail,
@@ -12,8 +11,6 @@ import type {
   CostSummary,
   DailyCost,
 } from '../../hooks/useHubApi';
-import FleetCoordination from '../hub/FleetCoordination';
-import '../hub/FleetCoordination.css';
 import './FleetTab.css';
 
 // ── Types ──
@@ -675,11 +672,6 @@ export default function FleetTab() {
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [sortColumn, setSortColumn] = useState<SortColumn>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [coordinationOpen, setCoordinationOpen] = useState(true);
-
-  // Seed hub store agents so FleetCoordination's StartTeamModal has the agent list
-  const hubFetchAgents = useHubStore((s) => s.fetchAgents);
-
   // Performance map by agent ID
   const perfMap = new Map<string, AgentPerformanceEntry>();
   performance?.agents.forEach((a) => perfMap.set(a.agentId, a));
@@ -707,8 +699,7 @@ export default function FleetTab() {
   useEffect(() => {
     hubApi.providers.health().then(setProviderHealth).catch(() => {});
     hubApi.agents.performance(7).then(setPerformance).catch(() => {});
-    hubFetchAgents(); // Populate hub store for FleetCoordination
-  }, [hubFetchAgents]);
+  }, []);
 
   // Fetch detail when agent selected
   useEffect(() => {
@@ -871,22 +862,6 @@ export default function FleetTab() {
             onDecommission={() => handleDecommission(selectedAgent.id)}
             actionLoading={!!actionLoading[selectedAgent.id]}
           />
-        )}
-      </div>
-
-      {/* ── Coordination: Pipeline / Fan-Out / Consensus ── */}
-      <div className="fleet-resources" style={{ marginTop: 12 }}>
-        <div
-          className="fleet-resources-header"
-          onClick={() => setCoordinationOpen((o) => !o)}
-        >
-          <span className="fleet-resources-title">Coordination Sessions</span>
-          <span className="fleet-resources-toggle">{coordinationOpen ? '▲' : '▼'}</span>
-        </div>
-        {coordinationOpen && (
-          <div style={{ padding: '0 16px 14px' }}>
-            <FleetCoordination />
-          </div>
         )}
       </div>
 
