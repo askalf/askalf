@@ -441,6 +441,74 @@
   margin-bottom: 14px;
 }
 
+/* ── Configure Form ── */
+
+.chat-intent-configure {
+  border-top: 1px solid var(--border, #1e1e2e);
+  padding-top: 12px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-intent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-intent-field label {
+  font-size: 12px;
+  color: var(--text-muted, #666);
+  font-weight: 500;
+}
+
+.chat-intent-field input,
+.chat-intent-field textarea,
+.chat-intent-field select {
+  padding: 8px 10px;
+  background: var(--bg-primary, #0a0a0f);
+  border: 1px solid var(--border, #1e1e2e);
+  border-radius: 6px;
+  color: var(--text-primary, #e0e0e0);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.chat-intent-field input:focus,
+.chat-intent-field textarea:focus,
+.chat-intent-field select:focus {
+  border-color: var(--accent, #6366f1);
+}
+
+.chat-intent-field textarea {
+  resize: vertical;
+  min-height: 40px;
+}
+
+.chat-intent-field select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+.chat-intent-field input[type="number"] {
+  max-width: 100px;
+}
+
+.chat-intent-field-row {
+  display: flex;
+  gap: 12px;
+}
+
 .chat-intent-approval {
   color: #f59e0b;
   font-size: 12px;

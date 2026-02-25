@@ -1,5 +1,6 @@
-import { useState, useEffect, lazy, Suspense, useCallback, Fragment } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback, Fragment, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/auth';
 import TopBar from '../components/unified/TopBar';
 import MasterSession from '../components/unified/MasterSession';
 import AgentFleetCompact from '../components/unified/AgentFleetCompact';
@@ -75,10 +76,21 @@ const ALL_TAB_KEYS = TAB_GROUPS.flatMap(g => g.tabs.map(t => t.key));
 export default function UnifiedDashboard() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.role === 'super_admin';
 
-  const initialTab = (tab && ALL_TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'master';
+  const initialTab = (tab && ALL_TAB_KEYS.includes(tab as TabKey) && (tab !== 'master' || isSuperAdmin)) ? tab as TabKey : 'chat';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
   const { connected, events } = useWebSocket();
+
+  // Filter tab groups based on role
+  const visibleTabGroups = useMemo(() =>
+    TAB_GROUPS.map(group => ({
+      ...group,
+      tabs: group.tabs.filter(t => t.key !== 'master' || isSuperAdmin),
+    })).filter(group => group.tabs.length > 0),
+    [isSuperAdmin],
+  );
 
   const setActiveTab = useCallback((key: TabKey) => {
     setActiveTabState(key);
@@ -165,7 +177,7 @@ export default function UnifiedDashboard() {
           </ErrorBoundary>
         );
       case 'master':
-        return <MasterSession />;
+        return isSuperAdmin ? <MasterSession /> : null;
       case 'fleet': return wrap('Fleet', FleetTab);
       case 'deploy': return wrap('Deploy', PushPanel);
       case 'executions': return wrap('Executions', ExecutionHistory);
@@ -190,10 +202,10 @@ export default function UnifiedDashboard() {
         ticketCount={ticketCount}
         todayCost={todayCost}
       />
-      <div className={`ud-body ${activeTab === 'chat' ? 'ud-body-full' : ''}`}>
+      <div className={`ud-body ${activeTab === 'chat' || activeTab === 'templates' || activeTab === 'fleet' ? 'ud-body-full' : ''}`}>
         <div className="ud-main">
           <div className="ud-tab-bar">
-            {TAB_GROUPS.map((group, gi) => (
+            {visibleTabGroups.map((group, gi) => (
               <Fragment key={group.label}>
                 {gi > 0 && <div className="ud-tab-divider" />}
                 <span className="ud-tab-group-label">{group.label}</span>
@@ -213,7 +225,7 @@ export default function UnifiedDashboard() {
             {tabContent()}
           </div>
         </div>
-        {activeTab !== 'chat' && (
+        {activeTab !== 'chat' && activeTab !== 'templates' && activeTab !== 'fleet' && (
           <aside className="ud-sidebar">
             <AgentFleetCompact forgeEvents={events} onViewFleet={() => setActiveTab('fleet')} />
             <LiveActivityFeed events={events} />

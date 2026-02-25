@@ -142,17 +142,56 @@ function SubtaskList({
   );
 }
 
+const TARGET_PLACEHOLDERS: Record<string, string> = {
+  research: 'e.g., competitor domain names, market segment...',
+  security: 'e.g., apps/forge/, specific endpoint, PR #42...',
+  build: 'e.g., apps/dashboard/src/components/, feature branch...',
+  analyze: 'e.g., database queries, API response times...',
+  monitor: 'e.g., production endpoints, CPU/memory metrics...',
+  automate: 'e.g., deployment pipeline, data sync schedule...',
+};
+
+const MODEL_OPTIONS = [
+  'claude-haiku-4-5-20251001',
+  'claude-sonnet-4-6',
+  'claude-opus-4-6',
+  'gpt-4o',
+  'gpt-4o-mini',
+  'gemini-2.0-flash',
+];
+
 function IntentPreview({
   intent,
   onConfirm,
   onCancel,
 }: {
   intent: ParsedIntent;
-  onConfirm: () => void;
+  onConfirm: (modified: ParsedIntent) => void;
   onCancel: () => void;
 }) {
+  const [configuring, setConfiguring] = useState(false);
+  const [target, setTarget] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [model, setModel] = useState(intent.agentConfig.model);
+  const [maxCost, setMaxCost] = useState(intent.agentConfig.maxCostPerExecution);
+
   const isMultiAgent = intent.executionMode !== 'single' && intent.subtasks?.length;
   const patternInfo = PATTERN_LABELS[intent.executionMode] ?? PATTERN_LABELS['single']!;
+  const placeholder = TARGET_PLACEHOLDERS[intent.category] ?? 'e.g., repository, files, URLs, PR numbers...';
+
+  const handleLaunch = () => {
+    const modified = structuredClone(intent);
+    const prefix: string[] = [];
+    if (target.trim()) prefix.push(`TARGET: ${target.trim()}`);
+    if (instructions.trim()) prefix.push(`ADDITIONAL INSTRUCTIONS: ${instructions.trim()}`);
+    if (prefix.length) {
+      modified.agentConfig.systemPrompt = prefix.join('\n') + '\n\n' + modified.agentConfig.systemPrompt;
+    }
+    modified.agentConfig.model = model;
+    modified.agentConfig.maxCostPerExecution = maxCost;
+    modified.estimatedCost = maxCost;
+    onConfirm(modified);
+  };
 
   return (
     <div className="chat-intent-preview">
@@ -188,19 +227,77 @@ function IntentPreview({
       )}
 
       <div className="chat-intent-cost">
-        Estimated cost: <strong>${intent.estimatedCost.toFixed(2)}</strong>
+        Budget cap: <strong>${intent.agentConfig.maxCostPerExecution.toFixed(2)}</strong>
         {isMultiAgent && <span className="chat-intent-agent-count"> ({intent.subtasks?.length} agents)</span>}
         {intent.requiresApproval && (
           <span className="chat-intent-approval"> (requires approval)</span>
         )}
       </div>
+
+      {configuring && (
+        <div className="chat-intent-configure">
+          <div className="chat-intent-field">
+            <label>Target — what should this agent work on?</label>
+            <input
+              type="text"
+              value={target}
+              onChange={e => setTarget(e.target.value)}
+              placeholder={placeholder}
+              autoFocus
+            />
+          </div>
+          <div className="chat-intent-field">
+            <label>Additional instructions (optional)</label>
+            <textarea
+              value={instructions}
+              onChange={e => setInstructions(e.target.value)}
+              placeholder="Any extra context, constraints, or focus areas..."
+              rows={2}
+            />
+          </div>
+          <div className="chat-intent-field-row">
+            <div className="chat-intent-field">
+              <label>Model</label>
+              <select value={model} onChange={e => setModel(e.target.value)}>
+                {MODEL_OPTIONS.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="chat-intent-field">
+              <label>Max cost ($)</label>
+              <input
+                type="number"
+                value={maxCost}
+                onChange={e => setMaxCost(Number(e.target.value))}
+                min={0.01}
+                step={0.5}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="chat-intent-actions">
-        <button className="chat-btn chat-btn-primary" onClick={onConfirm}>
-          {isMultiAgent ? 'Launch Orchestration' : 'Confirm & Create'}
-        </button>
-        <button className="chat-btn chat-btn-secondary" onClick={onCancel}>
-          Cancel
-        </button>
+        {configuring ? (
+          <>
+            <button className="chat-btn chat-btn-primary" onClick={handleLaunch}>
+              {isMultiAgent ? 'Launch Orchestration' : 'Launch Agent'}
+            </button>
+            <button className="chat-btn chat-btn-secondary" onClick={() => setConfiguring(false)}>
+              Back
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="chat-btn chat-btn-primary" onClick={() => setConfiguring(true)}>
+              Configure
+            </button>
+            <button className="chat-btn chat-btn-secondary" onClick={onCancel}>
+              Cancel
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -287,8 +384,10 @@ export default function ChatTab() {
     await sendMessage(content);
   }, [sendMessage]);
 
-  const handleConfirm = useCallback(async () => {
-    if (pendingIntent) {
+  const handleConfirm = useCallback(async (modified?: ParsedIntent) => {
+    if (modified) {
+      await confirmIntent(modified);
+    } else if (pendingIntent) {
       await confirmIntent(pendingIntent);
     }
   }, [pendingIntent, confirmIntent]);
@@ -305,7 +404,7 @@ export default function ChatTab() {
       />
       <div className="chat-main">
         <div className="chat-messages">
-          {!activeConversationId && messages.length === 0 && (
+          {messages.length === 0 && (
             <div className="chat-welcome">
               <h2>Welcome to Orcastr8r</h2>
               <p>Tell me what you need done in plain English. I'll create and configure an agent for you.</p>
