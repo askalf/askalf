@@ -21,7 +21,6 @@ const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 
 // Lazy-loaded: app pages
 const UnifiedDashboard = lazy(() => import('./pages/UnifiedDashboard'));
-const CommandCenter = lazy(() => import('./pages/CommandCenter'));
 const Settings = lazy(() => import('./pages/Settings'));
 
 // Lazy-loaded: admin-only pages
@@ -97,10 +96,9 @@ export default function App() {
         {/* Ask Alf — dev project, super_admin only */}
 
 
-        {/* Unified Dashboard — default view */}
+        {/* Unified Dashboard — all tabs */}
         <Route path="/command-center" element={<UnifiedDashboard />} />
-        {/* Old command center tabs — deep links still work */}
-        <Route path="/command-center/:tab" element={<CommandCenter />} />
+        <Route path="/command-center/:tab" element={<UnifiedDashboard />} />
 
         {/* Legacy redirect */}
         <Route path="/agents" element={<Navigate to="/command-center" replace />} />

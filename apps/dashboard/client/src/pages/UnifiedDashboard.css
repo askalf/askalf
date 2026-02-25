@@ -117,15 +117,48 @@
 
 .ud-tab-bar {
   display: flex;
+  align-items: center;
   gap: 0;
   padding: 0 12px;
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.ud-tab-bar::-webkit-scrollbar {
+  height: 3px;
+}
+
+.ud-tab-bar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.ud-tab-group-label {
+  padding: 10px 6px 10px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #52525b;
+  user-select: none;
+  white-space: nowrap;
+  align-self: center;
+}
+
+.ud-tab-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  align-self: center;
+  margin: 0 6px;
+  flex-shrink: 0;
 }
 
 .ud-tab {
-  padding: 10px 16px;
+  padding: 10px 12px;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -135,6 +168,7 @@
   cursor: pointer;
   transition: all 0.15s;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .ud-tab:hover {
