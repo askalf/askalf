@@ -25,7 +25,8 @@ export interface GitOpsInput {
     | 'add'
     | 'commit'
     | 'push'
-    | 'merge_to_main';
+    | 'merge_to_main'
+    | 'clone';
   branch_name?: string;
   paths?: string[];
   message?: string;
@@ -34,6 +35,10 @@ export interface GitOpsInput {
   file_path?: string;
   agent_name?: string;
   agent_id?: string;
+  /** Target directory for clone operations */
+  target_dir?: string;
+  /** Repository URL for clone (uses REPO_CLONE_URL env if not provided) */
+  repo_url?: string;
 }
 
 // ============================================
@@ -424,10 +429,29 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
         };
       }
 
+      case 'clone': {
+        // Clone a repository — uses injected credentials via GIT_ASKPASS env var
+        const cloneUrl = input.repo_url || process.env['REPO_CLONE_URL'];
+        if (!cloneUrl) {
+          return {
+            output: null,
+            error: 'repo_url is required for clone (or set REPO_CLONE_URL env var)',
+            durationMs: Math.round(performance.now() - startTime),
+          };
+        }
+        const targetDir = input.target_dir || 'target-repo';
+        const res = await git(`clone --depth 1 "${cloneUrl}" "${targetDir}"`, 120_000);
+        return {
+          output: { cloned: res.exitCode === 0, targetDir, exitCode: res.exitCode, stdout: res.stdout },
+          error: res.exitCode !== 0 ? res.stderr : undefined,
+          durationMs: Math.round(performance.now() - startTime),
+        };
+      }
+
       default:
         return {
           output: null,
-          error: `Unknown action: ${input.action}. Supported: status, diff, log, branch_list, branch_create, checkout, add, commit, push, merge_to_main`,
+          error: `Unknown action: ${input.action}. Supported: status, diff, log, branch_list, branch_create, checkout, add, commit, push, merge_to_main, clone`,
           durationMs: Math.round(performance.now() - startTime),
         };
     }

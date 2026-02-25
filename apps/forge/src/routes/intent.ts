@@ -45,6 +45,10 @@ interface ParsedIntent {
   summary: string;
   executionMode: 'single' | 'pipeline' | 'fan-out' | 'consensus';
   subtasks: IntentSubtask[] | null;
+  // Repo context (from Phase 3 simplified intent)
+  repoId?: string;
+  repoFullName?: string;
+  repoProvider?: string;
 }
 
 const INTENT_SYSTEM_PROMPT = `You are an intent parser for an AI agent platform. Given a user's natural language request, determine:
@@ -268,12 +272,31 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
       try {
         const { dispatchOrchestrationPlan } = await import('../orchestration/nl-orchestrator.js');
 
+        // Resolve repo context if a target repo was selected
+        let repoContext: { repoFullName: string; repoProvider: string; cloneUrl?: string; defaultBranch?: string } | undefined;
+        if (body.intent.repoId) {
+          const repoRow = await query<{ repo_full_name: string; provider: string; clone_url: string | null; default_branch: string }>(
+            `SELECT repo_full_name, provider, clone_url, default_branch FROM user_repos WHERE id = $1 AND user_id = $2`,
+            [body.intent.repoId, userId],
+          );
+          if (repoRow.length > 0) {
+            const r = repoRow[0]!;
+            repoContext = {
+              repoFullName: r.repo_full_name,
+              repoProvider: r.provider,
+              cloneUrl: r.clone_url ?? undefined,
+              defaultBranch: r.default_branch,
+            };
+          }
+        }
+
         const result = await dispatchOrchestrationPlan({
           subtasks: body.intent.subtasks,
           ownerId: userId,
           conversationId: body.conversationId,
           originalInstruction: body.intent.summary,
           pattern: body.intent.executionMode as 'pipeline' | 'fan-out' | 'consensus',
+          repoContext,
         });
 
         return {

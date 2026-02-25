@@ -1070,4 +1070,56 @@ export interface DeploymentLog {
   commit_hash: string | null;
 }
 
+// ── Integration types ──
+
+export interface UserIntegration {
+  id: string;
+  provider: string;
+  provider_user_id: string | null;
+  display_name: string | null;
+  status: string;
+  scopes: string[] | null;
+  created_at: string;
+  updated_at: string;
+  repo_count?: number;
+}
+
+export interface UserRepo {
+  id: string;
+  integration_id: string;
+  provider: string;
+  repo_full_name: string;
+  repo_url: string;
+  clone_url: string | null;
+  default_branch: string;
+  is_private: boolean;
+  language: string | null;
+  last_synced_at: string;
+}
+
+export const integrationApi = {
+  list: () =>
+    apiFetch<{ integrations: UserIntegration[] }>('/api/v1/integrations'),
+
+  available: () =>
+    apiFetch<{ providers: Array<{ provider: string; configured: boolean }> }>('/api/v1/integrations/available'),
+
+  repos: () =>
+    apiFetch<{ repos: UserRepo[] }>('/api/v1/integrations/repos'),
+
+  reposByIntegration: (id: string) =>
+    apiFetch<{ repos: UserRepo[] }>(`/api/v1/integrations/${id}/repos`),
+
+  sync: (id: string) =>
+    apiFetch<{ synced: number }>(`/api/v1/integrations/${id}/sync`, { method: 'POST', body: JSON.stringify({}) }),
+
+  disconnect: (id: string) =>
+    apiFetch(`/api/v1/integrations/${id}`, { method: 'DELETE' }),
+
+  branches: (integrationId: string, repoFullName: string) =>
+    apiFetch<{ branches: Array<{ name: string; isDefault: boolean }> }>(
+      `/api/v1/integrations/${integrationId}/repos/${encodeURIComponent(repoFullName)}/branches`,
+    ),
+};
+
 // Deployment logs section appended to hubApi below — see exports

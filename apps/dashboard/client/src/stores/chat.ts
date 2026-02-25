@@ -49,6 +49,10 @@ export interface ParsedIntent {
   summary: string;
   executionMode: 'single' | 'pipeline' | 'fan-out' | 'consensus';
   subtasks: IntentSubtask[] | null;
+  // Repo context (from simplified intent flow)
+  repoId?: string;
+  repoFullName?: string;
+  repoProvider?: string;
 }
 
 export interface Template {

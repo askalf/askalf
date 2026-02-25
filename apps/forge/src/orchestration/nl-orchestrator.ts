@@ -156,6 +156,12 @@ export interface OrchestrationPlanRequest {
   conversationId?: string;
   originalInstruction: string;
   pattern: 'pipeline' | 'fan-out' | 'consensus';
+  repoContext?: {
+    repoFullName: string;
+    repoProvider: string;
+    cloneUrl?: string;
+    defaultBranch?: string;
+  };
 }
 
 /**
@@ -214,6 +220,7 @@ export async function dispatchOrchestrationPlan(
           pattern: request.pattern,
           conversationId: request.conversationId,
           originalInstruction: request.originalInstruction.substring(0, 500),
+          ...(request.repoContext ? { repoContext: request.repoContext } : {}),
         }),
       ],
     );
@@ -229,7 +236,18 @@ export async function dispatchOrchestrationPlan(
       );
       const cfg = agentRow[0];
 
-      void runDirectCliExecution(executionId, match.agentId, task.description, request.ownerId, {
+      // Prepend repo context to the task description if available
+      let taskInput = task.description;
+      if (request.repoContext) {
+        const rc = request.repoContext;
+        const repoPrefix = `TARGET REPOSITORY: ${rc.repoFullName} (${rc.repoProvider})` +
+          (rc.cloneUrl ? `\nCLONE URL: ${rc.cloneUrl}` : '') +
+          `\nDEFAULT BRANCH: ${rc.defaultBranch ?? 'main'}` +
+          '\n\n';
+        taskInput = repoPrefix + taskInput;
+      }
+
+      void runDirectCliExecution(executionId, match.agentId, taskInput, request.ownerId, {
         systemPrompt: cfg?.system_prompt,
         modelId: cfg?.model_id,
         maxBudgetUsd: cfg?.max_budget,
