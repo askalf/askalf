@@ -1,14 +1,22 @@
-import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback, Fragment } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import TopBar from '../components/unified/TopBar';
 import MasterSession from '../components/unified/MasterSession';
 import AgentFleetCompact from '../components/unified/AgentFleetCompact';
 import LiveActivityFeed from '../components/unified/LiveActivityFeed';
 import TicketBoardCompact from '../components/unified/TicketBoardCompact';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { hubApi } from '../hooks/useHubApi';
 import './UnifiedDashboard.css';
+// Hub component CSS (previously imported by CommandCenter)
+import './hub/shared/hub-shared.css';
+import './hub/hub-pages.css';
+import './hub/ContentFeed.css';
+import './hub/FleetMemory.css';
+import './forge/forge-theme.css';
 
-// Lazy-load the heavy tabs
+// Lazy-load all tab panels
 const PushPanel = lazy(() => import('./forge/PushPanel'));
 const ExecutionHistory = lazy(() => import('./hub/ExecutionHistory'));
 const CostDashboard = lazy(() => import('./forge/CostDashboard'));
@@ -16,23 +24,73 @@ const FleetTab = lazy(() => import('./unified/FleetTab'));
 const ChatTab = lazy(() => import('./unified/ChatTab'));
 const BuilderTab = lazy(() => import('./unified/BuilderTab'));
 const TemplatesTab = lazy(() => import('./unified/TemplatesTab'));
+const Documents = lazy(() => import('./hub/Documents'));
+const InterventionGateway = lazy(() => import('./hub/InterventionGateway'));
+const Tickets = lazy(() => import('./hub/Tickets'));
+const ContentFeed = lazy(() => import('./hub/ContentFeed'));
+const FleetMemory = lazy(() => import('./hub/FleetMemory'));
+const AuditLog = lazy(() => import('./forge/AuditLog'));
+const WorkflowBuilder = lazy(() => import('./forge/WorkflowBuilder'));
+const ProviderHealthPage = lazy(() => import('./forge/ProviderHealth'));
+const GuardrailsManager = lazy(() => import('./forge/GuardrailsManager'));
 
-type TabKey = 'chat' | 'templates' | 'builder' | 'master' | 'fleet' | 'deploy' | 'executions' | 'costs';
+type TabKey =
+  | 'chat' | 'templates' | 'builder' | 'master' | 'fleet'
+  | 'deploy' | 'executions' | 'documents' | 'costs'
+  | 'interventions' | 'tickets' | 'content' | 'memory'
+  | 'audit' | 'workflows' | 'providers' | 'guardrails';
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'chat', label: 'Chat' },
-  { key: 'templates', label: 'Templates' },
-  { key: 'builder', label: 'Builder' },
-  { key: 'master', label: 'Master' },
-  { key: 'fleet', label: 'Fleet' },
-  { key: 'deploy', label: 'Deploy' },
-  { key: 'executions', label: 'Exec' },
-  { key: 'costs', label: '$$' },
+interface TabGroup { label: string; tabs: { key: TabKey; label: string }[] }
+
+const TAB_GROUPS: TabGroup[] = [
+  { label: 'Command', tabs: [
+    { key: 'chat', label: 'Chat' },
+    { key: 'templates', label: 'Templates' },
+    { key: 'builder', label: 'Builder' },
+    { key: 'master', label: 'Master' },
+    { key: 'fleet', label: 'Fleet' },
+  ]},
+  { label: 'Ops', tabs: [
+    { key: 'interventions', label: 'Interventions' },
+    { key: 'tickets', label: 'Tickets' },
+    { key: 'content', label: 'Content' },
+    { key: 'memory', label: 'Memory' },
+  ]},
+  { label: 'Observe', tabs: [
+    { key: 'costs', label: '$$' },
+    { key: 'providers', label: 'Providers' },
+    { key: 'guardrails', label: 'Guardrails' },
+    { key: 'audit', label: 'Audit' },
+    { key: 'executions', label: 'Exec' },
+  ]},
+  { label: 'Build', tabs: [
+    { key: 'workflows', label: 'Workflows' },
+    { key: 'deploy', label: 'Deploy' },
+    { key: 'documents', label: 'Docs' },
+  ]},
 ];
 
+const ALL_TAB_KEYS = TAB_GROUPS.flatMap(g => g.tabs.map(t => t.key));
+
 export default function UnifiedDashboard() {
-  const [activeTab, setActiveTab] = useState<TabKey>('master');
+  const { tab } = useParams<{ tab?: string }>();
+  const navigate = useNavigate();
+
+  const initialTab = (tab && ALL_TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'master';
+  const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
   const { connected, events } = useWebSocket();
+
+  const setActiveTab = useCallback((key: TabKey) => {
+    setActiveTabState(key);
+    navigate(`/command-center/${key}`, { replace: true });
+  }, [navigate]);
+
+  // Sync tab from URL param changes
+  useEffect(() => {
+    if (tab && ALL_TAB_KEYS.includes(tab as TabKey) && tab !== activeTab) {
+      setActiveTabState(tab as TabKey);
+    }
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // State for cross-tab communication (Templates → Builder)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,54 +128,57 @@ export default function UnifiedDashboard() {
   const handleUseTemplate = useCallback((template: any) => {
     setBuilderTemplate(template);
     setActiveTab('builder');
-  }, []);
+  }, [setActiveTab]);
 
   const tabContent = () => {
+    const wrap = (label: string, C: React.ComponentType<Record<string, never>>) => (
+      <ErrorBoundary inline key={activeTab}>
+        <Suspense fallback={<div className="ud-loading">Loading {label}...</div>}>
+          <C />
+        </Suspense>
+      </ErrorBoundary>
+    );
+
     switch (activeTab) {
       case 'chat':
         return (
-          <Suspense fallback={<div className="ud-loading">Loading Chat...</div>}>
-            <ChatTab />
-          </Suspense>
+          <ErrorBoundary inline key="chat">
+            <Suspense fallback={<div className="ud-loading">Loading Chat...</div>}>
+              <ChatTab />
+            </Suspense>
+          </ErrorBoundary>
         );
       case 'templates':
         return (
-          <Suspense fallback={<div className="ud-loading">Loading Templates...</div>}>
-            <TemplatesTab onUseTemplate={handleUseTemplate} />
-          </Suspense>
+          <ErrorBoundary inline key="templates">
+            <Suspense fallback={<div className="ud-loading">Loading Templates...</div>}>
+              <TemplatesTab onUseTemplate={handleUseTemplate} />
+            </Suspense>
+          </ErrorBoundary>
         );
       case 'builder':
         return (
-          <Suspense fallback={<div className="ud-loading">Loading Builder...</div>}>
-            <BuilderTab prefilledTemplate={builderTemplate} />
-          </Suspense>
+          <ErrorBoundary inline key="builder">
+            <Suspense fallback={<div className="ud-loading">Loading Builder...</div>}>
+              <BuilderTab prefilledTemplate={builderTemplate} />
+            </Suspense>
+          </ErrorBoundary>
         );
       case 'master':
         return <MasterSession />;
-      case 'fleet':
-        return (
-          <Suspense fallback={<div className="ud-loading">Loading Fleet...</div>}>
-            <FleetTab />
-          </Suspense>
-        );
-      case 'deploy':
-        return (
-          <Suspense fallback={<div className="ud-loading">Loading Deploy...</div>}>
-            <PushPanel />
-          </Suspense>
-        );
-      case 'executions':
-        return (
-          <Suspense fallback={<div className="ud-loading">Loading Executions...</div>}>
-            <ExecutionHistory />
-          </Suspense>
-        );
-      case 'costs':
-        return (
-          <Suspense fallback={<div className="ud-loading">Loading Costs...</div>}>
-            <CostDashboard />
-          </Suspense>
-        );
+      case 'fleet': return wrap('Fleet', FleetTab);
+      case 'deploy': return wrap('Deploy', PushPanel);
+      case 'executions': return wrap('Executions', ExecutionHistory);
+      case 'documents': return wrap('Documents', Documents);
+      case 'costs': return wrap('Costs', CostDashboard);
+      case 'interventions': return wrap('Interventions', InterventionGateway);
+      case 'tickets': return wrap('Tickets', Tickets);
+      case 'content': return wrap('Content', ContentFeed);
+      case 'memory': return wrap('Memory', FleetMemory);
+      case 'audit': return wrap('Audit', AuditLog);
+      case 'workflows': return wrap('Workflows', WorkflowBuilder);
+      case 'providers': return wrap('Providers', ProviderHealthPage);
+      case 'guardrails': return wrap('Guardrails', GuardrailsManager);
     }
   };
 
@@ -132,14 +193,20 @@ export default function UnifiedDashboard() {
       <div className={`ud-body ${activeTab === 'chat' ? 'ud-body-full' : ''}`}>
         <div className="ud-main">
           <div className="ud-tab-bar">
-            {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                className={`ud-tab ${activeTab === tab.key ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.label}
-              </button>
+            {TAB_GROUPS.map((group, gi) => (
+              <Fragment key={group.label}>
+                {gi > 0 && <div className="ud-tab-divider" />}
+                <span className="ud-tab-group-label">{group.label}</span>
+                {group.tabs.map((t) => (
+                  <button
+                    key={t.key}
+                    className={`ud-tab ${activeTab === t.key ? 'active' : ''}`}
+                    onClick={() => setActiveTab(t.key)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </Fragment>
             ))}
           </div>
           <div className="ud-tab-content">
