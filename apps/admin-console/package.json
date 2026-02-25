@@ -1,0 +1,16 @@
+{
+  "name": "@substrate/admin-console",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.1",
+    "@fastify/websocket": "^11.2.0",
+    "@fastify/cookie": "^11.0.1",
+    "node-pty": "^1.0.0",
+    "pg": "^8.13.1"
+  }
+}
