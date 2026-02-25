@@ -178,13 +178,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const data = await chatFetch<{ messages: ConversationMessage[] }>(
         `/api/v1/admin/chat/conversations/${id}`,
       );
-      // Restore pending intent from the most recent assistant message that has one
-      const lastIntentMsg = [...data.messages]
-        .reverse()
-        .find(m => m.role === 'assistant' && m.intent != null);
+      // Restore pending intent only if the last message in the conversation
+      // is an assistant message with an intent (meaning it hasn't been confirmed/cancelled yet)
+      const lastMsg = data.messages[data.messages.length - 1];
+      const restoredIntent = lastMsg?.role === 'assistant' && lastMsg.intent
+        ? lastMsg.intent
+        : null;
       set({
         messages: data.messages,
-        pendingIntent: lastIntentMsg?.intent ?? null,
+        pendingIntent: restoredIntent,
       });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to load messages' });
@@ -239,7 +241,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       metadata: {},
       created_at: new Date().toISOString(),
     };
-    set(s => ({ messages: [...s.messages, optimisticMsg], isProcessing: true, error: null }));
+    set(s => ({ messages: [...s.messages, optimisticMsg], isProcessing: true, pendingIntent: null, error: null }));
 
     try {
       // Persist user message
