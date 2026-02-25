@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './CookieConsent.css';
 
-const CONSENT_KEY = 'orcastr8r_cookie_consent';
+const CONSENT_KEY = 'askalf_cookie_consent';
 
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false);

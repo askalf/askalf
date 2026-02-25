@@ -1,5 +1,5 @@
 {
-  "name": "@substrate/db",
+  "name": "@askalf/db",
   "version": "1.0.0",
   "description": "Shared database connection pools for MCP servers",
   "type": "module",

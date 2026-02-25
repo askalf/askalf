@@ -1,7 +1,7 @@
 {
-  "name": "@substrate/observability",
+  "name": "@askalf/observability",
   "version": "1.0.0",
-  "description": "Structured logging, metrics, and tracing for SUBSTRATE",
+  "description": "Structured logging, metrics, and tracing for AskAlf",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",

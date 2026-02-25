@@ -1,7 +1,7 @@
 {
-  "name": "@substrate/cli",
+  "name": "@askalf/cli",
   "version": "1.0.0",
-  "description": "Orcastr8r CLI — manage agents, executions, and fleet from the command line",
+  "description": "AskAlf CLI — manage agents, executions, and fleet from the command line",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -17,7 +17,7 @@
   "dependencies": {
     "commander": "^12.0.0",
     "yaml": "^2.4.0",
-    "@substrate/sdk": "workspace:*"
+    "@askalf/sdk": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

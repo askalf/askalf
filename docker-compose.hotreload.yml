@@ -69,7 +69,7 @@ services:
     build: *dev-build
     volumes: *dev-volumes
     entrypoint: /app/scripts/dev-entrypoint.sh
-    command: ["pnpm", "--filter", "@substrate/api", "dev"]
+    command: ["pnpm", "--filter", "@askalf/api", "dev"]
     environment:
       <<: *dev-env
       DEV_SERVICE: api
@@ -97,7 +97,7 @@ services:
     build: *dev-build
     volumes: *dev-volumes
     entrypoint: /app/scripts/dev-entrypoint.sh
-    command: ["pnpm", "--filter", "@substrate/worker", "dev"]
+    command: ["pnpm", "--filter", "@askalf/worker", "dev"]
     environment:
       <<: *dev-env
       DEV_SERVICE: scheduler
@@ -124,7 +124,7 @@ services:
     build: *dev-build
     volumes: *dev-volumes
     entrypoint: /app/scripts/dev-entrypoint.sh
-    command: ["pnpm", "--filter", "@substrate/worker", "dev"]
+    command: ["pnpm", "--filter", "@askalf/worker", "dev"]
     environment:
       <<: *dev-env
       DEV_SERVICE: worker
@@ -179,7 +179,7 @@ services:
     build: *dev-build
     volumes: *dev-volumes
     entrypoint: /app/scripts/dev-entrypoint.sh
-    command: ["pnpm", "--filter", "@substrate/mcp", "dev:http"]
+    command: ["pnpm", "--filter", "@askalf/mcp", "dev:http"]
     environment:
       <<: *dev-env
       DEV_SERVICE: mcp
@@ -241,7 +241,7 @@ services:
       # Forge-specific: Docker socket (agents need container access)
       - /var/run/docker.sock:/var/run/docker.sock
     entrypoint: /app/scripts/dev-entrypoint.sh
-    command: ["pnpm", "--filter", "@substrate/forge", "dev"]
+    command: ["pnpm", "--filter", "@askalf/forge", "dev"]
     environment:
       <<: *dev-env
       DEV_SERVICE: forge

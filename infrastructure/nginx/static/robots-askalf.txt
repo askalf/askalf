@@ -1,5 +1,16 @@
-# askalf.org — holding page
+# askalf.org — The control plane for autonomous agents
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /ws
+Disallow: /login
+Disallow: /signup
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /settings
+Disallow: /users
+Disallow: /command-center
 
 Sitemap: https://askalf.org/sitemap.xml

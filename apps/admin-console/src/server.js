@@ -23,7 +23,7 @@ const __dirname = dirname(__filename);
 
 // ---- Database pool (minimal — just for session validation) ----
 const pool = new pg.Pool({
-  connectionString: process.env['DATABASE_URL'] || 'postgresql://substrate:substrate_dev@localhost:5432/orcastr8r',
+  connectionString: process.env['DATABASE_URL'] || 'postgresql://substrate:substrate_dev@localhost:5432/askalf',
   max: 3,
   idleTimeoutMillis: 60000,
 });

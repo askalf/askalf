@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-**Audience:** Agents running inside Orcastr8r
+**Audience:** Agents running inside AskAlf
 **Updated:** 2026-02-22
 **Source:** `apps/mcp-tools/src/`
 

@@ -1,6 +1,6 @@
 /**
  * Forge Database Connection
- * Single pool for the unified orcastr8r database.
+ * Single pool for the unified askalf database.
  * Substrate query functions are aliases — kept for backwards compatibility.
  */
 
@@ -31,7 +31,7 @@ export function initializeDatabase(connectionString: string): void {
 
 /** No-op — substrate tables are in the same database now. */
 export function initializeSubstrateDatabase(_connectionString: string): void {
-  console.log('[DB] initializeSubstrateDatabase is a no-op (merged into orcastr8r)');
+  console.log('[DB] initializeSubstrateDatabase is a no-op (merged into askalf)');
 }
 
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(

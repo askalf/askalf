@@ -35,7 +35,7 @@ export default function AdminLayout() {
       <aside className="admin-sidebar">
         <div className="admin-sidebar-header">
           <div className="admin-logo" onClick={() => navigate('/command-center')}>
-            <span className="admin-logo-wordmark">orcastr8r</span>
+            <span className="admin-logo-wordmark">askalf</span>
           </div>
         </div>
 

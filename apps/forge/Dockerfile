@@ -17,15 +17,15 @@ COPY packages/observability ./packages/observability
 RUN pnpm install --frozen-lockfile
 
 # Build workspace dependencies first, then forge
-RUN pnpm --filter @substrate/core build && \
-    pnpm --filter @substrate/observability build && \
-    pnpm --filter @substrate/email build && \
-    pnpm --filter @substrate/forge build
+RUN pnpm --filter @askalf/core build && \
+    pnpm --filter @askalf/observability build && \
+    pnpm --filter @askalf/email build && \
+    pnpm --filter @askalf/forge build
 
 # Note: unit tests excluded from Docker context via .dockerignore — run tests in CI instead
 
 # Deploy to a self-contained directory
-RUN pnpm deploy --filter @substrate/forge --prod /app/deploy
+RUN pnpm deploy --filter @askalf/forge --prod /app/deploy
 
 # Remove unnecessary files from deploy
 RUN rm -rf /app/deploy/src 2>/dev/null || true && \

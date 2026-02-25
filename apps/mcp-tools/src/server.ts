@@ -19,7 +19,7 @@ import {
   httpRequestsTotal,
   httpRequestDuration,
   httpRequestsInFlight,
-} from '@substrate/observability';
+} from '@askalf/observability';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -27,7 +27,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { closeAll } from '@substrate/db';
+import { closeAll } from '@askalf/db';
 
 import { TOOLS as WORKFLOW_TOOLS, handleTool as handleWorkflowTool } from './workflow.js';
 import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';

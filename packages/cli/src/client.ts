@@ -1,14 +1,14 @@
 /**
  * CLI API Client
- * Wraps @substrate/sdk with config-file-based auth
+ * Wraps @askalf/sdk with config-file-based auth
  */
 
-import { Orcastr8r } from '@substrate/sdk';
+import { AskAlf } from '@askalf/sdk';
 import { loadConfig } from './config.js';
 
-let _client: Orcastr8r | null = null;
+let _client: AskAlf | null = null;
 
-export function getClient(): Orcastr8r {
+export function getClient(): AskAlf {
   if (_client) return _client;
 
   const config = loadConfig();
@@ -17,7 +17,7 @@ export function getClient(): Orcastr8r {
     process.exit(1);
   }
 
-  _client = new Orcastr8r({
+  _client = new AskAlf({
     apiKey: config.apiKey,
     baseUrl: config.apiUrl,
   });

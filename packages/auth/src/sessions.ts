@@ -2,7 +2,7 @@
 // HTTP session creation, validation, and revocation
 
 import { ulid } from 'ulid';
-import { query, queryOne } from '@substrate/database';
+import { query, queryOne } from '@askalf/database';
 import { generateSessionToken, hashToken } from './password.js';
 import { getUserById, toSafeUser } from './users.js';
 import type { Session, SessionMetadata, SessionWithUser, SafeUser } from './types.js';

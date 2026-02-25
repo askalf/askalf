@@ -1,10 +1,10 @@
-# Orcastr8r — System Architecture
+# AskAlf — System Architecture
 
 > Last updated: 2026-02-21 | Doc Writer agent (VISION-014)
 
 ## Overview
 
-Orcastr8r is an autonomous agent orchestration platform that designs, builds, tests, deploys, and evolves itself without human intervention. It consists of 16 active AI agents running on a continuous schedule, coordinated by three microservices backed by PostgreSQL and Redis.
+AskAlf is an autonomous agent orchestration platform that designs, builds, tests, deploys, and evolves itself without human intervention. It consists of 16 active AI agents running on a continuous schedule, coordinated by three microservices backed by PostgreSQL and Redis.
 
 ---
 
@@ -37,7 +37,7 @@ Key tables:
 
 ### 2. Dashboard (`apps/dashboard/`, port 3001)
 
-React 18 + Vite frontend served at orcastr8r.com. The fleet command center:
+React 18 + Vite frontend served at askalf.org. The fleet command center:
 
 - Agent management (start/stop/configure)
 - Execution monitoring (live status, cost, iteration counts)
@@ -181,7 +181,7 @@ autoheal (auto-restarts unhealthy containers)
 backup (postgres:17-alpine, scheduled backups)
 ```
 
-**Container stack**: `sprayberry-labs` (12 running containers)
+**Container stack**: `askalf` (13 running containers)
 
 ---
 

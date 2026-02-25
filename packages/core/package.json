@@ -1,7 +1,7 @@
 {
-  "name": "@substrate/core",
+  "name": "@askalf/core",
   "version": "1.0.0",
-  "description": "Core types, utilities, and validation for SUBSTRATE",
+  "description": "Core types, utilities, and validation for AskAlf",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",

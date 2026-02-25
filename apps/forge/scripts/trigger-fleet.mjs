@@ -216,4 +216,4 @@ for (const agent of fleet) {
 
 console.log('\n=== Fleet launch complete ===');
 console.log('The scheduler daemon will continue triggering agents on their schedules.');
-console.log('Monitor at: https://orcastr8r.com/admin/hub/agents');
+console.log('Monitor at: https://askalf.org/admin/hub/agents');

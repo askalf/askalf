@@ -6,7 +6,7 @@ export default function NotFound() {
     <div className="landing-page legal-page">
       <nav className="landing-nav" aria-label="Main navigation">
         <Link to="/" className="landing-nav-logo">
-          <span className="landing-nav-logo-text">orcastr8r</span>
+          <span className="landing-nav-logo-text">askalf</span>
         </Link>
         <div className="landing-nav-links">
           <Link to="/login" className="landing-nav-signin">Sign In</Link>
@@ -43,7 +43,7 @@ export default function NotFound() {
       <footer className="landing-footer" role="contentinfo">
         <div className="landing-footer-inner">
           <span className="landing-footer-copy">
-            {'\u00A9'} {new Date().getFullYear()} Orcastr8r. All rights reserved.
+            {'\u00A9'} {new Date().getFullYear()} AskAlf. All rights reserved.
           </span>
         </div>
       </footer>

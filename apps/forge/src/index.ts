@@ -4,13 +4,13 @@
  */
 
 import 'dotenv/config';
-import { initializeEmailFromEnv } from '@substrate/email';
+import { initializeEmailFromEnv } from '@askalf/email';
 import {
   getPrometheusMetrics,
   httpRequestsTotal,
   httpRequestDuration,
   httpRequestsInFlight,
-} from '@substrate/observability';
+} from '@askalf/observability';
 import { forgeActiveAgents } from './metrics.js';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
@@ -65,8 +65,8 @@ const app = Fastify({
 // Register CORS
 const nodeEnv = process.env['NODE_ENV'] ?? 'development';
 const corsOrigins = process.env['ALLOWED_ORIGINS']?.split(',') || [
-  'https://orcastr8r.com',
-  'https://www.orcastr8r.com',
+  'https://askalf.org',
+  'https://www.askalf.org',
   ...(nodeEnv !== 'production' ? [
     'http://localhost:3005',
     'http://localhost:5173',

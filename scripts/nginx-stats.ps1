@@ -7,7 +7,7 @@
 
 param([string]$Domain = "")
 
-$Container = "sprayberry-labs-nginx"
+$Container = "askalf-nginx"
 $Log = "/var/log/nginx/access.log"
 
 Write-Host "=== nginx stats ===" -ForegroundColor Cyan

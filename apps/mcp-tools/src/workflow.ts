@@ -9,7 +9,7 @@ import {
   forgeQuery,
   generateId,
   audit,
-} from '@substrate/db';
+} from '@askalf/db';
 
 const FORGE_URL = process.env['FORGE_URL'] ?? 'http://forge:3005';
 const FORGE_API_KEY = process.env['FORGE_API_KEY'] ?? '';

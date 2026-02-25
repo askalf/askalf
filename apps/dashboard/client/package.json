@@ -1,5 +1,5 @@
 {
-  "name": "@substrate/dashboard-client",
+  "name": "@askalf/dashboard-client",
   "version": "1.0.0",
   "private": true,
   "type": "module",

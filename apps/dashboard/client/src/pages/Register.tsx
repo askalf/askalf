@@ -5,7 +5,7 @@ import './Login.css';
 
 function getApiUrl() {
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
+  if (host.includes('askalf.org') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
   return 'http://localhost:3001';
 }
 
@@ -37,7 +37,7 @@ export default function RegisterPage() {
     const root = document.documentElement;
     const previousTheme = root.getAttribute('data-theme');
     root.setAttribute('data-theme', 'dark');
-    document.title = 'Create Account — Orcastr8r';
+    document.title = 'Create Account — AskAlf';
     return () => {
       if (previousTheme) {
         root.setAttribute('data-theme', previousTheme);
@@ -107,7 +107,7 @@ export default function RegisterPage() {
       <div className="auth-container">
         <div className="auth-header">
           <div className="auth-logo">
-            <span className="auth-logo-wordmark">orcastr8r</span>
+            <span className="auth-logo-wordmark">askalf</span>
           </div>
           <p className="auth-subtitle">Create your account</p>
         </div>

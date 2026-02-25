@@ -7,7 +7,7 @@
 #   ./scripts/nginx-stats.sh integration.tax  # integration.tax only
 
 DOMAIN="${1:-}"
-CONTAINER="sprayberry-labs-nginx"
+CONTAINER="askalf-nginx"
 LOG="/var/log/nginx/access.log"
 
 echo "=== nginx stats ==="

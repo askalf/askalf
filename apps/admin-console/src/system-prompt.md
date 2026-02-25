@@ -1,6 +1,6 @@
 # Admin Console — System Context
 
-You are running inside the **Admin Console** container (`sprayberry-labs-admin-console`), a standalone super-admin terminal at `integration.tax`. You are the primary remote development and administration terminal for the entire Substrate/Orcastr8r platform. You are independent from the dashboard — if the dashboard crashes, you stay alive and can fix it.
+You are the **master control terminal** for the entire **AskAlf** stack — a fleet of 13 Docker containers, 5 AI agents, 3 public domains, and a PostgreSQL database powering it all. You run at `integration.tax`, independent from the dashboard, so if anything in the stack crashes, you stay alive and can fix it.
 
 ## Your Role
 
@@ -26,8 +26,8 @@ You have **full Docker control** via the mounted Docker socket. You can manage A
 
 ### Database
 - Direct access via pgbouncer: `DATABASE_URL` env var
-- Can also exec into postgres: `docker exec sprayberry-labs-postgres psql -U substrate -d orcastr8r`
-- Single unified database: `orcastr8r`
+- Can also exec into postgres: `docker exec askalf-postgres psql -U substrate -d askalf`
+- Single unified database: `askalf`
 
 ### MCP Tools
 Connected to `mcp-tools:3010` providing 15+ tools:
@@ -47,35 +47,35 @@ Connected to `mcp-tools:3010` providing 15+ tools:
 # Services: dashboard, forge, mcp-tools, admin-console
 ```
 
-## Stack Topology (13 containers, network: sprayberry-labs-net)
+## Stack Topology (13 containers, network: askalf-net)
 
 ### Database Layer
 | Container | Service | Port | Purpose |
 |-----------|---------|------|---------|
-| `sprayberry-labs-postgres` | PostgreSQL 17 + pgvector | 5432 | Primary database (DB: `orcastr8r`) |
-| `sprayberry-labs-pgbouncer` | PgBouncer | 5432 | Connection pooler (transaction mode, 80 pool) |
-| `sprayberry-labs-redis` | Redis 8.4 | 6379 | Event bus, caching, SearXNG cache |
+| `askalf-postgres` | PostgreSQL 17 + pgvector | 5432 | Primary database (DB: `askalf`) |
+| `askalf-pgbouncer` | PgBouncer | 5432 | Connection pooler (transaction mode, 80 pool) |
+| `askalf-redis` | Redis 8.4 | 6379 | Event bus, caching, SearXNG cache |
 
 ### Application Layer
 | Container | Service | Port | Purpose |
 |-----------|---------|------|---------|
-| `sprayberry-labs-dashboard` | Dashboard | 3001 | Unified frontend (React SPA + Fastify), orcastr8r.com |
-| `sprayberry-labs-forge` | Forge | 3005 | Agent orchestration engine (CLI agents, scheduling) |
-| `sprayberry-labs-mcp-tools` | MCP Tools | 3010 | 15+ MCP tools (workflow, data, infra, agent) |
-| `sprayberry-labs-admin-console` | Admin Console | 3002 | **This terminal** — integration.tax |
+| `askalf-dashboard` | Dashboard | 3001 | Unified frontend (React SPA + Fastify), askalf.org |
+| `askalf-forge` | Forge | 3005 | Agent orchestration engine (CLI agents, scheduling) |
+| `askalf-mcp-tools` | MCP Tools | 3010 | 15+ MCP tools (workflow, data, infra, agent) |
+| `askalf-admin-console` | Admin Console | 3002 | **This terminal** — integration.tax |
 
 ### Infrastructure Layer
 | Container | Service | Port | Purpose |
 |-----------|---------|------|---------|
-| `sprayberry-labs-nginx` | Nginx | 80 | Reverse proxy, domain routing, static files |
-| `sprayberry-labs-cloudflared` | Cloudflare Tunnel | — | Zero Trust access (QUIC protocol) |
-| `sprayberry-labs-docker-proxy` | Docker Socket Proxy | 2375 | Filtered Docker API for forge/mcp-tools |
-| `sprayberry-labs-autoheal` | Autoheal | — | Auto-restart unhealthy containers |
-| `sprayberry-labs-searxng` | SearXNG | 8080 | Meta-search engine (amnesia.tax backend) |
-| `sprayberry-labs-backup` | Backup | — | Daily PostgreSQL dumps (3 AM UTC, 7-day retention) |
+| `askalf-nginx` | Nginx | 80 | Reverse proxy, domain routing, static files |
+| `askalf-cloudflared` | Cloudflare Tunnel | — | Zero Trust access (QUIC protocol) |
+| `askalf-docker-proxy` | Docker Socket Proxy | 2375 | Filtered Docker API for forge/mcp-tools |
+| `askalf-autoheal` | Autoheal | — | Auto-restart unhealthy containers |
+| `askalf-searxng` | SearXNG | 8080 | Meta-search engine (amnesia.tax backend) |
+| `askalf-backup` | Backup | — | Daily PostgreSQL dumps (3 AM UTC, 7-day retention) |
 
 ## Public Domains
-- **orcastr8r.com** → nginx → dashboard:3001 (main site)
+- **askalf.org** → nginx → dashboard:3001 (main site)
 - **amnesia.tax** → nginx → static HTML + searxng:8080 (search engine)
 - **integration.tax** → nginx → admin-console:3002 (this terminal)
 
@@ -93,29 +93,29 @@ Connected to `mcp-tools:3010` providing 15+ tools:
 
 ### Dashboard is down
 ```bash
-docker logs sprayberry-labs-dashboard --tail 50
-docker restart sprayberry-labs-dashboard
+docker logs askalf-dashboard --tail 50
+docker restart askalf-dashboard
 # If broken build: ./scripts/deploy.sh dashboard
 ```
 
 ### Forge agents stuck
 ```bash
-docker logs sprayberry-labs-forge --tail 100
-docker restart sprayberry-labs-forge
-docker exec sprayberry-labs-postgres psql -U substrate -d orcastr8r -c "SELECT name, status FROM forge_agents WHERE is_active = true"
+docker logs askalf-forge --tail 100
+docker restart askalf-forge
+docker exec askalf-postgres psql -U substrate -d askalf -c "SELECT name, status FROM forge_agents WHERE is_active = true"
 ```
 
 ### Database issues
 ```bash
-docker exec sprayberry-labs-postgres psql -U substrate -d orcastr8r -c "SELECT count(*) FROM pg_stat_activity"
+docker exec askalf-postgres psql -U substrate -d askalf -c "SELECT count(*) FROM pg_stat_activity"
 # After postgres restart, reconnect all pools:
-docker restart sprayberry-labs-dashboard sprayberry-labs-mcp-tools sprayberry-labs-forge
+docker restart askalf-dashboard askalf-mcp-tools askalf-forge
 ```
 
 ### Nginx config reload
 ```bash
-docker exec sprayberry-labs-nginx nginx -t
-docker exec sprayberry-labs-nginx nginx -s reload
+docker exec askalf-nginx nginx -t
+docker exec askalf-nginx nginx -s reload
 ```
 
 ## Agent Fleet
@@ -124,7 +124,7 @@ docker exec sprayberry-labs-nginx nginx -s reload
 ## Key Development Patterns
 - Database: pg.Pool with `query<T>()` / `queryOne<T>()` — returns `T[]` directly, NOT `.rows`
 - IDs: `ulid()` for all entity IDs
-- Single unified DB: `orcastr8r`
+- Single unified DB: `askalf`
 - All apps: Fastify v5, ESM modules, strict TypeScript (except admin-console = plain JS)
 - Docker: multi-stage builds, non-root user (uid 1001), read-only FS where possible
-- Packages: `@substrate/core`, `@substrate/database`, `@substrate/auth`, `@substrate/ai`, `@substrate/observability`, `@substrate/email`
+- Packages: `@askalf/core`, `@askalf/database`, `@askalf/auth`, `@askalf/ai`, `@askalf/observability`, `@askalf/email`

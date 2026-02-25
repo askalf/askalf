@@ -14,9 +14,9 @@ NC='\033[0m'
 
 # Service → container name + source path + container path mappings
 declare -A CONTAINERS=(
-  [dashboard]="sprayberry-labs-dashboard"
-  [forge]="sprayberry-labs-forge"
-  [api]="sprayberry-labs-api"
+  [dashboard]="askalf-dashboard"
+  [forge]="askalf-forge"
+  [api]="askalf-api"
 )
 
 declare -A SOURCE_PATHS=(

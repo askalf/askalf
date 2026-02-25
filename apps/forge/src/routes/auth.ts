@@ -8,7 +8,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { createHash } from 'node:crypto';
 import { substrateQuery, substrateQueryOne, retryQuery } from '../database.js';
-import { sendEmailVerificationEmail, sendPasswordResetEmail } from '@substrate/email';
+import { sendEmailVerificationEmail, sendPasswordResetEmail } from '@askalf/email';
 import { generateCsrfToken } from '../middleware/csrf-protection.js';
 
 // ============================================
@@ -39,7 +39,7 @@ const SESSION_COOKIE_OPTIONS = {
 
 function getCookieDomain(host: string): string | undefined {
   if (!isProduction) return undefined;
-  if (host.includes('orcastr8r.com')) return '.orcastr8r.com';
+  if (host.includes('askalf.org')) return '.askalf.org';
   return undefined;
 }
 
@@ -189,7 +189,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     // Fire-and-forget: send verification email
     sendEmailVerificationEmail(body.email, {
       userName: body.display_name || body.email.split('@')[0] || 'there',
-      verifyUrl: `https://orcastr8r.com/verify-email?token=${verificationToken}`,
+      verifyUrl: `https://askalf.org/verify-email?token=${verificationToken}`,
       expiresInHours: 24,
     }).catch((err: unknown) => console.error('[Auth] Failed to send verification email:', err));
 
@@ -469,7 +469,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (verifyUser) {
       sendEmailVerificationEmail(verifyUser.email, {
         userName: verifyUser.display_name || verifyUser.email.split('@')[0] || 'there',
-        verifyUrl: `https://orcastr8r.com/verify-email?token=${newToken}`,
+        verifyUrl: `https://askalf.org/verify-email?token=${newToken}`,
         expiresInHours: 24,
       }).catch((err: unknown) => console.error('[Auth] Failed to send verification email:', err));
     }
@@ -521,7 +521,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     );
     sendPasswordResetEmail(body.email, {
       userName: resetUser?.display_name || body.email.split('@')[0] || 'there',
-      resetUrl: `https://orcastr8r.com/reset-password?token=${token}`,
+      resetUrl: `https://askalf.org/reset-password?token=${token}`,
       expiresInMinutes: 60,
     }).catch((err: unknown) => console.error('[Auth] Failed to send password reset email:', err));
 

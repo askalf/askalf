@@ -33,7 +33,7 @@ INSERT INTO agent_tickets (id, title, description, status, priority, category, a
 
 -- Genesis: Write daily system journal
 ('VISION-007', 'Write the first daily system journal entry',
-'Write the first daily journal for Orcastr8r — the system reflecting on itself. Using memory_search and db_query: 1) Summarize activity: executions, tickets, knowledge nodes, 2) Highlight milestones: 16 agents, 100% success rate, growing knowledge graph, 3) Identify what improved and what needs work, 4) Reflect on being a self-building system, 5) Store as memory with key system-journal-2026-02-21. This becomes a daily Genesis practice.',
+'Write the first daily journal for AskAlf — the system reflecting on itself. Using memory_search and db_query: 1) Summarize activity: executions, tickets, knowledge nodes, 2) Highlight milestones: 16 agents, 100% success rate, growing knowledge graph, 3) Identify what improved and what needs work, 4) Reflect on being a self-building system, 5) Store as memory with key system-journal-2026-02-21. This becomes a daily Genesis practice.',
 'open', 'medium', 'reflection', 'Genesis', 'Genesis', true, 'agent', NOW()),
 
 -- Weaver: Build knowledge graph connections
@@ -53,7 +53,7 @@ INSERT INTO agent_tickets (id, title, description, status, priority, category, a
 
 -- Scout: Research best practices
 ('VISION-011', 'Research autonomous agent orchestration patterns',
-'Research how other autonomous agent systems work. Use web_search to find: 1) Multi-agent orchestration frameworks (CrewAI, AutoGen, LangGraph), 2) How they handle agent coordination and task decomposition, 3) Best practices for agent memory and knowledge sharing, 4) Cost optimization strategies for LLM-based agents. Summarize findings in the knowledge graph with actionable recommendations for Orcastr8r.',
+'Research how other autonomous agent systems work. Use web_search to find: 1) Multi-agent orchestration frameworks (CrewAI, AutoGen, LangGraph), 2) How they handle agent coordination and task decomposition, 3) Best practices for agent memory and knowledge sharing, 4) Cost optimization strategies for LLM-based agents. Summarize findings in the knowledge graph with actionable recommendations for AskAlf.',
 'open', 'medium', 'research', 'Scout', 'Scout', true, 'agent', NOW()),
 
 -- DevOps: Improve deployment pipeline
@@ -68,7 +68,7 @@ INSERT INTO agent_tickets (id, title, description, status, priority, category, a
 
 -- Doc Writer: Document the system
 ('VISION-014', 'Write comprehensive system architecture documentation',
-'Document the Orcastr8r system architecture. 1) Read all source files in apps/forge/src/ to understand the codebase, 2) Document the execution pipeline: scheduler -> worker -> CLI -> MCP tools, 3) Document the knowledge graph system, 4) Document the cost optimization system, 5) Write it as a markdown file in docs/architecture.md. This documentation helps new agents (and humans) understand how everything fits together.',
+'Document the AskAlf system architecture. 1) Read all source files in apps/forge/src/ to understand the codebase, 2) Document the execution pipeline: scheduler -> worker -> CLI -> MCP tools, 3) Document the knowledge graph system, 4) Document the cost optimization system, 5) Write it as a markdown file in docs/architecture.md. This documentation helps new agents (and humans) understand how everything fits together.',
 'open', 'medium', 'documentation', 'Doc Writer', 'Doc Writer', true, 'agent', NOW()),
 
 -- Meta: Architecture review

@@ -1,8 +1,8 @@
 {
-  "name": "substrate",
+  "name": "askalf",
   "version": "1.0.0",
   "private": true,
-  "description": "SUBSTRATE v1: The Perpetual Continuity Protocol - Software as Organism",
+  "description": "AskAlf — AI Agent Orchestration Platform",
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm -r --parallel dev",
@@ -12,8 +12,8 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "clean": "pnpm -r clean",
-    "db:migrate": "pnpm --filter @substrate/database migrate",
-    "db:generate": "pnpm --filter @substrate/database generate"
+    "db:migrate": "pnpm --filter @askalf/database migrate",
+    "db:generate": "pnpm --filter @askalf/database generate"
   },
   "engines": {
     "node": ">=20.0.0",

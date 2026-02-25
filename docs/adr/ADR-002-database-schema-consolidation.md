@@ -7,7 +7,7 @@
 
 ## Context
 
-An audit of the Orcastr8r database schema revealed three categories of issues:
+An audit of the AskAlf database schema revealed three categories of issues:
 
 1. **Ghost tables**: Tables referenced in application code with no CREATE TABLE statement anywhere in the codebase
 2. **Schema fragmentation**: Core agent tables defined in an ad-hoc SQL script (`apps/dashboard/sql/agent-hub-tables.sql`) outside the standard migration system

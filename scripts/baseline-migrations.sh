@@ -29,29 +29,29 @@ log "============================================"
 log ""
 
 # Check if container is running
-if ! docker ps --format '{{.Names}}' | grep -q "sprayberry-labs-postgres"; then
-  error "sprayberry-labs-postgres container is not running"
+if ! docker ps --format '{{.Names}}' | grep -q "askalf-postgres"; then
+  error "askalf-postgres container is not running"
 fi
 
 # Check if migrations table already exists
-EXISTS=$(docker exec sprayberry-labs-postgres psql -U substrate -d substrate -tAc \
+EXISTS=$(docker exec askalf-postgres psql -U substrate -d substrate -tAc \
   "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'migrations');" 2>/dev/null)
 
 if [ "$EXISTS" = "t" ]; then
   warn "Migrations table already exists!"
   log "Current migrations:"
-  docker exec sprayberry-labs-postgres psql -U substrate -d substrate -c \
+  docker exec askalf-postgres psql -U substrate -d substrate -c \
     "SELECT id, name FROM migrations ORDER BY id;"
   echo ""
   warn "If you need to re-baseline, drop the migrations table first:"
-  warn "  docker exec sprayberry-labs-postgres psql -U substrate -d substrate -c 'DROP TABLE migrations;'"
+  warn "  docker exec askalf-postgres psql -U substrate -d substrate -c 'DROP TABLE migrations;'"
   exit 0
 fi
 
 log "Creating migrations tracking table and baselining..."
 
 # Create the migrations table and insert all existing migrations as applied
-docker exec sprayberry-labs-postgres psql -U substrate -d substrate << 'EOF'
+docker exec askalf-postgres psql -U substrate -d substrate << 'EOF'
 -- Create the migrations table (same schema as postgres-migrations)
 CREATE TABLE IF NOT EXISTS migrations (
   id SERIAL PRIMARY KEY,
@@ -82,7 +82,7 @@ EOF
 
 log ""
 log "Baseline complete! Migration status:"
-docker exec sprayberry-labs-postgres psql -U substrate -d substrate -c \
+docker exec askalf-postgres psql -U substrate -d substrate -c \
   "SELECT id, name, applied_at FROM migrations ORDER BY id;"
 
 log ""

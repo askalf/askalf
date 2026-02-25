@@ -1,7 +1,7 @@
 {
-  "name": "@substrate/auth",
+  "name": "@askalf/auth",
   "version": "1.0.0",
-  "description": "Authentication, sessions, and API key management for SUBSTRATE",
+  "description": "Authentication, sessions, and API key management for AskAlf",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -34,8 +34,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@substrate/core": "workspace:*",
-    "@substrate/database": "workspace:*",
+    "@askalf/core": "workspace:*",
+    "@askalf/database": "workspace:*",
     "bcrypt": "^5.1.1",
     "zod": "^3.24.0",
     "ulid": "^2.3.0"

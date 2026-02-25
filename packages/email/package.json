@@ -1,7 +1,7 @@
 {
-  "name": "@substrate/email",
+  "name": "@askalf/email",
   "version": "1.0.0",
-  "description": "Email service with provider abstraction for SUBSTRATE",
+  "description": "Email service with provider abstraction for AskAlf",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,8 +10,8 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@substrate/core": "workspace:*",
-    "@substrate/observability": "workspace:*",
+    "@askalf/core": "workspace:*",
+    "@askalf/observability": "workspace:*",
     "nodemailer": "^7.0.0"
   },
   "devDependencies": {

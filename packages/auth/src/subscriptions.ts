@@ -2,7 +2,7 @@
 // Subscription CRUD, upgrades, downgrades, and cancellations
 
 import { ulid } from 'ulid';
-import { query, queryOne } from '@substrate/database';
+import { query, queryOne } from '@askalf/database';
 import { getPlanById, getFreePlan, type Plan, type PlanLimits, type PlanFeatures } from './plans.js';
 
 /**
