@@ -278,6 +278,20 @@ services:
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Forge}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@askalf.org}
+      # OAuth providers (leave blank to disable)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+      APPLE_CLIENT_SECRET: ${APPLE_CLIENT_SECRET:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      # Git integration providers (for repo linking)
+      GITLAB_CLIENT_ID: ${GITLAB_CLIENT_ID:-}
+      GITLAB_CLIENT_SECRET: ${GITLAB_CLIENT_SECRET:-}
+      BITBUCKET_CLIENT_ID: ${BITBUCKET_CLIENT_ID:-}
+      BITBUCKET_CLIENT_SECRET: ${BITBUCKET_CLIENT_SECRET:-}
     volumes:
       - .:/workspace
       - ./.claude-credentials.json:/tmp/claude-credentials.json:rw

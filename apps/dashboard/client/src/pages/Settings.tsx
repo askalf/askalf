@@ -4,13 +4,15 @@ import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'security';
+type SettingsTab = 'profile' | 'appearance' | 'security' | 'integrations';
+
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'integrations'];
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as SettingsTab) || 'profile';
   const [activeTab, setActiveTab] = useState<SettingsTab>(
-    ['profile', 'appearance', 'security'].includes(initialTab) ? initialTab : 'profile'
+    VALID_TABS.includes(initialTab) ? initialTab : 'profile'
   );
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -62,12 +64,23 @@ export default function SettingsPage() {
             </svg>
             Security
           </button>
+          <button
+            className={`settings-nav-item ${activeTab === 'integrations' ? 'active' : ''}`}
+            onClick={() => setActiveTab('integrations')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+            Integrations
+          </button>
         </nav>
 
         <div className="settings-content">
           {activeTab === 'profile' && <ProfileTab user={user} />}
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'security' && <SecurityTab />}
+          {activeTab === 'integrations' && <IntegrationsTab />}
         </div>
       </div>
     </div>
@@ -461,6 +474,281 @@ function SecurityTab() {
         </button>
       </div>
 
+    </div>
+  );
+}
+
+// ============================================
+// Integrations Tab
+// ============================================
+
+interface Integration {
+  id: string;
+  provider: string;
+  provider_username: string | null;
+  display_name: string | null;
+  status: string;
+  scopes: string[] | null;
+  repos_synced_at: string | null;
+  created_at: string;
+  repo_count: number;
+}
+
+interface AvailableProvider {
+  provider: string;
+  configured: boolean;
+}
+
+const PROVIDER_LABELS: Record<string, string> = {
+  github: 'GitHub',
+  gitlab: 'GitLab',
+  bitbucket: 'Bitbucket',
+};
+
+const PROVIDER_ICONS: Record<string, JSX.Element> = {
+  github: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+      <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+    </svg>
+  ),
+  gitlab: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+      <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 0 1 4.82 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.49h8.1l2.44-7.51A.42.42 0 0 1 18.6 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.51L23 13.45a.84.84 0 0 1-.35.94z"/>
+    </svg>
+  ),
+  bitbucket: (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+      <path d="M.778 1.213a.768.768 0 0 0-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 0 0 .77-.646L23.99 2.104a.768.768 0 0 0-.768-.891zm13.142 13.477H9.957L8.857 8.891h6.167z"/>
+    </svg>
+  ),
+};
+
+function IntegrationsTab() {
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [available, setAvailable] = useState<AvailableProvider[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [expandedRepos, setExpandedRepos] = useState<string | null>(null);
+  const [repos, setRepos] = useState<Array<{ id: string; repo_full_name: string; is_private: boolean; language: string | null }>>([]);
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    // Check URL for success/error messages from OAuth callback
+    const connected = searchParams.get('connected');
+    const error = searchParams.get('error');
+    if (connected) {
+      setMessage({ type: 'success', text: `Connected to ${PROVIDER_LABELS[connected] ?? connected}` });
+    } else if (error) {
+      const errorMessages: Record<string, string> = {
+        oauth_denied: 'Connection was cancelled',
+        state_invalid: 'Session expired, please try again',
+        connect_failed: 'Failed to connect, please try again',
+        missing_params: 'Connection error, please try again',
+        not_configured: 'This provider is not configured on the server',
+      };
+      setMessage({ type: 'error', text: errorMessages[error] ?? 'Connection error' });
+    }
+
+    fetchData();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [intgRes, availRes] = await Promise.all([
+        fetch(`${API_BASE}/api/v1/integrations`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/v1/integrations/available`, { credentials: 'include' }),
+      ]);
+      if (intgRes.ok) {
+        const data = await intgRes.json() as { integrations: Integration[] };
+        setIntegrations(data.integrations);
+      }
+      if (availRes.ok) {
+        const data = await availRes.json() as { providers: AvailableProvider[] };
+        setAvailable(data.providers);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDisconnect = async (id: string, provider: string) => {
+    if (!confirm(`Disconnect ${PROVIDER_LABELS[provider] ?? provider}? This will remove all cached repos.`)) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/integrations/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to disconnect');
+      setIntegrations((prev) => prev.filter((i) => i.id !== id));
+      setMessage({ type: 'success', text: `Disconnected ${PROVIDER_LABELS[provider] ?? provider}` });
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to disconnect' });
+    }
+  };
+
+  const handleSync = async (id: string) => {
+    setSyncing(id);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/integrations/${id}/sync`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error('Sync failed');
+      const data = await res.json() as { repos_synced: number };
+      setMessage({ type: 'success', text: `Synced ${data.repos_synced} repos` });
+      fetchData();
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to sync repos' });
+    } finally {
+      setSyncing(null);
+    }
+  };
+
+  const handleToggleRepos = async (id: string) => {
+    if (expandedRepos === id) {
+      setExpandedRepos(null);
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/integrations/${id}/repos`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { repos: Array<{ id: string; repo_full_name: string; is_private: boolean; language: string | null }> };
+        setRepos(data.repos);
+      }
+    } catch { /* ignore */ }
+    setExpandedRepos(id);
+  };
+
+  const connectedProviders = new Set(integrations.map((i) => i.provider));
+  const connectableProviders = available.filter((p) => p.configured && !connectedProviders.has(p.provider));
+
+  if (loading) {
+    return (
+      <div className="settings-section">
+        <h2>Integrations</h2>
+        <p className="settings-section-desc">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-section">
+      <h2>Integrations</h2>
+      <p className="settings-section-desc">
+        Connect your git providers to link repos for agent tasks
+      </p>
+
+      {message && (
+        <div className={`settings-message settings-message-${message.type}`}>
+          {message.text}
+          <button className="settings-message-dismiss" onClick={() => setMessage(null)}>
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* Connected Integrations */}
+      {integrations.length > 0 && (
+        <div className="settings-integrations-list">
+          {integrations.map((intg) => (
+            <div key={intg.id} className="settings-integration-card">
+              <div className="settings-integration-header">
+                <div className="settings-integration-icon">
+                  {PROVIDER_ICONS[intg.provider]}
+                </div>
+                <div className="settings-integration-info">
+                  <span className="settings-integration-name">
+                    {PROVIDER_LABELS[intg.provider] ?? intg.provider}
+                  </span>
+                  {intg.provider_username && (
+                    <span className="settings-integration-username">@{intg.provider_username}</span>
+                  )}
+                </div>
+                <div className="settings-integration-meta">
+                  <span className={`settings-integration-status status-${intg.status}`}>
+                    {intg.status}
+                  </span>
+                  <span className="settings-integration-repos">
+                    {intg.repo_count} repos
+                  </span>
+                </div>
+                <div className="settings-integration-actions">
+                  <button
+                    className="settings-btn-sm"
+                    onClick={() => handleToggleRepos(intg.id)}
+                    title="View repos"
+                  >
+                    {expandedRepos === intg.id ? 'Hide' : 'Repos'}
+                  </button>
+                  <button
+                    className="settings-btn-sm"
+                    onClick={() => handleSync(intg.id)}
+                    disabled={syncing === intg.id}
+                    title="Sync repos"
+                  >
+                    {syncing === intg.id ? 'Syncing...' : 'Sync'}
+                  </button>
+                  <button
+                    className="settings-btn-sm settings-btn-danger"
+                    onClick={() => handleDisconnect(intg.id, intg.provider)}
+                    title="Disconnect"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+
+              {expandedRepos === intg.id && (
+                <div className="settings-integration-repos-list">
+                  {repos.length === 0 ? (
+                    <p className="settings-integration-no-repos">No repos found. Try syncing.</p>
+                  ) : (
+                    repos.map((r) => (
+                      <div key={r.id} className="settings-integration-repo-item">
+                        <span className="settings-repo-name">{r.repo_full_name}</span>
+                        {r.is_private && <span className="settings-repo-badge">private</span>}
+                        {r.language && <span className="settings-repo-lang">{r.language}</span>}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Connect New */}
+      {connectableProviders.length > 0 && (
+        <div className="settings-form" style={{ marginTop: 'var(--space-xl)' }}>
+          <h3>Connect a Provider</h3>
+          <div className="settings-connect-buttons">
+            {connectableProviders.map((p) => (
+              <a
+                key={p.provider}
+                href={`${API_BASE}/api/v1/integrations/connect/${p.provider}`}
+                className="settings-connect-btn"
+              >
+                {PROVIDER_ICONS[p.provider]}
+                <span>Connect {PROVIDER_LABELS[p.provider] ?? p.provider}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {integrations.length === 0 && connectableProviders.length === 0 && (
+        <div className="settings-empty">
+          <p>No git providers are configured on this server. Ask your admin to set up GitHub, GitLab, or Bitbucket OAuth credentials.</p>
+        </div>
+      )}
     </div>
   );
 }

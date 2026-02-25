@@ -75,6 +75,13 @@ import { proposalOps } from '../tools/built-in/proposal-ops.js';
 import { webSearch } from '../tools/built-in/web-search.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
+import {
+  resolveRepoCredentials,
+  buildGitCredentialHelperScript,
+  buildRepoPromptInstructions,
+  type RepoContext,
+  type RepoCredentials,
+} from './credential-resolver.js';
 
 // ============================================
 // State
@@ -1617,6 +1624,7 @@ function executeClaudeCode(
   cwd = '/workspace',
   timeout = 900_000,
   executionId?: string,
+  extraEnv?: Record<string, string>,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     // Write prompt to temp file to avoid shell escaping issues
@@ -1643,6 +1651,7 @@ function executeClaudeCode(
           ...process.env,
           ANTHROPIC_API_KEY: '', // Force OAuth subscription
           HOME: '/tmp/claude-home',
+          ...(extraEnv ?? {}),
         },
       });
 
@@ -1934,6 +1943,43 @@ export async function runDirectCliExecution(
     // Refresh OAuth credentials
     await refreshCredentials();
 
+    // ---- Resolve repo credentials (Phase 4: credential injection) ----
+    let repoCredentials: RepoCredentials | null = null;
+    let repoExtraEnv: Record<string, string> = {};
+    try {
+      // Check execution metadata for repoContext
+      const execMeta = await query<{ metadata: { repoContext?: RepoContext } | null }>(
+        `SELECT metadata FROM forge_executions WHERE id = $1`,
+        [executionId],
+      );
+      const repoContext = execMeta[0]?.metadata?.repoContext;
+      if (repoContext) {
+        repoCredentials = await resolveRepoCredentials(ownerId, repoContext);
+        if (repoCredentials) {
+          // Write a git credential helper script (short-lived, per-execution)
+          const credHelperPath = `/tmp/git-cred-${executionId}.sh`;
+          const credHelperContent = buildGitCredentialHelperScript(
+            repoCredentials.provider,
+            repoCredentials.accessToken,
+          );
+          await writeFile(credHelperPath, credHelperContent, { mode: 0o700 });
+
+          // Set env vars so git uses our credential helper
+          repoExtraEnv = {
+            GIT_ASKPASS: credHelperPath,
+            GIT_TERMINAL_PROMPT: '0',
+            REPO_CLONE_URL: repoCredentials.cloneUrl,
+            REPO_FULL_NAME: repoCredentials.repoFullName,
+            REPO_PROVIDER: repoCredentials.provider,
+            REPO_DEFAULT_BRANCH: repoCredentials.defaultBranch,
+          };
+          console.log(`[CLI] Repo credentials resolved for ${repoCredentials.repoFullName} (${repoCredentials.provider})`);
+        }
+      }
+    } catch (credErr) {
+      console.warn(`[CLI] Failed to resolve repo credentials: ${credErr instanceof Error ? credErr.message : credErr}`);
+    }
+
     // ---- Runtime budget calculation ----
     const runtimeBudget = calculateRuntimeBudget(
       options?.scheduleIntervalMinutes,
@@ -2020,7 +2066,9 @@ export async function runDirectCliExecution(
         } catch {
           // Vision file not available — continue without it
         }
-        const fullPrompt = [visionContext, options.systemPrompt, memoryContext, memoryInstruction, budgetHint, branchInstruction]
+        // Repo credential instructions (Phase 4) — tells agent about target repo access
+        const repoInstruction = repoCredentials ? buildRepoPromptInstructions(repoCredentials) : '';
+        const fullPrompt = [visionContext, options.systemPrompt, memoryContext, memoryInstruction, budgetHint, branchInstruction, repoInstruction]
           .filter(Boolean)
           .join('\n');
         await writeFile(`${agentWorkDir}/CLAUDE.md`, fullPrompt);
@@ -2048,7 +2096,7 @@ export async function runDirectCliExecution(
     // Execute CLI with retry for transient failures
     const result = await withRetry(
       async () => {
-        const res = await executeClaudeCode(args, agentWorkDir, dynamicTimeout, executionId);
+        const res = await executeClaudeCode(args, agentWorkDir, dynamicTimeout, executionId, repoExtraEnv);
         // Classify non-zero exits — throw retryable errors so withRetry can retry them
         if (res.exitCode !== 0) {
           const classified = classifyCliError(res.exitCode, res.stderr, res.stdout);
@@ -2268,6 +2316,12 @@ export async function runDirectCliExecution(
       [agentId],
     ).catch(() => {});
   } finally {
+    // Clean up git credential helper (contains sensitive token — must be removed)
+    try {
+      const credHelperPath = `/tmp/git-cred-${executionId}.sh`;
+      await unlink(credHelperPath).catch(() => {});
+    } catch { /* ignore */ }
+
     // Clean up git worktree (branch stays for Push Panel review)
     if (worktreeCreated) {
       try {

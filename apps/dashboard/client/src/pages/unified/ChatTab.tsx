@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useChatStore } from '../../stores/chat';
 import type { ConversationMessage, ParsedIntent, IntentSubtask, Conversation } from '../../stores/chat';
+import { integrationApi } from '../../hooks/useHubApi';
+import type { UserRepo } from '../../hooks/useHubApi';
 import './ChatTab.css';
 
 // ── Sub-components ──
@@ -142,15 +144,6 @@ function SubtaskList({
   );
 }
 
-const TARGET_PLACEHOLDERS: Record<string, string> = {
-  research: 'e.g., competitor domain names, market segment...',
-  security: 'e.g., apps/forge/, specific endpoint, PR #42...',
-  build: 'e.g., apps/dashboard/src/components/, feature branch...',
-  analyze: 'e.g., database queries, API response times...',
-  monitor: 'e.g., production endpoints, CPU/memory metrics...',
-  automate: 'e.g., deployment pipeline, data sync schedule...',
-};
-
 const MODEL_OPTIONS = [
   'claude-haiku-4-5-20251001',
   'claude-sonnet-4-6',
@@ -170,19 +163,64 @@ function IntentPreview({
   onCancel: () => void;
 }) {
   const [configuring, setConfiguring] = useState(false);
-  const [target, setTarget] = useState('');
+  const [selectedRepoId, setSelectedRepoId] = useState('');
   const [instructions, setInstructions] = useState('');
   const [model, setModel] = useState(intent.agentConfig.model);
   const [maxCost, setMaxCost] = useState(intent.agentConfig.maxCostPerExecution);
+  const [showAdvanced, setShowAdvanced] = useState(() => {
+    try { return localStorage.getItem('askalf_intent_advanced') === 'true'; } catch { return false; }
+  });
+
+  // Repo picker state
+  const [repos, setRepos] = useState<UserRepo[]>([]);
+  const [reposLoading, setReposLoading] = useState(false);
+  const [hasIntegrations, setHasIntegrations] = useState<boolean | null>(null);
 
   const isMultiAgent = intent.executionMode !== 'single' && intent.subtasks?.length;
   const patternInfo = PATTERN_LABELS[intent.executionMode] ?? PATTERN_LABELS['single']!;
-  const placeholder = TARGET_PLACEHOLDERS[intent.category] ?? 'e.g., repository, files, URLs, PR numbers...';
+
+  // Fetch repos when configuring opens
+  useEffect(() => {
+    if (!configuring) return;
+    let cancelled = false;
+    setReposLoading(true);
+    integrationApi.repos()
+      .then(data => {
+        if (cancelled) return;
+        setRepos(data.repos);
+        setHasIntegrations(data.repos.length > 0);
+        setReposLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRepos([]);
+        setHasIntegrations(false);
+        setReposLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [configuring]);
+
+  // Persist advanced toggle
+  useEffect(() => {
+    try { localStorage.setItem('askalf_intent_advanced', String(showAdvanced)); } catch { /* noop */ }
+  }, [showAdvanced]);
+
+  // Group repos by provider for the dropdown
+  const reposByProvider = repos.reduce<Record<string, UserRepo[]>>((acc, r) => {
+    (acc[r.provider] ??= []).push(r);
+    return acc;
+  }, {});
+
+  const selectedRepo = repos.find(r => r.id === selectedRepoId) ?? null;
 
   const handleLaunch = () => {
     const modified = structuredClone(intent);
     const prefix: string[] = [];
-    if (target.trim()) prefix.push(`TARGET: ${target.trim()}`);
+    if (selectedRepo) {
+      prefix.push(`TARGET REPOSITORY: ${selectedRepo.repo_full_name} (${selectedRepo.provider})`);
+      if (selectedRepo.clone_url) prefix.push(`CLONE URL: ${selectedRepo.clone_url}`);
+      prefix.push(`DEFAULT BRANCH: ${selectedRepo.default_branch}`);
+    }
     if (instructions.trim()) prefix.push(`ADDITIONAL INSTRUCTIONS: ${instructions.trim()}`);
     if (prefix.length) {
       modified.agentConfig.systemPrompt = prefix.join('\n') + '\n\n' + modified.agentConfig.systemPrompt;
@@ -190,6 +228,14 @@ function IntentPreview({
     modified.agentConfig.model = model;
     modified.agentConfig.maxCostPerExecution = maxCost;
     modified.estimatedCost = maxCost;
+
+    // Attach repo context for backend
+    if (selectedRepo) {
+      (modified as ParsedIntent & { repoId?: string; repoFullName?: string; repoProvider?: string }).repoId = selectedRepo.id;
+      (modified as ParsedIntent & { repoFullName?: string }).repoFullName = selectedRepo.repo_full_name;
+      (modified as ParsedIntent & { repoProvider?: string }).repoProvider = selectedRepo.provider;
+    }
+
     onConfirm(modified);
   };
 
@@ -236,45 +282,78 @@ function IntentPreview({
 
       {configuring && (
         <div className="chat-intent-configure">
+          {/* Repo picker — always visible in configure mode */}
           <div className="chat-intent-field">
-            <label>Target — what should this agent work on?</label>
-            <input
-              type="text"
-              value={target}
-              onChange={e => setTarget(e.target.value)}
-              placeholder={placeholder}
-              autoFocus
-            />
-          </div>
-          <div className="chat-intent-field">
-            <label>Additional instructions (optional)</label>
-            <textarea
-              value={instructions}
-              onChange={e => setInstructions(e.target.value)}
-              placeholder="Any extra context, constraints, or focus areas..."
-              rows={2}
-            />
-          </div>
-          <div className="chat-intent-field-row">
-            <div className="chat-intent-field">
-              <label>Model</label>
-              <select value={model} onChange={e => setModel(e.target.value)}>
-                {MODEL_OPTIONS.map(m => (
-                  <option key={m} value={m}>{m}</option>
+            <label>Target repository</label>
+            {reposLoading ? (
+              <div className="chat-intent-repos-loading">Loading repos...</div>
+            ) : hasIntegrations === false ? (
+              <div className="chat-intent-no-repos">
+                No connected repos.{' '}
+                <a href="/settings?tab=integrations">Connect a repo in Settings</a>
+              </div>
+            ) : (
+              <select
+                value={selectedRepoId}
+                onChange={e => setSelectedRepoId(e.target.value)}
+                className="chat-intent-repo-select"
+              >
+                <option value="">No repo (general task)</option>
+                {Object.entries(reposByProvider).map(([provider, providerRepos]) => (
+                  <optgroup key={provider} label={provider.charAt(0).toUpperCase() + provider.slice(1)}>
+                    {providerRepos.map(r => (
+                      <option key={r.id} value={r.id}>
+                        {r.repo_full_name}{r.is_private ? ' (private)' : ''}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
-            </div>
-            <div className="chat-intent-field">
-              <label>Max cost ($)</label>
-              <input
-                type="number"
-                value={maxCost}
-                onChange={e => setMaxCost(Number(e.target.value))}
-                min={0.01}
-                step={0.5}
-              />
-            </div>
+            )}
           </div>
+
+          {/* Advanced toggle */}
+          <button
+            className="chat-intent-advanced-toggle"
+            onClick={() => setShowAdvanced(prev => !prev)}
+            type="button"
+          >
+            {showAdvanced ? '▾ Hide advanced' : '▸ Advanced options'}
+          </button>
+
+          {showAdvanced && (
+            <div className="chat-intent-advanced">
+              <div className="chat-intent-field">
+                <label>Additional instructions (optional)</label>
+                <textarea
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  placeholder="Any extra context, constraints, or focus areas..."
+                  rows={2}
+                />
+              </div>
+              <div className="chat-intent-field-row">
+                <div className="chat-intent-field">
+                  <label>Model</label>
+                  <select value={model} onChange={e => setModel(e.target.value)}>
+                    {MODEL_OPTIONS.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="chat-intent-field">
+                  <label>Max cost ($)</label>
+                  <input
+                    type="number"
+                    value={maxCost}
+                    onChange={e => setMaxCost(Number(e.target.value))}
+                    min={0.01}
+                    step={0.5}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
