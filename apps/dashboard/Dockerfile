@@ -18,11 +18,11 @@ COPY apps/dashboard ./apps/dashboard
 RUN pnpm install --frozen-lockfile
 
 # Build required packages
-RUN pnpm --filter @substrate/core build && \
-    pnpm --filter @substrate/observability build && \
-    pnpm --filter @substrate/database build && \
-    pnpm --filter @substrate/auth build && \
-    pnpm --filter @substrate/email build
+RUN pnpm --filter @askalf/core build && \
+    pnpm --filter @askalf/observability build && \
+    pnpm --filter @askalf/database build && \
+    pnpm --filter @askalf/auth build && \
+    pnpm --filter @askalf/email build
 
 # Build React client
 WORKDIR /app/apps/dashboard/client
@@ -31,7 +31,7 @@ RUN npm install && npm run build
 WORKDIR /app
 
 # Deploy to a self-contained directory with all dependencies
-RUN pnpm deploy --filter @substrate/dashboard --prod /app/deploy
+RUN pnpm deploy --filter @askalf/dashboard --prod /app/deploy
 
 # Remove unnecessary files from deploy
 RUN rm -rf /app/deploy/client && \

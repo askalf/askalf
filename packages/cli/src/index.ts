@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * o8r — Orcastr8r CLI
+ * o8r — AskAlf CLI
  * Manage agents, executions, templates, and fleet from the command line
  */
 
@@ -17,7 +17,7 @@ const program = new Command();
 
 program
   .name('o8r')
-  .description('Orcastr8r CLI — AI Agent Orchestration Platform')
+  .description('AskAlf CLI — AI Agent Orchestration Platform')
   .version('1.0.0');
 
 registerAgentCommands(program);

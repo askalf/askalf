@@ -102,13 +102,13 @@ function useScrollReveal() {
 
 /* ---- Terminal Demo ---- */
 const terminalLines = [
-  { text: '$ orcastr8r deploy --fleet research-v3 --agents 12', type: 'cmd', typed: true },
+  { text: '$ askalf deploy --fleet research-v3 --agents 12', type: 'cmd', typed: true },
   { text: '\u2713 Fleet deployed: 12 agents across 3 models', type: 'success', typed: false },
-  { text: '$ orcastr8r evolve --strategy darwinian --generations 5', type: 'cmd', typed: true },
+  { text: '$ askalf evolve --strategy darwinian --generations 5', type: 'cmd', typed: true },
   { text: '\u25D0 Gen 1: agent-7b mutated \u2192 +14.2% accuracy', type: 'info', typed: false },
   { text: '\u25D0 Gen 2: agent-3a promoted \u2192 lowest cost/query', type: 'info', typed: false },
   { text: '\u2713 Evolution complete: 3 winners, 2 decommissioned', type: 'success', typed: false },
-  { text: '$ orcastr8r status', type: 'cmd', typed: true },
+  { text: '$ askalf status', type: 'cmd', typed: true },
   { text: 'Fleet: research-v3  |  Active: 10  |  Budget: $4.21/$50.00', type: 'output', typed: false },
   { text: '\u26A0 agent-9c: stuck 47s \u2192 auto-healing...', type: 'warn', typed: false },
   { text: '\u2713 agent-9c: recovered via checkpoint rollback', type: 'success', typed: false },
@@ -170,7 +170,7 @@ function TerminalDemo() {
     <div className="landing-terminal" role="region" aria-label="Terminal demo">
       <div className="landing-terminal-bar" aria-hidden="true">
         <span className="landing-terminal-prompt">&#x276F;</span>
-        <span className="landing-terminal-title">orcastr8r</span>
+        <span className="landing-terminal-title">askalf</span>
       </div>
       <div className="landing-terminal-body" ref={containerRef}>
         {visibleLines.map((line, i) => (
@@ -482,7 +482,7 @@ function AgentTopology() {
             fill="#111113" stroke="#7c3aed" strokeWidth="2" filter="url(#hubGlow)" />
           <text x={topoHub.x} y={topoHub.y + 6} textAnchor="middle"
             fill="#a78bfa" fontSize="16" fontFamily="'JetBrains Mono', monospace" fontWeight="800">
-            orcastr8r
+            askalf
           </text>
         </g>
 
@@ -542,7 +542,7 @@ export default function LandingPage() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
-    document.title = 'Orcastr8r — The Control Plane for Autonomous Agents';
+    document.title = 'AskAlf — The Control Plane for Autonomous Agents';
   }, []);
 
   return (
@@ -553,7 +553,7 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="landing-nav" aria-label="Main navigation">
         <Link to="/" className="landing-nav-logo">
-          <span className="landing-nav-logo-text">orcastr8r</span>
+          <span className="landing-nav-logo-text">askalf</span>
         </Link>
         <div className="landing-nav-links">
           <Link to="/login" className="landing-nav-signin">Sign In</Link>
@@ -644,7 +644,7 @@ export default function LandingPage() {
           <div className="landing-k8s-row is-header">
             <span className="landing-k8s-left">Kubernetes</span>
             <span className="landing-k8s-arrow" />
-            <span className="landing-k8s-right">Orcastr8r</span>
+            <span className="landing-k8s-right">AskAlf</span>
           </div>
           {k8sMapping.map((row) => (
             <div key={row.left} className="landing-k8s-row landing-stagger">
@@ -758,7 +758,7 @@ export default function LandingPage() {
         <div className="landing-footer-inner">
           <div className="landing-footer-left">
             <span className="landing-footer-copy">
-              {'\u00A9'} {new Date().getFullYear()} Orcastr8r. All rights reserved.
+              {'\u00A9'} {new Date().getFullYear()} AskAlf. All rights reserved.
             </span>
             <span className="landing-footer-built">
               Built by one developer who got tired of frameworks.
@@ -774,7 +774,7 @@ export default function LandingPage() {
               amnesia.tax — the world's fastest aggregated search engine
             </a>
             <a
-              href="https://x.com/agent_orcastr8r"
+              href="https://x.com/agent_askalf"
               target="_blank"
               rel="noopener noreferrer"
               className="landing-footer-link"

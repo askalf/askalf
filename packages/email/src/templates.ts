@@ -42,7 +42,7 @@ function wrapHtml(content: string): string {
           <!-- Header -->
           <tr>
             <td align="center" style="padding-bottom: 32px;">
-              <span style="font-size: 28px; font-weight: 800; color: #a78bfa; letter-spacing: -0.03em; line-height: 1; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;">orcastr8r</span>
+              <span style="font-size: 28px; font-weight: 800; color: #a78bfa; letter-spacing: -0.03em; line-height: 1; font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;">askalf</span>
             </td>
           </tr>
 
@@ -66,7 +66,7 @@ function wrapHtml(content: string): string {
                 The control plane for autonomous agents
               </p>
               <p style="margin: 0; font-size: 13px;">
-                <a href="https://orcastr8r.com" style="color: #7c3aed; text-decoration: none; font-weight: 600;">orcastr8r.com</a>
+                <a href="https://askalf.org" style="color: #7c3aed; text-decoration: none; font-weight: 600;">askalf.org</a>
               </p>
             </td>
           </tr>
@@ -143,7 +143,7 @@ export function welcomeEmailHtml(vars: WelcomeEmailVars): string {
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      Orcastr8r gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
+      AskAlf gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
     </p>
 
     ${sectionLabel('What you get')}
@@ -187,7 +187,7 @@ Hi ${vars.userName},
 
 Your ${vars.planName} deployment is live. The control plane is ready.
 
-Orcastr8r gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
+AskAlf gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
 
 // WHAT YOU GET
 - Fleet Orchestration — Deploy, scale, and coordinate autonomous agents from a single command center
@@ -198,8 +198,8 @@ Orcastr8r gives you Kubernetes-style orchestration for AI agents. Deploy fleets,
 Open Command Center: ${vars.dashboardUrl}
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -255,8 +255,8 @@ This link expires in ${vars.expiresInMinutes} minutes.
 If you didn't request this, you can safely ignore this email. Your password won't change.
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -275,7 +275,7 @@ export function emailVerificationHtml(vars: EmailVerificationVars): string {
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      One last step to activate your orcastr8r account:
+      One last step to activate your askalf account:
     </p>
 
     ${button('Verify Email', vars.verifyUrl)}
@@ -287,7 +287,7 @@ export function emailVerificationHtml(vars: EmailVerificationVars): string {
     `)}
 
     <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
-      If you didn't create an orcastr8r account, you can safely ignore this email.
+      If you didn't create an askalf account, you can safely ignore this email.
     </p>
 
     <p style="margin: 24px 0 0 0; font-size: 12px; color: #3f3f46;">
@@ -303,17 +303,17 @@ Verify Your Email
 
 Hi ${vars.userName},
 
-One last step to activate your orcastr8r account:
+One last step to activate your askalf account:
 
 ${vars.verifyUrl}
 
 This link expires in ${vars.expiresInHours} hours.
 
-If you didn't create an orcastr8r account, you can safely ignore this email.
+If you didn't create an askalf account, you can safely ignore this email.
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -332,7 +332,7 @@ export function subscriptionConfirmationHtml(vars: SubscriptionEmailVars): strin
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      Your orcastr8r deployment just leveled up.
+      Your askalf deployment just leveled up.
     </p>
 
     ${noteBox(`
@@ -371,7 +371,7 @@ Subscription Confirmed
 
 Hi ${vars.userName},
 
-Your orcastr8r deployment just leveled up.
+Your askalf deployment just leveled up.
 
 Plan: ${vars.planName}
 Amount: ${vars.amount}
@@ -382,8 +382,8 @@ All features in your plan are now active.
 Open Command Center: ${vars.dashboardUrl}
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -437,8 +437,8 @@ Changed your mind? Reactivate anytime:
 ${vars.dashboardUrl}/billing
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -491,8 +491,8 @@ Update Payment Method: ${vars.updatePaymentUrl}
 Questions about billing? Reply to this email and we'll help.
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -545,8 +545,8 @@ Once you hit the limit, ${vars.limitType.toLowerCase()} will pause until the nex
 Upgrade Plan: ${vars.upgradeUrl}
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -561,11 +561,11 @@ export function teamInviteHtml(vars: TeamInviteEmailVars): string {
     </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
-      <strong style="color: #fafafa;">${vars.inviterName}</strong> invited you to join <strong style="color: #a78bfa;">${vars.teamName}</strong> on orcastr8r.
+      <strong style="color: #fafafa;">${vars.inviterName}</strong> invited you to join <strong style="color: #a78bfa;">${vars.teamName}</strong> on askalf.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      Orcastr8r is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
+      AskAlf is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
     </p>
 
     ${button('Accept Invitation', vars.inviteUrl)}
@@ -586,9 +586,9 @@ export function teamInviteText(vars: TeamInviteEmailVars): string {
   return `
 You're Invited
 
-${vars.inviterName} invited you to join ${vars.teamName} on orcastr8r.
+${vars.inviterName} invited you to join ${vars.teamName} on askalf.
 
-Orcastr8r is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
+AskAlf is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
 
 Accept Invitation: ${vars.inviteUrl}
 
@@ -597,8 +597,8 @@ This invitation expires in ${vars.expiresInDays} days.
 Don't want to join? Just ignore this email.
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -614,7 +614,7 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
     </h1>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa; line-height: 1.7;">
-      You just reserved your spot for Orcastr8r — the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
+      You just reserved your spot for AskAlf — the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
     </p>
 
     ${sectionLabel('What you\'re getting access to')}
@@ -666,7 +666,7 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
 
     ${noteBox(`
       <p style="margin: 0; font-size: 14px; color: #a1a1aa; line-height: 1.6;">
-        <strong style="color: #a78bfa;">Think of it this way:</strong> Kubernetes doesn't run your containers — it orchestrates them. Orcastr8r doesn't run your agents — it orchestrates them. Same model, different substrate.
+        <strong style="color: #a78bfa;">Think of it this way:</strong> Kubernetes doesn't run your containers — it orchestrates them. AskAlf doesn't run your agents — it orchestrates them. Same model, different substrate.
       </p>
     `)}
 
@@ -683,7 +683,7 @@ export function waitlistEmailText(vars: WaitlistEmailVars): string {
   return `
 You're on the list, ${firstName}.
 
-You just reserved your spot for Orcastr8r -- the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
+You just reserved your spot for AskAlf -- the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
 
 // WHAT YOU'RE GETTING ACCESS TO
 - Fleet Orchestration — Deploy, scale, and coordinate autonomous agents. Kubernetes-style primitives for LLMs.
@@ -693,15 +693,15 @@ You just reserved your spot for Orcastr8r -- the control plane for autonomous AI
 - Auto-Healing — Failed agents restart automatically. Health checks, circuit breakers, graceful degradation.
 - Human Checkpoints — Define approval gates. Agents pause and wait for your sign-off before critical actions.
 
-Think of it this way: Kubernetes doesn't run your containers -- it orchestrates them. Orcastr8r doesn't run your agents -- it orchestrates them. Same model, different substrate.
+Think of it this way: Kubernetes doesn't run your containers -- it orchestrates them. AskAlf doesn't run your agents -- it orchestrates them. Same model, different substrate.
 
 We'll email ${vars.email} the moment your spot opens. It won't be long.
 
 Follow us on X: https://x.com/sprayberrylabs
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -717,7 +717,7 @@ export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
     </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
-      You signed up for the orcastr8r waitlist. The wait is over:
+      You signed up for the askalf waitlist. The wait is over:
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 22px; font-weight: 600; color: #a78bfa;">
@@ -753,7 +753,7 @@ export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
       </tr>
     </table>
 
-    ${button('Deploy Your Fleet', 'https://orcastr8r.com')}
+    ${button('Deploy Your Fleet', 'https://askalf.org')}
 
     ${noteBox(`
       <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
@@ -771,7 +771,7 @@ export function waitlistUpdateEmailText(vars: WaitlistUpdateEmailVars): string {
   return `
 Your spot is ready.
 
-You signed up for the orcastr8r waitlist. The wait is over:
+You signed up for the askalf waitlist. The wait is over:
 
 The control plane is live. Your fleet awaits.
 
@@ -781,15 +781,15 @@ The control plane is live. Your fleet awaits.
 - 4-Tier Memory — Persistent cognitive memory across all agent executions
 - Budget Enforcement — Hard limits per agent, per fleet, per cycle. Zero surprise bills.
 
-Deploy Your Fleet: https://orcastr8r.com
+Deploy Your Fleet: https://askalf.org
 
 Free tier available — get started with no credit card required.
 
 Thanks for being early. We built this for people like you.
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -798,14 +798,14 @@ https://orcastr8r.com
 // ============================================
 
 export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
-  const signupUrl = vars.signupUrl || 'https://orcastr8r.com/signup';
+  const signupUrl = vars.signupUrl || 'https://askalf.org/signup';
   return wrapHtml(`
     <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
       You've been selected.
     </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
-      You're off the waitlist. Your orcastr8r deployment is ready to create.
+      You're off the waitlist. Your askalf deployment is ready to create.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
@@ -848,17 +848,17 @@ export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
     </p>
 
     <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #52525b;">
-      This invite is for <strong style="color: #71717a;">${vars.email}</strong>. If you didn't sign up for orcastr8r, you can ignore this email.
+      This invite is for <strong style="color: #71717a;">${vars.email}</strong>. If you didn't sign up for askalf, you can ignore this email.
     </p>
   `);
 }
 
 export function betaInviteEmailText(vars: BetaInviteEmailVars): string {
-  const signupUrl = vars.signupUrl || 'https://orcastr8r.com/signup';
+  const signupUrl = vars.signupUrl || 'https://askalf.org/signup';
   return `
 You've been selected.
 
-You're off the waitlist. Your orcastr8r deployment is ready to create.
+You're off the waitlist. Your askalf deployment is ready to create.
 
 As a beta operator, you'll be among the first to deploy autonomous agent fleets with Kubernetes-style orchestration.
 
@@ -872,11 +872,11 @@ Activate Your Account: ${signupUrl}
 
 Your feedback shapes what we build next. We're listening.
 
-This invite is for ${vars.email}. If you didn't sign up for orcastr8r, you can ignore this email.
+This invite is for ${vars.email}. If you didn't sign up for askalf, you can ignore this email.
 
 ---
-orcastr8r — The control plane for autonomous agents
-https://orcastr8r.com
+askalf — The control plane for autonomous agents
+https://askalf.org
   `.trim();
 }
 
@@ -895,7 +895,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          Someone new joined the orcastr8r waitlist.
+          Someone new joined the askalf waitlist.
         </p>
 
         ${noteBox(`
@@ -927,7 +927,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
           </table>
         `)}
 
-        ${button('View Dashboard', 'https://orcastr8r.com')}
+        ${button('View Dashboard', 'https://askalf.org')}
       `;
       break;
 
@@ -938,7 +938,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          A new operator registered for orcastr8r.
+          A new operator registered for askalf.
         </p>
 
         ${noteBox(`
@@ -965,7 +965,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          An error occurred in the orcastr8r system.
+          An error occurred in the askalf system.
         </p>
 
         ${noteBox(`
@@ -985,43 +985,43 @@ export function adminNotificationText(vars: AdminNotificationVars): string {
       return `
 New Waitlist Signup${vars.source ? ` (${vars.source})` : ''}
 
-Someone new joined the orcastr8r waitlist.
+Someone new joined the askalf waitlist.
 
 Email: ${vars.email}
 ${vars.source ? `Source: ${vars.source}` : ''}
 Time: ${vars.timestamp}
 ${vars.totalWaitlistCount ? `Total signups: ${vars.totalWaitlistCount}` : ''}
 
-View Dashboard: https://orcastr8r.com
+View Dashboard: https://askalf.org
 
 ---
-orcastr8r admin notification
+askalf admin notification
       `.trim();
 
     case 'new_user':
       return `
 New User Registration
 
-A new operator registered for orcastr8r.
+A new operator registered for askalf.
 
 Email: ${vars.email}
 Time: ${vars.timestamp}
 
 ---
-orcastr8r admin notification
+askalf admin notification
       `.trim();
 
     case 'error':
       return `
 System Alert
 
-An error occurred in the orcastr8r system.
+An error occurred in the askalf system.
 
 ${vars.message}
 Time: ${vars.timestamp}
 
 ---
-orcastr8r admin notification
+askalf admin notification
       `.trim();
 
     default:
@@ -1090,7 +1090,7 @@ ${vars.timestamp}
 View in Dashboard: ${vars.dashboardUrl}
 
 ---
-orcastr8r admin notification`.trim();
+askalf admin notification`.trim();
 }
 
 // ============================================
@@ -1139,90 +1139,90 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
   switch (template) {
     case 'welcome':
       return {
-        subject: 'You\'re in — orcastr8r',
+        subject: 'You\'re in — askalf',
         html: welcomeEmailHtml(vars as WelcomeEmailVars),
         text: welcomeEmailText(vars as WelcomeEmailVars),
       };
 
     case 'password-reset':
       return {
-        subject: 'Reset your password — orcastr8r',
+        subject: 'Reset your password — askalf',
         html: passwordResetEmailHtml(vars as PasswordResetEmailVars),
         text: passwordResetEmailText(vars as PasswordResetEmailVars),
       };
 
     case 'email-verification':
       return {
-        subject: 'Verify your email — orcastr8r',
+        subject: 'Verify your email — askalf',
         html: emailVerificationHtml(vars as EmailVerificationVars),
         text: emailVerificationText(vars as EmailVerificationVars),
       };
 
     case 'subscription-confirmation':
       return {
-        subject: 'Subscription confirmed — orcastr8r',
+        subject: 'Subscription confirmed — askalf',
         html: subscriptionConfirmationHtml(vars as SubscriptionEmailVars),
         text: subscriptionConfirmationText(vars as SubscriptionEmailVars),
       };
 
     case 'subscription-canceled':
       return {
-        subject: 'Subscription canceled — orcastr8r',
+        subject: 'Subscription canceled — askalf',
         html: subscriptionCanceledHtml(vars as SubscriptionEmailVars),
         text: subscriptionCanceledText(vars as SubscriptionEmailVars),
       };
 
     case 'payment-failed':
       return {
-        subject: 'Action required: payment failed — orcastr8r',
+        subject: 'Action required: payment failed — askalf',
         html: paymentFailedHtml(vars as PaymentFailedEmailVars),
         text: paymentFailedText(vars as PaymentFailedEmailVars),
       };
 
     case 'usage-limit-warning':
       return {
-        subject: 'Usage limit warning — orcastr8r',
+        subject: 'Usage limit warning — askalf',
         html: usageLimitWarningHtml(vars as UsageLimitEmailVars),
         text: usageLimitWarningText(vars as UsageLimitEmailVars),
       };
 
     case 'team-invite':
       return {
-        subject: `You're invited to ${(vars as TeamInviteEmailVars).teamName} — orcastr8r`,
+        subject: `You're invited to ${(vars as TeamInviteEmailVars).teamName} — askalf`,
         html: teamInviteHtml(vars as TeamInviteEmailVars),
         text: teamInviteText(vars as TeamInviteEmailVars),
       };
 
     case 'waitlist':
       return {
-        subject: `You're on the list — orcastr8r`,
+        subject: `You're on the list — askalf`,
         html: waitlistEmailHtml(vars as WaitlistEmailVars),
         text: waitlistEmailText(vars as WaitlistEmailVars),
       };
 
     case 'waitlist-update':
       return {
-        subject: `Your spot is ready — orcastr8r`,
+        subject: `Your spot is ready — askalf`,
         html: waitlistUpdateEmailHtml(vars as WaitlistUpdateEmailVars),
         text: waitlistUpdateEmailText(vars as WaitlistUpdateEmailVars),
       };
 
     case 'beta-invite':
       return {
-        subject: `You've been selected — orcastr8r beta`,
+        subject: `You've been selected — askalf beta`,
         html: betaInviteEmailHtml(vars as BetaInviteEmailVars),
         text: betaInviteEmailText(vars as BetaInviteEmailVars),
       };
 
     case 'admin-notification': {
       const adminVars = vars as AdminNotificationVars;
-      let subject = 'orcastr8r admin alert';
+      let subject = 'askalf admin alert';
       if (adminVars.type === 'waitlist_signup') {
-        subject = `New orcastr8r waitlist signup: ${adminVars.email}`;
+        subject = `New askalf waitlist signup: ${adminVars.email}`;
       } else if (adminVars.type === 'new_user') {
         subject = `New user: ${adminVars.email}`;
       } else if (adminVars.type === 'error') {
-        subject = 'orcastr8r system alert';
+        subject = 'askalf system alert';
       }
       return {
         subject,
@@ -1235,7 +1235,7 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
       const alertVars = vars as InterventionAlertVars;
       const riskPrefix = alertVars.riskLevel === 'high' ? '[HIGH RISK] ' : '';
       return {
-        subject: `${riskPrefix}Intervention: ${alertVars.title} — orcastr8r`,
+        subject: `${riskPrefix}Intervention: ${alertVars.title} — askalf`,
         html: interventionAlertHtml(alertVars),
         text: interventionAlertText(alertVars),
       };

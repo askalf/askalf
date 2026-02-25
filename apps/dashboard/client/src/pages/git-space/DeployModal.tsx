@@ -6,14 +6,14 @@ import { useGitSpaceStore } from '../../stores/git-space';
 // ============================================
 
 const SERVICES = [
-  { id: 'api', label: 'API Server', desc: 'sprayberry-labs-api' },
-  { id: 'dashboard', label: 'Dashboard', desc: 'sprayberry-labs-dashboard' },
-  { id: 'forge', label: 'Orcastr8r', desc: 'sprayberry-labs-forge' },
-  { id: 'nginx', label: 'Nginx', desc: 'sprayberry-labs-nginx' },
-  { id: 'mcp', label: 'MCP', desc: 'sprayberry-labs-mcp' },
-  { id: 'mcp-tools', label: 'MCP Tools', desc: 'sprayberry-labs-mcp-tools' },
-  { id: 'scheduler', label: 'Scheduler', desc: 'sprayberry-labs-scheduler' },
-  { id: 'worker', label: 'Worker', desc: 'sprayberry-labs-worker' },
+  { id: 'api', label: 'API Server', desc: 'askalf-api' },
+  { id: 'dashboard', label: 'Dashboard', desc: 'askalf-dashboard' },
+  { id: 'forge', label: 'AskAlf', desc: 'askalf-forge' },
+  { id: 'nginx', label: 'Nginx', desc: 'askalf-nginx' },
+  { id: 'mcp', label: 'MCP', desc: 'askalf-mcp' },
+  { id: 'mcp-tools', label: 'MCP Tools', desc: 'askalf-mcp-tools' },
+  { id: 'scheduler', label: 'Scheduler', desc: 'askalf-scheduler' },
+  { id: 'worker', label: 'Worker', desc: 'askalf-worker' },
 ];
 
 const SERVICE_GROUPS = [

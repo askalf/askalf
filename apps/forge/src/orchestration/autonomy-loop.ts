@@ -430,7 +430,7 @@ async function autoDeploy(services: string[], mergeCommit: string, proposalId: s
 
   // Restart volume-mounted services (e.g. nginx)
   for (const service of restartOnly) {
-    const container = `sprayberry-labs-${service}`;
+    const container = `askalf-${service}`;
     try {
       const res = await dockerApi('POST', `/v1.44/containers/${container}/restart?t=10`);
       if (res.statusCode === 204 || res.statusCode === 200) {
@@ -492,7 +492,7 @@ async function rebuildServices(services: string[], mergeCommit: string, deployTa
 
   try {
     // Get host workspace path from forge container mount
-    const inspectRes = await dockerApi('GET', '/v1.44/containers/sprayberry-labs-forge/json');
+    const inspectRes = await dockerApi('GET', '/v1.44/containers/askalf-forge/json');
     if (inspectRes.statusCode !== 200) {
       console.error('[AutonomyLoop] Cannot inspect forge container for rebuild');
       return;
@@ -574,7 +574,7 @@ async function rebuildServices(services: string[], mergeCommit: string, deployTa
 
     // Health check each rebuilt service
     for (const svc of ordered) {
-      if (!await healthCheck(`sprayberry-labs-${svc}`)) {
+      if (!await healthCheck(`askalf-${svc}`)) {
         console.error(`[AutonomyLoop] ${svc} unhealthy after rebuild — rolling back`);
         await rollbackDeploy(mergeCommit, ordered, deployTag);
         return;
@@ -616,7 +616,7 @@ async function rollbackDeploy(mergeCommit: string, services: string[], deployTag
       await rebuildServices(needsRebuild, 'HEAD', deployTag + '-rollback');
     }
     for (const svc of services.filter(s => !BAKED_SERVICES.has(s) && s !== 'forge')) {
-      await dockerApi('POST', `/v1.44/containers/sprayberry-labs-${svc}/restart?t=10`).catch(() => {});
+      await dockerApi('POST', `/v1.44/containers/askalf-${svc}/restart?t=10`).catch(() => {});
     }
 
     await query(
@@ -636,8 +636,8 @@ async function notifyAdmin(type: string, title: string, description: string, ris
   const adminEmail = process.env['ADMIN_EMAIL'];
   if (!adminEmail) return;
   try {
-    const { sendInterventionAlert } = await import('@substrate/email');
-    const baseUrl = process.env['DASHBOARD_URL'] ?? 'https://orcastr8r.com';
+    const { sendInterventionAlert } = await import('@askalf/email');
+    const baseUrl = process.env['DASHBOARD_URL'] ?? 'https://askalf.org';
     await sendInterventionAlert(adminEmail, {
       agentName: 'Autonomy Loop',
       interventionType: type,

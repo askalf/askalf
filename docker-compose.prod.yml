@@ -1,4 +1,4 @@
-name: sprayberry-labs
+name: askalf
 
 services:
   # ===========================================
@@ -6,7 +6,7 @@ services:
   # ===========================================
   postgres:
     image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
-    container_name: sprayberry-labs-postgres
+    container_name: askalf-postgres
     # No exposed ports — all access through pgbouncer inside Docker network
     environment:
       POSTGRES_USER: substrate
@@ -22,13 +22,13 @@ services:
     # Shared memory for PostgreSQL (matches shared_buffers)
     shm_size: 256m
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U substrate -d orcastr8r"]
+      test: ["CMD-SHELL", "pg_isready -U substrate -d askalf"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     # Allow clean shutdown
     stop_grace_period: 30s
@@ -59,7 +59,7 @@ services:
 
   redis:
     image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
-    container_name: sprayberry-labs-redis
+    container_name: askalf-redis
     command: sh /usr/local/etc/redis/docker-entrypoint.sh
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -74,7 +74,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     stop_grace_period: 30s
     security_opt:
@@ -106,7 +106,7 @@ services:
     build:
       context: .
       dockerfile: apps/dashboard/Dockerfile
-    container_name: sprayberry-labs-dashboard
+    container_name: askalf-dashboard
     # NO PUBLIC PORTS - dashboard is only accessible via cloudflared tunnel
     expose:
       - "3001"
@@ -114,7 +114,7 @@ services:
       NODE_ENV: production
       PORT: 3001
       # Database (via pgbouncer for connection pooling)
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
       SESSION_SECRET: ${SESSION_SECRET}
       # Encryption key for API keys (shared with API)
       JWT_SECRET: ${JWT_SECRET}
@@ -122,7 +122,7 @@ services:
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-}
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Forge}
-      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@orcastr8r.com}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@askalf.org}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       # Agent Forge proxy
       FORGE_URL: http://forge:3005
@@ -150,7 +150,7 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     labels:
       - "autoheal=true"
@@ -181,13 +181,13 @@ services:
     build:
       context: .
       dockerfile: apps/mcp-tools/Dockerfile
-    container_name: sprayberry-labs-mcp-tools
+    container_name: askalf-mcp-tools
     environment:
       NODE_ENV: production
       PORT: 3010
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       SEARXNG_URL: http://searxng:8080
       FORGE_URL: http://forge:3005
@@ -211,7 +211,7 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     labels:
       - "autoheal=true"
@@ -242,15 +242,15 @@ services:
     build:
       context: .
       dockerfile: apps/forge/Dockerfile
-    container_name: sprayberry-labs-forge
+    container_name: askalf-forge
     expose:
       - "3005"
     environment:
       NODE_ENV: production
       PORT: 3005
-      # Unified orcastr8r database (via pgbouncer)
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
+      # Unified askalf database (via pgbouncer)
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # AI Providers — ANTHROPIC_API_KEY empty to force OAuth subscription (CLI uses OAuth)
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -273,11 +273,11 @@ services:
       MAX_CLI_CONCURRENCY: ${MAX_CLI_CONCURRENCY:-8}
       # Web search
       SEARXNG_URL: http://searxng:8080
-      # Email (SendGrid via orcastr8r.com)
+      # Email (SendGrid via askalf.org)
       EMAIL_PROVIDER: sendgrid
       SENDGRID_API_KEY: ${SENDGRID_API_KEY}
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Forge}
-      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@orcastr8r.com}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@askalf.org}
     volumes:
       - .:/workspace
       - ./.claude-credentials.json:/tmp/claude-credentials.json:rw
@@ -297,7 +297,7 @@ services:
       retries: 5
       start_period: 60s
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     labels:
       - "autoheal=false"
@@ -329,13 +329,13 @@ services:
     build:
       context: .
       dockerfile: apps/admin-console/Dockerfile
-    container_name: sprayberry-labs-admin-console
+    container_name: askalf-admin-console
     expose:
       - "3002"
     environment:
       NODE_ENV: production
       PORT: 3002
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
       SESSION_SECRET: ${SESSION_SECRET}
       ANTHROPIC_API_KEY: ''
       WORKSPACE_DIR: /workspace
@@ -363,7 +363,7 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     labels:
       - "autoheal=true"
@@ -398,7 +398,7 @@ services:
   # ===========================================
   nginx:
     image: nginx:1.28.2-alpine@sha256:15e96e59aa3b0aada3a121296e3bce117721f42d88f5f64217ef4b18f458c6ab
-    container_name: sprayberry-labs-nginx
+    container_name: askalf-nginx
     # Replace default symlinks (-> /dev/stdout) with real files, preserve existing logs
     command: ["/bin/sh", "-c", "[ -L /var/log/nginx/access.log ] && rm /var/log/nginx/access.log; [ -L /var/log/nginx/error.log ] && rm /var/log/nginx/error.log; touch /var/log/nginx/access.log /var/log/nginx/error.log; nginx -g 'daemon off;'"]
     # NO PUBLIC PORTS - nginx is only accessible via cloudflared tunnel
@@ -424,7 +424,7 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     labels:
       - "autoheal=true"
@@ -458,10 +458,10 @@ services:
   # Database connection pooler
   pgbouncer:
     image: edoburu/pgbouncer:v1.25.1-p0@sha256:c7bfcaa24de830e29588bb9ad1eb39cebaf07c27149e1974445899b695634bb4
-    container_name: sprayberry-labs-pgbouncer
+    container_name: askalf-pgbouncer
     environment:
-      # Unified orcastr8r database pooled
-      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/orcastr8r
+      # Unified askalf database pooled
+      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 1000
       DEFAULT_POOL_SIZE: 80
@@ -483,7 +483,7 @@ services:
       LOG_CONNECTIONS: 0
       LOG_DISCONNECTIONS: 0
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U substrate -d orcastr8r || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U substrate -d askalf || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -492,7 +492,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     labels:
       - "autoheal=true"
@@ -522,7 +522,7 @@ services:
   # Cloudflare Tunnel for Zero Trust access (managed via Cloudflare dashboard)
   cloudflared:
     image: cloudflare/cloudflared:2026.2.0@sha256:404528c1cd63c3eb882c257ae524919e4376115e6fe57befca8d603656a91a4c
-    container_name: sprayberry-labs-cloudflared
+    container_name: askalf-cloudflared
     # QUIC protocol preferred for better performance, metrics enabled for healthcheck
     command: tunnel --metrics localhost:2000 --protocol quic run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
@@ -535,7 +535,7 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     stop_grace_period: 30s
     labels:
@@ -564,7 +564,7 @@ services:
   # Replaces raw /var/run/docker.sock mounts (effectively root access) with filtered TCP proxy
   docker-proxy:
     image: tecnativa/docker-socket-proxy:latest@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
-    container_name: sprayberry-labs-docker-proxy
+    container_name: askalf-docker-proxy
     environment:
       # API endpoint access (GET by default, POST requires POST=1)
       CONTAINERS: 1
@@ -575,7 +575,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:2375/version || exit 1"]
@@ -613,7 +613,7 @@ services:
   # Included: forge, dashboard, mcp-tools, nginx, pgbouncer, cloudflared, searxng
   autoheal:
     image: willfarrell/autoheal@sha256:63fb6c9afa4420bd118cb22ddee919f99dd2439105261c61f1a0fb506119f66b
-    container_name: sprayberry-labs-autoheal
+    container_name: askalf-autoheal
     environment:
       # Label-based scope: only restart containers with autoheal=true label
       AUTOHEAL_CONTAINER_LABEL: autoheal
@@ -652,7 +652,7 @@ services:
   # ============================================
   searxng:
     image: searxng/searxng@sha256:670bd1076097640fc25221bf92a8af7d344503ce17ba3305abedf28e3634e807
-    container_name: sprayberry-labs-searxng
+    container_name: askalf-searxng
     environment:
       SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:
@@ -669,7 +669,7 @@ services:
       retries: 3
       start_period: 20s
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     labels:
       - "autoheal=true"
@@ -701,7 +701,7 @@ services:
   # ============================================
   backup:
     image: postgres:17-alpine@sha256:3430fe182f5065a6ea505c3d432d2c7fff18fbab954df8f277c1dbf4c70124af
-    container_name: sprayberry-labs-backup
+    container_name: askalf-backup
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -721,7 +721,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - sprayberry-labs-net
+      - askalf-net
     restart: unless-stopped
     stop_grace_period: 10s
     security_opt:
@@ -777,6 +777,6 @@ volumes:
     external: true
 
 networks:
-  sprayberry-labs-net:
-    name: sprayberry-labs-net
+  askalf-net:
+    name: askalf-net
     driver: bridge

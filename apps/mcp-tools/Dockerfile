@@ -16,12 +16,12 @@ COPY apps/mcp-tools ./apps/mcp-tools
 RUN pnpm install --frozen-lockfile
 
 # Build shared packages first, then mcp-tools
-RUN pnpm --filter @substrate/db build || true
-RUN pnpm --filter @substrate/observability build && \
-    pnpm --filter @substrate/mcp-tools build
+RUN pnpm --filter @askalf/db build || true
+RUN pnpm --filter @askalf/observability build && \
+    pnpm --filter @askalf/mcp-tools build
 
 # Deploy to a self-contained directory
-RUN pnpm deploy --filter @substrate/mcp-tools --prod /app/deploy
+RUN pnpm deploy --filter @askalf/mcp-tools --prod /app/deploy
 
 # Remove unnecessary files from deploy
 RUN rm -rf /app/deploy/src 2>/dev/null || true && \

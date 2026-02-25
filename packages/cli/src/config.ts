@@ -39,7 +39,7 @@ export function loadConfig(): CliConfig {
   }
 
   return {
-    apiUrl: envUrl ?? fileConfig.apiUrl ?? 'https://orcastr8r.com',
+    apiUrl: envUrl ?? fileConfig.apiUrl ?? 'https://askalf.org',
     apiKey: envKey ?? fileConfig.apiKey ?? '',
   };
 }

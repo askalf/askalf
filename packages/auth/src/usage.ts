@@ -2,7 +2,7 @@
 // Metering, usage records, and limit checking
 
 import { ulid } from 'ulid';
-import { query, queryOne } from '@substrate/database';
+import { query, queryOne } from '@askalf/database';
 import { getTenantLimits } from './subscriptions.js';
 import type { PlanLimits } from './plans.js';
 

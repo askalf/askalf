@@ -3,7 +3,7 @@
 
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
-import { getLogger } from '@substrate/observability';
+import { getLogger } from '@askalf/observability';
 import type { EmailConfig, EmailMessage, EmailResult, EmailProvider } from './types.js';
 
 const logger = getLogger();

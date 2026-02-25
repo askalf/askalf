@@ -81,7 +81,7 @@ export type DemoSession = z.infer<typeof DemoSessionSchema>;
 // ===========================================
 
 // Note: ModelTier type is defined in utils/environmental.ts to avoid duplication
-// Import via: import { ModelTier, MODEL_TIERS } from '@substrate/core'
+// Import via: import { ModelTier, MODEL_TIERS } from '@askalf/core'
 
 const ModelTierEnum = z.enum(['demo', 'free', 'individual', 'business', 'enterprise']);
 

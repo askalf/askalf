@@ -1,6 +1,6 @@
 {
-  "name": "Orcastr8r",
-  "short_name": "Orcastr8r",
+  "name": "AskAlf",
+  "short_name": "AskAlf",
   "description": "The control plane for autonomous agents",
   "start_url": "/",
   "display": "standalone",

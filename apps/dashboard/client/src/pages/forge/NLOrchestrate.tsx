@@ -64,7 +64,7 @@ export default function NLOrchestrate() {
       <div className="fo-section">
         <div className="fo-section-header"><h3>Natural Language Orchestration</h3></div>
         <p style={{ fontSize: '13px', opacity: 0.7, marginBottom: '12px' }}>
-          Describe what you want done in plain English. Orcastr8r will decompose the task, match agents, and execute automatically.
+          Describe what you want done in plain English. AskAlf will decompose the task, match agents, and execute automatically.
         </p>
 
         <div className="hub-form-group">

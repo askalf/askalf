@@ -3,7 +3,7 @@ set -e
 
 DATE=$(date +%Y-%m-%d_%H%M)
 BACKUP_DIR=/backups
-DATABASES="orcastr8r"
+DATABASES="askalf"
 
 echo "[Backup] $(date) — starting"
 

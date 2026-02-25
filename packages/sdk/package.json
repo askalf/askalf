@@ -1,7 +1,7 @@
 {
-  "name": "@substrate/sdk",
+  "name": "@askalf/sdk",
   "version": "1.0.0",
-  "description": "Orcastr8r TypeScript SDK — programmatic access to agents, executions, and fleet",
+  "description": "AskAlf TypeScript SDK — programmatic access to agents, executions, and fleet",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",

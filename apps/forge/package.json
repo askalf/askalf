@@ -1,5 +1,5 @@
 {
-  "name": "@substrate/forge",
+  "name": "@askalf/forge",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "type": "module",
@@ -30,8 +30,8 @@
     "pg": "^8.11.3",
     "ulid": "^2.3.0",
     "zod": "^3.23.0",
-    "@substrate/email": "workspace:*",
-    "@substrate/observability": "workspace:*"
+    "@askalf/email": "workspace:*",
+    "@askalf/observability": "workspace:*"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

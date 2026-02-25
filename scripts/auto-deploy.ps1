@@ -160,7 +160,7 @@ for ($attempt = 1; $attempt -le 18; $attempt++) {
     $statusLines = @()
 
     foreach ($svc in $services) {
-        $containerName = "sprayberry-labs-$svc"
+        $containerName = "askalf-$svc"
         $state = docker inspect --format '{{.State.Status}}' $containerName 2>$null
         $health = docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' $containerName 2>$null
 
@@ -199,7 +199,7 @@ if (-not $allHealthy) {
     Write-Host ""
     Write-Host "  Recent logs:" -ForegroundColor Yellow
     foreach ($svc in $services) {
-        $containerName = "sprayberry-labs-$svc"
+        $containerName = "askalf-$svc"
         Write-Host "  --- $svc ---" -ForegroundColor DarkGray
         docker logs $containerName --tail 10 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
     }
@@ -231,7 +231,7 @@ try {
     $svcJson = ($services | ForEach-Object { "`"$_`"" }) -join ","
     $resultsJson = ($stepResults.GetEnumerator() | ForEach-Object { "`"$($_.Key)`":`"$($_.Value)`"" }) -join ","
 
-    docker exec sprayberry-labs-postgres psql -U substrate -d forge -c "INSERT INTO forge_deploy_log (id, services, git_commit, git_branch, tag_name, steps, duration_s, status, deployed_at) VALUES ('$(New-Guid)', '{$svcJson}', '$currentCommit', '$currentBranch', '$tagName', '{$resultsJson}', $totalTime, 'success', NOW()) ON CONFLICT DO NOTHING;" 2>$null
+    docker exec askalf-postgres psql -U substrate -d forge -c "INSERT INTO forge_deploy_log (id, services, git_commit, git_branch, tag_name, steps, duration_s, status, deployed_at) VALUES ('$(New-Guid)', '{$svcJson}', '$currentCommit', '$currentBranch', '$tagName', '{$resultsJson}', $totalTime, 'success', NOW()) ON CONFLICT DO NOTHING;" 2>$null
 } catch {
     # Deploy log table may not exist yet — non-fatal
 }

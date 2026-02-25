@@ -2,8 +2,8 @@
 // User CRUD operations and related functions
 
 import { ulid } from 'ulid';
-import { query, queryOne, transaction } from '@substrate/database';
-import type { PoolClient } from '@substrate/database';
+import { query, queryOne, transaction } from '@askalf/database';
+import type { PoolClient } from '@askalf/database';
 import {
   hashPassword,
   verifyPassword,

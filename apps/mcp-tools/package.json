@@ -1,5 +1,5 @@
 {
-  "name": "@substrate/mcp-tools",
+  "name": "@askalf/mcp-tools",
   "version": "1.0.0",
   "description": "Unified MCP server: workflow, data, infrastructure tools for agent fleet",
   "type": "module",
@@ -11,11 +11,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
-    "@substrate/db": "workspace:*",
+    "@askalf/db": "workspace:*",
     "express": "^5.1.0",
     "cors": "^2.8.5",
     "openai": "^4.77.0",
-    "@substrate/observability": "workspace:*"
+    "@askalf/observability": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

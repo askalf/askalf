@@ -55,7 +55,7 @@ class ErrorBoundary extends Component<Props, State> {
   private async reportError(error: Error, errorInfo: ErrorInfo) {
     try {
       const host = window.location.hostname;
-      const apiBase = host.includes('orcastr8r.com')
+      const apiBase = host.includes('askalf.org')
         ? ''
         : 'http://localhost:3001';
 

@@ -42,24 +42,24 @@ const DOCKER_CONN: Record<string, unknown> = (() => {
 })();
 
 const SERVICE_MAP: Record<string, string> = {
-  api: 'sprayberry-labs-api',
-  dashboard: 'sprayberry-labs-dashboard',
-  forge: 'sprayberry-labs-forge',
-  worker: 'sprayberry-labs-worker',
-  scheduler: 'sprayberry-labs-scheduler',
-  nginx: 'sprayberry-labs-nginx',
-  mcp: 'sprayberry-labs-mcp',
-  self: 'sprayberry-labs-self',
+  api: 'askalf-api',
+  dashboard: 'askalf-dashboard',
+  forge: 'askalf-forge',
+  worker: 'askalf-worker',
+  scheduler: 'askalf-scheduler',
+  nginx: 'askalf-nginx',
+  mcp: 'askalf-mcp',
+  self: 'askalf-self',
 };
 
 const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
 
 const HEALTH_ENDPOINTS: Record<string, string> = {
-  dashboard: 'http://sprayberry-labs-dashboard:3001/health',
-  forge: 'http://sprayberry-labs-forge:3005/health',
-  'mcp-tools': 'http://sprayberry-labs-mcp-tools:3010/health',
-  mcp: 'http://sprayberry-labs-mcp-tools:3010/health',
-  nginx: 'http://sprayberry-labs-nginx:80/nginx-health',
+  dashboard: 'http://askalf-dashboard:3001/health',
+  forge: 'http://askalf-forge:3005/health',
+  'mcp-tools': 'http://askalf-mcp-tools:3010/health',
+  mcp: 'http://askalf-mcp-tools:3010/health',
+  nginx: 'http://askalf-nginx:80/nginx-health',
 };
 
 const POST_DEPLOY_WAIT_MS = 10_000;
@@ -136,7 +136,7 @@ export async function deployOps(input: DeployOpsInput): Promise<ToolResult> {
         const prodContainers = containers
           .filter((c) => {
             const name = ((c['Names'] as string[]) ?? [])[0]?.replace(/^\//, '') ?? '';
-            return name.startsWith('sprayberry-labs-');
+            return name.startsWith('askalf-');
           })
           .map((c) => ({
             name: ((c['Names'] as string[]) ?? [])[0]?.replace(/^\//, ''),

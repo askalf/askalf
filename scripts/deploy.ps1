@@ -79,7 +79,7 @@ Start-Sleep -Seconds 5
 
 $allHealthy = $true
 foreach ($svc in $services) {
-    $containerName = "sprayberry-labs-$svc"
+    $containerName = "askalf-$svc"
     $status = docker inspect --format '{{.State.Status}}' $containerName 2>$null
     $health = docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' $containerName 2>$null
 

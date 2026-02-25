@@ -1,7 +1,7 @@
 /**
  * Shared Database Connection Pool
  *
- * Single lazy-initialized pool for the unified orcastr8r database,
+ * Single lazy-initialized pool for the unified askalf database,
  * plus Redis. Used by MCP servers and other services.
  * Forge/substrate query functions are aliases for backwards compatibility.
  */

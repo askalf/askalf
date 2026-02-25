@@ -15,7 +15,7 @@ export default function SettingsPage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  useEffect(() => { document.title = 'Settings — Orcastr8r'; }, []);
+  useEffect(() => { document.title = 'Settings — AskAlf'; }, []);
 
   return (
     <div className="settings-page">
@@ -77,7 +77,7 @@ export default function SettingsPage() {
 // Determine API base URL based on current hostname
 const getApiUrl = () => {
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
+  if (host.includes('askalf.org') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
   if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3001';
   return '';
 };
@@ -452,8 +452,8 @@ function SecurityTab() {
         <p>
           During the beta, account deletion is handled by our team to ensure data integrity.
           {' '}To request account deletion, contact{' '}
-          <a href="mailto:support@orcastr8r.com?subject=Account%20Deletion%20Request" style={{ color: 'var(--crystal)' }}>
-            support@orcastr8r.com
+          <a href="mailto:support@askalf.org?subject=Account%20Deletion%20Request" style={{ color: 'var(--crystal)' }}>
+            support@askalf.org
           </a>
         </p>
         <button className="settings-danger-btn" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>

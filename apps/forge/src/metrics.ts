@@ -8,7 +8,7 @@ import {
   createCounter,
   createGauge,
   createHistogram,
-} from '@substrate/observability';
+} from '@askalf/observability';
 
 export const forgeExecutionsTotal = createCounter('forge_executions_total', 'Total agent executions started');
 export const forgeExecutionDuration = createHistogram('forge_execution_duration_ms', 'Agent execution duration in milliseconds');
