@@ -5,7 +5,6 @@ import type {
   Agent,
   AgentDetail,
   SchedulerStatus,
-  ProviderHealth,
   AgentPerformanceReport,
   AgentPerformanceEntry,
   CostSummary,
@@ -82,8 +81,6 @@ function ClusterOverview({
   costSummary,
   dailyCosts,
   schedulerStatus,
-  resourceMonitorOpen,
-  onToggleResources,
   onToggleScheduler,
   actionLoading,
 }: {
@@ -91,8 +88,6 @@ function ClusterOverview({
   costSummary: CostSummary | null;
   dailyCosts: DailyCost[];
   schedulerStatus: SchedulerStatus | null;
-  resourceMonitorOpen: boolean;
-  onToggleResources: () => void;
   onToggleScheduler: () => void;
   actionLoading: Record<string, boolean>;
 }) {
@@ -131,9 +126,6 @@ function ClusterOverview({
           disabled={actionLoading['scheduler']}
         >
           {schedulerStatus?.running ? '⏸ Scheduler' : '▶ Scheduler'}
-        </button>
-        <button className="fleet-btn" onClick={onToggleResources}>
-          {resourceMonitorOpen ? 'Resources ▲' : 'Resources ▼'}
         </button>
       </div>
     </div>
@@ -608,51 +600,6 @@ function buildYaml(agent: Agent, perf: AgentPerformanceEntry | undefined): strin
   return lines.join('\n');
 }
 
-function ResourceMonitor({
-  open,
-  providerHealth,
-  dailyCosts,
-}: {
-  open: boolean;
-  providerHealth: ProviderHealth | null;
-  dailyCosts: DailyCost[];
-}) {
-  if (!open) return null;
-
-  const maxCost = Math.max(...dailyCosts.map((d) => d.totalCost), 0.01);
-
-  return (
-    <div className="fleet-resources-body">
-      <div className="fleet-providers">
-        {providerHealth?.providers.map((p) => (
-          <div key={p.id} className="fleet-provider-card">
-            <span className={`fleet-provider-dot ${p.healthStatus}`} />
-            <span>{p.name}</span>
-          </div>
-        ))}
-        {(!providerHealth || providerHealth.providers.length === 0) && (
-          <span style={{ color: '#475569', fontSize: 12 }}>No providers</span>
-        )}
-      </div>
-
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>7-Day Cost Trend</div>
-      <div className="fleet-cost-chart">
-        {dailyCosts.slice(-7).map((d) => {
-          const pct = (d.totalCost / maxCost) * 100;
-          const day = new Date(d.date).toLocaleDateString('en', { weekday: 'short' });
-          return (
-            <div key={d.date} className="fleet-cost-bar-wrap">
-              <span className="fleet-cost-bar-value">${d.totalCost.toFixed(2)}</span>
-              <div className="fleet-cost-bar" style={{ height: `${Math.max(pct, 3)}%` }} />
-              <span className="fleet-cost-bar-label">{day}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ── Main Component ──
 
 export default function FleetTab() {
@@ -664,11 +611,9 @@ export default function FleetTab() {
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [detailData, setDetailData] = useState<AgentDetail | null>(null);
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
-  const [providerHealth, setProviderHealth] = useState<ProviderHealth | null>(null);
   const [performance, setPerformance] = useState<AgentPerformanceReport | null>(null);
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
   const [dailyCosts, setDailyCosts] = useState<DailyCost[]>([]);
-  const [resourceMonitorOpen, setResourceMonitorOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [sortColumn, setSortColumn] = useState<SortColumn>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -697,7 +642,6 @@ export default function FleetTab() {
 
   // One-time fetches
   useEffect(() => {
-    hubApi.providers.health().then(setProviderHealth).catch(() => {});
     hubApi.agents.performance(7).then(setPerformance).catch(() => {});
   }, []);
 
@@ -772,8 +716,6 @@ export default function FleetTab() {
         costSummary={costSummary}
         dailyCosts={dailyCosts}
         schedulerStatus={schedulerStatus}
-        resourceMonitorOpen={resourceMonitorOpen}
-        onToggleResources={() => setResourceMonitorOpen((o) => !o)}
         onToggleScheduler={handleToggleScheduler}
         actionLoading={actionLoading}
       />
@@ -865,20 +807,6 @@ export default function FleetTab() {
         )}
       </div>
 
-      <div className="fleet-resources">
-        <div
-          className="fleet-resources-header"
-          onClick={() => setResourceMonitorOpen((o) => !o)}
-        >
-          <span className="fleet-resources-title">Resource Monitor</span>
-          <span className="fleet-resources-toggle">{resourceMonitorOpen ? '▲' : '▼'}</span>
-        </div>
-        <ResourceMonitor
-          open={resourceMonitorOpen}
-          providerHealth={providerHealth}
-          dailyCosts={dailyCosts}
-        />
-      </div>
     </div>
   );
 }

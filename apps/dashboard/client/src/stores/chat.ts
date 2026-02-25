@@ -178,7 +178,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const data = await chatFetch<{ messages: ConversationMessage[] }>(
         `/api/v1/admin/chat/conversations/${id}`,
       );
-      set({ messages: data.messages });
+      // Restore pending intent from the most recent assistant message that has one
+      const lastIntentMsg = [...data.messages]
+        .reverse()
+        .find(m => m.role === 'assistant' && m.intent != null);
+      set({
+        messages: data.messages,
+        pendingIntent: lastIntentMsg?.intent ?? null,
+      });
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to load messages' });
     }
