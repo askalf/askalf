@@ -554,4 +554,68 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
     if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/evolution/${request.params.experimentId}/promote`, { method: 'POST', body: request.body || {} });
   });
+
+  // Agent performance report (aggregated execution metrics)
+  fastify.get('/api/v1/admin/agents/performance', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const days = parseInt(request.query.days || '7', 10);
+    try {
+      const agents = await query(`
+        SELECT a.id, a.name,
+          COUNT(e.id)::int AS total_executions,
+          COUNT(CASE WHEN e.status = 'completed' THEN 1 END)::int AS completed,
+          COUNT(CASE WHEN e.status = 'failed' THEN 1 END)::int AS failed,
+          COUNT(CASE WHEN e.status = 'cancelled' THEN 1 END)::int AS cancelled,
+          COALESCE(ROUND(100.0 * COUNT(CASE WHEN e.status = 'completed' THEN 1 END) / NULLIF(COUNT(e.id), 0), 1), 0) AS success_rate,
+          COALESCE(ROUND(100.0 * COUNT(CASE WHEN e.status = 'failed' THEN 1 END) / NULLIF(COUNT(e.id), 0), 1), 0) AS failure_rate,
+          COALESCE(ROUND(AVG(e.duration_ms)), 0) AS avg_duration_ms,
+          COALESCE(SUM(e.cost), 0) AS total_cost
+        FROM forge_agents a
+        LEFT JOIN forge_executions e ON e.agent_id = a.id AND e.started_at > NOW() - INTERVAL '1 day' * $1
+        WHERE a.is_decommissioned = false
+        GROUP BY a.id, a.name
+        ORDER BY total_executions DESC
+      `, [days]);
+
+      const fleet = agents.reduce((acc, a) => ({
+        totalExecutions: acc.totalExecutions + (a.total_executions || 0),
+        successRate: 0,
+        failureRate: 0,
+        totalCost: acc.totalCost + parseFloat(a.total_cost || 0),
+      }), { totalExecutions: 0, successRate: 0, failureRate: 0, totalCost: 0 });
+
+      if (fleet.totalExecutions > 0) {
+        const totalCompleted = agents.reduce((s, a) => s + (a.completed || 0), 0);
+        const totalFailed = agents.reduce((s, a) => s + (a.failed || 0), 0);
+        fleet.successRate = Math.round(1000 * totalCompleted / fleet.totalExecutions) / 10;
+        fleet.failureRate = Math.round(1000 * totalFailed / fleet.totalExecutions) / 10;
+      }
+
+      return {
+        days,
+        fleet,
+        agents: agents.map(a => ({
+          agentId: a.id,
+          agentName: a.name,
+          totalExecutions: a.total_executions || 0,
+          completed: a.completed || 0,
+          failed: a.failed || 0,
+          cancelled: a.cancelled || 0,
+          successRate: parseFloat(a.success_rate) || 0,
+          failureRate: parseFloat(a.failure_rate) || 0,
+          avgDurationMs: parseInt(a.avg_duration_ms) || 0,
+          totalCost: parseFloat(a.total_cost) || 0,
+        })),
+      };
+    } catch (err) {
+      console.error('[Performance] Query failed:', err.message);
+      return reply.code(503).send({
+        error: 'Performance data unavailable',
+        days,
+        fleet: { totalExecutions: 0, successRate: 0, failureRate: 0, totalCost: 0 },
+        agents: [],
+      });
+    }
+  });
 }
