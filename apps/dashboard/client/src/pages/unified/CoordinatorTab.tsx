@@ -16,7 +16,7 @@ export default function CoordinatorTab() {
       <div className="coordinator-header">
         <div className="coordinator-title-row">
           <span className="coordinator-icon">&#x2B21;</span>
-          <h2 className="coordinator-title">Fleet Coordinator</h2>
+          <h2 className="coordinator-title">Orchestrator</h2>
         </div>
         <p className="coordinator-subtitle">Pipeline &middot; Fan-Out &middot; Consensus</p>
       </div>
