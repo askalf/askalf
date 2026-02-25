@@ -1977,3 +1977,263 @@
   outline: none;
   border-color: var(--crystal, #6366f1);
 }
+
+/* ===========================================
+   INTEGRATIONS TAB
+   =========================================== */
+
+.settings-integrations-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.settings-integration-card {
+  background: var(--deep, #0f0f1a);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.settings-integration-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+
+.settings-integration-icon {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.settings-integration-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.settings-integration-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-integration-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9375rem;
+}
+
+.settings-integration-username {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.settings-integration-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.settings-integration-status {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.settings-integration-status.status-active {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.settings-integration-status.status-expired {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.settings-integration-status.status-revoked {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.settings-integration-repos {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.settings-integration-actions {
+  display: flex;
+  gap: var(--space-xs);
+  margin-left: var(--space-md);
+}
+
+.settings-btn-sm {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.settings-btn-sm:hover:not(:disabled) {
+  background: var(--elevated);
+  color: var(--text);
+  border-color: var(--crystal-dim);
+}
+
+.settings-btn-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settings-btn-sm.settings-btn-danger {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.settings-btn-sm.settings-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+/* Repos list (expanded) */
+.settings-integration-repos-list {
+  border-top: 1px solid var(--border);
+  padding: var(--space-md) var(--space-lg);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.settings-integration-no-repos {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-style: italic;
+}
+
+.settings-integration-repo-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 4px 0;
+  font-size: 0.8125rem;
+}
+
+.settings-repo-name {
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8125rem;
+}
+
+.settings-repo-badge {
+  font-size: 0.6875rem;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.settings-repo-lang {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+/* Connect buttons */
+.settings-connect-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.settings-connect-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--deep, #0f0f1a);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.settings-connect-btn:hover {
+  background: var(--surface);
+  border-color: var(--crystal-dim);
+  transform: translateY(-1px);
+}
+
+.settings-connect-btn svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+/* Empty state */
+.settings-empty {
+  padding: var(--space-2xl);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+}
+
+/* Message dismiss button */
+.settings-message-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+  margin-left: auto;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+
+.settings-message-dismiss:hover {
+  opacity: 1;
+}
+
+.settings-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .settings-integration-header {
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+  }
+
+  .settings-integration-meta {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .settings-integration-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
