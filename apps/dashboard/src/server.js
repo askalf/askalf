@@ -1896,9 +1896,10 @@ fastify.patch('/api/v1/admin/users/:id/role', async (request, reply) => {
   const { id } = request.params;
   const { role } = request.body || {};
 
-  if (!role || !['user', 'admin'].includes(role)) {
+  const validRoles = admin.role === 'super_admin' ? ['user', 'admin', 'super_admin'] : ['user', 'admin'];
+  if (!role || !validRoles.includes(role)) {
     reply.status(400);
-    return { error: 'Invalid role' };
+    return { error: admin.role === 'super_admin' ? 'Invalid role' : 'Only super admins can assign elevated roles' };
   }
 
   await query(`UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2`, [role, id]);
@@ -1913,10 +1914,10 @@ fastify.patch('/api/v1/admin/users/:id', async (request, reply) => {
   const { id } = request.params;
   const { display_name, role, status, plan } = request.body || {};
 
-  // Prevent self-demotion from admin
-  if (id === admin.id && role && role !== 'admin') {
+  // Prevent self-demotion
+  if (id === admin.id && role && role !== admin.role) {
     reply.status(400);
-    return { error: 'Cannot demote yourself from admin' };
+    return { error: 'Cannot change your own role' };
   }
 
   // Update user fields
@@ -1930,7 +1931,8 @@ fastify.patch('/api/v1/admin/users/:id', async (request, reply) => {
       updates.push(`name = $${paramCount}`);
       values.push(display_name);
     }
-    if (role && ['user', 'admin'].includes(role)) {
+    const allowedRoles = admin.role === 'super_admin' ? ['user', 'admin', 'super_admin'] : ['user', 'admin'];
+    if (role && allowedRoles.includes(role)) {
       paramCount++;
       updates.push(`role = $${paramCount}`);
       values.push(role);

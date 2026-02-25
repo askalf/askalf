@@ -525,6 +525,25 @@
   border-right: none;
 }
 
+/* ---- Settings Icon Button ---- */
+
+.ud-topbar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.ud-topbar-icon-btn:hover {
+  color: var(--text);
+  background: var(--elevated);
+}
+
 /* ---- Account Menu ---- */
 
 .ud-account-menu {

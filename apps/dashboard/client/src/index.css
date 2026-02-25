@@ -74,6 +74,13 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
   --transition-slow: 0.5s ease;
+
+  /* Aliases — used by older component CSS */
+  --bg-primary: var(--void);
+  --bg-secondary: var(--deep);
+  --bg-tertiary: var(--surface);
+  --text-primary: var(--text);
+  --accent: var(--crystal);
 }
 
 /* Light Theme - Clean, professional */
@@ -106,6 +113,13 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
   --shadow-glow: 0 0 20px rgba(109, 40, 217, 0.2);
+
+  /* Aliases — used by older component CSS */
+  --bg-primary: var(--void);
+  --bg-secondary: var(--deep);
+  --bg-tertiary: var(--surface);
+  --text-primary: var(--text);
+  --accent: var(--crystal);
 }
 
 /* Font size adjustments */
