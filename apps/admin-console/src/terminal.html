@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>Admin Console — Terminal</title>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="stylesheet" href="https://unpkg.com/@xterm/xterm@5.5.0/css/xterm.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; background: #0a0a0a; overflow: hidden; touch-action: manipulation; }
+    #topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+      font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 12px;
+      color: #aaa;
+      height: 40px;
+      flex-shrink: 0;
+    }
+    #topbar .left { display: flex; align-items: center; gap: 10px; }
+    #topbar .right { display: flex; align-items: center; gap: 8px; }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #666;
+      transition: background 0.3s;
+    }
+    .status-dot.running { background: #22c55e; }
+    .status-dot.stopped { background: #ef4444; }
+    .status-dot.restarting { background: #f59e0b; }
+    .status-dot.failed { background: #ef4444; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .btn {
+      padding: 6px 12px;
+      background: #333;
+      border: 1px solid #555;
+      border-radius: 3px;
+      color: #ddd;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .btn:hover { background: #444; }
+    .btn.danger { border-color: #7f1d1d; color: #fca5a5; }
+    .btn.danger:hover { background: #2d1212; }
+    #terminal-container {
+      height: calc(100vh - 40px);
+      width: 100vw;
+    }
+    .xterm { height: 100%; }
+    #reconnect-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      font-family: 'SF Mono', monospace;
+      color: #aaa;
+      font-size: 14px;
+    }
+
+    /* Mobile: hide non-essential topbar info, bump font */
+    @media (max-width: 600px) {
+      #topbar { padding: 4px 8px; }
+      #pidText, #restartText { display: none; }
+      #terminal-container { height: calc(100vh - 40px); }
+    }
+    /* Adjust for mobile virtual keyboard via visualViewport */
+    #terminal-container.keyboard-open {
+      height: calc(var(--vvh, 100vh) - 40px);
+    }
+  </style>
+</head>
+<body>
+  <div id="topbar">
+    <div class="left">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">connecting...</span>
+      <span id="pidText"></span>
+      <span id="restartText"></span>
+    </div>
+    <div class="right">
+      <button class="btn" id="restartBtn" title="Restart Claude Code session">Restart</button>
+      <a class="btn danger" href="/logout">Sign Out</a>
+    </div>
+  </div>
+  <div id="terminal-container"></div>
+  <div id="reconnect-overlay">Reconnecting...</div>
+
+  <script src="https://unpkg.com/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+  <script src="https://unpkg.com/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+  <script src="https://unpkg.com/@xterm/addon-web-links@0.11.0/lib/addon-web-links.js"></script>
+  <script>
+    // Prevent iOS double-tap zoom on buttons
+    document.addEventListener('touchend', (e) => {
+      if (e.target.closest('.btn')) e.preventDefault();
+    }, { passive: false });
+  </script>
+  <script>
+    const isMobile = window.innerWidth <= 600 || ('ontouchstart' in window);
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: isMobile ? 12 : 14,
+      fontFamily: "'SF Mono', 'Cascadia Code', 'Fira Code', monospace",
+      theme: {
+        background: '#0a0a0a',
+        foreground: '#e0e0e0',
+        cursor: '#e0e0e0',
+        selectionBackground: 'rgba(255,255,255,0.2)',
+        black: '#1a1a1a',
+        red: '#ef4444',
+        green: '#22c55e',
+        yellow: '#f59e0b',
+        blue: '#3b82f6',
+        magenta: '#a855f7',
+        cyan: '#06b6d4',
+        white: '#e0e0e0',
+        brightBlack: '#666',
+        brightRed: '#fca5a5',
+        brightGreen: '#86efac',
+        brightYellow: '#fde68a',
+        brightBlue: '#93c5fd',
+        brightMagenta: '#d8b4fe',
+        brightCyan: '#67e8f9',
+        brightWhite: '#ffffff',
+      },
+      allowProposedApi: true,
+      scrollback: isMobile ? 1000 : 5000,
+    });
+
+    const fitAddon = new FitAddon.FitAddon();
+    const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+    term.loadAddon(fitAddon);
+    term.loadAddon(webLinksAddon);
+
+    const container = document.getElementById('terminal-container');
+    term.open(container);
+    fitAddon.fit();
+    term.focus();
+
+    // Re-focus terminal when clicking anywhere on the page
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#topbar')) term.focus();
+    });
+    // Re-focus on window/tab focus
+    window.addEventListener('focus', () => term.focus());
+
+    // UI elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const pidText = document.getElementById('pidText');
+    const restartText = document.getElementById('restartText');
+    const restartBtn = document.getElementById('restartBtn');
+    const overlay = document.getElementById('reconnect-overlay');
+
+    // Input queue for buffering keystrokes during reconnect
+    let inputQueue = [];
+
+    // WebSocket connection
+    let ws = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT = 20;
+    const BASE_DELAY = 1000;
+
+    function getWsUrl() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${location.host}/ws/terminal`;
+    }
+
+    function connect() {
+      if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
+
+      ws = new WebSocket(getWsUrl());
+
+      ws.onopen = () => {
+        reconnectAttempts = 0;
+        overlay.style.display = 'none';
+        // Send initial size
+        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+        // Flush any input queued during reconnect
+        if (inputQueue.length > 0) {
+          const queued = inputQueue.join('');
+          inputQueue = [];
+          ws.send(JSON.stringify({ type: 'input', data: queued }));
+        }
+        // Focus — immediate + delayed (overlay may block first attempt)
+        term.focus();
+        setTimeout(() => term.focus(), 100);
+        setTimeout(() => term.focus(), 500);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          switch (msg.type) {
+            case 'output':
+              term.write(msg.data);
+              break;
+            case 'history':
+              // Replay ring buffer — concat to avoid split escape sequences,
+              // then batch-write via rAF to avoid blocking the main thread
+              if (Array.isArray(msg.data) && msg.data.length > 0) {
+                term.clear();
+                term.reset();
+                const chunks = isMobile ? msg.data.slice(-300) : msg.data;
+                const combined = chunks.join('');
+                let hOffset = 0;
+                const BATCH = 8192;
+                (function writeHistoryChunk() {
+                  const slice = combined.substring(hOffset, hOffset + BATCH);
+                  if (slice) {
+                    term.write(slice);
+                    hOffset += BATCH;
+                    requestAnimationFrame(writeHistoryChunk);
+                  }
+                })();
+              }
+              break;
+            case 'status':
+              updateStatus(msg.data);
+              break;
+          }
+        } catch { /* ignore parse errors */ }
+      };
+
+      ws.onclose = (event) => {
+        if (event.code === 4401 || event.code === 4403) {
+          // Auth failure — redirect to login
+          window.location.href = '/login';
+          return;
+        }
+        scheduleReconnect();
+      };
+
+      ws.onerror = () => {
+        // onclose will fire after this
+      };
+    }
+
+    function scheduleReconnect() {
+      if (reconnectAttempts >= MAX_RECONNECT) {
+        overlay.style.display = 'flex';
+        overlay.textContent = 'Connection lost. Refresh the page to reconnect.';
+        return;
+      }
+      reconnectAttempts++;
+      overlay.style.display = 'flex';
+      overlay.textContent = `Reconnecting (${reconnectAttempts}/${MAX_RECONNECT})...`;
+      const delay = Math.min(BASE_DELAY * Math.pow(1.5, reconnectAttempts - 1), 30000);
+      setTimeout(connect, delay);
+    }
+
+    function updateStatus(data) {
+      statusDot.className = 'status-dot ' + (data.status || '');
+      statusText.textContent = data.status || 'unknown';
+      pidText.textContent = data.pid ? `PID: ${data.pid}` : '';
+      restartText.textContent = data.restartCount > 0 ? `restarts: ${data.restartCount}` : '';
+    }
+
+    // Terminal input → WebSocket (with queue for reconnection)
+    term.onData((data) => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data }));
+      } else if (inputQueue.length < 1000) {
+        inputQueue.push(data);
+      }
+    });
+
+    // Debounced resize handling — skip if dimensions unchanged
+    let resizeTimer = null;
+    let lastCols = 0, lastRows = 0;
+    function debouncedResize() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        fitAddon.fit();
+        if (term.cols !== lastCols || term.rows !== lastRows) {
+          lastCols = term.cols;
+          lastRows = term.rows;
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+          }
+        }
+      }, isMobile ? 300 : 150);
+    }
+    const resizeObserver = new ResizeObserver(debouncedResize);
+    resizeObserver.observe(container);
+
+    // Virtual keyboard handling via visualViewport API
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const vvh = window.visualViewport.height;
+        document.documentElement.style.setProperty('--vvh', vvh + 'px');
+        container.classList.toggle('keyboard-open', vvh < window.innerHeight * 0.8);
+        debouncedResize();
+      });
+    }
+
+    // Restart button
+    restartBtn.addEventListener('click', () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        if (confirm('Restart the Claude Code session?')) {
+          term.clear();
+          ws.send(JSON.stringify({ type: 'restart' }));
+        }
+        term.focus();
+      }
+    });
+
+    // Capture ALL keypresses and route to terminal (unless in topbar)
+    document.addEventListener('keydown', (e) => {
+      // Allow copy when text selected
+      if (e.ctrlKey && e.key === 'c' && window.getSelection().toString()) return;
+      // Don't steal from topbar buttons
+      if (e.target.closest('#topbar')) return;
+      // Ensure terminal has focus for all other keys
+      if (term.textarea && document.activeElement !== term.textarea) {
+        term.focus();
+      }
+    });
+
+    // Mobile: tap anywhere outside topbar → focus terminal
+    if (isMobile) {
+      document.addEventListener('touchstart', (e) => {
+        if (!e.target.closest('#topbar')) {
+          setTimeout(() => term.focus(), 50);
+        }
+      }, { passive: true });
+    }
+
+    // Start connection
+    connect();
+  </script>
+</body>
+</html>

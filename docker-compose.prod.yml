@@ -322,6 +322,66 @@ services:
           cpus: '0.5'
           memory: 512M
 
+  # Admin Console — Standalone Super-Admin Terminal (integration.tax)
+  # Independent from dashboard — survives dashboard crashes
+  # Full Docker control via mounted socket + docker CLI
+  admin-console:
+    build:
+      context: .
+      dockerfile: apps/admin-console/Dockerfile
+    container_name: sprayberry-labs-admin-console
+    expose:
+      - "3002"
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/orcastr8r
+      SESSION_SECRET: ${SESSION_SECRET}
+      ANTHROPIC_API_KEY: ''
+      WORKSPACE_DIR: /workspace
+      ADMIN_CONSOLE_TOKEN: ${ADMIN_CONSOLE_TOKEN}
+      DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - .:/workspace:rw
+      - ./.claude-credentials.json:/tmp/claude-credentials.json:rw
+      - admin-claude-home:/tmp/admin-claude-home
+    group_add:
+      - "0"
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - sprayberry-labs-net
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    stop_grace_period: 15s
+    security_opt:
+      - no-new-privileges:true
+    # NOTE: Cannot cap_drop ALL — needs docker socket access
+    tmpfs:
+      - /tmp:mode=1777,size=128m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "30m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
   # self: RETIRED — conversation-first AI service (archived to archive/apps/self/)
 
   # askalf: RETIRED — universal chat service (archived to archive/apps/askalf/)
@@ -706,6 +766,9 @@ volumes:
     name: sprayberry_labs_backups
   master-claude-home:
     name: master_claude_home
+    external: true
+  admin-claude-home:
+    name: admin_claude_home
     external: true
 
 networks:
