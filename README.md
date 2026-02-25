@@ -4,7 +4,6 @@
 
 - [askalf.org](https://askalf.org) — Dashboard
 - [amnesia.tax](https://amnesia.tax) — Search engine
-- [integration.tax](https://integration.tax) — Admin console
 
 ## Architecture
 
@@ -15,7 +14,6 @@ Internet -> Cloudflare (SSL, WAF) -> cloudflared tunnel -> nginx
 |  Forge (3005) - Agent orchestration      |
 |  Dashboard (3001) - React admin UI       |
 |  MCP-Tools (3010) - 24 MCP tools        |
-|  Admin Console (3002) - Claude terminal  |
 +------------------------------------------+
     |
 PostgreSQL 17 + pgvector  <-  pgbouncer
@@ -51,7 +49,6 @@ substrate/
 |   +-- forge/        # Agent orchestration engine (Fastify)
 |   +-- dashboard/    # React admin dashboard (Vite + Fastify)
 |   +-- mcp-tools/    # 24 MCP tools for agent capabilities
-|   +-- admin-console/ # Claude Code terminal (integration.tax)
 +-- packages/
 |   +-- core/         # Shared types, Zod validation, ulid
 |   +-- database/     # PostgreSQL client, migrations, repositories
