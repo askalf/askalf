@@ -536,13 +536,22 @@
 
 .coord-task-form-row {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-sm);
   align-items: center;
   margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
 }
 
 .coord-task-form-row .coord-form-input {
   flex: 1;
+  min-width: 0;
+}
+
+.coord-task-form-row .coord-form-input:nth-child(2) {
+  flex-basis: 100%;
 }
 
 .coord-remove-task {

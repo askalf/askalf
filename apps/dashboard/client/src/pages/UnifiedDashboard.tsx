@@ -188,7 +188,7 @@ export default function UnifiedDashboard() {
         ticketCount={ticketCount}
         todayCost={todayCost}
       />
-      <div className={`ud-body ${activeTab === 'chat' || activeTab === 'templates' || activeTab === 'fleet' || activeTab === 'orchestrator' ? 'ud-body-full' : ''}`}>
+      <div className={`ud-body ${activeTab === 'chat' || activeTab === 'templates' || activeTab === 'builder' || activeTab === 'fleet' || activeTab === 'orchestrator' ? 'ud-body-full' : ''}`}>
         <div className="ud-main">
           <div className="ud-tab-bar">
             {TAB_GROUPS.map((group, gi) => (
@@ -211,7 +211,7 @@ export default function UnifiedDashboard() {
             {tabContent()}
           </div>
         </div>
-        {activeTab !== 'chat' && activeTab !== 'templates' && activeTab !== 'fleet' && activeTab !== 'orchestrator' && (
+        {activeTab !== 'chat' && activeTab !== 'templates' && activeTab !== 'builder' && activeTab !== 'fleet' && activeTab !== 'orchestrator' && (
           <aside className="ud-sidebar">
             <AgentFleetCompact forgeEvents={events} onViewFleet={() => setActiveTab('fleet')} />
             <LiveActivityFeed events={events} />

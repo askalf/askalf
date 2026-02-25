@@ -127,7 +127,7 @@ function SubtaskList({
           <div className="chat-intent-subtask-connector">
             {pattern === 'pipeline'
               ? <span className="chat-intent-subtask-arrow">{i > 0 ? '\u2193' : '\u25CF'}</span>
-              : <span className="chat-intent-subtask-parallel">\u2502</span>}
+              : <span className="chat-intent-subtask-parallel">{'\u2502'}</span>}
           </div>
           <div className="chat-intent-subtask-content">
             <div className="chat-intent-subtask-title">
