@@ -136,27 +136,37 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
           `- ${t.name} (${t.category}): ${t.description} [tools: ${t.required_tools.join(', ')}]`
         ).join('\n');
 
-        const response = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
-          system: INTENT_SYSTEM_PROMPT,
-          messages: [{
-            role: 'user',
-            content: `Available templates:\n${templateContext}\n\nUser request: "${message}"`,
-          }],
-        });
+        const userContent = `Available templates:\n${templateContext}\n\nUser request: "${message}"`;
 
-        const responseText = response.content
-          .filter((block) => block.type === 'text')
-          .map(block => (block as { type: 'text'; text: string }).text)
-          .join('');
+        // Try up to 2 times (initial + 1 retry)
+        let responseText = '';
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const response = await client.messages.create({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 1024,
+              system: INTENT_SYSTEM_PROMPT,
+              messages: [{ role: 'user', content: userContent }],
+            });
+
+            responseText = response.content
+              .filter((block) => block.type === 'text')
+              .map(block => (block as { type: 'text'; text: string }).text)
+              .join('');
+            break; // success
+          } catch (apiErr) {
+            if (attempt === 1) throw apiErr; // re-throw on final attempt
+            // Wait 1s before retry
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
 
         // Parse the JSON response
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
           return reply.status(500).send({
             error: 'Parse Error',
-            message: 'Failed to parse intent from AI response',
+            message: 'Failed to parse intent from AI response — model returned non-JSON output',
           });
         }
 
