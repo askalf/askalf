@@ -135,7 +135,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const data = await chatFetch<{ conversations: Conversation[] }>(
         '/api/v1/admin/chat/conversations',
       );
+      const { activeConversationId } = get();
       set({ conversations: data.conversations });
+      // Auto-select the most recent conversation if none is active
+      if (!activeConversationId && data.conversations.length > 0) {
+        void get().selectConversation(data.conversations[0]!.id);
+      }
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to fetch conversations' });
     }
@@ -247,7 +252,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Persist the intent response as an assistant message immediately
       const modeLabel = intent.executionMode !== 'single' ? ` | Mode: ${intent.executionMode}` : '';
       const agentCount = intent.subtasks?.length ? ` | ${intent.subtasks.length} agents` : '';
-      const summary = `**${intent.agentConfig.name}** (${intent.category})\n${intent.summary}\n\nModel: ${intent.agentConfig.model} | Tools: ${intent.agentConfig.tools.join(', ')} | Est. cost: $${intent.estimatedCost.toFixed(2)}${modeLabel}${agentCount}`;
+      const summary = `**${intent.agentConfig.name}** (${intent.category})\n${intent.summary}\n\nModel: ${intent.agentConfig.model} | Tools: ${intent.agentConfig.tools.join(', ')} | Budget cap: $${intent.agentConfig.maxCostPerExecution.toFixed(2)}${modeLabel}${agentCount}`;
       await get().addAssistantMessage(summary, undefined, intent);
 
       set({ pendingIntent: intent, isProcessing: false });

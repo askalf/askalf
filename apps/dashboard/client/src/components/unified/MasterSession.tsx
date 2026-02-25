@@ -107,6 +107,7 @@ export default function MasterSession() {
     };
     onHistory.current = (history: string[]) => {
       if (terminalRef.current) {
+        terminalRef.current.clear();
         for (const chunk of history) {
           terminalRef.current.write(chunk);
         }
