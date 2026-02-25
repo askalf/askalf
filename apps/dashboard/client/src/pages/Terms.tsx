@@ -6,7 +6,7 @@ export default function Terms() {
     <div className="landing-page legal-page">
       <nav className="landing-nav" aria-label="Main navigation">
         <Link to="/" className="landing-nav-logo">
-          <span className="landing-nav-logo-text">orcastr8r</span>
+          <span className="landing-nav-logo-text">askalf</span>
         </Link>
         <div className="landing-nav-links">
           <Link to="/login" className="landing-nav-signin">Sign In</Link>
@@ -21,13 +21,13 @@ export default function Terms() {
         <div className="legal-body">
           <h2>1. Acceptance of Terms</h2>
           <p>
-            By accessing or using Orcastr8r ("the Service"), you agree to be bound by these
+            By accessing or using AskAlf ("the Service"), you agree to be bound by these
             Terms of Service. If you do not agree, do not use the Service.
           </p>
 
           <h2>2. Service Description</h2>
           <p>
-            Orcastr8r is an AI agent orchestration platform currently in beta. Features,
+            AskAlf is an AI agent orchestration platform currently in beta. Features,
             availability, and pricing are subject to change as the platform evolves.
           </p>
 
@@ -77,7 +77,7 @@ export default function Terms() {
 
           <h2>9. Limitation of Liability</h2>
           <p>
-            To the maximum extent permitted by law, Orcastr8r shall not be liable for any
+            To the maximum extent permitted by law, AskAlf shall not be liable for any
             indirect, incidental, special, consequential, or punitive damages, including loss
             of data or profits, arising from your use of the Service.
           </p>
@@ -91,7 +91,7 @@ export default function Terms() {
           <h2>11. Contact</h2>
           <p>
             For questions about these terms, contact us at{' '}
-            <a href="mailto:support@orcastr8r.com">support@orcastr8r.com</a>.
+            <a href="mailto:support@askalf.org">support@askalf.org</a>.
           </p>
         </div>
       </section>
@@ -100,7 +100,7 @@ export default function Terms() {
         <div className="landing-footer-inner">
           <div className="landing-footer-left">
             <span className="landing-footer-copy">
-              {'\u00A9'} {new Date().getFullYear()} Orcastr8r. All rights reserved.
+              {'\u00A9'} {new Date().getFullYear()} AskAlf. All rights reserved.
             </span>
           </div>
           <div className="landing-footer-links">

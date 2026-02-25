@@ -34,8 +34,38 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@20.19.27)
 
+  apps/admin-console:
+    dependencies:
+      '@fastify/cookie':
+        specifier: ^11.0.1
+        version: 11.0.2
+      '@fastify/websocket':
+        specifier: ^11.2.0
+        version: 11.2.0
+      fastify:
+        specifier: ^5.2.1
+        version: 5.7.4
+      node-pty:
+        specifier: ^1.0.0
+        version: 1.1.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.16.3
+
   apps/dashboard:
     dependencies:
+      '@askalf/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@askalf/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@askalf/email':
+        specifier: workspace:*
+        version: link:../../packages/email
+      '@askalf/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@fastify/cookie':
         specifier: ^11.0.1
         version: 11.0.2
@@ -48,18 +78,6 @@ importers:
       '@fastify/websocket':
         specifier: ^11.2.0
         version: 11.2.0
-      '@substrate/auth':
-        specifier: workspace:*
-        version: link:../../packages/auth
-      '@substrate/database':
-        specifier: workspace:*
-        version: link:../../packages/database
-      '@substrate/email':
-        specifier: workspace:*
-        version: link:../../packages/email
-      '@substrate/observability':
-        specifier: workspace:*
-        version: link:../../packages/observability
       fastify:
         specifier: ^5.2.1
         version: 5.6.2
@@ -75,6 +93,12 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.74.0
         version: 0.74.0(zod@3.25.76)
+      '@askalf/email':
+        specifier: workspace:*
+        version: link:../../packages/email
+      '@askalf/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@fastify/cookie':
         specifier: ^11.0.2
         version: 11.0.2
@@ -96,12 +120,6 @@ importers:
       '@sinclair/typebox':
         specifier: ^0.34.0
         version: 0.34.48
-      '@substrate/email':
-        specifier: workspace:*
-        version: link:../../packages/email
-      '@substrate/observability':
-        specifier: workspace:*
-        version: link:../../packages/observability
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
@@ -145,15 +163,15 @@ importers:
 
   apps/mcp-tools:
     dependencies:
+      '@askalf/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@askalf/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@modelcontextprotocol/sdk':
         specifier: ^1.25.2
         version: 1.25.2(hono@4.11.3)(zod@3.25.76)
-      '@substrate/db':
-        specifier: workspace:*
-        version: link:../../packages/db
-      '@substrate/observability':
-        specifier: workspace:*
-        version: link:../../packages/observability
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -182,10 +200,10 @@ importers:
 
   packages/auth:
     dependencies:
-      '@substrate/core':
+      '@askalf/core':
         specifier: workspace:*
         version: link:../core
-      '@substrate/database':
+      '@askalf/database':
         specifier: workspace:*
         version: link:../database
       bcrypt:
@@ -213,7 +231,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@substrate/sdk':
+      '@askalf/sdk':
         specifier: workspace:*
         version: link:../sdk
       commander:
@@ -245,7 +263,7 @@ importers:
 
   packages/database:
     dependencies:
-      '@substrate/core':
+      '@askalf/core':
         specifier: workspace:*
         version: link:../core
       pg:
@@ -283,10 +301,10 @@ importers:
 
   packages/email:
     dependencies:
-      '@substrate/core':
+      '@askalf/core':
         specifier: workspace:*
         version: link:../core
-      '@substrate/observability':
+      '@askalf/observability':
         specifier: workspace:*
         version: link:../observability
       nodemailer:

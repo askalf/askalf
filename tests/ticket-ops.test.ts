@@ -1,7 +1,7 @@
 /**
  * Integration tests for ticket_ops MCP tool (workflow.ts handleTicketOps)
  * Tests: create, get, list, update, assign, add_note, audit_history
- * Runs against live substrate postgres via @substrate/db.
+ * Runs against live substrate postgres via @askalf/db.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 

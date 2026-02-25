@@ -7,7 +7,7 @@ const getApiUrl = () => {
     return import.meta.env.VITE_API_URL as string;
   }
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
+  if (host.includes('askalf.org') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
   if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3001';
   return ''; // Fallback to relative URLs
 };

@@ -362,7 +362,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'Invalid service name' });
       }
 
-      const container = `sprayberry-labs-${service}`;
+      const container = `askalf-${service}`;
 
       try {
         const data = await new Promise<string>((resolve, reject) => {
@@ -429,7 +429,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       const results: Array<{ service: string; status: string; error?: string }> = [];
 
       for (const service of services) {
-        const container = `sprayberry-labs-${service}`;
+        const container = `askalf-${service}`;
         try {
           await new Promise<void>((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error('Timeout')), 60_000);
@@ -496,7 +496,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
         for (const service of ordered) {
           try {
-            const res = await dockerApi('POST', `/v1.44/containers/sprayberry-labs-${service}/restart?t=10`);
+            const res = await dockerApi('POST', `/v1.44/containers/askalf-${service}/restart?t=10`);
             if (res.statusCode === 204 || res.statusCode === 200) {
               results.push({ service, status: 'restarted' });
             } else {
@@ -512,7 +512,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       // For rebuild: use ephemeral builder container
       try {
         // 1. Get host workspace path by inspecting our own container
-        const inspectRes = await dockerApi('GET', '/v1.44/containers/sprayberry-labs-forge/json');
+        const inspectRes = await dockerApi('GET', '/v1.44/containers/askalf-forge/json');
         if (inspectRes.statusCode !== 200) {
           return reply.status(500).send({ error: 'Failed to inspect forge container' });
         }

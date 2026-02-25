@@ -52,12 +52,12 @@ if [ "$USE_DOCKER" = true ]; then
   log "Running migrations via Docker..."
 
   # Check if container is running
-  if ! docker ps --format '{{.Names}}' | grep -q "sprayberry-labs-api"; then
-    error "sprayberry-labs-api container is not running"
+  if ! docker ps --format '{{.Names}}' | grep -q "askalf-api"; then
+    error "askalf-api container is not running"
   fi
 
   # Run migrations inside the API container (it has the built migrate.js)
-  docker exec -it sprayberry-labs-api node -e "
+  docker exec -it askalf-api node -e "
     const { migrate } = require('postgres-migrations');
     const { Client } = require('pg');
     const path = require('path');
@@ -66,7 +66,7 @@ if [ "$USE_DOCKER" = true ]; then
       const client = new Client({ connectionString: process.env.DATABASE_URL });
       await client.connect();
 
-      const migrationsDir = '/app/node_modules/@substrate/database/dist/migrations';
+      const migrationsDir = '/app/node_modules/@askalf/database/dist/migrations';
       console.log('Running migrations from:', migrationsDir);
 
       try {
@@ -101,9 +101,9 @@ else
 
   # Build database package if needed
   if [ ! -f "$PROJECT_DIR/packages/database/dist/migrate.js" ]; then
-    log "Building @substrate/database package..."
+    log "Building @askalf/database package..."
     cd "$PROJECT_DIR"
-    pnpm --filter @substrate/database build
+    pnpm --filter @askalf/database build
   fi
 
   cd "$PROJECT_DIR/packages/database"

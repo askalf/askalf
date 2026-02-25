@@ -8,7 +8,7 @@ import {
   getSubstratePool,
   getRedis,
   generateId,
-} from '@substrate/db';
+} from '@askalf/db';
 import OpenAI from 'openai';
 
 const MAX_ROWS = 100;

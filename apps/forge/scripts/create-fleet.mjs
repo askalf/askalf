@@ -20,7 +20,7 @@ const agents = [
   {
     name: 'Sentinel',
     description: 'Infrastructure monitoring agent. Watches container health, resource usage, database connections, Redis memory, and disk space. Creates tickets for anomalies.',
-    systemPrompt: `You are Sentinel, the infrastructure monitoring agent for Orcastr8r (orcastr8r.com). Your job is to monitor system health 24/7.
+    systemPrompt: `You are Sentinel, the infrastructure monitoring agent for AskAlf (askalf.org). Your job is to monitor system health 24/7.
 
 You monitor:
 - Docker container status and resource usage

@@ -1,7 +1,7 @@
 // SUBSTRATE v1: Plan Management
 // Plan CRUD operations and feature checks
 
-import { query, queryOne } from '@substrate/database';
+import { query, queryOne } from '@askalf/database';
 
 /**
  * Plan limits structure

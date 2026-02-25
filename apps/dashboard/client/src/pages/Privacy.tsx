@@ -6,7 +6,7 @@ export default function Privacy() {
     <div className="landing-page legal-page">
       <nav className="landing-nav" aria-label="Main navigation">
         <Link to="/" className="landing-nav-logo">
-          <span className="landing-nav-logo-text">orcastr8r</span>
+          <span className="landing-nav-logo-text">askalf</span>
         </Link>
         <div className="landing-nav-links">
           <Link to="/login" className="landing-nav-signin">Sign In</Link>
@@ -74,7 +74,7 @@ export default function Privacy() {
           <h2>9. Contact</h2>
           <p>
             For questions about this privacy policy, contact us at{' '}
-            <a href="mailto:support@orcastr8r.com">support@orcastr8r.com</a>.
+            <a href="mailto:support@askalf.org">support@askalf.org</a>.
           </p>
         </div>
       </section>
@@ -83,7 +83,7 @@ export default function Privacy() {
         <div className="landing-footer-inner">
           <div className="landing-footer-left">
             <span className="landing-footer-copy">
-              {'\u00A9'} {new Date().getFullYear()} Orcastr8r. All rights reserved.
+              {'\u00A9'} {new Date().getFullYear()} AskAlf. All rights reserved.
             </span>
           </div>
           <div className="landing-footer-links">

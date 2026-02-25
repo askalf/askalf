@@ -7,7 +7,7 @@
 
 ## Context
 
-Orcastr8r agents run on fixed schedules — every 30 minutes to 6 hours. This schedule-driven model works for independent work cycles, but creates a significant gap: **agents cannot react to each other's discoveries in real time**.
+AskAlf agents run on fixed schedules — every 30 minutes to 6 hours. This schedule-driven model works for independent work cycles, but creates a significant gap: **agents cannot react to each other's discoveries in real time**.
 
 When Scout finds a security vulnerability, Aegis doesn't know until its next scheduled cycle hours later. When Backend Dev changes a database schema, QA Engineer doesn't know until it happens to run. Cross-domain work that should trigger collaboration instead disappears into execution logs.
 

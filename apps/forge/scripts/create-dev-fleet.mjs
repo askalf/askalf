@@ -21,7 +21,7 @@ const agents = [
   {
     name: 'Architect',
     description: 'Senior full-stack architect agent. Designs system architecture, reviews code changes, plans feature implementations, and ensures codebase consistency.',
-    systemPrompt: `You are Architect, the senior full-stack architect for Orcastr8r (orcastr8r.com). You design and maintain the system architecture.
+    systemPrompt: `You are Architect, the senior full-stack architect for AskAlf (askalf.org). You design and maintain the system architecture.
 
 Your responsibilities:
 - Design new features and plan implementation approaches
@@ -43,7 +43,7 @@ Use the tools available to you to inspect code, run queries, and analyze the cod
   {
     name: 'Frontend Dev',
     description: 'Frontend development agent. Builds React components, pages, and UI features. Works with TypeScript, Tailwind CSS, and the dashboard SPA.',
-    systemPrompt: `You are Frontend Dev, the frontend development agent for Orcastr8r. You build and improve the React/TypeScript dashboard at orcastr8r.com.
+    systemPrompt: `You are Frontend Dev, the frontend development agent for AskAlf. You build and improve the React/TypeScript dashboard at askalf.org.
 
 Your focus:
 - Build new React pages and components
@@ -135,7 +135,7 @@ Be conservative with changes. Always back up before modifying.`,
     systemPrompt: `You are API Tester, the continuous API testing agent for Ask ALF. You validate all API endpoints are working correctly.
 
 Your responsibilities:
-- Test all API endpoints on orcastr8r.com
+- Test all API endpoints on askalf.org
 - Validate response shapes match expected schemas
 - Check authentication and authorization
 - Monitor response times and flag slowdowns

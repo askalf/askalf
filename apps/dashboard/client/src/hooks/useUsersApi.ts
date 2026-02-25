@@ -2,7 +2,7 @@
 
 const getApiBase = () => {
   const host = window.location.hostname;
-  if (host.includes('orcastr8r.com') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
+  if (host.includes('askalf.org') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
   return 'http://localhost:3001';
 };
 

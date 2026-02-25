@@ -2,7 +2,7 @@
 // API key creation, validation, and revocation
 
 import { ulid } from 'ulid';
-import { query, queryOne } from '@substrate/database';
+import { query, queryOne } from '@askalf/database';
 import { generateApiKey, hashTokenPbkdf2, verifyTokenHash } from './password.js';
 import type { ApiKey, SafeApiKey, ApiKeyScope } from './types.js';
 

@@ -1,7 +1,7 @@
 {
-  "name": "@substrate/dashboard",
+  "name": "@askalf/dashboard",
   "version": "1.0.0",
-  "description": "SUBSTRATE user dashboard and monitoring",
+  "description": "AskAlf dashboard and monitoring",
   "type": "module",
   "scripts": {
     "dev": "node src/server.js",
@@ -12,12 +12,12 @@
     "@fastify/cors": "^10.0.2",
     "@fastify/static": "^8.0.4",
     "@fastify/websocket": "^11.2.0",
-    "@substrate/auth": "workspace:*",
-    "@substrate/database": "workspace:*",
-    "@substrate/email": "workspace:*",
+    "@askalf/auth": "workspace:*",
+    "@askalf/database": "workspace:*",
+    "@askalf/email": "workspace:*",
     "fastify": "^5.2.1",
     "ioredis": "^5.4.2",
     "node-pty": "^1.0.0",
-    "@substrate/observability": "workspace:*"
+    "@askalf/observability": "workspace:*"
   }
 }

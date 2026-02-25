@@ -149,8 +149,8 @@ async function processInterventions(): Promise<void> {
         const adminEmail = process.env['ADMIN_EMAIL'];
         if (adminEmail) {
           try {
-            const { sendInterventionAlert } = await import('@substrate/email');
-            const baseUrl = process.env['DASHBOARD_URL'] ?? 'https://orcastr8r.com';
+            const { sendInterventionAlert } = await import('@askalf/email');
+            const baseUrl = process.env['DASHBOARD_URL'] ?? 'https://askalf.org';
             await sendInterventionAlert(adminEmail, {
               agentName: intervention['agent_name'] as string,
               interventionType: (intervention['type'] as string) ?? 'approval',

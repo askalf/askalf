@@ -1,7 +1,7 @@
 // SUBSTRATE v1: Email Service
 // Main email service with provider abstraction and templates
 
-import { getLogger } from '@substrate/observability';
+import { getLogger } from '@askalf/observability';
 import {
   createProvider,
   ConsoleProvider,

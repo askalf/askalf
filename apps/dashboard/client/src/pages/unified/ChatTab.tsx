@@ -406,7 +406,7 @@ export default function ChatTab() {
         <div className="chat-messages">
           {messages.length === 0 && (
             <div className="chat-welcome">
-              <h2>Welcome to Orcastr8r</h2>
+              <h2>Welcome to AskAlf</h2>
               <p>Tell me what you need done in plain English. I'll create and configure an agent for you.</p>
               <div className="chat-suggestions">
                 <button onClick={() => handleSend('Research my top competitors')}>

@@ -1,9 +1,9 @@
 /**
- * Orcastr8r TypeScript SDK
+ * AskAlf TypeScript SDK
  * Programmatic access to agents, executions, templates, and fleet
  */
 
-export interface OrcastrConfig {
+export interface AskAlfConfig {
   apiKey: string;
   baseUrl?: string;
   timeout?: number;
@@ -61,14 +61,14 @@ export interface RunAgentOptions {
   metadata?: Record<string, unknown>;
 }
 
-export class Orcastr8r {
+export class AskAlf {
   private apiKey: string;
   private baseUrl: string;
   private timeout: number;
 
-  constructor(config: OrcastrConfig) {
+  constructor(config: AskAlfConfig) {
     this.apiKey = config.apiKey;
-    this.baseUrl = (config.baseUrl ?? 'https://orcastr8r.com').replace(/\/$/, '');
+    this.baseUrl = (config.baseUrl ?? 'https://askalf.org').replace(/\/$/, '');
     this.timeout = config.timeout ?? 30000;
   }
 
@@ -86,7 +86,7 @@ export class Orcastr8r {
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new Error(`Orcastr8r API error ${res.status}: ${text}`);
+      throw new Error(`AskAlf API error ${res.status}: ${text}`);
     }
 
     return res.json() as Promise<T>;
@@ -189,4 +189,4 @@ export class Orcastr8r {
   };
 }
 
-export default Orcastr8r;
+export default AskAlf;

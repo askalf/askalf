@@ -8,12 +8,12 @@ import {
   httpRequestsTotal,
   httpRequestDuration,
   httpRequestsInFlight,
-} from '@substrate/observability';
+} from '@askalf/observability';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import crypto from 'crypto';
-import { initializePool, query, queryOne } from '@substrate/database';
-import { initializeEmailFromEnv, sendWaitlistEmail, sendAdminNotification } from '@substrate/email';
+import { initializePool, query, queryOne } from '@askalf/database';
+import { initializeEmailFromEnv, sendWaitlistEmail, sendAdminNotification } from '@askalf/email';
 import {
   validateSession,
   getUserById,
@@ -25,7 +25,7 @@ import {
   getUsageSummary,
   changePassword,
   createUser,
-} from '@substrate/auth';
+} from '@askalf/auth';
 import { getMasterSession } from './master-session.js';
 import { createEventBridge } from './event-bridge.js';
 
@@ -33,7 +33,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Initialize database
-const databaseUrl = process.env['DATABASE_URL'] ?? 'postgresql://substrate:substrate_dev@localhost:5432/orcastr8r';
+const databaseUrl = process.env['DATABASE_URL'] ?? 'postgresql://substrate:substrate_dev@localhost:5432/askalf';
 initializePool({ connectionString: databaseUrl });
 initializeEmailFromEnv();
 
@@ -133,8 +133,8 @@ function getTenantId(request) {
 
 // CORS configuration - restrict to known origins
 const ALLOWED_ORIGINS = [
-  'https://orcastr8r.com',
-  'https://www.orcastr8r.com',
+  'https://askalf.org',
+  'https://www.askalf.org',
   // Development origins
   ...(process.env['NODE_ENV'] !== 'production' ? [
     'http://localhost:3001',
@@ -2103,8 +2103,8 @@ fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
   }
 
   // Sanitize source
-  const VALID_SOURCES = ['orcastr8r', 'amnesia'];
-  const trimmedSource = VALID_SOURCES.includes(String(source || '').trim()) ? String(source).trim() : 'orcastr8r';
+  const VALID_SOURCES = ['askalf', 'amnesia'];
+  const trimmedSource = VALID_SOURCES.includes(String(source || '').trim()) ? String(source).trim() : 'askalf';
 
   try {
     await queryOne(
@@ -2118,7 +2118,7 @@ fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
     sendWaitlistEmail(trimmedEmail, { name: trimmedName, email: trimmedEmail }, trimmedSource).catch(err =>
       console.error('[Waitlist] Email send failed:', err)
     );
-    sendAdminNotification(process.env['ADMIN_EMAIL'] || 'support@orcastr8r.com', {
+    sendAdminNotification(process.env['ADMIN_EMAIL'] || 'support@askalf.org', {
       type: 'waitlist_signup',
       email: trimmedEmail,
       source: trimmedSource,

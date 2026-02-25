@@ -11,7 +11,7 @@ import {
   getSubstratePool,
   getForgePool,
   generateId,
-} from '@substrate/db';
+} from '@askalf/db';
 
 const REPO_ROOT = process.env['REPO_ROOT'] ?? '/workspace';
 
@@ -170,10 +170,10 @@ export const TOOLS = [
 // ============================================
 
 const PROTECTED_CONTAINERS = [
-  'sprayberry-labs-dashboard', 'sprayberry-labs-forge',
-  'sprayberry-labs-nginx', 'sprayberry-labs-postgres', 'sprayberry-labs-redis',
-  'sprayberry-labs-pgbouncer', 'sprayberry-labs-cloudflared', 'sprayberry-labs-self',
-  'sprayberry-labs-mcp-tools', 'sprayberry-labs-searxng',
+  'askalf-dashboard', 'askalf-forge',
+  'askalf-nginx', 'askalf-postgres', 'askalf-redis',
+  'askalf-pgbouncer', 'askalf-cloudflared', 'askalf-self',
+  'askalf-mcp-tools', 'askalf-searxng',
 ];
 
 async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
@@ -273,17 +273,17 @@ async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
 // ============================================
 
 const SERVICE_MAP: Record<string, string> = {
-  dashboard: 'sprayberry-labs-dashboard', forge: 'sprayberry-labs-forge',
-  nginx: 'sprayberry-labs-nginx', self: 'sprayberry-labs-self',
-  'mcp-tools': 'sprayberry-labs-mcp-tools', searxng: 'sprayberry-labs-searxng',
+  dashboard: 'askalf-dashboard', forge: 'askalf-forge',
+  nginx: 'askalf-nginx', self: 'askalf-self',
+  'mcp-tools': 'askalf-mcp-tools', searxng: 'askalf-searxng',
 };
 const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
 
 const HEALTH_ENDPOINTS: Record<string, string> = {
-  forge: 'http://sprayberry-labs-forge:3005/health',
-  dashboard: 'http://sprayberry-labs-dashboard:3001/health',
-  'mcp-tools': 'http://sprayberry-labs-mcp-tools:3010/health',
-  nginx: 'http://sprayberry-labs-nginx:80/nginx-health',
+  forge: 'http://askalf-forge:3005/health',
+  dashboard: 'http://askalf-dashboard:3001/health',
+  'mcp-tools': 'http://askalf-mcp-tools:3010/health',
+  nginx: 'http://askalf-nginx:80/nginx-health',
 };
 
 const POST_DEPLOY_WAIT_MS = 10_000;
@@ -408,7 +408,7 @@ async function handleDeployOps(args: Record<string, unknown>): Promise<string> {
       const res = await dockerRequest('GET', '/v1.44/containers/json?all=true');
       const containers = JSON.parse(res.data) as Array<Record<string, unknown>>;
       const prod = containers
-        .filter((c) => ((c['Names'] as string[]) ?? [])[0]?.includes('sprayberry-labs-'))
+        .filter((c) => ((c['Names'] as string[]) ?? [])[0]?.includes('askalf-'))
         .map((c) => ({
           name: ((c['Names'] as string[]) ?? [])[0]?.replace(/^\//, ''),
           state: c['State'], status: c['Status'],
@@ -616,7 +616,7 @@ async function handleSecurityScan(args: Record<string, unknown>): Promise<string
     case 'docker_security': {
       const res = await dockerRequest('GET', '/v1.44/containers/json?all=true');
       const containers = JSON.parse(res.data) as Array<Record<string, unknown>>;
-      const prodContainers = containers.filter((c) => ((c['Names'] as string[]) ?? [])[0]?.includes('sprayberry-labs-'));
+      const prodContainers = containers.filter((c) => ((c['Names'] as string[]) ?? [])[0]?.includes('askalf-'));
       const report: Array<Record<string, unknown>> = [];
       for (const container of prodContainers) {
         const name = ((container['Names'] as string[]) ?? [])[0]?.replace(/^\//, '') ?? '';
