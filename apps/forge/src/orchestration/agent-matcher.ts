@@ -45,13 +45,14 @@ export interface MatchResult {
 export async function matchAgentsToTasks(
   tasks: DecomposedTask[],
 ): Promise<MatchResult[]> {
-  // Fetch all active agents
+  // Fetch all active user-facing agents (exclude internal admin agents)
   const agents = await query<AgentCandidate>(
     `SELECT id, name, type, description, system_prompt, status,
             autonomy_level, tasks_completed, tasks_failed
      FROM forge_agents
      WHERE status != 'error'
        AND (is_decommissioned IS NULL OR is_decommissioned = false)
+       AND (is_internal IS NULL OR is_internal = false)
      ORDER BY tasks_completed DESC`,
   );
 
@@ -209,12 +210,13 @@ function scoreAgents(
  */
 export function isTypeCompatible(agentType: string, suggestedType: string): boolean {
   const compatMap: Record<string, string[]> = {
-    dev: ['custom', 'research'],
+    dev: ['custom', 'research', 'security'],
     research: ['custom', 'dev', 'content'],
+    security: ['custom', 'dev', 'monitor'],
     support: ['custom', 'content'],
     content: ['custom', 'research', 'support'],
-    monitor: ['custom', 'dev'],
-    custom: ['dev', 'research', 'support', 'content', 'monitor'],
+    monitor: ['custom', 'dev', 'security'],
+    custom: ['dev', 'research', 'support', 'content', 'monitor', 'security'],
   };
   return compatMap[agentType]?.includes(suggestedType) ?? false;
 }
