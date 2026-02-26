@@ -19,9 +19,22 @@
   justify-content: space-between;
   padding: 0 16px;
   height: 40px;
-  background: rgba(255, 255, 255, 0.03);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
+  position: relative;
+}
+
+/* Top bar bottom-edge glow */
+.ud-topbar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 5%, rgba(139,92,246,0.12) 30%, rgba(59,130,246,0.08) 70%, transparent 95%);
+  pointer-events: none;
 }
 
 .ud-topbar-left {
@@ -184,8 +197,22 @@
 }
 
 .ud-tab.active {
-  color: #a78bfa;
-  border-bottom-color: #a78bfa;
+  color: #c4b5fd;
+  border-bottom-color: #8b5cf6;
+  text-shadow: 0 0 16px rgba(139,92,246,0.35);
+  position: relative;
+}
+
+/* Active tab underglow */
+.ud-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 20%;
+  right: 20%;
+  height: 6px;
+  background: radial-gradient(ellipse at center, rgba(139,92,246,0.25), transparent);
+  pointer-events: none;
 }
 
 .ud-tab-content {
@@ -216,8 +243,14 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: #71717a;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.ud-sidebar-panel-header:hover {
+  color: #a1a1aa;
 }
 
 .ud-sidebar-count {

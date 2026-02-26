@@ -10,6 +10,7 @@ interface Toast {
   message: string;
   type: ToastType;
   exiting: boolean;
+  duration: number;
 }
 
 interface ToastContextValue {
@@ -26,7 +27,7 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
-// ── Provider ──
+// ── Constants ──
 
 const MAX_TOASTS = 3;
 const DEFAULT_DURATION: Record<ToastType, number> = {
@@ -34,6 +35,14 @@ const DEFAULT_DURATION: Record<ToastType, number> = {
   error: 8000,
   info: 5000,
 };
+
+const ICON: Record<ToastType, string> = {
+  success: '\u2713',  // ✓
+  error: '!',
+  info: 'i',
+};
+
+// ── Provider ──
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -43,7 +52,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, exiting: true } : t)));
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 200); // match animation duration
+    }, 250);
   }, []);
 
   const addToast = useCallback(
@@ -52,8 +61,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const ms = duration ?? DEFAULT_DURATION[type];
 
       setToasts((prev) => {
-        const next = [...prev, { id, message, type, exiting: false }];
-        // Evict oldest if over max
+        const next = [...prev, { id, message, type, exiting: false, duration: ms }];
         if (next.length > MAX_TOASTS) {
           return next.slice(next.length - MAX_TOASTS);
         }
@@ -70,11 +78,22 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div className="toast-container">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast toast--${t.type}${t.exiting ? ' toast-exit' : ''}`}>
-            <span className="toast-msg">{t.message}</span>
-            <button className="toast-close" onClick={() => removeToast(t.id)}>
-              &times;
-            </button>
+          <div
+            key={t.id}
+            className={`toast toast--${t.type}${t.exiting ? ' toast-exit' : ''}`}
+          >
+            <div className="toast-accent" />
+            <div className="toast-body">
+              <span className="toast-icon">{ICON[t.type]}</span>
+              <span className="toast-msg">{t.message}</span>
+              <button className="toast-close" onClick={() => removeToast(t.id)}>
+                &times;
+              </button>
+            </div>
+            <div
+              className="toast-progress"
+              style={{ '--toast-duration': `${t.duration}ms` } as React.CSSProperties}
+            />
           </div>
         ))}
       </div>
