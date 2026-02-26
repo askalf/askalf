@@ -485,6 +485,18 @@
 .fleet-log-level.error { color: #f87171; }
 .fleet-log-msg { color: #cbd5e1; word-break: break-word; }
 
+.fleet-log-live {
+  background: rgba(59, 130, 246, 0.06);
+  border-left: 2px solid rgba(59, 130, 246, 0.4);
+  padding-left: 6px;
+  animation: fleet-log-pulse 2s ease-in-out;
+}
+
+@keyframes fleet-log-pulse {
+  0%, 100% { border-left-color: rgba(59, 130, 246, 0.4); }
+  50% { border-left-color: rgba(59, 130, 246, 0.8); }
+}
+
 /* Detail: Events */
 .fleet-events {
   max-height: 360px;

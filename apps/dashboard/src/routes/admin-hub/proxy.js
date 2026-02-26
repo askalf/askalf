@@ -267,6 +267,18 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     return res;
   });
 
+  fastify.get('/api/v1/admin/executions/costs/summary', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { days } = request.query;
+    const params = new URLSearchParams();
+    if (days) params.set('days', days);
+    const qs = params.toString();
+    const res = await callForgeAdmin(`/executions/costs/summary${qs ? `?${qs}` : ''}`);
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Cost summary unavailable', message: res.message });
+    return res;
+  });
+
   // ============================================
   // GUARDRAILS
   // ============================================

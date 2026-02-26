@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGitSpaceStore } from '../../stores/git-space';
 import { usePolling } from '../../hooks/usePolling';
+import { useToast } from '../../components/Toast';
 import BranchList from '../git-space/BranchList';
 import DiffPanel from '../git-space/DiffPanel';
 import ReviewChatPanel from '../git-space/ReviewChatPanel';
@@ -62,10 +63,14 @@ interface ForgeEvent {
   category: string;
   type: string;
   receivedAt: number;
+  taskId?: string;
+  status?: string;
+  service?: string;
   [key: string]: unknown;
 }
 
 export default function PushPanel({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }) {
+  const { addToast } = useToast();
   const fetchBranches = useGitSpaceStore((s) => s.fetchBranches);
   const fetchDeployTasks = useGitSpaceStore((s) => s.fetchDeployTasks);
   const deployTasks = useGitSpaceStore((s) => s.deployTasks);
@@ -94,7 +99,7 @@ export default function PushPanel({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }
   }, [fetchDeployTasks, checkHealth, tab]);
   usePolling(poll, 30000);
 
-  // WS-accelerated refresh on deploy events
+  // WS-accelerated refresh + optimistic updates on deploy events
   const latestEventTs = useRef(0);
   useEffect(() => {
     if (wsEvents.length === 0) return;
@@ -103,12 +108,23 @@ export default function PushPanel({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }
     latestEventTs.current = latest.receivedAt;
 
     if (latest.category === 'deploy') {
-      fetchDeployTasks();
+      // Optimistic update: immediately reflect status change in the task list
+      if (latest.taskId && latest.status) {
+        const newStatus = latest.status as string;
+        useGitSpaceStore.setState((state) => ({
+          deployTasks: state.deployTasks.map((t) =>
+            t.id === latest.taskId ? { ...t, status: newStatus as typeof t.status } : t
+          ),
+        }));
+      }
+
+      // Full re-fetch for consistency
+      fetchDeployTasks().catch(() => addToast('Failed to refresh deploy tasks', 'error'));
       if (tab === 'services') {
         checkHealth(ALL_SERVICE_IDS);
       }
     }
-  }, [wsEvents, fetchDeployTasks, checkHealth, tab]);
+  }, [wsEvents, fetchDeployTasks, checkHealth, tab, addToast]);
 
   // Initial health check when switching to services tab
   useEffect(() => {
@@ -119,8 +135,18 @@ export default function PushPanel({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }
   }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleQuickAction = async (serviceId: string, action: 'rebuild' | 'restart') => {
+    const label = [...APP_SERVICES, ...INFRA_SERVICES].find((s) => s.id === serviceId)?.label || serviceId;
     setActionInProgress(`${serviceId}-${action}`);
-    await startDeploy([serviceId], action);
+    try {
+      const taskId = await startDeploy([serviceId], action);
+      if (taskId) {
+        addToast(`${action === 'rebuild' ? 'Rebuild' : 'Restart'} started for ${label}`, 'info');
+      } else {
+        addToast(`Failed to ${action} ${label}`, 'error');
+      }
+    } catch {
+      addToast(`Failed to ${action} ${label}`, 'error');
+    }
     setActionInProgress(null);
     setTimeout(() => checkHealth(ALL_SERVICE_IDS), 5000);
   };

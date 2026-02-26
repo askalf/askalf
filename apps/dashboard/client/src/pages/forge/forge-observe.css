@@ -919,6 +919,66 @@
   margin: 0;
 }
 
+/* Budget Progress Bar */
+.cost-budget-row {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.cost-budget-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.cost-budget-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+.cost-budget-numbers {
+  font-size: 0.85rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.cost-budget-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.cost-budget-fill {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 4px;
+  transition: width 0.4s ease, background 0.3s ease;
+  min-width: 2px;
+}
+
+.cost-budget-fill.cost-budget-warn {
+  background: #f59e0b;
+}
+
+.cost-budget-fill.cost-budget-over {
+  background: #ef4444;
+}
+
+.cost-budget-sub {
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
 /* KPI Row */
 .cost-kpi-row {
   display: grid;
