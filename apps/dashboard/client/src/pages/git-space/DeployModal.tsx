@@ -6,33 +6,26 @@ import { useGitSpaceStore } from '../../stores/git-space';
 // ============================================
 
 const SERVICES = [
-  { id: 'api', label: 'API Server', desc: 'askalf-api' },
-  { id: 'dashboard', label: 'Dashboard', desc: 'askalf-dashboard' },
-  { id: 'forge', label: 'AskAlf', desc: 'askalf-forge' },
-  { id: 'nginx', label: 'Nginx', desc: 'askalf-nginx' },
-  { id: 'mcp', label: 'MCP', desc: 'askalf-mcp' },
-  { id: 'mcp-tools', label: 'MCP Tools', desc: 'askalf-mcp-tools' },
-  { id: 'scheduler', label: 'Scheduler', desc: 'askalf-scheduler' },
-  { id: 'worker', label: 'Worker', desc: 'askalf-worker' },
+  { id: 'dashboard',     label: 'Dashboard',     desc: 'askalf-dashboard' },
+  { id: 'forge',         label: 'Forge',          desc: 'askalf-forge' },
+  { id: 'mcp-tools',     label: 'MCP Tools',      desc: 'askalf-mcp-tools' },
+  { id: 'admin-console', label: 'Admin Console',  desc: 'askalf-admin-console' },
+  { id: 'nginx',         label: 'Nginx',           desc: 'askalf-nginx' },
 ];
 
 const SERVICE_GROUPS = [
-  { id: 'frontend', label: 'Frontend', services: ['dashboard', 'nginx'] },
-  { id: 'backend', label: 'Backend', services: ['api', 'forge'] },
-  { id: 'mcp', label: 'MCP Servers', services: ['mcp', 'mcp-tools'] },
-  { id: 'workers', label: 'Workers', services: ['scheduler', 'worker'] },
-  { id: 'all', label: 'All', services: SERVICES.map((s) => s.id) },
+  { id: 'apps',  label: 'Apps',  services: ['dashboard', 'forge', 'mcp-tools', 'admin-console'] },
+  { id: 'infra', label: 'Infra', services: ['nginx'] },
+  { id: 'all',   label: 'All',   services: SERVICES.map((s) => s.id) },
 ];
 
 // File path → affected services mapping
 const SERVICE_PATH_MAP: Record<string, string[]> = {
-  'apps/api/': ['api'],
-  'apps/dashboard/': ['dashboard'],
-  'apps/forge/': ['forge'],
-  'apps/mcp/': ['mcp'],
-  'apps/mcp-tools/': ['mcp-tools'],
-  'apps/worker/': ['scheduler', 'worker'],
-  'packages/': ['api', 'dashboard', 'forge', 'mcp', 'mcp-tools'],
+  'apps/dashboard/':       ['dashboard'],
+  'apps/forge/':           ['forge'],
+  'apps/mcp-tools/':       ['mcp-tools'],
+  'apps/admin-console/':   ['admin-console'],
+  'packages/':             ['dashboard', 'forge', 'mcp-tools'],
   'infrastructure/nginx/': ['nginx'],
 };
 
