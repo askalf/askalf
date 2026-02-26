@@ -676,6 +676,24 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   });
 
   // ============================================
+  // TOOLS
+  // ============================================
+
+  fastify.get('/api/v1/admin/tools', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { type, enabled } = request.query;
+    const params = new URLSearchParams();
+    if (type) params.set('type', type);
+    if (enabled !== undefined) params.set('enabled', enabled);
+    params.set('limit', '200');
+    const qs = params.toString();
+    const res = await callForge(`/tools?${qs}`);
+    if (res.error) return reply.code(res.status || 503).send({ tools: [] });
+    return res;
+  });
+
+  // ============================================
   // FLEET-WIDE GOALS & PROMPT REVISIONS
   // ============================================
 

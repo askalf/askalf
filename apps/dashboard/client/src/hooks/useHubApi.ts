@@ -567,6 +567,16 @@ export interface ProviderModel {
   created_at: string;
 }
 
+export interface ForgeTool {
+  id: string;
+  name: string;
+  display_name: string;
+  description: string;
+  type: string;
+  risk_level: string;
+  is_enabled: boolean;
+}
+
 export interface ProviderHealth {
   status: 'healthy' | 'degraded' | 'unknown';
   providers: Array<{
@@ -911,6 +921,11 @@ export const hubApi = {
 
     delete: (id: string) =>
       apiFetch<{ success: boolean }>(`/api/v1/admin/guardrails/${id}`, { method: 'DELETE' }),
+  },
+
+  tools: {
+    list: () =>
+      apiFetch<{ tools: ForgeTool[] }>('/api/v1/admin/tools?enabled=true'),
   },
 
   providers: {
