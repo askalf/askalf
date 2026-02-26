@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
-import type { DocumentItem } from '../../hooks/useHubApi';
+import type { DocumentItem, DocumentDetail } from '../../hooks/useHubApi';
 import PaginationBar from './shared/PaginationBar';
 import Modal from './shared/Modal';
 import EmptyState from './shared/EmptyState';
@@ -24,6 +24,50 @@ const formatDuration = (ms: number) => {
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
   return `${Math.round(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
 };
+
+const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+/* ── Generate clean markdown with frontmatter ── */
+function generateMarkdown(doc: DocumentDetail): string {
+  const dateStr = doc.completed_at ? new Date(doc.completed_at).toISOString() : 'unknown';
+  const frontmatter = [
+    '---',
+    `title: "${doc.agent_name} Output"`,
+    `agent: ${doc.agent_name}`,
+    `type: ${doc.agent_type}`,
+    `date: ${dateStr}`,
+    `tokens: ${doc.tokens}`,
+    `cost: ${formatCost(doc.cost)}`,
+    `duration: ${formatDuration(doc.duration_ms)}`,
+    `execution_id: ${doc.id}`,
+    '---',
+    '',
+  ].join('\n');
+
+  return frontmatter + doc.output;
+}
+
+function downloadMarkdown(doc: DocumentDetail) {
+  const md = generateMarkdown(doc);
+  const dateSlug = doc.completed_at ? new Date(doc.completed_at).toISOString().slice(0, 10) : 'undated';
+  const filename = `${slugify(doc.agent_name)}-${dateSlug}.md`;
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // ── Markdown renderer (same as ContentFeed) ──
 function renderMarkdown(text: string): React.ReactNode[] {
@@ -122,6 +166,7 @@ export default function Documents() {
 
   const [searchInput, setSearchInput] = useState(documentsSearch);
   const [showInput, setShowInput] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   // Initial load
   useEffect(() => { fetchDocuments(); fetchDocumentsAgents(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -222,7 +267,37 @@ export default function Documents() {
 
       {/* Detail Modal */}
       {selectedDocument && (
-        <Modal title={selectedDocument.agent_name + ' Output'} onClose={() => setSelectedDocument(null)} size="large">
+        <Modal title={selectedDocument.agent_name + ' Output'} onClose={() => { setSelectedDocument(null); setCopied(false); }} size="large">
+          {/* Action bar */}
+          <div className="docs-action-bar">
+            <button
+              className="docs-download-btn"
+              onClick={() => downloadMarkdown(selectedDocument)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download .md
+            </button>
+            <button
+              className={`docs-copy-btn ${copied ? 'docs-copy-btn--done' : ''}`}
+              onClick={async () => {
+                const ok = await copyToClipboard(selectedDocument.output);
+                if (ok) { setCopied(true); setTimeout(() => setCopied(false), 2000); }
+              }}
+            >
+              {copied ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  Copied
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
+
           <dl className="docs-detail-meta">
             <div><dt>Agent</dt><dd>{selectedDocument.agent_name}</dd></div>
             <div><dt>Type</dt><dd>{selectedDocument.agent_type}</dd></div>
