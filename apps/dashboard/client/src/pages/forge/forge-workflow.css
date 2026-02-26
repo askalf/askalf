@@ -1,8 +1,78 @@
 /* ==========================================
-   Forge Workflow Builder
+   Forge Workflow Builder — DAG Editor
    ========================================== */
 
-/* Workflow List */
+.fwb-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ─── Stats Row ─── */
+.fwb-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.fwb-stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.fwb-stat-card:hover { border-color: rgba(255, 255, 255, 0.12); }
+.fwb-stat-card--success { border-left: 3px solid #10b981; }
+.fwb-stat-card--warn { border-left: 3px solid #f59e0b; }
+.fwb-stat-card--info { border-left: 3px solid #3b82f6; }
+
+.fwb-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  line-height: 1.2;
+}
+
+.fwb-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  margin-top: 0.2rem;
+}
+
+/* ─── List Header ─── */
+.fwb-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fwb-list-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* ─── Empty State ─── */
+.fwb-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  gap: 0.5rem;
+}
+
+.fwb-empty-icon { color: var(--text-muted); margin-bottom: 0.25rem; }
+.fwb-empty-text { font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; }
+.fwb-empty-sub { font-size: 0.8rem; color: var(--text-muted); text-align: center; max-width: 400px; line-height: 1.5; }
+
+/* ─── Workflow List ─── */
 .fwb-workflow-list {
   display: flex;
   flex-direction: column;
@@ -32,22 +102,9 @@
   gap: 0.5rem;
 }
 
-.fwb-workflow-name {
-  font-size: 0.9rem;
-  color: var(--text-primary);
-}
-
-.fwb-workflow-meta {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
-.fwb-workflow-desc {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin: 0.4rem 0 0 0;
-  line-height: 1.4;
-}
+.fwb-workflow-name { font-size: 0.9rem; color: var(--text-primary); }
+.fwb-workflow-meta { font-size: 0.7rem; color: var(--text-muted); }
+.fwb-workflow-desc { font-size: 0.8rem; color: var(--text-secondary); margin: 0.4rem 0 0 0; line-height: 1.4; }
 
 /* Mini flow preview */
 .fwb-mini-flow {
@@ -62,24 +119,23 @@
   font-size: 0.7rem;
   color: var(--text-muted);
   background: rgba(255, 255, 255, 0.04);
-  padding: 0.15rem 0.4rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 3px;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.3rem;
 }
 
-.fwb-mini-arrow {
-  color: var(--crystal);
-  font-size: 0.8rem;
-}
+.fwb-mini-arrow { color: var(--crystal); font-size: 0.8rem; }
 
-/* Detail View */
+/* ─── Detail View ─── */
 .fwb-detail-header {
   display: flex;
   align-items: center;
   gap: 1rem;
   margin-bottom: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .fwb-back-btn {
@@ -106,24 +162,21 @@
   flex: 1;
 }
 
-.fwb-detail-title h3 {
-  margin: 0;
-  font-size: 1rem;
-  color: var(--text-primary);
+.fwb-detail-title h3 { margin: 0; font-size: 1rem; color: var(--text-primary); }
+
+.fwb-detail-actions { display: flex; gap: 0.5rem; }
+
+.fwb-archive-btn {
+  color: var(--danger, #ef4444) !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+.fwb-archive-btn:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
 }
 
-.fwb-detail-actions {
-  display: flex;
-  gap: 0.5rem;
-}
+.fwb-detail-desc { font-size: 0.8rem; color: var(--text-secondary); margin: 0 0 1rem 0; }
 
-.fwb-detail-desc {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin: 0 0 1rem 0;
-}
-
-/* Flow / Pipeline */
+/* ─── Flow Canvas ─── */
 .fwb-flow {
   padding: 1.5rem 1rem;
   display: flex;
@@ -132,19 +185,30 @@
   gap: 0;
 }
 
+.fwb-canvas-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .fwb-flow-step {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 400px;
+  max-width: 480px;
 }
 
+/* Connector */
 .fwb-flow-connector {
   width: 2px;
-  height: 24px;
+  height: 28px;
   background: linear-gradient(180deg, rgba(124, 58, 237, 0.5), rgba(124, 58, 237, 0.2));
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .fwb-flow-connector::after {
@@ -160,7 +224,19 @@
   border-top: 5px solid rgba(124, 58, 237, 0.4);
 }
 
-/* Node Card */
+.fwb-edge-label {
+  position: absolute;
+  left: 12px;
+  font-size: 0.6rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--crystal);
+  background: rgba(124, 58, 237, 0.1);
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* ─── Node Card ─── */
 .fwb-node {
   width: 100%;
   background: rgba(255, 255, 255, 0.04);
@@ -182,10 +258,44 @@
   justify-content: space-between;
 }
 
+.fwb-node-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.fwb-node-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.fwb-node-badge-sm {
+  font-size: 0.8rem;
+  margin-right: 2px;
+}
+
 .fwb-node-label {
   font-weight: 600;
   font-size: 0.85rem;
   color: var(--text-primary);
+}
+
+.fwb-node-type-tag {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 6px;
+  border-radius: 3px;
 }
 
 .fwb-node-actions {
@@ -195,9 +305,7 @@
   transition: opacity 0.15s;
 }
 
-.fwb-node:hover .fwb-node-actions {
-  opacity: 1;
-}
+.fwb-node:hover .fwb-node-actions { opacity: 1; }
 
 .fwb-node-btn {
   background: rgba(255, 255, 255, 0.06);
@@ -225,6 +333,30 @@
   color: var(--danger);
 }
 
+/* Config summary */
+.fwb-node-config-summary {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+  line-height: 1.3;
+}
+
+/* Warnings */
+.fwb-node-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+
+.fwb-node-warning {
+  font-size: 0.65rem;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
 .fwb-node-agent {
   font-size: 0.75rem;
   color: var(--crystal);
@@ -240,13 +372,83 @@
   display: block;
 }
 
-/* Add Node Button */
+/* ─── Node Type Picker ─── */
+.fwb-node-type-picker {
+  width: 100%;
+  max-width: 480px;
+  margin-top: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.fwb-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.fwb-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.fwb-node-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.fwb-node-type-btn:hover {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.25);
+}
+
+.fwb-type-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+
+.fwb-type-btn-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fwb-type-btn-desc {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* ─── Add Node Button ─── */
 .fwb-add-node {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-top: 1rem;
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.25rem;
   background: rgba(124, 58, 237, 0.06);
   border: 1px dashed rgba(124, 58, 237, 0.25);
   border-radius: 8px;
@@ -259,4 +461,136 @@
 .fwb-add-node:hover {
   background: rgba(124, 58, 237, 0.12);
   border-color: rgba(124, 58, 237, 0.4);
+}
+
+/* ─── Edge Panel ─── */
+.fwb-edge-panel { margin-top: 0; }
+
+.fwb-edge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.fwb-edge-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  transition: background 0.1s;
+}
+
+.fwb-edge-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.fwb-edge-from { color: var(--text-primary); font-weight: 500; }
+.fwb-edge-arrow { color: var(--crystal); font-size: 0.85rem; }
+.fwb-edge-to { color: var(--text-primary); font-weight: 500; }
+.fwb-edge-cond {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  color: var(--crystal);
+  background: rgba(124, 58, 237, 0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: auto;
+}
+
+.fwb-edge-remove {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.fwb-edge-item:hover .fwb-edge-remove { opacity: 1; }
+
+/* ─── Config Modal Helpers ─── */
+.fwb-context-hint {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+.fwb-type-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0.25rem 0;
+}
+
+.fwb-type-desc code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  color: var(--crystal);
+  background: rgba(124, 58, 237, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Multi-select (parallel/merge) */
+.fwb-multi-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.fwb-multi-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.fwb-multi-option:hover { background: rgba(255, 255, 255, 0.04); }
+.fwb-multi-option.selected { background: rgba(124, 58, 237, 0.1); color: var(--text-primary); }
+
+.fwb-multi-option input[type="checkbox"] {
+  accent-color: #8b5cf6;
+}
+
+/* Connect modal */
+.fwb-connect-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.fwb-connect-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+}
+
+.fwb-connect-option:hover {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.25);
+}
+
+.fwb-connect-type {
+  margin-left: auto;
+  font-size: 0.68rem;
+  color: var(--text-muted);
 }
