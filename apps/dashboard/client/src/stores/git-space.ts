@@ -408,15 +408,27 @@ export const useGitSpaceStore = create<GitSpaceState>((set, get) => ({
     }));
 
     try {
-      const data = await apiFetch<{ execution_id: string; agent_name: string }>(
+      const data = await apiFetch<{ response?: string; execution_id?: string }>(
         '/api/v1/admin/git-space/ai-review/chat',
         { method: 'POST', body: JSON.stringify({ review_id: reviewExecutionId, message: msg }) },
       );
 
-      set({ reviewExecutionId: data.execution_id });
-
-      // Start polling for results
-      get().pollReviewResult();
+      // Chat returns immediate text response, not a new execution
+      if (data.response) {
+        set((s) => ({
+          reviewLoading: false,
+          reviewMessages: [
+            ...s.reviewMessages,
+            { role: 'assistant' as const, content: data.response as string },
+          ],
+        }));
+      } else if (data.execution_id) {
+        // Fallback: new execution to poll
+        set({ reviewExecutionId: data.execution_id });
+        get().pollReviewResult();
+      } else {
+        set({ reviewLoading: false });
+      }
     } catch (err) {
       set((s) => ({
         reviewLoading: false,
@@ -539,8 +551,24 @@ export const useGitSpaceStore = create<GitSpaceState>((set, get) => ({
   fetchDeployTasks: async () => {
     set({ deployTasksLoading: true });
     try {
-      const data = await apiFetch<{ tasks: DeployTask[] }>('/api/v1/admin/git-space/rebuild/tasks');
-      set({ deployTasks: data.tasks || [] });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await apiFetch<{ tasks: any[] }>('/api/v1/admin/git-space/rebuild/tasks');
+      const tasks: DeployTask[] = (data.tasks || []).map((t) => ({
+        id: t.id || t.task_id || t.builder_id || '',
+        action: t.action || 'rebuild',
+        services: t.services || [],
+        status: t.status || 'unknown',
+        scheduled_at: t.scheduled_at || null,
+        started_at: t.started_at || t.created_at || null,
+        completed_at: t.completed_at || null,
+        builder_id: t.builder_id || null,
+        logs: t.logs || '',
+        exit_code: t.exit_code ?? null,
+        triggered_by: t.triggered_by || null,
+        branch: t.branch || null,
+        created_at: t.created_at || new Date().toISOString(),
+      }));
+      set({ deployTasks: tasks });
     } catch (err) {
       console.error('[GitSpace] Failed to fetch deploy tasks:', err);
     } finally {

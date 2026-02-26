@@ -468,10 +468,11 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/forge/git/rebuild',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { services, action, task_id } = request.body as {
+      const { services, action, task_id, branch } = request.body as {
         services: string[];
         action: 'rebuild' | 'restart';
         task_id?: string;
+        branch?: string;
       };
 
       if (!services || !Array.isArray(services) || services.length === 0) {
@@ -559,6 +560,9 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
             'substrate.role': 'builder',
             'substrate.services': ordered.join(','),
             'substrate.task_id': task_id || '',
+            'substrate.action': action,
+            'substrate.branch': branch || '',
+            'substrate.triggered_by': 'dashboard',
           },
         });
 
@@ -703,12 +707,22 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
             status = 'failed';
           }
 
+          const createdAt = new Date(c.Created * 1000).toISOString();
+
           return {
+            id: c.Labels['substrate.task_id'] || c.Id.substring(0, 12),
             task_id: c.Labels['substrate.task_id'] || null,
             builder_id: c.Id,
+            action: c.Labels['substrate.action'] || 'rebuild',
             services: (c.Labels['substrate.services'] || '').split(',').filter(Boolean),
             status,
-            created_at: new Date(c.Created * 1000).toISOString(),
+            created_at: createdAt,
+            started_at: createdAt,
+            completed_at: status !== 'running' ? createdAt : null,
+            triggered_by: c.Labels['substrate.triggered_by'] || null,
+            branch: c.Labels['substrate.branch'] || null,
+            logs: null,
+            exit_code: status === 'completed' ? 0 : status === 'failed' ? 1 : null,
           };
         });
 
