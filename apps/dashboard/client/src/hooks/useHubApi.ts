@@ -100,6 +100,32 @@ export interface AgentTask {
   created_at: string;
 }
 
+export interface KnowledgeNode {
+  id: string;
+  agent_id: string | null;
+  agent_name?: string;
+  label: string;
+  entity_type: string;
+  description: string | null;
+  properties: Record<string, unknown>;
+  mention_count: number;
+  last_mentioned: string;
+  created_at: string;
+  edge_count?: number;
+}
+
+export interface KnowledgeEdge {
+  id: string;
+  source_id: string;
+  target_id: string;
+  relation: string;
+  weight: number;
+  properties: Record<string, unknown>;
+  created_at: string;
+  source_label?: string;
+  target_label?: string;
+}
+
 export interface Intervention {
   id: string;
   agent_id: string;
@@ -809,6 +835,39 @@ export const hubApi = {
       metadata?: Record<string, unknown>;
     }) =>
       apiFetch('/api/v1/admin/memory/store', { method: 'POST', body: JSON.stringify(body) }),
+  },
+
+  knowledgeGraph: {
+    graph: (params: { limit?: number; offset?: number; type?: string; agent_id?: string; min_mentions?: number } = {}) =>
+      apiFetch<{ nodes: KnowledgeNode[]; edges: KnowledgeEdge[]; total_nodes: number; total_edges: number }>(
+        `/api/v1/admin/knowledge/graph?${buildParams({ limit: params.limit || 500, offset: params.offset, type: params.type, agent_id: params.agent_id, min_mentions: params.min_mentions })}`
+      ),
+    stats: () =>
+      apiFetch<{ total_nodes: number; total_edges: number; top_entities: { entity_type: string; count: number }[]; top_relations: { relation: string; count: number }[] }>(
+        '/api/v1/admin/knowledge/stats'
+      ),
+    entityTypes: () =>
+      apiFetch<{ types: { entity_type: string; count: number; avg_mentions: number }[] }>(
+        '/api/v1/admin/knowledge/entity-types'
+      ),
+    agents: () =>
+      apiFetch<{ agents: { agent_id: string; agent_name: string; node_count: number }[] }>(
+        '/api/v1/admin/knowledge/agents'
+      ),
+    neighborhood: (nodeId: string) =>
+      apiFetch<{ node: KnowledgeNode; edges: KnowledgeEdge[]; neighbors: KnowledgeNode[] }>(
+        `/api/v1/admin/knowledge/nodes/${nodeId}/neighborhood`
+      ),
+    node: (nodeId: string) =>
+      apiFetch<KnowledgeNode>(`/api/v1/admin/knowledge/nodes/${nodeId}`),
+    search: (q: string, params: { type?: string; agentId?: string; limit?: number } = {}) =>
+      apiFetch<{ nodes: KnowledgeNode[] }>(
+        `/api/v1/admin/knowledge/search?${buildParams({ q, type: params.type, agentId: params.agentId, limit: params.limit || 20 })}`
+      ),
+    topConnected: (limit?: number) =>
+      apiFetch<{ nodes: KnowledgeNode[] }>(
+        `/api/v1/admin/knowledge/top-connected?${buildParams({ limit: limit || 20 })}`
+      ),
   },
 
   costs: {

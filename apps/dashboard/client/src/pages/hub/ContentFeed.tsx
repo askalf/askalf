@@ -219,13 +219,38 @@ export default function ContentFeed() {
     setContentDateTo('');
   };
 
-  const truncate = (text: string, max: number) =>
-    text.length > max ? text.slice(0, max) + '...' : text;
-
   const sourceLabel = (s: string) => {
     if (s === 'execution') return 'output';
     if (s === 'resolution') return 'resolution';
     return 'finding';
+  };
+
+  /** Extract a human-readable title from the content item */
+  const itemTitle = (item: ContentFeedItem): string => {
+    // Resolutions already have a title
+    if (item.title) return item.title;
+    // Executions: use the input/task as the title
+    if (item.source === 'execution' && item.input) {
+      const text = typeof item.input === 'string' ? item.input : JSON.stringify(item.input);
+      return text.length > 120 ? text.slice(0, 120) + '…' : text;
+    }
+    // Findings: pull the first line of content as title
+    if (item.content) {
+      const firstLine = item.content.split('\n').find(l => l.trim()) || '';
+      // Strip markdown headers
+      const cleaned = firstLine.replace(/^#+\s*/, '').trim();
+      return cleaned.length > 120 ? cleaned.slice(0, 120) + '…' : cleaned;
+    }
+    return 'Untitled';
+  };
+
+  /** Get a short summary from content, skipping the first line (used as title) */
+  const itemSummary = (item: ContentFeedItem): string => {
+    if (!item.content) return '';
+    const lines = item.content.split('\n').filter(l => l.trim());
+    // Skip first line (used as title), take next few for summary
+    const rest = lines.slice(1).join(' ').replace(/[#*`]/g, '').trim();
+    return rest.length > 200 ? rest.slice(0, 200) + '…' : rest;
   };
 
   const modalTitle = (item: ContentFeedItem) => {
@@ -346,21 +371,23 @@ export default function ContentFeed() {
                   {item.category && (
                     <span className="cf-content-category">{item.category}</span>
                   )}
+                  <span className="cf-content-time">{formatDate(item.sort_date)}</span>
+                </div>
+                <h3 className="cf-content-title">{itemTitle(item)}</h3>
+                {itemSummary(item) && (
+                  <p className="cf-content-preview">{itemSummary(item)}</p>
+                )}
+                <div className="cf-content-footer">
                   {item.tokens > 0 && (
-                    <span className="cf-content-meta">{formatTokens(item.tokens)} tok</span>
+                    <span className="cf-content-meta">{formatTokens(item.tokens)} tokens</span>
                   )}
                   {item.cost > 0 && (
                     <span className="cf-content-meta">{formatCost(item.cost)}</span>
                   )}
-                  <span className="cf-content-time">{formatDate(item.sort_date)}</span>
+                  {item.duration_ms > 0 && (
+                    <span className="cf-content-meta">{formatDuration(item.duration_ms)}</span>
+                  )}
                 </div>
-                {item.source === 'resolution' && item.title && (
-                  <p className="cf-content-title">{truncate(item.title, 120)}</p>
-                )}
-                {item.input && item.source === 'execution' && (
-                  <p className="cf-content-input">{truncate(typeof item.input === 'string' ? item.input : JSON.stringify(item.input), 120)}</p>
-                )}
-                <p className="cf-content-preview">{truncate(item.content || '', 300)}</p>
               </div>
             ))}
           </div>
@@ -575,12 +602,6 @@ export default function ContentFeed() {
         .cf-note-time {
           font-size: 0.7rem;
           color: var(--text-secondary);
-        }
-        .cf-content-title {
-          font-weight: 600;
-          font-size: 0.85rem;
-          margin: 4px 0 2px;
-          opacity: 0.9;
         }
         .cf-content-category {
           font-size: 0.7rem;

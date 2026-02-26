@@ -585,6 +585,33 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     if (!admin) return { error: 'Admin access required' };
     return callForgeAdmin(`/knowledge/nodes/${request.params.nodeId}/neighborhood`);
   });
+  fastify.get('/api/v1/admin/knowledge/graph', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const qs = new URLSearchParams(request.query).toString();
+    return callForgeAdmin(`/knowledge/graph?${qs}`);
+  });
+  fastify.get('/api/v1/admin/knowledge/entity-types', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    return callForgeAdmin('/knowledge/entity-types');
+  });
+  fastify.get('/api/v1/admin/knowledge/agents', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    return callForgeAdmin('/knowledge/agents');
+  });
+  fastify.get('/api/v1/admin/knowledge/top-connected', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const qs = new URLSearchParams(request.query).toString();
+    return callForgeAdmin(`/knowledge/top-connected?${qs}`);
+  });
+  fastify.get('/api/v1/admin/knowledge/nodes/:nodeId', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    return callForgeAdmin(`/knowledge/nodes/${request.params.nodeId}`);
+  });
 
   // Phase 12: Monitoring
   fastify.get('/api/v1/admin/monitoring/health', async (request, reply) => {
