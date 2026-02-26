@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
-import StatCard from './shared/StatCard';
 import StatusBadge from './shared/StatusBadge';
 import PaginationBar from './shared/PaginationBar';
 import FilterBar from './shared/FilterBar';
+import '../forge/forge-observe.css';
 
 const formatDate = (iso: string | null) => {
   if (!iso) return '-';
@@ -16,6 +16,18 @@ const formatDateFull = (iso: string | null) => {
   if (!iso) return '-';
   const d = new Date(iso);
   return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+};
+
+const formatRelative = (iso: string | null) => {
+  if (!iso) return '-';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
 };
 
 const formatDuration = (start: string | null, end: string | null) => {
@@ -48,6 +60,14 @@ const formatTokens = (tokens: number | undefined) => {
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).catch(() => { /* ignore */ });
 }
+
+const STATUS_COLORS: Record<string, string> = {
+  completed: '#10b981',
+  failed: '#ef4444',
+  in_progress: '#f59e0b',
+  pending: '#6b7280',
+  cancelled: '#6b7280',
+};
 
 const getHandoffInfo = (task: { handoff_to_agent_name?: string | null; parent_task_id?: string | null; metadata?: Record<string, unknown> }) => {
   if (task.handoff_to_agent_name) return { type: 'handoff' as const, label: task.handoff_to_agent_name };
@@ -136,6 +156,42 @@ function parseInput(input: unknown): string {
   return JSON.stringify(input, null, 2);
 }
 
+function getInputPreview(input: unknown): string {
+  const text = parseInput(input);
+  if (!text || text === '""' || text === '{}') return '';
+  return text.length > 60 ? text.slice(0, 60) + '...' : text;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function StatusDistribution({ tasks }: { tasks: any[] }) {
+  const dist = useMemo(() => {
+    const counts: Record<string, number> = {};
+    tasks.forEach((t) => { counts[t.status] = (counts[t.status] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [tasks]);
+  const total = tasks.length || 1;
+
+  if (dist.length === 0) return null;
+  return (
+    <div className="exec-dist">
+      <div className="exec-dist-bar">
+        {dist.map(([status, count]) => (
+          <div key={status} className="exec-dist-seg" title={`${status}: ${count}`}
+            style={{ width: `${(count / total) * 100}%`, background: STATUS_COLORS[status] || '#6b7280' }} />
+        ))}
+      </div>
+      <div className="exec-dist-legend">
+        {dist.map(([status, count]) => (
+          <span key={status} className="exec-dist-item">
+            <span className="exec-dist-dot" style={{ background: STATUS_COLORS[status] || '#6b7280' }} />
+            {status} <span className="exec-dist-count">{count}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ExecutionHistory() {
   const tasks = useHubStore((s) => s.tasks);
   const taskStats = useHubStore((s) => s.taskStats);
@@ -172,18 +228,55 @@ export default function ExecutionHistory() {
 
   const detailTask = selectedTaskDetail?.task || selectedTask;
 
+  // Derived stats
+  const derivedStats = useMemo(() => {
+    if (!taskStats) return null;
+    const totalCost = tasks.reduce((sum, t) => sum + (t.cost || 0), 0);
+    const totalTokens = tasks.reduce((sum, t) => sum + (t.tokens_used || 0), 0);
+    const avgDuration = tasks.length > 0
+      ? tasks.reduce((sum, t) => sum + (t.duration_seconds || 0), 0) / tasks.filter(t => t.duration_seconds).length
+      : 0;
+    return { totalCost, totalTokens, avgDuration };
+  }, [tasks, taskStats]);
+
   return (
-    <>
-      {/* Stats */}
+    <div className="al-container">
+      {/* Stats row */}
       {taskStats && (
-        <div className="hub-hist-stats">
-          <StatCard value={taskStats.totals.total} label="Total Tasks" />
-          <StatCard value={taskStats.totals.in_progress} label="In Progress" variant={taskStats.totals.in_progress > 0 ? 'warning' : 'default'} />
-          <StatCard value={taskStats.totals.completed} label="Completed" variant="success" />
-          <StatCard value={taskStats.totals.failed} label="Failed" variant={taskStats.totals.failed > 0 ? 'danger' : 'default'} />
-          <StatCard value={taskStats.totals.handoffs} label="Handoffs" />
+        <div className="exec-stats-row">
+          <div className="exec-stat-card">
+            <div className="exec-stat-value">{taskStats.totals.total}</div>
+            <div className="exec-stat-label">Total</div>
+          </div>
+          <div className="exec-stat-card exec-stat-card--warn">
+            <div className="exec-stat-value">{taskStats.totals.in_progress}</div>
+            <div className="exec-stat-label">In Progress</div>
+          </div>
+          <div className="exec-stat-card exec-stat-card--success">
+            <div className="exec-stat-value">{taskStats.totals.completed}</div>
+            <div className="exec-stat-label">Completed</div>
+          </div>
+          <div className="exec-stat-card exec-stat-card--danger">
+            <div className="exec-stat-value">{taskStats.totals.failed}</div>
+            <div className="exec-stat-label">Failed</div>
+          </div>
+          <div className="exec-stat-card exec-stat-card--purple">
+            <div className="exec-stat-value">{taskStats.totals.handoffs}</div>
+            <div className="exec-stat-label">Handoffs</div>
+          </div>
+          {derivedStats && (
+            <>
+              <div className="exec-stat-card exec-stat-card--info">
+                <div className="exec-stat-value">{formatCost(derivedStats.totalCost)}</div>
+                <div className="exec-stat-label">Page Cost</div>
+              </div>
+            </>
+          )}
         </div>
       )}
+
+      {/* Status distribution */}
+      <StatusDistribution tasks={tasks} />
 
       {/* Filters */}
       <FilterBar
@@ -201,57 +294,83 @@ export default function ExecutionHistory() {
       />
 
       {/* Table */}
-      <div className="hub-hist-table-wrap">
+      <div className="al-table-wrap">
         {loading.tasks ? (
-          <div className="hub-loading">Loading tasks...</div>
+          <div className="exec-empty-state">
+            <div className="exec-empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.3">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div className="exec-empty-text">Loading executions...</div>
+          </div>
+        ) : tasks.length === 0 ? (
+          <div className="exec-empty-state">
+            <div className="exec-empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.3">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div className="exec-empty-text">No executions found</div>
+            <div className="exec-empty-sub">Agent executions will appear here as tasks run and complete.</div>
+          </div>
         ) : (
-          <table className="hub-hist-table">
+          <table className="al-table">
             <thead>
               <tr>
+                <th style={{ width: '130px' }}>When</th>
                 <th>Agent</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Started</th>
-                <th>Duration</th>
-                <th>Cost</th>
-                <th>Tokens</th>
-                <th>Handoff</th>
+                <th style={{ width: '100px' }}>Status</th>
+                <th style={{ width: '90px' }}>Duration</th>
+                <th style={{ width: '90px' }}>Cost</th>
+                <th style={{ width: '80px' }}>Tokens</th>
+                <th>Input</th>
+                <th style={{ width: '80px' }}>Handoff</th>
               </tr>
             </thead>
             <tbody>
               {tasks.map((task) => {
                 const handoff = getHandoffInfo(task);
+                const preview = getInputPreview(task.input);
+                const statusColor = STATUS_COLORS[task.status] || '#6b7280';
                 return (
-                  <tr key={task.id} onClick={() => setSelectedTask(task)} style={{ cursor: 'pointer' }}>
+                  <tr key={task.id}
+                    className={`al-row al-row-clickable exec-row-${task.status}`}
+                    onClick={() => setSelectedTask(task)}
+                    style={{ borderLeft: `3px solid ${statusColor}` }}>
+                    <td className="al-time-cell">
+                      <span className="al-time-rel">{formatRelative(task.started_at || task.created_at)}</span>
+                      <span className="al-time-abs">{formatDate(task.started_at || task.created_at)}</span>
+                    </td>
                     <td>
                       <div className="hub-hist-agent-cell">
                         <span className="hub-hist-agent-name">{task.agent_name}</span>
                         <span className="hub-hist-agent-type">{task.agent_type}</span>
                       </div>
                     </td>
-                    <td style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{task.type}</td>
                     <td><StatusBadge status={task.status} /></td>
-                    <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDate(task.started_at || task.created_at)}</td>
-                    <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                       {task.duration_seconds ? formatDurationSeconds(task.duration_seconds) : formatDuration(task.started_at, task.completed_at)}
                     </td>
                     <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{formatCost(task.cost)}</td>
                     <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatTokens(task.tokens_used)}</td>
                     <td>
+                      {preview ? (
+                        <span className="exec-input-preview" title={preview}>{preview}</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>
+                      )}
+                    </td>
+                    <td>
                       {handoff ? (
                         <span className={`hub-hist-handoff ${handoff.type === 'child' ? 'child' : ''}`}>
                           {handoff.type === 'handoff' ? <>&rarr; {handoff.label}</> : <>&larr; {handoff.label}</>}
                         </span>
-                      ) : '-'}
+                      ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                   </tr>
                 );
               })}
-              {tasks.length === 0 && (
-                <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No tasks found</td>
-                </tr>
-              )}
             </tbody>
           </table>
         )}
@@ -441,6 +560,6 @@ export default function ExecutionHistory() {
           </div>
         </>
       )}
-    </>
+    </div>
   );
 }
