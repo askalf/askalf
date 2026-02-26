@@ -588,6 +588,16 @@ export interface ProviderHealth {
   }>;
 }
 
+export interface UserProviderKey {
+  provider_type: string;
+  has_key: boolean;
+  key_hint: string | null;
+  label: string | null;
+  is_active: boolean;
+  last_verified_at: string | null;
+  last_used_at: string | null;
+}
+
 // Workflow types
 export interface WorkflowNode {
   id: string;
@@ -943,6 +953,20 @@ export const hubApi = {
 
     update: (id: string, body: { name?: string; base_url?: string | null; api_key?: string | null; is_enabled?: boolean; config?: Record<string, unknown> }) =>
       apiFetch<{ provider: Provider }>(`/api/v1/admin/providers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  },
+
+  userProviders: {
+    list: () =>
+      apiFetch<{ keys: UserProviderKey[] }>('/api/v1/user-providers'),
+
+    set: (providerType: string, body: { api_key: string; label?: string }) =>
+      apiFetch<{ key: UserProviderKey }>(`/api/v1/user-providers/${providerType}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+    remove: (providerType: string) =>
+      apiFetch<{ ok: boolean }>(`/api/v1/user-providers/${providerType}`, { method: 'DELETE' }),
+
+    verify: (providerType: string) =>
+      apiFetch<{ status: string; error: string | null }>(`/api/v1/user-providers/${providerType}/verify`, { method: 'POST', body: JSON.stringify({}) }),
   },
 
   workflows: {

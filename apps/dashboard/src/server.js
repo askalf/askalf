@@ -2040,6 +2040,50 @@ fastify.get('/api/v1/admin/plans', async (request, reply) => {
 import { registerAdminHubRoutes } from './routes/admin-hub/index.js';
 await registerAdminHubRoutes(fastify, requireAdmin, query, queryOne);
 
+// User Provider Keys (user-facing, not admin-only)
+import { callForge } from './routes/admin-hub/utils.js';
+
+fastify.get('/api/v1/user-providers', async (request, reply) => {
+  const user = await getUserFromSession(request);
+  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
+  const res = await callForge('/user-providers', { headers: { 'x-user-id': user.id } });
+  if (res.error) return reply.code(res.status || 503).send({ error: 'User providers unavailable', message: res.message });
+  return res;
+});
+
+fastify.put('/api/v1/user-providers/:providerType', async (request, reply) => {
+  const user = await getUserFromSession(request);
+  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
+  const { providerType } = request.params;
+  const res = await callForge(`/user-providers/${encodeURIComponent(providerType)}`, {
+    method: 'PUT', body: request.body, headers: { 'x-user-id': user.id },
+  });
+  if (res.error) return reply.code(res.status || 503).send({ error: 'Failed to save key', message: res.message });
+  return res;
+});
+
+fastify.delete('/api/v1/user-providers/:providerType', async (request, reply) => {
+  const user = await getUserFromSession(request);
+  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
+  const { providerType } = request.params;
+  const res = await callForge(`/user-providers/${encodeURIComponent(providerType)}`, {
+    method: 'DELETE', headers: { 'x-user-id': user.id },
+  });
+  if (res.error) return reply.code(res.status || 503).send({ error: 'Failed to remove key', message: res.message });
+  return res;
+});
+
+fastify.post('/api/v1/user-providers/:providerType/verify', async (request, reply) => {
+  const user = await getUserFromSession(request);
+  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
+  const { providerType } = request.params;
+  const res = await callForge(`/user-providers/${encodeURIComponent(providerType)}/verify`, {
+    method: 'POST', body: {}, headers: { 'x-user-id': user.id }, timeout: 15000,
+  });
+  if (res.error) return reply.code(res.status || 503).send({ error: 'Verification failed', message: res.message });
+  return res;
+});
+
 // System Assistant (agentic AI for fleet management)
 import { registerAssistantRoutes } from './routes/admin-assistant.js';
 await registerAssistantRoutes(fastify, requireAdmin, query, queryOne);

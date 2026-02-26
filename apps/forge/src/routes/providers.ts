@@ -35,15 +35,32 @@ function maskKey(key: string): string {
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
 }
 
-// Resolve the usable API key for a provider: DB-stored key takes priority over env var
-function resolveApiKey(provider: ProviderRow): string {
+// Resolve the usable API key for a provider
+// Priority: user key (if userId provided) → system DB key → env var
+async function resolveApiKey(provider: ProviderRow, userId?: string): Promise<string> {
+  // Check user-level key first
+  if (userId) {
+    const userKey = await queryOne<{ api_key_encrypted: string }>(
+      `SELECT api_key_encrypted FROM user_provider_keys WHERE user_id = $1 AND provider_type = $2 AND is_active = true`,
+      [userId, provider.type],
+    ).catch(() => null);
+    if (userKey?.api_key_encrypted) {
+      // Update last_used_at asynchronously
+      void queryOne(
+        `UPDATE user_provider_keys SET last_used_at = NOW() WHERE user_id = $1 AND provider_type = $2`,
+        [userId, provider.type],
+      ).catch(() => {});
+      return decodeKey(userKey.api_key_encrypted);
+    }
+  }
+
+  // Fall back to system key
   if (provider.api_key_encrypted) {
     return decodeKey(provider.api_key_encrypted);
   }
   const ENV_KEYS: Record<string, string> = {
     anthropic: 'ANTHROPIC_API_KEY',
     openai: 'OPENAI_API_KEY',
-    google: 'GOOGLE_AI_KEY',
     xai: 'XAI_API_KEY',
     deepseek: 'DEEPSEEK_API_KEY',
   };
@@ -56,7 +73,6 @@ function getAuthSource(provider: ProviderRow): 'db' | 'env' | 'oauth' | 'none' {
   const ENV_KEYS: Record<string, string> = {
     anthropic: 'ANTHROPIC_API_KEY',
     openai: 'OPENAI_API_KEY',
-    google: 'GOOGLE_AI_KEY',
     xai: 'XAI_API_KEY',
     deepseek: 'DEEPSEEK_API_KEY',
   };
@@ -99,9 +115,9 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
       );
 
       // Return providers with auth info but never expose raw keys
-      const result = providers.map((p) => {
+      const result = await Promise.all(providers.map(async (p) => {
         const authSource = getAuthSource(p);
-        const resolvedKey = resolveApiKey(p);
+        const resolvedKey = await resolveApiKey(p);
         return {
           id: p.id,
           name: p.name,
@@ -117,7 +133,7 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
           created_at: p.created_at,
           updated_at: p.updated_at,
         };
-      });
+      }));
 
       return reply.send({ providers: result });
     },
@@ -257,7 +273,7 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const authSource = getAuthSource(updated);
-      const resolvedKey = resolveApiKey(updated);
+      const resolvedKey = await resolveApiKey(updated);
 
       return reply.send({
         provider: {
@@ -327,7 +343,7 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
 
       const checks = await Promise.allSettled(
         providers.map(async (p) => {
-          const apiKey = resolveApiKey(p);
+          const apiKey = await resolveApiKey(p);
           let status: 'healthy' | 'down' = 'down';
           let error: string | null = null;
 
@@ -355,12 +371,6 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
             } else if (p.type === 'openai') {
               const res = await fetch('https://api.openai.com/v1/models', {
                 headers: { Authorization: `Bearer ${apiKey}` },
-                signal: AbortSignal.timeout(10000),
-              });
-              status = res.ok ? 'healthy' : 'down';
-              if (!res.ok) error = `HTTP ${res.status}`;
-            } else if (p.type === 'google') {
-              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`, {
                 signal: AbortSignal.timeout(10000),
               });
               status = res.ok ? 'healthy' : 'down';
