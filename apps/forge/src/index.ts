@@ -33,6 +33,7 @@ import { proposalRoutes } from './routes/proposals.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { gitReviewRoutes } from './routes/git-review.js';
 import { authRoutes } from './routes/auth.js';
+import { onboardingRoutes } from './routes/onboarding.js';
 import { oauthRoutes } from './routes/oauth.js';
 import { integrationRoutes } from './routes/integrations.js';
 import { platformAdminRoutes } from './routes/platform-admin/index.js';
@@ -317,6 +318,7 @@ app.get('/metrics', { logLevel: 'silent' }, async (_request, reply) => {
 // ============================================
 
 await authRoutes(app);
+await onboardingRoutes(app);
 await oauthRoutes(app);
 await integrationRoutes(app);
 await agentRoutes(app);

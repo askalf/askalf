@@ -51,7 +51,7 @@ export const useThemeStore = create<ThemeState>()(
 
         // Apply user preferences on dashboard routes (command-center, settings, users, etc.)
         // Public pages (landing, login, about, etc.) use defaults
-        const publicPaths = ['/', '/login', '/signup', '/register', '/forgot-password', '/reset-password', '/verify-email', '/privacy', '/terms', '/about'];
+        const publicPaths = ['/', '/login', '/signup', '/register', '/forgot-password', '/reset-password', '/verify-email', '/onboard', '/privacy', '/terms', '/about'];
         const isDashboard = !publicPaths.includes(window.location.pathname);
 
         // Determine actual theme (handle 'system')

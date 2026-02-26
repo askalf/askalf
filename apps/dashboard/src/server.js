@@ -2084,6 +2084,25 @@ fastify.post('/api/v1/user-providers/:providerType/verify', async (request, repl
   return res;
 });
 
+// Onboarding (user-facing, proxied to forge — under /api/v1/auth/ so nginx routes to dashboard)
+fastify.get('/api/v1/auth/onboarding/status', async (request, reply) => {
+  const user = await getUserFromSession(request);
+  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
+  const res = await callForge('/onboarding/status', { headers: { 'x-user-id': user.id } });
+  if (res.error) return reply.code(res.status || 503).send({ error: 'Onboarding status unavailable', message: res.message });
+  return res;
+});
+
+fastify.post('/api/v1/auth/onboarding/complete', async (request, reply) => {
+  const user = await getUserFromSession(request);
+  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
+  const res = await callForge('/onboarding/complete', {
+    method: 'POST', body: request.body || {}, headers: { 'x-user-id': user.id },
+  });
+  if (res.error) return reply.code(res.status || 503).send({ error: 'Onboarding failed', message: res.message });
+  return res;
+});
+
 // System Assistant (agentic AI for fleet management)
 import { registerAssistantRoutes } from './routes/admin-assistant.js';
 await registerAssistantRoutes(fastify, requireAdmin, query, queryOne);
@@ -2222,11 +2241,16 @@ fastify.get('/api/v1/auth/me', async (request, reply) => {
 
   const subscription = await getSubscriptionWithPlan(user.tenant_id);
 
+  // Check onboarding status (column added in migration 025)
+  const onboardingRow = await queryOne('SELECT onboarding_completed_at FROM users WHERE id = $1', [user.id]);
+  const onboardingCompleted = !!onboardingRow?.onboarding_completed_at;
+
   return {
     user: {
       id: user.id,
       email: user.email,
       emailVerified: user.email_verified,
+      onboardingCompleted,
       displayName: user.display_name,
       role: user.role,
     },
