@@ -287,6 +287,24 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     return res;
   });
 
+  fastify.patch('/api/v1/admin/guardrails/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForge(`/admin/guardrails/${encodeURIComponent(id)}`, { method: 'PATCH', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Guardrail update failed', message: res.message });
+    return res;
+  });
+
+  fastify.delete('/api/v1/admin/guardrails/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForge(`/admin/guardrails/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Guardrail deletion failed', message: res.message });
+    return res;
+  });
+
   // ============================================
   // PROVIDERS
   // ============================================

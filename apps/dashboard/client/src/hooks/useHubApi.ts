@@ -905,6 +905,12 @@ export const hubApi = {
 
     create: (body: { name: string; type: string; description?: string; config?: Record<string, unknown>; is_enabled?: boolean; is_global?: boolean; agent_ids?: string[]; priority?: number }) =>
       apiFetch<{ guardrail: Guardrail }>('/api/v1/admin/guardrails', { method: 'POST', body: JSON.stringify(body) }),
+
+    update: (id: string, body: { is_enabled?: boolean; config?: Record<string, unknown>; priority?: number; name?: string; description?: string }) =>
+      apiFetch<{ guardrail: Guardrail }>(`/api/v1/admin/guardrails/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+    delete: (id: string) =>
+      apiFetch<{ success: boolean }>(`/api/v1/admin/guardrails/${id}`, { method: 'DELETE' }),
   },
 
   providers: {
