@@ -1923,6 +1923,7 @@ export async function runDirectCliExecution(
   let agentWorktreeDir = '';
   let agentBranchName = '';
   let worktreeCreated = false;
+  let memoryCount = 0;
 
   try {
     // Update execution status to running
@@ -2022,10 +2023,12 @@ export async function runDirectCliExecution(
     if (options?.systemPrompt) {
       try {
         // Inject relevant memories into the system prompt
-        const memoryContext = await buildMemoryContext(agentId, input, { fleetWide: true }).catch((err) => {
+        const memoryResult = await buildMemoryContext(agentId, input, { fleetWide: true }).catch((err) => {
           console.warn(`[CLI] Memory context build failed for ${agentName}: ${err instanceof Error ? err.message : err}`);
-          return '';
+          return { text: '', count: 0 };
         });
+        const memoryContext = memoryResult.text;
+        memoryCount = memoryResult.count;
         // Inject runtime budget hint so agents self-regulate
         const budgetHint = formatBudgetPromptHint(runtimeBudget, agentName);
         const memoryInstruction = [
@@ -2142,8 +2145,9 @@ export async function runDirectCliExecution(
            total_tokens = $7,
            iterations = $8,
            duration_ms = $9,
+           metadata = COALESCE(metadata, '{}'::jsonb) || $10::jsonb,
            completed_at = NOW()
-       WHERE id = $10`,
+       WHERE id = $11`,
       [
         parsed.isError ? 'failed' : 'completed',
         parsed.output,
@@ -2154,6 +2158,7 @@ export async function runDirectCliExecution(
         parsed.inputTokens + parsed.outputTokens,
         parsed.numTurns,
         durationMs,
+        JSON.stringify({ memory_count: memoryCount, runtime_mode: 'cli' }),
         executionId,
       ],
     );
@@ -2169,7 +2174,7 @@ export async function runDirectCliExecution(
         inputTokens: parsed.inputTokens,
         outputTokens: parsed.outputTokens,
         cost: parsed.costUsd,
-        metadata: { turns: parsed.numTurns, durationMs },
+        metadata: { turns: parsed.numTurns, durationMs, memory_count: memoryCount },
       }).catch(() => {
         // trackCost logs full details on final failure — nothing more to do here
       });

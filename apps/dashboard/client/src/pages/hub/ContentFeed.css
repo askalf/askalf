@@ -226,23 +226,26 @@
 }
 
 /* ---- Content Body ---- */
-.cf-content-input {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin: 2px 0;
-  font-style: italic;
-  opacity: 0.7;
+.cf-content-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: var(--space-xs) 0 2px;
+  line-height: 1.4;
 }
 
 .cf-content-preview {
   font-size: 0.8rem;
   color: var(--text-secondary);
   line-height: 1.5;
-  margin: var(--space-xs) 0 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  margin: 2px 0 0;
+}
+
+.cf-content-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
 }
 
 /* ---- Detail Modal ---- */
