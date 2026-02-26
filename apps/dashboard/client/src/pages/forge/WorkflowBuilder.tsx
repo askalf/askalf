@@ -20,6 +20,180 @@ const NODE_TYPES: Record<string, { icon: string; color: string; bg: string; labe
 
 const NODE_TYPE_KEYS = Object.keys(NODE_TYPES);
 
+/* ─── Workflow Templates (pre-built DAGs) ─── */
+interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  color: string;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+}
+
+const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+  {
+    id: 'tpl-research-pipeline',
+    name: 'Research Pipeline',
+    description: 'Gather research, analyze findings, and produce a structured report with human review.',
+    category: 'research',
+    icon: '🔍',
+    color: '#8b5cf6',
+    nodes: [
+      { id: 'input-1', type: 'input', label: 'Research Query' },
+      { id: 'agent-researcher', type: 'agent', label: 'Researcher', config: { prompt: 'Research the given topic thoroughly. Gather key facts, sources, and data points.\n\nTopic: {{__input}}' } },
+      { id: 'agent-analyst', type: 'agent', label: 'Analyst', config: { prompt: 'Analyze the research findings. Identify patterns, insights, and actionable conclusions.\n\nResearch: {{agent-researcher}}' } },
+      { id: 'checkpoint-review', type: 'human_checkpoint', label: 'Review Findings', config: { checkpointType: 'review', title: 'Review research analysis', description: 'Verify the analysis is accurate and complete before generating the final report.' } },
+      { id: 'agent-writer', type: 'agent', label: 'Report Writer', config: { prompt: 'Write a clear, structured report based on the research and analysis.\n\nAnalysis: {{agent-analyst}}' } },
+      { id: 'output-1', type: 'output', label: 'Final Report', config: { source: 'agent-writer' } },
+    ],
+    edges: [
+      { from: 'input-1', to: 'agent-researcher' },
+      { from: 'agent-researcher', to: 'agent-analyst' },
+      { from: 'agent-analyst', to: 'checkpoint-review' },
+      { from: 'checkpoint-review', to: 'agent-writer' },
+      { from: 'agent-writer', to: 'output-1' },
+    ],
+  },
+  {
+    id: 'tpl-code-review',
+    name: 'Parallel Code Review',
+    description: 'Run frontend, backend, and security reviews concurrently, merge results, then get human approval.',
+    category: 'build',
+    icon: '🔀',
+    color: '#3b82f6',
+    nodes: [
+      { id: 'input-1', type: 'input', label: 'Code Changes' },
+      { id: 'parallel-reviews', type: 'parallel', label: 'Parallel Reviews', config: { nodeIds: ['agent-frontend', 'agent-backend', 'agent-security'] } },
+      { id: 'agent-frontend', type: 'agent', label: 'Frontend Review', config: { prompt: 'Review the code changes for frontend quality: component structure, accessibility, styling, and UX patterns.\n\nChanges: {{__input}}' } },
+      { id: 'agent-backend', type: 'agent', label: 'Backend Review', config: { prompt: 'Review the code changes for backend quality: API design, error handling, performance, and security.\n\nChanges: {{__input}}' } },
+      { id: 'agent-security', type: 'agent', label: 'Security Review', config: { prompt: 'Review the code changes for security vulnerabilities: injection risks, auth issues, data exposure, OWASP top 10.\n\nChanges: {{__input}}' } },
+      { id: 'merge-results', type: 'merge', label: 'Merge Reviews', config: { sources: ['agent-frontend', 'agent-backend', 'agent-security'] } },
+      { id: 'checkpoint-approve', type: 'human_checkpoint', label: 'Approve Reviews', config: { checkpointType: 'approval', title: 'Approve code review results', description: 'Review all findings from the parallel code reviews before finalizing.' } },
+      { id: 'output-1', type: 'output', label: 'Review Report', config: { source: 'merge-results' } },
+    ],
+    edges: [
+      { from: 'input-1', to: 'parallel-reviews' },
+      { from: 'parallel-reviews', to: 'agent-frontend' },
+      { from: 'parallel-reviews', to: 'agent-backend' },
+      { from: 'parallel-reviews', to: 'agent-security' },
+      { from: 'agent-frontend', to: 'merge-results' },
+      { from: 'agent-backend', to: 'merge-results' },
+      { from: 'agent-security', to: 'merge-results' },
+      { from: 'merge-results', to: 'checkpoint-approve' },
+      { from: 'checkpoint-approve', to: 'output-1' },
+    ],
+  },
+  {
+    id: 'tpl-content-pipeline',
+    name: 'Content Pipeline',
+    description: 'Research a topic, draft content, review and edit, then publish.',
+    category: 'content',
+    icon: '✍️',
+    color: '#10b981',
+    nodes: [
+      { id: 'input-1', type: 'input', label: 'Content Brief' },
+      { id: 'agent-research', type: 'agent', label: 'Topic Research', config: { prompt: 'Research the topic for content creation. Gather key facts, quotes, statistics, and relevant context.\n\nBrief: {{__input}}' } },
+      { id: 'agent-draft', type: 'agent', label: 'Content Writer', config: { prompt: 'Write compelling, well-structured content based on the research.\n\nResearch: {{agent-research}}\nBrief: {{__input}}' } },
+      { id: 'checkpoint-edit', type: 'human_checkpoint', label: 'Editorial Review', config: { checkpointType: 'review', title: 'Review draft content', description: 'Edit the draft for accuracy, tone, and quality before publishing.' } },
+      { id: 'agent-polish', type: 'agent', label: 'Final Polish', config: { prompt: 'Apply final edits and polish the content. Fix grammar, improve flow, and ensure consistency.\n\nDraft: {{agent-draft}}' } },
+      { id: 'output-1', type: 'output', label: 'Published Content', config: { source: 'agent-polish' } },
+    ],
+    edges: [
+      { from: 'input-1', to: 'agent-research' },
+      { from: 'agent-research', to: 'agent-draft' },
+      { from: 'agent-draft', to: 'checkpoint-edit' },
+      { from: 'checkpoint-edit', to: 'agent-polish' },
+      { from: 'agent-polish', to: 'output-1' },
+    ],
+  },
+  {
+    id: 'tpl-monitored-deploy',
+    name: 'Monitored Deploy',
+    description: 'Build, test, get approval, deploy, then verify with conditional rollback.',
+    category: 'devops',
+    icon: '🚀',
+    color: '#f97316',
+    nodes: [
+      { id: 'input-1', type: 'input', label: 'Deploy Request' },
+      { id: 'agent-build', type: 'agent', label: 'Build & Test', config: { prompt: 'Build the project and run the test suite. Report build status, test results, and any warnings.\n\nRequest: {{__input}}' } },
+      { id: 'condition-tests', type: 'condition', label: 'Tests Pass?', config: { expression: 'agent-build.status == "success"' } },
+      { id: 'checkpoint-approve', type: 'human_checkpoint', label: 'Deploy Approval', config: { checkpointType: 'approval', title: 'Approve deployment', description: 'Build and tests passed. Approve to proceed with deployment.', timeoutMinutes: 30 } },
+      { id: 'agent-deploy', type: 'agent', label: 'Deploy', config: { prompt: 'Execute the deployment. Deploy the built artifacts to the target environment.\n\nBuild: {{agent-build}}' } },
+      { id: 'agent-verify', type: 'agent', label: 'Verify Deploy', config: { prompt: 'Verify the deployment is healthy. Run smoke tests, check endpoints, and validate the deployment.\n\nDeploy: {{agent-deploy}}' } },
+      { id: 'output-success', type: 'output', label: 'Deploy Result', config: { source: 'agent-verify' } },
+      { id: 'output-fail', type: 'output', label: 'Test Failure', config: { source: 'agent-build' } },
+    ],
+    edges: [
+      { from: 'input-1', to: 'agent-build' },
+      { from: 'agent-build', to: 'condition-tests' },
+      { from: 'condition-tests', to: 'checkpoint-approve', condition: 'pass' },
+      { from: 'condition-tests', to: 'output-fail', condition: 'fail' },
+      { from: 'checkpoint-approve', to: 'agent-deploy' },
+      { from: 'agent-deploy', to: 'agent-verify' },
+      { from: 'agent-verify', to: 'output-success' },
+    ],
+  },
+  {
+    id: 'tpl-data-analysis',
+    name: 'Data Analysis',
+    description: 'Query data, transform and clean it, run analysis, then produce visualizable insights.',
+    category: 'analyze',
+    icon: '📊',
+    color: '#06b6d4',
+    nodes: [
+      { id: 'input-1', type: 'input', label: 'Analysis Question' },
+      { id: 'agent-query', type: 'agent', label: 'Data Gathering', config: { prompt: 'Gather the relevant data to answer the analysis question. Query databases, APIs, or other sources.\n\nQuestion: {{__input}}' } },
+      { id: 'transform-clean', type: 'transform', label: 'Clean & Normalize', config: { mapping: { raw_data: 'agent-query.data', question: '__input' } } },
+      { id: 'agent-analyze', type: 'agent', label: 'Analyze Data', config: { prompt: 'Perform statistical analysis on the cleaned data. Identify trends, correlations, outliers, and key metrics.\n\nData: {{transform-clean}}' } },
+      { id: 'agent-insights', type: 'agent', label: 'Generate Insights', config: { prompt: 'Translate the analysis into clear, actionable insights with recommendations.\n\nAnalysis: {{agent-analyze}}\nOriginal question: {{__input}}' } },
+      { id: 'output-1', type: 'output', label: 'Analysis Report', config: { source: 'agent-insights' } },
+    ],
+    edges: [
+      { from: 'input-1', to: 'agent-query' },
+      { from: 'agent-query', to: 'transform-clean' },
+      { from: 'transform-clean', to: 'agent-analyze' },
+      { from: 'agent-analyze', to: 'agent-insights' },
+      { from: 'agent-insights', to: 'output-1' },
+    ],
+  },
+  {
+    id: 'tpl-security-audit',
+    name: 'Security Audit',
+    description: 'Parallel vulnerability scan, dependency check, and config review with severity-gated approval.',
+    category: 'security',
+    icon: '🛡️',
+    color: '#ef4444',
+    nodes: [
+      { id: 'input-1', type: 'input', label: 'Audit Target' },
+      { id: 'parallel-scans', type: 'parallel', label: 'Parallel Scans', config: { nodeIds: ['agent-vuln', 'agent-deps', 'agent-config'] } },
+      { id: 'agent-vuln', type: 'agent', label: 'Vulnerability Scan', config: { prompt: 'Scan for security vulnerabilities: injection flaws, XSS, CSRF, auth bypasses, data exposure.\n\nTarget: {{__input}}' } },
+      { id: 'agent-deps', type: 'agent', label: 'Dependency Audit', config: { prompt: 'Audit all dependencies for known CVEs, outdated packages, and supply chain risks.\n\nTarget: {{__input}}' } },
+      { id: 'agent-config', type: 'agent', label: 'Config Review', config: { prompt: 'Review security configuration: TLS, CORS, CSP headers, auth settings, secrets management.\n\nTarget: {{__input}}' } },
+      { id: 'merge-findings', type: 'merge', label: 'Merge Findings', config: { sources: ['agent-vuln', 'agent-deps', 'agent-config'] } },
+      { id: 'condition-severity', type: 'condition', label: 'Critical Issues?', config: { expression: 'merge-findings.severity == "critical"' } },
+      { id: 'checkpoint-critical', type: 'human_checkpoint', label: 'Critical Review', config: { checkpointType: 'approval', title: 'Critical vulnerabilities found', description: 'Critical security issues were detected. Review findings and decide on remediation.' } },
+      { id: 'output-1', type: 'output', label: 'Audit Report', config: { source: 'merge-findings' } },
+    ],
+    edges: [
+      { from: 'input-1', to: 'parallel-scans' },
+      { from: 'parallel-scans', to: 'agent-vuln' },
+      { from: 'parallel-scans', to: 'agent-deps' },
+      { from: 'parallel-scans', to: 'agent-config' },
+      { from: 'agent-vuln', to: 'merge-findings' },
+      { from: 'agent-deps', to: 'merge-findings' },
+      { from: 'agent-config', to: 'merge-findings' },
+      { from: 'merge-findings', to: 'condition-severity' },
+      { from: 'condition-severity', to: 'checkpoint-critical', condition: 'critical' },
+      { from: 'condition-severity', to: 'output-1', condition: 'pass' },
+      { from: 'checkpoint-critical', to: 'output-1' },
+    ],
+  },
+];
+
+const TEMPLATE_CATEGORIES = [...new Set(WORKFLOW_TEMPLATES.map(t => t.category))];
+
 const relativeTime = (iso: string | null) => {
   if (!iso) return 'Never';
   const diff = Date.now() - new Date(iso).getTime();
@@ -379,6 +553,9 @@ export default function WorkflowBuilder() {
   const [addingNodeType, setAddingNodeType] = useState<string | null>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [showNodePicker, setShowNodePicker] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateFilter, setTemplateFilter] = useState<string | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<WorkflowTemplate | null>(null);
 
   const poll = useCallback(() => { fetchWorkflows(); }, [fetchWorkflows]);
   usePolling(poll, 30000);
@@ -405,6 +582,27 @@ export default function WorkflowBuilder() {
     await createWorkflow({ name, description });
     setCreating(false);
   };
+
+  const handleCreateFromTemplate = async (tpl: WorkflowTemplate) => {
+    setCreating(true);
+    setShowTemplates(false);
+    setPreviewTemplate(null);
+    const ok = await createWorkflow({ name: tpl.name, description: tpl.description });
+    if (ok) {
+      // createWorkflow auto-selects the new workflow — grab it from the store and set the definition
+      const newWf = useHubStore.getState().selectedWorkflow;
+      if (newWf) {
+        await updateWorkflow(newWf.id, {
+          definition: { nodes: tpl.nodes, edges: tpl.edges },
+        });
+      }
+    }
+    setCreating(false);
+  };
+
+  const filteredTemplates = templateFilter
+    ? WORKFLOW_TEMPLATES.filter(t => t.category === templateFilter)
+    : WORKFLOW_TEMPLATES;
 
   const handleRun = async (wf: Workflow) => {
     setRunning(true);
@@ -513,7 +711,13 @@ export default function WorkflowBuilder() {
 
           <div className="fwb-list-header">
             <span className="fwb-list-count">{workflows.length} workflow{workflows.length !== 1 ? 's' : ''}</span>
-            <button className="fo-action-btn" onClick={() => setShowCreateWorkflow(true)}>+ New Workflow</button>
+            <div className="fwb-list-actions">
+              <button className="fo-action-btn fwb-template-btn" onClick={() => setShowTemplates(true)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                From Template
+              </button>
+              <button className="fo-action-btn" onClick={() => setShowCreateWorkflow(true)}>+ New Workflow</button>
+            </div>
           </div>
 
           {loading['workflows'] && workflows.length === 0 ? (
@@ -534,7 +738,13 @@ export default function WorkflowBuilder() {
               </div>
               <div className="fwb-empty-text">No workflows yet</div>
               <div className="fwb-empty-sub">Create a workflow to build multi-agent DAG pipelines with branching, parallel execution, and human checkpoints.</div>
-              <button className="fo-action-btn" onClick={() => setShowCreateWorkflow(true)} style={{ marginTop: '0.75rem' }}>+ Create Your First Workflow</button>
+              <div className="fwb-empty-actions">
+                <button className="fo-action-btn fwb-template-btn" onClick={() => setShowTemplates(true)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                  Start from Template
+                </button>
+                <button className="fo-action-btn" onClick={() => setShowCreateWorkflow(true)}>+ Blank Workflow</button>
+              </div>
             </div>
           ) : (
             <div className="fwb-workflow-list">
@@ -769,6 +979,109 @@ export default function WorkflowBuilder() {
             <button className="hub-btn hub-btn--primary" onClick={handleCreate} disabled={creating || !newWorkflow.name.trim()}>
               {creating ? 'Creating...' : 'Create'}
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ─── Template Picker Modal ─── */}
+      {showTemplates && !previewTemplate && (
+        <Modal title="Start from Template" onClose={() => { setShowTemplates(false); setTemplateFilter(null); }} size="large">
+          <p className="fwb-type-desc">Choose a pre-built workflow template. You can customize it after creation.</p>
+
+          <div className="fwb-tpl-categories">
+            <button
+              className={`fwb-tpl-cat-btn ${templateFilter === null ? 'active' : ''}`}
+              onClick={() => setTemplateFilter(null)}
+            >
+              All
+            </button>
+            {TEMPLATE_CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                className={`fwb-tpl-cat-btn ${templateFilter === cat ? 'active' : ''}`}
+                onClick={() => setTemplateFilter(cat)}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="fwb-tpl-grid">
+            {filteredTemplates.map(tpl => (
+              <div key={tpl.id} className="fwb-tpl-card" onClick={() => setPreviewTemplate(tpl)}>
+                <div className="fwb-tpl-card-header">
+                  <span className="fwb-tpl-icon" style={{ background: tpl.color + '20', color: tpl.color }}>
+                    {tpl.icon}
+                  </span>
+                  <div>
+                    <div className="fwb-tpl-name">{tpl.name}</div>
+                    <span className="fwb-tpl-cat">{tpl.category}</span>
+                  </div>
+                </div>
+                <p className="fwb-tpl-desc">{tpl.description}</p>
+                <div className="fwb-tpl-meta">
+                  <span>{tpl.nodes.length} nodes</span>
+                  <span>{tpl.edges.length} edges</span>
+                  <span>{tpl.nodes.filter(n => n.type === 'agent').length} agents</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {/* ─── Template Preview Modal ─── */}
+      {previewTemplate && (
+        <Modal title={previewTemplate.name} onClose={() => setPreviewTemplate(null)} size="large">
+          <div className="fwb-tpl-preview">
+            <div className="fwb-tpl-preview-header">
+              <span className="fwb-tpl-icon-lg" style={{ background: previewTemplate.color + '20', color: previewTemplate.color }}>
+                {previewTemplate.icon}
+              </span>
+              <div>
+                <p className="fwb-tpl-desc" style={{ margin: 0 }}>{previewTemplate.description}</p>
+                <div className="fwb-tpl-meta" style={{ marginTop: '0.5rem' }}>
+                  <span className="fwb-tpl-cat">{previewTemplate.category}</span>
+                  <span>{previewTemplate.nodes.length} nodes</span>
+                  <span>{previewTemplate.edges.length} edges</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="fwb-tpl-preview-label">Pipeline Preview</div>
+            <div className="fwb-tpl-preview-flow">
+              {previewTemplate.nodes.map((node, i) => {
+                const meta = NODE_TYPES[node.type] || NODE_TYPES.agent;
+                const inEdges = previewTemplate.edges.filter(e => e.to === node.id);
+                return (
+                  <div key={node.id} className="fwb-tpl-preview-step">
+                    {i > 0 && inEdges.length > 0 && (
+                      <div className="fwb-flow-connector" style={{ height: 20 }}>
+                        {inEdges[0]?.condition && (
+                          <span className="fwb-edge-label">{inEdges[0].condition}</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="fwb-tpl-preview-node" style={{ borderLeft: `3px solid ${meta.color}` }}>
+                      <span className="fwb-node-badge" style={{ color: meta.color, background: meta.bg }}>{meta.icon}</span>
+                      <span className="fwb-tpl-preview-node-label">{node.label}</span>
+                      <span className="fwb-node-type-tag">{meta.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hub-modal-actions">
+              <button className="hub-btn" onClick={() => setPreviewTemplate(null)}>← Back to Templates</button>
+              <button
+                className="hub-btn hub-btn--primary"
+                onClick={() => handleCreateFromTemplate(previewTemplate)}
+                disabled={creating}
+              >
+                {creating ? 'Creating...' : `Use "${previewTemplate.name}"`}
+              </button>
+            </div>
           </div>
         </Modal>
       )}
