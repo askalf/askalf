@@ -60,6 +60,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+.ud-topbar-cost-warn {
+  color: #f59e0b;
+}
+
+.ud-topbar-cost-over {
+  color: #ef4444;
+}
+
 .ud-scheduler-toggle {
   width: 28px;
   height: 28px;

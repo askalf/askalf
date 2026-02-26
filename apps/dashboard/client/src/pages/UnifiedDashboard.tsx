@@ -98,6 +98,7 @@ export default function UnifiedDashboard() {
   const [agentCount, setAgentCount] = useState(0);
   const [ticketCount, setTicketCount] = useState(0);
   const [todayCost, setTodayCost] = useState(0);
+  const [budgetLimit, setBudgetLimit] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     // Fetch initial counts
@@ -119,6 +120,18 @@ export default function UnifiedDashboard() {
     fetchCounts();
     const timer = setInterval(fetchCounts, 30000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch budget limit from guardrails (once)
+  useEffect(() => {
+    fetch('/api/v1/admin/guardrails', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const g = data?.guardrails?.find((g: any) => g.type === 'cost_limit' && g.is_enabled);
+        if (g?.config?.maxCostPerDay) setBudgetLimit(g.config.maxCostPerDay);
+      })
+      .catch(() => {});
   }, []);
 
   // Template → Builder navigation
@@ -208,6 +221,7 @@ export default function UnifiedDashboard() {
         agentCount={agentCount}
         ticketCount={ticketCount}
         todayCost={todayCost}
+        budgetLimit={budgetLimit}
       />
       <div className="ud-body ud-body-full">
         <div className="ud-main">

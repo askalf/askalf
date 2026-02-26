@@ -7,6 +7,7 @@ interface TopBarProps {
   agentCount: number;
   ticketCount: number;
   todayCost: number;
+  budgetLimit?: number;
 }
 
 interface AuthUser {
@@ -16,7 +17,7 @@ interface AuthUser {
   role?: string;
 }
 
-export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost }: TopBarProps) {
+export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost, budgetLimit }: TopBarProps) {
   const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
   const [toggling, setToggling] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -86,7 +87,9 @@ export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost
         <span className="ud-topbar-divider" />
         <span className="ud-topbar-stat">{ticketCount} tickets</span>
         <span className="ud-topbar-divider" />
-        <span className="ud-topbar-stat">${todayCost.toFixed(2)} today</span>
+        <span className={`ud-topbar-stat${budgetLimit && todayCost / budgetLimit > 0.8 ? todayCost / budgetLimit >= 1 ? ' ud-topbar-cost-over' : ' ud-topbar-cost-warn' : ''}`}>
+          ${todayCost.toFixed(2)}{budgetLimit ? ` / $${budgetLimit.toFixed(0)}` : ''} today
+        </span>
       </div>
       <div className="ud-topbar-right">
         <button
