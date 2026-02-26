@@ -127,15 +127,10 @@ services:
       # Agent Forge proxy
       FORGE_URL: http://forge:3005
       FORGE_API_KEY: ${FORGE_API_KEY:-}
-      # Master session (Claude Code PTY) — OAuth, not API key
-      ANTHROPIC_API_KEY: ''
-      WORKSPACE_DIR: /workspace
       # Event bridge (Redis subscriber for forge events)
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
     volumes:
       - .:/workspace:rw
-      - ./.claude-credentials.json:/tmp/claude-credentials.json:rw
-      - master-claude-home:/tmp/master-claude-home
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -783,9 +778,6 @@ volumes:
     external: true
   sprayberry_labs_backups:
     name: sprayberry_labs_backups
-  master-claude-home:
-    name: master_claude_home
-    external: true
   admin-claude-home:
     name: admin_claude_home
     external: true
