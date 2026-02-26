@@ -1,234 +1,236 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useGitSpaceStore, type GitSpaceBranch } from '../../stores/git-space';
+import { useCallback, useState } from 'react';
+import { useGitSpaceStore } from '../../stores/git-space';
 import { usePolling } from '../../hooks/usePolling';
-import BranchList from '../git-space/BranchList';
-import DiffPanel from '../git-space/DiffPanel';
-import ReviewChatPanel from '../git-space/ReviewChatPanel';
 import DeployModal from '../git-space/DeployModal';
 import '../GitSpace.css';
 
-type ViewMode = 'pipeline' | 'detail';
+/* ─── Service Registry ─── */
+const SERVICES = [
+  { id: 'dashboard',     label: 'Dashboard',     container: 'askalf-dashboard',     mem: '512M',  port: 3001 },
+  { id: 'forge',         label: 'Forge',          container: 'askalf-forge',          mem: '2048M', port: 3005 },
+  { id: 'mcp-tools',     label: 'MCP Tools',      container: 'askalf-mcp-tools',      mem: '384M',  port: 3010 },
+  { id: 'admin-console', label: 'Admin Console',  container: 'askalf-admin-console',  mem: '512M',  port: 3002 },
+  { id: 'nginx',         label: 'Nginx',           container: 'askalf-nginx',           mem: '128M',  port: 80 },
+];
 
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+function formatDuration(start: string | null, end: string | null): string {
+  if (!start) return '-';
+  const s = new Date(start).getTime();
+  const e = end ? new Date(end).getTime() : Date.now();
+  const sec = Math.round((e - s) / 1000);
+  if (sec < 60) return `${sec}s`;
+  return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
 }
 
-function PipelineStats({ branches }: { branches: GitSpaceBranch[] }) {
-  const needsReview = branches.filter(b => !b.review_status || b.review_status === 'pending_review').length;
-  const reviewed = branches.filter(b => b.review_status === 'reviewed').length;
-  const approved = branches.filter(b => b.review_status === 'approved').length;
-  const merged = branches.filter(b => b.review_status === 'merged').length;
-
-  return (
-    <div className="cr-pipeline-stats">
-      <div className={`cr-pipeline-stat ${needsReview > 0 ? 'cr-pipeline-stat--alert' : ''}`}>
-        <span className="cr-pipeline-stat-count">{needsReview}</span>
-        <span className="cr-pipeline-stat-label">Awaiting Review</span>
-      </div>
-      <div className="cr-pipeline-arrow">
-        <svg width="20" height="12" viewBox="0 0 20 12"><path d="M0 6h16m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
-      </div>
-      <div className={`cr-pipeline-stat ${reviewed > 0 ? 'cr-pipeline-stat--info' : ''}`}>
-        <span className="cr-pipeline-stat-count">{reviewed}</span>
-        <span className="cr-pipeline-stat-label">Reviewed</span>
-      </div>
-      <div className="cr-pipeline-arrow">
-        <svg width="20" height="12" viewBox="0 0 20 12"><path d="M0 6h16m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
-      </div>
-      <div className={`cr-pipeline-stat ${approved > 0 ? 'cr-pipeline-stat--success' : ''}`}>
-        <span className="cr-pipeline-stat-count">{approved}</span>
-        <span className="cr-pipeline-stat-label">Approved</span>
-      </div>
-      <div className="cr-pipeline-arrow">
-        <svg width="20" height="12" viewBox="0 0 20 12"><path d="M0 6h16m0 0l-4-4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" fill="none"/></svg>
-      </div>
-      <div className={`cr-pipeline-stat ${merged > 0 ? 'cr-pipeline-stat--merged' : ''}`}>
-        <span className="cr-pipeline-stat-count">{merged}</span>
-        <span className="cr-pipeline-stat-label">Merged</span>
-      </div>
-    </div>
-  );
-}
-
-function PipelineView({ branches, onSelect }: { branches: GitSpaceBranch[]; onSelect: (branch: string) => void }) {
-  const needsReview = branches.filter(b => !b.review_status || b.review_status === 'pending_review');
-  const reviewed = branches.filter(b => b.review_status === 'reviewed');
-  const approved = branches.filter(b => b.review_status === 'approved');
-  const merged = branches.filter(b => b.review_status === 'merged');
-
-  const renderCard = (branch: GitSpaceBranch) => (
-    <button
-      key={branch.name}
-      className="cr-pipeline-card"
-      onClick={() => onSelect(branch.name)}
-    >
-      <div className="cr-pipeline-card-agent">{branch.agent_slug}</div>
-      <div className="cr-pipeline-card-name">{branch.name.replace('agent/', '')}</div>
-      <div className="cr-pipeline-card-meta">
-        <span>{branch.commits} commit{branch.commits !== 1 ? 's' : ''}</span>
-        <span>{branch.files_changed} file{branch.files_changed !== 1 ? 's' : ''}</span>
-      </div>
-      {branch.last_date && (
-        <div className="cr-pipeline-card-time">{formatTimeAgo(branch.last_date)}</div>
-      )}
-    </button>
-  );
-
-  return (
-    <div className="cr-pipeline-board">
-      <div className="cr-pipeline-column">
-        <div className="cr-pipeline-column-header cr-pipeline-column--needs-review">
-          <span className="cr-pipeline-column-dot" />
-          Needs Review ({needsReview.length})
-        </div>
-        <div className="cr-pipeline-column-cards">
-          {needsReview.length === 0 && <div className="cr-pipeline-empty">No branches waiting</div>}
-          {needsReview.map(renderCard)}
-        </div>
-      </div>
-      <div className="cr-pipeline-column">
-        <div className="cr-pipeline-column-header cr-pipeline-column--reviewed">
-          <span className="cr-pipeline-column-dot" />
-          Reviewed ({reviewed.length})
-        </div>
-        <div className="cr-pipeline-column-cards">
-          {reviewed.length === 0 && <div className="cr-pipeline-empty">None</div>}
-          {reviewed.map(renderCard)}
-        </div>
-      </div>
-      <div className="cr-pipeline-column">
-        <div className="cr-pipeline-column-header cr-pipeline-column--approved">
-          <span className="cr-pipeline-column-dot" />
-          Approved ({approved.length})
-        </div>
-        <div className="cr-pipeline-column-cards">
-          {approved.length === 0 && <div className="cr-pipeline-empty">None</div>}
-          {approved.map(renderCard)}
-        </div>
-      </div>
-      <div className="cr-pipeline-column">
-        <div className="cr-pipeline-column-header cr-pipeline-column--merged">
-          <span className="cr-pipeline-column-dot" />
-          Merged ({merged.length})
-        </div>
-        <div className="cr-pipeline-column-cards">
-          {merged.length === 0 && <div className="cr-pipeline-empty">None</div>}
-          {merged.map(renderCard)}
-        </div>
-      </div>
-    </div>
-  );
-}
+const STATUS_STYLES: Record<string, { color: string; bg: string; label: string }> = {
+  completed: { color: '#10b981', bg: 'rgba(16,185,129,0.12)', label: 'Completed' },
+  failed:    { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  label: 'Failed' },
+  running:   { color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', label: 'Running' },
+  scheduled: { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', label: 'Scheduled' },
+  cancelled: { color: '#6b7280', bg: 'rgba(107,114,128,0.12)',label: 'Cancelled' },
+};
 
 export default function PushPanel() {
-  const fetchBranches = useGitSpaceStore((s) => s.fetchBranches);
-  const branches = useGitSpaceStore((s) => s.branches);
-  const reviewOpen = useGitSpaceStore((s) => s.reviewOpen);
-  const setSelectedBranch = useGitSpaceStore((s) => s.setSelectedBranch);
-  const merged = useGitSpaceStore((s) => s.merged);
-  const [viewMode, setViewMode] = useState<ViewMode>('pipeline');
-  const [deployOpen, setDeployOpen] = useState(false);
+  const fetchDeployTasks = useGitSpaceStore((s) => s.fetchDeployTasks);
+  const deployTasks = useGitSpaceStore((s) => s.deployTasks);
+  const deploying = useGitSpaceStore((s) => s.deploying);
+  const startDeploy = useGitSpaceStore((s) => s.startDeploy);
+  const healthResults = useGitSpaceStore((s) => s.healthResults);
+  const healthChecking = useGitSpaceStore((s) => s.healthChecking);
+  const checkHealth = useGitSpaceStore((s) => s.checkHealth);
 
+  const [deployOpen, setDeployOpen] = useState(false);
+  const [expandedTask, setExpandedTask] = useState<string | null>(null);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  // Poll deploy tasks + health
   const poll = useCallback(() => {
-    fetchBranches();
-  }, [fetchBranches]);
+    fetchDeployTasks();
+    checkHealth(SERVICES.map(s => s.id));
+  }, [fetchDeployTasks, checkHealth]);
   usePolling(poll, 30000);
 
-  const handleBranchSelect = useCallback((branchName: string) => {
-    setSelectedBranch(branchName);
-    setViewMode('detail');
-  }, [setSelectedBranch]);
+  const handleQuickAction = async (serviceId: string, action: 'rebuild' | 'restart') => {
+    setActionInProgress(`${serviceId}-${action}`);
+    await startDeploy([serviceId], action);
+    setActionInProgress(null);
+    // Refresh health after a delay
+    setTimeout(() => checkHealth(SERVICES.map(s => s.id)), 5000);
+  };
 
-  const showDeployPrompt = useMemo(() => {
-    return merged && viewMode === 'detail';
-  }, [merged, viewMode]);
+  const recentTasks = deployTasks.slice(0, 8);
+
+  // Stats
+  const totalDeploys = deployTasks.length;
+  const successCount = deployTasks.filter(t => t.status === 'completed').length;
+  const failCount = deployTasks.filter(t => t.status === 'failed').length;
+  const runningCount = deployTasks.filter(t => t.status === 'running').length;
 
   return (
-    <div className={`cr-shell cr-shell--embedded ${reviewOpen ? 'cr-panel-open' : ''}`}>
-      <header className="cr-header">
-        <div className="cr-header-left">
-          <h1>Push</h1>
-          {branches.length > 0 && (
-            <span className="cr-header-badge">{branches.length}</span>
-          )}
+    <div className="dep-container">
+      {/* Header */}
+      <div className="dep-header">
+        <div className="dep-header-left">
+          <h2 className="dep-title">Deploy</h2>
+          <span className="dep-subtitle">{SERVICES.length} services</span>
         </div>
-        <div className="cr-header-center">
-          <PipelineStats branches={branches} />
-        </div>
-        <div className="cr-header-right">
-          <div className="cr-view-toggle">
-            <button
-              className={`cr-view-btn ${viewMode === 'pipeline' ? 'active' : ''}`}
-              onClick={() => setViewMode('pipeline')}
-              aria-label="Pipeline view"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="5" height="14" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="10" y="1" width="5" height="14" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
-              Pipeline
-            </button>
-            <button
-              className={`cr-view-btn ${viewMode === 'detail' ? 'active' : ''}`}
-              onClick={() => setViewMode('detail')}
-              aria-label="Detail view"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="6" rx="1" stroke="currentColor" strokeWidth="1.2"/><rect x="1" y="9" width="14" height="6" rx="1" stroke="currentColor" strokeWidth="1.2"/></svg>
-              Detail
-            </button>
-          </div>
-          <button
-            className="cr-btn cr-btn--deploy-quick"
-            onClick={() => setDeployOpen(true)}
-            aria-label="Quick Deploy"
-          >
+        <div className="dep-header-right">
+          {healthChecking && <span className="dep-checking">Checking health...</span>}
+          <button className="fo-action-btn fo-action-btn--primary" onClick={() => setDeployOpen(true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-            Deploy
+            Deploy Services...
           </button>
         </div>
-      </header>
+      </div>
 
-      {viewMode === 'pipeline' ? (
-        <div className="cr-pipeline-container">
-          {branches.length === 0 ? (
-            <div className="cr-pipeline-empty-state">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><circle cx="12" cy="12" r="3"/><path d="M12 3v6m0 6v6M3 12h6m6 0h6"/></svg>
-              <h3>No agent branches</h3>
-              <p>Agent branches will appear here when agents create code changes.</p>
-            </div>
-          ) : (
-            <PipelineView branches={branches} onSelect={handleBranchSelect} />
-          )}
+      {/* Stats Row */}
+      <div className="dep-stats-row">
+        <div className="dep-stat-card">
+          <div className="dep-stat-value">{totalDeploys}</div>
+          <div className="dep-stat-label">Total Deploys</div>
         </div>
-      ) : (
-        <div className="cr-layout">
-          <aside className="cr-sidebar">
-            <BranchList />
-          </aside>
-          <main className="cr-main">
-            <DiffPanel />
-            {showDeployPrompt && (
-              <div className="cr-merge-deploy-prompt">
-                <div className="cr-merge-deploy-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <div className="dep-stat-card dep-stat-card--success">
+          <div className="dep-stat-value">{successCount}</div>
+          <div className="dep-stat-label">Successful</div>
+        </div>
+        <div className="dep-stat-card dep-stat-card--danger">
+          <div className="dep-stat-value">{failCount}</div>
+          <div className="dep-stat-label">Failed</div>
+        </div>
+        <div className="dep-stat-card dep-stat-card--info">
+          <div className="dep-stat-value">{runningCount}</div>
+          <div className="dep-stat-label">In Progress</div>
+        </div>
+      </div>
+
+      {/* Service Status Grid */}
+      <div className="fo-panel">
+        <div className="fo-panel-header">
+          <span className="fo-panel-title">Service Status</span>
+          <button className="dep-refresh-btn" onClick={() => checkHealth(SERVICES.map(s => s.id))} disabled={healthChecking}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            {healthChecking ? 'Checking...' : 'Refresh'}
+          </button>
+        </div>
+        <div className="dep-service-grid">
+          {SERVICES.map(svc => {
+            const health = healthResults[svc.id];
+            const isRunning = health?.running;
+            const statusText = health ? (isRunning ? 'Running' : health.status || 'Down') : 'Unknown';
+            const isActioning = actionInProgress?.startsWith(svc.id);
+
+            return (
+              <div key={svc.id} className={`dep-service-card ${isRunning ? 'dep-service-card--ok' : health ? 'dep-service-card--down' : ''}`}>
+                <div className="dep-service-top">
+                  <div className="dep-service-info">
+                    <span className={`dep-health-dot ${isRunning ? 'dep-health-dot--ok' : health ? 'dep-health-dot--down' : 'dep-health-dot--unknown'}`} />
+                    <div>
+                      <div className="dep-service-name">{svc.label}</div>
+                      <div className="dep-service-meta">{svc.container} · {svc.mem} · :{svc.port}</div>
+                    </div>
+                  </div>
+                  <span className={`dep-status-badge ${isRunning ? 'dep-status-badge--ok' : health ? 'dep-status-badge--down' : 'dep-status-badge--unknown'}`}>
+                    {statusText}
+                  </span>
                 </div>
-                <div className="cr-merge-deploy-text">
-                  <strong>Branch merged successfully.</strong> Deploy the affected services?
+                <div className="dep-service-actions">
+                  <button
+                    className="dep-quick-btn"
+                    onClick={() => handleQuickAction(svc.id, 'rebuild')}
+                    disabled={deploying || !!isActioning}
+                  >
+                    {isActioning && actionInProgress === `${svc.id}-rebuild` ? 'Building...' : 'Rebuild'}
+                  </button>
+                  <button
+                    className="dep-quick-btn dep-quick-btn--secondary"
+                    onClick={() => handleQuickAction(svc.id, 'restart')}
+                    disabled={deploying || !!isActioning}
+                  >
+                    {isActioning && actionInProgress === `${svc.id}-restart` ? 'Restarting...' : 'Restart'}
+                  </button>
                 </div>
-                <button className="cr-btn cr-btn--primary" onClick={() => setDeployOpen(true)}>
-                  Deploy Now
-                </button>
               </div>
-            )}
-          </main>
+            );
+          })}
         </div>
-      )}
+      </div>
 
-      <ReviewChatPanel />
+      {/* Recent Deploys */}
+      <div className="fo-panel">
+        <div className="fo-panel-header">
+          <span className="fo-panel-title">Recent Deploys</span>
+          <span className="fo-panel-count">{deployTasks.length} total</span>
+        </div>
+        {recentTasks.length === 0 ? (
+          <div className="dep-empty">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+            <p>No deploy history yet. Use the Deploy button to rebuild or restart services.</p>
+          </div>
+        ) : (
+          <div className="dep-task-list">
+            {recentTasks.map(task => {
+              const st = STATUS_STYLES[task.status] || STATUS_STYLES.cancelled;
+              const isExpanded = expandedTask === task.id;
+              return (
+                <div key={task.id} className="dep-task-row">
+                  <button className="dep-task-header" onClick={() => setExpandedTask(isExpanded ? null : task.id)}>
+                    <div className="dep-task-left">
+                      <span className="dep-task-status" style={{ color: st.color, background: st.bg }}>{st.label}</span>
+                      <span className="dep-task-action">{task.action}</span>
+                      <span className="dep-task-services">{task.services.join(', ')}</span>
+                    </div>
+                    <div className="dep-task-right">
+                      <span className="dep-task-duration">{formatDuration(task.started_at, task.completed_at)}</span>
+                      <span className="dep-task-time">{relativeTime(task.created_at)}</span>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                        <path d="M4 6l4 4 4-4"/>
+                      </svg>
+                    </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="dep-task-detail">
+                      <div className="dep-task-detail-row">
+                        <span>Triggered by</span>
+                        <span>{task.triggered_by || 'Manual'}</span>
+                      </div>
+                      {task.branch && (
+                        <div className="dep-task-detail-row">
+                          <span>Branch</span>
+                          <span>{task.branch}</span>
+                        </div>
+                      )}
+                      {task.exit_code !== null && task.exit_code !== undefined && (
+                        <div className="dep-task-detail-row">
+                          <span>Exit code</span>
+                          <span style={{ color: task.exit_code === 0 ? '#10b981' : '#ef4444' }}>{task.exit_code}</span>
+                        </div>
+                      )}
+                      {task.logs && (
+                        <div className="dep-task-logs">
+                          <pre>{task.logs}</pre>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {deployOpen && <DeployModal onClose={() => setDeployOpen(false)} />}
     </div>
   );
