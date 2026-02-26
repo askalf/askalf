@@ -1193,3 +1193,304 @@
 
 .cost-tip-api { color: var(--crystal-lighter, #a78bfa); }
 .cost-tip-cli { color: #60a5fa; }
+
+/* ==========================================
+   Audit Log — Expandable Rows
+   ========================================== */
+
+.al-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.al-filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.al-table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+}
+
+.al-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.al-table thead th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.al-table tbody td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  vertical-align: top;
+}
+
+.al-row-clickable { cursor: pointer; }
+.al-row-clickable:hover { background: rgba(255,255,255,0.03); }
+.al-row-expanded { background: rgba(139,92,246,0.05); }
+
+.al-action-badge {
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.al-entity-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.al-entity-type {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.al-entity-id {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.al-entity-id:hover { color: var(--crystal); }
+
+.al-actor-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.al-actor-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.al-actor-id {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.al-details-cell { max-width: 400px; }
+
+.al-details-preview {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.al-expand-icon {
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--crystal);
+  font-size: 0.65rem;
+}
+
+/* Expanded detail row */
+.al-detail-row td {
+  padding: 0 !important;
+  border-bottom: 1px solid rgba(139,92,246,0.15);
+}
+
+.al-detail-content {
+  padding: 0.75rem 1rem 1rem;
+  background: rgba(0,0,0,0.15);
+  border-top: 1px solid rgba(139,92,246,0.1);
+}
+
+.al-detail-header {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.al-detail-id,
+.al-detail-exec {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.al-detail-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.al-json-block {
+  position: relative;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.al-json-label {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.al-json-pre {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.al-copy-btn {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 3px 5px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.al-copy-btn:hover { background: rgba(255,255,255,0.12); color: var(--text-primary); }
+
+.al-empty { color: var(--text-muted); font-size: 0.75rem; font-style: italic; }
+
+/* ==========================================
+   Execution History — Enhanced Detail Panel
+   ========================================== */
+
+.exec-detail-panel {
+  width: min(560px, 90vw) !important;
+}
+
+.exec-id-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.exec-id-mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.exec-copy-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.15s;
+}
+.exec-copy-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+
+.exec-overview-grid {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 4px 12px;
+  font-size: 0.8rem;
+}
+
+.exec-ov-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.exec-ov-value {
+  color: var(--text-primary);
+}
+
+/* Code blocks (input, output, metadata, error) */
+.exec-code-block {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.exec-code-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.exec-code-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.exec-code-size {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-right: auto;
+}
+
+.exec-code-pre {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.exec-error-block {
+  background: rgba(239,68,68,0.06);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.exec-error-pre {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  color: #ef4444;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}

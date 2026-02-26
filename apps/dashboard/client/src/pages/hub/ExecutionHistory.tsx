@@ -40,21 +40,101 @@ const formatCost = (cost: number | undefined) => {
 
 const formatTokens = (tokens: number | undefined) => {
   if (!tokens) return '-';
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
   if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`;
   return String(tokens);
 };
 
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).catch(() => { /* ignore */ });
+}
+
 const getHandoffInfo = (task: { handoff_to_agent_name?: string | null; parent_task_id?: string | null; metadata?: Record<string, unknown> }) => {
   if (task.handoff_to_agent_name) return { type: 'handoff' as const, label: task.handoff_to_agent_name };
   if (task.parent_task_id) return { type: 'child' as const, label: 'Child' };
-  // Check metadata for fleet-dispatched tasks (pipeline handoffs via FleetCoordinator)
   const source = task.metadata?.source as string | undefined;
   if (source === 'fleet-dispatch') return { type: 'handoff' as const, label: (task.metadata?.planId as string)?.slice(0, 8) ?? 'Fleet' };
-  // Check metadata for parent_execution_id (how forge stores parent relationships)
   const parentId = task.metadata?.parent_execution_id as string | undefined;
   if (parentId) return { type: 'child' as const, label: 'Child' };
   return null;
 };
+
+function CopyButton({ text, label }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className="exec-copy-btn"
+      title={label || 'Copy'}
+      onClick={(e) => {
+        e.stopPropagation();
+        copyToClipboard(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      )}
+    </button>
+  );
+}
+
+function CodeBlock({ text, maxCollapsed, label }: { text: string; maxCollapsed?: number; label?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = maxCollapsed !== undefined && text.length > maxCollapsed;
+  const displayText = isLong && !expanded ? text.slice(0, maxCollapsed) + '\n...' : text;
+  const charLabel = text.length > 1000 ? `${(text.length / 1000).toFixed(1)}k chars` : `${text.length} chars`;
+
+  return (
+    <div className="exec-code-block">
+      <div className="exec-code-header">
+        {label && <span className="exec-code-label">{label}</span>}
+        <span className="exec-code-size">{charLabel}</span>
+        <CopyButton text={text} />
+        {isLong && (
+          <button className="hub-btn hub-btn--sm" onClick={() => setExpanded(!expanded)}>
+            {expanded ? 'Collapse' : 'Expand All'}
+          </button>
+        )}
+      </div>
+      <pre className="exec-code-pre">{displayText}</pre>
+    </div>
+  );
+}
+
+function parseOutput(output: unknown): string {
+  if (!output) return '';
+  const rawOutput = typeof output === 'string'
+    ? output
+    : typeof output === 'object' && output && 'response' in output
+      ? String((output as Record<string, unknown>).response)
+      : JSON.stringify(output, null, 2);
+
+  let outputText = rawOutput;
+  if (typeof rawOutput === 'string' && rawOutput.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(rawOutput) as Record<string, unknown>;
+      if (parsed['result'] && typeof parsed['result'] === 'string' && (parsed['result'] as string).trim().length > 0) {
+        outputText = parsed['result'] as string;
+      } else if (parsed['subtype'] === 'error_max_budget_usd') {
+        outputText = `[Budget exceeded after ${parsed['num_turns'] || 0} turn(s), $${(Number(parsed['total_cost_usd']) || 0).toFixed(4)} spent]`;
+      } else if (parsed['subtype'] === 'error_max_turns') {
+        outputText = `[Max turns reached (${parsed['num_turns'] || 0}), $${(Number(parsed['total_cost_usd']) || 0).toFixed(4)} spent]`;
+      }
+    } catch {
+      // keep raw
+    }
+  }
+  return outputText === 'null' || outputText === '{}' ? '' : outputText;
+}
+
+function parseInput(input: unknown): string {
+  if (!input || (typeof input === 'object' && Object.keys(input as object).length === 0)) return '';
+  if (typeof input === 'object' && input && 'prompt' in input) return String((input as Record<string, unknown>).prompt);
+  return JSON.stringify(input, null, 2);
+}
 
 export default function ExecutionHistory() {
   const tasks = useHubStore((s) => s.tasks);
@@ -74,37 +154,22 @@ export default function ExecutionHistory() {
   const fetchTaskDetail = useHubStore((s) => s.fetchTaskDetail);
 
   const [expandedLogs, setExpandedLogs] = useState(false);
-  const [expandedOutput, setExpandedOutput] = useState(false);
-  const [inputCollapsed, setInputCollapsed] = useState(true);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchTasks();
-    fetchTaskStats();
-  }, [fetchTasks, fetchTaskStats]);
+  useEffect(() => { fetchTasks(); fetchTaskStats(); }, [fetchTasks, fetchTaskStats]);
+  useEffect(() => { fetchTasks(); }, [page, statusFilter, fetchTasks]);
 
-  // Re-fetch when filters change
-  useEffect(() => {
-    fetchTasks();
-  }, [page, statusFilter, fetchTasks]);
-
-  // Auto-refresh every 15s (task monitoring)
   const pollTasks = useCallback(async () => {
     await Promise.all([fetchTasks(), fetchTaskStats()]);
   }, [fetchTasks, fetchTaskStats]);
   usePolling(pollTasks, 15000);
 
-  // Fetch detail when task selected
   useEffect(() => {
     if (selectedTask) {
       fetchTaskDetail(selectedTask.id);
       setExpandedLogs(false);
-      setExpandedOutput(false);
-      setInputCollapsed(true);
     }
   }, [selectedTask, fetchTaskDetail]);
 
-  // Use the detail task data when available (has more fields from the detail endpoint)
   const detailTask = selectedTaskDetail?.task || selectedTask;
 
   return (
@@ -148,8 +213,9 @@ export default function ExecutionHistory() {
                 <th>Status</th>
                 <th>Started</th>
                 <th>Duration</th>
+                <th>Cost</th>
+                <th>Tokens</th>
                 <th>Handoff</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -169,6 +235,8 @@ export default function ExecutionHistory() {
                     <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       {task.duration_seconds ? formatDurationSeconds(task.duration_seconds) : formatDuration(task.started_at, task.completed_at)}
                     </td>
+                    <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{formatCost(task.cost)}</td>
+                    <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatTokens(task.tokens_used)}</td>
                     <td>
                       {handoff ? (
                         <span className={`hub-hist-handoff ${handoff.type === 'child' ? 'child' : ''}`}>
@@ -176,15 +244,12 @@ export default function ExecutionHistory() {
                         </span>
                       ) : '-'}
                     </td>
-                    <td>
-                      <button className="hub-btn" onClick={(e) => { e.stopPropagation(); setSelectedTask(task); }}>View</button>
-                    </td>
                   </tr>
                 );
               })}
               {tasks.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No tasks found</td>
+                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No tasks found</td>
                 </tr>
               )}
             </tbody>
@@ -198,13 +263,14 @@ export default function ExecutionHistory() {
       {selectedTask && (
         <>
           <div className="hub-detail-overlay" onClick={() => setSelectedTask(null)} />
-          <div className="hub-detail-panel">
+          <div className="hub-detail-panel exec-detail-panel">
             <div className="hub-detail-header">
               <div>
-                <h2>Task Details</h2>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
-                  {selectedTask.id}
-                </span>
+                <h2>Execution Detail</h2>
+                <div className="exec-id-row">
+                  <span className="exec-id-mono">{selectedTask.id}</span>
+                  <CopyButton text={selectedTask.id} label="Copy ID" />
+                </div>
               </div>
               <button className="hub-modal__close" onClick={() => setSelectedTask(null)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
@@ -242,20 +308,20 @@ export default function ExecutionHistory() {
             {/* Overview */}
             <div className="hub-detail-section">
               <h3>Overview</h3>
-              <div className="hub-hist-detail-grid">
-                <div><strong>Agent:</strong></div><div>{detailTask?.agent_name || selectedTask.agent_name}</div>
-                <div><strong>Type:</strong></div><div>{detailTask?.agent_type || selectedTask.agent_type}</div>
-                <div><strong>Task Type:</strong></div><div>{detailTask?.type || selectedTask.type}</div>
-                <div><strong>Created:</strong></div><div>{formatDateFull(detailTask?.created_at || selectedTask.created_at)}</div>
-                <div><strong>Started:</strong></div><div>{formatDateFull(detailTask?.started_at || selectedTask.started_at)}</div>
-                <div><strong>Completed:</strong></div><div>{formatDateFull(detailTask?.completed_at || selectedTask.completed_at)}</div>
+              <div className="exec-overview-grid">
+                <div className="exec-ov-label">Agent</div><div className="exec-ov-value">{detailTask?.agent_name || selectedTask.agent_name}</div>
+                <div className="exec-ov-label">Type</div><div className="exec-ov-value">{detailTask?.agent_type || selectedTask.agent_type}</div>
+                <div className="exec-ov-label">Task Type</div><div className="exec-ov-value">{detailTask?.type || selectedTask.type}</div>
+                <div className="exec-ov-label">Created</div><div className="exec-ov-value">{formatDateFull(detailTask?.created_at || selectedTask.created_at)}</div>
+                <div className="exec-ov-label">Started</div><div className="exec-ov-value">{formatDateFull(detailTask?.started_at || selectedTask.started_at)}</div>
+                <div className="exec-ov-label">Completed</div><div className="exec-ov-value">{formatDateFull(detailTask?.completed_at || selectedTask.completed_at)}</div>
                 {(() => {
                   const handoff = getHandoffInfo(detailTask || selectedTask);
                   if (!handoff) return null;
                   return (
                     <>
-                      <div><strong>Lineage:</strong></div>
-                      <div>
+                      <div className="exec-ov-label">Lineage</div>
+                      <div className="exec-ov-value">
                         <span className={`hub-hist-handoff ${handoff.type === 'child' ? 'child' : ''}`}>
                           {handoff.type === 'handoff' ? <>&rarr; Handed off to {handoff.label}</> : <>&larr; Child task</>}
                         </span>
@@ -266,28 +332,13 @@ export default function ExecutionHistory() {
               </div>
             </div>
 
-            {/* Input / Prompt (collapsible) */}
+            {/* Input */}
             {(() => {
-              const input = detailTask?.input || selectedTask.input;
-              if (!input || Object.keys(input).length === 0) return null;
-              const inputText = typeof input === 'object' && 'prompt' in input
-                ? String(input.prompt)
-                : JSON.stringify(input, null, 2);
+              const inputText = parseInput(detailTask?.input || selectedTask.input);
               if (!inputText || inputText === '""' || inputText === '{}') return null;
               return (
                 <div className="hub-detail-section">
-                  <div className="hub-hist-section-header">
-                    <h3>Input ({inputText.length > 1000 ? `${(inputText.length / 1000).toFixed(1)}k chars` : `${inputText.length} chars`})</h3>
-                    <button
-                      className="hub-btn hub-btn--sm"
-                      onClick={() => setInputCollapsed(!inputCollapsed)}
-                    >
-                      {inputCollapsed ? 'Expand' : 'Collapse'}
-                    </button>
-                  </div>
-                  {!inputCollapsed && (
-                    <div className="hub-hist-detail-output">{inputText}</div>
-                  )}
+                  <CodeBlock text={inputText} maxCollapsed={2000} label="Input / Prompt" />
                 </div>
               );
             })()}
@@ -295,49 +346,23 @@ export default function ExecutionHistory() {
             {/* Error */}
             {(detailTask?.error || selectedTask.error) && (
               <div className="hub-detail-section">
-                <h3>Error</h3>
-                <div className="hub-hist-detail-error">{detailTask?.error || selectedTask.error}</div>
+                <div className="exec-error-block">
+                  <div className="exec-code-header">
+                    <span className="exec-code-label" style={{ color: '#ef4444' }}>Error</span>
+                    <CopyButton text={detailTask?.error || selectedTask.error || ''} />
+                  </div>
+                  <pre className="exec-error-pre">{detailTask?.error || selectedTask.error}</pre>
+                </div>
               </div>
             )}
 
             {/* Output */}
             {(() => {
-              const output = detailTask?.output || selectedTask.output;
-              if (!output || (typeof output === 'object' && Object.keys(output).length === 0)) return null;
-              const rawOutput = typeof output === 'string' ? output : typeof output === 'object' && output && 'response' in output ? String((output as Record<string, unknown>).response) : JSON.stringify(output, null, 2);
-              let outputText: string = rawOutput;
-              // Try to extract 'result' from raw CLI JSON output (legacy format)
-              if (typeof rawOutput === 'string' && rawOutput.trim().startsWith('{')) {
-                try {
-                  const parsed = JSON.parse(rawOutput) as Record<string, unknown>;
-                  if (parsed['result'] && typeof parsed['result'] === 'string' && (parsed['result'] as string).trim().length > 0) {
-                    outputText = parsed['result'] as string;
-                  } else if (parsed['subtype'] === 'error_max_budget_usd') {
-                    outputText = `[Budget exceeded after ${parsed['num_turns'] || 0} turn(s), $${(Number(parsed['total_cost_usd']) || 0).toFixed(4)} spent]`;
-                  } else if (parsed['subtype'] === 'error_max_turns') {
-                    outputText = `[Max turns reached (${parsed['num_turns'] || 0}), $${(Number(parsed['total_cost_usd']) || 0).toFixed(4)} spent]`;
-                  }
-                } catch {
-                  // Not valid JSON, keep raw output
-                }
-              }
-              if (!outputText || outputText === 'null' || outputText === '{}') return null;
+              const outputText = parseOutput(detailTask?.output || selectedTask.output);
+              if (!outputText) return null;
               return (
                 <div className="hub-detail-section">
-                  <div className="hub-hist-section-header">
-                    <h3>Output ({outputText.length > 1000 ? `${(outputText.length / 1000).toFixed(1)}k chars` : `${outputText.length} chars`})</h3>
-                    {outputText.length > 500 && (
-                      <button
-                        className="hub-btn hub-btn--sm"
-                        onClick={() => setExpandedOutput(!expandedOutput)}
-                      >
-                        {expandedOutput ? 'Collapse' : 'Expand'}
-                      </button>
-                    )}
-                  </div>
-                  <div className="hub-hist-detail-output" style={expandedOutput ? { maxHeight: 'none' } : undefined}>
-                    {outputText}
-                  </div>
+                  <CodeBlock text={outputText} maxCollapsed={3000} label="Output" />
                 </div>
               );
             })()}
@@ -348,10 +373,7 @@ export default function ExecutionHistory() {
                 <div className="hub-hist-section-header">
                   <h3>Execution Log ({selectedTaskDetail.logs.length})</h3>
                   {selectedTaskDetail.logs.length > 5 && (
-                    <button
-                      className="hub-btn hub-btn--sm"
-                      onClick={() => setExpandedLogs(!expandedLogs)}
-                    >
+                    <button className="hub-btn hub-btn--sm" onClick={() => setExpandedLogs(!expandedLogs)}>
                       {expandedLogs ? 'Show Less' : `Show All (${selectedTaskDetail.logs.length})`}
                     </button>
                   )}
@@ -410,13 +432,10 @@ export default function ExecutionHistory() {
               </div>
             )}
 
-            {/* Metadata (collapsed) */}
+            {/* Metadata */}
             {detailTask?.metadata && Object.keys(detailTask.metadata).length > 0 && (
               <div className="hub-detail-section">
-                <h3>Metadata</h3>
-                <div className="hub-hist-detail-output" style={{ maxHeight: '150px' }}>
-                  {JSON.stringify(detailTask.metadata, null, 2)}
-                </div>
+                <CodeBlock text={JSON.stringify(detailTask.metadata, null, 2)} maxCollapsed={1500} label="Metadata" />
               </div>
             )}
           </div>
