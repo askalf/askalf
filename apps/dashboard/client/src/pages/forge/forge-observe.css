@@ -641,6 +641,321 @@
 }
 
 /* ==========================================
+   User Provider Keys — Featured Cards
+   ========================================== */
+
+.uprov-section {
+  margin-bottom: 2rem;
+}
+
+.uprov-section-header {
+  margin-bottom: 1.25rem;
+}
+
+.uprov-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 0.25rem;
+}
+
+.uprov-section-desc {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+.uprov-featured-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .uprov-featured-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.uprov-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.uprov-card:hover {
+  border-color: var(--border-hover);
+}
+
+.uprov-card--connected {
+  border-color: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.08);
+}
+
+.uprov-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.uprov-provider-icon {
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--crystal-dim);
+  color: var(--crystal-light);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.uprov-provider-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.uprov-provider-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.uprov-provider-desc {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin: 0.15rem 0 0;
+}
+
+.uprov-status {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+}
+
+.uprov-status--connected {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.uprov-status--none {
+  color: var(--text-muted);
+  background: var(--elevated);
+}
+
+.uprov-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.uprov-card-body {
+  margin-top: 0.75rem;
+}
+
+.uprov-key-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.uprov-key-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.uprov-key-label {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.uprov-key-hint {
+  font-size: 0.8rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+  background: var(--deep);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.uprov-key-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.uprov-key-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.uprov-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.uprov-btn:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+
+.uprov-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.uprov-btn--save {
+  background: var(--crystal);
+  color: white;
+  border-color: var(--crystal);
+}
+
+.uprov-btn--save:hover:not(:disabled) {
+  background: var(--crystal-light);
+  border-color: var(--crystal-light);
+  color: white;
+}
+
+.uprov-btn--verify {
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.uprov-btn--verify:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.uprov-btn--remove {
+  border-color: rgba(239, 68, 68, 0.2);
+  color: var(--text-muted);
+}
+
+.uprov-btn--remove:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.uprov-btn--toggle-vis {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+}
+
+.uprov-key-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.uprov-input-row {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.uprov-key-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--deep);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s ease;
+}
+
+.uprov-key-input:focus {
+  outline: none;
+  border-color: var(--crystal);
+  box-shadow: 0 0 0 2px var(--crystal-dim);
+}
+
+.uprov-key-input::placeholder {
+  color: var(--text-muted);
+  font-family: inherit;
+}
+
+.uprov-input-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.uprov-key-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Admin System Providers Section ── */
+
+.uprov-admin-section {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.uprov-admin-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-align: left;
+  transition: color 0.15s ease;
+}
+
+.uprov-admin-toggle:hover {
+  color: var(--text);
+}
+
+.uprov-admin-toggle-icon {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.uprov-admin-toggle-label {
+  font-weight: 600;
+}
+
+.uprov-admin-toggle-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.uprov-admin-content {
+  padding-top: 0.75rem;
+}
+
+/* ==========================================
    Guardrails Manager — Redesigned
    ========================================== */
 
