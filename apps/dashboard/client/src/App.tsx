@@ -12,6 +12,7 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const Register = lazy(() => import('./pages/Register'));
 const Landing = lazy(() => import('./pages/Landing'));
+const Onboard = lazy(() => import('./pages/Onboard'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
@@ -38,6 +39,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (isLoading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.emailVerified === false) return <Navigate to="/verify-email" replace />;
+  if (!user.onboardingCompleted) return <Navigate to="/onboard" replace />;
 
   return <>{children}</>;
 }
@@ -84,6 +86,7 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/onboard" element={<Onboard />} />
 
       {/* Main app with sidebar layout */}
       <Route

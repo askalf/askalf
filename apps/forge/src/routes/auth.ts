@@ -348,7 +348,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     const session = await substrateQueryOne<Record<string, unknown>>(
       `SELECT s.*, u.id as user_id, u.email, u.email_verified, u.display_name, u.avatar_url, u.role, u.tenant_id, u.timezone,
-              t.tier as tenant_tier
+              u.onboarding_completed_at, t.tier as tenant_tier
        FROM sessions s
        JOIN users u ON s.user_id = u.id
        JOIN tenants t ON u.tenant_id = t.id
@@ -379,6 +379,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         id: session['user_id'],
         email: session['email'],
         emailVerified: session['email_verified'],
+        onboardingCompleted: !!session['onboarding_completed_at'],
         displayName: session['display_name'],
         avatarUrl: session['avatar_url'],
         role: session['role'],

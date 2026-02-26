@@ -49,6 +49,7 @@ export interface User {
   id: string;
   email: string;
   emailVerified?: boolean;
+  onboardingCompleted?: boolean;
   displayName?: string;
   role: 'user' | 'admin' | 'super_admin';
 }

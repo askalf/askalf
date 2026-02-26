@@ -1,15 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import './Login.css';
-
-function getApiUrl() {
-  const host = window.location.hostname;
-  if (host.includes('askalf.org') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
-  return 'http://localhost:3001';
-}
-
-const API_BASE = getApiUrl();
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) return 'Email is required';
@@ -24,13 +17,14 @@ function validateName(name: string): string | null {
 }
 
 export default function RegisterPage() {
+  const navigate = useNavigate();
+  const { register } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [touched, setTouched] = useState<{ name?: boolean; email?: boolean }>({});
 
   useEffect(() => {
@@ -78,23 +72,9 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          email: email.trim(),
-          password,
-          display_name: name.trim(),
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: 'Registration failed' }));
-        throw new Error(data.error || data.message || 'Registration failed');
-      }
-
-      setSuccess(true);
+      await register(email.trim(), password, name.trim());
+      // Auto-login happens in register() — navigate to verify email
+      navigate('/verify-email', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -112,15 +92,7 @@ export default function RegisterPage() {
           <p className="auth-subtitle">Create your account</p>
         </div>
 
-        {success ? (
-          <div className="auth-success-box">
-            <div className="auth-success-icon">✓</div>
-            <h3>Account created</h3>
-            <p>Check your email for a verification link.</p>
-            <Link to="/login" className="auth-back-link">Go to sign in</Link>
-          </div>
-        ) : (
-          <form className="auth-form" onSubmit={handleSubmit}>
+        <form className="auth-form" onSubmit={handleSubmit}>
             {error && (
               <div className="auth-error">
                 <svg viewBox="0 0 20 20" fill="currentColor">
@@ -215,7 +187,6 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
-        )}
 
         <div className="auth-footer">
           <p>
