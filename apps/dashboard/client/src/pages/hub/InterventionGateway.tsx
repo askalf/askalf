@@ -27,7 +27,7 @@ export default function InterventionGateway() {
   const poll = useCallback(() => {
     fetchInterventions();
   }, [fetchInterventions]);
-  usePolling(poll, 3000);
+  usePolling(poll, 10000);
 
   if (loading.interventions && interventions.length === 0) {
     return <div className="hub-loading">Loading interventions...</div>;

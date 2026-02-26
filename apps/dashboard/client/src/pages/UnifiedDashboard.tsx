@@ -33,11 +33,12 @@ const AuditLog = lazy(() => import('./forge/AuditLog'));
 const WorkflowBuilder = lazy(() => import('./forge/WorkflowBuilder'));
 const ProviderHealthPage = lazy(() => import('./forge/ProviderHealth'));
 const GuardrailsManager = lazy(() => import('./forge/GuardrailsManager'));
+const GraphTab = lazy(() => import('./unified/GraphTab'));
 
 type TabKey =
   | 'chat' | 'templates' | 'builder' | 'fleet' | 'orchestrator'
   | 'deploy' | 'executions' | 'documents' | 'costs'
-  | 'interventions' | 'tickets' | 'content' | 'memory'
+  | 'interventions' | 'tickets' | 'content' | 'memory' | 'graph'
   | 'audit' | 'workflows' | 'providers' | 'guardrails';
 
 interface TabGroup { label: string; tabs: { key: TabKey; label: string }[] }
@@ -55,6 +56,7 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'tickets', label: 'Tickets' },
     { key: 'content', label: 'Content' },
     { key: 'memory', label: 'Memory' },
+    { key: 'graph', label: 'Graph' },
   ]},
   { label: 'Observe', tabs: [
     { key: 'costs', label: '$$' },
@@ -173,6 +175,7 @@ export default function UnifiedDashboard() {
       case 'tickets': return wrap('Tickets', Tickets);
       case 'content': return wrap('Content', ContentFeed);
       case 'memory': return wrap('Memory', FleetMemory);
+      case 'graph': return wrap('Graph', GraphTab);
       case 'audit': return wrap('Audit', AuditLog);
       case 'workflows': return wrap('Workflows', WorkflowBuilder);
       case 'providers': return wrap('Providers', ProviderHealthPage);
@@ -188,7 +191,7 @@ export default function UnifiedDashboard() {
         ticketCount={ticketCount}
         todayCost={todayCost}
       />
-      <div className={`ud-body ${activeTab === 'chat' || activeTab === 'templates' || activeTab === 'builder' || activeTab === 'fleet' || activeTab === 'orchestrator' ? 'ud-body-full' : ''}`}>
+      <div className={`ud-body ${activeTab === 'chat' || activeTab === 'templates' || activeTab === 'builder' || activeTab === 'fleet' || activeTab === 'orchestrator' || activeTab === 'interventions' || activeTab === 'tickets' || activeTab === 'content' || activeTab === 'graph' || activeTab === 'memory' ? 'ud-body-full' : ''}`}>
         <div className="ud-main">
           <div className="ud-tab-bar">
             {TAB_GROUPS.map((group, gi) => (
@@ -211,7 +214,7 @@ export default function UnifiedDashboard() {
             {tabContent()}
           </div>
         </div>
-        {activeTab !== 'chat' && activeTab !== 'templates' && activeTab !== 'builder' && activeTab !== 'fleet' && activeTab !== 'orchestrator' && (
+        {activeTab !== 'chat' && activeTab !== 'templates' && activeTab !== 'builder' && activeTab !== 'fleet' && activeTab !== 'orchestrator' && activeTab !== 'interventions' && activeTab !== 'tickets' && activeTab !== 'content' && activeTab !== 'graph' && activeTab !== 'memory' && (
           <aside className="ud-sidebar">
             <AgentFleetCompact forgeEvents={events} onViewFleet={() => setActiveTab('fleet')} />
             <LiveActivityFeed events={events} />

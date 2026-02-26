@@ -13,20 +13,25 @@ export interface ContextOptions {
   k?: number;
 }
 
+export interface MemoryContextResult {
+  text: string;
+  count: number;
+}
+
 /**
  * Build a formatted memory context block for injection into CLAUDE.md.
- * Returns empty string if no relevant memories are found.
+ * Returns { text, count } where text is the formatted block and count is number of memories recalled.
  */
 export async function buildMemoryContext(
   agentId: string,
   input: string,
   options?: ContextOptions,
-): Promise<string> {
+): Promise<MemoryContextResult> {
   // Hard timeout: never let memory context block agent dispatch for more than 15s
   const TIMEOUT_MS = 15_000;
   return Promise.race([
     buildMemoryContextInner(agentId, input, options),
-    new Promise<string>((_, reject) =>
+    new Promise<MemoryContextResult>((_, reject) =>
       setTimeout(() => reject(new Error(`Memory context timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
     ),
   ]);
@@ -36,7 +41,7 @@ async function buildMemoryContextInner(
   agentId: string,
   input: string,
   options?: ContextOptions,
-): Promise<string> {
+): Promise<MemoryContextResult> {
   const start = Date.now();
   const manager = getMemoryManager();
   const k = Math.min(options?.k ?? 5, 50); // Hard cap at 50 to prevent unbounded vector scans
@@ -97,12 +102,11 @@ async function buildMemoryContextInner(
     ].join('\n');
   }
 
-  const result = memoryBlock;
   const elapsed = Date.now() - start;
   const total = lines.length;
   const agentCount = agentRecall.semantic.length + agentRecall.episodic.length + agentRecall.procedural.length;
   console.log(
     `[Memory] Context built for agent ${agentId}: ${total} memories recalled (${agentCount} agent, ${total - agentCount} fleet) in ${elapsed}ms`,
   );
-  return result || '';
+  return { text: memoryBlock || '', count: total };
 }

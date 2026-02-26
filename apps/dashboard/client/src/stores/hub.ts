@@ -637,14 +637,15 @@ export const useHubStore = create<HubState>((set, get) => ({
   },
 
   fetchInterventions: async () => {
-    set((s) => ({ loading: { ...s.loading, interventions: true } }));
+    const isInitial = get().interventions.length === 0 && !get().interventionPagination;
+    if (isInitial) set((s) => ({ loading: { ...s.loading, interventions: true } }));
     try {
       const data = await hubApi.interventions.list({ status: 'pending', page: get().interventionPage });
       set({ interventions: data.interventions || [], interventionPagination: data.pagination || null });
     } catch (err) {
       console.error('Failed to fetch interventions:', err);
     } finally {
-      set((s) => ({ loading: { ...s.loading, interventions: false } }));
+      if (isInitial) set((s) => ({ loading: { ...s.loading, interventions: false } }));
     }
   },
 
@@ -680,7 +681,8 @@ export const useHubStore = create<HubState>((set, get) => ({
   },
 
   fetchTickets: async () => {
-    set((s) => ({ loading: { ...s.loading, tickets: true } }));
+    const isInitial = get().tickets.length === 0 && !get().ticketPagination;
+    if (isInitial) set((s) => ({ loading: { ...s.loading, tickets: true } }));
     try {
       const { ticketPage, ticketFilter, ticketSource, ticketSearch } = get();
       const data = await hubApi.tickets.list({ page: ticketPage, filter: ticketFilter, source: ticketSource, search: ticketSearch });
@@ -688,7 +690,7 @@ export const useHubStore = create<HubState>((set, get) => ({
     } catch (err) {
       console.error('Failed to fetch tickets:', err);
     } finally {
-      set((s) => ({ loading: { ...s.loading, tickets: false } }));
+      if (isInitial) set((s) => ({ loading: { ...s.loading, tickets: false } }));
     }
   },
 
@@ -784,7 +786,8 @@ export const useHubStore = create<HubState>((set, get) => ({
   },
 
   fetchContentFeed: async () => {
-    set((s) => ({ loading: { ...s.loading, content: true } }));
+    const isInitial = get().contentItems.length === 0 && !get().contentPagination;
+    if (isInitial) set((s) => ({ loading: { ...s.loading, content: true } }));
     try {
       const { contentPage, contentAgentFilter, contentSourceFilter, contentSeverityFilter, contentCategoryFilter, contentDateFrom, contentDateTo, contentSearch } = get();
       const data = await hubApi.content.feed({
@@ -813,7 +816,7 @@ export const useHubStore = create<HubState>((set, get) => ({
     } catch (err) {
       console.error('Failed to fetch content feed:', err);
     } finally {
-      set((s) => ({ loading: { ...s.loading, content: false } }));
+      if (isInitial) set((s) => ({ loading: { ...s.loading, content: false } }));
     }
   },
 

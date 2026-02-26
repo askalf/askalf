@@ -25,7 +25,6 @@ export default function TicketSystem() {
   const pagination = useHubStore((s) => s.ticketPagination);
   const page = useHubStore((s) => s.ticketPage);
   const filter = useHubStore((s) => s.ticketFilter);
-  const source = useHubStore((s) => s.ticketSource);
   const search = useHubStore((s) => s.ticketSearch);
   const showCreateTicket = useHubStore((s) => s.showCreateTicket);
   const showTicketDetail = useHubStore((s) => s.showTicketDetail);
@@ -33,7 +32,6 @@ export default function TicketSystem() {
 
   const setPage = useHubStore((s) => s.setTicketPage);
   const setFilter = useHubStore((s) => s.setTicketFilter);
-  const setSource = useHubStore((s) => s.setTicketSource);
   const setSearch = useHubStore((s) => s.setTicketSearch);
   const setShowCreateTicket = useHubStore((s) => s.setShowCreateTicket);
   const setShowTicketDetail = useHubStore((s) => s.setShowTicketDetail);
@@ -55,7 +53,7 @@ export default function TicketSystem() {
   // Fetch when filters change
   useEffect(() => {
     fetchTickets();
-  }, [filter, source, page, searchDebounce, fetchTickets]);
+  }, [filter, page, searchDebounce, fetchTickets]);
 
   // Auto-refresh so agent-created tickets appear without a full reload
   const poll = useCallback(() => { fetchTickets(); }, [fetchTickets]);
@@ -81,18 +79,6 @@ export default function TicketSystem() {
 
   return (
     <>
-      {/* Source Tabs + Filters */}
-      <FilterBar
-        tabs={[
-          { value: 'all', label: 'All Tickets', active: source === 'all', onClick: () => setSource('all') },
-          { value: 'human', label: 'Human', active: source === 'human', onClick: () => setSource('human') },
-          { value: 'agent', label: 'Agent', active: source === 'agent', onClick: () => setSource('agent') },
-        ]}
-        searchValue={search}
-        searchPlaceholder="Search tickets..."
-        onSearchChange={setSearch}
-      />
-
       <FilterBar
         tabs={[
           { value: 'open', label: 'Active', active: filter === 'open', onClick: () => setFilter('open') },
@@ -100,6 +86,9 @@ export default function TicketSystem() {
           { value: 'resolved', label: 'Resolved', active: filter === 'resolved', onClick: () => setFilter('resolved') },
           { value: 'critical', label: 'Critical', active: filter === 'critical', onClick: () => setFilter('critical') },
         ]}
+        searchValue={search}
+        searchPlaceholder="Search tickets..."
+        onSearchChange={setSearch}
       />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-md)' }}>
@@ -114,12 +103,8 @@ export default function TicketSystem() {
       ) : tickets.length === 0 ? (
         <EmptyState
           icon="✅"
-          title={`No ${source !== 'all' ? source : ''} tickets found`}
-          message={
-            source === 'agent'
-              ? 'No tickets from agents yet.'
-              : 'Create a new ticket to track tasks, bugs, or feature requests.'
-          }
+          title="No tickets found"
+          message="Create a new ticket to track tasks, bugs, or feature requests."
           action={{ label: 'New Ticket', onClick: () => setShowCreateTicket(true) }}
         />
       ) : (
