@@ -1,6 +1,7 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import type { Provider, AuthSource } from '../../hooks/useHubApi';
 import StatusBadge from '../hub/shared/StatusBadge';
 import './forge-observe.css';
 
@@ -14,6 +15,248 @@ const relativeTime = (iso: string | null) => {
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
 };
+
+const AUTH_SOURCE_LABELS: Record<AuthSource, string> = {
+  db: 'API Key (saved)',
+  env: 'API Key (env)',
+  oauth: 'CLI / OAuth',
+  none: 'Not configured',
+};
+
+const AUTH_SOURCE_CLASSES: Record<AuthSource, string> = {
+  db: 'prov-auth--db',
+  env: 'prov-auth--env',
+  oauth: 'prov-auth--oauth',
+  none: 'prov-auth--none',
+};
+
+const PROVIDER_TYPE_ORDER = ['anthropic', 'openai', 'google', 'xai', 'deepseek', 'ollama', 'lmstudio', 'custom'];
+
+function ProviderCard({
+  provider,
+  isExpanded,
+  onToggleExpand,
+  models,
+  onFetchModels,
+}: {
+  provider: Provider;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  models: { id: string; model_id: string; display_name: string; context_window: number; cost_per_1k_input: string; cost_per_1k_output: string; supports_tools: boolean; supports_vision: boolean; supports_streaming: boolean; is_reasoning: boolean; is_fast: boolean }[];
+  onFetchModels: () => void;
+}) {
+  const updateProvider = useHubStore((s) => s.updateProvider);
+  const [editingKey, setEditingKey] = useState(false);
+  const [keyValue, setKeyValue] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isExpanded && models.length === 0) {
+      onFetchModels();
+    }
+  }, [isExpanded, models.length, onFetchModels]);
+
+  const healthDot = (status: string) => {
+    switch (status) {
+      case 'healthy': return 'fobs-health-dot--ok';
+      case 'degraded': return 'fobs-health-dot--warn';
+      case 'unhealthy': case 'down': return 'fobs-health-dot--danger';
+      default: return 'fobs-health-dot--unknown';
+    }
+  };
+
+  const handleToggleEnabled = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await updateProvider(provider.id, { is_enabled: !provider.is_enabled });
+  };
+
+  const handleSaveKey = async () => {
+    setSaving(true);
+    const ok = await updateProvider(provider.id, {
+      api_key: keyValue.trim() || null,
+    });
+    setSaving(false);
+    if (ok) {
+      setEditingKey(false);
+      setKeyValue('');
+    }
+  };
+
+  const handleClearKey = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Remove the stored API key? The provider will fall back to env variable or be marked as unconfigured.')) return;
+    await updateProvider(provider.id, { api_key: null });
+  };
+
+  const isLocal = provider.type === 'ollama' || provider.type === 'lmstudio';
+  const comingSoon = !provider.is_enabled && (provider.config as Record<string, unknown>)?.coming_soon;
+
+  return (
+    <div className={`fo-panel prov-card ${isExpanded ? 'expanded' : ''}`}>
+      {/* Header row — always visible */}
+      <div
+        className="prov-header"
+        onClick={onToggleExpand}
+        style={!provider.is_enabled && !comingSoon ? { opacity: 0.55 } : undefined}
+      >
+        <div className="prov-name-row">
+          <span className={`fobs-health-dot ${provider.is_enabled ? healthDot(provider.health_status) : 'fobs-health-dot--unknown'}`} />
+          <strong className="prov-name">{provider.name}</strong>
+          <span className="fobs-provider-type">{provider.type}</span>
+        </div>
+        <div className="prov-header-right">
+          <span className={`prov-auth-badge ${AUTH_SOURCE_CLASSES[provider.auth_source]}`}>
+            {AUTH_SOURCE_LABELS[provider.auth_source]}
+          </span>
+          {comingSoon ? (
+            <span className="prov-coming-soon">Coming Soon</span>
+          ) : (
+            <>
+              <StatusBadge status={provider.is_enabled ? 'active' : 'paused'} />
+              {provider.is_enabled && (
+                <span className="fobs-provider-check">
+                  Checked {relativeTime(provider.last_health_check)}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* API Key & Config section */}
+      <div className="prov-details" onClick={(e) => e.stopPropagation()}>
+        {/* Key management row */}
+        <div className="prov-key-row">
+          <div className="prov-key-info">
+            <span className="prov-key-label">API Key:</span>
+            {provider.has_key ? (
+              <span className="prov-key-hint">{provider.key_hint}</span>
+            ) : (
+              <span className="prov-key-none">
+                {isLocal ? 'Not needed (local)' : provider.auth_source === 'oauth' ? 'Using OAuth' : 'Not set'}
+              </span>
+            )}
+          </div>
+          {!isLocal && !comingSoon && (
+            <div className="prov-key-actions">
+              {editingKey ? (
+                <div className="prov-key-edit">
+                  <input
+                    type="password"
+                    className="fobs-input prov-key-input"
+                    placeholder={`Enter ${provider.type} API key...`}
+                    value={keyValue}
+                    onChange={(e) => setKeyValue(e.target.value)}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && keyValue.trim()) handleSaveKey();
+                      if (e.key === 'Escape') { setEditingKey(false); setKeyValue(''); }
+                    }}
+                  />
+                  <button
+                    className="fo-action-btn prov-save-btn"
+                    onClick={handleSaveKey}
+                    disabled={!keyValue.trim() || saving}
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    className="fo-action-btn prov-cancel-btn"
+                    onClick={() => { setEditingKey(false); setKeyValue(''); }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    className="fo-action-btn"
+                    onClick={() => setEditingKey(true)}
+                  >
+                    {provider.has_key && provider.auth_source === 'db' ? 'Change Key' : 'Set Key'}
+                  </button>
+                  {provider.auth_source === 'db' && (
+                    <button
+                      className="fo-action-btn prov-remove-btn"
+                      onClick={handleClearKey}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Base URL for local providers */}
+        {isLocal && (
+          <div className="prov-key-row">
+            <span className="prov-key-label">Base URL:</span>
+            <span className="prov-key-hint fobs-mono">{provider.base_url || 'http://localhost:11434'}</span>
+          </div>
+        )}
+
+        {/* Enable/disable toggle */}
+        {!comingSoon && (
+          <div className="prov-toggle-row">
+            <button
+              className={`prov-toggle-btn ${provider.is_enabled ? 'prov-toggle--on' : 'prov-toggle--off'}`}
+              onClick={handleToggleEnabled}
+            >
+              {provider.is_enabled ? 'Enabled' : 'Disabled'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Expandable models section */}
+      {isExpanded && (
+        <div className="fobs-provider-models" onClick={(e) => e.stopPropagation()}>
+          <div className="fobs-models-header">
+            Models ({models.length})
+          </div>
+          {models.length === 0 ? (
+            <p className="fo-empty">Loading models...</p>
+          ) : (
+            <div className="fobs-table-wrap">
+              <table className="fobs-table">
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th>Context</th>
+                    <th>In $/1k</th>
+                    <th>Out $/1k</th>
+                    <th>Caps</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {models.map((m) => (
+                    <tr key={m.id}>
+                      <td>
+                        <span className="fobs-model-name">{m.display_name || m.model_id}</span>
+                        {m.is_reasoning && <span className="fobs-badge fobs-badge--purple">reason</span>}
+                        {m.is_fast && <span className="fobs-badge fobs-badge--blue">fast</span>}
+                      </td>
+                      <td className="fobs-mono">{(m.context_window / 1000).toFixed(0)}k</td>
+                      <td className="fobs-mono">${m.cost_per_1k_input}</td>
+                      <td className="fobs-mono">${m.cost_per_1k_output}</td>
+                      <td>
+                        {m.supports_tools && <span className="fobs-cap" title="Tools">T</span>}
+                        {m.supports_vision && <span className="fobs-cap" title="Vision">V</span>}
+                        {m.supports_streaming && <span className="fobs-cap" title="Streaming">S</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProviderHealth() {
   const providersList = useHubStore((s) => s.providersList);
@@ -33,33 +276,36 @@ export default function ProviderHealth() {
   }, [fetchProviders, fetchProviderHealth]);
   usePolling(poll, 30000);
 
-  // When a provider is expanded, load its models
-  useEffect(() => {
-    if (expandedProvider && !providerModels[expandedProvider]) {
-      fetchProviderModels(expandedProvider);
-    }
-  }, [expandedProvider, providerModels, fetchProviderModels]);
+  // Sort providers: enabled first, then by type order
+  const sortedProviders = [...providersList].sort((a, b) => {
+    if (a.is_enabled !== b.is_enabled) return a.is_enabled ? -1 : 1;
+    const aIdx = PROVIDER_TYPE_ORDER.indexOf(a.type);
+    const bIdx = PROVIDER_TYPE_ORDER.indexOf(b.type);
+    return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
+  });
+
+  const enabledCount = providersList.filter((p) => p.is_enabled).length;
+  const healthyCount = providersList.filter((p) => p.is_enabled && p.health_status === 'healthy').length;
 
   const healthDot = (status: string) => {
     switch (status) {
       case 'healthy': return 'fobs-health-dot--ok';
       case 'degraded': return 'fobs-health-dot--warn';
-      case 'unhealthy': return 'fobs-health-dot--danger';
       default: return 'fobs-health-dot--unknown';
     }
   };
 
   return (
     <div className="fo-overview">
-      {/* Overall Status */}
+      {/* Overall Status Bar */}
       {providerHealth && (
         <div className="fobs-overall-status">
           <span className={`fobs-health-dot ${healthDot(providerHealth.status)}`} />
           <span className="fobs-overall-label">
             System: <strong>{providerHealth.status}</strong>
           </span>
-          <span className="fobs-provider-count">
-            {providersList.length} provider{providersList.length !== 1 ? 's' : ''} configured
+          <span className="prov-summary">
+            {healthyCount}/{enabledCount} healthy
           </span>
           <button
             className="fo-action-btn"
@@ -67,7 +313,7 @@ export default function ProviderHealth() {
             disabled={!!loading['providerHealthCheck']}
             style={{ marginLeft: 'auto' }}
           >
-            {loading['providerHealthCheck'] ? 'Checking...' : 'Check Now'}
+            {loading['providerHealthCheck'] ? 'Checking...' : 'Check Health'}
           </button>
         </div>
       )}
@@ -78,87 +324,17 @@ export default function ProviderHealth() {
       ) : providersList.length === 0 ? (
         <p className="fo-empty">No providers configured</p>
       ) : (
-        <div className="fobs-provider-grid">
-          {providersList.map((provider) => {
-            const isExpanded = expandedProvider === provider.id;
-            const models = providerModels[provider.id] || [];
-
-            return (
-              <div
-                key={provider.id}
-                className={`fo-panel fobs-provider-card ${isExpanded ? 'expanded' : ''}`}
-                onClick={() => setExpandedProvider(isExpanded ? null : provider.id)}
-              >
-                <div className="fobs-provider-header" style={!provider.is_enabled ? { opacity: 0.5 } : undefined}>
-                  <div className="fobs-provider-name-row">
-                    <span className={`fobs-health-dot ${provider.is_enabled ? healthDot(provider.health_status) : 'fobs-health-dot--unknown'}`} />
-                    <strong>{provider.name}</strong>
-                    <span className="fobs-provider-type">{provider.type}</span>
-                  </div>
-                  <div className="fobs-provider-meta">
-                    {!provider.is_enabled && (provider.config as Record<string, unknown>)?.coming_soon ? (
-                      <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(139, 92, 246, 0.15)', color: '#a78bfa', fontWeight: 500 }}>Coming Soon</span>
-                    ) : (
-                      <StatusBadge status={provider.is_enabled ? 'active' : 'paused'} />
-                    )}
-                    {provider.is_enabled && (
-                      <span className="fobs-provider-check">
-                        Checked {relativeTime(provider.last_health_check)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {provider.base_url && (
-                  <div className="fobs-provider-url">{provider.base_url}</div>
-                )}
-
-                {isExpanded && (
-                  <div className="fobs-provider-models" onClick={(e) => e.stopPropagation()}>
-                    <div className="fobs-models-header">
-                      Models ({models.length})
-                    </div>
-                    {models.length === 0 ? (
-                      <p className="fo-empty">Loading models...</p>
-                    ) : (
-                      <div className="fobs-table-wrap">
-                        <table className="fobs-table">
-                          <thead>
-                            <tr>
-                              <th>Model</th>
-                              <th>Context</th>
-                              <th>In $/1k</th>
-                              <th>Out $/1k</th>
-                              <th>Caps</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {models.map((m) => (
-                              <tr key={m.id}>
-                                <td>
-                                  <span className="fobs-model-name">{m.display_name || m.model_id}</span>
-                                  {m.is_reasoning && <span className="fobs-badge fobs-badge--purple">reason</span>}
-                                  {m.is_fast && <span className="fobs-badge fobs-badge--blue">fast</span>}
-                                </td>
-                                <td className="fobs-mono">{(m.context_window / 1000).toFixed(0)}k</td>
-                                <td className="fobs-mono">${m.cost_per_1k_input}</td>
-                                <td className="fobs-mono">${m.cost_per_1k_output}</td>
-                                <td>
-                                  {m.supports_tools && <span className="fobs-cap" title="Tools">T</span>}
-                                  {m.supports_vision && <span className="fobs-cap" title="Vision">V</span>}
-                                  {m.supports_streaming && <span className="fobs-cap" title="Streaming">S</span>}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="prov-grid">
+          {sortedProviders.map((provider) => (
+            <ProviderCard
+              key={provider.id}
+              provider={provider}
+              isExpanded={expandedProvider === provider.id}
+              onToggleExpand={() => setExpandedProvider(expandedProvider === provider.id ? null : provider.id)}
+              models={providerModels[provider.id] || []}
+              onFetchModels={() => fetchProviderModels(provider.id)}
+            />
+          ))}
         </div>
       )}
     </div>

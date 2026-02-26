@@ -475,11 +475,17 @@ export interface CoordinationStats {
 }
 
 // Cost types
-export interface CostSummary {
+export interface CostBucket {
   totalCost: number;
   totalInputTokens: number;
   totalOutputTokens: number;
   totalEvents: number;
+}
+
+export interface CostSummary {
+  total: CostBucket;
+  api: CostBucket;
+  cli: CostBucket;
 }
 
 export interface DailyCost {
@@ -488,6 +494,10 @@ export interface DailyCost {
   totalInputTokens: number;
   totalOutputTokens: number;
   eventCount: number;
+  apiCost: number;
+  apiEvents: number;
+  cliCost: number;
+  cliEvents: number;
 }
 
 // Audit types
@@ -521,6 +531,8 @@ export interface Guardrail {
 }
 
 // Provider types
+export type AuthSource = 'db' | 'env' | 'oauth' | 'none';
+
 export interface Provider {
   id: string;
   name: string;
@@ -530,6 +542,9 @@ export interface Provider {
   health_status: string;
   last_health_check: string | null;
   config: Record<string, unknown>;
+  auth_source: AuthSource;
+  has_key: boolean;
+  key_hint: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -904,6 +919,9 @@ export const hubApi = {
 
     runHealthCheck: () =>
       apiFetch<ProviderHealth>('/api/v1/admin/providers/health-check', { method: 'POST', body: JSON.stringify({}) }),
+
+    update: (id: string, body: { name?: string; base_url?: string | null; api_key?: string | null; is_enabled?: boolean; config?: Record<string, unknown> }) =>
+      apiFetch<{ provider: Provider }>(`/api/v1/admin/providers/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   },
 
   workflows: {

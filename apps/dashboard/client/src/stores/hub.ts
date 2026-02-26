@@ -328,6 +328,7 @@ interface HubState {
   fetchProviderHealth: () => Promise<void>;
   fetchProviderModels: (id: string) => Promise<void>;
   runProviderHealthCheck: () => Promise<void>;
+  updateProvider: (id: string, body: { name?: string; base_url?: string | null; api_key?: string | null; is_enabled?: boolean; config?: Record<string, unknown> }) => Promise<boolean>;
 
   // Coordination actions
   fetchCoordinationSessions: () => Promise<void>;
@@ -1095,6 +1096,22 @@ export const useHubStore = create<HubState>((set, get) => ({
       console.error('Failed to run provider health check:', err);
     } finally {
       set((s) => ({ loading: { ...s.loading, providerHealthCheck: false } }));
+    }
+  },
+
+  updateProvider: async (id, body) => {
+    try {
+      const data = await hubApi.providers.update(id, body);
+      // Update the provider in the list
+      set((s) => ({
+        providersList: s.providersList.map((p) =>
+          p.id === id ? { ...p, ...data.provider } : p,
+        ),
+      }));
+      return true;
+    } catch (err) {
+      console.error('Failed to update provider:', err);
+      return false;
     }
   },
 

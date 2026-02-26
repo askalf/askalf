@@ -325,9 +325,9 @@ async function recordCostEvent(
 ): Promise<void> {
   await query(
     `INSERT INTO forge_cost_events
-     (id, execution_id, agent_id, owner_id, provider, model, input_tokens, output_tokens, cost)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [ulid(), executionId, agentId, ownerId, provider, model, inputTokens, outputTokens, cost],
+     (id, execution_id, agent_id, owner_id, provider, model, input_tokens, output_tokens, cost, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [ulid(), executionId, agentId, ownerId, provider, model, inputTokens, outputTokens, cost, JSON.stringify({ runtime_mode: 'sdk' })],
   );
 }
 

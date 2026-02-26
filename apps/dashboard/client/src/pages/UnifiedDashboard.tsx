@@ -1,9 +1,6 @@
 import { useState, useEffect, lazy, Suspense, useCallback, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TopBar from '../components/unified/TopBar';
-import AgentFleetCompact from '../components/unified/AgentFleetCompact';
-import LiveActivityFeed from '../components/unified/LiveActivityFeed';
-import TicketBoardCompact from '../components/unified/TicketBoardCompact';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { hubApi } from '../hooks/useHubApi';
@@ -59,7 +56,7 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'graph', label: 'Graph' },
   ]},
   { label: 'Observe', tabs: [
-    { key: 'costs', label: '$$' },
+    { key: 'costs', label: 'Costs' },
     { key: 'providers', label: 'Providers' },
     { key: 'guardrails', label: 'Guardrails' },
     { key: 'audit', label: 'Audit' },
@@ -79,7 +76,7 @@ export default function UnifiedDashboard() {
   const navigate = useNavigate();
   const initialTab = (tab && ALL_TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'chat';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
-  const { connected, events } = useWebSocket();
+  const { connected } = useWebSocket();
 
   const setActiveTab = useCallback((key: TabKey) => {
     setActiveTabState(key);
@@ -113,7 +110,7 @@ export default function UnifiedDashboard() {
         ]);
         setAgentCount(agentsData.agents.filter((a) => a.status === 'running').length);
         setTicketCount(ticketsData.pagination?.total ?? 0);
-        setTodayCost(costsData.summary?.totalCost ?? 0);
+        setTodayCost(costsData.summary?.total?.totalCost ?? 0);
       } catch {
         // ignore
       }
@@ -191,7 +188,7 @@ export default function UnifiedDashboard() {
         ticketCount={ticketCount}
         todayCost={todayCost}
       />
-      <div className={`ud-body ${activeTab === 'chat' || activeTab === 'templates' || activeTab === 'builder' || activeTab === 'fleet' || activeTab === 'orchestrator' || activeTab === 'interventions' || activeTab === 'tickets' || activeTab === 'content' || activeTab === 'graph' || activeTab === 'memory' ? 'ud-body-full' : ''}`}>
+      <div className="ud-body ud-body-full">
         <div className="ud-main">
           <div className="ud-tab-bar">
             {TAB_GROUPS.map((group, gi) => (
@@ -214,13 +211,6 @@ export default function UnifiedDashboard() {
             {tabContent()}
           </div>
         </div>
-        {activeTab !== 'chat' && activeTab !== 'templates' && activeTab !== 'builder' && activeTab !== 'fleet' && activeTab !== 'orchestrator' && activeTab !== 'interventions' && activeTab !== 'tickets' && activeTab !== 'content' && activeTab !== 'graph' && activeTab !== 'memory' && (
-          <aside className="ud-sidebar">
-            <AgentFleetCompact forgeEvents={events} onViewFleet={() => setActiveTab('fleet')} />
-            <LiveActivityFeed events={events} />
-            <TicketBoardCompact />
-          </aside>
-        )}
       </div>
     </div>
   );

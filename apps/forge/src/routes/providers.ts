@@ -1,6 +1,6 @@
 /**
  * Forge Provider Routes
- * Provider management and model listing
+ * Provider management, CRUD, and model listing
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -12,12 +12,58 @@ interface ProviderRow {
   name: string;
   type: string;
   base_url: string | null;
+  api_key_encrypted: string | null;
   is_enabled: boolean;
   health_status: string;
   last_health_check: string | null;
   config: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+// Simple obfuscation for stored API keys (base64 — keeps out of plaintext logs/dumps)
+function encodeKey(key: string): string {
+  return Buffer.from(key).toString('base64');
+}
+function decodeKey(encoded: string): string {
+  return Buffer.from(encoded, 'base64').toString('utf-8');
+}
+
+// Mask an API key for display: show first 4 and last 4 chars
+function maskKey(key: string): string {
+  if (key.length <= 12) return '****';
+  return `${key.slice(0, 4)}...${key.slice(-4)}`;
+}
+
+// Resolve the usable API key for a provider: DB-stored key takes priority over env var
+function resolveApiKey(provider: ProviderRow): string {
+  if (provider.api_key_encrypted) {
+    return decodeKey(provider.api_key_encrypted);
+  }
+  const ENV_KEYS: Record<string, string> = {
+    anthropic: 'ANTHROPIC_API_KEY',
+    openai: 'OPENAI_API_KEY',
+    google: 'GOOGLE_AI_KEY',
+    xai: 'XAI_API_KEY',
+    deepseek: 'DEEPSEEK_API_KEY',
+  };
+  return process.env[ENV_KEYS[provider.type] ?? ''] ?? '';
+}
+
+// Determine auth source for display
+function getAuthSource(provider: ProviderRow): 'db' | 'env' | 'oauth' | 'none' {
+  if (provider.api_key_encrypted) return 'db';
+  const ENV_KEYS: Record<string, string> = {
+    anthropic: 'ANTHROPIC_API_KEY',
+    openai: 'OPENAI_API_KEY',
+    google: 'GOOGLE_AI_KEY',
+    xai: 'XAI_API_KEY',
+    deepseek: 'DEEPSEEK_API_KEY',
+  };
+  if (process.env[ENV_KEYS[provider.type] ?? '']) return 'env';
+  // CLI/OAuth providers (anthropic) can work without a direct key
+  if (provider.type === 'anthropic') return 'oauth';
+  return 'none';
 }
 
 interface ModelRow {
@@ -46,14 +92,34 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/forge/providers',
     { preHandler: [authMiddleware] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      // Return providers without exposing encrypted API keys
       const providers = await query<ProviderRow>(
-        `SELECT id, name, type, base_url, is_enabled, health_status, last_health_check, config, created_at, updated_at
+        `SELECT id, name, type, base_url, api_key_encrypted, is_enabled, health_status, last_health_check, config, created_at, updated_at
          FROM forge_providers
          ORDER BY name`,
       );
 
-      return reply.send({ providers });
+      // Return providers with auth info but never expose raw keys
+      const result = providers.map((p) => {
+        const authSource = getAuthSource(p);
+        const resolvedKey = resolveApiKey(p);
+        return {
+          id: p.id,
+          name: p.name,
+          type: p.type,
+          base_url: p.base_url,
+          is_enabled: p.is_enabled,
+          health_status: p.health_status,
+          last_health_check: p.last_health_check,
+          config: p.config,
+          auth_source: authSource,
+          has_key: !!resolvedKey,
+          key_hint: resolvedKey ? maskKey(resolvedKey) : null,
+          created_at: p.created_at,
+          updated_at: p.updated_at,
+        };
+      });
+
+      return reply.send({ providers: result });
     },
   );
 
@@ -126,6 +192,94 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
+   * PATCH /api/v1/forge/providers/:id - Update provider settings
+   */
+  app.patch(
+    '/api/v1/forge/providers/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        name?: string;
+        base_url?: string | null;
+        api_key?: string | null;
+        is_enabled?: boolean;
+        config?: Record<string, unknown>;
+      };
+
+      const provider = await queryOne<ProviderRow>(
+        `SELECT id FROM forge_providers WHERE id = $1`,
+        [id],
+      );
+      if (!provider) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Provider not found' });
+      }
+
+      const sets: string[] = [];
+      const params: unknown[] = [];
+      let idx = 1;
+
+      if (body.name !== undefined) {
+        sets.push(`name = $${idx++}`);
+        params.push(body.name);
+      }
+      if (body.base_url !== undefined) {
+        sets.push(`base_url = $${idx++}`);
+        params.push(body.base_url);
+      }
+      if (body.api_key !== undefined) {
+        // null or empty string clears the key, non-empty stores encoded
+        sets.push(`api_key_encrypted = $${idx++}`);
+        params.push(body.api_key ? encodeKey(body.api_key) : null);
+      }
+      if (body.is_enabled !== undefined) {
+        sets.push(`is_enabled = $${idx++}`);
+        params.push(body.is_enabled);
+      }
+      if (body.config !== undefined) {
+        sets.push(`config = COALESCE(config, '{}'::jsonb) || $${idx++}::jsonb`);
+        params.push(JSON.stringify(body.config));
+      }
+
+      if (sets.length === 0) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'No fields to update' });
+      }
+
+      params.push(id);
+      const updated = await queryOne<ProviderRow>(
+        `UPDATE forge_providers SET ${sets.join(', ')} WHERE id = $${idx}
+         RETURNING id, name, type, base_url, api_key_encrypted, is_enabled, health_status, last_health_check, config, created_at, updated_at`,
+        params,
+      );
+
+      if (!updated) {
+        return reply.status(500).send({ error: 'Update failed' });
+      }
+
+      const authSource = getAuthSource(updated);
+      const resolvedKey = resolveApiKey(updated);
+
+      return reply.send({
+        provider: {
+          id: updated.id,
+          name: updated.name,
+          type: updated.type,
+          base_url: updated.base_url,
+          is_enabled: updated.is_enabled,
+          health_status: updated.health_status,
+          last_health_check: updated.last_health_check,
+          config: updated.config,
+          auth_source: authSource,
+          has_key: !!resolvedKey,
+          key_hint: resolvedKey ? maskKey(resolvedKey) : null,
+          created_at: updated.created_at,
+          updated_at: updated.updated_at,
+        },
+      });
+    },
+  );
+
+  /**
    * GET /api/v1/forge/providers/health - Check provider health status
    */
   app.get(
@@ -165,23 +319,15 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const providers = await query<ProviderRow>(
-        `SELECT id, name, type, base_url FROM forge_providers WHERE is_enabled = true`,
+        `SELECT id, name, type, base_url, api_key_encrypted FROM forge_providers WHERE is_enabled = true`,
       );
-
-      const ENV_KEYS: Record<string, string> = {
-        anthropic: 'ANTHROPIC_API_KEY',
-        openai: 'OPENAI_API_KEY',
-        google: 'GOOGLE_AI_KEY',
-        xai: 'XAI_API_KEY',
-        deepseek: 'DEEPSEEK_API_KEY',
-      };
 
       // Providers that support alternative auth (CLI/OAuth) and don't need a direct API key
       const CLI_AUTH_PROVIDERS = new Set(['anthropic']);
 
       const checks = await Promise.allSettled(
         providers.map(async (p) => {
-          const apiKey = process.env[ENV_KEYS[p.type] ?? ''] ?? '';
+          const apiKey = resolveApiKey(p);
           let status: 'healthy' | 'down' = 'down';
           let error: string | null = null;
 

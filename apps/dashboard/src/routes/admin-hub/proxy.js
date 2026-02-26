@@ -324,6 +324,15 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
     return res;
   });
 
+  fastify.patch('/api/v1/admin/providers/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForge(`/providers/${encodeURIComponent(id)}`, { method: 'PATCH', body: request.body });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Provider update failed', message: res.message });
+    return res;
+  });
+
   // ============================================
   // COORDINATION
   // ============================================

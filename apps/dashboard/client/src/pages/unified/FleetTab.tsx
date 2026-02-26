@@ -100,7 +100,7 @@ function ClusterOverview({
   const health = errored > 0 ? 'unhealthy' : running > 0 ? 'healthy' : 'degraded';
   const healthLabel = errored > 0 ? 'Degraded' : 'Healthy';
 
-  const todayCost = costSummary?.totalCost ?? 0;
+  const todayCost = costSummary?.total?.totalCost ?? 0;
   const weekCost = dailyCosts.reduce((s, d) => s + d.totalCost, 0);
 
   return (

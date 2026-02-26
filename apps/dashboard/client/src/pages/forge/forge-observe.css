@@ -425,6 +425,222 @@
 }
 
 /* ==========================================
+   Provider Management (Editable)
+   ========================================== */
+
+.prov-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.prov-card {
+  cursor: default;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.prov-card:hover {
+  border-color: rgba(124, 58, 237, 0.15);
+}
+
+.prov-card.expanded {
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+.prov-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.prov-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.prov-name {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.prov-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.prov-summary {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Auth source badges */
+.prov-auth-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.prov-auth--db {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+.prov-auth--env {
+  background: rgba(139, 92, 246, 0.12);
+  color: #a78bfa;
+}
+
+.prov-auth--oauth {
+  background: rgba(96, 165, 250, 0.12);
+  color: #60a5fa;
+}
+
+.prov-auth--none {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+}
+
+.prov-coming-soon {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  font-weight: 500;
+}
+
+/* Details section */
+.prov-details {
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.prov-key-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  font-size: 0.8rem;
+}
+
+.prov-key-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.prov-key-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  min-width: 60px;
+}
+
+.prov-key-hint {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.prov-key-none {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.prov-key-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.prov-key-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.prov-key-input {
+  min-width: 280px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+}
+
+.prov-save-btn {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #34d399 !important;
+}
+
+.prov-save-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.25) !important;
+}
+
+.prov-cancel-btn {
+  color: var(--text-muted) !important;
+}
+
+.prov-remove-btn {
+  color: var(--danger, #ef4444) !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.prov-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Toggle button */
+.prov-toggle-row {
+  padding: 0.25rem 0;
+}
+
+.prov-toggle-btn {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.prov-toggle--on {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.prov-toggle--on:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger, #ef4444);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.prov-toggle--off {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.prov-toggle--off:hover {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+/* ==========================================
    Guardrails Manager
    ========================================== */
 
@@ -502,3 +718,301 @@
   color: var(--text-muted);
   line-height: 1.4;
 }
+
+/* ==========================================
+   Cost Dashboard — Redesigned
+   ========================================== */
+
+.cost-dash {
+  padding: 1rem;
+  max-width: 1200px;
+}
+
+.cost-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.cost-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* KPI Row */
+.cost-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.cost-kpi {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  transition: border-color 0.2s;
+}
+
+.cost-kpi:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.cost-kpi-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+
+.cost-kpi-warn {
+  color: var(--warning, #f59e0b);
+}
+
+.cost-kpi-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+/* Chart Panel */
+.cost-chart-panel,
+.cost-table-panel {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.cost-chart-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.75rem;
+}
+
+.cost-chart-empty {
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Bar Chart */
+.cost-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 220px;
+  padding-top: 0.5rem;
+}
+
+.cost-bar-col {
+  flex: 1;
+  min-width: 16px;
+  max-width: 40px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.cost-bar-track {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.cost-bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.8), rgba(124, 58, 237, 0.25));
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+  transition: height 0.3s ease, background 0.15s;
+}
+
+.cost-bar-today .cost-bar-fill {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.9), rgba(96, 165, 250, 0.3));
+}
+
+.cost-bar-col:hover .cost-bar-fill {
+  background: linear-gradient(180deg, rgba(124, 58, 237, 1), rgba(124, 58, 237, 0.5));
+}
+
+.cost-bar-today:hover .cost-bar-fill {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 1), rgba(96, 165, 250, 0.5));
+}
+
+.cost-bar-date {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* Tooltip on hover */
+.cost-bar-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 20, 25, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 10;
+}
+
+.cost-bar-col:hover .cost-bar-tooltip {
+  opacity: 1;
+}
+
+.cost-bar-tip-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.cost-bar-tip-cost {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.cost-bar-tip-meta {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* View toggle */
+.cost-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cost-view-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cost-view-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cost-view-btn:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.cost-view-btn.active {
+  background: rgba(124, 58, 237, 0.2);
+  color: var(--crystal-lighter, #a78bfa);
+}
+
+.cost-view-api.active {
+  background: rgba(124, 58, 237, 0.2);
+  color: var(--crystal-lighter, #a78bfa);
+}
+
+.cost-view-cli.active {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+
+/* Split summary cards */
+.cost-split-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.cost-split-card {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cost-split-api {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.15);
+}
+
+.cost-split-cli {
+  background: rgba(96, 165, 250, 0.08);
+  border-color: rgba(96, 165, 250, 0.15);
+}
+
+.cost-split-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.25rem;
+}
+
+.cost-split-api .cost-split-label { color: var(--crystal-lighter, #a78bfa); }
+.cost-split-cli .cost-split-label { color: #60a5fa; }
+
+.cost-split-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.cost-split-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Bar fill variants */
+.cost-bar-fill-api {
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.8), rgba(124, 58, 237, 0.25));
+}
+
+.cost-bar-fill-cli {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.8), rgba(96, 165, 250, 0.25));
+}
+
+/* Tooltip split */
+.cost-bar-tip-split {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 0.6rem;
+}
+
+.cost-tip-api { color: var(--crystal-lighter, #a78bfa); }
+.cost-tip-cli { color: #60a5fa; }
