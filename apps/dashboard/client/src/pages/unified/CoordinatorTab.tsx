@@ -1,15 +1,38 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useHubStore } from '../../stores/hub';
 import FleetCoordination from '../hub/FleetCoordination';
 import '../hub/FleetCoordination.css';
 import './CoordinatorTab.css';
 
-export default function CoordinatorTab() {
+interface ForgeEvent {
+  category: string;
+  type: string;
+  receivedAt: number;
+  [key: string]: unknown;
+}
+
+export default function CoordinatorTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }) {
   const fetchAgents = useHubStore((s) => s.fetchAgents);
+  const fetchSessions = useHubStore((s) => s.fetchCoordinationSessions);
+  const fetchStats = useHubStore((s) => s.fetchCoordinationStats);
 
   useEffect(() => {
     fetchAgents();
   }, [fetchAgents]);
+
+  // WS-accelerated refresh on coordination events
+  const latestEventTs = useRef(0);
+  useEffect(() => {
+    if (wsEvents.length === 0) return;
+    const latest = wsEvents[0];
+    if (!latest || latest.receivedAt <= latestEventTs.current) return;
+    latestEventTs.current = latest.receivedAt;
+
+    if (latest.category === 'coordination') {
+      fetchSessions();
+      fetchStats();
+    }
+  }, [wsEvents, fetchSessions, fetchStats]);
 
   return (
     <div className="coordinator-tab">

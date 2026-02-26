@@ -76,7 +76,7 @@ export default function UnifiedDashboard() {
   const navigate = useNavigate();
   const initialTab = (tab && ALL_TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'chat';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
-  const { connected } = useWebSocket();
+  const { connected, events: wsEvents } = useWebSocket();
 
   const setActiveTab = useCallback((key: TabKey) => {
     setActiveTabState(key);
@@ -162,9 +162,30 @@ export default function UnifiedDashboard() {
             </Suspense>
           </ErrorBoundary>
         );
-      case 'orchestrator': return wrap('Orchestrator', OrchestratorTab);
-      case 'fleet': return wrap('Fleet', FleetTab);
-      case 'deploy': return wrap('Deploy', PushPanel);
+      case 'orchestrator':
+        return (
+          <ErrorBoundary inline key="orchestrator">
+            <Suspense fallback={<div className="ud-loading">Loading Orchestrator...</div>}>
+              <OrchestratorTab wsEvents={wsEvents} />
+            </Suspense>
+          </ErrorBoundary>
+        );
+      case 'fleet':
+        return (
+          <ErrorBoundary inline key="fleet">
+            <Suspense fallback={<div className="ud-loading">Loading Fleet...</div>}>
+              <FleetTab wsEvents={wsEvents} />
+            </Suspense>
+          </ErrorBoundary>
+        );
+      case 'deploy':
+        return (
+          <ErrorBoundary inline key="deploy">
+            <Suspense fallback={<div className="ud-loading">Loading Deploy...</div>}>
+              <PushPanel wsEvents={wsEvents} />
+            </Suspense>
+          </ErrorBoundary>
+        );
       case 'executions': return wrap('Executions', ExecutionHistory);
       case 'documents': return wrap('Documents', Documents);
       case 'costs': return wrap('Costs', CostDashboard);

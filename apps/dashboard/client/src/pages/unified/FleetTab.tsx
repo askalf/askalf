@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePolling } from '../../hooks/usePolling';
 import { hubApi } from '../../hooks/useHubApi';
 import type {
@@ -602,7 +602,16 @@ function buildYaml(agent: Agent, perf: AgentPerformanceEntry | undefined): strin
 
 // ── Main Component ──
 
-export default function FleetTab() {
+interface ForgeEvent {
+  category: string;
+  type: string;
+  receivedAt: number;
+  agentId?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }) {
   // Core state
   const [agents, setAgents] = useState<Agent[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -639,6 +648,34 @@ export default function FleetTab() {
   }, []);
 
   usePolling(pollCallback, 15000);
+
+  // WS-accelerated refresh: re-fetch immediately on agent/execution events
+  const latestEventTs = useRef(0);
+  useEffect(() => {
+    if (wsEvents.length === 0) return;
+    const latest = wsEvents[0];
+    if (!latest || latest.receivedAt <= latestEventTs.current) return;
+    latestEventTs.current = latest.receivedAt;
+
+    if (latest.category === 'agent' || latest.category === 'execution') {
+      pollCallback();
+    }
+  }, [wsEvents, pollCallback]);
+
+  // Optimistic agent status update from WS events
+  useEffect(() => {
+    if (wsEvents.length === 0) return;
+    const latest = wsEvents[0];
+    if (latest?.category === 'agent' && latest.agentId) {
+      setAgents((prev) =>
+        prev.map((a) =>
+          a.id === latest.agentId
+            ? { ...a, status: (latest.status as Agent['status']) || a.status }
+            : a
+        )
+      );
+    }
+  }, [wsEvents]);
 
   // One-time fetches
   useEffect(() => {
