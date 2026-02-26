@@ -32,6 +32,7 @@ import {
   type Provider,
   type ProviderModel,
   type ProviderHealth,
+  type UserProviderKey,
   type DocumentItem,
   type DocumentDetail,
 } from '../hooks/useHubApi';
@@ -245,6 +246,7 @@ interface HubState {
   expandedProvider: string | null;
   providerModels: Record<string, ProviderModel[]>;
   setExpandedProvider: (id: string | null) => void;
+  userProviderKeys: UserProviderKey[];
 
   // Coordination
   coordinationSessions: CoordinationSession[];
@@ -331,6 +333,7 @@ interface HubState {
   fetchProviderModels: (id: string) => Promise<void>;
   runProviderHealthCheck: () => Promise<void>;
   updateProvider: (id: string, body: { name?: string; base_url?: string | null; api_key?: string | null; is_enabled?: boolean; config?: Record<string, unknown> }) => Promise<boolean>;
+  fetchUserProviderKeys: () => Promise<void>;
 
   // Coordination actions
   fetchCoordinationSessions: () => Promise<void>;
@@ -570,6 +573,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   expandedProvider: null,
   providerModels: {},
   setExpandedProvider: (id) => set({ expandedProvider: id }),
+  userProviderKeys: [],
 
   // Coordination
   coordinationSessions: [],
@@ -1142,6 +1146,15 @@ export const useHubStore = create<HubState>((set, get) => ({
     } catch (err) {
       console.error('Failed to update provider:', err);
       return false;
+    }
+  },
+
+  fetchUserProviderKeys: async () => {
+    try {
+      const data = await hubApi.userProviders.list();
+      set({ userProviderKeys: data.keys || [] });
+    } catch (err) {
+      console.error('Failed to fetch user provider keys:', err);
     }
   },
 
