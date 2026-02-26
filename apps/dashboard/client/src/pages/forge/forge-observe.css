@@ -641,82 +641,259 @@
 }
 
 /* ==========================================
-   Guardrails Manager
+   Guardrails Manager — Redesigned
    ========================================== */
 
-.fobs-guardrail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 0.75rem;
-}
-
-.fobs-guardrail-card {
-  transition: border-color 0.2s, opacity 0.2s;
-}
-
-.fobs-guardrail--disabled {
-  opacity: 0.5;
-}
-
-.fobs-guardrail-header {
+.gr-summary-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.4rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  margin-bottom: 1rem;
 }
 
-.fobs-guardrail-type {
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.fobs-guardrail-name {
-  font-size: 0.9rem;
-  color: var(--text-primary);
-  margin: 0 0 0.3rem 0;
-  font-weight: 600;
-}
-
-.fobs-guardrail-desc {
+.gr-summary-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   font-size: 0.8rem;
   color: var(--text-secondary);
-  margin: 0 0 0.5rem 0;
+}
+
+.gr-stat strong {
+  color: var(--text-primary);
+}
+
+.gr-stat-sep {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.gr-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gr-card {
+  transition: border-color 0.2s, opacity 0.2s;
+}
+
+.gr-card--disabled {
+  opacity: 0.55;
+}
+
+.gr-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+}
+
+.gr-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gr-type-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gr-card-name {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.gr-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gr-card-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 0.4rem 0;
   line-height: 1.4;
 }
 
-.fobs-guardrail-meta {
+.gr-card-meta {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.75rem;
   color: var(--text-muted);
+  margin-bottom: 0.5rem;
 }
 
-.fobs-guardrail-priority {
+.gr-priority {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 0.7rem;
 }
 
-.fobs-guardrail-agents {
-  font-size: 0.7rem;
-}
+.gr-agents { font-size: 0.7rem; }
 
-.fobs-guardrail-config {
+/* Config display */
+.gr-config-section {
   margin-top: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-  overflow-x: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-.fobs-guardrail-config pre {
+.gr-config-detail {
+  font-size: 0.8rem;
+}
+
+.gr-config-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+}
+
+.gr-config-key {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  min-width: 100px;
+}
+
+.gr-config-val {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.gr-config-money {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.gr-config-note {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.gr-config-empty {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.gr-config-json {
   margin: 0;
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 0.65rem;
   color: var(--text-muted);
   line-height: 1.4;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+}
+
+/* Keyword tags */
+.gr-keyword-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0.25rem 0;
+}
+
+.gr-keyword-tag {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.gr-keyword-tag--danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.15);
+}
+
+.gr-keyword-tag--success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.15);
+}
+
+.gr-keyword-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 0 0 4px;
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.gr-keyword-remove:hover { opacity: 1; }
+
+.gr-keyword-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+
+.gr-keyword-add .fobs-input {
+  min-width: 200px;
+  font-size: 0.75rem;
+}
+
+/* Config editor */
+.gr-config-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gr-config-editor label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.gr-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.gr-config-field .fobs-input {
+  max-width: 200px;
+}
+
+.gr-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.gr-edit-btn {
+  margin-top: 0.4rem;
+  font-size: 0.7rem !important;
+}
+
+.gr-type-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0 0;
+  font-style: italic;
 }
 
 /* ==========================================
