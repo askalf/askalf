@@ -322,6 +322,8 @@ interface HubState {
   // Guardrail actions
   fetchGuardrails: () => Promise<void>;
   createGuardrail: (body: { name: string; type: string; description?: string; config?: Record<string, unknown>; is_enabled?: boolean; is_global?: boolean; agent_ids?: string[]; priority?: number }) => Promise<boolean>;
+  updateGuardrail: (id: string, body: { is_enabled?: boolean; config?: Record<string, unknown>; priority?: number; name?: string; description?: string }) => Promise<boolean>;
+  deleteGuardrail: (id: string) => Promise<boolean>;
 
   // Provider actions
   fetchProviders: () => Promise<void>;
@@ -1050,6 +1052,34 @@ export const useHubStore = create<HubState>((set, get) => ({
       return true;
     } catch (err) {
       console.error('Failed to create guardrail:', err);
+      return false;
+    }
+  },
+
+  updateGuardrail: async (id, body) => {
+    try {
+      const data = await hubApi.guardrails.update(id, body);
+      set((s) => ({
+        guardrails: s.guardrails.map((g) =>
+          g.id === id ? { ...g, ...data.guardrail } : g,
+        ),
+      }));
+      return true;
+    } catch (err) {
+      console.error('Failed to update guardrail:', err);
+      return false;
+    }
+  },
+
+  deleteGuardrail: async (id) => {
+    try {
+      await hubApi.guardrails.delete(id);
+      set((s) => ({
+        guardrails: s.guardrails.filter((g) => g.id !== id),
+      }));
+      return true;
+    } catch (err) {
+      console.error('Failed to delete guardrail:', err);
       return false;
     }
   },
