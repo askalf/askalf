@@ -1384,6 +1384,419 @@
 
 .al-empty { color: var(--text-muted); font-size: 0.75rem; font-style: italic; }
 
+/* Summary stats row */
+.al-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.al-summary-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.al-summary-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.al-summary-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  line-height: 1.2;
+}
+
+.al-summary-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  margin-top: 0.2rem;
+}
+
+/* Action distribution bar */
+.al-dist {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+
+.al-dist-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 1px;
+  margin-bottom: 0.5rem;
+}
+
+.al-dist-seg {
+  min-width: 4px;
+  transition: opacity 0.15s;
+}
+
+.al-dist-seg:hover {
+  opacity: 0.8;
+}
+
+.al-dist-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.al-dist-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.al-dist-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.al-dist-count {
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+}
+
+/* Filter bar */
+.al-select,
+.al-search {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  transition: border-color 0.2s;
+}
+
+.al-select {
+  min-width: 140px;
+  cursor: pointer;
+}
+
+.al-search {
+  min-width: 180px;
+}
+
+.al-select:hover,
+.al-select:focus,
+.al-search:focus {
+  border-color: rgba(124, 58, 237, 0.4);
+  outline: none;
+}
+
+.al-search::placeholder {
+  color: var(--text-muted);
+}
+
+/* Row styling with colored left border */
+.al-row {
+  transition: background 0.1s;
+}
+
+.al-row td {
+  border-left: none;
+}
+
+/* Action pill */
+.al-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.al-action-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+/* Time cell */
+.al-time-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.al-time-rel {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.al-time-abs {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* Details preview */
+.al-no-details {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Detail meta chips */
+.al-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.al-detail-chip {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* JSON header with copy */
+.al-json-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+}
+
+/* Pagination */
+.al-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.al-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.al-page-btn:hover:not(:disabled) {
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.3);
+  color: var(--crystal);
+}
+
+.al-page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.al-page-info {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Empty states */
+.al-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  gap: 0.5rem;
+}
+
+.al-empty-icon {
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.al-empty-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.al-empty-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 360px;
+}
+
+/* ==========================================
+   Execution History — Enhanced Visuals
+   ========================================== */
+
+/* Status distribution */
+.exec-dist {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.exec-dist-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  gap: 1px;
+  margin-bottom: 0.5rem;
+}
+
+.exec-dist-seg {
+  min-width: 4px;
+  transition: opacity 0.15s;
+}
+
+.exec-dist-seg:hover { opacity: 0.8; }
+
+.exec-dist-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.exec-dist-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.exec-dist-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.exec-dist-count {
+  color: var(--text-muted);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+}
+
+/* Enhanced stat cards for execution */
+.exec-stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.exec-stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.exec-stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.exec-stat-card--warn { border-left: 3px solid #f59e0b; }
+.exec-stat-card--success { border-left: 3px solid #10b981; }
+.exec-stat-card--danger { border-left: 3px solid #ef4444; }
+.exec-stat-card--info { border-left: 3px solid #3b82f6; }
+.exec-stat-card--purple { border-left: 3px solid #8b5cf6; }
+
+.exec-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  line-height: 1.2;
+}
+
+.exec-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  margin-top: 0.2rem;
+}
+
+/* Colored status borders on table rows */
+.exec-row-completed { border-left: 3px solid #10b981; }
+.exec-row-failed { border-left: 3px solid #ef4444; }
+.exec-row-in_progress { border-left: 3px solid #f59e0b; }
+.exec-row-pending { border-left: 3px solid #6b7280; }
+.exec-row-cancelled { border-left: 3px solid #6b7280; }
+
+/* Input preview in table */
+.exec-input-preview {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Execution table empty state */
+.exec-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  gap: 0.5rem;
+}
+
+.exec-empty-icon {
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.exec-empty-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.exec-empty-sub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 360px;
+}
+
 /* ==========================================
    Execution History — Enhanced Detail Panel
    ========================================== */

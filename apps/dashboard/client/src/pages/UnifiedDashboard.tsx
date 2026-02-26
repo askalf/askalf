@@ -60,7 +60,7 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'providers', label: 'Providers' },
     { key: 'guardrails', label: 'Guardrails' },
     { key: 'audit', label: 'Audit' },
-    { key: 'executions', label: 'Exec' },
+    { key: 'executions', label: 'Executions' },
   ]},
   { label: 'Build', tabs: [
     { key: 'workflows', label: 'Workflows' },
