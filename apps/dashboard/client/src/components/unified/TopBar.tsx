@@ -14,7 +14,9 @@ interface AuthUser {
   id: string;
   email: string;
   name?: string;
+  displayName?: string;
   role?: string;
+  tenantName?: string | null;
 }
 
 export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost, budgetLimit }: TopBarProps) {
@@ -75,11 +77,18 @@ export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost
 
   const healthColor = wsConnected ? '#22c55e' : '#ef4444';
   const healthLabel = wsConnected ? 'Healthy' : 'Disconnected';
-  const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : user?.email?.[0]?.toUpperCase() ?? '?';
+  const userName = user?.displayName || user?.name;
+  const initials = userName ? userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : user?.email?.[0]?.toUpperCase() ?? '?';
 
   return (
     <div className="ud-topbar">
       <div className="ud-topbar-left">
+        {user?.tenantName && (
+          <>
+            <span className="ud-topbar-workspace">{user.tenantName}</span>
+            <span className="ud-topbar-divider" />
+          </>
+        )}
         <span className="ud-health-dot" style={{ background: healthColor }} />
         <span className="ud-topbar-label">{healthLabel}</span>
         <span className="ud-topbar-divider" />

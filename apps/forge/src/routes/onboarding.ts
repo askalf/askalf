@@ -43,25 +43,28 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
 
       const body = request.body as { workspace_name?: string; theme?: string } | null;
       const workspaceName = body?.workspace_name?.trim();
+      const theme = body?.theme?.trim();
 
       // Update tenant name if provided
       if (workspaceName && workspaceName.length > 0) {
-        const user = await substrateQueryOne<{ tenant_id: string }>(
+        const userRow = await substrateQueryOne<{ tenant_id: string }>(
           'SELECT tenant_id FROM users WHERE id = $1',
           [userId],
         );
-        if (user) {
+        if (userRow) {
           await substrateQuery(
             'UPDATE tenants SET name = $1, updated_at = NOW() WHERE id = $2',
-            [workspaceName, user.tenant_id],
+            [workspaceName, userRow.tenant_id],
           );
         }
       }
 
-      // Mark onboarding as complete
+      // Save theme preference + mark onboarding as complete
+      const validThemes = ['dark', 'light', 'system'];
+      const themeValue = theme && validThemes.includes(theme) ? theme : null;
       await substrateQuery(
-        'UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() WHERE id = $1',
-        [userId],
+        'UPDATE users SET onboarding_completed_at = NOW(), theme_preference = COALESCE($2, theme_preference), updated_at = NOW() WHERE id = $1',
+        [userId, themeValue],
       );
 
       return { success: true };

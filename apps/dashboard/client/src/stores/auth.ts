@@ -52,6 +52,8 @@ export interface User {
   onboardingCompleted?: boolean;
   displayName?: string;
   role: 'user' | 'admin' | 'super_admin';
+  tenantName?: string | null;
+  themePreference?: string | null;
 }
 
 interface AuthState {
@@ -78,6 +80,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (res.ok) {
         const data = await res.json();
         set({ user: data.user, isLoading: false, error: null });
+        // Apply server-side theme preference if no local override exists
+        if (data.user?.themePreference) {
+          try {
+            const stored = localStorage.getItem('askalf-theme');
+            if (!stored) {
+              const { useThemeStore } = await import('./theme');
+              useThemeStore.getState().setTheme(data.user.themePreference);
+            }
+          } catch { /* ignore theme sync errors */ }
+        }
       } else {
         set({ user: null, isLoading: false, error: null });
       }
