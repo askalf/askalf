@@ -28,6 +28,13 @@ export const useThemeStore = create<ThemeState>()(
       setTheme: (theme) => {
         set({ theme });
         get().applyTheme();
+        // Persist server-side (fire-and-forget)
+        fetch('/api/v1/auth/preferences', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ theme }),
+        }).catch(() => {});
       },
 
       setFontSize: (fontSize) => {

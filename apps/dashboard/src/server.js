@@ -2084,6 +2084,18 @@ fastify.post('/api/v1/user-providers/:providerType/verify', async (request, repl
   return res;
 });
 
+// User preferences (theme, etc.) — direct DB, no forge proxy needed
+fastify.put('/api/v1/auth/preferences', async (request, reply) => {
+  const user = await getUserFromSession(request);
+  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
+  const body = request.body || {};
+  const validThemes = ['dark', 'light', 'system'];
+  if (body.theme && validThemes.includes(body.theme)) {
+    await query('UPDATE users SET theme_preference = $1, updated_at = NOW() WHERE id = $2', [body.theme, user.id]);
+  }
+  return { success: true };
+});
+
 // Onboarding (user-facing, proxied to forge — under /api/v1/auth/ so nginx routes to dashboard)
 fastify.get('/api/v1/auth/onboarding/status', async (request, reply) => {
   const user = await getUserFromSession(request);
@@ -2241,9 +2253,12 @@ fastify.get('/api/v1/auth/me', async (request, reply) => {
 
   const subscription = await getSubscriptionWithPlan(user.tenant_id);
 
-  // Check onboarding status (column added in migration 025)
-  const onboardingRow = await queryOne('SELECT onboarding_completed_at FROM users WHERE id = $1', [user.id]);
-  const onboardingCompleted = !!onboardingRow?.onboarding_completed_at;
+  // Check onboarding status + theme preference (migrations 025, 026)
+  const userExtra = await queryOne(
+    'SELECT u.onboarding_completed_at, u.theme_preference, t.name as tenant_name FROM users u JOIN tenants t ON u.tenant_id = t.id WHERE u.id = $1',
+    [user.id],
+  );
+  const onboardingCompleted = !!userExtra?.onboarding_completed_at;
 
   return {
     user: {
@@ -2253,6 +2268,8 @@ fastify.get('/api/v1/auth/me', async (request, reply) => {
       onboardingCompleted,
       displayName: user.display_name,
       role: user.role,
+      tenantName: userExtra?.tenant_name || null,
+      themePreference: userExtra?.theme_preference || null,
     },
     subscription: subscription ? {
       status: subscription.status,

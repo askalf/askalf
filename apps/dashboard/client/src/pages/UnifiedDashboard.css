@@ -58,6 +58,14 @@
   flex-shrink: 0;
 }
 
+.ud-topbar-workspace {
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--crystal, #a78bfa);
+}
+
 .ud-topbar-label {
   font-weight: 500;
   color: #e4e4e7;
