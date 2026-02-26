@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { hubApi } from '../../hooks/useHubApi';
+import type { ForgeTool } from '../../hooks/useHubApi';
 import './BuilderTab.css';
 
 // ── Types ──
@@ -36,37 +37,13 @@ const STEPS: { key: BuilderStep; label: string }[] = [
   { key: 'review', label: '6. Review' },
 ];
 
-const AVAILABLE_TOOLS = [
-  // Workflow
-  { id: 'ticket_ops', name: 'Ticket Operations', desc: 'Create and manage tickets' },
-  { id: 'finding_ops', name: 'Finding Operations', desc: 'Create and manage findings' },
-  { id: 'intervention_ops', name: 'Intervention Ops', desc: 'Request human intervention' },
-  { id: 'agent_call', name: 'Agent Call', desc: 'Invoke another agent' },
-  { id: 'proposal_ops', name: 'Proposal Operations', desc: 'Create and manage proposals' },
-  // Data
-  { id: 'db_query', name: 'Database Query', desc: 'Query the database' },
-  { id: 'substrate_db_query', name: 'Substrate DB Query', desc: 'Query the substrate database directly' },
-  { id: 'memory_search', name: 'Memory Search', desc: 'Search agent memory store' },
-  { id: 'memory_store', name: 'Memory Store', desc: 'Store information in memory' },
-  // Infrastructure
-  { id: 'docker_api', name: 'Docker API', desc: 'Container management operations' },
-  { id: 'deploy_ops', name: 'Deploy Operations', desc: 'Build and deploy services' },
-  { id: 'security_scan', name: 'Security Scan', desc: 'Scan for security vulnerabilities' },
-  { id: 'code_analysis', name: 'Code Analysis', desc: 'Analyze codebase files and patterns' },
-  // Agent
-  { id: 'web_search', name: 'Web Search', desc: 'Search the web for information' },
-  { id: 'web_browse', name: 'Web Browse', desc: 'Browse and extract content from URLs' },
-  { id: 'team_coordinate', name: 'Team Coordinate', desc: 'Coordinate with other agents' },
-  // Forge
-  { id: 'forge_checkpoints', name: 'Forge Checkpoints', desc: 'Save and restore agent execution state' },
-  { id: 'forge_capabilities', name: 'Forge Capabilities', desc: 'Manage agent capabilities and skills' },
-  { id: 'forge_knowledge_graph', name: 'Knowledge Graph', desc: 'Store and query knowledge relationships' },
-  { id: 'forge_goals', name: 'Forge Goals', desc: 'Track and manage agent objectives' },
-  { id: 'forge_fleet_intel', name: 'Fleet Intel', desc: 'Get fleet-wide status and intelligence' },
-  { id: 'forge_memory', name: 'Forge Memory', desc: 'Agent long-term memory management' },
-  { id: 'forge_cost', name: 'Forge Cost', desc: 'Track execution costs and budgets' },
-  { id: 'forge_coordination', name: 'Forge Coordination', desc: 'Coordinate multi-agent workflows' },
-];
+/* Tools fetched dynamically from forge_tools DB via API.
+   RISK_ORDER used for visual sorting: critical/high tools at bottom. */
+const RISK_ORDER: Record<string, number> = { low: 0, medium: 1, high: 2, critical: 3 };
+
+function toToolItem(t: ForgeTool) {
+  return { id: t.name, name: t.display_name, desc: t.description, risk: t.risk_level };
+}
 
 const DEFAULT_CONFIG: AgentConfig = {
   name: '',
@@ -190,10 +167,14 @@ function ConfigureStep({
 function ToolsStep({
   config,
   onChange,
+  tools,
 }: {
   config: AgentConfig;
   onChange: (updates: Partial<AgentConfig>) => void;
+  tools: { id: string; name: string; desc: string; risk: string }[];
 }) {
+  const [filter, setFilter] = useState('');
+
   const toggleTool = useCallback((toolId: string) => {
     const current = config.tools;
     const next = current.includes(toolId)
@@ -202,21 +183,42 @@ function ToolsStep({
     onChange({ tools: next });
   }, [config.tools, onChange]);
 
+  const filtered = filter
+    ? tools.filter(t => t.name.toLowerCase().includes(filter.toLowerCase()) || t.desc.toLowerCase().includes(filter.toLowerCase()))
+    : tools;
+
   return (
-    <div className="builder-tools-grid">
-      {AVAILABLE_TOOLS.map(tool => (
-        <label key={tool.id} className={`builder-tool-card ${config.tools.includes(tool.id) ? 'selected' : ''}`}>
-          <input
-            type="checkbox"
-            checked={config.tools.includes(tool.id)}
-            onChange={() => toggleTool(tool.id)}
-          />
-          <div className="builder-tool-info">
-            <div className="builder-tool-name">{tool.name}</div>
-            <div className="builder-tool-desc">{tool.desc}</div>
-          </div>
-        </label>
-      ))}
+    <div>
+      <div className="builder-tools-header">
+        <input
+          type="text"
+          placeholder="Filter tools..."
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          className="builder-tools-filter"
+        />
+        <span className="builder-tools-count">{config.tools.length} selected / {tools.length} available</span>
+      </div>
+      <div className="builder-tools-grid">
+        {filtered.map(tool => (
+          <label key={tool.id} className={`builder-tool-card ${config.tools.includes(tool.id) ? 'selected' : ''}`}>
+            <input
+              type="checkbox"
+              checked={config.tools.includes(tool.id)}
+              onChange={() => toggleTool(tool.id)}
+            />
+            <div className="builder-tool-info">
+              <div className="builder-tool-name">
+                {tool.name}
+                {tool.risk !== 'low' && (
+                  <span className={`builder-tool-risk builder-tool-risk--${tool.risk}`}>{tool.risk}</span>
+                )}
+              </div>
+              <div className="builder-tool-desc">{tool.desc}</div>
+            </div>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
@@ -338,10 +340,12 @@ function ReviewStep({
   config,
   onSubmit,
   submitting,
+  toolNames,
 }: {
   config: AgentConfig;
   onSubmit: () => void;
   submitting: boolean;
+  toolNames: Record<string, string>;
 }) {
   return (
     <div className="builder-review">
@@ -351,7 +355,7 @@ function ReviewStep({
         <div className="builder-review-grid">
           <div><strong>Model:</strong> {config.model}</div>
           <div><strong>Autonomy:</strong> Level {config.autonomyLevel}</div>
-          <div><strong>Tools:</strong> {config.tools.length > 0 ? config.tools.join(', ') : 'None'}</div>
+          <div><strong>Tools:</strong> {config.tools.length > 0 ? config.tools.map(t => toolNames[t] || t).join(', ') : 'None'}</div>
           <div><strong>Max Cost:</strong> ${config.maxCostPerExecution.toFixed(2)}</div>
           <div><strong>Max Iterations:</strong> {config.maxIterations}</div>
           <div>
@@ -391,10 +395,11 @@ export default function BuilderTab({
   const [step, setStep] = useState<BuilderStep>('template');
   const [config, setConfig] = useState<AgentConfig>({ ...DEFAULT_CONFIG });
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
+  const [availableTools, setAvailableTools] = useState<{ id: string; name: string; desc: string; risk: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ agentId: string; name: string } | null>(null);
 
-  // Load provider status
+  // Load provider status + available tools
   useEffect(() => {
     hubApi.providers.health().then(data => {
       if (data.providers) setProviders(data.providers.map((p: Record<string, unknown>) => ({
@@ -402,6 +407,15 @@ export default function BuilderTab({
         status: (p.healthStatus as string) ?? 'unknown',
         models: p.models as string[] | undefined,
       })));
+    }).catch(() => {});
+
+    hubApi.tools.list().then(data => {
+      if (data.tools) {
+        const sorted = data.tools
+          .map(toToolItem)
+          .sort((a, b) => (RISK_ORDER[a.risk] ?? 0) - (RISK_ORDER[b.risk] ?? 0) || a.name.localeCompare(b.name));
+        setAvailableTools(sorted);
+      }
     }).catch(() => {});
   }, []);
 
@@ -495,10 +509,10 @@ export default function BuilderTab({
           </div>
         )}
         {step === 'configure' && <ConfigureStep config={config} onChange={updateConfig} />}
-        {step === 'tools' && <ToolsStep config={config} onChange={updateConfig} />}
+        {step === 'tools' && <ToolsStep config={config} onChange={updateConfig} tools={availableTools} />}
         {step === 'model' && <ModelStep config={config} onChange={updateConfig} providers={providers} />}
         {step === 'schedule' && <ScheduleStep config={config} onChange={updateConfig} />}
-        {step === 'review' && <ReviewStep config={config} onSubmit={handleSubmit} submitting={submitting} />}
+        {step === 'review' && <ReviewStep config={config} onSubmit={handleSubmit} submitting={submitting} toolNames={Object.fromEntries(availableTools.map(t => [t.id, t.name]))} />}
       </div>
 
       <div className="builder-nav">
