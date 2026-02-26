@@ -1,0 +1,164 @@
+/* ===========================================
+   ONBOARDING WIZARD
+   =========================================== */
+
+/* Step indicator dots */
+.onboard-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: var(--space-md);
+}
+
+.onboard-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--border);
+  transition: all 0.3s ease;
+}
+
+.onboard-step-dot.active {
+  width: 24px;
+  background: var(--crystal);
+}
+
+.onboard-step-dot.done {
+  background: var(--crystal);
+  opacity: 0.5;
+}
+
+/* Theme picker grid */
+.onboard-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+
+.onboard-theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--deep);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.onboard-theme-card:hover {
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.onboard-theme-card.selected {
+  border-color: var(--crystal);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.onboard-theme-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.onboard-theme-card.selected .onboard-theme-label {
+  color: var(--crystal);
+}
+
+/* Theme swatches */
+.onboard-theme-swatch {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px;
+  gap: 4px;
+}
+
+.onboard-swatch-dark {
+  background: #0f0f17;
+}
+
+.onboard-swatch-light {
+  background: #f4f4f8;
+}
+
+.onboard-swatch-dark .onboard-swatch-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.onboard-swatch-dark .onboard-swatch-bar.short {
+  width: 60%;
+}
+
+.onboard-swatch-light .onboard-swatch-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.onboard-swatch-light .onboard-swatch-bar.short {
+  width: 60%;
+}
+
+.onboard-swatch-system {
+  flex-direction: row;
+  padding: 0;
+  gap: 0;
+}
+
+.onboard-swatch-half-dark,
+.onboard-swatch-half-light {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px;
+  gap: 4px;
+}
+
+.onboard-swatch-half-dark {
+  background: #0f0f17;
+}
+
+.onboard-swatch-half-light {
+  background: #f4f4f8;
+}
+
+.onboard-swatch-half-dark .onboard-swatch-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.onboard-swatch-half-light .onboard-swatch-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* Back button */
+.onboard-back-btn {
+  padding: var(--space-md) var(--space-lg);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.onboard-back-btn:hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
