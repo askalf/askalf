@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGitSpaceStore } from '../../stores/git-space';
 import { usePolling } from '../../hooks/usePolling';
 import BranchList from '../git-space/BranchList';
@@ -58,7 +58,14 @@ const STATUS_STYLES: Record<string, { color: string; bg: string; label: string }
   cancelled: { color: '#6b7280', bg: 'rgba(107,114,128,0.12)',label: 'Cancelled' },
 };
 
-export default function PushPanel() {
+interface ForgeEvent {
+  category: string;
+  type: string;
+  receivedAt: number;
+  [key: string]: unknown;
+}
+
+export default function PushPanel({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }) {
   const fetchBranches = useGitSpaceStore((s) => s.fetchBranches);
   const fetchDeployTasks = useGitSpaceStore((s) => s.fetchDeployTasks);
   const deployTasks = useGitSpaceStore((s) => s.deployTasks);
@@ -86,6 +93,22 @@ export default function PushPanel() {
     }
   }, [fetchDeployTasks, checkHealth, tab]);
   usePolling(poll, 30000);
+
+  // WS-accelerated refresh on deploy events
+  const latestEventTs = useRef(0);
+  useEffect(() => {
+    if (wsEvents.length === 0) return;
+    const latest = wsEvents[0];
+    if (!latest || latest.receivedAt <= latestEventTs.current) return;
+    latestEventTs.current = latest.receivedAt;
+
+    if (latest.category === 'deploy') {
+      fetchDeployTasks();
+      if (tab === 'services') {
+        checkHealth(ALL_SERVICE_IDS);
+      }
+    }
+  }, [wsEvents, fetchDeployTasks, checkHealth, tab]);
 
   // Initial health check when switching to services tab
   useEffect(() => {

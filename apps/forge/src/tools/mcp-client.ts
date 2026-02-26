@@ -9,6 +9,11 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { query } from '../database.js';
 import type { ToolResult } from './registry.js';
+import {
+  CircuitBreaker,
+  ExecutionError,
+  registerCircuitBreaker,
+} from '../runtime/error-handler.js';
 
 // ============================================
 // Types
@@ -69,6 +74,21 @@ interface MCPServerRow {
 
 export class MCPClientManager {
   private readonly connections: Map<string, MCPServerConnection> = new Map();
+  private readonly breakers: Map<string, CircuitBreaker> = new Map();
+
+  private getOrCreateBreaker(serverId: string): CircuitBreaker {
+    let breaker = this.breakers.get(serverId);
+    if (!breaker) {
+      breaker = new CircuitBreaker({
+        failureThreshold: 5,
+        resetTimeoutMs: 30_000,
+        halfOpenSuccessThreshold: 2,
+      });
+      this.breakers.set(serverId, breaker);
+      registerCircuitBreaker(`mcp:${serverId}`, breaker);
+    }
+    return breaker;
+  }
 
   /**
    * Connect to an MCP server using the provided configuration.
@@ -208,12 +228,22 @@ export class MCPClientManager {
       };
     }
 
-    try {
-      console.log(`[MCPClient] Calling tool '${toolName}' on server: ${connection.config.name}`);
+    const breaker = this.getOrCreateBreaker(serverId);
 
-      const result = await connection.client.callTool({
-        name: toolName,
-        arguments: args,
+    try {
+      const result = await breaker.execute(async () => {
+        console.log(`[MCPClient] Calling tool '${toolName}' on server: ${connection.config.name}`);
+
+        // 30s hard timeout via Promise.race
+        const timeoutMs = 30_000;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error(`MCP tool call timed out after ${timeoutMs / 1000}s: ${toolName}`)), timeoutMs);
+        });
+
+        return await Promise.race([
+          connection.client!.callTool({ name: toolName, arguments: args }),
+          timeoutPromise,
+        ]);
       });
 
       // Extract text content from the MCP response
@@ -229,6 +259,17 @@ export class MCPClientManager {
       };
     } catch (err) {
       const durationMs = Math.round(performance.now() - startTime);
+
+      // Circuit open → fail fast with structured error
+      if (err instanceof ExecutionError && err.code === 'CIRCUIT_OPEN') {
+        console.warn(`[MCPClient] Circuit open for server: ${connection.config.name}`);
+        return {
+          output: null,
+          error: `MCP server unreachable (circuit open): ${connection.config.name}`,
+          durationMs: 0,
+        };
+      }
+
       const errorMessage = err instanceof Error ? err.message : String(err);
       return {
         output: null,
@@ -261,6 +302,7 @@ export class MCPClientManager {
     connection.client = null;
     connection.transport = null;
     this.connections.delete(serverId);
+    this.breakers.delete(serverId);
 
     // Update health status
     await query(
