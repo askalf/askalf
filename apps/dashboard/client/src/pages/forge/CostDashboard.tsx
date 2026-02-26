@@ -15,10 +15,28 @@ export default function CostDashboard() {
   const fetchAgents = useHubStore((s) => s.fetchAgents);
   const loading = useHubStore((s) => s.loading);
   const [view, setView] = useState<CostView>('all');
+  const [budgetLimit, setBudgetLimit] = useState<{ perExecution: number; perDay: number } | null>(null);
 
   const poll = useCallback(() => { fetchCosts(); }, [fetchCosts]);
   usePolling(poll, 30000);
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
+
+  // Fetch budget limits from guardrails
+  useEffect(() => {
+    fetch('/api/v1/admin/guardrails', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const g = data?.guardrails?.find((g: any) => g.type === 'cost_limit' && g.is_enabled);
+        if (g?.config) {
+          setBudgetLimit({
+            perExecution: g.config.maxCostPerExecution ?? 0,
+            perDay: g.config.maxCostPerDay ?? 0,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Pick the right summary bucket based on view
   const activeSummary = useMemo(() => {
@@ -106,6 +124,27 @@ export default function CostDashboard() {
             <div className="cost-split-value">${costSummary.cli.totalCost.toFixed(2)}</div>
             <div className="cost-split-meta">{costSummary.cli.totalEvents} executions</div>
           </div>
+        </div>
+      )}
+
+      {/* Budget progress bar */}
+      {budgetLimit && budgetLimit.perDay > 0 && (
+        <div className="cost-budget-row">
+          <div className="cost-budget-info">
+            <span className="cost-budget-label">Daily Budget</span>
+            <span className="cost-budget-numbers">
+              ${todayCost.toFixed(2)} / ${budgetLimit.perDay.toFixed(2)}
+            </span>
+          </div>
+          <div className="cost-budget-bar">
+            <div
+              className={`cost-budget-fill${todayCost / budgetLimit.perDay > 0.8 ? todayCost / budgetLimit.perDay >= 1 ? ' cost-budget-over' : ' cost-budget-warn' : ''}`}
+              style={{ width: `${Math.min((todayCost / budgetLimit.perDay) * 100, 100)}%` }}
+            />
+          </div>
+          {budgetLimit.perExecution > 0 && (
+            <div className="cost-budget-sub">${budgetLimit.perExecution.toFixed(2)} per-execution limit</div>
+          )}
         </div>
       )}
 

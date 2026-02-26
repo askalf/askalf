@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useHubStore } from '../../stores/hub';
+import { useToast } from '../../components/Toast';
 import FleetCoordination from '../hub/FleetCoordination';
 import '../hub/FleetCoordination.css';
 import './CoordinatorTab.css';
@@ -8,19 +9,24 @@ interface ForgeEvent {
   category: string;
   type: string;
   receivedAt: number;
+  event?: string;
+  sessionId?: string;
+  status?: string;
   [key: string]: unknown;
 }
 
 export default function CoordinatorTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }) {
+  const { addToast } = useToast();
   const fetchAgents = useHubStore((s) => s.fetchAgents);
   const fetchSessions = useHubStore((s) => s.fetchCoordinationSessions);
   const fetchStats = useHubStore((s) => s.fetchCoordinationStats);
+  const coordinationSessions = useHubStore((s) => s.coordinationSessions);
 
   useEffect(() => {
     fetchAgents();
   }, [fetchAgents]);
 
-  // WS-accelerated refresh on coordination events
+  // WS-accelerated refresh + optimistic updates on coordination events
   const latestEventTs = useRef(0);
   useEffect(() => {
     if (wsEvents.length === 0) return;
@@ -29,10 +35,23 @@ export default function CoordinatorTab({ wsEvents = [] }: { wsEvents?: ForgeEven
     latestEventTs.current = latest.receivedAt;
 
     if (latest.category === 'coordination') {
-      fetchSessions();
-      fetchStats();
+      const eventType = (latest.event as string) || (latest.type as string) || '';
+
+      // Optimistic update: immediately reflect status change in the sessions list
+      if (latest.sessionId && (eventType === 'completed' || eventType === 'failed')) {
+        const newStatus = eventType === 'completed' ? 'completed' : 'failed';
+        useHubStore.setState({
+          coordinationSessions: coordinationSessions.map((s) =>
+            s.id === latest.sessionId ? { ...s, status: newStatus as typeof s.status } : s
+          ),
+        });
+      }
+
+      // Full re-fetch for consistency
+      fetchSessions().catch(() => addToast('Failed to refresh coordination sessions', 'error'));
+      fetchStats().catch(() => addToast('Failed to refresh coordination stats', 'error'));
     }
-  }, [wsEvents, fetchSessions, fetchStats]);
+  }, [wsEvents, fetchSessions, fetchStats, addToast, coordinationSessions]);
 
   return (
     <div className="coordinator-tab">

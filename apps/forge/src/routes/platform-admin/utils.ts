@@ -4,6 +4,7 @@
 
 import { ulid } from 'ulid';
 import { runCliQuery } from '../../runtime/worker.js';
+import { query, queryOne } from '../../database.js';
 
 // Re-export for sub-modules
 export { ulid };
@@ -86,17 +87,83 @@ export function transformAgent(a: ForgeAgent, executions: ForgeExecution[] = [],
 }
 
 // ============================================
-// AI Review Store (transient, in-memory)
+// AI Review Store (in-memory cache + DB persistence)
 // ============================================
 
-export const reviewStore = new Map<string, {
+export interface ReviewEntry {
   status: 'pending' | 'completed' | 'failed';
   branch?: string;
   diff?: string;
-  result?: { summary: string; issues: Array<{ severity: string; file: string; line: number | null; message: string }>; suggestions: Array<{ file: string; message: string }>; approved: boolean };
+  result?: {
+    summary: string;
+    issues: Array<{ severity: string; file: string; line: number | null; message: string }>;
+    suggestions: Array<{ file: string; message: string }>;
+    approved: boolean;
+  };
   rawOutput?: string;
   error?: string;
-}>();
+}
+
+export const reviewStore = new Map<string, ReviewEntry>();
+
+/** Upsert review to forge_reviews table (fire-and-forget). */
+export async function persistReview(id: string, data: ReviewEntry): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO forge_reviews (id, status, branch, diff, result, raw_output, error, completed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO UPDATE SET
+         status = EXCLUDED.status,
+         result = EXCLUDED.result,
+         raw_output = EXCLUDED.raw_output,
+         error = EXCLUDED.error,
+         completed_at = EXCLUDED.completed_at`,
+      [
+        id,
+        data.status,
+        data.branch ?? null,
+        data.diff ?? null,
+        data.result ? JSON.stringify(data.result) : null,
+        data.rawOutput ?? null,
+        data.error ?? null,
+        data.status !== 'pending' ? new Date().toISOString() : null,
+      ],
+    );
+  } catch (err) {
+    console.warn(`[Review] Failed to persist review ${id}:`, err instanceof Error ? err.message : err);
+  }
+}
+
+/** Load review from DB when Map cache misses. Backfills cache on hit. */
+export async function loadReviewFromDb(id: string): Promise<ReviewEntry | null> {
+  try {
+    const row = await queryOne<{
+      status: string;
+      branch: string | null;
+      diff: string | null;
+      result: Record<string, unknown> | null;
+      raw_output: string | null;
+      error: string | null;
+    }>(
+      `SELECT status, branch, diff, result, raw_output, error FROM forge_reviews WHERE id = $1`,
+      [id],
+    );
+    if (!row) return null;
+    const entry: ReviewEntry = {
+      status: row.status as ReviewEntry['status'],
+      branch: row.branch ?? undefined,
+      diff: row.diff ?? undefined,
+      result: row.result as ReviewEntry['result'],
+      rawOutput: row.raw_output ?? undefined,
+      error: row.error ?? undefined,
+    };
+    // Backfill Map cache
+    reviewStore.set(id, entry);
+    return entry;
+  } catch {
+    return null;
+  }
+}
 
 export const REVIEW_SYSTEM_PROMPT = `You are an expert code reviewer. Analyze the git diff below and return ONLY valid JSON (no markdown fences, no extra text):
 {

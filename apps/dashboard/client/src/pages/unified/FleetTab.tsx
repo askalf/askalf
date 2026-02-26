@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePolling } from '../../hooks/usePolling';
 import { hubApi } from '../../hooks/useHubApi';
+import { useToast } from '../../components/Toast';
 import type {
   Agent,
   AgentDetail,
@@ -344,6 +345,13 @@ function PodList({
   );
 }
 
+interface LiveLogEntry {
+  id: string;
+  timestamp: string;
+  level: string;
+  message: string;
+}
+
 function PodDetail({
   detail,
   agent,
@@ -355,6 +363,7 @@ function PodDetail({
   onPause,
   onDecommission,
   actionLoading,
+  liveLogEntries,
 }: {
   detail: AgentDetail | null;
   agent: Agent;
@@ -366,6 +375,7 @@ function PodDetail({
   onPause: () => void;
   onDecommission: () => void;
   actionLoading: boolean;
+  liveLogEntries: LiveLogEntry[];
 }) {
   const [execPrompt, setExecPrompt] = useState('');
 
@@ -476,6 +486,15 @@ function PodDetail({
 
         {tab === 'logs' && (
           <div className="fleet-logs">
+            {liveLogEntries.length > 0 && liveLogEntries.map((entry) => (
+              <div key={entry.id} className="fleet-log-line fleet-log-live">
+                <span className="fleet-log-time">
+                  {new Date(entry.timestamp).toLocaleTimeString()}
+                </span>
+                <span className={`fleet-log-level ${entry.level}`}>{entry.level}</span>
+                <span className="fleet-log-msg">{entry.message}</span>
+              </div>
+            ))}
             {detail?.logs && detail.logs.length > 0 ? (
               detail.logs.slice(0, 100).map((log) => (
                 <div key={log.id} className="fleet-log-line">
@@ -486,9 +505,9 @@ function PodDetail({
                   <span className="fleet-log-msg">{log.message}</span>
                 </div>
               ))
-            ) : (
+            ) : liveLogEntries.length === 0 ? (
               <div className="fleet-empty">No logs available</div>
-            )}
+            ) : null}
           </div>
         )}
 
@@ -612,6 +631,8 @@ interface ForgeEvent {
 }
 
 export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }) {
+  const { addToast } = useToast();
+
   // Core state
   const [agents, setAgents] = useState<Agent[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -626,6 +647,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [sortColumn, setSortColumn] = useState<SortColumn>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [liveLogEntries, setLiveLogEntries] = useState<LiveLogEntry[]>([]);
   // Performance map by agent ID
   const perfMap = new Map<string, AgentPerformanceEntry>();
   performance?.agents.forEach((a) => perfMap.set(a.agentId, a));
@@ -643,9 +665,9 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
       setCostSummary(costRes.summary);
       setDailyCosts(costRes.dailyCosts || []);
     } catch {
-      // swallow
+      addToast('Failed to refresh fleet data', 'error');
     }
-  }, []);
+  }, [addToast]);
 
   usePolling(pollCallback, 15000);
 
@@ -677,6 +699,32 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
     }
   }, [wsEvents]);
 
+  // Live log refresh: re-fetch detail + append live entry when execution event matches selected agent
+  const liveLogEventTs = useRef(0);
+  useEffect(() => {
+    if (!selectedAgentId || wsEvents.length === 0) return;
+    const latest = wsEvents[0];
+    if (!latest || latest.receivedAt <= liveLogEventTs.current) return;
+    if (latest.category !== 'execution' || latest.agentId !== selectedAgentId) return;
+    liveLogEventTs.current = latest.receivedAt;
+
+    // Re-fetch full detail
+    hubApi.agents.detail(selectedAgentId).then(setDetailData).catch(() => {});
+
+    // Append live log entry
+    const agentName = agents.find((a) => a.id === selectedAgentId)?.name || 'Agent';
+    const eventType = (latest.type as string) || (latest.status as string) || 'event';
+    setLiveLogEntries((prev) => [
+      {
+        id: `live-${latest.receivedAt}`,
+        timestamp: new Date(latest.receivedAt).toISOString(),
+        level: eventType === 'failed' ? 'error' : eventType === 'completed' ? 'info' : 'info',
+        message: `[LIVE] ${agentName} — ${eventType}${latest.output ? `: ${String(latest.output).slice(0, 120)}` : ''}`,
+      },
+      ...prev.slice(0, 49), // keep max 50 live entries
+    ]);
+  }, [wsEvents, selectedAgentId, agents]);
+
   // One-time fetches
   useEffect(() => {
     hubApi.agents.performance(7).then(setPerformance).catch(() => {});
@@ -686,8 +734,10 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   useEffect(() => {
     if (!selectedAgentId) {
       setDetailData(null);
+      setLiveLogEntries([]);
       return;
     }
+    setLiveLogEntries([]);
     hubApi.agents.detail(selectedAgentId).then(setDetailData).catch(() => {});
   }, [selectedAgentId]);
 
@@ -700,28 +750,35 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   const selectedAgent = agents.find((a) => a.id === selectedAgentId);
 
   // Actions
-  const withLoading = async (key: string, fn: () => Promise<unknown>) => {
+  const withLoading = async (key: string, fn: () => Promise<unknown>, label?: string) => {
     setActionLoading((prev) => ({ ...prev, [key]: true }));
     try {
       await fn();
       // Refresh agents
       const res = await hubApi.agents.list();
       setAgents(res.agents);
+      if (label) addToast(`${label} succeeded`, 'success');
     } catch {
-      // swallow
+      addToast(label ? `${label} failed` : 'Action failed', 'error');
     } finally {
       setActionLoading((prev) => ({ ...prev, [key]: false }));
     }
   };
 
-  const handleRun = (id: string, prompt?: string) =>
-    withLoading(id, () => hubApi.agents.run(id, prompt));
+  const handleRun = (id: string, prompt?: string) => {
+    const name = agents.find((a) => a.id === id)?.name || 'Agent';
+    withLoading(id, () => hubApi.agents.run(id, prompt), `Run ${name}`);
+  };
 
-  const handleStop = (id: string) =>
-    withLoading(id, () => hubApi.agents.stop(id));
+  const handleStop = (id: string) => {
+    const name = agents.find((a) => a.id === id)?.name || 'Agent';
+    withLoading(id, () => hubApi.agents.stop(id), `Stop ${name}`);
+  };
 
-  const handleDecommission = (id: string) =>
-    withLoading(id, () => hubApi.agents.decommission(id));
+  const handleDecommission = (id: string) => {
+    const name = agents.find((a) => a.id === id)?.name || 'Agent';
+    withLoading(id, () => hubApi.agents.decommission(id), `Decommission ${name}`);
+  };
 
   const handleToggleScheduler = () =>
     withLoading('scheduler', async () => {
@@ -729,13 +786,13 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
       await hubApi.reports.toggleScheduler(action);
       const s = await hubApi.reports.scheduler();
       setSchedulerStatus(s);
-    });
+    }, `${schedulerStatus?.running ? 'Stop' : 'Start'} scheduler`);
 
   const handleBatchProcess = () =>
-    withLoading('batch', () => hubApi.agents.batchProcess());
+    withLoading('batch', () => hubApi.agents.batchProcess(), 'Batch process');
 
   const handleBatchPause = () =>
-    withLoading('batch', () => hubApi.agents.batchPause());
+    withLoading('batch', () => hubApi.agents.batchPause(), 'Scale down');
 
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
@@ -840,6 +897,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
             onPause={() => handleStop(selectedAgent.id)}
             onDecommission={() => handleDecommission(selectedAgent.id)}
             actionLoading={!!actionLoading[selectedAgent.id]}
+            liveLogEntries={liveLogEntries}
           />
         )}
       </div>

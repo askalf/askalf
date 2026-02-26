@@ -6,7 +6,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { authMiddleware } from '../../middleware/auth.js';
 import { requireAdmin } from '../../middleware/session-auth.js';
-import { reviewStore, REVIEW_SYSTEM_PROMPT, runCliQuery } from './utils.js';
+import { reviewStore, REVIEW_SYSTEM_PROMPT, runCliQuery, persistReview, loadReviewFromDb } from './utils.js';
 
 export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> {
 
@@ -187,7 +187,9 @@ export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> 
       }
 
       const reviewId = ulid();
-      reviewStore.set(reviewId, { status: 'pending', branch: branch || 'unknown', diff });
+      const initialEntry = { status: 'pending' as const, branch: branch || 'unknown', diff };
+      reviewStore.set(reviewId, initialEntry);
+      void persistReview(reviewId, initialEntry);
 
       void (async () => {
         try {
@@ -223,6 +225,7 @@ export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> 
               approved: Boolean(parsed.approved),
             };
             entry.rawOutput = result.output;
+            void persistReview(reviewId, entry);
           }
         } catch (err) {
           console.error(`[AI Review] Failed for ${reviewId}:`, err);
@@ -230,6 +233,7 @@ export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> 
           if (entry) {
             entry.status = 'failed';
             entry.error = err instanceof Error ? err.message : String(err);
+            void persistReview(reviewId, entry);
           }
         }
       })();
@@ -243,7 +247,10 @@ export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
-      const entry = reviewStore.get(id);
+      let entry = reviewStore.get(id);
+      if (!entry) {
+        entry = await loadReviewFromDb(id) ?? undefined;
+      }
 
       if (!entry) {
         return reply.status(404).send({ error: 'Review not found' });
@@ -276,7 +283,10 @@ export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> 
         return reply.status(400).send({ error: 'review_id and message are required' });
       }
 
-      const entry = reviewStore.get(review_id);
+      let entry = reviewStore.get(review_id);
+      if (!entry) {
+        entry = await loadReviewFromDb(review_id) ?? undefined;
+      }
       if (!entry) {
         return reply.status(404).send({ error: 'Review not found' });
       }
