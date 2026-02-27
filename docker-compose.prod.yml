@@ -723,7 +723,7 @@ volumes:
   searxng_cache:
     name: substrate_prod_searxng_cache
     external: true
-admin-claude-home:
+  admin-claude-home:
     name: admin_claude_home
     external: true
 
