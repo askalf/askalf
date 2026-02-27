@@ -453,6 +453,14 @@ export default function LandingPage() {
           <div className="landing-footer-links">
             <a href="#pricing" className="landing-footer-link">Pricing</a>
             <a
+              href="https://github.com/SprayberryLabs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="landing-footer-link"
+            >
+              GitHub
+            </a>
+            <a
               href="https://x.com/sprayberrylabs"
               target="_blank"
               rel="noopener noreferrer"
