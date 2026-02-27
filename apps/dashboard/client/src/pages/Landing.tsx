@@ -170,8 +170,8 @@ const trustPillars = [
   },
   {
     icon: '\u{1F3DB}\uFE0F',
-    title: 'SOC 2 Type II',
-    desc: 'Enterprise-grade compliance. Annual third-party audits of our security controls, availability, and data handling practices.',
+    title: 'Compliance-Ready',
+    desc: 'Built for regulated environments. Role-based access, data residency controls, and audit-ready infrastructure from day one.',
     tag: 'compliance',
   },
   {
@@ -259,7 +259,7 @@ const pricingTiers = [
       'On-prem / private cloud deployment',
       'Custom tool & app integrations',
       'Dedicated account manager',
-      'SOC 2 & compliance',
+      'Compliance-ready infrastructure',
       'Custom SLAs',
     ],
     cta: 'Contact Us',
