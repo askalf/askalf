@@ -64,7 +64,7 @@ Agents with full computer access demand uncompromising security:
 - **End-to-End Encryption** — TLS 1.3 in transit, AES-256 at rest. Sessions, credentials, and outputs never stored in plaintext
 - **Zero-Knowledge Architecture** — Per-tenant encryption keys. We cannot read your agent sessions, credentials, or data
 - **Full Audit Trail** — Immutable, tamper-proof logs. Every agent action traced — who, what, when, why
-- **SOC 2 Type II** — Annual third-party audits of security controls, availability, and data handling
+- **Compliance-Ready** — Built for regulated environments. Role-based access, data residency controls, audit-ready infrastructure
 - **Credential Vault** — SSH keys, API tokens, and passwords in a hardware-backed vault. Injected at runtime, never persisted in memory or logs
 - **Sandboxed Execution** — Every agent runs in an isolated container. Network policies, filesystem restrictions, and resource limits enforced at the kernel level
 
