@@ -1,76 +1,8 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { Fragment, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import './Landing.css';
 
-const k8sMapping = [
-  { left: 'Pods', right: 'Agents' },
-  { left: 'Deployments', right: 'Fleet Coordinator' },
-  { left: 'Health Probes', right: 'Monitoring Agent' },
-  { left: 'Canary Deploys', right: 'Agent Evolution' },
-  { left: 'Resource Limits', right: 'Token Budgets' },
-  { left: 'Service Mesh', right: 'Agent Communication' },
-];
-
-const features = [
-  {
-    icon: '01',
-    title: 'Fleet Orchestration',
-    desc: 'DAG workflows, parallel execution, conditional routing. Deploy agent fleets that coordinate like microservices.',
-  },
-  {
-    icon: '02',
-    title: 'Darwinian Evolution',
-    desc: 'Agents clone and mutate. A/B test on real tasks. Winners promote, losers get decommissioned.',
-  },
-  {
-    icon: '03',
-    title: 'Budget Enforcement',
-    desc: 'Per-execution cost limits, cheapest-model routing, token budgets. No surprise bills.',
-  },
-  {
-    icon: '04',
-    title: 'Auto-Healing',
-    desc: 'Stuck execution detection, failure rate monitoring, automatic recovery. Reconciliation loops that never sleep.',
-  },
-  {
-    icon: '05',
-    title: '4-Tier Memory',
-    desc: 'Procedural, episodic, semantic, and working memory. Persisted in PostgreSQL with pgvector.',
-  },
-  {
-    icon: '06',
-    title: 'Human Checkpoints',
-    desc: 'Pause workflows for approval, review, or input. Stay in the loop without babysitting.',
-  },
-];
-
-const steps = [
-  {
-    num: 1,
-    title: 'Deploy',
-    desc: 'Define agents with models, tools, and budgets. Push to your fleet.',
-  },
-  {
-    num: 2,
-    title: 'Compete',
-    desc: 'Agents clone and mutate. A/B test on real tasks. Losers get decommissioned.',
-  },
-  {
-    num: 3,
-    title: 'Operate',
-    desc: 'Health probes, cost dashboards, reconciliation loops. The control plane handles the rest.',
-  },
-];
-
-const stack = [
-  'TypeScript',
-  'Fastify',
-  'PostgreSQL + pgvector',
-  'Redis Streams',
-  'Docker',
-  'Cloudflare Zero Trust',
-];
-
+/* ---- Scroll Reveal Hook ---- */
 function useScrollReveal() {
   const refs = useRef<(HTMLElement | null)[]>([]);
 
@@ -100,528 +32,278 @@ function useScrollReveal() {
   return setRef;
 }
 
-/* ---- Terminal Demo ---- */
-const terminalLines = [
-  { text: '$ askalf deploy --fleet research-v3 --agents 12', type: 'cmd', typed: true },
-  { text: '\u2713 Fleet deployed: 12 agents across 3 models', type: 'success', typed: false },
-  { text: '$ askalf evolve --strategy darwinian --generations 5', type: 'cmd', typed: true },
-  { text: '\u25D0 Gen 1: agent-7b mutated \u2192 +14.2% accuracy', type: 'info', typed: false },
-  { text: '\u25D0 Gen 2: agent-3a promoted \u2192 lowest cost/query', type: 'info', typed: false },
-  { text: '\u2713 Evolution complete: 3 winners, 2 decommissioned', type: 'success', typed: false },
-  { text: '$ askalf status', type: 'cmd', typed: true },
-  { text: 'Fleet: research-v3  |  Active: 10  |  Budget: $4.21/$50.00', type: 'output', typed: false },
-  { text: '\u26A0 agent-9c: stuck 47s \u2192 auto-healing...', type: 'warn', typed: false },
-  { text: '\u2713 agent-9c: recovered via checkpoint rollback', type: 'success', typed: false },
+/* ---- Data ---- */
+
+const feedItems = [
+  {
+    agent: 'DV',
+    agentClass: 'agent-developer',
+    action: 'Opened VS Code, committed hotfix to staging',
+    detail: 'keyboard + git cli',
+    cost: '$0.21',
+    time: '2s ago',
+  },
+  {
+    agent: 'RS',
+    agentClass: 'agent-researcher',
+    action: 'Browsed 14 competitor sites, compiled report',
+    detail: 'browser session',
+    cost: '$0.12',
+    time: '8s ago',
+  },
+  {
+    agent: 'SN',
+    agentClass: 'agent-sentinel',
+    action: 'SSH\u2019d into edge router, patched CVE-2026-1847',
+    detail: 'ssh + shell',
+    cost: '$0.03',
+    time: '14s ago',
+  },
+  {
+    agent: 'WR',
+    agentClass: 'agent-writer',
+    action: 'Drafted release notes in Google Docs',
+    detail: 'browser + keyboard',
+    cost: '$0.08',
+    time: '31s ago',
+  },
+  {
+    agent: 'WD',
+    agentClass: 'agent-watchdog',
+    action: 'Opened Grafana, traced latency spike to db-02',
+    detail: 'browser + mouse',
+    cost: '$0.02',
+    time: '45s ago',
+  },
 ];
 
-function TerminalDemo() {
-  const [visibleLines, setVisibleLines] = useState<{ text: string; type: string }[]>([]);
-  const [currentChar, setCurrentChar] = useState(0);
-  const [lineIndex, setLineIndex] = useState(0);
-  const [isTyping, setIsTyping] = useState(true);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (lineIndex >= terminalLines.length) {
-      const timeout = setTimeout(() => {
-        setVisibleLines([]);
-        setLineIndex(0);
-        setCurrentChar(0);
-        setIsTyping(true);
-      }, 3000);
-      return () => clearTimeout(timeout);
-    }
-
-    const line = terminalLines[lineIndex];
-
-    if (line.typed && isTyping) {
-      if (currentChar < line.text.length) {
-        const timeout = setTimeout(() => setCurrentChar((c) => c + 1), 25);
-        return () => clearTimeout(timeout);
-      } else {
-        const timeout = setTimeout(() => {
-          setVisibleLines((prev) => [...prev, { text: line.text, type: line.type }]);
-          setLineIndex((i) => i + 1);
-          setCurrentChar(0);
-          setIsTyping(true);
-        }, 400);
-        return () => clearTimeout(timeout);
-      }
-    } else if (!line.typed) {
-      const timeout = setTimeout(() => {
-        setVisibleLines((prev) => [...prev, { text: line.text, type: line.type }]);
-        setLineIndex((i) => i + 1);
-        setCurrentChar(0);
-        setIsTyping(true);
-      }, 600);
-      return () => clearTimeout(timeout);
-    }
-  }, [lineIndex, currentChar, isTyping]);
-
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
-  }, [visibleLines, currentChar]);
-
-  const currentLine = lineIndex < terminalLines.length ? terminalLines[lineIndex] : null;
-
-  return (
-    <div className="landing-terminal" role="region" aria-label="Terminal demo">
-      <div className="landing-terminal-bar" aria-hidden="true">
-        <span className="landing-terminal-prompt">&#x276F;</span>
-        <span className="landing-terminal-title">askalf</span>
-      </div>
-      <div className="landing-terminal-body" ref={containerRef}>
-        {visibleLines.map((line, i) => (
-          <div key={i} className={`landing-terminal-line is-${line.type}`}>{line.text}</div>
-        ))}
-        {currentLine && currentLine.typed && (
-          <div className={`landing-terminal-line is-${currentLine.type}`}>
-            {currentLine.text.slice(0, currentChar)}
-            <span className="landing-terminal-cursor" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ---- Agent Constellation (Canvas) ---- */
-function AgentConstellation() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animId: number;
-    const particles: { x: number; y: number; vx: number; vy: number; r: number; pulse: number; pulseSpeed: number }[] = [];
-
-    const resize = () => {
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    };
-
-    const init = () => {
-      resize();
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      const count = Math.min(35, Math.floor((w * h) / 15000));
-      particles.length = 0;
-      for (let i = 0; i < count; i++) {
-        particles.push({
-          x: Math.random() * w,
-          y: Math.random() * h,
-          vx: (Math.random() - 0.5) * 0.3,
-          vy: (Math.random() - 0.5) * 0.3,
-          r: 1.5 + Math.random() * 2,
-          pulse: Math.random() * Math.PI * 2,
-          pulseSpeed: 0.01 + Math.random() * 0.02,
-        });
-      }
-    };
-
-    const draw = () => {
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      ctx.clearRect(0, 0, w, h);
-
-      // Update + draw connections
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.pulse += p.pulseSpeed;
-        if (p.x < 0 || p.x > w) p.vx *= -1;
-        if (p.y < 0 || p.y > h) p.vy *= -1;
-
-        for (let j = i + 1; j < particles.length; j++) {
-          const q = particles[j];
-          const dx = p.x - q.x;
-          const dy = p.y - q.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 140) {
-            const alpha = (1 - dist / 140) * 0.15;
-            ctx.strokeStyle = `rgba(124, 58, 237, ${alpha})`;
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(q.x, q.y);
-            ctx.stroke();
-          }
-        }
-      }
-
-      // Draw particles
-      for (const p of particles) {
-        const opacity = 0.3 + Math.sin(p.pulse) * 0.2;
-        ctx.fillStyle = `rgba(167, 139, 250, ${opacity})`;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      animId = requestAnimationFrame(draw);
-    };
-
-    init();
-    draw();
-    window.addEventListener('resize', init);
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', init);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="landing-constellation" aria-hidden="true" />;
-}
-
-/* ---- Metrics Bar ---- */
-function useCountUp(target: number, duration: number, trigger: boolean): number {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!trigger) return;
-    const start = performance.now();
-    const step = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-      setValue(Math.round(target * eased));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [target, duration, trigger]);
-  return value;
-}
-
-const metrics = [
-  { value: 9, label: 'Containers', suffix: '' },
-  { value: 6, label: 'AI Providers', suffix: '' },
-  { value: 4, label: 'Memory Tiers', suffix: '' },
-  { value: 1, label: 'Response Time', suffix: '', prefix: '<', unit: 's' },
+const capabilities = [
+  {
+    icon: '\u{1F5B1}\uFE0F',
+    title: 'Mouse & Keyboard',
+    desc: 'Move cursors, click buttons, type into fields, use keyboard shortcuts. Full desktop interaction — not API wrappers.',
+    tag: 'computer use',
+  },
+  {
+    icon: '\u{1F310}',
+    title: 'Real Browser Sessions',
+    desc: 'Navigate any website as a human would. Fill forms, click through workflows, extract data, take screenshots.',
+    tag: 'browser',
+  },
+  {
+    icon: '\u{1F4BB}',
+    title: 'Run Any Application',
+    desc: 'Open IDEs, spreadsheets, design tools, terminals. Your agents operate software like employees at their desks.',
+    tag: 'applications',
+  },
+  {
+    icon: '\u{1F511}',
+    title: 'SSH Into Anything',
+    desc: 'Servers, containers, VMs, routers, IoT devices, cloud instances — if it has a shell, your agent can connect and work.',
+    tag: 'remote access',
+  },
+  {
+    icon: '\u{1F4C1}',
+    title: 'File System Control',
+    desc: 'Read, write, organize files across codebases and documents. Manage assets, configs, and repos directly on disk.',
+    tag: 'filesystem',
+  },
+  {
+    icon: '\u{26A1}',
+    title: 'Shell & CLI Execution',
+    desc: 'Run build scripts, deploy pipelines, execute test suites, pipe commands. Full terminal with streaming output.',
+    tag: 'terminal',
+  },
 ];
 
-function MetricItem({ metric, triggered }: { metric: typeof metrics[0]; triggered: boolean }) {
-  const count = useCountUp(metric.value, 1500, triggered);
-  return (
-    <div className="landing-metric">
-      <div className="landing-metric-value">
-        {metric.prefix || ''}{count}{metric.unit || ''}
-      </div>
-      <div className="landing-metric-label">{metric.label}</div>
-    </div>
-  );
-}
-
-function MetricsBar() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [triggered, setTriggered] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setTriggered(true); },
-      { threshold: 0.5 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div className="landing-metrics" ref={ref}>
-      {metrics.map((m) => (
-        <MetricItem key={m.label} metric={m} triggered={triggered} />
-      ))}
-    </div>
-  );
-}
-
-/* ---- Agent Topology Diagram ---- */
-const topoProviders = [
-  { id: 'claude', label: 'Claude', x: 80, y: 80, tip: 'Anthropic Claude\n3 active agents\n$1.24 spent today' },
-  { id: 'gpt', label: 'GPT', x: 80, y: 200, tip: 'OpenAI GPT\n4 active agents\n$2.08 spent today' },
-  { id: 'gemini', label: 'Gemini', x: 80, y: 320, tip: 'Google Gemini\n3 active agents\n$0.89 spent today' },
-];
-const topoHub = { x: 400, y: 200 };
-const topoAgents = [
-  { id: 'agent-1a', x: 720, y: 60 },
-  { id: 'agent-3b', x: 720, y: 160 },
-  { id: 'agent-7c', x: 720, y: 260 },
-  { id: 'agent-9d', x: 720, y: 360 },
+const platformFeatures = [
+  {
+    icon: '\u2726',
+    title: 'Fleet Orchestration',
+    desc: 'Coordinate multiple agents. Fan-out tasks, pipeline workflows, consensus patterns.',
+  },
+  {
+    icon: '\u21C4',
+    title: 'Multi-Provider',
+    desc: 'Anthropic, OpenAI, Google. Switch providers per-agent, per-task. Zero lock-in.',
+  },
+  {
+    icon: '\u0024',
+    title: 'Cost Control',
+    desc: 'Per-agent budgets, execution caps, real-time tracking. No surprise bills.',
+  },
+  {
+    icon: '\u229B',
+    title: 'Guardrails',
+    desc: 'Human-in-the-loop approvals, content filtering, execution boundaries.',
+  },
+  {
+    icon: '\u2692',
+    title: '24 Built-in Tools',
+    desc: 'Database, Docker, web search, code analysis, team coordination via MCP.',
+  },
+  {
+    icon: '\u25C9',
+    title: 'Full Observability',
+    desc: 'Structured logs, execution traces, performance metrics for every action.',
+  },
 ];
 
-const agentStatuses = [
-  { label: 'running', color: '#4ade80' },
-  { label: 'evolving', color: '#a78bfa' },
-  { label: 'healing', color: '#fbbf24' },
-  { label: 'killed', color: '#ef4444' },
+const channels = [
+  { name: 'Slack', icon: '\u{1F4AC}' },
+  { name: 'Discord', icon: '\u{1F3AE}' },
+  { name: 'Telegram', icon: '\u{2708}\uFE0F' },
+  { name: 'WhatsApp', icon: '\u{1F4F1}' },
+  { name: 'API', icon: '\u{1F310}' },
+  { name: 'Webhooks', icon: '\u{26A1}' },
 ];
 
-type Particle = { edge: number; progress: number; speed: number; direction: 'in' | 'out' };
+const pricingTiers = [
+  {
+    tier: 'Starter',
+    price: '$0',
+    period: '/mo',
+    desc: 'Try your first digital employee',
+    features: [
+      '1 agent',
+      '50 compute hours/mo',
+      'Browser & terminal access',
+      'Community support',
+      'API access',
+    ],
+    cta: 'Join Waitlist',
+    ctaStyle: 'cta-default' as const,
+    featured: false,
+  },
+  {
+    tier: 'Pro',
+    price: '$49',
+    period: '/mo',
+    desc: 'A small team of digital workers',
+    features: [
+      '5 agents',
+      '500 compute hours/mo',
+      'Full computer use (mouse, keyboard, apps)',
+      'SSH & remote access',
+      'All channels (Slack, Discord, etc.)',
+      'Priority support',
+    ],
+    cta: 'Join Waitlist',
+    ctaStyle: 'cta-primary' as const,
+    featured: true,
+  },
+  {
+    tier: 'Business',
+    price: '$199',
+    period: '/mo',
+    desc: 'Scale your digital workforce',
+    features: [
+      '25 agents',
+      '2,500 compute hours/mo',
+      'Fleet orchestration & pipelines',
+      'SSO & role-based access',
+      'Team workspaces',
+      'Cost controls & guardrails',
+      'SLA guarantee',
+    ],
+    cta: 'Join Waitlist',
+    ctaStyle: 'cta-default' as const,
+    featured: false,
+  },
+  {
+    tier: 'Enterprise',
+    price: 'Custom',
+    period: '',
+    desc: 'Dedicated infrastructure at scale',
+    features: [
+      'Unlimited agents & hours',
+      'On-prem / private cloud deployment',
+      'Custom tool & app integrations',
+      'Dedicated account manager',
+      'SOC 2 & compliance',
+      'Custom SLAs',
+    ],
+    cta: 'Contact Us',
+    ctaStyle: 'cta-default' as const,
+    featured: false,
+  },
+];
 
-function AgentTopology() {
-  const [statuses, setStatuses] = useState([0, 1, 0, 2]);
-  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const particlesRef = useRef<Particle[]>([]);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const animRef = useRef<number>(0);
-  const circlesRef = useRef<SVGCircleElement[]>([]);
-
-  // Build edges: providers→hub (3) + hub→agents (4) = 7 edges
-  const edges = [
-    ...topoProviders.map(p => ({ x1: p.x + 60, y1: p.y, x2: topoHub.x - 70, y2: topoHub.y })),
-    ...topoAgents.map(a => ({ x1: topoHub.x + 70, y1: topoHub.y, x2: a.x - 60, y2: a.y })),
-  ];
-
-  // Initialize particles
-  useEffect(() => {
-    const parts: Particle[] = [];
-    for (let i = 0; i < 18; i++) {
-      parts.push({
-        edge: Math.floor(Math.random() * edges.length),
-        progress: Math.random(),
-        speed: 0.003 + Math.random() * 0.004,
-        direction: Math.random() > 0.5 ? 'in' : 'out',
-      });
-    }
-    particlesRef.current = parts;
-
-    const animate = () => {
-      const particles = particlesRef.current;
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        p.progress += p.speed;
-        if (p.progress > 1) {
-          p.progress = 0;
-          p.edge = Math.floor(Math.random() * edges.length);
-          p.speed = 0.003 + Math.random() * 0.004;
-        }
-        const e = edges[p.edge];
-        const t = p.progress;
-        const cx = e.x1 + (e.x2 - e.x1) * t;
-        const cy = e.y1 + (e.y2 - e.y1) * t;
-        const circle = circlesRef.current[i];
-        if (circle) {
-          circle.setAttribute('cx', String(cx));
-          circle.setAttribute('cy', String(cy));
-          circle.setAttribute('opacity', String(0.3 + Math.sin(t * Math.PI) * 0.7));
-        }
-      }
-      animRef.current = requestAnimationFrame(animate);
-    };
-    animRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animRef.current);
-  }, []);
-
-  // Rotate agent statuses
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStatuses(prev => {
-        const next = [...prev];
-        const idx = Math.floor(Math.random() * next.length);
-        next[idx] = (next[idx] + 1) % agentStatuses.length;
-        return next;
-      });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const agentTips = topoAgents.map((a, i) => {
-    const s = agentStatuses[statuses[i]];
-    const gens = [3, 5, 2, 1];
-    const accs = ['94.2%', '87.6%', '91.0%', '\u2014'];
-    return `${a.id} \u00B7 Gen ${gens[i]}\nStatus: ${s.label}\nAccuracy: ${accs[i]}`;
-  });
-
-  return (
-    <div className="landing-topology-wrap">
-      <svg ref={svgRef} viewBox="0 0 800 400" className="landing-topology-svg" aria-label="Agent topology diagram">
-        <defs>
-          <filter id="hubGlow">
-            <feGaussianBlur stdDeviation="8" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
-
-        {/* Edges */}
-        {edges.map((e, i) => (
-          <line key={i} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2}
-            stroke="rgba(124,58,237,0.15)" strokeWidth="1.5" />
-        ))}
-
-        {/* Particles */}
-        {Array.from({ length: 18 }).map((_, i) => (
-          <circle key={`p${i}`} r="3" fill="#a78bfa" opacity="0"
-            ref={el => { if (el) circlesRef.current[i] = el; }} />
-        ))}
-
-        {/* Provider nodes */}
-        {topoProviders.map(p => (
-          <g key={p.id}
-            onMouseEnter={() => setHoveredNode(p.id)}
-            onMouseLeave={() => setHoveredNode(null)}
-            style={{ cursor: 'pointer' }}
-          >
-            <rect x={p.x - 50} y={p.y - 22} width="100" height="44" rx="10"
-              fill="#111113" stroke="rgba(124,58,237,0.3)" strokeWidth="1.5" />
-            <text x={p.x} y={p.y + 5} textAnchor="middle"
-              fill="#a1a1aa" fontSize="13" fontFamily="'JetBrains Mono', monospace" fontWeight="600">
-              {p.label}
-            </text>
-          </g>
-        ))}
-
-        {/* Hub node */}
-        <g>
-          <rect x={topoHub.x - 65} y={topoHub.y - 30} width="130" height="60" rx="14"
-            fill="#111113" stroke="#7c3aed" strokeWidth="2" filter="url(#hubGlow)" />
-          <text x={topoHub.x} y={topoHub.y + 6} textAnchor="middle"
-            fill="#a78bfa" fontSize="16" fontFamily="'JetBrains Mono', monospace" fontWeight="800">
-            askalf
-          </text>
-        </g>
-
-        {/* Agent nodes */}
-        {topoAgents.map((a, i) => {
-          const s = agentStatuses[statuses[i]];
-          return (
-            <g key={a.id}
-              onMouseEnter={() => setHoveredNode(a.id)}
-              onMouseLeave={() => setHoveredNode(null)}
-              style={{ cursor: 'pointer' }}
-            >
-              <rect x={a.x - 55} y={a.y - 20} width="110" height="40" rx="8"
-                fill="#111113" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-              <circle cx={a.x - 35} cy={a.y} r="4" fill={s.color}>
-                <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite" />
-              </circle>
-              <text x={a.x + 2} y={a.y + 4} textAnchor="middle"
-                fill="#71717a" fontSize="11" fontFamily="'JetBrains Mono', monospace" fontWeight="500">
-                {a.id}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Tooltip */}
-        {hoveredNode && (() => {
-          const prov = topoProviders.find(p => p.id === hoveredNode);
-          const agentIdx = topoAgents.findIndex(a => a.id === hoveredNode);
-          const tip = prov ? prov.tip : agentIdx >= 0 ? agentTips[agentIdx] : null;
-          if (!tip) return null;
-          const node = prov || topoAgents[agentIdx];
-          const lines = tip.split('\n');
-          const tx = node.x;
-          const ty = node.y - 45;
-          return (
-            <g>
-              <rect x={tx - 75} y={ty - 12 * lines.length} width="150" height={lines.length * 18 + 16} rx="8"
-                fill="#1a1a1d" stroke="rgba(124,58,237,0.3)" strokeWidth="1" />
-              {lines.map((line, li) => (
-                <text key={li} x={tx} y={ty - 12 * lines.length + 20 + li * 18} textAnchor="middle"
-                  fill={li === 0 ? '#fafafa' : '#71717a'} fontSize="11"
-                  fontFamily="'JetBrains Mono', monospace" fontWeight={li === 0 ? '600' : '400'}>
-                  {line}
-                </text>
-              ))}
-            </g>
-          );
-        })()}
-      </svg>
-    </div>
-  );
-}
+/* ---- Component ---- */
 
 export default function LandingPage() {
   const setRef = useScrollReveal();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
-    document.title = 'AskAlf — The Control Plane for Autonomous Agents';
+    document.title = 'AskAlf \u2014 AI Agents That Actually Use Computers';
   }, []);
 
   return (
     <div className="landing-page">
-      {/* Animated constellation background */}
-      <AgentConstellation />
+      {/* Gradient orb */}
+      <div className="landing-hero-orb" aria-hidden="true" />
 
-      {/* Nav */}
+      {/* ============ NAV ============ */}
       <nav className="landing-nav" aria-label="Main navigation">
         <Link to="/" className="landing-nav-logo">
           <span className="landing-nav-logo-text">askalf</span>
         </Link>
         <div className="landing-nav-links">
+          <a href="#pricing" className="landing-nav-link">Pricing</a>
           <Link to="/login" className="landing-nav-signin">Sign In</Link>
+          <Link to="/signup" className="landing-nav-cta">Join Waitlist</Link>
         </div>
       </nav>
 
       {/* ============ HERO ============ */}
       <section className="landing-hero" aria-labelledby="hero-heading">
-        <div className="landing-badge">Early Access</div>
-        <h1 id="hero-heading">
-          The control plane for{' '}
-          <span>autonomous agents</span>
-        </h1>
-        <p className="landing-hero-sub">
-          Kubernetes-style orchestration for AI agents. Deploy fleets,
-          enforce budgets, evolve what works, kill what doesn't.
-        </p>
-        <TerminalDemo />
-        <div className="landing-hero-actions">
-          <Link to="/signup" className="landing-cta">
-            Join the Waitlist
-          </Link>
-          <a href="#how-it-works" className="landing-cta-secondary">
-            See How It Works
-          </a>
-        </div>
-      </section>
-
-      <hr className="landing-divider" />
-
-      {/* ============ METRICS BAR ============ */}
-      <MetricsBar />
-
-      <hr className="landing-divider" />
-
-      {/* ============ THE PROBLEM ============ */}
-      <section className="landing-problem landing-reveal" ref={setRef(0)}>
-        <div className="landing-problem-content">
-          <p className="landing-section-label">// the problem</p>
-          <h2 className="landing-problem-headline">
-            Agent frameworks give you chains.<br />
-            You need a <em>control plane</em>.
-          </h2>
-          <p className="landing-problem-body">
-            Frameworks help you build one agent. They don't help you run fifty.
-            Production agents need observability, cost control, healing, and evolution
-            — not another prompt wrapper.
+        <div className="landing-hero-content">
+          <div className="landing-badge">Early Access</div>
+          <h1 id="hero-heading">
+            Not chatbots.{' '}
+            <span className="hero-accent">Digital employees</span>{' '}
+            that use computers{' '}
+            <span className="hero-accent-green">like you do.</span>
+          </h1>
+          <p className="landing-hero-sub">
+            Agents that control mouse and keyboard. Browse the web. SSH into servers.
+            Open applications. Read and write files. They don't just answer questions
+            &mdash; they do the work.
           </p>
-          <div className="landing-problem-compare">
-            <div className="landing-problem-col is-old landing-stagger">
-              <div className="landing-problem-col-title">Frameworks</div>
-              <ul>
-                <li>Single agent chains</li>
-                <li>No cost visibility</li>
-                <li>Manual restarts on failure</li>
-                <li>Static prompts</li>
-                <li>No fleet coordination</li>
-              </ul>
+          <div className="landing-hero-actions">
+            <Link to="/signup" className="landing-cta">
+              Join the Waitlist
+            </Link>
+            <a href="#capabilities" className="landing-cta-secondary">
+              See What They Can Do
+            </a>
+          </div>
+        </div>
+
+        {/* Command Feed — showing agents doing real computer work */}
+        <div className="landing-feed">
+          <div className="landing-feed-container">
+            <div className="landing-feed-header">
+              <span className="landing-feed-title">Agent Activity</span>
+              <span className="landing-feed-status">Live</span>
             </div>
-            <div className="landing-problem-col is-new landing-stagger">
-              <div className="landing-problem-col-title">Control Plane</div>
-              <ul>
-                <li>Fleet orchestration</li>
-                <li>Per-agent token budgets</li>
-                <li>Auto-healing + reconciliation</li>
-                <li>Darwinian prompt evolution</li>
-                <li>DAG workflows + handoffs</li>
-              </ul>
+            <div className="landing-feed-items">
+              {feedItems.map((item, i) => (
+                <div key={i} className="landing-feed-item">
+                  <div className={`landing-feed-agent ${item.agentClass}`}>
+                    {item.agent}
+                  </div>
+                  <div className="landing-feed-body">
+                    <div className="landing-feed-action">{item.action}</div>
+                    <div className="landing-feed-meta">
+                      <span className="landing-feed-channel">{item.detail}</span>
+                      <span>{item.time}</span>
+                    </div>
+                  </div>
+                  <div className="landing-feed-cost">{item.cost}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -629,28 +311,28 @@ export default function LandingPage() {
 
       <hr className="landing-divider" />
 
-      {/* ============ K8S MAPPING ============ */}
-      <section className="landing-k8s landing-reveal" ref={setRef(1)}>
-        <div className="landing-k8s-header">
-          <p className="landing-section-label">// architecture</p>
+      {/* ============ CAPABILITIES — THE MAIN EVENT ============ */}
+      <section id="capabilities" className="landing-capabilities landing-reveal" ref={setRef(0)}>
+        <div className="landing-capabilities-header">
+          <p className="landing-section-label">What Sets Us Apart</p>
           <h2 className="landing-section-title">
-            Kubernetes for agents
+            Agents that do everything a human can do on a computer
           </h2>
           <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>
-            Every concept you know from container orchestration, mapped to autonomous agents.
+            Other platforms give you chatbots. We give you digital workers with full
+            computer access &mdash; mouse, keyboard, browser, terminal, and every
+            application you already use.
           </p>
         </div>
-        <div className="landing-k8s-table">
-          <div className="landing-k8s-row is-header">
-            <span className="landing-k8s-left">Kubernetes</span>
-            <span className="landing-k8s-arrow" />
-            <span className="landing-k8s-right">AskAlf</span>
-          </div>
-          {k8sMapping.map((row) => (
-            <div key={row.left} className="landing-k8s-row landing-stagger">
-              <span className="landing-k8s-left">{row.left}</span>
-              <span className="landing-k8s-arrow">{'\u2192'}</span>
-              <span className="landing-k8s-right">{row.right}</span>
+        <div className="landing-capabilities-grid">
+          {capabilities.map((cap) => (
+            <div key={cap.title} className="landing-capability-card landing-stagger">
+              <div className="landing-capability-header">
+                <div className="landing-capability-icon">{cap.icon}</div>
+                <span className="landing-capability-tag">{cap.tag}</span>
+              </div>
+              <h3>{cap.title}</h3>
+              <p>{cap.desc}</p>
             </div>
           ))}
         </div>
@@ -658,32 +340,38 @@ export default function LandingPage() {
 
       <hr className="landing-divider" />
 
-      {/* ============ TOPOLOGY ============ */}
-      <section className="landing-topology landing-reveal" ref={setRef(2)}>
-        <div className="landing-topology-header">
-          <p className="landing-section-label">// topology</p>
-          <h2 className="landing-section-title">
-            See the control plane in action
-          </h2>
-          <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>
-            Model providers feed the hub. The hub orchestrates agents. Agents compete, evolve, and self-heal.
-          </p>
+      {/* ============ CHANNEL STRIP ============ */}
+      <section className="landing-channels landing-reveal" ref={setRef(1)}>
+        <p className="landing-channels-label">Reach them anywhere</p>
+        <div className="landing-channels-row">
+          {channels.map((ch, i) => (
+            <Fragment key={ch.name}>
+              {i > 0 && <div className="landing-channel-connector" />}
+              <div className="landing-channel-item landing-stagger">
+                <div className="landing-channel-icon">{ch.icon}</div>
+                <span className="landing-channel-name">{ch.name}</span>
+              </div>
+            </Fragment>
+          ))}
         </div>
-        <AgentTopology />
       </section>
 
       <hr className="landing-divider" />
 
-      {/* ============ FEATURES ============ */}
-      <section className="landing-features landing-reveal" ref={setRef(3)}>
+      {/* ============ PLATFORM FEATURES — SECONDARY ============ */}
+      <section id="features" className="landing-features landing-reveal" ref={setRef(2)}>
         <div className="landing-features-header">
-          <p className="landing-section-label">// capabilities</p>
+          <p className="landing-section-label">Platform</p>
           <h2 className="landing-section-title">
-            Production-grade agent infrastructure
+            Production infrastructure, not just capabilities
           </h2>
+          <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>
+            Computer-use agents need orchestration, cost control, and guardrails
+            to run safely at scale. That's the platform.
+          </p>
         </div>
         <div className="landing-features-grid">
-          {features.map((f) => (
+          {platformFeatures.map((f) => (
             <div key={f.title} className="landing-feature-card landing-stagger">
               <div className="landing-feature-icon">{f.icon}</div>
               <h3>{f.title}</h3>
@@ -695,20 +383,41 @@ export default function LandingPage() {
 
       <hr className="landing-divider" />
 
-      {/* ============ HOW IT WORKS ============ */}
-      <section id="how-it-works" className="landing-how landing-reveal" ref={setRef(4)}>
-        <div className="landing-how-header">
-          <p className="landing-section-label">// workflow</p>
+      {/* ============ PRICING ============ */}
+      <section id="pricing" className="landing-pricing landing-reveal" ref={setRef(3)}>
+        <div className="landing-pricing-header">
+          <p className="landing-section-label">Pricing</p>
           <h2 className="landing-section-title">
-            Three steps to production agents
+            Hire by the hour, not the headcount.
           </h2>
+          <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>
+            Pay for compute hours &mdash; the time your agents spend actively working.
+            No per-seat fees, no token counting. Early access members lock in launch pricing.
+          </p>
         </div>
-        <div className="landing-steps">
-          {steps.map((s) => (
-            <div key={s.title} className="landing-step landing-stagger">
-              <div className="landing-step-number">{s.num}</div>
-              <h3 className="landing-step-title">{s.title}</h3>
-              <p>{s.desc}</p>
+        <div className="landing-pricing-grid">
+          {pricingTiers.map((tier) => (
+            <div
+              key={tier.tier}
+              className={`landing-pricing-card landing-stagger${tier.featured ? ' is-featured' : ''}`}
+            >
+              <div className="landing-pricing-tier">{tier.tier}</div>
+              <div className="landing-pricing-price">
+                <span className="landing-pricing-amount">{tier.price}</span>
+                {tier.period && <span className="landing-pricing-period">{tier.period}</span>}
+              </div>
+              <p className="landing-pricing-desc">{tier.desc}</p>
+              <ul className="landing-pricing-features">
+                {tier.features.map((f) => (
+                  <li key={f}>{f}</li>
+                ))}
+              </ul>
+              <Link
+                to="/signup"
+                className={`landing-pricing-cta ${tier.ctaStyle}`}
+              >
+                {tier.cta}
+              </Link>
             </div>
           ))}
         </div>
@@ -716,36 +425,16 @@ export default function LandingPage() {
 
       <hr className="landing-divider" />
 
-      {/* ============ THE STACK ============ */}
-      <section className="landing-stack landing-reveal" ref={setRef(5)}>
-        <div className="landing-stack-header">
-          <p className="landing-section-label">// infrastructure</p>
-          <h2 className="landing-section-title">The stack</h2>
-        </div>
-        <div className="landing-stack-content">
-          <div className="landing-stack-items">
-            {stack.map((item) => (
-              <span key={item} className="landing-stack-item landing-stagger">
-                {item}
-              </span>
-            ))}
-          </div>
-          <p className="landing-stack-stat">9 containers. 2 services. Zero frameworks.</p>
-          <p className="landing-stack-stat-sub">Darwinism for LLMs.</p>
-        </div>
-      </section>
-
-      <hr className="landing-divider" />
-
       {/* ============ FINAL CTA ============ */}
-      <section className="landing-final-cta landing-reveal" ref={setRef(6)}>
+      <section className="landing-final-cta landing-reveal" ref={setRef(4)}>
         <div className="landing-final-cta-inner">
           <h2 className="landing-final-headline">
-            Ready to run agents like infrastructure?
+            Ready to hire your first digital employee?
           </h2>
           <p className="landing-final-sub">
-            Early access is open. Join the waitlist and be first to deploy
-            agents that evolve, compete, and self-heal.
+            Join the waitlist. Be first to deploy agents that don't just talk
+            &mdash; they open apps, browse the web, SSH into servers, and get
+            real work done.
           </p>
           <Link to="/signup" className="landing-cta">
             Join the Waitlist
@@ -760,21 +449,11 @@ export default function LandingPage() {
             <span className="landing-footer-copy">
               {'\u00A9'} {new Date().getFullYear()} AskAlf. All rights reserved.
             </span>
-            <span className="landing-footer-built">
-              Built by one developer who got tired of frameworks.
-            </span>
           </div>
           <div className="landing-footer-links">
+            <a href="#pricing" className="landing-footer-link">Pricing</a>
             <a
-              href="https://amnesia.tax"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="landing-footer-link"
-            >
-              amnesia.tax — the world's fastest aggregated search engine
-            </a>
-            <a
-              href="https://x.com/agent_askalf"
+              href="https://x.com/sprayberrylabs"
               target="_blank"
               rel="noopener noreferrer"
               className="landing-footer-link"

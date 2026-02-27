@@ -1,9 +1,20 @@
 # AskAlf
 
-**Autonomous AI Agent Orchestration Platform** — A fleet of AI agents that write, review, deploy, and evolve production software.
+**AI agents that actually use computers.** Mouse, keyboard, browser, SSH, applications. Not chatbots — digital employees.
 
-- [askalf.org](https://askalf.org) — Dashboard
+- [askalf.org](https://askalf.org) — Platform
 - [amnesia.tax](https://amnesia.tax) — Search engine
+
+## What Makes It Different
+
+Agents that do everything a human can do on a computer:
+
+- **Mouse & Keyboard** — Move cursors, click buttons, type into fields, use keyboard shortcuts
+- **Real Browser Sessions** — Navigate any website, fill forms, extract data, take screenshots
+- **Run Any Application** — IDEs, spreadsheets, design tools, terminals
+- **SSH Into Anything** — Servers, containers, VMs, routers, IoT devices, cloud instances
+- **File System Control** — Read, write, organize files across codebases and documents
+- **Shell & CLI** — Build scripts, deploy pipelines, test suites, piped commands
 
 ## Architecture
 
@@ -12,34 +23,39 @@ Internet -> Cloudflare (SSL, WAF) -> cloudflared tunnel -> nginx
     |
 +------------------------------------------+
 |  Forge (3005) - Agent orchestration      |
-|  Dashboard (3001) - React admin UI       |
+|  Dashboard (3001) - React SPA + Fastify  |
 |  MCP-Tools (3010) - 24 MCP tools        |
 +------------------------------------------+
     |
-PostgreSQL 17 + pgvector  <-  pgbouncer
+PostgreSQL 17 + pgvector
 Redis (event bus, caching)
 ```
 
 ## Agent Fleet
 
-4 active agents running via Claude Code CLI, ticket-gated dispatch, 6h intervals:
+### Internal Agents (5, admin-only, ticket-gated)
+- **Frontend Dev** — React/UI work
+- **Backend Dev** — API/DB/server work
+- **Infra** — DevOps, Docker, deployments
+- **QA** — Testing, code quality
+- **Security** — Scanning, vulnerability detection
 
-- **Engineer** — Backend development, API routes, database queries
-- **Infra** — DevOps, Docker, deployments, infrastructure
-- **QA** — Testing, bug detection, code quality
-- **Security** — Security scanning and vulnerability detection
+### User-Facing Agents (6, dispatched via chat/templates)
+- **Researcher** — Web research, competitor analysis, SEO
+- **Sentinel** — Security scanning, dependency auditing
+- **Developer** — Code review, testing, full-stack dev
+- **Writer** — Content, docs, release notes
+- **Watchdog** — System monitoring, incident response
+- **Analyst** — Data analysis, performance profiling
 
-## Autonomous Pipeline
+## Platform Features
 
-```
-Ticket assigned -> Agent executes in isolated worktree
-  -> Code committed on agent/* branch
-  -> Git review (risk classification + peer review)
-  -> Auto-merge to main (low risk) or intervention request (high risk)
-  -> Auto-deploy: rebuild baked-in services, restart volume-mounted
-  -> Health check -> rollback on failure
-  -> Ticket resolved
-```
+- **Fleet Orchestration** — Fan-out tasks, pipeline workflows, consensus patterns
+- **Multi-Provider** — Anthropic, OpenAI, Google. Switch per-agent, per-task
+- **Cost Control** — Per-agent budgets, execution caps, real-time tracking
+- **Guardrails** — Human-in-the-loop approvals, content filtering, execution boundaries
+- **24 Built-in Tools** — Database, Docker, web search, code analysis, team coordination via MCP
+- **Full Observability** — Structured logs, execution traces, performance metrics
 
 ## Monorepo Structure
 
@@ -47,8 +63,9 @@ Ticket assigned -> Agent executes in isolated worktree
 substrate/
 +-- apps/
 |   +-- forge/        # Agent orchestration engine (Fastify)
-|   +-- dashboard/    # React admin dashboard (Vite + Fastify)
+|   +-- dashboard/    # React SPA + Fastify server (Vite)
 |   +-- mcp-tools/    # 24 MCP tools for agent capabilities
+|   +-- admin-console/ # Master control terminal
 +-- packages/
 |   +-- core/         # Shared types, Zod validation, ulid
 |   +-- database/     # PostgreSQL client, migrations, repositories
@@ -64,13 +81,4 @@ substrate/
 
 ## Stack
 
-`TypeScript` - `Node.js 22` - `Fastify v5` - `ESM` - `Claude (Anthropic)` - `Claude Code CLI` - `MCP Protocol` - `PostgreSQL 17 + pgvector` - `Redis` - `Docker Compose` - `Nginx` - `Cloudflare Zero Trust`
-
-## Infrastructure
-
-- 13 Docker containers (single stack: `askalf`)
-- Cloudflare Tunnel (Zero Trust, QUIC)
-- Docker socket proxy for secure container management
-- Daily PostgreSQL backups (7-day retention)
-- All third-party images pinned to SHA256 digests
-- SearXNG for agent web search (no API keys)
+`TypeScript` · `Node.js 22` · `Fastify v5` · `ESM` · `Claude (Anthropic)` · `Claude Code CLI` · `MCP Protocol` · `PostgreSQL 17 + pgvector` · `Redis` · `Docker Compose` · `Nginx` · `Cloudflare Zero Trust`

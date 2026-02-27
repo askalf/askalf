@@ -1,7 +1,7 @@
 {
   "name": "AskAlf",
   "short_name": "AskAlf",
-  "description": "The control plane for autonomous agents",
+  "description": "AI agents that actually use computers",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0b",
