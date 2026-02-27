@@ -909,6 +909,111 @@
   margin: 0;
 }
 
+/* ---- TRUST & SECURITY ---- */
+
+.landing-trust {
+  padding: 5rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.landing-trust-header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.landing-trust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.landing-trust-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-trust-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #06d6a0, #00b4d8);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.landing-trust-card:hover {
+  border-color: rgba(6, 214, 160, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(6, 214, 160, 0.08);
+}
+
+.landing-trust-card:hover::before {
+  opacity: 1;
+}
+
+.landing-trust-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.landing-trust-icon {
+  font-size: 1.5rem;
+}
+
+.landing-trust-tag {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #06d6a0;
+  background: rgba(6, 214, 160, 0.08);
+  border: 1px solid rgba(6, 214, 160, 0.15);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.landing-trust-card h3 {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 0.6rem;
+  color: var(--text);
+}
+
+.landing-trust-card p {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.landing-trust-footer {
+  text-align: center;
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.landing-trust-commitment {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-width: 680px;
+  margin: 0 auto;
+  font-style: italic;
+}
+
 /* ---- PRICING ---- */
 
 .landing-pricing {
@@ -1252,6 +1357,10 @@
   .landing-pricing-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .landing-trust-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
@@ -1280,6 +1389,7 @@
   .landing-capabilities,
   .landing-channels,
   .landing-features,
+  .landing-trust,
   .landing-how,
   .landing-pricing,
   .landing-final-cta {
@@ -1304,6 +1414,10 @@
   }
 
   .landing-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-trust-grid {
     grid-template-columns: 1fr;
   }
 

@@ -149,6 +149,45 @@ const platformFeatures = [
   },
 ];
 
+const trustPillars = [
+  {
+    icon: '\u{1F512}',
+    title: 'End-to-End Encryption',
+    desc: 'All data in transit encrypted with TLS 1.3. All data at rest encrypted with AES-256. Agent sessions, credentials, and outputs never stored in plaintext.',
+    tag: 'AES-256 / TLS 1.3',
+  },
+  {
+    icon: '\u{1F6E1}\uFE0F',
+    title: 'Zero-Knowledge Architecture',
+    desc: 'We cannot read your agent sessions, credentials, or data. Encryption keys are derived per-tenant. Your secrets stay yours.',
+    tag: 'zero-knowledge',
+  },
+  {
+    icon: '\u{1F50D}',
+    title: 'Full Audit Trail',
+    desc: 'Every agent action is logged with immutable, tamper-proof records. Who did what, when, and why \u2014 complete forensic traceability.',
+    tag: 'audit logs',
+  },
+  {
+    icon: '\u{1F3DB}\uFE0F',
+    title: 'SOC 2 Type II',
+    desc: 'Enterprise-grade compliance. Annual third-party audits of our security controls, availability, and data handling practices.',
+    tag: 'compliance',
+  },
+  {
+    icon: '\u{1F510}',
+    title: 'Credential Vault',
+    desc: 'SSH keys, API tokens, and passwords stored in a hardware-backed vault. Injected at runtime, never persisted in agent memory or logs.',
+    tag: 'secrets management',
+  },
+  {
+    icon: '\u{26D4}',
+    title: 'Sandboxed Execution',
+    desc: 'Every agent runs in an isolated container with no shared state. Network policies, filesystem restrictions, and resource limits enforced at the kernel level.',
+    tag: 'isolation',
+  },
+];
+
 const channels = [
   { name: 'Slack', icon: '\u{1F4AC}' },
   { name: 'Discord', icon: '\u{1F3AE}' },
@@ -383,8 +422,45 @@ export default function LandingPage() {
 
       <hr className="landing-divider" />
 
+      {/* ============ TRUST & SECURITY ============ */}
+      <section id="security" className="landing-trust landing-reveal" ref={setRef(3)}>
+        <div className="landing-trust-header">
+          <p className="landing-section-label">Security &amp; Privacy</p>
+          <h2 className="landing-section-title">
+            Your agents have full computer access.
+            <br />
+            <span className="hero-accent-green">That demands full trust.</span>
+          </h2>
+          <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>
+            Agents that control mouse, keyboard, and SSH need security that goes beyond
+            industry standard. Every layer is encrypted, audited, and isolated &mdash;
+            by design, not by afterthought.
+          </p>
+        </div>
+        <div className="landing-trust-grid">
+          {trustPillars.map((pillar) => (
+            <div key={pillar.title} className="landing-trust-card landing-stagger">
+              <div className="landing-trust-card-header">
+                <div className="landing-trust-icon">{pillar.icon}</div>
+                <span className="landing-trust-tag">{pillar.tag}</span>
+              </div>
+              <h3>{pillar.title}</h3>
+              <p>{pillar.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="landing-trust-footer">
+          <p className="landing-trust-commitment">
+            We publish our security practices, encryption standards, and infrastructure
+            architecture openly. Transparency isn't a feature &mdash; it's the foundation.
+          </p>
+        </div>
+      </section>
+
+      <hr className="landing-divider" />
+
       {/* ============ PRICING ============ */}
-      <section id="pricing" className="landing-pricing landing-reveal" ref={setRef(3)}>
+      <section id="pricing" className="landing-pricing landing-reveal" ref={setRef(4)}>
         <div className="landing-pricing-header">
           <p className="landing-section-label">Pricing</p>
           <h2 className="landing-section-title">
@@ -426,7 +502,7 @@ export default function LandingPage() {
       <hr className="landing-divider" />
 
       {/* ============ FINAL CTA ============ */}
-      <section className="landing-final-cta landing-reveal" ref={setRef(4)}>
+      <section className="landing-final-cta landing-reveal" ref={setRef(5)}>
         <div className="landing-final-cta-inner">
           <h2 className="landing-final-headline">
             Ready to hire your first digital employee?
