@@ -16,9 +16,6 @@ export interface ForgeConfig {
   maxExecutionIterations: number;
   maxTokensPerTurn: number;
   defaultMaxCostPerExecution: number;
-  workingMemoryTtlSeconds: number;
-  semanticSearchK: number;
-  embeddingDimensions: number;
   // CLI execution settings
   maxCliConcurrency: number;
   cliTimeout: number;
@@ -56,9 +53,6 @@ export function loadConfig(): ForgeConfig {
     maxExecutionIterations: parseInt(process.env['MAX_EXECUTION_ITERATIONS'] ?? '25', 10),
     maxTokensPerTurn: parseInt(process.env['MAX_TOKENS_PER_TURN'] ?? '8192', 10),
     defaultMaxCostPerExecution: parseFloat(process.env['DEFAULT_MAX_COST_PER_EXECUTION'] ?? '1.00'),
-    workingMemoryTtlSeconds: parseInt(process.env['WORKING_MEMORY_TTL_SECONDS'] ?? '3600', 10),
-    semanticSearchK: parseInt(process.env['SEMANTIC_SEARCH_K'] ?? '5', 10),
-    embeddingDimensions: parseInt(process.env['EMBEDDING_DIMENSIONS'] ?? '1536', 10),
     // CLI execution
     maxCliConcurrency: parseInt(process.env['MAX_CLI_CONCURRENCY'] ?? '2', 10),
     cliTimeout: parseInt(process.env['CLI_TIMEOUT'] ?? '900000', 10),
