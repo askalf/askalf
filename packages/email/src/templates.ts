@@ -674,7 +674,7 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
       We'll email <strong style="color: #a1a1aa;">${vars.email}</strong> the moment your spot opens. It won't be long.
     </p>
 
-    ${button('Follow @sprayberrylabs', 'https://x.com/sprayberrylabs')}
+    ${button('Follow @AskAlfHQ', 'https://x.com/AskAlfHQ')}
   `);
 }
 
@@ -697,7 +697,7 @@ Think of it this way: Kubernetes doesn't run your containers -- it orchestrates 
 
 We'll email ${vars.email} the moment your spot opens. It won't be long.
 
-Follow us on X: https://x.com/sprayberrylabs
+Follow us on X: https://x.com/AskAlfHQ
 
 ---
 askalf — The control plane for autonomous agents
