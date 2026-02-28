@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import crypto from 'crypto';
 import { initializePool, query, queryOne } from '@askalf/database';
-import { initializeEmailFromEnv, sendWaitlistEmail, sendAdminNotification } from '@askalf/email';
+import { initializeEmailFromEnv, sendWaitlistEmail, sendBetaInviteEmail, sendAdminNotification } from '@askalf/email';
 import {
   validateSession,
   getUserById,
@@ -2209,6 +2209,101 @@ fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
     console.error('[Waitlist] Error:', err);
     return reply.code(500).send({ error: 'Failed to join waitlist' });
   }
+});
+
+// ===========================================
+// ADMIN: WAITLIST MANAGEMENT
+// ===========================================
+
+// GET /api/v1/admin/waitlist — list waitlist entries
+fastify.get('/api/v1/admin/waitlist', async (request, reply) => {
+  const admin = await requireAdmin(request, reply);
+  if (!admin) return;
+
+  const { page = '1', limit = '50', status } = request.query;
+  const pg = parseInt(page);
+  const lim = Math.min(parseInt(limit) || 50, 200);
+  const offset = (pg - 1) * lim;
+
+  let whereClause = '';
+  const params = [];
+  if (status === 'invited') {
+    whereClause = 'WHERE beta_invite_sent_at IS NOT NULL';
+  } else if (status === 'pending') {
+    whereClause = 'WHERE beta_invite_sent_at IS NULL';
+  }
+
+  const [entries, countRow] = await Promise.all([
+    query(`SELECT * FROM waitlist ${whereClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, lim, offset]),
+    queryOne(`SELECT COUNT(*)::int as count FROM waitlist ${whereClause}`, params),
+  ]);
+
+  return {
+    entries,
+    total: countRow?.count || 0,
+    page: pg,
+    limit: lim,
+  };
+});
+
+// POST /api/v1/admin/waitlist/:id/approve — approve and send beta invite
+fastify.post('/api/v1/admin/waitlist/:id/approve', async (request, reply) => {
+  const admin = await requireAdmin(request, reply);
+  if (!admin) return;
+
+  const { id } = request.params;
+  const entry = await queryOne('SELECT * FROM waitlist WHERE id = $1', [id]);
+  if (!entry) return reply.code(404).send({ error: 'Waitlist entry not found' });
+
+  if (entry.beta_invite_sent_at) {
+    return reply.code(400).send({ error: 'Already invited', invited_at: entry.beta_invite_sent_at });
+  }
+
+  const signupUrl = `https://askalf.org/register?email=${encodeURIComponent(entry.email)}`;
+
+  // Send beta invite email
+  try {
+    await sendBetaInviteEmail(entry.email, {
+      email: entry.email,
+      signupUrl,
+    });
+  } catch (err) {
+    console.error('[Waitlist] Beta invite email failed:', err);
+    // Continue anyway — mark as invited even if email fails (can resend)
+  }
+
+  // Mark as invited
+  await query('UPDATE waitlist SET beta_invite_sent_at = NOW() WHERE id = $1', [id]);
+
+  return { ok: true, email: entry.email, signupUrl };
+});
+
+// POST /api/v1/admin/waitlist/bulk-approve — approve multiple entries
+fastify.post('/api/v1/admin/waitlist/bulk-approve', async (request, reply) => {
+  const admin = await requireAdmin(request, reply);
+  if (!admin) return;
+
+  const { ids } = request.body || {};
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return reply.code(400).send({ error: 'ids array is required' });
+  }
+
+  const results = [];
+  for (const id of ids.slice(0, 50)) {
+    const entry = await queryOne('SELECT * FROM waitlist WHERE id = $1 AND beta_invite_sent_at IS NULL', [id]);
+    if (!entry) { results.push({ id, status: 'skipped' }); continue; }
+
+    const signupUrl = `https://askalf.org/register?email=${encodeURIComponent(entry.email)}`;
+    try {
+      await sendBetaInviteEmail(entry.email, { email: entry.email, signupUrl });
+    } catch (err) {
+      console.error(`[Waitlist] Invite failed for ${entry.email}:`, err);
+    }
+    await query('UPDATE waitlist SET beta_invite_sent_at = NOW() WHERE id = $1', [id]);
+    results.push({ id, email: entry.email, status: 'invited' });
+  }
+
+  return { ok: true, results };
 });
 
 // ===========================================

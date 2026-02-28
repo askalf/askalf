@@ -4,9 +4,9 @@ import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'security' | 'integrations';
+type SettingsTab = 'profile' | 'appearance' | 'security' | 'ai-keys' | 'integrations';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'integrations'];
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'ai-keys', 'integrations'];
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
@@ -65,6 +65,15 @@ export default function SettingsPage() {
             Security
           </button>
           <button
+            className={`settings-nav-item ${activeTab === 'ai-keys' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ai-keys')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+            </svg>
+            AI Keys
+          </button>
+          <button
             className={`settings-nav-item ${activeTab === 'integrations' ? 'active' : ''}`}
             onClick={() => setActiveTab('integrations')}
           >
@@ -80,6 +89,7 @@ export default function SettingsPage() {
           {activeTab === 'profile' && <ProfileTab user={user} />}
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'security' && <SecurityTab />}
+          {activeTab === 'ai-keys' && <AIKeysTab />}
           {activeTab === 'integrations' && <IntegrationsTab />}
         </div>
       </div>
@@ -474,6 +484,232 @@ function SecurityTab() {
         </button>
       </div>
 
+    </div>
+  );
+}
+
+// ============================================
+// AI Provider Keys Tab (BYOK)
+// ============================================
+
+interface ProviderKeyInfo {
+  provider_type: string;
+  has_key: boolean;
+  key_hint: string | null;
+  label: string | null;
+  is_active: boolean;
+  last_verified_at: string | null;
+  last_used_at: string | null;
+}
+
+const AI_PROVIDERS = [
+  { type: 'anthropic', name: 'Anthropic', desc: 'Claude models', prefix: 'sk-ant-' },
+  { type: 'openai', name: 'OpenAI', desc: 'GPT models', prefix: 'sk-' },
+  { type: 'xai', name: 'xAI', desc: 'Grok models', prefix: '' },
+  { type: 'deepseek', name: 'DeepSeek', desc: 'DeepSeek models', prefix: '' },
+];
+
+function AIKeysTab() {
+  const [keys, setKeys] = useState<ProviderKeyInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingProvider, setEditingProvider] = useState<string | null>(null);
+  const [keyInput, setKeyInput] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [verifying, setVerifying] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => { fetchKeys(); }, []);
+
+  const fetchKeys = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/user-providers`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { keys: ProviderKeyInfo[] };
+        setKeys(data.keys);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  const handleSaveKey = async (providerType: string) => {
+    if (!keyInput.trim()) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/user-providers/${providerType}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: keyInput.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || 'Failed to save key');
+      }
+      setEditingProvider(null);
+      setKeyInput('');
+      setMessage({ type: 'success', text: `${providerType} key saved` });
+      fetchKeys();
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteKey = async (providerType: string) => {
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/user-providers/${providerType}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to remove key');
+      setMessage({ type: 'success', text: `${providerType} key removed` });
+      fetchKeys();
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to remove key' });
+    }
+  };
+
+  const handleVerifyKey = async (providerType: string) => {
+    setVerifying(providerType);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/user-providers/${providerType}/verify`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json() as { status: string; error?: string };
+      if (data.status === 'valid') {
+        setMessage({ type: 'success', text: `${providerType} key verified` });
+        fetchKeys();
+      } else {
+        setMessage({ type: 'error', text: `Key invalid: ${data.error || 'verification failed'}` });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Verification failed' });
+    } finally {
+      setVerifying(null);
+    }
+  };
+
+  const getKeyInfo = (type: string) => keys.find((k) => k.provider_type === type);
+
+  if (loading) {
+    return (
+      <div className="settings-section">
+        <h2>AI Provider Keys</h2>
+        <p className="settings-section-desc">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-section">
+      <h2>AI Provider Keys</h2>
+      <p className="settings-section-desc">
+        Add your own API keys to power agent executions. Your keys are encrypted at rest
+        and only used when you run agents.
+      </p>
+
+      {message && (
+        <div className={`settings-message settings-message-${message.type}`}>
+          {message.text}
+          <button className="settings-message-dismiss" onClick={() => setMessage(null)}>
+            &times;
+          </button>
+        </div>
+      )}
+
+      <div className="settings-form">
+        {AI_PROVIDERS.map((provider) => {
+          const info = getKeyInfo(provider.type);
+          const isEditing = editingProvider === provider.type;
+
+          return (
+            <div key={provider.type} className="settings-provider-card">
+              <div className="settings-provider-header">
+                <div className="settings-provider-info">
+                  <span className="settings-provider-name">{provider.name}</span>
+                  <span className="settings-provider-desc">{provider.desc}</span>
+                </div>
+                <div className="settings-provider-status">
+                  {info ? (
+                    <>
+                      <span className="settings-provider-hint">{info.key_hint}</span>
+                      <span className="settings-provider-badge settings-provider-active">Connected</span>
+                    </>
+                  ) : (
+                    <span className="settings-provider-badge settings-provider-inactive">Not set</span>
+                  )}
+                </div>
+              </div>
+
+              {isEditing ? (
+                <div className="settings-provider-edit">
+                  <input
+                    type="password"
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                    placeholder={provider.prefix ? `${provider.prefix}...` : 'Paste your API key'}
+                    autoFocus
+                  />
+                  <div className="settings-provider-edit-actions">
+                    <button
+                      className="settings-save-btn"
+                      onClick={() => handleSaveKey(provider.type)}
+                      disabled={saving || !keyInput.trim()}
+                    >
+                      {saving ? 'Saving...' : 'Save Key'}
+                    </button>
+                    <button
+                      className="settings-btn-sm"
+                      onClick={() => { setEditingProvider(null); setKeyInput(''); }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="settings-provider-actions">
+                  <button
+                    className="settings-btn-sm"
+                    onClick={() => { setEditingProvider(provider.type); setKeyInput(''); }}
+                  >
+                    {info ? 'Update Key' : 'Add Key'}
+                  </button>
+                  {info && (
+                    <>
+                      <button
+                        className="settings-btn-sm"
+                        onClick={() => handleVerifyKey(provider.type)}
+                        disabled={verifying === provider.type}
+                      >
+                        {verifying === provider.type ? 'Verifying...' : 'Verify'}
+                      </button>
+                      <button
+                        className="settings-btn-sm settings-btn-danger"
+                        onClick={() => handleDeleteKey(provider.type)}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {info?.last_verified_at && (
+                <div className="settings-provider-meta">
+                  Last verified: {new Date(info.last_verified_at).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

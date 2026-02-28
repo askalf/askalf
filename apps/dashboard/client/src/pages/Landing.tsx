@@ -197,74 +197,26 @@ const channels = [
   { name: 'Webhooks', icon: '\u{26A1}' },
 ];
 
-const pricingTiers = [
+const betaPerks = [
   {
-    tier: 'Starter',
-    price: '$0',
-    period: '/mo',
-    desc: 'Try your first digital employee',
-    features: [
-      '1 agent',
-      '50 compute hours/mo',
-      'Browser & terminal access',
-      'Community support',
-      'API access',
-    ],
-    cta: 'Join Waitlist',
-    ctaStyle: 'cta-default' as const,
-    featured: false,
+    icon: '\u{1F511}',
+    title: 'Full Platform Access',
+    desc: 'Every agent, every tool, every channel. No feature gates during beta.',
   },
   {
-    tier: 'Pro',
-    price: '$49',
-    period: '/mo',
-    desc: 'A small team of digital workers',
-    features: [
-      '5 agents',
-      '500 compute hours/mo',
-      'Full computer use (mouse, keyboard, apps)',
-      'SSH & remote access',
-      'All channels (Slack, Discord, etc.)',
-      'Priority support',
-    ],
-    cta: 'Join Waitlist',
-    ctaStyle: 'cta-primary' as const,
-    featured: true,
+    icon: '\u{1F4B0}',
+    title: 'Free During Beta',
+    desc: 'Use the entire platform at no cost while we refine the experience together.',
   },
   {
-    tier: 'Business',
-    price: '$199',
-    period: '/mo',
-    desc: 'Scale your digital workforce',
-    features: [
-      '25 agents',
-      '2,500 compute hours/mo',
-      'Fleet orchestration & pipelines',
-      'SSO & role-based access',
-      'Team workspaces',
-      'Cost controls & guardrails',
-      'SLA guarantee',
-    ],
-    cta: 'Join Waitlist',
-    ctaStyle: 'cta-default' as const,
-    featured: false,
+    icon: '\u{1F3AF}',
+    title: 'Shape the Product',
+    desc: 'Direct access to the team. Your feedback drives what we build next.',
   },
   {
-    tier: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    desc: 'Dedicated infrastructure at scale',
-    features: [
-      'Unlimited agents & hours',
-      'On-prem / private cloud deployment',
-      'Custom tool & app integrations',
-      'Dedicated account manager',
-      'Compliance-ready infrastructure',
-      'Custom SLAs',
-    ],
-    cta: 'Contact Us',
-    ctaStyle: 'cta-default' as const,
-    featured: false,
+    icon: '\u{1F512}',
+    title: 'Lock In Early Pricing',
+    desc: 'Beta members get guaranteed early-adopter pricing when we launch.',
   },
 ];
 
@@ -289,7 +241,7 @@ export default function LandingPage() {
           <span className="landing-nav-logo-text">askalf</span>
         </Link>
         <div className="landing-nav-links">
-          <a href="#pricing" className="landing-nav-link">Pricing</a>
+          <a href="#pricing" className="landing-nav-link">Beta</a>
           <Link to="/login" className="landing-nav-signin">Sign In</Link>
           <Link to="/signup" className="landing-nav-cta">Join Waitlist</Link>
         </div>
@@ -459,43 +411,31 @@ export default function LandingPage() {
 
       <hr className="landing-divider" />
 
-      {/* ============ PRICING ============ */}
+      {/* ============ BETA ACCESS ============ */}
       <section id="pricing" className="landing-pricing landing-reveal" ref={setRef(4)}>
         <div className="landing-pricing-header">
-          <p className="landing-section-label">Pricing</p>
+          <p className="landing-section-label">Beta</p>
           <h2 className="landing-section-title">
-            Hire by the hour, not the headcount.
+            Now in closed beta.
           </h2>
           <p className="landing-section-subtitle" style={{ margin: '0 auto' }}>
-            Pay for compute hours &mdash; the time your agents spend actively working.
-            No per-seat fees, no token counting. Early access members lock in launch pricing.
+            We&apos;re onboarding early users who want to put real AI agents to work.
+            Full platform access, free during beta, no strings attached.
           </p>
         </div>
-        <div className="landing-pricing-grid">
-          {pricingTiers.map((tier) => (
-            <div
-              key={tier.tier}
-              className={`landing-pricing-card landing-stagger${tier.featured ? ' is-featured' : ''}`}
-            >
-              <div className="landing-pricing-tier">{tier.tier}</div>
-              <div className="landing-pricing-price">
-                <span className="landing-pricing-amount">{tier.price}</span>
-                {tier.period && <span className="landing-pricing-period">{tier.period}</span>}
-              </div>
-              <p className="landing-pricing-desc">{tier.desc}</p>
-              <ul className="landing-pricing-features">
-                {tier.features.map((f) => (
-                  <li key={f}>{f}</li>
-                ))}
-              </ul>
-              <Link
-                to="/signup"
-                className={`landing-pricing-cta ${tier.ctaStyle}`}
-              >
-                {tier.cta}
-              </Link>
+        <div className="landing-beta-grid">
+          {betaPerks.map((perk) => (
+            <div key={perk.title} className="landing-beta-card landing-stagger">
+              <span className="landing-beta-icon">{perk.icon}</span>
+              <h3 className="landing-beta-title">{perk.title}</h3>
+              <p className="landing-beta-desc">{perk.desc}</p>
             </div>
           ))}
+        </div>
+        <div className="landing-beta-cta-wrap">
+          <Link to="/signup" className="landing-cta">
+            Request Beta Access
+          </Link>
         </div>
       </section>
 
@@ -505,15 +445,15 @@ export default function LandingPage() {
       <section className="landing-final-cta landing-reveal" ref={setRef(5)}>
         <div className="landing-final-cta-inner">
           <h2 className="landing-final-headline">
-            Ready to hire your first digital employee?
+            Ready to put agents to work?
           </h2>
           <p className="landing-final-sub">
-            Join the waitlist. Be first to deploy agents that don't just talk
+            Request beta access. Deploy agents that don&apos;t just talk
             &mdash; they open apps, browse the web, SSH into servers, and get
             real work done.
           </p>
           <Link to="/signup" className="landing-cta">
-            Join the Waitlist
+            Request Beta Access
           </Link>
         </div>
       </section>

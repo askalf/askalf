@@ -2219,6 +2219,109 @@
   gap: var(--space-sm);
 }
 
+/* ===========================================
+   AI PROVIDER KEYS
+   =========================================== */
+
+.settings-provider-card {
+  padding: var(--space-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+}
+
+.settings-provider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.settings-provider-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-provider-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9375rem;
+}
+
+.settings-provider-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.settings-provider-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.settings-provider-hint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.settings-provider-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.settings-provider-active {
+  background: rgba(6, 214, 160, 0.15);
+  color: #06d6a0;
+}
+
+.settings-provider-inactive {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.settings-provider-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.settings-provider-edit input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875rem;
+}
+
+.settings-provider-edit input:focus {
+  outline: none;
+  border-color: var(--crystal);
+}
+
+.settings-provider-edit-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.settings-provider-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.settings-provider-meta {
+  margin-top: var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .settings-integration-header {
@@ -2235,5 +2338,11 @@
     margin-left: 0;
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .settings-provider-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
   }
 }

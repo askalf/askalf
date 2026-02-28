@@ -131,6 +131,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
     volumes:
       - .:/workspace:rw
+      - ./.claude-credentials.json:/home/substrate/claude-credentials.json:rw
     depends_on:
       pgbouncer:
         condition: service_healthy

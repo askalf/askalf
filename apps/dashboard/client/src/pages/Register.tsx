@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import './Login.css';
@@ -18,9 +18,10 @@ function validateName(name: string): string | null {
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { register } = useAuthStore();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -46,6 +47,7 @@ export default function RegisterPage() {
     upper: /[A-Z]/.test(password),
     lower: /[a-z]/.test(password),
     number: /[0-9]/.test(password),
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
   };
 
   const nameError = touched.name ? validateName(name) : null;
@@ -64,7 +66,7 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!passwordChecks.length || !passwordChecks.upper || !passwordChecks.lower || !passwordChecks.number) {
+    if (!passwordChecks.length || !passwordChecks.upper || !passwordChecks.lower || !passwordChecks.number || !passwordChecks.special) {
       setError('Password does not meet requirements');
       return;
     }
@@ -154,6 +156,7 @@ export default function RegisterPage() {
                   <span className={passwordChecks.upper ? 'auth-req-met' : 'auth-req-unmet'}>Uppercase</span>
                   <span className={passwordChecks.lower ? 'auth-req-met' : 'auth-req-unmet'}>Lowercase</span>
                   <span className={passwordChecks.number ? 'auth-req-met' : 'auth-req-unmet'}>Number</span>
+                  <span className={passwordChecks.special ? 'auth-req-met' : 'auth-req-unmet'}>Special char</span>
                 </div>
               )}
             </div>
