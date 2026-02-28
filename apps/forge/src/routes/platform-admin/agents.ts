@@ -452,4 +452,47 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       return { success: true };
     }
   );
+
+  // Update agent settings (cost limit, max iterations, description)
+  app.patch(
+    '/api/v1/admin/agents/:id/settings',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as Record<string, unknown>;
+
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      let paramIdx = 1;
+
+      if (body['max_cost_per_execution'] !== undefined) {
+        const val = Number(body['max_cost_per_execution']);
+        if (isNaN(val) || val < 0) return reply.code(400).send({ error: 'Invalid cost limit' });
+        updates.push(`max_cost_per_execution = $${paramIdx++}`);
+        values.push(val);
+      }
+      if (body['max_iterations'] !== undefined) {
+        const val = Number(body['max_iterations']);
+        if (isNaN(val) || val < 1) return reply.code(400).send({ error: 'Invalid max iterations' });
+        updates.push(`max_iterations = $${paramIdx++}`);
+        values.push(val);
+      }
+      if (body['description'] !== undefined) {
+        updates.push(`description = $${paramIdx++}`);
+        values.push(String(body['description']));
+      }
+
+      if (updates.length === 0) return reply.code(400).send({ error: 'No fields to update' });
+
+      updates.push(`updated_at = NOW()`);
+      values.push(id);
+
+      const result = await queryOne<{ id: string }>(
+        `UPDATE forge_agents SET ${updates.join(', ')} WHERE id = $${paramIdx} RETURNING id`,
+        values,
+      );
+      if (!result) return reply.code(404).send({ error: 'Agent not found' });
+      return { success: true };
+    }
+  );
 }

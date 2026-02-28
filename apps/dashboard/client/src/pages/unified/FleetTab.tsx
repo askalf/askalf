@@ -378,6 +378,9 @@ function PodDetail({
   liveLogEntries: LiveLogEntry[];
 }) {
   const [execPrompt, setExecPrompt] = useState('');
+  const [editingCost, setEditingCost] = useState(false);
+  const [costInput, setCostInput] = useState('');
+  const [costSaving, setCostSaving] = useState(false);
 
   const tabs: { key: DetailTab; label: string }[] = [
     { key: 'overview', label: 'Overview' },
@@ -446,8 +449,63 @@ function PodDetail({
               </span>
             </div>
             <div className="fleet-overview-row">
-              <span className="fleet-overview-label">Cost</span>
-              <span className="fleet-overview-value">${agentCost.toFixed(2)} / ${costLimit.toFixed(2)}</span>
+              <span className="fleet-overview-label">Cost Limit</span>
+              <span className="fleet-overview-value">
+                {editingCost ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span>$</span>
+                    <input
+                      type="number"
+                      value={costInput}
+                      onChange={(e) => setCostInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const val = parseFloat(costInput);
+                          if (!isNaN(val) && val >= 0) {
+                            setCostSaving(true);
+                            hubApi.agents.updateSettings(agent.id, { max_cost_per_execution: val })
+                              .then(() => { setEditingCost(false); })
+                              .catch(() => {})
+                              .finally(() => setCostSaving(false));
+                          }
+                        }
+                        if (e.key === 'Escape') setEditingCost(false);
+                      }}
+                      style={{ width: 60, fontSize: 12, padding: '1px 4px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text)' }}
+                      autoFocus
+                      min="0"
+                      step="0.5"
+                    />
+                    <button
+                      onClick={() => {
+                        const val = parseFloat(costInput);
+                        if (!isNaN(val) && val >= 0) {
+                          setCostSaving(true);
+                          hubApi.agents.updateSettings(agent.id, { max_cost_per_execution: val })
+                            .then(() => { setEditingCost(false); })
+                            .catch(() => {})
+                            .finally(() => setCostSaving(false));
+                        }
+                      }}
+                      disabled={costSaving}
+                      style={{ fontSize: 11, padding: '1px 6px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text)', cursor: 'pointer' }}
+                    >{costSaving ? '...' : 'Save'}</button>
+                    <button
+                      onClick={() => setEditingCost(false)}
+                      style={{ fontSize: 11, padding: '1px 6px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                    >Cancel</button>
+                  </span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    ${agentCost.toFixed(2)} / ${costLimit.toFixed(2)}
+                    <button
+                      onClick={() => { setCostInput(costLimit.toFixed(2)); setEditingCost(true); }}
+                      style={{ fontSize: 10, padding: '0 4px', background: 'none', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text-muted)', cursor: 'pointer' }}
+                      title="Edit cost limit"
+                    >Edit</button>
+                  </span>
+                )}
+              </span>
             </div>
             <div className="fleet-overview-row">
               <span className="fleet-overview-label">Schedule</span>
