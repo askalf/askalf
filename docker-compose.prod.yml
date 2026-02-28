@@ -124,6 +124,8 @@ services:
       EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Forge}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-support@askalf.org}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      # Demo sandbox (Anthropic key for unauthenticated demo chat)
+      DEMO_ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # Agent Forge proxy
       FORGE_URL: http://forge:3005
       FORGE_API_KEY: ${FORGE_API_KEY:-}

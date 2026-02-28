@@ -170,20 +170,25 @@ export default function DocsPage() {
             a password and go through a quick onboarding wizard to name your workspace and pick a theme.
           </p>
 
-          <h3>2. Add Your API Key</h3>
+          <h3>2. Start Using Agents</h3>
           <p>
-            AskAlf uses a Bring Your Own Key (BYOK) model. Your agents run on your AI provider credentials.
-            Go to <strong>Settings &rarr; AI Keys</strong> and add at least one provider key:
+            During the private beta, AI access is included &mdash; no API keys required. Your agents run
+            on the platform&apos;s infrastructure out of the box.
+          </p>
+          <p>
+            <strong>Optional: Bring Your Own Key (BYOK)</strong> &mdash; If you prefer to use your own
+            API keys for direct billing or specific rate limits, go to <strong>Settings &rarr; AI Keys</strong> and
+            add keys for any supported provider:
           </p>
           <ul>
-            <li><strong>Anthropic</strong> &mdash; Get a key at <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">console.anthropic.com</a></li>
-            <li><strong>OpenAI</strong> &mdash; Get a key at <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer">platform.openai.com</a></li>
-            <li><strong>xAI</strong> &mdash; Get a key at <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer">console.x.ai</a></li>
-            <li><strong>DeepSeek</strong> &mdash; Get a key at <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer">platform.deepseek.com</a></li>
+            <li><strong>Anthropic</strong> &mdash; <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">console.anthropic.com</a></li>
+            <li><strong>OpenAI</strong> &mdash; <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer">platform.openai.com</a></li>
+            <li><strong>xAI</strong> &mdash; <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer">console.x.ai</a></li>
+            <li><strong>DeepSeek</strong> &mdash; <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer">platform.deepseek.com</a></li>
           </ul>
           <p>
-            Use the <strong>Verify</strong> button to confirm your key works. Keys are encrypted at rest
-            and only used when you run agents.
+            When a BYOK key is configured, it takes priority over the platform&apos;s default. Keys are
+            encrypted at rest and only used when you run agents.
           </p>
 
           <h3>3. Run Your First Agent</h3>
@@ -292,15 +297,17 @@ export default function DocsPage() {
 
           <h3>How much does it cost?</h3>
           <p>
-            During beta, the platform is free. You only pay for AI provider usage through your own API keys.
-            When we launch paid tiers, beta members get guaranteed early-adopter pricing.
+            During the private beta, everything is included &mdash; AI usage, compute, and all platform
+            features. No credit card required. When we launch paid tiers, beta members get guaranteed
+            early-adopter pricing.
           </p>
 
           <h3>Where does compute happen?</h3>
           <p>
-            Agent orchestration runs on our infrastructure. The AI inference (the &ldquo;thinking&rdquo;)
-            happens at whichever provider you configure (Anthropic, OpenAI, etc.) using your API key.
-            Computer-use actions (mouse, keyboard, browser) execute in isolated, sandboxed containers.
+            Everything runs on our infrastructure &mdash; orchestration, AI inference, and computer-use
+            actions. If you configure your own API keys (BYOK), inference routes through your provider
+            account instead. Computer-use actions (mouse, keyboard, browser) always execute in isolated,
+            sandboxed containers.
           </p>
 
           <h3>Is my data safe?</h3>
@@ -312,8 +319,8 @@ export default function DocsPage() {
 
           <h3>Can I use multiple providers?</h3>
           <p>
-            Yes. Add keys for as many providers as you want in Settings &rarr; AI Keys. Different agents
-            can be configured to use different providers.
+            Yes. The platform supports Anthropic, OpenAI, xAI, and DeepSeek. You can optionally add
+            your own keys for any combination and assign different providers per-agent.
           </p>
 
           <h3>What if an agent does something wrong?</h3>
