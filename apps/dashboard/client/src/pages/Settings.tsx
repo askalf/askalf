@@ -4,9 +4,9 @@ import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'security' | 'ai-keys' | 'integrations' | 'channels';
+type SettingsTab = 'profile' | 'appearance' | 'security' | 'ai-keys' | 'costs' | 'integrations' | 'channels';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'ai-keys', 'integrations', 'channels'];
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'ai-keys', 'costs', 'integrations', 'channels'];
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
@@ -74,6 +74,15 @@ export default function SettingsPage() {
             AI Keys
           </button>
           <button
+            className={`settings-nav-item ${activeTab === 'costs' ? 'active' : ''}`}
+            onClick={() => setActiveTab('costs')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            Cost Controls
+          </button>
+          <button
             className={`settings-nav-item ${activeTab === 'integrations' ? 'active' : ''}`}
             onClick={() => setActiveTab('integrations')}
           >
@@ -99,6 +108,7 @@ export default function SettingsPage() {
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'security' && <SecurityTab />}
           {activeTab === 'ai-keys' && <AIKeysTab />}
+          {activeTab === 'costs' && <CostControlsTab />}
           {activeTab === 'integrations' && <IntegrationsTab />}
           {activeTab === 'channels' && <ChannelsTab />}
         </div>
@@ -995,6 +1005,272 @@ function IntegrationsTab() {
           <p>No git providers are configured on this server. Ask your admin to set up GitHub, GitLab, or Bitbucket OAuth credentials.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================
+// COST CONTROLS TAB
+// ============================================
+
+interface BudgetData {
+  budgetLimitDaily: number | null;
+  budgetLimitMonthly: number | null;
+  spentToday: number;
+  spentThisMonth: number;
+}
+
+function CostControlsTab() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [dailyLimit, setDailyLimit] = useState('');
+  const [monthlyLimit, setMonthlyLimit] = useState('');
+  const [spentToday, setSpentToday] = useState(0);
+  const [spentThisMonth, setSpentThisMonth] = useState(0);
+
+  useEffect(() => {
+    fetchBudget();
+  }, []);
+
+  const fetchBudget = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/user-budget`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as BudgetData;
+        setDailyLimit(data.budgetLimitDaily !== null ? String(data.budgetLimitDaily) : '');
+        setMonthlyLimit(data.budgetLimitMonthly !== null ? String(data.budgetLimitMonthly) : '');
+        setSpentToday(data.spentToday);
+        setSpentThisMonth(data.spentThisMonth);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const daily = dailyLimit.trim() ? parseFloat(dailyLimit) : null;
+      const monthly = monthlyLimit.trim() ? parseFloat(monthlyLimit) : null;
+
+      if (daily !== null && (isNaN(daily) || daily < 0)) {
+        setMessage({ type: 'error', text: 'Daily limit must be a positive number' });
+        setSaving(false);
+        return;
+      }
+      if (monthly !== null && (isNaN(monthly) || monthly < 0)) {
+        setMessage({ type: 'error', text: 'Monthly limit must be a positive number' });
+        setSaving(false);
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/api/v1/forge/user-budget`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ budgetLimitDaily: daily, budgetLimitMonthly: monthly }),
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Budget limits saved' });
+      } else {
+        const err = await res.json() as { error?: string };
+        setMessage({ type: 'error', text: err.error ?? 'Failed to save' });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClear = async () => {
+    setDailyLimit('');
+    setMonthlyLimit('');
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/user-budget`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ budgetLimitDaily: null, budgetLimitMonthly: null }),
+      });
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Budget limits removed' });
+      }
+    } catch { /* ignore */ }
+    setSaving(false);
+  };
+
+  const dailyPct = dailyLimit.trim() ? Math.min((spentToday / parseFloat(dailyLimit)) * 100, 100) : 0;
+  const monthlyPct = monthlyLimit.trim() ? Math.min((spentThisMonth / parseFloat(monthlyLimit)) * 100, 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="settings-section">
+        <h2>Cost Controls</h2>
+        <p className="settings-section-desc">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-section">
+      <h2>Cost Controls</h2>
+      <p className="settings-section-desc">
+        Set spending limits to prevent unexpected costs. Agents are blocked when limits are reached.
+      </p>
+
+      {message && (
+        <div className={`settings-message settings-message-${message.type}`}>
+          {message.text}
+          <button className="settings-message-dismiss" onClick={() => setMessage(null)}>&times;</button>
+        </div>
+      )}
+
+      {/* Current spend summary */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '1rem',
+        marginBottom: '1.5rem',
+      }}>
+        <div style={{
+          padding: '1rem 1.25rem',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)',
+        }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Spent Today</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>
+            ${spentToday.toFixed(4)}
+          </div>
+          {dailyLimit.trim() && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <div style={{
+                height: '4px',
+                background: 'var(--border)',
+                borderRadius: '2px',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%',
+                  width: `${dailyPct}%`,
+                  background: dailyPct >= 90 ? '#ef4444' : dailyPct >= 70 ? '#f59e0b' : '#10b981',
+                  borderRadius: '2px',
+                  transition: 'width 0.3s',
+                }} />
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                {dailyPct.toFixed(0)}% of ${parseFloat(dailyLimit).toFixed(2)} daily limit
+              </div>
+            </div>
+          )}
+        </div>
+        <div style={{
+          padding: '1rem 1.25rem',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)',
+        }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Spent This Month</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>
+            ${spentThisMonth.toFixed(4)}
+          </div>
+          {monthlyLimit.trim() && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <div style={{
+                height: '4px',
+                background: 'var(--border)',
+                borderRadius: '2px',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%',
+                  width: `${monthlyPct}%`,
+                  background: monthlyPct >= 90 ? '#ef4444' : monthlyPct >= 70 ? '#f59e0b' : '#10b981',
+                  borderRadius: '2px',
+                  transition: 'width 0.3s',
+                }} />
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                {monthlyPct.toFixed(0)}% of ${parseFloat(monthlyLimit).toFixed(2)} monthly limit
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="settings-form">
+        <div className="settings-field">
+          <label>Daily Budget Limit (USD)</label>
+          <input
+            type="number"
+            value={dailyLimit}
+            onChange={(e) => setDailyLimit(e.target.value)}
+            placeholder="No limit"
+            min="0"
+            step="0.5"
+          />
+          <p className="settings-field-hint">
+            Maximum spending per day across all agents. Leave empty for no limit.
+          </p>
+        </div>
+
+        <div className="settings-field">
+          <label>Monthly Budget Limit (USD)</label>
+          <input
+            type="number"
+            value={monthlyLimit}
+            onChange={(e) => setMonthlyLimit(e.target.value)}
+            placeholder="No limit"
+            min="0"
+            step="1"
+          />
+          <p className="settings-field-hint">
+            Maximum spending per calendar month. Leave empty for no limit.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
+          <button
+            className="settings-save-btn"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : 'Save Limits'}
+          </button>
+          {(dailyLimit.trim() || monthlyLimit.trim()) && (
+            <button
+              className="settings-btn-sm"
+              onClick={handleClear}
+              disabled={saving}
+            >
+              Remove Limits
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{
+        marginTop: '1.5rem',
+        padding: '1rem 1.25rem',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+      }}>
+        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.375rem' }}>
+          How cost controls work
+        </div>
+        <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          <li>Each agent execution has a per-execution limit (default $1, set per agent)</li>
+          <li>Daily and monthly limits apply across all your agents combined</li>
+          <li>When a limit is reached, new executions are blocked until the period resets</li>
+          <li>View detailed cost breakdowns in the Costs tab on the main dashboard</li>
+        </ul>
+      </div>
     </div>
   );
 }
