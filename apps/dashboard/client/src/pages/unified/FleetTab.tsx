@@ -583,7 +583,7 @@ function buildYaml(agent: Agent, perf: AgentPerformanceEntry | undefined): strin
   const costLimit = getCostLimit(agent);
 
   const lines = [
-    `${k('apiVersion')}: ${str('forge/v1')}`,
+    `${k('apiVersion')}: ${str('askalf/v1')}`,
     `${k('kind')}: ${str('Agent')}`,
     `${k('metadata')}:`,
     `  ${k('name')}: ${str(agent.name)}`,

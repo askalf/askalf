@@ -11,9 +11,9 @@ export function registerFleetCommands(program: Command): void {
       const client = getClient();
       const { agents } = await client.agents.list();
 
-      const active = agents.filter(a => a.status === 'active');
-      const running = agents.filter(a => a.status === 'running');
-      const paused = agents.filter(a => a.status === 'paused' || a.status === 'draft');
+      const active = agents.filter((a: { status: string }) => a.status === 'active');
+      const running = agents.filter((a: { status: string }) => a.status === 'running');
+      const paused = agents.filter((a: { status: string }) => a.status === 'paused' || a.status === 'draft');
 
       console.log('Fleet Status');
       console.log('='.repeat(50));

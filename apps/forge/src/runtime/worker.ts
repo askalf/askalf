@@ -307,8 +307,8 @@ function registerBuiltInTools(reg: ToolRegistry): void {
 
   reg.register({
     name: 'substrate_db_query',
-    displayName: 'Substrate DB Query',
-    description: 'Execute read-only SQL queries against the main substrate database (users, shards, chat, sessions).',
+    displayName: 'Platform DB Query',
+    description: 'Execute read-only SQL queries against the main AskAlf database (users, shards, chat, sessions).',
     type: 'built_in',
     riskLevel: 'high',
     inputSchema: {

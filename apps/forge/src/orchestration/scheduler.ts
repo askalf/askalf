@@ -336,11 +336,11 @@ export class ForgeScheduler {
       }
 
       // Determine final status
-      const anyFailed = Object.values(nodeStates).some((s) => s.status === 'failed');
+      const anyFailed = Object.values(nodeStates).some((s: NodeState) => s.status === 'failed');
       const finalStatus = anyFailed ? 'failed' : 'completed';
 
       // Collect output from terminal (output-type) nodes
-      const outputNodes = definition.nodes.filter((n) => n.type === 'output');
+      const outputNodes = definition.nodes.filter((n: WorkflowNode) => n.type === 'output');
       const output: Record<string, unknown> = {};
       for (const outNode of outputNodes) {
         const state = nodeStates[outNode.id];
@@ -439,7 +439,7 @@ export class ForgeScheduler {
         const { results, errors } = await executeParallel(
           childNodes,
           context,
-          async (childNode, ctx) => this.nodeExecutor(childNode, ctx, runId),
+          async (childNode: WorkflowNode, ctx: Record<string, unknown>) => this.nodeExecutor(childNode, ctx, runId),
         );
 
         // Record child states

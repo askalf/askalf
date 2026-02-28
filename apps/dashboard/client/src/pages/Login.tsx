@@ -98,7 +98,7 @@ export default function LoginPage() {
           <div className="auth-logo">
             <span className="auth-logo-wordmark">askalf</span>
           </div>
-          <p className="auth-subtitle">Sign in to your orchestration platform</p>
+          <p className="auth-subtitle">Sign in to your account</p>
         </div>
 
         {error && (

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import './Landing.css';
 
 export default function Terms() {
+  document.title = 'Terms of Service — AskAlf';
   return (
     <div className="landing-page legal-page">
       <nav className="landing-nav" aria-label="Main navigation">
