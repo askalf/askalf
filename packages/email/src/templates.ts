@@ -141,7 +141,7 @@ function platformFeatures(): string {
   return `
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
       ${featureRow('Fleet Orchestration', 'Deploy, coordinate, and monitor AI agents from one command center. Fan-out, pipelines, consensus patterns.')}
-      ${featureRow('Multi-Provider (BYOK)', 'Bring your own keys for Anthropic, OpenAI, xAI, DeepSeek. Switch providers per-agent, no lock-in.')}
+      ${featureRow('Multi-Provider', 'Anthropic, OpenAI, xAI, DeepSeek built in. Optionally bring your own keys. Switch providers per-agent, no lock-in.')}
       ${featureRow('Cost Control', 'Per-agent budgets, per-execution caps, real-time cost tracking. No surprise bills.')}
       ${featureRow('Guardrails & Checkpoints', 'Human-in-the-loop approvals, content filtering, execution boundaries. Trust but verify.')}
       ${featureRow('24 Built-in Tools', 'Database, Docker, web search, code analysis, team coordination — all via MCP.')}
@@ -192,7 +192,7 @@ AskAlf is the AI agent platform where agents don't just chat -- they use compute
 
 // WHAT YOU GET
 - Fleet Orchestration -- Deploy, coordinate, and monitor AI agents from one command center
-- Multi-Provider (BYOK) -- Bring your own keys for Anthropic, OpenAI, xAI, DeepSeek
+- Multi-Provider -- Anthropic, OpenAI, xAI, DeepSeek built in. Optionally bring your own keys
 - Cost Control -- Per-agent budgets, per-execution caps, real-time tracking
 - Guardrails & Checkpoints -- Human-in-the-loop approvals, execution boundaries
 - 24 Built-in Tools -- Database, Docker, web search, code analysis via MCP
@@ -628,7 +628,7 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
             ${featureRow('Computer-Use Agents', 'Agents that control mouse, keyboard, browser, and terminal. They do real work — not just answer questions.')}
             ${featureRow('Fleet Orchestration', 'Deploy, coordinate, and monitor multiple agents. Fan-out tasks, build pipelines, use consensus patterns.')}
-            ${featureRow('Multi-Provider (BYOK)', 'Bring your own API keys for Anthropic, OpenAI, xAI, DeepSeek. Switch providers per-agent.')}
+            ${featureRow('Multi-Provider', 'Anthropic, OpenAI, xAI, DeepSeek built in. Optionally bring your own keys. Switch providers per-agent.')}
             ${featureRow('Cost Control', 'Per-agent budgets, per-execution caps, real-time cost tracking. Your agents can\'t spend what you don\'t authorize.')}
             ${featureRow('Guardrails & Checkpoints', 'Human-in-the-loop approvals for sensitive actions. Agents pause and wait for your sign-off.')}
             ${featureRow('24 Built-in Tools', 'Database queries, Docker management, web search, code analysis, team coordination — all via MCP.', true)}
@@ -659,7 +659,7 @@ You just reserved your spot for AskAlf -- the AI agent platform where agents don
 // WHAT YOU'RE GETTING ACCESS TO
 - Computer-Use Agents -- Agents that control mouse, keyboard, browser, and terminal. Real work, not conversation.
 - Fleet Orchestration -- Deploy, coordinate, and monitor multiple agents. Fan-out, pipelines, consensus patterns.
-- Multi-Provider (BYOK) -- Bring your own API keys for Anthropic, OpenAI, xAI, DeepSeek.
+- Multi-Provider -- Anthropic, OpenAI, xAI, DeepSeek built in. Optionally bring your own keys.
 - Cost Control -- Per-agent budgets, per-execution caps. Your agents can't spend what you don't authorize.
 - Guardrails & Checkpoints -- Human-in-the-loop approvals. Agents pause and wait for your sign-off.
 - 24 Built-in Tools -- Database, Docker, web search, code analysis, team coordination via MCP.
@@ -701,7 +701,7 @@ export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
 
     ${noteBox(`
       <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
-        <strong style="color: #fafafa;">Free during beta</strong> — bring your own API keys and start deploying agents. No credit card required.
+        <strong style="color: #fafafa;">Free during beta</strong> — AI access included, start deploying agents immediately. No credit card required.
       </p>
     `)}
 
@@ -721,7 +721,7 @@ Your agents are ready to deploy.
 
 // WHAT'S READY FOR YOU
 - Fleet Orchestration -- Deploy, coordinate, and monitor AI agents from one command center
-- Multi-Provider (BYOK) -- Bring your own keys for Anthropic, OpenAI, xAI, DeepSeek
+- Multi-Provider -- Anthropic, OpenAI, xAI, DeepSeek built in. Optionally bring your own keys
 - Cost Control -- Per-agent budgets, per-execution caps, real-time tracking
 - Guardrails & Checkpoints -- Human-in-the-loop approvals, execution boundaries
 - 24 Built-in Tools -- Database, Docker, web search, code analysis via MCP
@@ -729,7 +729,7 @@ Your agents are ready to deploy.
 
 Get Started: https://askalf.org/register
 
-Free during beta -- bring your own API keys. No credit card required.
+Free during beta -- AI access included. No credit card required.
 
 Thanks for being early. We built this for people like you.
 
@@ -793,7 +793,7 @@ Activate Your Account: ${signupUrl}
 
 // WHAT YOU GET
 - Fleet Orchestration -- Deploy, coordinate, and monitor AI agents from one command center
-- Multi-Provider (BYOK) -- Bring your own keys for Anthropic, OpenAI, xAI, DeepSeek
+- Multi-Provider -- Anthropic, OpenAI, xAI, DeepSeek built in. Optionally bring your own keys
 - Cost Control -- Per-agent budgets, per-execution caps, real-time tracking
 - Guardrails & Checkpoints -- Human-in-the-loop approvals, execution boundaries
 - 24 Built-in Tools -- Database, Docker, web search, code analysis via MCP
