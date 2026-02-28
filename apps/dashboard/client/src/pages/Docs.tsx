@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect } from 'react';
 import './Landing.css';
 
 const agents = [
@@ -41,95 +41,6 @@ const agents = [
   },
 ];
 
-const installCommands = [
-  { label: 'macOS / Linux', cmd: 'curl -fsSL https://askalf.org/install.sh | sh' },
-  { label: 'Windows (PowerShell)', cmd: 'irm https://askalf.org/install.ps1 | iex' },
-  { label: 'npm (manual)', cmd: 'npm install -g @askalf/cli' },
-];
-
-function CliInstallBlock() {
-  const [activeTab, setActiveTab] = useState(0);
-  const [copied, setCopied] = useState(false);
-
-  const copy = useCallback(() => {
-    navigator.clipboard.writeText(installCommands[activeTab].cmd).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [activeTab]);
-
-  return (
-    <div style={{
-      background: '#0d0d0d',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-md)',
-      overflow: 'hidden',
-    }}>
-      <div style={{
-        display: 'flex',
-        borderBottom: '1px solid var(--border)',
-        background: 'rgba(255,255,255,0.02)',
-      }}>
-        {installCommands.map((item, i) => (
-          <button
-            key={item.label}
-            onClick={() => { setActiveTab(i); setCopied(false); }}
-            style={{
-              padding: '0.5rem 1rem',
-              fontSize: '0.75rem',
-              fontFamily: 'JetBrains Mono, monospace',
-              background: i === activeTab ? 'rgba(138, 92, 246, 0.1)' : 'transparent',
-              color: i === activeTab ? '#a78bfa' : 'var(--text-secondary)',
-              border: 'none',
-              borderBottom: i === activeTab ? '2px solid #a78bfa' : '2px solid transparent',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '1rem 1.25rem',
-        gap: '1rem',
-      }}>
-        <code style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: '0.8125rem',
-          color: '#06d6a0',
-          lineHeight: 1.5,
-          wordBreak: 'break-all',
-        }}>
-          <span style={{ color: 'var(--text-secondary)', userSelect: 'none' }}>$ </span>
-          {installCommands[activeTab].cmd}
-        </code>
-        <button
-          onClick={copy}
-          title="Copy to clipboard"
-          style={{
-            padding: '0.375rem 0.625rem',
-            fontSize: '0.6875rem',
-            fontFamily: 'JetBrains Mono, monospace',
-            background: copied ? 'rgba(6, 214, 160, 0.15)' : 'rgba(255,255,255,0.05)',
-            color: copied ? '#06d6a0' : 'var(--text-secondary)',
-            border: `1px solid ${copied ? 'rgba(6, 214, 160, 0.3)' : 'var(--border)'}`,
-            borderRadius: 'var(--radius-sm)',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all 0.15s ease',
-            flexShrink: 0,
-          }}
-        >
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export default function DocsPage() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark');
@@ -150,7 +61,7 @@ export default function DocsPage() {
       <section className="legal-content" style={{ maxWidth: 800 }}>
         <p className="landing-section-label">// docs</p>
         <h1 className="landing-section-title" style={{ marginBottom: '0.5rem' }}>Getting Started</h1>
-        <p className="legal-updated">AskAlf Beta</p>
+        <p className="legal-updated">AskAlf Private Beta</p>
 
         <div className="legal-body">
           <h2>What is AskAlf?</h2>
@@ -167,34 +78,39 @@ export default function DocsPage() {
           <h3>1. Create Your Account</h3>
           <p>
             If you received a beta invite, click the link in your email to register. You&apos;ll set up
-            a password and go through a quick onboarding wizard to name your workspace and pick a theme.
-          </p>
-
-          <h3>2. Start Using Agents</h3>
-          <p>
-            During the private beta, AI access is included &mdash; no API keys required. Your agents run
-            on the platform&apos;s infrastructure out of the box.
-          </p>
-          <p>
-            <strong>Optional: Bring Your Own Key (BYOK)</strong> &mdash; If you prefer to use your own
-            API keys for direct billing or specific rate limits, go to <strong>Settings &rarr; AI Keys</strong> and
-            add keys for any supported provider:
+            a password and go through a quick onboarding wizard:
           </p>
           <ul>
-            <li><strong>Anthropic</strong> &mdash; <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer">console.anthropic.com</a></li>
-            <li><strong>OpenAI</strong> &mdash; <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer">platform.openai.com</a></li>
-            <li><strong>xAI</strong> &mdash; <a href="https://console.x.ai" target="_blank" rel="noopener noreferrer">console.x.ai</a></li>
-            <li><strong>DeepSeek</strong> &mdash; <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer">platform.deepseek.com</a></li>
+            <li><strong>Name your workspace</strong> &mdash; This is your team or project name.</li>
+            <li><strong>Pick a theme</strong> &mdash; Choose the visual style for your dashboard.</li>
+            <li><strong>Connect your AI</strong> &mdash; Link your Anthropic account to power your agents (see below).</li>
+          </ul>
+
+          <h3>2. Connect Your AI Provider</h3>
+          <p>
+            AskAlf agents need an AI provider to think. During onboarding, you&apos;ll connect at least one:
+          </p>
+          <ul>
+            <li>
+              <strong>Anthropic (required)</strong> &mdash; Powers all core agent functionality. Get an API key
+              at <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>console.anthropic.com</a>.
+              Paste it during onboarding and we&apos;ll verify it works.
+            </li>
+            <li>
+              <strong>OpenAI (optional)</strong> &mdash; Add an OpenAI key if you want to run certain agents on GPT models.
+              Get one at <a href="https://platform.openai.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>platform.openai.com</a>.
+              You can skip this and add it later.
+            </li>
           </ul>
           <p>
-            When a BYOK key is configured, it takes priority over the platform&apos;s default. Keys are
-            encrypted at rest and only used when you run agents.
+            Your keys are encrypted at rest (AES-256) and only used when your agents execute. You can
+            update or rotate them anytime from <strong>Settings</strong>.
           </p>
 
           <h3>3. Run Your First Agent</h3>
           <p>
-            From the Command Center, use the chat interface to describe what you need done. The platform
-            will match your request to the right agent and execute it. Try something simple:
+            From the <strong>Chat</strong> tab, describe what you need done. The platform matches your request
+            to the right agent and executes it. Try something simple:
           </p>
           <ul>
             <li>&ldquo;Research the top 5 competitors in [your space]&rdquo;</li>
@@ -202,17 +118,6 @@ export default function DocsPage() {
             <li>&ldquo;Write release notes for our latest update&rdquo;</li>
             <li>&ldquo;Monitor our API response times and flag anything slow&rdquo;</li>
           </ul>
-
-          <h2 id="cli">Install the CLI</h2>
-          <p>
-            Manage your agents from the terminal. One command to install on any OS:
-          </p>
-
-          <CliInstallBlock />
-
-          <p style={{ marginTop: '1rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            Requires Node.js 20+. The installer will attempt to install it automatically if missing.
-          </p>
 
           <h2 id="agents">Your Agents</h2>
           <p>
@@ -246,15 +151,18 @@ export default function DocsPage() {
 
           <h2>The Dashboard</h2>
           <p>
-            The Command Center is your home base. It has five tabs:
+            The Command Center is your home base. It has four main tabs:
           </p>
           <ul>
-            <li><strong>Coordinator</strong> &mdash; Orchestrate multi-agent workflows: fan-out tasks to multiple agents, create pipelines, or use consensus patterns.</li>
+            <li><strong>Chat</strong> &mdash; Talk to your agents in natural language. Describe a task, and the platform dispatches the right agent automatically.</li>
+            <li><strong>Templates</strong> &mdash; Pre-built task templates for common workflows &mdash; competitor research, security scans, code reviews, and more. One click to launch.</li>
             <li><strong>Fleet</strong> &mdash; See all your agents at a glance. View their status, recent activity, and performance metrics.</li>
-            <li><strong>Deploy</strong> &mdash; Create and configure new agents, or modify existing ones.</li>
-            <li><strong>Exec</strong> &mdash; View execution history, logs, and traces for every agent action.</li>
-            <li><strong>$$</strong> &mdash; Track costs across all agents and providers. See spending by agent, by provider, and over time.</li>
+            <li><strong>Costs</strong> &mdash; Track spending across all agents and providers. See costs by agent, by provider, and over time.</li>
           </ul>
+          <p>
+            You also have access to <strong>Executions</strong> (full execution history and logs) and
+            an in-app <strong>Docs</strong> reference.
+          </p>
 
           <h2>Key Concepts</h2>
 
@@ -267,47 +175,53 @@ export default function DocsPage() {
 
           <h3>Guardrails &amp; Checkpoints</h3>
           <p>
-            Agents that control computers need safety rails. You can configure human-in-the-loop approvals
-            for sensitive actions, set execution boundaries, and enable content filtering. Checkpoints
-            let you review what an agent is about to do before it executes.
+            Agents that control computers need safety rails. The platform supports human-in-the-loop approvals
+            for sensitive actions, execution boundaries, and content filtering. Checkpoints let you review
+            what an agent is about to do before it executes.
           </p>
 
           <h3>Cost Control</h3>
           <p>
             Every agent has configurable cost limits. Set per-execution budgets, per-agent caps, and track
-            spending in real time. The platform shows you exactly how much each task costs so there are
+            spending in real time. The Costs tab shows you exactly how much each task costs so there are
             no surprises.
           </p>
 
           <h3>Multi-Provider</h3>
           <p>
             Different agents can use different AI providers. Run your researcher on Claude, your developer
-            on GPT, and your analyst on DeepSeek &mdash; each using the model best suited for the task.
-            Switch providers per-agent without changing anything else.
+            on GPT &mdash; each using the model best suited for the task. Connect providers during
+            onboarding or add them later from Settings.
           </p>
 
           <h3>24 Built-in Tools</h3>
           <p>
             Agents have access to tools for database queries, Docker management, web search, code analysis,
-            team coordination, and more &mdash; all via the Model Context Protocol (MCP). You can see
-            which tools each agent has access to in the Deploy tab.
+            team coordination, and more &mdash; all via the Model Context Protocol (MCP). Tools are
+            automatically assigned based on the agent&apos;s role and your task requirements.
           </p>
 
           <h2>FAQ</h2>
 
           <h3>How much does it cost?</h3>
           <p>
-            During the private beta, everything is included &mdash; AI usage, compute, and all platform
-            features. No credit card required. When we launch paid tiers, beta members get guaranteed
-            early-adopter pricing.
+            During the private beta, the platform itself is free. You provide your own Anthropic API key,
+            so you pay Anthropic directly for AI usage at their standard rates. No additional platform fees
+            during beta. When we launch paid tiers, beta members get guaranteed early-adopter pricing.
+          </p>
+
+          <h3>Do I need my own API key?</h3>
+          <p>
+            Yes. An Anthropic API key is required to use AskAlf &mdash; you&apos;ll connect it during
+            onboarding. OpenAI is optional if you want multi-provider support. The platform handles
+            everything else: orchestration, tool execution, computer use, and infrastructure.
           </p>
 
           <h3>Where does compute happen?</h3>
           <p>
-            Everything runs on our infrastructure &mdash; orchestration, AI inference, and computer-use
-            actions. If you configure your own API keys (BYOK), inference routes through your provider
-            account instead. Computer-use actions (mouse, keyboard, browser) always execute in isolated,
-            sandboxed containers.
+            Orchestration, tool execution, and computer-use actions all run on our infrastructure in
+            isolated, sandboxed containers. AI inference routes through your connected provider account
+            using the API key you provided.
           </p>
 
           <h3>Is my data safe?</h3>
@@ -319,13 +233,13 @@ export default function DocsPage() {
 
           <h3>Can I use multiple providers?</h3>
           <p>
-            Yes. The platform supports Anthropic, OpenAI, xAI, and DeepSeek. You can optionally add
-            your own keys for any combination and assign different providers per-agent.
+            Yes. Connect Anthropic (required) and optionally OpenAI. You can assign different providers
+            to different agents based on what works best for each task.
           </p>
 
           <h3>What if an agent does something wrong?</h3>
           <p>
-            Use guardrails and checkpoints to require human approval before sensitive actions. Every agent
+            Guardrails and checkpoints let you require human approval before sensitive actions. Every agent
             action is logged with full audit trails, so you can see exactly what happened. You can stop
             any running execution at any time.
           </p>
