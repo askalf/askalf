@@ -191,10 +191,10 @@ const trustPillars = [
 const channels = [
   { name: 'API', icon: '\u{1F310}' },
   { name: 'Webhooks', icon: '\u{26A1}' },
-  { name: 'Slack', icon: '\u{1F4AC}', comingSoon: true },
-  { name: 'Discord', icon: '\u{1F3AE}', comingSoon: true },
-  { name: 'Telegram', icon: '\u{2708}\uFE0F', comingSoon: true },
-  { name: 'WhatsApp', icon: '\u{1F4F1}', comingSoon: true },
+  { name: 'Slack', icon: '\u{1F4AC}' },
+  { name: 'Discord', icon: '\u{1F3AE}' },
+  { name: 'Telegram', icon: '\u{2708}\uFE0F' },
+  { name: 'WhatsApp', icon: '\u{1F4F1}' },
 ];
 
 const betaPerks = [
@@ -334,28 +334,14 @@ export default function LandingPage() {
 
       {/* ============ CHANNEL STRIP ============ */}
       <section className="landing-channels landing-reveal" ref={setRef(1)}>
-        <p className="landing-channels-label">Deploy via API and Webhooks today &mdash; more channels coming soon</p>
+        <p className="landing-channels-label">Deploy anywhere &mdash; API, Webhooks, Slack, Discord, Telegram, WhatsApp</p>
         <div className="landing-channels-row">
           {channels.map((ch, i) => (
             <Fragment key={ch.name}>
               {i > 0 && <div className="landing-channel-connector" />}
-              <div
-                className="landing-channel-item landing-stagger"
-                style={ch.comingSoon ? { opacity: 0.45 } : undefined}
-              >
+              <div className="landing-channel-item landing-stagger">
                 <div className="landing-channel-icon">{ch.icon}</div>
                 <span className="landing-channel-name">{ch.name}</span>
-                {ch.comingSoon && (
-                  <span style={{
-                    fontSize: '0.6rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: 'var(--text-tertiary, #666)',
-                    marginTop: '2px',
-                  }}>
-                    soon
-                  </span>
-                )}
               </div>
             </Fragment>
           ))}

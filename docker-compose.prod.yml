@@ -256,6 +256,9 @@ services:
       ANTHROPIC_API_KEY_FALLBACK: ${ANTHROPIC_API_KEY_FALLBACK:-}
       ANTHROPIC_INTENT_API_KEY: ${ANTHROPIC_INTENT_API_KEY:-}
       GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
+      # Channel integrations
+      CHANNEL_ENCRYPTION_KEY: ${CHANNEL_ENCRYPTION_KEY:-}
+      BASE_URL: https://askalf.org
       # Auth
       JWT_SECRET: ${JWT_SECRET}
       REPO_ROOT: /workspace
