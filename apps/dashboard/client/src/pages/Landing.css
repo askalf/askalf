@@ -1183,6 +1183,56 @@
   box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
 }
 
+/* ---- BETA ACCESS ---- */
+
+.landing-beta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  max-width: 1100px;
+  margin: 0 auto 3rem;
+}
+
+.landing-beta-card {
+  padding: 2rem;
+  background: var(--surface, #141419);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-lg, 16px);
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.landing-beta-card:hover {
+  border-color: var(--crystal, #7c3aed);
+  transform: translateY(-4px);
+}
+
+.landing-beta-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.landing-beta-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, #fafafa);
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+}
+
+.landing-beta-desc {
+  font-size: 0.8125rem;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+  line-height: 1.5;
+  margin: 0;
+}
+
+.landing-beta-cta-wrap {
+  text-align: center;
+  margin-top: 1rem;
+}
+
 /* ---- FINAL CTA ---- */
 
 .landing-final-cta {
@@ -1358,6 +1408,10 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .landing-beta-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .landing-trust-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1434,6 +1488,12 @@
     grid-template-columns: 1fr;
     max-width: 400px;
     margin: 0 auto;
+  }
+
+  .landing-beta-grid {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+    margin: 0 auto 3rem;
   }
 
   .landing-section-title {

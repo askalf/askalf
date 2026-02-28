@@ -21,7 +21,7 @@ const RESTART_BACKOFF_MS = 3000;
 // OAuth config (matches forge worker.ts)
 const CLAUDE_HOME = '/tmp/master-claude-home';
 const CLAUDE_DIR = `${CLAUDE_HOME}/.claude`;
-const CREDENTIALS_MOUNT = '/tmp/claude-credentials.json';
+const CREDENTIALS_MOUNT = '/home/substrate/claude-credentials.json';
 const CREDENTIALS_PATH = `${CLAUDE_DIR}/.credentials.json`;
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
@@ -312,9 +312,14 @@ class MasterSessionManager {
       });
 
       this.status = 'running';
-      this.restartCount = 0;
       this._setupComplete = false;
       this._outputBuffer = '';
+      // Reset restart count after running stable for 30s (not on spawn)
+      this._stabilityTimer = setTimeout(() => {
+        if (this.status === 'running') {
+          this.restartCount = 0;
+        }
+      }, 30_000);
       console.log(`[MasterSession] Started (pid=${this.pty.pid}, cwd=${this.cwd}, auth=oauth)`);
       this._broadcastStatus();
 

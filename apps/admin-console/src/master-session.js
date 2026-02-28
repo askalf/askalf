@@ -322,9 +322,14 @@ class MasterSessionManager {
       });
 
       this.status = 'running';
-      this.restartCount = 0;
       this._setupComplete = false;
       this._outputBuffer = '';
+      // Reset restart count after running stable for 30s (not on spawn)
+      this._stabilityTimer = setTimeout(() => {
+        if (this.status === 'running') {
+          this.restartCount = 0;
+        }
+      }, 30_000);
       console.log(`[AdminSession] Started (pid=${this.pty.pid}, cwd=${this.cwd}, auth=oauth)`);
       this._broadcastStatus();
 
