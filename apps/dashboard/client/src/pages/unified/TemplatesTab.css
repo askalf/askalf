@@ -173,3 +173,122 @@
 .tmpl-card-use:hover {
   background: var(--accent-hover, #5558e6);
 }
+
+/* Quick Run / Customize split buttons */
+.tmpl-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tmpl-card-quick {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--accent, #6366f1);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tmpl-card-quick:hover {
+  background: var(--accent-hover, #5558e6);
+}
+
+.tmpl-card-actions .tmpl-card-use {
+  flex: 0;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--text-secondary, #a0a0b0);
+  border: 1px solid var(--border, #2a2a3a);
+}
+
+.tmpl-card-actions .tmpl-card-use:hover {
+  background: var(--surface-hover, #1a1a2a);
+  color: var(--text-primary, #e0e0e0);
+}
+
+/* Inline prompt */
+.tmpl-card-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tmpl-card-prompt-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg, #0a0a14);
+  border: 1px solid var(--border, #2a2a3a);
+  border-radius: 6px;
+  color: var(--text-primary, #e0e0e0);
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.tmpl-card-prompt-input:focus {
+  border-color: var(--accent, #6366f1);
+}
+
+.tmpl-card-prompt-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tmpl-card-run {
+  flex: 1;
+  padding: 7px 12px;
+  background: #22c55e;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tmpl-card-run:hover {
+  background: #16a34a;
+}
+
+.tmpl-card-run:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tmpl-card-cancel {
+  padding: 7px 12px;
+  background: transparent;
+  color: var(--text-muted, #666);
+  border: 1px solid var(--border, #2a2a3a);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tmpl-card-cancel:hover {
+  color: var(--text-primary, #e0e0e0);
+}
+
+/* Run message banner */
+.tmpl-message {
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.tmpl-message-success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+}
+
+.tmpl-message-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}

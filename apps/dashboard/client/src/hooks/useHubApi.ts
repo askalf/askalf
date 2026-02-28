@@ -714,6 +714,9 @@ export const hubApi = {
     updateModel: (id: string, model_id: string) =>
       apiFetch(`/api/v1/admin/agents/${id}/model`, { method: 'PATCH', body: JSON.stringify({ model_id }) }),
 
+    updateSettings: (id: string, settings: Record<string, unknown>) =>
+      apiFetch(`/api/v1/admin/agents/${id}/settings`, { method: 'PATCH', body: JSON.stringify(settings) }),
+
     performance: (days = 7) =>
       apiFetch<AgentPerformanceReport>(`/api/v1/admin/agents/performance?days=${days}`),
   },
