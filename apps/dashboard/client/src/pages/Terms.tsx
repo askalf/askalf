@@ -52,9 +52,9 @@ export default function Terms() {
 
           <h2>5. Your Credentials &amp; API Keys</h2>
           <p>
-            The Service uses a Bring Your Own Key (BYOK) model. You provide your own API keys
-            or OAuth credentials for AI providers (Anthropic, OpenAI, Google, etc.).
-            You are solely responsible for:
+            During the private beta, the Service provides AI access at no cost. You may optionally
+            provide your own API keys (BYOK) for AI providers (Anthropic, OpenAI, xAI, DeepSeek).
+            When using your own keys, you are solely responsible for:
           </p>
           <ul>
             <li>The security and proper use of your API keys</li>

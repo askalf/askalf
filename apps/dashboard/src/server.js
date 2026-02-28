@@ -2438,6 +2438,131 @@ fastify.setNotFoundHandler((request, reply) => {
 });
 
 // ===========================================
+// SANDBOX DEMO CHAT — unauthenticated, rate-limited
+// ===========================================
+
+const demoRateLimit = new Map(); // sessionToken -> { count, resetAt }
+const DEMO_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+const DEMO_MAX_MESSAGES = 3; // 3 messages per session
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of demoRateLimit.entries()) {
+    if (v.resetAt < now) demoRateLimit.delete(k);
+  }
+}, 60000);
+
+const DEMO_SYSTEM_PROMPT = `You are Alf, a friendly demo agent for AskAlf — an AI agent platform where agents actually use computers (mouse, keyboard, browser, terminal).
+
+Keep responses concise (2-4 sentences). You're showing visitors what AskAlf agents can do.
+
+Key things to mention naturally if relevant:
+- Agents control real computers, not just answer questions
+- Fleet orchestration: deploy and coordinate multiple agents
+- Multi-provider: works with Anthropic, OpenAI, xAI, DeepSeek
+- 24 built-in tools (web search, code analysis, database queries, Docker, etc.)
+- Cost controls, guardrails, and human-in-the-loop checkpoints
+- Full observability and audit trails
+
+Be helpful, direct, and show personality. You're the first impression of the product.
+This is a demo with a 3-message limit, so make each response count.`;
+
+fastify.post('/api/v1/demo/chat', async (request, reply) => {
+  const { message, sessionToken, history } = request.body || {};
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return reply.code(400).send({ error: 'Message is required' });
+  }
+
+  if (message.trim().length > 500) {
+    return reply.code(400).send({ error: 'Message too long (500 char max)' });
+  }
+
+  // Rate limit by session token (generated client-side)
+  const token = sessionToken || 'anonymous';
+  let entry = demoRateLimit.get(token);
+  if (!entry) {
+    entry = { count: 0, resetAt: Date.now() + DEMO_WINDOW_MS };
+    demoRateLimit.set(token, entry);
+  }
+  if (entry.count >= DEMO_MAX_MESSAGES) {
+    return reply.code(429).send({
+      error: 'Demo limit reached',
+      detail: 'Sign up for full access — 3-message demo limit reached.',
+      remaining: 0,
+    });
+  }
+  entry.count++;
+
+  // Also rate limit by IP as fallback
+  const ip = request.headers['x-forwarded-for']?.split(',')[0]?.trim() || request.ip;
+  const ipKey = `ip:${ip}`;
+  let ipEntry = demoRateLimit.get(ipKey);
+  if (!ipEntry) {
+    ipEntry = { count: 0, resetAt: Date.now() + DEMO_WINDOW_MS };
+    demoRateLimit.set(ipKey, ipEntry);
+  }
+  if (ipEntry.count >= 15) { // 15 messages per IP per 30min (5 sessions)
+    return reply.code(429).send({
+      error: 'Too many demo requests',
+      remaining: 0,
+    });
+  }
+  ipEntry.count++;
+
+  const apiKey = process.env['DEMO_ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY'];
+  if (!apiKey) {
+    return reply.code(503).send({ error: 'Demo unavailable' });
+  }
+
+  // Build messages array from history
+  const messages = [];
+  if (Array.isArray(history)) {
+    for (const h of history.slice(-4)) { // Max 4 history messages (2 exchanges)
+      if (h.role === 'user' || h.role === 'assistant') {
+        messages.push({ role: h.role, content: String(h.content).slice(0, 500) });
+      }
+    }
+  }
+  messages.push({ role: 'user', content: message.trim().slice(0, 500) });
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        system: DEMO_SYSTEM_PROMPT,
+        messages,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      console.error(`[Demo] Anthropic API error: ${res.status} ${errText.slice(0, 200)}`);
+      return reply.code(502).send({ error: 'AI service error' });
+    }
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'Sorry, I couldn\'t generate a response.';
+
+    return reply.send({
+      response: text,
+      remaining: DEMO_MAX_MESSAGES - entry.count,
+    });
+  } catch (err) {
+    console.error('[Demo] Chat error:', err.message);
+    return reply.code(500).send({ error: 'Demo chat failed' });
+  }
+});
+
+// ===========================================
 // EVENT BRIDGE - Redis subscriber for forge events
 // ===========================================
 

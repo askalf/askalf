@@ -1,9 +1,10 @@
-import { useState, useEffect, lazy, Suspense, useCallback, Fragment } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback, Fragment, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TopBar from '../components/unified/TopBar';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { hubApi } from '../hooks/useHubApi';
+import { useAuthStore } from '../stores/auth';
 import './UnifiedDashboard.css';
 // Hub component CSS (previously imported by CommandCenter)
 import './hub/shared/hub-shared.css';
@@ -69,12 +70,30 @@ const TAB_GROUPS: TabGroup[] = [
   ]},
 ];
 
-const ALL_TAB_KEYS = TAB_GROUPS.flatMap(g => g.tabs.map(t => t.key));
+/** Tabs only visible to admin / super_admin */
+const ADMIN_ONLY_TABS = new Set<TabKey>([
+  'builder', 'orchestrator',
+  'interventions', 'tickets', 'content', 'memory', 'graph',
+  'providers', 'guardrails', 'audit',
+  'workflows', 'deploy',
+]);
 
 export default function UnifiedDashboard() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
-  const initialTab = (tab && ALL_TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'chat';
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+
+  const visibleGroups = useMemo(() => {
+    if (isAdmin) return TAB_GROUPS;
+    return TAB_GROUPS
+      .map(g => ({ ...g, tabs: g.tabs.filter(t => !ADMIN_ONLY_TABS.has(t.key)) }))
+      .filter(g => g.tabs.length > 0);
+  }, [isAdmin]);
+
+  const visibleKeys = useMemo(() => visibleGroups.flatMap(g => g.tabs.map(t => t.key)), [visibleGroups]);
+
+  const initialTab = (tab && visibleKeys.includes(tab as TabKey)) ? tab as TabKey : 'chat';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
   const { connected, events: wsEvents } = useWebSocket();
 
@@ -85,10 +104,10 @@ export default function UnifiedDashboard() {
 
   // Sync tab from URL param changes
   useEffect(() => {
-    if (tab && ALL_TAB_KEYS.includes(tab as TabKey) && tab !== activeTab) {
+    if (tab && visibleKeys.includes(tab as TabKey) && tab !== activeTab) {
       setActiveTabState(tab as TabKey);
     }
-  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tab, visibleKeys]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // State for cross-tab communication (Templates → Builder)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -226,7 +245,7 @@ export default function UnifiedDashboard() {
       <div className="ud-body ud-body-full">
         <div className="ud-main">
           <div className="ud-tab-bar">
-            {TAB_GROUPS.map((group, gi) => (
+            {visibleGroups.map((group, gi) => (
               <Fragment key={group.label}>
                 {gi > 0 && <div className="ud-tab-divider" />}
                 <span className="ud-tab-group-label">{group.label}</span>

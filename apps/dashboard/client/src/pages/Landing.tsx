@@ -1,6 +1,9 @@
-import { Fragment, useEffect, useRef, useCallback } from 'react';
+import { Fragment, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import './Landing.css';
+
+const SandboxDemo = lazy(() => import('../components/SandboxDemo'));
+import '../components/SandboxDemo.css';
 
 /* ---- Scroll Reveal Hook ---- */
 function useScrollReveal() {
@@ -506,6 +509,11 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Sandbox Demo Chat */}
+      <Suspense fallback={null}>
+        <SandboxDemo />
+      </Suspense>
     </div>
   );
 }
