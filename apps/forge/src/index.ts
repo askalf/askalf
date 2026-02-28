@@ -41,6 +41,7 @@ import { cliRoutes } from './routes/cli.js';
 import { templateRoutes } from './routes/templates.js';
 import { intentRoutes } from './routes/intent.js';
 import { conversationRoutes } from './routes/conversations.js';
+import { channelRoutes } from './routes/channels.js';
 import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
@@ -339,6 +340,7 @@ await cliRoutes(app);
 await templateRoutes(app);
 await intentRoutes(app);
 await conversationRoutes(app);
+await channelRoutes(app);
 await registerMCPRoutes(app);
 
 // ============================================
@@ -379,6 +381,13 @@ async function start(): Promise<void> {
     initAgentCommunication(config.redisUrl);
 
     console.log('[Forge] Event bus + shared context + agent communication initialized');
+
+    // Start channel integration handlers
+    const { startChannelResultHandler } = await import('./channels/result-handler.js');
+    const { startWebhookRetryWorker } = await import('./channels/webhook-delivery.js');
+    startChannelResultHandler();
+    startWebhookRetryWorker();
+    console.log('[Forge] Channel result handler + webhook delivery worker started');
 
     // Start persistent event logger (logs all events to postgres)
     startEventLogger();
@@ -661,6 +670,10 @@ async function shutdown(signal: string): Promise<void> {
       await scheduler.close().catch((err: unknown) => console.warn('[Forge] Scheduler close error:', err));
       console.log('[Forge] Workflow scheduler closed');
     }
+
+    // Stop channel workers
+    const { stopWebhookRetryWorker } = await import('./channels/webhook-delivery.js');
+    stopWebhookRetryWorker();
 
     await app.close();
     console.log('[Forge] Server closed');

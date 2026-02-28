@@ -4,9 +4,9 @@ import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'security' | 'ai-keys' | 'integrations';
+type SettingsTab = 'profile' | 'appearance' | 'security' | 'ai-keys' | 'integrations' | 'channels';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'ai-keys', 'integrations'];
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'ai-keys', 'integrations', 'channels'];
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
@@ -83,6 +83,15 @@ export default function SettingsPage() {
             </svg>
             Integrations
           </button>
+          <button
+            className={`settings-nav-item ${activeTab === 'channels' ? 'active' : ''}`}
+            onClick={() => setActiveTab('channels')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+            </svg>
+            Channels
+          </button>
         </nav>
 
         <div className="settings-content">
@@ -91,6 +100,7 @@ export default function SettingsPage() {
           {activeTab === 'security' && <SecurityTab />}
           {activeTab === 'ai-keys' && <AIKeysTab />}
           {activeTab === 'integrations' && <IntegrationsTab />}
+          {activeTab === 'channels' && <ChannelsTab />}
         </div>
       </div>
     </div>
@@ -985,6 +995,263 @@ function IntegrationsTab() {
           <p>No git providers are configured on this server. Ask your admin to set up GitHub, GitLab, or Bitbucket OAuth credentials.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================
+// CHANNELS TAB
+// ============================================
+
+interface ChannelDef {
+  type: string;
+  name: string;
+  icon: string;
+  description: string;
+  fields: { key: string; label: string; placeholder: string; sensitive?: boolean }[];
+}
+
+const CHANNEL_DEFS: ChannelDef[] = [
+  {
+    type: 'api',
+    name: 'API',
+    icon: '\u{1F310}',
+    description: 'Dispatch agents programmatically via REST API using your existing API key.',
+    fields: [],
+  },
+  {
+    type: 'webhooks',
+    name: 'Webhooks',
+    icon: '\u{26A1}',
+    description: 'Receive execution results at your URL with HMAC-signed payloads.',
+    fields: [
+      { key: 'webhook_url', label: 'Webhook URL', placeholder: 'https://your-app.com/webhook' },
+      { key: 'webhook_secret', label: 'Webhook Secret', placeholder: 'Auto-generated if blank', sensitive: true },
+    ],
+  },
+  {
+    type: 'slack',
+    name: 'Slack',
+    icon: '\u{1F4AC}',
+    description: 'Receive messages in Slack and let agents respond directly in your channels.',
+    fields: [
+      { key: 'bot_token', label: 'Bot Token', placeholder: 'xoxb-...', sensitive: true },
+      { key: 'signing_secret', label: 'Signing Secret', placeholder: 'From Slack app settings', sensitive: true },
+    ],
+  },
+  {
+    type: 'discord',
+    name: 'Discord',
+    icon: '\u{1F3AE}',
+    description: 'Add a slash command to your Discord server that dispatches agent tasks.',
+    fields: [
+      { key: 'bot_token', label: 'Bot Token', placeholder: 'Bot token from Discord Developer Portal', sensitive: true },
+      { key: 'application_id', label: 'Application ID', placeholder: 'From Discord app settings' },
+      { key: 'public_key', label: 'Public Key', placeholder: 'Ed25519 public key from app settings', sensitive: true },
+    ],
+  },
+  {
+    type: 'telegram',
+    name: 'Telegram',
+    icon: '\u{2708}\uFE0F',
+    description: 'Chat with your agents via a Telegram bot. Webhook auto-registers on save.',
+    fields: [
+      { key: 'bot_token', label: 'Bot Token', placeholder: 'From @BotFather', sensitive: true },
+    ],
+  },
+  {
+    type: 'whatsapp',
+    name: 'WhatsApp',
+    icon: '\u{1F4F1}',
+    description: 'Send and receive agent messages through WhatsApp Business.',
+    fields: [
+      { key: 'phone_number_id', label: 'Phone Number ID', placeholder: 'From Meta Business settings' },
+      { key: 'access_token', label: 'Access Token', placeholder: 'Permanent token from Meta', sensitive: true },
+      { key: 'verify_token', label: 'Verify Token', placeholder: 'Your custom verification token' },
+      { key: 'app_secret', label: 'App Secret', placeholder: 'From Meta app settings', sensitive: true },
+    ],
+  },
+];
+
+function ChannelsTab() {
+  const [configs, setConfigs] = useState<Record<string, { id?: string; webhookUrl?: string; isActive?: boolean }>>({});
+  const [forms, setForms] = useState<Record<string, Record<string, string>>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [chMsg, setChMsg] = useState<{ type: string; channel: string; text: string } | null>(null);
+
+  useEffect(() => {
+    loadConfigs();
+  }, []);
+
+  const loadConfigs = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/channels/configs`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { configs: Array<{ id: string; channel_type: string; is_active: boolean }> };
+        const map: Record<string, { id: string; isActive: boolean }> = {};
+        for (const c of data.configs) {
+          map[c.channel_type] = { id: c.id, isActive: c.is_active };
+        }
+        setConfigs(map);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleSave = async (channelType: string) => {
+    setSaving(channelType);
+    setChMsg(null);
+    try {
+      const formData = forms[channelType] ?? {};
+      const res = await fetch(`${API_BASE}/api/v1/forge/channels/configs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ channel_type: channelType, name: channelType, config: formData }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { id: string; webhookUrl?: string };
+        setConfigs(prev => ({ ...prev, [channelType]: { id: data.id, webhookUrl: data.webhookUrl, isActive: true } }));
+        setChMsg({ type: 'success', channel: channelType, text: data.webhookUrl ? `Saved. Webhook URL: ${data.webhookUrl}` : 'Saved successfully.' });
+        await loadConfigs();
+      } else {
+        const err = await res.json() as { error?: string; message?: string };
+        setChMsg({ type: 'error', channel: channelType, text: err.message ?? err.error ?? 'Save failed' });
+      }
+    } catch (err) {
+      setChMsg({ type: 'error', channel: channelType, text: err instanceof Error ? err.message : 'Network error' });
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleTest = async (channelType: string) => {
+    const configId = configs[channelType]?.id;
+    if (!configId) return;
+    setTesting(channelType);
+    setChMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/channels/configs/${configId}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      const data = await res.json() as { success?: boolean; message?: string; error?: string };
+      setChMsg({ type: data.success ? 'success' : 'error', channel: channelType, text: data.message ?? data.error ?? (data.success ? 'Test passed' : 'Test failed') });
+    } catch (err) {
+      setChMsg({ type: 'error', channel: channelType, text: err instanceof Error ? err.message : 'Network error' });
+    } finally {
+      setTesting(null);
+    }
+  };
+
+  const handleDisconnect = async (channelType: string) => {
+    const configId = configs[channelType]?.id;
+    if (!configId) return;
+    try {
+      await fetch(`${API_BASE}/api/v1/forge/channels/configs/${configId}`, {
+        method: 'DELETE',
+        headers: {},
+        credentials: 'include',
+      });
+      setConfigs(prev => { const next = { ...prev }; delete next[channelType]; return next; });
+      setChMsg({ type: 'success', channel: channelType, text: 'Disconnected' });
+    } catch { /* ignore */ }
+  };
+
+  const updateForm = (channelType: string, key: string, value: string) => {
+    setForms(prev => ({ ...prev, [channelType]: { ...(prev[channelType] ?? {}), [key]: value } }));
+  };
+
+  return (
+    <div className="settings-section">
+      <h2>Channel Integrations</h2>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+        Connect external platforms so your agents can receive messages and respond anywhere.
+      </p>
+
+      {CHANNEL_DEFS.map(ch => {
+        const config = configs[ch.type];
+        const isConnected = !!config?.id;
+        const msg = chMsg?.channel === ch.type ? chMsg : null;
+
+        return (
+          <div key={ch.type} style={{
+            padding: '1.25rem',
+            background: 'var(--surface)',
+            border: `1px solid ${isConnected ? 'rgba(138, 92, 246, 0.3)' : 'var(--border)'}`,
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '1rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: ch.fields.length > 0 ? '1rem' : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontSize: '1.5rem' }}>{ch.icon}</span>
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ch.name}</div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{ch.description}</div>
+                </div>
+              </div>
+              {isConnected && (
+                <span style={{ fontSize: '0.6875rem', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }}>Connected</span>
+              )}
+            </div>
+
+            {ch.fields.length > 0 && (
+              <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1rem' }}>
+                {ch.fields.map(f => (
+                  <div key={f.key}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>{f.label}</label>
+                    <input
+                      type={f.sensitive ? 'password' : 'text'}
+                      placeholder={f.placeholder}
+                      value={forms[ch.type]?.[f.key] ?? ''}
+                      onChange={(e) => updateForm(ch.type, f.key, e.target.value)}
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text)', fontSize: '0.8125rem', fontFamily: 'JetBrains Mono, monospace' }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {msg && (
+              <div style={{
+                padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem',
+                background: msg.type === 'success' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                color: msg.type === 'success' ? '#34d399' : '#ef4444', wordBreak: 'break-all',
+              }}>
+                {msg.text}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {ch.type !== 'api' && (
+                <button onClick={() => handleSave(ch.type)} disabled={saving === ch.type}
+                  style={{ padding: '0.4rem 1rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', cursor: 'pointer', opacity: saving === ch.type ? 0.6 : 1 }}>
+                  {saving === ch.type ? 'Saving...' : isConnected ? 'Update' : 'Save'}
+                </button>
+              )}
+              {isConnected && ch.type !== 'api' && (
+                <>
+                  <button onClick={() => handleTest(ch.type)} disabled={testing === ch.type}
+                    style={{ padding: '0.4rem 1rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', cursor: 'pointer' }}>
+                    {testing === ch.type ? 'Testing...' : 'Test'}
+                  </button>
+                  <button onClick={() => handleDisconnect(ch.type)}
+                    style={{ padding: '0.4rem 1rem', background: 'transparent', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', cursor: 'pointer' }}>
+                    Disconnect
+                  </button>
+                </>
+              )}
+              {ch.type === 'api' && (
+                <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                  Use your API key to POST to <code style={{ color: '#a78bfa' }}>/api/v1/forge/channels/api/dispatch</code>
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

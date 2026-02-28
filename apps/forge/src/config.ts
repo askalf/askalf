@@ -22,6 +22,7 @@ export interface ForgeConfig {
   cliMaxTurns: number;
   cliBudgetUsd: string;
   substrateDatabaseUrl?: string;
+  channelEncryptionKey?: string;
 }
 
 export function loadConfig(): ForgeConfig {
@@ -59,5 +60,6 @@ export function loadConfig(): ForgeConfig {
     cliMaxTurns: parseInt(process.env['CLI_MAX_TURNS'] ?? '15', 10),
     cliBudgetUsd: process.env['CLI_BUDGET_USD'] ?? '0.50',
     substrateDatabaseUrl: process.env['SUBSTRATE_DATABASE_URL'] || databaseUrl,
+    channelEncryptionKey: process.env['CHANNEL_ENCRYPTION_KEY'],
   };
 }
