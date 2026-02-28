@@ -1,4 +1,4 @@
-// Forge: Email Templates
+// AskAlf: Email Templates
 // HTML and text templates for transactional emails
 
 import type {
@@ -17,7 +17,7 @@ import type {
 } from './types.js';
 
 /**
- * Base HTML template wrapper — dark theme matching the forge brand
+ * Base HTML template wrapper — dark theme matching AskAlf brand
  */
 function wrapHtml(content: string): string {
   return `
@@ -26,7 +26,7 @@ function wrapHtml(content: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>forge</title>
+  <title>AskAlf</title>
   <!--[if mso]>
   <style type="text/css">
     body, table, td {font-family: Arial, sans-serif !important;}
@@ -63,7 +63,7 @@ function wrapHtml(content: string): string {
           <tr>
             <td align="center" style="padding-top: 32px;">
               <p style="margin: 0 0 8px 0; font-size: 13px; color: #52525b;">
-                The control plane for autonomous agents
+                AI agents that work like you do
               </p>
               <p style="margin: 0; font-size: 13px;">
                 <a href="https://askalf.org" style="color: #7c3aed; text-decoration: none; font-weight: 600;">askalf.org</a>
@@ -124,6 +124,32 @@ function sectionLabel(text: string): string {
   `;
 }
 
+/** Feature row for feature lists */
+function featureRow(title: string, desc: string, isLast = false): string {
+  return `
+    <tr>
+      <td style="padding: 12px 0;${isLast ? '' : ' border-bottom: 1px solid #1e1e22;'}">
+        <strong style="color: #fafafa;">${title}</strong>
+        <br><span style="color: #71717a; font-size: 14px;">${desc}</span>
+      </td>
+    </tr>
+  `;
+}
+
+/** Standard feature list matching the website */
+function platformFeatures(): string {
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+      ${featureRow('Fleet Orchestration', 'Deploy, coordinate, and monitor AI agents from one command center. Fan-out, pipelines, consensus patterns.')}
+      ${featureRow('Multi-Provider (BYOK)', 'Bring your own keys for Anthropic, OpenAI, xAI, DeepSeek. Switch providers per-agent, no lock-in.')}
+      ${featureRow('Cost Control', 'Per-agent budgets, per-execution caps, real-time cost tracking. No surprise bills.')}
+      ${featureRow('Guardrails & Checkpoints', 'Human-in-the-loop approvals, content filtering, execution boundaries. Trust but verify.')}
+      ${featureRow('24 Built-in Tools', 'Database, Docker, web search, code analysis, team coordination — all via MCP.')}
+      ${featureRow('Full Observability', 'Structured logs, execution traces, performance metrics. See everything your agents do.', true)}
+    </table>
+  `;
+}
+
 // ============================================
 // Welcome Email
 // ============================================
@@ -139,41 +165,16 @@ export function welcomeEmailHtml(vars: WelcomeEmailVars): string {
     </p>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
-      Your <strong style="color: #a78bfa;">${vars.planName}</strong> deployment is live. The control plane is ready.
+      Your <strong style="color: #a78bfa;">${vars.planName}</strong> account is live. Your agents are ready to deploy.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      AskAlf gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
+      AskAlf is the AI agent platform where agents don't just chat — they use computers like you do. Mouse, keyboard, browser, terminal. Real work, not conversation.
     </p>
 
     ${sectionLabel('What you get')}
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
-          <strong style="color: #fafafa;">Fleet Orchestration</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Deploy, scale, and coordinate autonomous agents from a single command center</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
-          <strong style="color: #fafafa;">Darwinian Evolution</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Agents that perform get promoted. Agents that don't get killed. Automatically.</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
-          <strong style="color: #fafafa;">4-Tier Memory</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Working, episodic, semantic, and procedural memory that persists across executions</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0;">
-          <strong style="color: #fafafa;">Budget Enforcement</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Hard limits per agent, per fleet, per cycle. No surprise bills. Ever.</span>
-        </td>
-      </tr>
-    </table>
+    ${platformFeatures()}
 
     ${button('Open Command Center', vars.dashboardUrl)}
   `);
@@ -185,20 +186,22 @@ You're in.
 
 Hi ${vars.userName},
 
-Your ${vars.planName} deployment is live. The control plane is ready.
+Your ${vars.planName} account is live. Your agents are ready to deploy.
 
-AskAlf gives you Kubernetes-style orchestration for AI agents. Deploy fleets, enforce budgets, evolve what works, kill what doesn't.
+AskAlf is the AI agent platform where agents don't just chat -- they use computers like you do. Mouse, keyboard, browser, terminal. Real work, not conversation.
 
 // WHAT YOU GET
-- Fleet Orchestration — Deploy, scale, and coordinate autonomous agents from a single command center
-- Darwinian Evolution — Agents that perform get promoted. Agents that don't get killed. Automatically.
-- 4-Tier Memory — Working, episodic, semantic, and procedural memory that persists across executions
-- Budget Enforcement — Hard limits per agent, per fleet, per cycle. No surprise bills. Ever.
+- Fleet Orchestration -- Deploy, coordinate, and monitor AI agents from one command center
+- Multi-Provider (BYOK) -- Bring your own keys for Anthropic, OpenAI, xAI, DeepSeek
+- Cost Control -- Per-agent budgets, per-execution caps, real-time tracking
+- Guardrails & Checkpoints -- Human-in-the-loop approvals, execution boundaries
+- 24 Built-in Tools -- Database, Docker, web search, code analysis via MCP
+- Full Observability -- Structured logs, execution traces, performance metrics
 
 Open Command Center: ${vars.dashboardUrl}
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -255,7 +258,7 @@ This link expires in ${vars.expiresInMinutes} minutes.
 If you didn't request this, you can safely ignore this email. Your password won't change.
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -275,7 +278,7 @@ export function emailVerificationHtml(vars: EmailVerificationVars): string {
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      One last step to activate your askalf account:
+      One last step to activate your AskAlf account:
     </p>
 
     ${button('Verify Email', vars.verifyUrl)}
@@ -287,7 +290,7 @@ export function emailVerificationHtml(vars: EmailVerificationVars): string {
     `)}
 
     <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
-      If you didn't create an askalf account, you can safely ignore this email.
+      If you didn't create an AskAlf account, you can safely ignore this email.
     </p>
 
     <p style="margin: 24px 0 0 0; font-size: 12px; color: #3f3f46;">
@@ -303,16 +306,16 @@ Verify Your Email
 
 Hi ${vars.userName},
 
-One last step to activate your askalf account:
+One last step to activate your AskAlf account:
 
 ${vars.verifyUrl}
 
 This link expires in ${vars.expiresInHours} hours.
 
-If you didn't create an askalf account, you can safely ignore this email.
+If you didn't create an AskAlf account, you can safely ignore this email.
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -332,7 +335,7 @@ export function subscriptionConfirmationHtml(vars: SubscriptionEmailVars): strin
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      Your askalf deployment just leveled up.
+      Your AskAlf account just leveled up.
     </p>
 
     ${noteBox(`
@@ -358,7 +361,7 @@ export function subscriptionConfirmationHtml(vars: SubscriptionEmailVars): strin
     `)}
 
     <p style="margin: 24px 0 0 0; font-size: 16px; color: #a1a1aa;">
-      All features in your plan are now active. Deploy your fleet:
+      All features in your plan are now active. Deploy your agents:
     </p>
 
     ${button('Open Command Center', vars.dashboardUrl)}
@@ -371,7 +374,7 @@ Subscription Confirmed
 
 Hi ${vars.userName},
 
-Your askalf deployment just leveled up.
+Your AskAlf account just leveled up.
 
 Plan: ${vars.planName}
 Amount: ${vars.amount}
@@ -382,7 +385,7 @@ All features in your plan are now active.
 Open Command Center: ${vars.dashboardUrl}
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -415,10 +418,10 @@ export function subscriptionCanceledHtml(vars: SubscriptionEmailVars): string {
       Changed your mind? Reactivate anytime:
     </p>
 
-    ${button('Manage Subscription', `${vars.dashboardUrl}/billing`)}
+    ${button('Manage Subscription', `${vars.dashboardUrl}/settings`)}
 
     <p style="margin: 24px 0 0 0; font-size: 14px; color: #52525b;">
-      We'd love to hear your feedback. It helps us build a better control plane.
+      We'd love to hear your feedback. Reply to this email — it goes straight to the team.
     </p>
   `);
 }
@@ -434,10 +437,10 @@ Your ${vars.planName} subscription has been canceled.
 ${vars.nextBillingDate ? `You'll continue to have access until ${vars.nextBillingDate}.` : ''}
 
 Changed your mind? Reactivate anytime:
-${vars.dashboardUrl}/billing
+${vars.dashboardUrl}/settings
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -491,7 +494,7 @@ Update Payment Method: ${vars.updatePaymentUrl}
 Questions about billing? Reply to this email and we'll help.
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -523,7 +526,7 @@ export function usageLimitWarningHtml(vars: UsageLimitEmailVars): string {
     `, isHigh ? 'error' : 'warning')}
 
     <p style="margin: 24px 0 0 0; font-size: 16px; color: #a1a1aa;">
-      Once you hit the limit, ${vars.limitType.toLowerCase()} will pause until the next billing period. Upgrade to keep your fleet running:
+      Once you hit the limit, ${vars.limitType.toLowerCase()} will pause until the next billing period. Upgrade to keep your agents running:
     </p>
 
     ${button('Upgrade Plan', vars.upgradeUrl)}
@@ -545,7 +548,7 @@ Once you hit the limit, ${vars.limitType.toLowerCase()} will pause until the nex
 Upgrade Plan: ${vars.upgradeUrl}
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -561,11 +564,11 @@ export function teamInviteHtml(vars: TeamInviteEmailVars): string {
     </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
-      <strong style="color: #fafafa;">${vars.inviterName}</strong> invited you to join <strong style="color: #a78bfa;">${vars.teamName}</strong> on askalf.
+      <strong style="color: #fafafa;">${vars.inviterName}</strong> invited you to join <strong style="color: #a78bfa;">${vars.teamName}</strong> on AskAlf.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-      AskAlf is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
+      AskAlf is the AI agent platform where agents use computers like you do — browsing the web, running commands, writing code, and executing real tasks.
     </p>
 
     ${button('Accept Invitation', vars.inviteUrl)}
@@ -586,9 +589,9 @@ export function teamInviteText(vars: TeamInviteEmailVars): string {
   return `
 You're Invited
 
-${vars.inviterName} invited you to join ${vars.teamName} on askalf.
+${vars.inviterName} invited you to join ${vars.teamName} on AskAlf.
 
-AskAlf is the control plane for autonomous AI agents. Deploy fleets, enforce budgets, evolve what works.
+AskAlf is the AI agent platform where agents use computers like you do -- browsing the web, running commands, writing code, and executing real tasks.
 
 Accept Invitation: ${vars.inviteUrl}
 
@@ -597,7 +600,7 @@ This invitation expires in ${vars.expiresInDays} days.
 Don't want to join? Just ignore this email.
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -614,7 +617,7 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
     </h1>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa; line-height: 1.7;">
-      You just reserved your spot for AskAlf — the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
+      You just reserved your spot for AskAlf — the AI agent platform where agents don't just chat, they use computers like you do. We're opening access in small batches to make sure every account gets a great onboarding experience.
     </p>
 
     ${sectionLabel('What you\'re getting access to')}
@@ -623,42 +626,12 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
       <tr>
         <td style="padding: 24px 28px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-            <tr>
-              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
-                <strong style="color: #fafafa;">Fleet Orchestration</strong>
-                <br><span style="color: #71717a; font-size: 14px;">Deploy, scale, and coordinate autonomous agents. Kubernetes-style primitives for LLMs.</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
-                <strong style="color: #fafafa;">Darwinian Evolution</strong>
-                <br><span style="color: #71717a; font-size: 14px;">Agents that perform get promoted. Agents that don't get killed. Natural selection for your fleet.</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
-                <strong style="color: #fafafa;">Budget Enforcement</strong>
-                <br><span style="color: #71717a; font-size: 14px;">Hard cost limits per agent, per fleet, per cycle. Your agents can't spend what you don't authorize.</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
-                <strong style="color: #fafafa;">4-Tier Cognitive Memory</strong>
-                <br><span style="color: #71717a; font-size: 14px;">Working, episodic, semantic, and procedural memory. Agents learn and remember across executions.</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 0; border-bottom: 1px solid #1e1e22;">
-                <strong style="color: #fafafa;">Auto-Healing</strong>
-                <br><span style="color: #71717a; font-size: 14px;">Failed agents restart automatically. Health checks, circuit breakers, and graceful degradation built in.</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding: 10px 0;">
-                <strong style="color: #fafafa;">Human Checkpoints</strong>
-                <br><span style="color: #71717a; font-size: 14px;">Define approval gates. Agents pause and wait for your sign-off before critical actions.</span>
-              </td>
-            </tr>
+            ${featureRow('Computer-Use Agents', 'Agents that control mouse, keyboard, browser, and terminal. They do real work — not just answer questions.')}
+            ${featureRow('Fleet Orchestration', 'Deploy, coordinate, and monitor multiple agents. Fan-out tasks, build pipelines, use consensus patterns.')}
+            ${featureRow('Multi-Provider (BYOK)', 'Bring your own API keys for Anthropic, OpenAI, xAI, DeepSeek. Switch providers per-agent.')}
+            ${featureRow('Cost Control', 'Per-agent budgets, per-execution caps, real-time cost tracking. Your agents can\'t spend what you don\'t authorize.')}
+            ${featureRow('Guardrails & Checkpoints', 'Human-in-the-loop approvals for sensitive actions. Agents pause and wait for your sign-off.')}
+            ${featureRow('24 Built-in Tools', 'Database queries, Docker management, web search, code analysis, team coordination — all via MCP.', true)}
           </table>
         </td>
       </tr>
@@ -666,15 +639,13 @@ export function waitlistEmailHtml(vars: WaitlistEmailVars): string {
 
     ${noteBox(`
       <p style="margin: 0; font-size: 14px; color: #a1a1aa; line-height: 1.6;">
-        <strong style="color: #a78bfa;">Think of it this way:</strong> Kubernetes doesn't run your containers — it orchestrates them. AskAlf doesn't run your agents — it orchestrates them. Same model, different substrate.
+        <strong style="color: #a78bfa;">Think of it this way:</strong> Other platforms give you chatbots. AskAlf gives you digital employees that sit at a virtual desk and do real work — browsing, coding, monitoring, analyzing.
       </p>
     `)}
 
     <p style="margin: 24px 0 0 0; font-size: 15px; color: #71717a; line-height: 1.6;">
       We'll email <strong style="color: #a1a1aa;">${vars.email}</strong> the moment your spot opens. It won't be long.
     </p>
-
-    ${button('Follow @AskAlfHQ', 'https://x.com/AskAlfHQ')}
   `);
 }
 
@@ -683,24 +654,22 @@ export function waitlistEmailText(vars: WaitlistEmailVars): string {
   return `
 You're on the list, ${firstName}.
 
-You just reserved your spot for AskAlf -- the control plane for autonomous AI agents. We're opening access in small batches to ensure every deployment gets white-glove onboarding.
+You just reserved your spot for AskAlf -- the AI agent platform where agents don't just chat, they use computers like you do. We're opening access in small batches to make sure every account gets a great onboarding experience.
 
 // WHAT YOU'RE GETTING ACCESS TO
-- Fleet Orchestration — Deploy, scale, and coordinate autonomous agents. Kubernetes-style primitives for LLMs.
-- Darwinian Evolution — Agents that perform get promoted. Agents that don't get killed. Natural selection for your fleet.
-- Budget Enforcement — Hard cost limits per agent, per fleet, per cycle. Your agents can't spend what you don't authorize.
-- 4-Tier Cognitive Memory — Working, episodic, semantic, and procedural. Agents learn and remember across executions.
-- Auto-Healing — Failed agents restart automatically. Health checks, circuit breakers, graceful degradation.
-- Human Checkpoints — Define approval gates. Agents pause and wait for your sign-off before critical actions.
+- Computer-Use Agents -- Agents that control mouse, keyboard, browser, and terminal. Real work, not conversation.
+- Fleet Orchestration -- Deploy, coordinate, and monitor multiple agents. Fan-out, pipelines, consensus patterns.
+- Multi-Provider (BYOK) -- Bring your own API keys for Anthropic, OpenAI, xAI, DeepSeek.
+- Cost Control -- Per-agent budgets, per-execution caps. Your agents can't spend what you don't authorize.
+- Guardrails & Checkpoints -- Human-in-the-loop approvals. Agents pause and wait for your sign-off.
+- 24 Built-in Tools -- Database, Docker, web search, code analysis, team coordination via MCP.
 
-Think of it this way: Kubernetes doesn't run your containers -- it orchestrates them. AskAlf doesn't run your agents -- it orchestrates them. Same model, different substrate.
+Think of it this way: Other platforms give you chatbots. AskAlf gives you digital employees that sit at a virtual desk and do real work.
 
 We'll email ${vars.email} the moment your spot opens. It won't be long.
 
-Follow us on X: https://x.com/AskAlfHQ
-
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -717,47 +686,22 @@ export function waitlistUpdateEmailHtml(vars: WaitlistUpdateEmailVars): string {
     </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; color: #a1a1aa;">
-      You signed up for the askalf waitlist. The wait is over:
+      You signed up for the AskAlf waitlist. The wait is over:
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 22px; font-weight: 600; color: #a78bfa;">
-      The control plane is live. Your fleet awaits.
+      Your agents are ready to deploy.
     </p>
 
     ${sectionLabel('What\'s ready for you')}
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
-          <strong style="color: #fafafa;">Fleet Orchestration</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Deploy and coordinate autonomous agents from a single command center</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
-          <strong style="color: #fafafa;">Darwinian Evolution</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Natural selection for your agent fleet. The best survive, the rest don't.</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
-          <strong style="color: #fafafa;">4-Tier Memory</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Persistent cognitive memory across all agent executions</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0;">
-          <strong style="color: #fafafa;">Budget Enforcement</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Hard limits per agent, per fleet, per cycle. Zero surprise bills.</span>
-        </td>
-      </tr>
-    </table>
+    ${platformFeatures()}
 
-    ${button('Deploy Your Fleet', 'https://askalf.org')}
+    ${button('Get Started', 'https://askalf.org/register')}
 
     ${noteBox(`
       <p style="margin: 0; font-size: 14px; color: #a1a1aa;">
-        <strong style="color: #fafafa;">Free tier available</strong> — get started with no credit card required.
+        <strong style="color: #fafafa;">Free during beta</strong> — bring your own API keys and start deploying agents. No credit card required.
       </p>
     `)}
 
@@ -771,24 +715,26 @@ export function waitlistUpdateEmailText(vars: WaitlistUpdateEmailVars): string {
   return `
 Your spot is ready.
 
-You signed up for the askalf waitlist. The wait is over:
+You signed up for the AskAlf waitlist. The wait is over.
 
-The control plane is live. Your fleet awaits.
+Your agents are ready to deploy.
 
 // WHAT'S READY FOR YOU
-- Fleet Orchestration — Deploy and coordinate autonomous agents from a single command center
-- Darwinian Evolution — Natural selection for your agent fleet. The best survive, the rest don't.
-- 4-Tier Memory — Persistent cognitive memory across all agent executions
-- Budget Enforcement — Hard limits per agent, per fleet, per cycle. Zero surprise bills.
+- Fleet Orchestration -- Deploy, coordinate, and monitor AI agents from one command center
+- Multi-Provider (BYOK) -- Bring your own keys for Anthropic, OpenAI, xAI, DeepSeek
+- Cost Control -- Per-agent budgets, per-execution caps, real-time tracking
+- Guardrails & Checkpoints -- Human-in-the-loop approvals, execution boundaries
+- 24 Built-in Tools -- Database, Docker, web search, code analysis via MCP
+- Full Observability -- Structured logs, execution traces, performance metrics
 
-Deploy Your Fleet: https://askalf.org
+Get Started: https://askalf.org/register
 
-Free tier available — get started with no credit card required.
+Free during beta -- bring your own API keys. No credit card required.
 
 Thanks for being early. We built this for people like you.
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -798,84 +744,69 @@ https://askalf.org
 // ============================================
 
 export function betaInviteEmailHtml(vars: BetaInviteEmailVars): string {
-  const signupUrl = vars.signupUrl || 'https://askalf.org/signup';
+  const signupUrl = vars.signupUrl || 'https://askalf.org/register';
   return wrapHtml(`
     <h1 style="margin: 0 0 24px 0; font-size: 28px; font-weight: 700; color: #fafafa;">
       You've been selected.
     </h1>
 
     <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
-      You're off the waitlist. Your askalf deployment is ready to create.
+      You're off the waitlist. Your AskAlf account is ready to create.
     </p>
 
     <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
-      As a beta operator, you'll be among the first to deploy autonomous agent fleets with Kubernetes-style orchestration.
+      As a beta member, you'll be among the first to deploy AI agents that use computers like you do — browsing the web, running commands, writing and committing code, monitoring systems, and executing real tasks.
     </p>
 
     ${button('Activate Your Account', signupUrl)}
 
     ${sectionLabel('What you get')}
 
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
-          <strong style="color: #fafafa;">Fleet Orchestration</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Deploy, scale, and coordinate autonomous agents from one command center</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
-          <strong style="color: #fafafa;">Darwinian Evolution</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Agents that perform get promoted. Agents that don't get killed.</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #1e1e22;">
-          <strong style="color: #fafafa;">4-Tier Memory</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Persistent cognitive memory across all agent executions</span>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding: 12px 0;">
-          <strong style="color: #fafafa;">Budget Enforcement</strong>
-          <br><span style="color: #71717a; font-size: 14px;">Hard cost limits per agent, per fleet, per cycle. No surprises.</span>
-        </td>
-      </tr>
-    </table>
+    ${platformFeatures()}
 
-    <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
+    ${noteBox(`
+      <p style="margin: 0; font-size: 14px; color: #a1a1aa; line-height: 1.6;">
+        <strong style="color: #06d6a0;">Beta perks:</strong> Free platform access, every agent, every tool. You only pay for AI provider usage through your own API keys. Beta members get guaranteed early-adopter pricing when we launch paid tiers.
+      </p>
+    `)}
+
+    <p style="margin: 24px 0 0 0; font-size: 16px; line-height: 1.6; color: #a1a1aa;">
       Your feedback shapes what we build next. We're listening.
     </p>
 
-    <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #52525b;">
-      This invite is for <strong style="color: #71717a;">${vars.email}</strong>. If you didn't sign up for askalf, you can ignore this email.
+    <p style="margin: 16px 0 0 0; font-size: 14px; line-height: 1.6; color: #52525b;">
+      This invite is for <strong style="color: #71717a;">${vars.email}</strong>. If you didn't sign up for AskAlf, you can ignore this email.
     </p>
   `);
 }
 
 export function betaInviteEmailText(vars: BetaInviteEmailVars): string {
-  const signupUrl = vars.signupUrl || 'https://askalf.org/signup';
+  const signupUrl = vars.signupUrl || 'https://askalf.org/register';
   return `
 You've been selected.
 
-You're off the waitlist. Your askalf deployment is ready to create.
+You're off the waitlist. Your AskAlf account is ready to create.
 
-As a beta operator, you'll be among the first to deploy autonomous agent fleets with Kubernetes-style orchestration.
+As a beta member, you'll be among the first to deploy AI agents that use computers like you do -- browsing the web, running commands, writing code, monitoring systems.
 
 Activate Your Account: ${signupUrl}
 
 // WHAT YOU GET
-- Fleet Orchestration — Deploy, scale, and coordinate autonomous agents from one command center
-- Darwinian Evolution — Agents that perform get promoted. Agents that don't get killed.
-- 4-Tier Memory — Persistent cognitive memory across all agent executions
-- Budget Enforcement — Hard cost limits per agent, per fleet, per cycle. No surprises.
+- Fleet Orchestration -- Deploy, coordinate, and monitor AI agents from one command center
+- Multi-Provider (BYOK) -- Bring your own keys for Anthropic, OpenAI, xAI, DeepSeek
+- Cost Control -- Per-agent budgets, per-execution caps, real-time tracking
+- Guardrails & Checkpoints -- Human-in-the-loop approvals, execution boundaries
+- 24 Built-in Tools -- Database, Docker, web search, code analysis via MCP
+- Full Observability -- Structured logs, execution traces, performance metrics
+
+Beta perks: Free platform access, every agent, every tool. You only pay for AI provider usage. Beta members get guaranteed early-adopter pricing.
 
 Your feedback shapes what we build next. We're listening.
 
-This invite is for ${vars.email}. If you didn't sign up for askalf, you can ignore this email.
+This invite is for ${vars.email}. If you didn't sign up for AskAlf, you can ignore this email.
 
 ---
-askalf — The control plane for autonomous agents
+askalf -- AI agents that work like you do
 https://askalf.org
   `.trim();
 }
@@ -895,7 +826,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          Someone new joined the askalf waitlist.
+          Someone new joined the AskAlf waitlist.
         </p>
 
         ${noteBox(`
@@ -927,7 +858,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
           </table>
         `)}
 
-        ${button('View Dashboard', 'https://askalf.org')}
+        ${button('View Dashboard', 'https://askalf.org/users')}
       `;
       break;
 
@@ -938,7 +869,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          A new operator registered for askalf.
+          A new user registered for AskAlf.
         </p>
 
         ${noteBox(`
@@ -965,7 +896,7 @@ export function adminNotificationHtml(vars: AdminNotificationVars): string {
         </h1>
 
         <p style="margin: 0 0 24px 0; font-size: 16px; color: #a1a1aa;">
-          An error occurred in the askalf system.
+          An error occurred in the AskAlf system.
         </p>
 
         ${noteBox(`
@@ -985,14 +916,14 @@ export function adminNotificationText(vars: AdminNotificationVars): string {
       return `
 New Waitlist Signup${vars.source ? ` (${vars.source})` : ''}
 
-Someone new joined the askalf waitlist.
+Someone new joined the AskAlf waitlist.
 
 Email: ${vars.email}
 ${vars.source ? `Source: ${vars.source}` : ''}
 Time: ${vars.timestamp}
 ${vars.totalWaitlistCount ? `Total signups: ${vars.totalWaitlistCount}` : ''}
 
-View Dashboard: https://askalf.org
+View Dashboard: https://askalf.org/users
 
 ---
 askalf admin notification
@@ -1002,7 +933,7 @@ askalf admin notification
       return `
 New User Registration
 
-A new operator registered for askalf.
+A new user registered for AskAlf.
 
 Email: ${vars.email}
 Time: ${vars.timestamp}
@@ -1015,7 +946,7 @@ askalf admin notification
       return `
 System Alert
 
-An error occurred in the askalf system.
+An error occurred in the AskAlf system.
 
 ${vars.message}
 Time: ${vars.timestamp}
@@ -1139,90 +1070,90 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
   switch (template) {
     case 'welcome':
       return {
-        subject: 'You\'re in — askalf',
+        subject: 'You\'re in — AskAlf',
         html: welcomeEmailHtml(vars as WelcomeEmailVars),
         text: welcomeEmailText(vars as WelcomeEmailVars),
       };
 
     case 'password-reset':
       return {
-        subject: 'Reset your password — askalf',
+        subject: 'Reset your password — AskAlf',
         html: passwordResetEmailHtml(vars as PasswordResetEmailVars),
         text: passwordResetEmailText(vars as PasswordResetEmailVars),
       };
 
     case 'email-verification':
       return {
-        subject: 'Verify your email — askalf',
+        subject: 'Verify your email — AskAlf',
         html: emailVerificationHtml(vars as EmailVerificationVars),
         text: emailVerificationText(vars as EmailVerificationVars),
       };
 
     case 'subscription-confirmation':
       return {
-        subject: 'Subscription confirmed — askalf',
+        subject: 'Subscription confirmed — AskAlf',
         html: subscriptionConfirmationHtml(vars as SubscriptionEmailVars),
         text: subscriptionConfirmationText(vars as SubscriptionEmailVars),
       };
 
     case 'subscription-canceled':
       return {
-        subject: 'Subscription canceled — askalf',
+        subject: 'Subscription canceled — AskAlf',
         html: subscriptionCanceledHtml(vars as SubscriptionEmailVars),
         text: subscriptionCanceledText(vars as SubscriptionEmailVars),
       };
 
     case 'payment-failed':
       return {
-        subject: 'Action required: payment failed — askalf',
+        subject: 'Action required: payment failed — AskAlf',
         html: paymentFailedHtml(vars as PaymentFailedEmailVars),
         text: paymentFailedText(vars as PaymentFailedEmailVars),
       };
 
     case 'usage-limit-warning':
       return {
-        subject: 'Usage limit warning — askalf',
+        subject: 'Usage limit warning — AskAlf',
         html: usageLimitWarningHtml(vars as UsageLimitEmailVars),
         text: usageLimitWarningText(vars as UsageLimitEmailVars),
       };
 
     case 'team-invite':
       return {
-        subject: `You're invited to ${(vars as TeamInviteEmailVars).teamName} — askalf`,
+        subject: `You're invited to ${(vars as TeamInviteEmailVars).teamName} — AskAlf`,
         html: teamInviteHtml(vars as TeamInviteEmailVars),
         text: teamInviteText(vars as TeamInviteEmailVars),
       };
 
     case 'waitlist':
       return {
-        subject: `You're on the list — askalf`,
+        subject: `You're on the list — AskAlf`,
         html: waitlistEmailHtml(vars as WaitlistEmailVars),
         text: waitlistEmailText(vars as WaitlistEmailVars),
       };
 
     case 'waitlist-update':
       return {
-        subject: `Your spot is ready — askalf`,
+        subject: `Your spot is ready — AskAlf`,
         html: waitlistUpdateEmailHtml(vars as WaitlistUpdateEmailVars),
         text: waitlistUpdateEmailText(vars as WaitlistUpdateEmailVars),
       };
 
     case 'beta-invite':
       return {
-        subject: `You've been selected — askalf beta`,
+        subject: `You've been selected — AskAlf beta`,
         html: betaInviteEmailHtml(vars as BetaInviteEmailVars),
         text: betaInviteEmailText(vars as BetaInviteEmailVars),
       };
 
     case 'admin-notification': {
       const adminVars = vars as AdminNotificationVars;
-      let subject = 'askalf admin alert';
+      let subject = 'AskAlf admin alert';
       if (adminVars.type === 'waitlist_signup') {
-        subject = `New askalf waitlist signup: ${adminVars.email}`;
+        subject = `New AskAlf waitlist signup: ${adminVars.email}`;
       } else if (adminVars.type === 'new_user') {
         subject = `New user: ${adminVars.email}`;
       } else if (adminVars.type === 'error') {
-        subject = 'askalf system alert';
+        subject = 'AskAlf system alert';
       }
       return {
         subject,
@@ -1235,7 +1166,7 @@ export function getTemplate(template: EmailTemplate, vars: EmailTemplateVars): T
       const alertVars = vars as InterventionAlertVars;
       const riskPrefix = alertVars.riskLevel === 'high' ? '[HIGH RISK] ' : '';
       return {
-        subject: `${riskPrefix}Intervention: ${alertVars.title} — askalf`,
+        subject: `${riskPrefix}Intervention: ${alertVars.title} — AskAlf`,
         html: interventionAlertHtml(alertVars),
         text: interventionAlertText(alertVars),
       };

@@ -245,23 +245,57 @@ await fastify.register(fastifyStatic, {
 });
 
 
-// Admin-only docs page (SUBSTRATE/SIGIL technical documentation)
-// Served from dashboard's own public folder, not website folder
-fastify.get('/docs', async (request, reply) => {
-  const user = await getUserFromSession(request);
-  if (!user || user.role !== 'admin') {
-    // Redirect non-admins to login
-    return reply.redirect('/login');
-  }
-  // Serve the docs page for admin users from dashboard public folder
+// CLI package tarball — serve for install scripts
+fastify.get('/releases/cli-latest.tar.gz', async (_request, reply) => {
   const fs = await import('fs/promises');
+  const tarballPath = join(__dirname, '../public/app/releases/cli-latest.tar.gz');
   try {
-    const content = await fs.readFile(join(__dirname, '../public/docs.html'), 'utf-8');
-    reply.header('Content-Type', 'text/html; charset=utf-8');
-    reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    const content = await fs.readFile(tarballPath);
+    reply.header('Content-Type', 'application/gzip');
+    reply.header('Content-Disposition', 'attachment; filename="cli-latest.tar.gz"');
+    reply.header('Cache-Control', 'public, max-age=300');
     return reply.send(content);
   } catch {
-    return reply.code(404).send({ error: 'Page not found' });
+    return reply.code(404).send('CLI package not found. Run scripts/build-cli.sh to generate it.');
+  }
+});
+
+fastify.get('/api/v1/cli/package', async (_request, reply) => {
+  const fs = await import('fs/promises');
+  const tarballPath = join(__dirname, '../public/app/releases/cli-latest.tar.gz');
+  try {
+    const content = await fs.readFile(tarballPath);
+    reply.header('Content-Type', 'application/gzip');
+    reply.header('Content-Disposition', 'attachment; filename="cli-latest.tar.gz"');
+    reply.header('Cache-Control', 'public, max-age=300');
+    return reply.send(content);
+  } catch {
+    return reply.code(404).send('CLI package not found. Run scripts/build-cli.sh to generate it.');
+  }
+});
+
+// CLI installer scripts — serve as plain text for curl/irm piping
+fastify.get('/install.sh', async (_request, reply) => {
+  const fs = await import('fs/promises');
+  try {
+    const content = await fs.readFile(join(__dirname, '../public/app/install.sh'), 'utf-8');
+    reply.header('Content-Type', 'text/plain; charset=utf-8');
+    reply.header('Cache-Control', 'public, max-age=300');
+    return reply.send(content);
+  } catch {
+    return reply.code(404).send('# Installer not found');
+  }
+});
+
+fastify.get('/install.ps1', async (_request, reply) => {
+  const fs = await import('fs/promises');
+  try {
+    const content = await fs.readFile(join(__dirname, '../public/app/install.ps1'), 'utf-8');
+    reply.header('Content-Type', 'text/plain; charset=utf-8');
+    reply.header('Cache-Control', 'public, max-age=300');
+    return reply.send(content);
+  } catch {
+    return reply.code(404).send('# Installer not found');
   }
 });
 

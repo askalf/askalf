@@ -176,8 +176,8 @@ export function initializeEmailFromEnv(): void {
     return;
   }
 
-  const fromName = process.env['EMAIL_FROM_NAME'] ?? 'SUBSTRATE';
-  const fromEmail = process.env['EMAIL_FROM_ADDRESS'] ?? 'noreply@substrate.io';
+  const fromName = process.env['EMAIL_FROM_NAME'] ?? 'AskAlf';
+  const fromEmail = process.env['EMAIL_FROM_ADDRESS'] ?? 'noreply@askalf.org';
 
   const config: EmailConfig = {
     provider,

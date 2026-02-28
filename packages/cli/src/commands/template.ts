@@ -42,7 +42,7 @@ export function registerTemplateCommands(program: Command): void {
     .action(async (slug: string, opts: { name?: string }) => {
       const client = getClient();
       const { templates } = await client.templates.list();
-      const tmpl = templates.find(t => t.slug === slug || t.id === slug);
+      const tmpl = templates.find((t: { slug: string; id: string }) => t.slug === slug || t.id === slug);
 
       if (!tmpl) {
         console.error(`Template "${slug}" not found. Run 'o8r template list' to see available templates.`);

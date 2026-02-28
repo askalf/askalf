@@ -50,7 +50,7 @@ export async function substrateDbQuery(input: SubstrateDbQueryInput): Promise<To
   ) {
     return {
       output: null,
-      error: 'Only SELECT, WITH (CTE), and EXPLAIN queries are allowed on the substrate database',
+      error: 'Only SELECT, WITH (CTE), and EXPLAIN queries are allowed on the platform database',
       durationMs: Math.round(performance.now() - startTime),
     };
   }

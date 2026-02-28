@@ -116,7 +116,7 @@ export default function WaitlistPage() {
           </div>
           <div className="auth-beta-badge">Early Access</div>
           <p className="auth-subtitle">
-            Agent orchestration for teams that build with AI
+            AI agents that actually use computers
           </p>
         </div>
 
