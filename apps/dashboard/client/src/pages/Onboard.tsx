@@ -436,6 +436,20 @@ export default function OnboardPage() {
                 )}
               </button>
             </div>
+
+            {anthropicStatus === 'valid' && (
+              <p style={{
+                marginTop: 'var(--space-md)',
+                fontSize: '0.75rem',
+                color: 'rgba(255,255,255,0.45)',
+                textAlign: 'center',
+                lineHeight: 1.5,
+              }}>
+                After setup, connect Slack, Discord, Telegram, or WhatsApp in{' '}
+                <strong style={{ color: 'rgba(255,255,255,0.6)' }}>Settings &rarr; Channels</strong>{' '}
+                to reach your agents from anywhere.
+              </p>
+            )}
           </>
         )}
       </div>

@@ -201,6 +201,91 @@ export default function DocsPage() {
             automatically assigned based on the agent&apos;s role and your task requirements.
           </p>
 
+          <h2 id="channels">Channel Integrations</h2>
+          <p>
+            Agents can receive messages and respond through six channels. Configure them
+            in <strong>Settings &rarr; Channels</strong>.
+          </p>
+
+          <h3>API</h3>
+          <p>
+            Send tasks directly via REST API using your <code style={{ color: '#a78bfa' }}>fk_</code> API key.
+            Supports synchronous (long-poll up to 120s) and asynchronous modes.
+          </p>
+          <div style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1rem 1.25rem',
+            marginBottom: '0.75rem',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '0.8125rem',
+            lineHeight: 1.6,
+            overflowX: 'auto',
+          }}>
+            <div style={{ color: 'var(--text-secondary)' }}># Async dispatch</div>
+            <div>POST /api/v1/forge/channels/api/dispatch</div>
+            <div>Authorization: Bearer fk_your_api_key</div>
+            <div>{'{'} &quot;message&quot;: &quot;Research competitors in fintech&quot; {'}'}</div>
+            <br />
+            <div style={{ color: 'var(--text-secondary)' }}># Sync dispatch (waits for result)</div>
+            <div>{'{'} &quot;message&quot;: &quot;...&quot;, &quot;sync&quot;: true {'}'}</div>
+          </div>
+
+          <h3>Webhooks</h3>
+          <p>
+            Receive execution results at a URL you configure. Payloads are signed with
+            HMAC-SHA256 &mdash; verify the <code style={{ color: '#a78bfa' }}>X-AskAlf-Signature</code> header
+            using your webhook secret. Failed deliveries retry up to 3 times with exponential backoff.
+          </p>
+
+          <h3>Slack</h3>
+          <p>
+            Connect a Slack app to dispatch agents from any Slack channel. Setup:
+          </p>
+          <ol>
+            <li>Create a Slack app at <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>api.slack.com/apps</a></li>
+            <li>Enable Event Subscriptions and subscribe to <code style={{ color: '#a78bfa' }}>message.channels</code> and <code style={{ color: '#a78bfa' }}>message.im</code></li>
+            <li>Set the Request URL to <code style={{ color: '#a78bfa' }}>https://askalf.org/api/v1/forge/channels/slack/webhook/YOUR_CONFIG_ID</code></li>
+            <li>Copy your <strong>Bot Token</strong> and <strong>Signing Secret</strong> into Settings &rarr; Channels &rarr; Slack</li>
+          </ol>
+
+          <h3>Discord</h3>
+          <p>
+            Add a Discord bot that responds to slash commands. Setup:
+          </p>
+          <ol>
+            <li>Create an application at <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>discord.com/developers</a></li>
+            <li>Under &ldquo;General Information,&rdquo; copy the <strong>Application ID</strong> and <strong>Public Key</strong></li>
+            <li>Under &ldquo;Bot,&rdquo; create a bot and copy the <strong>Bot Token</strong></li>
+            <li>Set the Interactions Endpoint URL to <code style={{ color: '#a78bfa' }}>https://askalf.org/api/v1/forge/channels/discord/webhook/YOUR_CONFIG_ID</code></li>
+            <li>Enter all three values in Settings &rarr; Channels &rarr; Discord</li>
+          </ol>
+
+          <h3>Telegram</h3>
+          <p>
+            Connect a Telegram bot. Setup:
+          </p>
+          <ol>
+            <li>Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>@BotFather</a> on Telegram</li>
+            <li>Copy the <strong>Bot Token</strong> into Settings &rarr; Channels &rarr; Telegram</li>
+            <li>The webhook is registered automatically when you save</li>
+          </ol>
+          <p>
+            Users message your bot directly. Messages prefixed with <code style={{ color: '#a78bfa' }}>/ask</code> are dispatched to agents.
+          </p>
+
+          <h3>WhatsApp</h3>
+          <p>
+            Connect via Meta&apos;s Cloud API. Setup:
+          </p>
+          <ol>
+            <li>Create an app at <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>developers.facebook.com</a> with WhatsApp product</li>
+            <li>Copy your <strong>Phone Number ID</strong>, <strong>Access Token</strong>, <strong>App Secret</strong>, and <strong>Verify Token</strong></li>
+            <li>Set the webhook callback URL to <code style={{ color: '#a78bfa' }}>https://askalf.org/api/v1/forge/channels/whatsapp/webhook/YOUR_CONFIG_ID</code></li>
+            <li>Subscribe to the <code style={{ color: '#a78bfa' }}>messages</code> webhook field</li>
+          </ol>
+
           <h2>FAQ</h2>
 
           <h3>How much does it cost?</h3>

@@ -79,6 +79,31 @@ const getHandoffInfo = (task: { handoff_to_agent_name?: string | null; parent_ta
   return null;
 };
 
+const CHANNEL_LABELS: Record<string, { label: string; color: string }> = {
+  api: { label: 'API', color: '#6366f1' },
+  webhooks: { label: 'Webhook', color: '#8b5cf6' },
+  slack: { label: 'Slack', color: '#e01e5a' },
+  discord: { label: 'Discord', color: '#5865f2' },
+  telegram: { label: 'Telegram', color: '#26a5e4' },
+  whatsapp: { label: 'WhatsApp', color: '#25d366' },
+  chat: { label: 'Chat', color: '#a78bfa' },
+  template: { label: 'Template', color: '#f59e0b' },
+};
+
+const getChannelSource = (task: { metadata?: Record<string, unknown> }): { label: string; color: string } | null => {
+  const source = task.metadata?.source as string | undefined;
+  if (!source) return null;
+  // dispatch-adapter sets source as 'channel:slack', 'channel:discord', etc.
+  if (source.startsWith('channel:')) {
+    const type = source.slice(8);
+    return CHANNEL_LABELS[type] ?? { label: type, color: '#6366f1' };
+  }
+  if (source === 'chat') return CHANNEL_LABELS['chat'];
+  if (source === 'template') return CHANNEL_LABELS['template'];
+  if (source === 'fleet-dispatch') return { label: 'Fleet', color: '#f59e0b' };
+  return null;
+};
+
 function CopyButton({ text, label }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -325,12 +350,14 @@ export default function ExecutionHistory() {
                 <th style={{ width: '90px' }}>Cost</th>
                 <th style={{ width: '80px' }}>Tokens</th>
                 <th>Input</th>
+                <th style={{ width: '80px' }}>Source</th>
                 <th style={{ width: '80px' }}>Handoff</th>
               </tr>
             </thead>
             <tbody>
               {tasks.map((task) => {
                 const handoff = getHandoffInfo(task);
+                const channelSource = getChannelSource(task);
                 const preview = getInputPreview(task.input);
                 const statusColor = STATUS_COLORS[task.status] || '#6b7280';
                 return (
@@ -360,6 +387,18 @@ export default function ExecutionHistory() {
                       ) : (
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>
                       )}
+                    </td>
+                    <td>
+                      {channelSource ? (
+                        <span style={{
+                          fontSize: '0.6875rem',
+                          padding: '1px 6px',
+                          borderRadius: '3px',
+                          background: `${channelSource.color}20`,
+                          color: channelSource.color,
+                          fontWeight: 500,
+                        }}>{channelSource.label}</span>
+                      ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     <td>
                       {handoff ? (
@@ -434,6 +473,25 @@ export default function ExecutionHistory() {
                 <div className="exec-ov-label">Created</div><div className="exec-ov-value">{formatDateFull(detailTask?.created_at || selectedTask.created_at)}</div>
                 <div className="exec-ov-label">Started</div><div className="exec-ov-value">{formatDateFull(detailTask?.started_at || selectedTask.started_at)}</div>
                 <div className="exec-ov-label">Completed</div><div className="exec-ov-value">{formatDateFull(detailTask?.completed_at || selectedTask.completed_at)}</div>
+                {(() => {
+                  const cs = getChannelSource(detailTask || selectedTask);
+                  if (!cs) return null;
+                  return (
+                    <>
+                      <div className="exec-ov-label">Source</div>
+                      <div className="exec-ov-value">
+                        <span style={{
+                          fontSize: '0.6875rem',
+                          padding: '1px 6px',
+                          borderRadius: '3px',
+                          background: `${cs.color}20`,
+                          color: cs.color,
+                          fontWeight: 500,
+                        }}>{cs.label}</span>
+                      </div>
+                    </>
+                  );
+                })()}
                 {(() => {
                   const handoff = getHandoffInfo(detailTask || selectedTask);
                   if (!handoff) return null;
