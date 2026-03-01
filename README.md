@@ -15,6 +15,7 @@ Agents that do everything a human can do on a computer:
 - **SSH Into Anything** — Servers, containers, VMs, routers, IoT devices, cloud instances
 - **File System Control** — Read, write, organize files across codebases and documents
 - **Shell & CLI** — Build scripts, deploy pipelines, test suites, piped commands
+- **Voice Control** — Speak commands via local whisper.cpp — free, private, offline
 
 ## Architecture
 
@@ -78,6 +79,7 @@ substrate/
 |   +-- mcp-tools/    # 24 MCP tools for agent capabilities
 |   +-- admin-console/ # Master control terminal
 +-- packages/
+|   +-- agent-cli/    # @askalf/agent CLI (computer-use + voice control)
 |   +-- core/         # Shared types, Zod validation, ulid
 |   +-- database/     # PostgreSQL client, migrations, repositories
 |   +-- db/           # Shared DB pools
