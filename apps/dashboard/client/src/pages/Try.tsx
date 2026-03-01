@@ -56,7 +56,7 @@ export default function TryPage() {
         <Link to="/" className="try-nav-logo">askalf</Link>
         <div className="try-nav-links">
           <Link to="/docs" className="try-nav-link">Docs</Link>
-          <a href="https://github.com/askalf/agent" className="try-nav-link" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="https://github.com/SprayberryLabs/agent" className="try-nav-link" target="_blank" rel="noopener noreferrer">GitHub</a>
           <Link to="/signup" className="try-nav-cta">Full Platform</Link>
         </div>
       </nav>
@@ -227,7 +227,7 @@ export default function TryPage() {
           No vendor lock-in, no hidden behavior.
         </p>
         <div className="try-oss-links">
-          <a href="https://github.com/askalf/agent" className="try-oss-btn primary" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/SprayberryLabs/agent" className="try-oss-btn primary" target="_blank" rel="noopener noreferrer">
             View on GitHub
           </a>
           <a href="https://www.npmjs.com/package/@askalf/agent" className="try-oss-btn secondary" target="_blank" rel="noopener noreferrer">
