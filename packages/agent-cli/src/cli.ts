@@ -5,6 +5,7 @@ import { authInteractive, showAuthStatus } from './auth.js';
 import { run } from './run.js';
 import { checkPlatform } from './platform/index.js';
 import { loadConfig, saveConfig } from './util/config.js';
+import { isWhisperInstalled, setupWhisper } from './voice/index.js';
 import * as output from './util/output.js';
 import chalk from 'chalk';
 
@@ -34,6 +35,7 @@ program
   .option('-m, --model <model>', 'Model to use')
   .option('-b, --budget <amount>', 'Max budget in USD')
   .option('-t, --turns <count>', 'Max turns')
+  .option('-v, --voice', 'Use voice input (microphone → whisper transcription)')
   .action(async (prompt, opts) => {
     // Apply CLI overrides to config
     if (opts.model || opts.budget || opts.turns) {
@@ -44,7 +46,7 @@ program
       await saveConfig(overrides);
     }
 
-    await run(prompt);
+    await run(prompt, { voice: opts.voice });
   });
 
 program
@@ -68,6 +70,10 @@ program
     console.log(icon(check.claudeCli), 'Claude CLI:', check.claudeCli ? 'installed' : 'not found');
     console.log();
 
+    const whisperReady = await isWhisperInstalled();
+    console.log(icon(whisperReady), 'Voice (whisper.cpp):', whisperReady ? 'installed' : 'not found — run: askalf-agent voice-setup');
+    console.log();
+
     if (check.missingDeps.length > 0) {
       output.warn(`Missing dependencies: ${check.missingDeps.join(', ')}`);
       if (check.installHint) {
@@ -83,6 +89,20 @@ program
     console.log(chalk.dim('Model:'), config.model);
     console.log(chalk.dim('Budget:'), `$${config.maxBudgetUsd.toFixed(2)}`);
     console.log(chalk.dim('Max turns:'), config.maxTurns);
+  });
+
+program
+  .command('voice-setup')
+  .description('Download whisper.cpp binary and speech model for voice control')
+  .option('--model <size>', 'Model size: tiny, base, small, medium', 'base')
+  .action(async (opts) => {
+    const validModels = ['tiny', 'base', 'small', 'medium'] as const;
+    const model = opts.model as typeof validModels[number];
+    if (!validModels.includes(model)) {
+      output.error(`Invalid model: ${opts.model}. Choose: ${validModels.join(', ')}`);
+      process.exit(1);
+    }
+    await setupWhisper(model);
   });
 
 program
