@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import './Try.css';
 
 function useScrollReveal() {
@@ -53,11 +52,10 @@ export default function TryPage() {
     <div className="try-page">
       {/* ── Nav ── */}
       <nav className="try-nav">
-        <Link to="/" className="try-nav-logo">askalf</Link>
+        <a href="/" className="try-nav-logo">askalf</a>
         <div className="try-nav-links">
-          <Link to="/docs" className="try-nav-link">Docs</Link>
+          <a href="https://github.com/SprayberryLabs/agent#readme" className="try-nav-link" target="_blank" rel="noopener noreferrer">Docs</a>
           <a href="https://github.com/SprayberryLabs/agent" className="try-nav-link" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <Link to="/signup" className="try-nav-cta">Full Platform</Link>
         </div>
       </nav>
 
@@ -236,29 +234,12 @@ export default function TryPage() {
         </div>
       </section>
 
-      <hr className="try-divider" />
-
-      {/* ── CTA ── */}
-      <section className="try-cta try-reveal" ref={setRef(4)}>
-        <div className="try-cta-box">
-          <h2>Want multi-agent orchestration?</h2>
-          <p>
-            Fleet coordination, scheduling, cost controls, 24 built-in tools, team collaboration.
-            The full AskAlf platform goes far beyond a single agent.
-          </p>
-          <Link to="/signup" className="try-cta-btn">
-            Try the Full Platform
-          </Link>
-        </div>
-      </section>
-
       {/* ── Footer ── */}
       <footer className="try-footer">
         <span>
           &copy; 2026 AskAlf &middot;{' '}
-          <Link to="/privacy">Privacy</Link> &middot;{' '}
-          <Link to="/terms">Terms</Link> &middot;{' '}
-          <Link to="/docs">Docs</Link>
+          <a href="https://github.com/SprayberryLabs/agent#readme" target="_blank" rel="noopener noreferrer">Docs</a> &middot;{' '}
+          <a href="https://github.com/SprayberryLabs/agent" target="_blank" rel="noopener noreferrer">GitHub</a>
         </span>
       </footer>
     </div>
