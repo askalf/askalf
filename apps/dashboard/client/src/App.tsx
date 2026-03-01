@@ -18,6 +18,7 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Docs = lazy(() => import('./pages/Docs'));
 const Status = lazy(() => import('./pages/Status'));
+const Try = lazy(() => import('./pages/Try'));
 
 // Lazy-loaded: app layout (shared sidebar)
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
@@ -125,6 +126,7 @@ export default function App() {
       <Route path="/terms" element={<Terms />} />
       <Route path="/docs" element={<Docs />} />
       <Route path="/status" element={<Status />} />
+      <Route path="/try" element={<Try />} />
 
       {/* Legacy redirects */}
       <Route path="/app/*" element={<Navigate to="/command-center" replace />} />
