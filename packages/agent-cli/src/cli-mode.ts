@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { createInterface } from 'node:readline';
+import chalk from 'chalk';
 import * as output from './util/output.js';
 import type { AgentConfig } from './util/config.js';
 import { VoiceInput } from './voice/index.js';
@@ -117,6 +118,33 @@ export async function runCliMode(prompt: string, config: AgentConfig, options: C
   };
 }
 
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+function createSpinner(label: string) {
+  let frame = 0;
+  let currentLabel = label;
+  let elapsed = 0;
+  const startTime = Date.now();
+
+  const interval = setInterval(() => {
+    elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const spinner = chalk.cyan(SPINNER_FRAMES[frame % SPINNER_FRAMES.length]);
+    const time = chalk.dim(`${elapsed}s`);
+    process.stderr.write(`\r${spinner} ${chalk.white(currentLabel)} ${time}  `);
+    frame++;
+  }, 80);
+
+  return {
+    update(newLabel: string) {
+      currentLabel = newLabel;
+    },
+    stop() {
+      clearInterval(interval);
+      process.stderr.write('\r' + ' '.repeat(80) + '\r'); // clear line
+    },
+  };
+}
+
 function spawnClaude(prompt: string, config: AgentConfig, mcpConfigPath: string): Promise<RunResult> {
   return new Promise((resolvePromise, reject) => {
     const systemPrompt = [
@@ -146,7 +174,9 @@ function spawnClaude(prompt: string, config: AgentConfig, mcpConfigPath: string)
       },
     });
 
+    const spinner = createSpinner('Thinking...');
     let stdout = '';
+    let actionCount = 0;
 
     child.stdout.on('data', (data: Buffer) => {
       stdout += data.toString();
@@ -158,15 +188,33 @@ function spawnClaude(prompt: string, config: AgentConfig, mcpConfigPath: string)
       for (const segment of line.split('\n')) {
         const s = segment.trim();
         if (!s) continue;
+
+        // Detect tool use and update spinner with action context
+        if (s.includes('tool_use') || s.includes('askalf-computer')) {
+          actionCount++;
+          if (s.includes('screenshot')) {
+            spinner.update('Taking screenshot...');
+          } else if (s.includes('Bash') || s.includes('bash') || s.includes('powershell')) {
+            spinner.update('Running command...');
+          } else {
+            spinner.update(`Working... (action ${actionCount})`);
+          }
+        }
+
+        // Show meaningful actions on their own line
         if (s.includes('screenshot') || s.includes('mouse') || s.includes('keyboard') ||
             s.includes('click') || s.includes('type') || s.includes('scroll') ||
             s.includes('tool_use') || s.includes('askalf-computer')) {
+          spinner.stop();
           output.action('→', s.length > 120 ? s.slice(0, 120) + '...' : s);
+          spinner.update(`Working... (action ${actionCount})`);
         }
       }
     });
 
     child.on('close', (code) => {
+      spinner.stop();
+
       if (code !== 0 && !stdout) {
         reject(new Error(`Claude exited with code ${code}`));
         return;
@@ -193,6 +241,7 @@ function spawnClaude(prompt: string, config: AgentConfig, mcpConfigPath: string)
     });
 
     child.on('error', (err) => {
+      spinner.stop();
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         reject(new Error(
           'Claude CLI not found. Install: npm i -g @anthropic-ai/claude-code\n' +
