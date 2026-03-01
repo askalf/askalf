@@ -2,21 +2,28 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
+export interface VoiceOptions {
+  whisperModel: 'tiny' | 'base' | 'small' | 'medium';
+  silenceThresholdDb: number;
+  silenceDurationMs: number;
+}
+
 export interface AgentConfig {
   authMode: 'api_key' | 'oauth';
   apiKey?: string | undefined;
   model: string;
   maxBudgetUsd: number;
   maxTurns: number;
+  voice?: VoiceOptions;
 }
 
 const CONFIG_DIR = join(homedir(), '.askalf');
 const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 
 const DEFAULT_CONFIG: AgentConfig = {
-  authMode: 'api_key',
+  authMode: 'oauth',
   model: 'claude-sonnet-4-6',
-  maxBudgetUsd: 1.0,
+  maxBudgetUsd: 5.0,
   maxTurns: 50,
 };
 
