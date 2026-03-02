@@ -5,6 +5,7 @@ import { mouseClick, mouseMove, mouseDoubleClick, mouseScroll } from './platform
 import { keyboardType, keyboardKey } from './platform/keyboard.js';
 import * as output from './util/output.js';
 import type { AgentConfig } from './util/config.js';
+import { checkCommand, GUARDRAIL_PROMPT } from './util/guardrails.js';
 
 interface RunResult {
   text: string;
@@ -59,7 +60,8 @@ const SYSTEM_PROMPT = `You are a computer control agent. CRITICAL: Use the bash 
 - Do NOT click through UI menus when a PowerShell command exists.
 - Do NOT take screenshots after every single action.
 - Do NOT use multiple turns for simple one-command tasks.
-- Do NOT retry the same failed command — try something different.`;
+- Do NOT retry the same failed command — try something different.
+${GUARDRAIL_PROMPT}`;
 
 export async function runSdkMode(prompt: string, config: AgentConfig): Promise<RunResult> {
   const client = new Anthropic({ apiKey: config.apiKey });
@@ -272,6 +274,13 @@ async function executeComputerAction(
   } else if (toolName === 'bash') {
     const command = input['command'] as string;
     output.action('bash', command);
+
+    // Guardrail check — block dangerous commands
+    const guard = checkCommand(command);
+    if (guard.blocked) {
+      return [{ type: 'text', text: `GUARDRAIL BLOCKED: ${guard.reason}. This command is not allowed. Use a safer approach.` }];
+    }
+
     const { execSync } = await import('node:child_process');
     try {
       const result = execSync(command, { timeout: 30000, encoding: 'utf-8', maxBuffer: 1024 * 1024 });
