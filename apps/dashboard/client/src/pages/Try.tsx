@@ -39,15 +39,32 @@ export default function TryPage() {
   const setRef = useScrollReveal();
 
   useEffect(() => {
+    const prevTheme = document.documentElement.getAttribute('data-theme');
     document.documentElement.setAttribute('data-theme', 'dark');
     document.title = 'Try @askalf/agent — Computer Control Agent';
+    return () => {
+      if (prevTheme) {
+        document.documentElement.setAttribute('data-theme', prevTheme);
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+    };
   }, []);
 
+  const copyTimeout = useRef<ReturnType<typeof setTimeout>>();
+
   const handleCopy = () => {
-    navigator.clipboard.writeText('npm i -g @askalf/agent');
+    navigator.clipboard.writeText('npm i -g @askalf/agent').catch(() => {
+      // Fallback: clipboard API unavailable (non-HTTPS or unfocused)
+    });
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    clearTimeout(copyTimeout.current);
+    copyTimeout.current = setTimeout(() => setCopied(false), 2000);
   };
+
+  useEffect(() => {
+    return () => clearTimeout(copyTimeout.current);
+  }, []);
 
   return (
     <div className="try-page">
@@ -142,7 +159,7 @@ export default function TryPage() {
         <div className="try-section-label">Live Demo</div>
         <h2 className="try-section-title">See it in action</h2>
         <div className="try-demo-gif">
-          <img src="/askalf-demo.gif" alt="AskAlf Agent demo — install, voice command, computer control" />
+          <img src="/askalf-demo.gif" alt="AskAlf Agent demo — install, voice command, computer control" loading="lazy" />
         </div>
       </section>
 
