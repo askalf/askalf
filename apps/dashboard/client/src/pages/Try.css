@@ -393,6 +393,20 @@
   padding: 0 40px 80px;
 }
 
+.try-demo-gif {
+  max-width: 740px;
+  margin: 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--try-border);
+}
+
+.try-demo-gif img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .try-terminal {
   background: var(--try-surface);
   border: 1px solid var(--try-border);
