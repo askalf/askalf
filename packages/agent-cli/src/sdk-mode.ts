@@ -41,14 +41,16 @@ const SYSTEM_PROMPT = `You are a computer control agent. CRITICAL: Use the bash 
 
 ## Windows Gotchas
 - ALWAYS wrap Windows commands in: powershell -Command "..."
-- NEVER run bare "notepad", "start", "open" in bash — they fail or block
-- CORRECT: powershell -Command "Start-Process notepad"
-- For typing into apps: powershell -Command "Start-Process notepad; Start-Sleep -Milliseconds 800; Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('text')"
-- Start-Process is async — MUST sleep before interacting with the opened window
+- NEVER use bare app names for Windows built-ins (notepad, paint, calc) — triggers Store redirect dialog
+- CORRECT: powershell -Command "Start-Process 'C:\\Windows\\System32\\notepad.exe'"
+- WRONG: powershell -Command "Start-Process notepad" — opens Store dialog, app never launches
+- For typing into apps: powershell -Command "Start-Process 'C:\\Windows\\System32\\notepad.exe'; Start-Sleep -Seconds 2; Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('text')"
+- Start-Process is async — MUST sleep 2 seconds before interacting with the opened window
 - Use semicolons to chain PowerShell, not && (bash syntax)
+- If a command "succeeded" but nothing happened, app is stuck at a Store/UAC dialog — use full .exe path
 
 ## PowerShell patterns
-- Open apps: powershell -Command "Start-Process chrome 'https://url.com'"
+- Open apps: powershell -Command "Start-Process chrome 'https://url.com'" or "Start-Process 'C:\\Windows\\System32\\notepad.exe'"
 - File ops: powershell -Command "Get-Content 'file.txt'" / "Set-Content 'file.txt' 'content'"
 - Window management: powershell -Command "(New-Object -ComObject Shell.Application).MinimizeAll()"
 - Clipboard: powershell -Command "Set-Clipboard 'text'"
