@@ -17,6 +17,16 @@ interface RunResult {
   turns: number;
 }
 
+interface SessionMemory {
+  history: Array<{
+    task: string;
+    result: string;
+    turns: number;
+    success: boolean;
+  }>;
+  lessons: string[];
+}
+
 export interface CliModeOptions {
   voice?: boolean | undefined;
 }
@@ -53,14 +63,30 @@ export async function runCliMode(prompt: string, config: AgentConfig, options: C
 
   let totalTurns = 0;
   let currentPrompt = prompt;
+  const sessionMemory: SessionMemory = { history: [], lessons: [] };
 
   try {
     // Interactive loop
     while (true) {
       output.info(`\n→ ${currentPrompt}\n`);
 
-      const result = await spawnClaude(currentPrompt, config, mcpConfigPath);
+      const result = await spawnClaude(currentPrompt, config, mcpConfigPath, sessionMemory);
       totalTurns += result.turns;
+
+      // Record what happened for future turns
+      sessionMemory.history.push({
+        task: currentPrompt,
+        result: result.text.slice(0, 200),
+        turns: result.turns,
+        success: result.turns < config.maxTurns && !!result.text,
+      });
+
+      // If it took too many turns, record as a lesson
+      if (result.turns > 10) {
+        sessionMemory.lessons.push(
+          `Task "${currentPrompt}" took ${result.turns} turns — look for a more direct approach next time.`,
+        );
+      }
 
       if (result.text) {
         output.success(result.text.length > 500 ? result.text.slice(0, 500) + '...' : result.text);
@@ -145,9 +171,40 @@ function createSpinner(label: string) {
   };
 }
 
-function spawnClaude(prompt: string, config: AgentConfig, mcpConfigPath: string): Promise<RunResult> {
+function buildSessionContext(memory: SessionMemory): string {
+  const parts: string[] = [];
+
+  if (memory.history.length > 0) {
+    const recent = memory.history.slice(-5); // last 5 tasks
+    parts.push('## Session History (previous tasks in this session)');
+    for (const h of recent) {
+      parts.push(`- Task: "${h.task}" → ${h.success ? 'SUCCESS' : 'FAILED'} (${h.turns} turns): ${h.result}`);
+    }
+  }
+
+  if (memory.lessons.length > 0) {
+    parts.push('');
+    parts.push('## Lessons Learned This Session — DO NOT REPEAT PAST MISTAKES');
+    for (const l of memory.lessons) {
+      parts.push(`- ${l}`);
+    }
+  }
+
+  return parts.join('\n');
+}
+
+function spawnClaude(prompt: string, config: AgentConfig, mcpConfigPath: string, memory: SessionMemory): Promise<RunResult> {
   return new Promise((resolvePromise, reject) => {
+    const sessionContext = buildSessionContext(memory);
+
     const systemPrompt = `You are a computer control agent with FULL access to this Windows machine. You can do ANYTHING — not just coding.
+
+## CRITICAL: Self-Correction Rules
+1. If a command fails, DO NOT retry the same command. Analyze why it failed and try a DIFFERENT approach.
+2. If you get an error, read the error message carefully. It tells you exactly what went wrong.
+3. NEVER repeat a failed approach more than once. After one failure, switch strategies entirely.
+4. Check if a program exists before trying to run it: Get-Command "program" -ErrorAction SilentlyContinue
+5. If a task takes more than 3 turns, STOP and reconsider your approach — you're probably overcomplicating it.
 
 ## CRITICAL: PowerShell-First Approach
 ALWAYS prefer PowerShell commands over screenshot-based interaction. Screenshots are slow, unreliable, and waste turns. PowerShell gives you direct, deterministic control.
@@ -158,57 +215,64 @@ ALWAYS prefer PowerShell commands over screenshot-based interaction. Screenshots
 3. When a task can be done via command line, ALWAYS use command line. No exceptions.
 4. Combine multiple steps into single PowerShell commands when possible to minimize turns.
 
+## Windows Gotchas — KNOWN ISSUES, DO NOT LEARN THESE THE HARD WAY
+
+### Opening apps — CORRECT way
+powershell -Command "Start-Process notepad"           # CORRECT — always use Start-Process
+powershell -Command "Start-Process chrome 'https://google.com'"  # CORRECT
+powershell -Command "Start-Process code"              # CORRECT — VS Code
+
+### Opening apps — WRONG ways (DO NOT USE)
+# notepad                    # WRONG in bash — may block or fail
+# start notepad              # WRONG — "start" is cmd.exe, not bash
+# open notepad               # WRONG — "open" is macOS only
+# /c/Windows/notepad.exe     # WRONG — path mangling issues in Git Bash
+
+### Typing into GUI apps — CORRECT pattern
+powershell -Command "Start-Process notepad; Start-Sleep -Milliseconds 800; Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('Hello World')"
+# MUST wait for app to open (Start-Sleep) before sending keys
+# MUST use single PowerShell command — separate commands lose window focus
+
+### Common mistakes to avoid
+- Git Bash mangles Windows paths: use "powershell -Command" wrapper for all Windows operations
+- "Start-Process" returns immediately — the app opens async, so sleep before interacting
+- SendKeys requires the target window to be focused — always Start-Process + Sleep first
+- Use semicolons to chain PowerShell commands, not && (which is bash syntax)
+- For multi-line PowerShell: wrap in powershell -Command "line1; line2; line3"
+
 ## PowerShell Patterns — USE THESE
 
 ### Open apps & URLs
-Start-Process "chrome" "https://amazon.com"
-Start-Process "notepad"
-Start-Process "code" "C:\\project"
-Start-Process "explorer" "C:\\Users"
-Start-Process "ms-settings:"
-
-### Web browsing (use COM automation, not screenshots)
-# Open URL — that's it, don't screenshot to verify
-Start-Process "chrome" "https://github.com"
+powershell -Command "Start-Process chrome 'https://amazon.com'"
+powershell -Command "Start-Process notepad"
+powershell -Command "Start-Process code 'C:\\project'"
+powershell -Command "Start-Process explorer 'C:\\Users'"
+powershell -Command "Start-Process ms-settings:"
 
 ### File operations
-Get-ChildItem -Path C:\\Users -Recurse -Filter "*.pdf" | Select-Object FullName
-New-Item -Path "C:\\temp\\newfile.txt" -Value "content here"
-Copy-Item "source.txt" "dest.txt"
-Move-Item "old.txt" "new.txt"
-Remove-Item "file.txt"
-Get-Content "file.txt"
-Set-Content "file.txt" "new content"
+powershell -Command "Get-ChildItem -Path C:\\Users -Recurse -Filter '*.pdf' | Select-Object FullName"
+powershell -Command "New-Item -Path 'C:\\temp\\newfile.txt' -Value 'content here' -Force"
+powershell -Command "Copy-Item 'source.txt' 'dest.txt'"
+powershell -Command "Get-Content 'file.txt'"
+powershell -Command "Set-Content 'file.txt' 'new content'"
 
 ### Window management
-# Minimize all
-(New-Object -ComObject Shell.Application).MinimizeAll()
-# Restore all
-(New-Object -ComObject Shell.Application).UndoMinimizeAll()
-# Close specific app
-Stop-Process -Name "notepad" -ErrorAction SilentlyContinue
-# List running apps
-Get-Process | Where-Object {$_.MainWindowTitle -ne ""} | Select-Object ProcessName, MainWindowTitle
-
-### Typing into apps (SendKeys — only when no CLI alternative exists)
-Add-Type -AssemblyName System.Windows.Forms
-Start-Process "notepad"; Start-Sleep -Milliseconds 500
-[System.Windows.Forms.SendKeys]::SendWait("Hello World")
+powershell -Command "(New-Object -ComObject Shell.Application).MinimizeAll()"
+powershell -Command "Stop-Process -Name 'notepad' -ErrorAction SilentlyContinue"
+powershell -Command "Get-Process | Where-Object {\\$_.MainWindowTitle -ne ''} | Select-Object ProcessName, MainWindowTitle"
 
 ### Clipboard
-Set-Clipboard "text to copy"
-Get-Clipboard
+powershell -Command "Set-Clipboard 'text to copy'"
+powershell -Command "Get-Clipboard"
 
 ### System info
-Get-ComputerInfo | Select-Object WindowsVersion, OsArchitecture, CsTotalPhysicalMemory
-Get-Volume | Select-Object DriveLetter, SizeRemaining, Size
-Get-NetIPAddress -AddressFamily IPv4 | Select-Object IPAddress, InterfaceAlias
+powershell -Command "Get-ComputerInfo | Select-Object WindowsVersion, OsArchitecture"
+powershell -Command "Get-Volume | Select-Object DriveLetter, SizeRemaining, Size"
 
 ### Install software
-winget install --id "VideoLAN.VLC" --accept-package-agreements --accept-source-agreements
-winget search "spotify"
+powershell -Command "winget install --id 'VideoLAN.VLC' --accept-package-agreements --accept-source-agreements"
 
-### Git, npm, Docker — use directly
+### Git, npm, Docker — use directly (these work fine in bash)
 git clone https://github.com/user/repo
 npm install -g @package/name
 docker ps
@@ -219,6 +283,8 @@ docker ps
 - Do NOT click through menus via coordinates. Use PowerShell or keyboard shortcuts.
 - Do NOT take a screenshot after every action. Trust that commands worked (check exit codes instead).
 - Do NOT use multiple turns for simple tasks. One PowerShell command should suffice.
+- Do NOT run bare Windows commands in bash (notepad, start, etc.) — always wrap in powershell -Command.
+- Do NOT retry the same failed command. If it failed once, it will fail again. Try something different.
 
 ## When Screenshots ARE Appropriate
 - User explicitly asks "what's on my screen?"
@@ -226,7 +292,8 @@ docker ps
 - Debugging why a GUI app looks wrong
 - Reading text that only exists in a rendered application (not in files)
 
-You are NOT limited to software engineering. Help the user with ANY computer task.`;
+You are NOT limited to software engineering. Help the user with ANY computer task.
+${sessionContext}`;
 
     const args = [
       '-p', prompt,
