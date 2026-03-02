@@ -21,18 +21,52 @@ const PRICING: Record<string, { input: number; output: number }> = {
   'claude-haiku-4-5-20251001': { input: 0.8, output: 4 },
 };
 
+// Screenshot resize target (must match screenshot.ts resize logic)
+const SCREENSHOT_MAX_WIDTH = 1280;
+
+const SYSTEM_PROMPT = `You are a computer control agent. CRITICAL: Use the bash tool with PowerShell commands instead of screenshot-click loops whenever possible.
+
+## Rules
+1. Prefer bash tool (PowerShell) over computer tool for ALL tasks that can be done via command line.
+2. Only use the computer tool (screenshot/click) when the task genuinely requires visual interaction.
+3. Minimize screenshot frequency — don't screenshot after every action. Trust command output and exit codes.
+4. Combine multiple steps into single PowerShell commands to reduce turns and cost.
+
+## PowerShell patterns
+- Open apps: Start-Process "chrome" "https://url.com"
+- File ops: Get-Content, Set-Content, Copy-Item, Move-Item, New-Item, Remove-Item
+- Window management: (New-Object -ComObject Shell.Application).MinimizeAll()
+- Running processes: Get-Process | Where-Object {$_.MainWindowTitle -ne ""}
+- Typing into apps: Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait("text")
+- Clipboard: Set-Clipboard "text"; Get-Clipboard
+- Install software: winget install --id "App.Name" --accept-package-agreements
+- Web requests: Invoke-WebRequest -Uri "url" | Select-Object -ExpandProperty Content
+- System info: Get-ComputerInfo, Get-Volume, Get-NetIPAddress
+
+## Anti-patterns
+- Do NOT screenshot to verify a window opened. Just open it.
+- Do NOT click through UI menus when a PowerShell command exists.
+- Do NOT take screenshots after every single action.
+- Do NOT use multiple turns for simple one-command tasks.`;
+
 export async function runSdkMode(prompt: string, config: AgentConfig): Promise<RunResult> {
   const client = new Anthropic({ apiKey: config.apiKey });
-  const { width, height } = await getScreenSize();
+  const { width: realWidth, height: realHeight } = await getScreenSize();
   const model = config.model;
 
+  // Calculate the display dimensions we tell Claude (matches screenshot size)
+  const scaleFactor = Math.min(1.0, SCREENSHOT_MAX_WIDTH / realWidth);
+  const width = Math.round(realWidth * scaleFactor);
+  const height = Math.round(realHeight * scaleFactor);
+
   output.header('SDK Mode — Computer Use');
-  output.info(`Model: ${model} | Screen: ${width}x${height}`);
+  output.info(`Model: ${model} | Screen: ${realWidth}x${realHeight} → ${width}x${height}`);
   output.info(`Budget: $${config.maxBudgetUsd.toFixed(2)} | Max turns: ${config.maxTurns}`);
 
   // Take initial screenshot
   output.action('screenshot', 'Capturing initial screen...');
   const initialSs = await takeScreenshot();
+  const ssMediaType = initialSs.mediaType;
 
   const tools: Anthropic.Beta.BetaTool[] = [
     {
@@ -47,7 +81,7 @@ export async function runSdkMode(prompt: string, config: AgentConfig): Promise<R
       name: 'bash',
     } as unknown as Anthropic.Beta.BetaTool,
     {
-      type: 'text_editor_20250124' as unknown as 'text_editor_20241022',
+      type: 'text_editor_20250728' as unknown as 'text_editor_20241022',
       name: 'str_replace_based_edit_tool',
     } as unknown as Anthropic.Beta.BetaTool,
   ];
@@ -58,7 +92,7 @@ export async function runSdkMode(prompt: string, config: AgentConfig): Promise<R
       content: [
         {
           type: 'image',
-          source: { type: 'base64', media_type: 'image/png', data: initialSs },
+          source: { type: 'base64', media_type: ssMediaType, data: initialSs.data },
         },
         { type: 'text', text: prompt },
       ],
@@ -87,7 +121,8 @@ export async function runSdkMode(prompt: string, config: AgentConfig): Promise<R
       max_tokens: 4096,
       tools,
       messages,
-      betas: ['computer-use-2025-01-24'],
+      system: SYSTEM_PROMPT,
+      betas: ['computer-use-2025-11-24'],
     });
 
     totalInput += response.usage.input_tokens;
@@ -103,7 +138,14 @@ export async function runSdkMode(prompt: string, config: AgentConfig): Promise<R
         output.info(block.text.length > 200 ? block.text.slice(0, 200) + '...' : block.text);
       } else if (block.type === 'tool_use') {
         hasToolUse = true;
-        const result = await executeComputerAction(block.name, block.input as Record<string, unknown>);
+        let result: Array<{ type: string; text?: string; source?: { type: string; media_type: string; data: string } }>;
+        try {
+          result = await executeComputerAction(block.name, block.input as Record<string, unknown>, scaleFactor);
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          output.warn(`Action failed: ${errMsg}`);
+          result = [{ type: 'text', text: `Error executing action: ${errMsg}` }];
+        }
         toolResults.push({
           role: 'user',
           content: [
@@ -142,8 +184,13 @@ export async function runSdkMode(prompt: string, config: AgentConfig): Promise<R
 async function executeComputerAction(
   toolName: string,
   input: Record<string, unknown>,
+  scaleFactor: number,
 ): Promise<Array<{ type: string; text?: string; source?: { type: string; media_type: string; data: string } }>> {
   const action = input['action'] as string | undefined;
+
+  // Scale coordinates from screenshot space back to real screen space
+  const scaleCoord = (coord: [number, number]): [number, number] =>
+    [Math.round(coord[0] / scaleFactor), Math.round(coord[1] / scaleFactor)];
 
   if (toolName === 'computer' && action) {
     output.action('computer', action);
@@ -151,67 +198,60 @@ async function executeComputerAction(
     switch (action) {
       case 'screenshot': {
         const ss = await takeScreenshot();
-        return [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: ss } }];
+        return [{ type: 'image', source: { type: 'base64', media_type: ss.mediaType, data: ss.data } }];
       }
       case 'left_click': {
-        const [x, y] = input['coordinate'] as [number, number];
-        await mouseClick(x!, y!, 'left');
-        const ss = await takeScreenshot();
+        const raw = input['coordinate'] as [number, number];
+        const [x, y] = scaleCoord(raw);
+        await mouseClick(x, y, 'left');
         return [
-          { type: 'text', text: `Clicked at (${x}, ${y})` },
-          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: ss } },
+          { type: 'text', text: `Clicked at (${raw[0]}, ${raw[1]}) → screen (${x}, ${y}). Use screenshot action to verify if needed.` },
         ];
       }
       case 'right_click': {
-        const [x, y] = input['coordinate'] as [number, number];
-        await mouseClick(x!, y!, 'right');
-        const ss = await takeScreenshot();
+        const raw = input['coordinate'] as [number, number];
+        const [x, y] = scaleCoord(raw);
+        await mouseClick(x, y, 'right');
         return [
-          { type: 'text', text: `Right-clicked at (${x}, ${y})` },
-          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: ss } },
+          { type: 'text', text: `Right-clicked at (${raw[0]}, ${raw[1]}) → screen (${x}, ${y}). Use screenshot action to verify if needed.` },
         ];
       }
       case 'double_click': {
-        const [x, y] = input['coordinate'] as [number, number];
-        await mouseDoubleClick(x!, y!);
-        const ss = await takeScreenshot();
+        const raw = input['coordinate'] as [number, number];
+        const [x, y] = scaleCoord(raw);
+        await mouseDoubleClick(x, y);
         return [
-          { type: 'text', text: `Double-clicked at (${x}, ${y})` },
-          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: ss } },
+          { type: 'text', text: `Double-clicked at (${raw[0]}, ${raw[1]}) → screen (${x}, ${y}). Use screenshot action to verify if needed.` },
         ];
       }
       case 'mouse_move': {
-        const [x, y] = input['coordinate'] as [number, number];
-        await mouseMove(x!, y!);
-        return [{ type: 'text', text: `Moved mouse to (${x}, ${y})` }];
+        const raw = input['coordinate'] as [number, number];
+        const [x, y] = scaleCoord(raw);
+        await mouseMove(x, y);
+        return [{ type: 'text', text: `Moved mouse to (${raw[0]}, ${raw[1]}) → screen (${x}, ${y})` }];
       }
       case 'type': {
         const text = input['text'] as string;
         await keyboardType(text);
-        const ss = await takeScreenshot();
         return [
-          { type: 'text', text: `Typed: "${text.length > 50 ? text.slice(0, 50) + '...' : text}"` },
-          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: ss } },
+          { type: 'text', text: `Typed: "${text.length > 50 ? text.slice(0, 50) + '...' : text}". Use screenshot action to verify if needed.` },
         ];
       }
       case 'key': {
         const key = input['text'] as string;
         await keyboardKey(key);
-        const ss = await takeScreenshot();
         return [
-          { type: 'text', text: `Pressed: ${key}` },
-          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: ss } },
+          { type: 'text', text: `Pressed: ${key}. Use screenshot action to verify if needed.` },
         ];
       }
       case 'scroll': {
-        const [x, y] = input['coordinate'] as [number, number];
-        const direction = (input['direction'] as string) === 'up' ? 'up' : 'down' as const;
-        const amount = (input['amount'] as number) ?? 3;
-        await mouseScroll(x!, y!, direction, amount);
-        const ss = await takeScreenshot();
+        const raw = input['coordinate'] as [number, number];
+        const [x, y] = scaleCoord(raw);
+        const direction = (input['scroll_direction'] as string) === 'up' ? 'up' : 'down' as const;
+        const amount = (input['scroll_amount'] as number) ?? 3;
+        await mouseScroll(x, y, direction, amount);
         return [
-          { type: 'text', text: `Scrolled ${direction} at (${x}, ${y})` },
-          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: ss } },
+          { type: 'text', text: `Scrolled ${direction} at (${raw[0]}, ${raw[1]}) → screen (${x}, ${y}). Use screenshot action to verify if needed.` },
         ];
       }
       default:
