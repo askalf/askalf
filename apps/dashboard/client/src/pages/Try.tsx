@@ -141,76 +141,8 @@ export default function TryPage() {
       <section className="try-terminal-section try-reveal" ref={setRef(1)}>
         <div className="try-section-label">Live Demo</div>
         <h2 className="try-section-title">See it in action</h2>
-        <div className="try-terminal">
-          <div className="try-terminal-bar">
-            <div className="try-terminal-title">askalf-agent</div>
-          </div>
-          <div className="try-terminal-body">
-            <div className="try-terminal-line">
-              <span className="term-prompt">$ </span>
-              <span className="term-cmd">askalf-agent run &quot;open notepad and type hello world&quot; --voice</span>
-            </div>
-            <div className="try-terminal-line"><br /></div>
-            <div className="try-terminal-line">
-              <span className="term-green">&#x2714; </span>
-              <span className="term-result">AskAlf Agent &#x2014; Computer Control</span>
-            </div>
-            <div className="try-terminal-line">
-              <span className="term-dim">&#x2139; Using Claude subscription (no per-token costs)</span>
-            </div>
-            <div className="try-terminal-line">
-              <span className="term-dim">&#x2139; Type &quot;exit&quot; or Ctrl+C to quit</span>
-            </div>
-            <div className="try-terminal-line"><br /></div>
-            <div className="try-terminal-line">
-              <span className="term-dim">&#x2139; &#x2192; open notepad and type hello world</span>
-            </div>
-            <div className="try-terminal-line"><br /></div>
-            <div className="try-terminal-line">
-              <span className="term-green">&#x2714; </span>
-              <span className="term-result">Notepad now has &quot;Hello World&quot; in it.</span>
-            </div>
-            <div className="try-terminal-line">
-              <span className="term-dim">&#x2139; (14 turns)</span>
-            </div>
-            <div className="try-terminal-line"><br /></div>
-            <div className="try-terminal-line">
-              <span className="term-action">&#x276F; What next?</span>
-              <span className="term-cmd"> open chrome and go to github.com</span>
-            </div>
-            <div className="try-terminal-line"><br /></div>
-            <div className="try-terminal-line">
-              <span className="term-green">&#x2714; </span>
-              <span className="term-result">Chrome is open with GitHub loaded.</span>
-            </div>
-            <div className="try-terminal-line">
-              <span className="term-dim">&#x2139; (6 turns)</span>
-            </div>
-            <div className="try-terminal-line"><br /></div>
-            <div className="try-terminal-line">
-              <span className="term-action">&#x276F; What next?</span>
-            </div>
-            <div className="try-terminal-line">
-              <span className="term-dim">&#x1F399; Listening... (press Enter to stop)</span>
-            </div>
-            <div className="try-terminal-line">
-              <span className="term-green">Heard: </span>
-              <span className="term-result">&quot;minimize everything and open spotify&quot;</span>
-            </div>
-            <div className="try-terminal-line"><br /></div>
-            <div className="try-terminal-line">
-              <span className="term-green">&#x2714; </span>
-              <span className="term-result">Desktop minimized and Spotify is now open.</span>
-            </div>
-            <div className="try-terminal-line">
-              <span className="term-dim">&#x2139; (4 turns)</span>
-            </div>
-            <div className="try-terminal-line"><br /></div>
-            <div className="try-terminal-line">
-              <span className="term-action">&#x276F; What next?</span>
-              <span className="try-terminal-cursor" />
-            </div>
-          </div>
+        <div className="try-demo-gif">
+          <img src="/askalf-demo.gif" alt="AskAlf Agent demo — install, voice command, computer control" />
         </div>
       </section>
 
