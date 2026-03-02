@@ -218,34 +218,53 @@ ALWAYS prefer PowerShell commands over screenshot-based interaction. Screenshots
 
 ## Windows Gotchas — KNOWN ISSUES, DO NOT LEARN THESE THE HARD WAY
 
+### CRITICAL: Windows 11 Store Redirect
+Windows 11 redirects "notepad", "paint", "calculator" etc. to the Microsoft Store.
+Running "Start-Process notepad" opens a "Run just this once" / "Get from Store" dialog — NOT the actual app.
+The command appears to succeed but the app is stuck at a dialog you cannot see.
+
+FIX: ALWAYS use the full .exe path for Windows built-in apps:
+powershell -Command "Start-Process 'C:\\Windows\\System32\\notepad.exe'"          # notepad
+powershell -Command "Start-Process 'C:\\Windows\\System32\\mspaint.exe'"          # paint
+powershell -Command "Start-Process 'C:\\Windows\\System32\\calc.exe'"             # calculator
+powershell -Command "Start-Process 'C:\\Windows\\System32\\SnippingTool.exe'"     # snipping tool
+powershell -Command "Start-Process 'C:\\Windows\\System32\\cmd.exe'"              # command prompt
+
 ### Opening apps — CORRECT way
-powershell -Command "Start-Process notepad"           # CORRECT — always use Start-Process
-powershell -Command "Start-Process chrome 'https://google.com'"  # CORRECT
-powershell -Command "Start-Process code"              # CORRECT — VS Code
+powershell -Command "Start-Process 'C:\\Windows\\System32\\notepad.exe'"   # CORRECT — full path, bypasses Store
+powershell -Command "Start-Process chrome 'https://google.com'"            # CORRECT — chrome is not a Store app
+powershell -Command "Start-Process code"                                   # CORRECT — VS Code is not a Store app
 
 ### Opening apps — WRONG ways (DO NOT USE)
-# notepad                    # WRONG in bash — may block or fail
-# start notepad              # WRONG — "start" is cmd.exe, not bash
-# open notepad               # WRONG — "open" is macOS only
-# /c/Windows/notepad.exe     # WRONG — path mangling issues in Git Bash
+# Start-Process notepad       # WRONG — triggers Windows 11 Store redirect dialog
+# notepad                     # WRONG in bash — blocks or triggers Store dialog
+# start notepad               # WRONG — "start" is cmd.exe, not bash
+# open notepad                # WRONG — "open" is macOS only
 
 ### Typing into GUI apps — CORRECT pattern
-powershell -Command "Start-Process notepad; Start-Sleep -Milliseconds 800; Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('Hello World')"
-# MUST wait for app to open (Start-Sleep) before sending keys
+powershell -Command "Start-Process 'C:\\Windows\\System32\\notepad.exe'; Start-Sleep -Seconds 2; Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('Hello World')"
+# MUST use full .exe path — NOT just "notepad"
+# MUST wait for app to FULLY open (Start-Sleep -Seconds 2) before sending keys
 # MUST use single PowerShell command — separate commands lose window focus
 
+### Verifying an app actually opened
+After opening an app, verify it is running before interacting:
+powershell -Command "Start-Process 'C:\\Windows\\System32\\notepad.exe'; Start-Sleep -Seconds 2; if (Get-Process notepad -ErrorAction SilentlyContinue) { Write-Output 'Notepad is running' } else { Write-Output 'ERROR: Notepad did not start' }"
+
 ### Common mistakes to avoid
+- NEVER use bare app names for Windows built-in apps (notepad, paint, calc) — ALWAYS full .exe path
 - Git Bash mangles Windows paths: use "powershell -Command" wrapper for all Windows operations
-- "Start-Process" returns immediately — the app opens async, so sleep before interacting
+- "Start-Process" returns immediately — the app opens async, wait 2 seconds before interacting
 - SendKeys requires the target window to be focused — always Start-Process + Sleep first
 - Use semicolons to chain PowerShell commands, not && (which is bash syntax)
 - For multi-line PowerShell: wrap in powershell -Command "line1; line2; line3"
+- If a command "succeeded" but nothing happened, the app is probably stuck at a Store/UAC dialog
 
 ## PowerShell Patterns — USE THESE
 
 ### Open apps & URLs
 powershell -Command "Start-Process chrome 'https://amazon.com'"
-powershell -Command "Start-Process notepad"
+powershell -Command "Start-Process 'C:\\Windows\\System32\\notepad.exe'"
 powershell -Command "Start-Process code 'C:\\project'"
 powershell -Command "Start-Process explorer 'C:\\Users'"
 powershell -Command "Start-Process ms-settings:"
