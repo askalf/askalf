@@ -1,5 +1,6 @@
-# SUBSTRATE Dashboard - Optimized production build
-FROM node:22-alpine AS builder
+# AskAlf Dashboard - Optimized production build
+# Base image pinned to SHA-256 digest for reproducible builds
+FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS builder
 
 # Install build dependencies for native modules
 RUN apk add --no-cache python3 make g++ linux-headers
@@ -9,13 +10,29 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 WORKDIR /app
 
-# Copy workspace files
+# --- Layer-cache-friendly dependency install ---
+# Copy only lockfile, workspace config, and package.json files first
+# so pnpm install layer is only invalidated when deps change, not source
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+
+# Copy all workspace package.json files (pnpm needs them for resolution)
+COPY packages/core/package.json ./packages/core/package.json
+COPY packages/observability/package.json ./packages/observability/package.json
+COPY packages/database/package.json ./packages/database/package.json
+COPY packages/auth/package.json ./packages/auth/package.json
+COPY packages/email/package.json ./packages/email/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/cli/package.json ./packages/cli/package.json
+COPY packages/sdk/package.json ./packages/sdk/package.json
+COPY packages/agent-cli/package.json ./packages/agent-cli/package.json
+COPY apps/dashboard/package.json ./apps/dashboard/package.json
+
+# Install all dependencies (cached unless package.json/lockfile change)
+RUN pnpm install --frozen-lockfile
+
+# Now copy full source for build
 COPY packages ./packages
 COPY apps/dashboard ./apps/dashboard
-
-# Install all dependencies (including dev for build)
-RUN pnpm install --frozen-lockfile
 
 # Build required packages
 RUN pnpm --filter @askalf/core build && \
@@ -43,7 +60,8 @@ RUN rm -rf /app/deploy/client && \
     find /app/deploy -name "LICENSE*" -delete 2>/dev/null || true && \
     rm -rf /app/deploy/node_modules/.cache 2>/dev/null || true
 
-# Copy source files and static assets
+# Copy only compiled JS server files and static assets
+# (src/ contains .js files only — no .ts source)
 # Vite outputs to public/app/ (including client/public/* assets like favicon.png, og-image.png)
 # docs.html lives in public/ root (served separately by server.js)
 RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
@@ -54,7 +72,7 @@ RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
     cp -f /app/apps/dashboard/client/public/*.png /app/deploy/public/app/ 2>/dev/null || true
 
 # Claude Code CLI stage - install in isolation, extract only the binary
-FROM node:22-alpine AS claude-installer
+FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS claude-installer
 
 RUN apk add --no-cache bash curl python3 make g++ && \
     npm install -g @anthropic-ai/claude-code && \
@@ -63,20 +81,18 @@ RUN apk add --no-cache bash curl python3 make g++ && \
     apk del python3 make g++
 
 # Production stage - minimal Alpine
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS runner
 
 # Runtime deps only: bash (node-pty), git (claude), curl (healthchecks)
 RUN apk add --no-cache bash git curl
 
-# Copy Claude binary from installer stage
-COPY --from=claude-installer /root/.local/bin/claude /usr/local/bin/claude
-
 # Security: run as non-root
 RUN addgroup -g 1001 -S substrate && \
     adduser -S -u 1001 -G substrate substrate && \
-    mkdir -p /home/substrate/.local/bin && \
-    cp /usr/local/bin/claude /home/substrate/.local/bin/claude && \
-    chown -R substrate:substrate /home/substrate/.local
+    mkdir -p /home/substrate/.local/bin
+
+# Copy Claude binary directly to user home (single copy, no duplication)
+COPY --from=claude-installer --chown=substrate:substrate /root/.local/bin/claude /home/substrate/.local/bin/claude
 
 WORKDIR /app
 
