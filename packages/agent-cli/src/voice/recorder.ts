@@ -1,5 +1,5 @@
-import { spawn, execSync, type ChildProcess } from 'node:child_process';
-import { writeFileSync, unlinkSync } from 'node:fs';
+import { spawn, execFileSync, type ChildProcess } from 'node:child_process';
+import { writeFileSync, unlinkSync, openSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir, platform } from 'node:os';
 import { randomBytes } from 'node:crypto';
@@ -23,6 +23,9 @@ const DEFAULT_OPTIONS: RecorderOptions = {
   maxDurationMs: 60000,
   sampleRate: 16000,
 };
+
+// Allowlist of commands we check for — prevents injection via hasCommand
+const ALLOWED_COMMANDS = new Set(['ffmpeg', 'sox', 'rec', 'arecord']);
 
 /**
  * Calculate RMS energy of a PCM16 mono buffer chunk, return dB.
@@ -71,13 +74,20 @@ function buildWavHeader(dataLength: number, sampleRate: number): Buffer {
 
 /**
  * Check if a command exists on this system.
+ * Only checks allowlisted command names — prevents injection.
  */
 function hasCommand(cmd: string): boolean {
+  if (!ALLOWED_COMMANDS.has(cmd)) return false;
+
   try {
     if (platform() === 'win32') {
-      execSync(`powershell.exe -NoProfile -Command "Get-Command '${cmd}' -ErrorAction Stop"`, { stdio: 'ignore' });
+      // Use execFileSync to avoid shell interpretation
+      execFileSync('powershell.exe', [
+        '-NoProfile', '-Command',
+        `Get-Command '${cmd}' -ErrorAction Stop`,
+      ], { stdio: 'ignore' });
     } else {
-      execSync(`which ${cmd}`, { stdio: 'ignore' });
+      execFileSync('/usr/bin/which', [cmd], { stdio: 'ignore' });
     }
     return true;
   } catch {
@@ -86,11 +96,23 @@ function hasCommand(cmd: string): boolean {
 }
 
 /**
+ * Validate sample rate is a safe integer for interpolation.
+ */
+function validateSampleRate(sampleRate: number): void {
+  if (!Number.isInteger(sampleRate) || sampleRate <= 0 || sampleRate > 192000) {
+    throw new Error(`Invalid sample rate: ${sampleRate}. Must be a positive integer <= 192000.`);
+  }
+}
+
+/**
  * Generate a PowerShell script that records audio using Windows waveIn API.
  * Writes raw PCM16 mono to stdout. No external dependencies needed.
  */
 function createWindowsRecordScript(sampleRate: number): string {
-  const scriptPath = join(tmpdir(), `askalf-record-${randomBytes(4).toString('hex')}.ps1`);
+  validateSampleRate(sampleRate);
+
+  // Use 16 bytes of randomness and exclusive file creation to prevent TOCTOU
+  const scriptPath = join(tmpdir(), `askalf-record-${randomBytes(16).toString('hex')}.ps1`);
   const script = `
 $ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @'
@@ -197,7 +219,14 @@ public class WaveRec {
 '@
 [WaveRec]::Record(${sampleRate})
 `;
-  writeFileSync(scriptPath, script, 'utf-8');
+
+  // Exclusive file creation (wx flag) — prevents symlink/overwrite attacks
+  const fd = openSync(scriptPath, 'wx', 0o600);
+  try {
+    writeFileSync(fd, script, 'utf-8');
+  } finally {
+    closeSync(fd);
+  }
   return scriptPath;
 }
 
@@ -207,6 +236,7 @@ public class WaveRec {
  * On Windows, uses native waveIn API via PowerShell (no SoX needed).
  */
 function getMicCommand(sampleRate: number): [string, string[]] {
+  validateSampleRate(sampleRate);
   const os = platform();
 
   if (os === 'win32') {
@@ -264,15 +294,46 @@ export class MicRecorder {
 
     const [cmd, args] = getMicCommand(sampleRate);
     const chunks: Buffer[] = [];
+    let totalBytes = 0;
+    const maxBytes = sampleRate * 2 * (maxDurationMs / 1000) * 1.1; // 10% headroom
     const startTime = Date.now();
     let silenceStart: number | null = null;
 
+    // Track cleanup state to prevent stdin raw mode leak
+    let cleanedUp = false;
+
+    const onKeypress = (data: Buffer) => {
+      if (data.toString().includes('\n') || data.toString().includes('\r')) {
+        this.stop();
+        cleanup();
+      }
+    };
+
+    const setupStdin = () => {
+      if (process.stdin.isTTY) {
+        process.stdin.setRawMode(true);
+        process.stdin.resume();
+        process.stdin.on('data', onKeypress);
+      }
+    };
+
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      if (process.stdin.isTTY) {
+        process.stdin.removeListener('data', onKeypress);
+        process.stdin.setRawMode(false);
+        process.stdin.pause();
+      }
+    };
+
     return new Promise<RecordingResult>((resolve, reject) => {
       this.process = spawn(cmd, args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['pipe', 'pipe', 'ignore'], // stderr ignored — prevents child deadlock
       });
 
       this.process.on('error', (err) => {
+        cleanup(); // Ensure stdin raw mode is restored on error
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
           const hint = platform() === 'darwin'
             ? 'Install SoX: brew install sox'
@@ -288,6 +349,7 @@ export class MicRecorder {
       this.process.stdout!.on('data', (data: Buffer) => {
         if (this.stopped) return;
         chunks.push(data);
+        totalBytes += data.length;
 
         // Check for silence
         const db = pcmToDb(data);
@@ -303,36 +365,16 @@ export class MicRecorder {
           silenceStart = null; // reset on non-silence
         }
 
-        // Safety cap
+        // Safety caps — time and bytes
         if (Date.now() - startTime >= maxDurationMs) {
           output.warn('Max recording duration reached (60s)');
           this.stop();
         }
-      });
-
-      // Also listen for Enter key to stop
-      const onKeypress = (data: Buffer) => {
-        if (data.toString().includes('\n') || data.toString().includes('\r')) {
+        if (totalBytes > maxBytes) {
+          output.warn('Max recording size reached');
           this.stop();
-          cleanup();
         }
-      };
-
-      const setupStdin = () => {
-        if (process.stdin.isTTY) {
-          process.stdin.setRawMode(true);
-          process.stdin.resume();
-          process.stdin.on('data', onKeypress);
-        }
-      };
-
-      const cleanup = () => {
-        if (process.stdin.isTTY) {
-          process.stdin.removeListener('data', onKeypress);
-          process.stdin.setRawMode(false);
-          process.stdin.pause();
-        }
-      };
+      });
 
       setupStdin();
 
@@ -365,8 +407,9 @@ export class MicRecorder {
   stop(): void {
     this.stopped = true;
     if (this.process && !this.process.killed) {
-      this.process.kill('SIGTERM');
+      const proc = this.process;
       this.process = null;
+      proc.kill('SIGTERM');
     }
   }
 }

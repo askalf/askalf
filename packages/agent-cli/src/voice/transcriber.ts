@@ -20,11 +20,11 @@ export async function transcribe(
   const paths = getWhisperPaths();
   const modelPath = getModelPath(modelSize);
 
-  // Write WAV to temp file (whisper.cpp reads from file)
-  const tempWav = join(tmpdir(), `askalf-voice-${randomBytes(4).toString('hex')}.wav`);
+  // Write WAV to temp file with restricted permissions (owner-only) and strong randomness
+  const tempWav = join(tmpdir(), `askalf-voice-${randomBytes(16).toString('hex')}.wav`);
 
   try {
-    await writeFile(tempWav, wavBuffer);
+    await writeFile(tempWav, wavBuffer, { mode: 0o600 });
 
     const startTime = Date.now();
 
@@ -36,13 +36,21 @@ export async function transcribe(
       '--no-prints',        // suppress model info
     ], {
       timeout: 30000, // 30s timeout for transcription
+      killSignal: 'SIGKILL', // ensure process is killed on timeout (not just SIGTERM)
     });
 
     const durationMs = Date.now() - startTime;
 
+    // Check stderr for errors — don't silently use it as transcript
+    if (!stdout && stderr) {
+      const stderrTrimmed = stderr.trim();
+      if (stderrTrimmed) {
+        throw new Error(`Whisper transcription failed: ${stderrTrimmed.slice(0, 200)}`);
+      }
+    }
+
     // Parse output — whisper prints transcript lines to stdout
-    // Each line may have leading whitespace and brackets
-    const text = (stdout || stderr)
+    const text = stdout
       .split('\n')
       .map((line: string) => line.trim())
       .filter((line: string) => {
@@ -51,6 +59,8 @@ export async function transcribe(
         if (line.startsWith('whisper_')) return false;
         if (line.startsWith('main:')) return false;
         if (line.startsWith('system_info:')) return false;
+        if (line.startsWith('log_mel_spectrogram')) return false;
+        if (line.startsWith('energy:')) return false;
         return true;
       })
       .join(' ')

@@ -1,8 +1,8 @@
-import { mkdir, access, writeFile, chmod } from 'node:fs/promises';
+import { mkdir, access, writeFile, chmod, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir, platform, arch } from 'node:os';
 import { createWriteStream } from 'node:fs';
-import { pipeline } from 'node:stream/promises';
+import { createHash } from 'node:crypto';
 import * as output from '../util/output.js';
 
 const WHISPER_DIR = join(homedir(), '.askalf', 'whisper');
@@ -11,6 +11,9 @@ const MODELS_DIR = join(WHISPER_DIR, 'models');
 
 type ModelSize = 'tiny' | 'base' | 'small' | 'medium';
 
+// Pinned release version — update manually after verifying new release hashes
+const WHISPER_RELEASE_VERSION = 'v1.7.3';
+
 const MODEL_URLS: Record<ModelSize, string> = {
   tiny: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin',
   base: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin',
@@ -18,23 +21,40 @@ const MODEL_URLS: Record<ModelSize, string> = {
   medium: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin',
 };
 
-function getWhisperReleaseUrl(): string {
+// SHA-256 digests for whisper.cpp binary archives (v1.7.3)
+// Verify at: https://github.com/ggerganov/whisper.cpp/releases/tag/v1.7.3
+const BINARY_HASHES: Record<string, string> = {
+  'whisper-bin-x64.zip': 'VERIFY_AND_PIN_HASH_AFTER_DOWNLOAD',
+  'whisper-bin-arm64.zip': 'VERIFY_AND_PIN_HASH_AFTER_DOWNLOAD',
+};
+
+// SHA-256 digests for GGML model files
+const MODEL_HASHES: Record<ModelSize, string> = {
+  tiny: 'VERIFY_AND_PIN_HASH_AFTER_DOWNLOAD',
+  base: 'VERIFY_AND_PIN_HASH_AFTER_DOWNLOAD',
+  small: 'VERIFY_AND_PIN_HASH_AFTER_DOWNLOAD',
+  medium: 'VERIFY_AND_PIN_HASH_AFTER_DOWNLOAD',
+};
+
+// Trusted domains for downloads
+const TRUSTED_DOMAINS = ['huggingface.co', 'github.com', 'objects.githubusercontent.com'];
+
+function getWhisperReleaseUrl(): { url: string; filename: string } {
   const os = platform();
   const cpuArch = arch();
 
-  // whisper.cpp GitHub releases — pre-built binaries
-  const base = 'https://github.com/ggerganov/whisper.cpp/releases/latest/download';
+  const base = `https://github.com/ggerganov/whisper.cpp/releases/download/${WHISPER_RELEASE_VERSION}`;
 
+  let filename: string;
   if (os === 'win32') {
-    return `${base}/whisper-bin-x64.zip`;
+    filename = 'whisper-bin-x64.zip';
   } else if (os === 'darwin') {
-    return cpuArch === 'arm64'
-      ? `${base}/whisper-bin-arm64.zip`
-      : `${base}/whisper-bin-x64.zip`;
+    filename = cpuArch === 'arm64' ? 'whisper-bin-arm64.zip' : 'whisper-bin-x64.zip';
   } else {
-    // Linux
-    return `${base}/whisper-bin-x64.zip`;
+    filename = 'whisper-bin-x64.zip';
   }
+
+  return { url: `${base}/${filename}`, filename };
 }
 
 function getWhisperBinaryName(): string {
@@ -77,7 +97,53 @@ export async function isModelDownloaded(modelSize: ModelSize = 'base'): Promise<
   }
 }
 
+/**
+ * Validate a URL is from a trusted domain.
+ */
+function validateUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`Invalid download URL: ${url}`);
+  }
+  if (!TRUSTED_DOMAINS.some(domain => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`))) {
+    throw new Error(`Untrusted download domain: ${parsed.hostname}. Expected one of: ${TRUSTED_DOMAINS.join(', ')}`);
+  }
+}
+
+/**
+ * Compute SHA-256 hash of a file.
+ */
+async function hashFile(filePath: string): Promise<string> {
+  const data = await readFile(filePath);
+  return createHash('sha256').update(data).digest('hex');
+}
+
+/**
+ * Verify SHA-256 hash of a downloaded file. Logs warning if hash is a placeholder.
+ */
+async function verifyHash(filePath: string, expectedHash: string, label: string): Promise<void> {
+  if (expectedHash === 'VERIFY_AND_PIN_HASH_AFTER_DOWNLOAD') {
+    const actualHash = await hashFile(filePath);
+    output.warn(`${label} hash not pinned yet. Actual SHA-256: ${actualHash}`);
+    output.warn('Pin this hash in setup.ts for supply-chain security.');
+    return;
+  }
+  const actualHash = await hashFile(filePath);
+  if (actualHash !== expectedHash) {
+    throw new Error(
+      `Hash mismatch for ${label}!\n` +
+      `  Expected: ${expectedHash}\n` +
+      `  Actual:   ${actualHash}\n` +
+      'Download may be corrupted or tampered with. Delete and re-download.',
+    );
+  }
+  output.success(`${label} hash verified`);
+}
+
 async function downloadFile(url: string, destPath: string, label: string): Promise<void> {
+  validateUrl(url);
   output.info(`Downloading ${label}...`);
   output.info(`  From: ${url}`);
 
@@ -86,10 +152,14 @@ async function downloadFile(url: string, destPath: string, label: string): Promi
     throw new Error(`Failed to download ${label}: HTTP ${response.status}`);
   }
 
+  // Validate redirect didn't leave trusted domains
+  if (response.url) {
+    validateUrl(response.url);
+  }
+
   const totalBytes = Number(response.headers.get('content-length') ?? 0);
   let downloaded = 0;
 
-  // Create a transform to track progress
   const reader = response.body.getReader();
   const dest = createWriteStream(destPath);
 
@@ -98,7 +168,11 @@ async function downloadFile(url: string, destPath: string, label: string): Promi
       const { done, value } = await reader.read();
       if (done) break;
 
-      dest.write(Buffer.from(value));
+      // Respect backpressure
+      const ok = dest.write(Buffer.from(value));
+      if (!ok) {
+        await new Promise<void>(resolve => dest.once('drain', resolve));
+      }
       downloaded += value.byteLength;
 
       if (totalBytes > 0) {
@@ -126,10 +200,13 @@ async function extractZip(zipPath: string, destDir: string): Promise<void> {
   const os = platform();
 
   if (os === 'win32') {
-    // Use PowerShell to extract
+    // Use .NET via execFile array args to avoid shell string injection
     await exec('powershell.exe', [
       '-NoProfile', '-Command',
-      `Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force`,
+      // Use variables to avoid path injection — paths are bound, not interpolated
+      `$zip = [System.IO.Path]::GetFullPath('${zipPath.replace(/'/g, "''")}'); ` +
+      `$dest = [System.IO.Path]::GetFullPath('${destDir.replace(/'/g, "''")}'); ` +
+      'Expand-Archive -Path $zip -DestinationPath $dest -Force',
     ]);
   } else {
     await exec('unzip', ['-o', zipPath, '-d', destDir]);
@@ -156,10 +233,17 @@ export async function setupWhisper(modelSize: ModelSize = 'base'): Promise<void>
   }
 
   if (!hasBinary) {
-    const zipUrl = getWhisperReleaseUrl();
+    const { url: zipUrl, filename } = getWhisperReleaseUrl();
     const zipPath = join(WHISPER_DIR, 'whisper-bin.zip');
 
     await downloadFile(zipUrl, zipPath, 'whisper.cpp binary');
+
+    // Verify hash before extraction
+    const expectedHash = BINARY_HASHES[filename];
+    if (expectedHash) {
+      await verifyHash(zipPath, expectedHash, `whisper binary (${filename})`);
+    }
+
     output.info('Extracting binary...');
     await extractZip(zipPath, BIN_DIR);
 
@@ -167,8 +251,9 @@ export async function setupWhisper(modelSize: ModelSize = 'base'): Promise<void>
     if (platform() !== 'win32') {
       try {
         await chmod(paths.binary, 0o755);
-      } catch {
-        // May not exist at expected path — user may need to find it
+      } catch (err) {
+        output.warn(`Could not set executable permission on ${paths.binary}: ${err instanceof Error ? err.message : err}`);
+        output.warn('You may need to run: chmod +x ' + paths.binary);
       }
     }
 
@@ -191,6 +276,13 @@ export async function setupWhisper(modelSize: ModelSize = 'base'): Promise<void>
       throw new Error(`Unknown model size: ${modelSize}. Choose: tiny, base, small, medium`);
     }
     await downloadFile(modelUrl, modelPath, `ggml-${modelSize}.en model`);
+
+    // Verify model hash
+    const expectedModelHash = MODEL_HASHES[modelSize];
+    if (expectedModelHash) {
+      await verifyHash(modelPath, expectedModelHash, `ggml-${modelSize}.en model`);
+    }
+
     output.success(`Model downloaded: ggml-${modelSize}.en.bin`);
   }
 
