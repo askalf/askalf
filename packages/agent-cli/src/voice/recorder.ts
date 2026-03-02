@@ -1,5 +1,8 @@
-import { spawn, type ChildProcess } from 'node:child_process';
-import { platform } from 'node:os';
+import { spawn, execSync, type ChildProcess } from 'node:child_process';
+import { writeFileSync, unlinkSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir, platform } from 'node:os';
+import { randomBytes } from 'node:crypto';
 import * as output from '../util/output.js';
 
 export interface RecordingResult {
@@ -67,23 +70,159 @@ function buildWavHeader(dataLength: number, sampleRate: number): Buffer {
 }
 
 /**
+ * Check if a command exists on this system.
+ */
+function hasCommand(cmd: string): boolean {
+  try {
+    if (platform() === 'win32') {
+      execSync(`powershell.exe -NoProfile -Command "Get-Command '${cmd}' -ErrorAction Stop"`, { stdio: 'ignore' });
+    } else {
+      execSync(`which ${cmd}`, { stdio: 'ignore' });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Generate a PowerShell script that records audio using Windows waveIn API.
+ * Writes raw PCM16 mono to stdout. No external dependencies needed.
+ */
+function createWindowsRecordScript(sampleRate: number): string {
+  const scriptPath = join(tmpdir(), `askalf-record-${randomBytes(4).toString('hex')}.ps1`);
+  const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
+
+public class WaveRec {
+    [StructLayout(LayoutKind.Sequential)]
+    struct WAVEFORMATEX {
+        public ushort wFormatTag;
+        public ushort nChannels;
+        public uint nSamplesPerSec;
+        public uint nAvgBytesPerSec;
+        public ushort nBlockAlign;
+        public ushort wBitsPerSample;
+        public ushort cbSize;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct WAVEHDR {
+        public IntPtr lpData;
+        public uint dwBufferLength;
+        public uint dwBytesRecorded;
+        public IntPtr dwUser;
+        public uint dwFlags;
+        public uint dwLoops;
+        public IntPtr lpNext;
+        public IntPtr reserved;
+    }
+
+    [DllImport("winmm.dll")] static extern int waveInOpen(out IntPtr phwi, uint uDeviceID, ref WAVEFORMATEX lpFormat, IntPtr dwCallback, IntPtr dwInstance, uint fdwOpen);
+    [DllImport("winmm.dll")] static extern int waveInPrepareHeader(IntPtr hwi, ref WAVEHDR lpWaveHdr, uint uSize);
+    [DllImport("winmm.dll")] static extern int waveInUnprepareHeader(IntPtr hwi, ref WAVEHDR lpWaveHdr, uint uSize);
+    [DllImport("winmm.dll")] static extern int waveInAddBuffer(IntPtr hwi, ref WAVEHDR lpWaveHdr, uint uSize);
+    [DllImport("winmm.dll")] static extern int waveInStart(IntPtr hwi);
+    [DllImport("winmm.dll")] static extern int waveInStop(IntPtr hwi);
+    [DllImport("winmm.dll")] static extern int waveInReset(IntPtr hwi);
+    [DllImport("winmm.dll")] static extern int waveInClose(IntPtr hwi);
+
+    const uint WAVE_MAPPER = 0xFFFFFFFF;
+    const uint WHDR_DONE = 1;
+
+    public static void Record(int sampleRate) {
+        var fmt = new WAVEFORMATEX {
+            wFormatTag = 1, nChannels = 1,
+            nSamplesPerSec = (uint)sampleRate,
+            nAvgBytesPerSec = (uint)(sampleRate * 2),
+            nBlockAlign = 2, wBitsPerSample = 16, cbSize = 0
+        };
+
+        IntPtr hwi;
+        int r = waveInOpen(out hwi, WAVE_MAPPER, ref fmt, IntPtr.Zero, IntPtr.Zero, 0);
+        if (r != 0) { Console.Error.WriteLine("waveInOpen failed: " + r); return; }
+
+        // Double-buffering: 2 buffers of 0.5s each
+        int bufSize = sampleRate; // 0.5s at 16-bit mono = sampleRate bytes
+        var bufs = new byte[2][];
+        var handles = new GCHandle[2];
+        var hdrs = new WAVEHDR[2];
+
+        for (int i = 0; i < 2; i++) {
+            bufs[i] = new byte[bufSize];
+            handles[i] = GCHandle.Alloc(bufs[i], GCHandleType.Pinned);
+            hdrs[i] = new WAVEHDR {
+                lpData = handles[i].AddrOfPinnedObject(),
+                dwBufferLength = (uint)bufSize
+            };
+            waveInPrepareHeader(hwi, ref hdrs[i], (uint)Marshal.SizeOf(typeof(WAVEHDR)));
+            waveInAddBuffer(hwi, ref hdrs[i], (uint)Marshal.SizeOf(typeof(WAVEHDR)));
+        }
+
+        waveInStart(hwi);
+        var stdout = Console.OpenStandardOutput();
+        int maxChunks = 120; // 60s at 0.5s per chunk
+
+        for (int c = 0; c < maxChunks; c++) {
+            int idx = c % 2;
+            // Wait for buffer to be filled
+            while ((hdrs[idx].dwFlags & WHDR_DONE) == 0) Thread.Sleep(10);
+
+            int recorded = (int)hdrs[idx].dwBytesRecorded;
+            if (recorded > 0) {
+                stdout.Write(bufs[idx], 0, recorded);
+                stdout.Flush();
+            }
+
+            // Re-queue buffer
+            hdrs[idx].dwFlags = 0;
+            hdrs[idx].dwBytesRecorded = 0;
+            waveInAddBuffer(hwi, ref hdrs[idx], (uint)Marshal.SizeOf(typeof(WAVEHDR)));
+        }
+
+        waveInStop(hwi);
+        waveInReset(hwi);
+        for (int i = 0; i < 2; i++) {
+            waveInUnprepareHeader(hwi, ref hdrs[i], (uint)Marshal.SizeOf(typeof(WAVEHDR)));
+            handles[i].Free();
+        }
+        waveInClose(hwi);
+    }
+}
+'@
+[WaveRec]::Record(${sampleRate})
+`;
+  writeFileSync(scriptPath, script, 'utf-8');
+  return scriptPath;
+}
+
+/**
  * Get the microphone recording command for the current platform.
  * Returns [command, args] that outputs raw PCM16 mono to stdout.
+ * On Windows, uses native waveIn API via PowerShell (no SoX needed).
  */
 function getMicCommand(sampleRate: number): [string, string[]] {
   const os = platform();
 
   if (os === 'win32') {
-    // SoX (sox / rec) on Windows
-    return ['sox', [
-      '-d',                    // default input device
-      '-t', 'raw',            // raw output
-      '-r', String(sampleRate),
-      '-e', 'signed-integer',
-      '-b', '16',             // 16-bit
-      '-c', '1',              // mono
-      '-',                    // stdout
-    ]];
+    // Prefer ffmpeg if available, else sox, else native PowerShell waveIn
+    if (hasCommand('ffmpeg')) {
+      return ['ffmpeg', [
+        '-f', 'dshow', '-i', 'audio=@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\\wave:{00000000-0000-0000-0000-000000000000}',
+        '-ar', String(sampleRate), '-ac', '1', '-f', 's16le', '-acodec', 'pcm_s16le', 'pipe:1',
+      ]];
+    }
+    if (hasCommand('sox')) {
+      return ['sox', ['-d', '-t', 'raw', '-r', String(sampleRate), '-e', 'signed-integer', '-b', '16', '-c', '1', '-']];
+    }
+    // Native Windows: PowerShell + winmm.dll waveIn API
+    const scriptPath = createWindowsRecordScript(sampleRate);
+    return ['powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath]];
   } else if (os === 'darwin') {
     // SoX on macOS
     return ['rec', [
@@ -138,9 +277,9 @@ export class MicRecorder {
           const hint = platform() === 'darwin'
             ? 'Install SoX: brew install sox'
             : platform() === 'win32'
-              ? 'Install SoX: download from https://sox.sourceforge.net/'
+              ? 'PowerShell failed to start. Ensure PowerShell is available.'
               : 'arecord should be pre-installed (ALSA). Try: sudo apt install alsa-utils';
-          reject(new Error(`Microphone capture tool not found (${cmd}). ${hint}`));
+          reject(new Error(`Microphone capture failed (${cmd}). ${hint}`));
         } else {
           reject(err);
         }
@@ -199,6 +338,13 @@ export class MicRecorder {
 
       this.process.on('close', () => {
         cleanup();
+        // Clean up temp PowerShell script if used
+        if (cmd === 'powershell.exe' && args.includes('-File')) {
+          const scriptIdx = args.indexOf('-File');
+          if (scriptIdx >= 0 && args[scriptIdx + 1]) {
+            try { unlinkSync(args[scriptIdx + 1]!); } catch { /* ignore */ }
+          }
+        }
         const pcmData = Buffer.concat(chunks);
         const durationMs = Date.now() - startTime;
 

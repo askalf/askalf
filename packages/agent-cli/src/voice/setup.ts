@@ -38,15 +38,17 @@ function getWhisperReleaseUrl(): string {
 }
 
 function getWhisperBinaryName(): string {
-  return platform() === 'win32' ? 'main.exe' : 'main';
+  return platform() === 'win32' ? 'whisper-cli.exe' : 'whisper-cli';
 }
 
 export function getWhisperPaths() {
   const modelSize = 'base'; // default
+  // whisper.cpp zip extracts into a Release/ subfolder on Windows
+  const binSubdir = platform() === 'win32' ? join(BIN_DIR, 'Release') : BIN_DIR;
   return {
     binDir: BIN_DIR,
     modelsDir: MODELS_DIR,
-    binary: join(BIN_DIR, getWhisperBinaryName()),
+    binary: join(binSubdir, getWhisperBinaryName()),
     model: join(MODELS_DIR, `ggml-${modelSize}.en.bin`),
   };
 }
