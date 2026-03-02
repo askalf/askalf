@@ -49,7 +49,9 @@ RUN rm -rf /app/deploy/client && \
 RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
     mkdir -p /app/deploy/public && \
     cp -r /app/apps/dashboard/public/app /app/deploy/public/app && \
-    cp /app/apps/dashboard/public/docs.html /app/deploy/public/docs.html
+    cp /app/apps/dashboard/public/docs.html /app/deploy/public/docs.html && \
+    cp -f /app/apps/dashboard/client/public/*.gif /app/deploy/public/app/ 2>/dev/null || true && \
+    cp -f /app/apps/dashboard/client/public/*.png /app/deploy/public/app/ 2>/dev/null || true
 
 # Claude Code CLI stage - install in isolation, extract only the binary
 FROM node:22-alpine AS claude-installer
