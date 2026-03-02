@@ -8,6 +8,7 @@ import chalk from 'chalk';
 import * as output from './util/output.js';
 import type { AgentConfig } from './util/config.js';
 import { VoiceInput } from './voice/index.js';
+import { GUARDRAIL_PROMPT } from './util/guardrails.js';
 
 interface RunResult {
   text: string;
@@ -293,6 +294,7 @@ docker ps
 - Reading text that only exists in a rendered application (not in files)
 
 You are NOT limited to software engineering. Help the user with ANY computer task.
+${GUARDRAIL_PROMPT}
 ${sessionContext}`;
 
     const args = [
