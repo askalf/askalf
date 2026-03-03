@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePolling } from '../../hooks/usePolling';
-import { hubApi } from '../../hooks/useHubApi';
+import { hubApi, deviceApi } from '../../hooks/useHubApi';
 import { useToast } from '../../components/Toast';
 import type {
   Agent,
@@ -10,6 +10,7 @@ import type {
   AgentPerformanceEntry,
   CostSummary,
   DailyCost,
+  DeviceSummary,
 } from '../../hooks/useHubApi';
 import './FleetTab.css';
 
@@ -84,6 +85,7 @@ function ClusterOverview({
   schedulerStatus,
   onToggleScheduler,
   actionLoading,
+  deviceSummary,
 }: {
   agents: Agent[];
   costSummary: CostSummary | null;
@@ -91,6 +93,7 @@ function ClusterOverview({
   schedulerStatus: SchedulerStatus | null;
   onToggleScheduler: () => void;
   actionLoading: Record<string, boolean>;
+  deviceSummary: DeviceSummary | null;
 }) {
   const active = agents.filter((a) => !a.is_decommissioned);
   const running = active.filter((a) => a.status === 'running').length;
@@ -119,6 +122,17 @@ function ClusterOverview({
           <span>${todayCost.toFixed(2)} today</span>
           <span>${weekCost.toFixed(2)} 7d</span>
         </div>
+        {deviceSummary && deviceSummary.total > 0 && (
+          <div className="fleet-device-summary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ verticalAlign: 'middle', marginRight: 4 }}>
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <path d="M8 21h8M12 17v4" />
+            </svg>
+            <span style={{ color: '#4ade80' }}>{deviceSummary.online} online</span>
+            {deviceSummary.busy > 0 && <span style={{ color: '#facc15' }}>{deviceSummary.busy} busy</span>}
+            <span style={{ color: '#9ca3af' }}>{deviceSummary.offline} offline</span>
+          </div>
+        )}
       </div>
       <div className="fleet-cluster-right">
         <button
@@ -706,6 +720,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   const [sortColumn, setSortColumn] = useState<SortColumn>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [liveLogEntries, setLiveLogEntries] = useState<LiveLogEntry[]>([]);
+  const [deviceSummary, setDeviceSummary] = useState<DeviceSummary | null>(null);
   // Performance map by agent ID
   const perfMap = new Map<string, AgentPerformanceEntry>();
   performance?.agents.forEach((a) => perfMap.set(a.agentId, a));
@@ -713,15 +728,17 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   // Polling: agents + scheduler + costs every 15s
   const pollCallback = useCallback(async () => {
     try {
-      const [agentsRes, schedRes, costRes] = await Promise.all([
+      const [agentsRes, schedRes, costRes, devRes] = await Promise.all([
         hubApi.agents.list(),
         hubApi.reports.scheduler(),
         hubApi.costs.summary({ days: 7 }),
+        deviceApi.summary().catch(() => null),
       ]);
       setAgents(agentsRes.agents);
       setSchedulerStatus(schedRes);
       setCostSummary(costRes.summary);
       setDailyCosts(costRes.dailyCosts || []);
+      if (devRes) setDeviceSummary(devRes);
     } catch {
       addToast('Failed to refresh fleet data', 'error');
     }
@@ -870,6 +887,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
         schedulerStatus={schedulerStatus}
         onToggleScheduler={handleToggleScheduler}
         actionLoading={actionLoading}
+        deviceSummary={deviceSummary}
       />
 
       <div className="fleet-toolbar">

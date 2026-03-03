@@ -44,6 +44,7 @@ import { intentRoutes } from './routes/intent.js';
 import { conversationRoutes } from './routes/conversations.js';
 import { channelRoutes } from './routes/channels.js';
 import { userBudgetRoutes } from './routes/user-budget.js';
+import { deviceRoutes } from './routes/devices.js';
 import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
@@ -348,6 +349,7 @@ await intentRoutes(app);
 await conversationRoutes(app);
 await channelRoutes(app);
 await userBudgetRoutes(app);
+await deviceRoutes(app);
 await registerMCPRoutes(app);
 await registerAgentBridge(app);
 
