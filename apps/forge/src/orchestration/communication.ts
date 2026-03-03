@@ -4,6 +4,8 @@
  */
 
 import { Redis } from 'ioredis';
+import { query } from '../database.js';
+import { ulid } from 'ulid';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -81,13 +83,15 @@ export class AgentCommunication {
 
   /**
    * Convenience: send a message from one agent to another.
+   * Now also persists to forge_agent_messages for durability.
    */
   async sendToAgent(
     fromAgentId: string,
     toAgentId: string,
     type: string,
     payload: unknown,
-  ): Promise<void> {
+    opts?: { inReplyTo?: string },
+  ): Promise<string> {
     const message: AgentMessage = {
       from: fromAgentId,
       to: toAgentId,
@@ -95,7 +99,60 @@ export class AgentCommunication {
       payload,
       timestamp: new Date().toISOString(),
     };
+
+    // Persist to DB for durability
+    const msgId = ulid();
+    const content = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    await query(
+      `INSERT INTO forge_agent_messages (id, from_agent_id, to_agent_id, message_type, content, in_reply_to)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [msgId, fromAgentId, toAgentId, type, content, opts?.inReplyTo ?? null],
+    ).catch((err) => {
+      // Don't fail if table doesn't exist yet (pre-migration)
+      console.warn('[AgentCommunication] Failed to persist message:', err instanceof Error ? err.message : err);
+    });
+
+    // Also publish via Redis for real-time delivery
     await this.publish(agentChannel(toAgentId), message);
+
+    // Update relationship interaction count
+    await query(
+      `UPDATE forge_agent_relationships SET interaction_count = interaction_count + 1, last_interaction = NOW()
+       WHERE (agent_a_id = $1 AND agent_b_id = $2) OR (agent_a_id = $2 AND agent_b_id = $1)`,
+      [fromAgentId, toAgentId],
+    ).catch(() => {});
+
+    return msgId;
+  }
+
+  /**
+   * Get unread messages for an agent from the database.
+   */
+  async getUnreadMessages(agentId: string, limit = 10): Promise<Array<{
+    id: string; from_agent_id: string; message_type: string; content: string;
+    in_reply_to: string | null; created_at: string;
+  }>> {
+    return query<{
+      id: string; from_agent_id: string; message_type: string; content: string;
+      in_reply_to: string | null; created_at: string;
+    }>(
+      `SELECT id, from_agent_id, message_type, content, in_reply_to, created_at
+       FROM forge_agent_messages
+       WHERE to_agent_id = $1 AND read_at IS NULL
+       ORDER BY created_at ASC LIMIT $2`,
+      [agentId, limit],
+    ).catch(() => []);
+  }
+
+  /**
+   * Mark messages as read.
+   */
+  async markRead(messageIds: string[]): Promise<void> {
+    if (messageIds.length === 0) return;
+    await query(
+      `UPDATE forge_agent_messages SET read_at = NOW() WHERE id = ANY($1)`,
+      [messageIds],
+    ).catch(() => {});
   }
 
   // -----------------------------------------------------------------------

@@ -45,6 +45,9 @@ import { conversationRoutes } from './routes/conversations.js';
 import { channelRoutes } from './routes/channels.js';
 import { userBudgetRoutes } from './routes/user-budget.js';
 import { deviceRoutes } from './routes/devices.js';
+import { daemonRoutes } from './routes/daemons.js';
+import { triggerRoutes } from './routes/triggers.js';
+import { economyRoutes } from './routes/economy.js';
 import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
@@ -61,6 +64,8 @@ import { startEventLogger } from './orchestration/event-log.js';
 import { startReactiveTriggers } from './orchestration/reactive-triggers.js';
 import { startAutonomyLoop } from './orchestration/autonomy-loop.js';
 import { initAgentCommunication, closeAgentCommunication } from './orchestration/communication.js';
+import { initDaemonManager, getDaemonManager } from './runtime/daemon-manager.js';
+import { initTriggerEngine, getTriggerEngine } from './runtime/trigger-engine.js';
 import { Redis } from 'ioredis';
 import { ulid } from 'ulid';
 
@@ -350,6 +355,9 @@ await conversationRoutes(app);
 await channelRoutes(app);
 await userBudgetRoutes(app);
 await deviceRoutes(app);
+await daemonRoutes(app);
+await triggerRoutes(app);
+await economyRoutes(app);
 await registerMCPRoutes(app);
 await registerAgentBridge(app);
 
@@ -391,6 +399,20 @@ async function start(): Promise<void> {
     initAgentCommunication(config.redisUrl);
 
     console.log('[Forge] Event bus + shared context + agent communication initialized');
+
+    // Initialize daemon manager (persistent agent processes)
+    const daemonManager = initDaemonManager();
+    await daemonManager.initialize().catch((err) => {
+      console.warn('[DaemonManager] Initialization error:', err instanceof Error ? err.message : err);
+    });
+    console.log('[Forge] Daemon manager initialized');
+
+    // Initialize trigger engine (event-driven agent activation)
+    const triggerEngine = initTriggerEngine();
+    await triggerEngine.start().catch((err) => {
+      console.warn('[TriggerEngine] Start error:', err instanceof Error ? err.message : err);
+    });
+    console.log('[Forge] Trigger engine started');
 
     // Start channel integration handlers
     const { startChannelResultHandler } = await import('./channels/result-handler.js');
@@ -687,6 +709,16 @@ async function shutdown(signal: string): Promise<void> {
 
     await app.close();
     console.log('[Forge] Server closed');
+
+    // Stop daemon manager and trigger engine
+    const triggerEng = getTriggerEngine();
+    if (triggerEng) {
+      await triggerEng.stop().catch((err: unknown) => console.warn('[Forge] TriggerEngine stop error:', err));
+    }
+    const daemonMgr = getDaemonManager();
+    if (daemonMgr) {
+      await daemonMgr.shutdown().catch((err: unknown) => console.warn('[Forge] DaemonManager shutdown error:', err));
+    }
 
     stopAgentBridge();
     await stopTaskDispatcher().catch(() => {});
