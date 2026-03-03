@@ -73,6 +73,7 @@ import { messaging } from '../tools/built-in/messaging.js';
 import { budgetCheck } from '../tools/built-in/budget-check.js';
 import { proposalOps } from '../tools/built-in/proposal-ops.js';
 import { webSearch } from '../tools/built-in/web-search.js';
+import { economyOps } from '../tools/built-in/economy-ops.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
 import {
@@ -955,6 +956,36 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['action'],
     },
     execute: (input) => goalOps(input as unknown as Parameters<typeof goalOps>[0]),
+  });
+
+  reg.register({
+    name: 'economy_ops',
+    displayName: 'Economy Ops',
+    description: 'Manage agent economy: check wallet balance, post bounties for other agents, bid on open bounties, transfer credits, view marketplace, check reputation and transaction history.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['balance', 'post_bounty', 'assign_bounty', 'complete_bounty', 'fail_bounty', 'marketplace', 'transfer', 'reputation', 'transactions'],
+          description: 'balance: check wallet. post_bounty: create a bounty. assign_bounty: bid on bounty. complete_bounty/fail_bounty: finalize. marketplace: list open bounties. transfer: send credits. reputation: view scores. transactions: history.',
+        },
+        title: { type: 'string', description: 'Bounty title (for post_bounty)' },
+        description: { type: 'string', description: 'Bounty description (for post_bounty)' },
+        reward_amount: { type: 'number', description: 'Reward amount in credits (for post_bounty)' },
+        required_capabilities: { type: 'array', items: { type: 'string' }, description: 'Required capabilities (for post_bounty)' },
+        bounty_id: { type: 'string', description: 'Bounty ID (for assign/complete/fail)' },
+        quality_score: { type: 'number', description: 'Quality score 0-1 (for complete_bounty)' },
+        to_agent_id: { type: 'string', description: 'Recipient agent ID (for transfer)' },
+        amount: { type: 'number', description: 'Transfer amount (for transfer)' },
+        status_filter: { type: 'string', description: 'Filter bounties by status (for marketplace)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => economyOps(input as unknown as Parameters<typeof economyOps>[0]),
   });
 
   reg.register({
