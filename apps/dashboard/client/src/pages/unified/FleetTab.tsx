@@ -1,47 +1,21 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePolling } from '../../hooks/usePolling';
-import { hubApi, deviceApi } from '../../hooks/useHubApi';
+import { hubApi } from '../../hooks/useHubApi';
 import { useToast } from '../../components/Toast';
 import type {
   Agent,
   AgentDetail,
-  SchedulerStatus,
   AgentPerformanceReport,
-  AgentPerformanceEntry,
-  CostSummary,
-  DailyCost,
-  DeviceSummary,
 } from '../../hooks/useHubApi';
 import './FleetTab.css';
 
 // ── Types ──
 
-type Namespace = 'All' | 'Security' | 'Backend' | 'Frontend' | 'DevOps' | 'QA' | 'Monitor' | 'Custom';
-type ViewMode = 'grid' | 'list';
-type DetailTab = 'overview' | 'logs' | 'events' | 'yaml' | 'exec';
-type SortColumn = 'name' | 'status' | 'tasks' | 'age' | 'model' | 'cost';
+type DetailTab = 'overview' | 'logs' | 'exec';
+type SortColumn = 'name' | 'status' | 'tasks' | 'age';
 type SortDir = 'asc' | 'desc';
 
-const NAMESPACES: Namespace[] = ['All', 'Security', 'Backend', 'Frontend', 'DevOps', 'QA', 'Monitor', 'Custom'];
-
 // ── Helpers ──
-
-function classifyNamespace(agent: Agent): Namespace {
-  const n = agent.name.toLowerCase();
-  if (n.includes('aegis') || n.includes('security')) return 'Security';
-  if (n.includes('frontend') || n.includes('ui')) return 'Frontend';
-  if (n.includes('backend') || n.includes('dev')) return 'Backend';
-  if (n.includes('devops') || n.includes('ops') || n.includes('infra')) return 'DevOps';
-  if (n.includes('qa') || n.includes('test')) return 'QA';
-  if (agent.type === 'monitor') return 'Monitor';
-  return 'Custom';
-}
-
-function shortName(name: string): string {
-  const words = name.split(/[\s_-]+/);
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-}
 
 function relativeTime(dateStr: string | null): string {
   if (!dateStr) return 'never';
@@ -55,219 +29,15 @@ function relativeTime(dateStr: string | null): string {
   return `${days}d ago`;
 }
 
-function gaugeColor(pct: number): string {
-  if (pct < 60) return 'green';
-  if (pct < 85) return 'yellow';
-  return 'red';
-}
-
-function getModelFromConfig(agent: Agent): string {
-  const cfg = agent.config as Record<string, unknown>;
-  return (cfg?.model_id as string) || (cfg?.model as string) || 'default';
-}
-
-function getCostLimit(agent: Agent): number {
-  const cfg = agent.config as Record<string, unknown>;
-  return (cfg?.cost_limit as number) || (cfg?.max_cost as number) || 5;
-}
-
 function getTools(agent: Agent): string[] {
   const cfg = agent.config as Record<string, unknown>;
   return (cfg?.tools as string[]) || (cfg?.enabled_tools as string[]) || [];
 }
 
-// ── Sub-components ──
+// ── Agent List ──
 
-function ClusterOverview({
+function AgentList({
   agents,
-  costSummary,
-  dailyCosts,
-  schedulerStatus,
-  onToggleScheduler,
-  actionLoading,
-  deviceSummary,
-}: {
-  agents: Agent[];
-  costSummary: CostSummary | null;
-  dailyCosts: DailyCost[];
-  schedulerStatus: SchedulerStatus | null;
-  onToggleScheduler: () => void;
-  actionLoading: Record<string, boolean>;
-  deviceSummary: DeviceSummary | null;
-}) {
-  const active = agents.filter((a) => !a.is_decommissioned);
-  const running = active.filter((a) => a.status === 'running').length;
-  const idle = active.filter((a) => a.status === 'idle').length;
-  const paused = active.filter((a) => a.status === 'paused').length;
-  const errored = active.filter((a) => a.status === 'error').length;
-
-  const health = errored > 0 ? 'unhealthy' : running > 0 ? 'healthy' : 'degraded';
-  const healthLabel = errored > 0 ? 'Degraded' : 'Healthy';
-
-  const todayCost = costSummary?.total?.totalCost ?? 0;
-  const weekCost = dailyCosts.reduce((s, d) => s + d.totalCost, 0);
-
-  return (
-    <div className="fleet-cluster-bar">
-      <div className="fleet-cluster-left">
-        <span className={`fleet-health-dot ${health}`} />
-        <span className="fleet-health-label">{healthLabel}</span>
-        <div className="fleet-pod-counts">
-          <span style={{ color: '#4ade80' }}>{running} Running</span>
-          <span>{idle} Idle</span>
-          <span style={{ color: '#facc15' }}>{paused} Paused</span>
-          <span style={{ color: '#f87171' }}>{errored} Error</span>
-        </div>
-        <div className="fleet-cost-summary">
-          <span>${todayCost.toFixed(2)} today</span>
-          <span>${weekCost.toFixed(2)} 7d</span>
-        </div>
-        {deviceSummary && deviceSummary.total > 0 && (
-          <div className="fleet-device-summary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ verticalAlign: 'middle', marginRight: 4 }}>
-              <rect x="2" y="3" width="20" height="14" rx="2" />
-              <path d="M8 21h8M12 17v4" />
-            </svg>
-            <span style={{ color: '#4ade80' }}>{deviceSummary.online} online</span>
-            {deviceSummary.busy > 0 && <span style={{ color: '#facc15' }}>{deviceSummary.busy} busy</span>}
-            <span style={{ color: '#9ca3af' }}>{deviceSummary.offline} offline</span>
-          </div>
-        )}
-      </div>
-      <div className="fleet-cluster-right">
-        <button
-          className={`fleet-btn ${schedulerStatus?.running ? 'active' : ''}`}
-          onClick={onToggleScheduler}
-          disabled={actionLoading['scheduler']}
-        >
-          {schedulerStatus?.running ? '⏸ Scheduler' : '▶ Scheduler'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function NamespaceSelector({
-  agents,
-  namespace,
-  onSelect,
-}: {
-  agents: Agent[];
-  namespace: Namespace;
-  onSelect: (ns: Namespace) => void;
-}) {
-  const active = agents.filter((a) => !a.is_decommissioned);
-  const counts: Record<Namespace, number> = {
-    All: active.length,
-    Security: 0, Backend: 0, Frontend: 0, DevOps: 0, QA: 0, Monitor: 0, Custom: 0,
-  };
-  active.forEach((a) => { counts[classifyNamespace(a)]++; });
-
-  return (
-    <div className="fleet-namespaces">
-      {NAMESPACES.map((ns) => (
-        <button
-          key={ns}
-          className={`fleet-ns-pill ${namespace === ns ? 'active' : ''}`}
-          onClick={() => onSelect(ns)}
-        >
-          {ns}
-          <span className="fleet-ns-count">{counts[ns]}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function PodCard({
-  agent,
-  perf,
-  selected,
-  onClick,
-  onRun,
-  onPause,
-  onStop,
-  actionLoading,
-}: {
-  agent: Agent;
-  perf: AgentPerformanceEntry | undefined;
-  selected: boolean;
-  onClick: () => void;
-  onRun: () => void;
-  onPause: () => void;
-  onStop: () => void;
-  actionLoading: boolean;
-}) {
-  const costLimit = getCostLimit(agent);
-  const agentCost = perf?.totalCost ?? 0;
-  const costPct = costLimit > 0 ? Math.min((agentCost / costLimit) * 100, 100) : 0;
-  const total = agent.tasks_completed + agent.tasks_failed;
-  const taskPct = total > 0 ? (agent.tasks_completed / total) * 100 : 0;
-  const model = getModelFromConfig(agent);
-
-  return (
-    <div className={`fleet-card ${selected ? 'selected' : ''}`} onClick={onClick}>
-      <div className="fleet-card-header">
-        <div className="fleet-card-abbr">{shortName(agent.name)}</div>
-        <div className="fleet-card-title">
-          <span className="fleet-card-name">{agent.name}</span>
-          <span className="fleet-card-type">{agent.type}</span>
-        </div>
-        <span className={`fleet-status ${agent.status}`}>
-          <span className="fleet-status-dot" />
-          {agent.status}
-        </span>
-      </div>
-
-      <div className="fleet-gauge">
-        <div className="fleet-gauge-label">
-          <span>Cost</span>
-          <span>${agentCost.toFixed(2)} / ${costLimit.toFixed(2)}</span>
-        </div>
-        <div className="fleet-gauge-bar">
-          <div
-            className={`fleet-gauge-fill ${gaugeColor(costPct)}`}
-            style={{ width: `${costPct}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="fleet-gauge">
-        <div className="fleet-gauge-label">
-          <span>Tasks</span>
-          <span>{agent.tasks_completed} done / {agent.tasks_failed} fail</span>
-        </div>
-        <div className="fleet-gauge-bar">
-          <div
-            className={`fleet-gauge-fill ${gaugeColor(100 - taskPct)}`}
-            style={{ width: `${taskPct}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="fleet-card-meta">
-        <span className="fleet-card-model">{model}</span>
-        <span className="fleet-card-age">{relativeTime(agent.last_run_at)}</span>
-      </div>
-
-      <div className="fleet-card-actions" onClick={(e) => e.stopPropagation()}>
-        <button className="fleet-btn primary" onClick={onRun} disabled={actionLoading || agent.status === 'running'}>
-          ▶
-        </button>
-        <button className="fleet-btn" onClick={onPause} disabled={actionLoading || agent.status === 'paused'}>
-          ⏸
-        </button>
-        <button className="fleet-btn danger" onClick={onStop} disabled={actionLoading || agent.status !== 'running'}>
-          ⏹
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PodList({
-  agents,
-  perfMap,
   selectedId,
   sortColumn,
   sortDir,
@@ -275,7 +45,6 @@ function PodList({
   onSelect,
 }: {
   agents: Agent[];
-  perfMap: Map<string, AgentPerformanceEntry>;
   selectedId: string | null;
   sortColumn: SortColumn;
   sortDir: SortDir;
@@ -289,13 +58,6 @@ function PodList({
       case 'status': cmp = a.status.localeCompare(b.status); break;
       case 'tasks': cmp = (a.tasks_completed + a.tasks_failed) - (b.tasks_completed + b.tasks_failed); break;
       case 'age': cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); break;
-      case 'model': cmp = getModelFromConfig(a).localeCompare(getModelFromConfig(b)); break;
-      case 'cost': {
-        const ca = perfMap.get(a.id)?.totalCost ?? 0;
-        const cb = perfMap.get(b.id)?.totalCost ?? 0;
-        cmp = ca - cb;
-        break;
-      }
     }
     return sortDir === 'asc' ? cmp : -cmp;
   });
@@ -304,9 +66,7 @@ function PodList({
     { key: 'name', label: 'NAME' },
     { key: 'status', label: 'STATUS' },
     { key: 'tasks', label: 'TASKS' },
-    { key: 'age', label: 'AGE' },
-    { key: 'model', label: 'MODEL' },
-    { key: 'cost', label: 'COST/LIMIT' },
+    { key: 'age', label: 'LAST RUN' },
   ];
 
   return (
@@ -322,42 +82,37 @@ function PodList({
               >
                 {c.label}
                 {sortColumn === c.key && (
-                  <span className="fleet-sort-arrow">{sortDir === 'asc' ? '▲' : '▼'}</span>
+                  <span className="fleet-sort-arrow">{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>
                 )}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {sorted.map((agent) => {
-            const perf = perfMap.get(agent.id);
-            const cost = perf?.totalCost ?? 0;
-            const limit = getCostLimit(agent);
-            return (
-              <tr
-                key={agent.id}
-                className={selectedId === agent.id ? 'selected' : ''}
-                onClick={() => onSelect(agent.id)}
-              >
-                <td>{agent.name}</td>
-                <td>
-                  <span className={`fleet-status ${agent.status}`}>
-                    <span className="fleet-status-dot" />
-                    {agent.status}
-                  </span>
-                </td>
-                <td>{agent.tasks_completed}/{agent.tasks_completed + agent.tasks_failed}</td>
-                <td>{relativeTime(agent.created_at)}</td>
-                <td>{getModelFromConfig(agent)}</td>
-                <td>${cost.toFixed(2)}/${limit.toFixed(2)}</td>
-              </tr>
-            );
-          })}
+          {sorted.map((agent) => (
+            <tr
+              key={agent.id}
+              className={selectedId === agent.id ? 'selected' : ''}
+              onClick={() => onSelect(agent.id)}
+            >
+              <td>{agent.name}</td>
+              <td>
+                <span className={`fleet-status ${agent.status}`}>
+                  <span className="fleet-status-dot" />
+                  {agent.status}
+                </span>
+              </td>
+              <td>{agent.tasks_completed}/{agent.tasks_completed + agent.tasks_failed}</td>
+              <td>{relativeTime(agent.last_run_at)}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
   );
 }
+
+// ── Agent Detail Panel ──
 
 interface LiveLogEntry {
   id: string;
@@ -366,10 +121,9 @@ interface LiveLogEntry {
   message: string;
 }
 
-function PodDetail({
+function AgentDetailPanel({
   detail,
   agent,
-  perf,
   tab,
   onTabChange,
   onClose,
@@ -381,7 +135,6 @@ function PodDetail({
 }: {
   detail: AgentDetail | null;
   agent: Agent;
-  perf: AgentPerformanceEntry | undefined;
   tab: DetailTab;
   onTabChange: (t: DetailTab) => void;
   onClose: () => void;
@@ -392,25 +145,13 @@ function PodDetail({
   liveLogEntries: LiveLogEntry[];
 }) {
   const [execPrompt, setExecPrompt] = useState('');
-  const [editingCost, setEditingCost] = useState(false);
-  const [costInput, setCostInput] = useState('');
-  const [costSaving, setCostSaving] = useState(false);
+  const tools = getTools(agent);
 
   const tabs: { key: DetailTab; label: string }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'logs', label: 'Logs' },
-    { key: 'events', label: 'Events' },
-    { key: 'yaml', label: 'YAML' },
     { key: 'exec', label: 'Exec' },
   ];
-
-  const model = getModelFromConfig(agent);
-  const tools = getTools(agent);
-  const costLimit = getCostLimit(agent);
-  const agentCost = perf?.totalCost ?? 0;
-
-  // Build YAML-like display
-  const yamlContent = buildYaml(agent, perf);
 
   return (
     <div className="fleet-detail">
@@ -445,81 +186,8 @@ function PodDetail({
               <span className="fleet-overview-value">{agent.type}</span>
             </div>
             <div className="fleet-overview-row">
-              <span className="fleet-overview-label">Model</span>
-              <span className="fleet-overview-value">{model}</span>
-            </div>
-            <div className="fleet-overview-row">
               <span className="fleet-overview-label">Autonomy</span>
-              <span className="fleet-overview-value">
-                <span className="fleet-autonomy-bar">
-                  {Array.from({ length: 10 }, (_, i) => (
-                    <span
-                      key={i}
-                      className={`fleet-autonomy-seg ${i < agent.autonomy_level ? 'filled' : ''}`}
-                    />
-                  ))}
-                  <span style={{ marginLeft: 6, fontSize: 11 }}>{agent.autonomy_level}/10</span>
-                </span>
-              </span>
-            </div>
-            <div className="fleet-overview-row">
-              <span className="fleet-overview-label">Cost Limit</span>
-              <span className="fleet-overview-value">
-                {editingCost ? (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span>$</span>
-                    <input
-                      type="number"
-                      value={costInput}
-                      onChange={(e) => setCostInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          const val = parseFloat(costInput);
-                          if (!isNaN(val) && val >= 0) {
-                            setCostSaving(true);
-                            hubApi.agents.updateSettings(agent.id, { max_cost_per_execution: val })
-                              .then(() => { setEditingCost(false); })
-                              .catch(() => {})
-                              .finally(() => setCostSaving(false));
-                          }
-                        }
-                        if (e.key === 'Escape') setEditingCost(false);
-                      }}
-                      style={{ width: 60, fontSize: 12, padding: '1px 4px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text)' }}
-                      autoFocus
-                      min="0"
-                      step="0.5"
-                    />
-                    <button
-                      onClick={() => {
-                        const val = parseFloat(costInput);
-                        if (!isNaN(val) && val >= 0) {
-                          setCostSaving(true);
-                          hubApi.agents.updateSettings(agent.id, { max_cost_per_execution: val })
-                            .then(() => { setEditingCost(false); })
-                            .catch(() => {})
-                            .finally(() => setCostSaving(false));
-                        }
-                      }}
-                      disabled={costSaving}
-                      style={{ fontSize: 11, padding: '1px 6px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text)', cursor: 'pointer' }}
-                    >{costSaving ? '...' : 'Save'}</button>
-                    <button
-                      onClick={() => setEditingCost(false)}
-                      style={{ fontSize: 11, padding: '1px 6px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                    >Cancel</button>
-                  </span>
-                ) : (
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    ${agentCost.toFixed(2)} / ${costLimit.toFixed(2)}
-                    <button
-                      onClick={() => { setCostInput(costLimit.toFixed(2)); setEditingCost(true); }}
-                      style={{ fontSize: 10, padding: '0 4px', background: 'none', border: '1px solid var(--border)', borderRadius: 3, color: 'var(--text-muted)', cursor: 'pointer' }}
-                      title="Edit cost limit"
-                    >Edit</button>
-                  </span>
-                )}
-              </span>
+              <span className="fleet-overview-value">{agent.autonomy_level}/5</span>
             </div>
             <div className="fleet-overview-row">
               <span className="fleet-overview-label">Schedule</span>
@@ -583,28 +251,6 @@ function PodDetail({
           </div>
         )}
 
-        {tab === 'events' && (
-          <div className="fleet-events">
-            {detail?.tasks && detail.tasks.length > 0 ? (
-              detail.tasks.slice(0, 50).map((task) => (
-                <div key={task.id} className="fleet-event">
-                  <span className={`fleet-event-dot ${task.status}`} />
-                  <div className="fleet-event-content">
-                    <span className="fleet-event-type">{task.type} — {task.status}</span>
-                    <span className="fleet-event-time">{relativeTime(task.started_at)}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="fleet-empty">No events</div>
-            )}
-          </div>
-        )}
-
-        {tab === 'yaml' && (
-          <div className="fleet-yaml" dangerouslySetInnerHTML={{ __html: yamlContent }} />
-        )}
-
         {tab === 'exec' && (
           <div className="fleet-exec">
             <textarea
@@ -618,7 +264,7 @@ function PodDetail({
                 disabled={actionLoading}
                 onClick={() => { onRun(execPrompt || undefined); setExecPrompt(''); }}
               >
-                {actionLoading ? 'Running...' : '▶ Run'}
+                {actionLoading ? 'Running...' : 'Run'}
               </button>
             </div>
           </div>
@@ -640,57 +286,6 @@ function PodDetail({
   );
 }
 
-function buildYaml(agent: Agent, perf: AgentPerformanceEntry | undefined): string {
-  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-  const k = (s: string) => `<span class="fleet-yaml-key">${esc(s)}</span>`;
-  const str = (s: string) => `<span class="fleet-yaml-string">"${esc(s)}"</span>`;
-  const num = (n: number) => `<span class="fleet-yaml-number">${n}</span>`;
-  const bool = (b: boolean) => `<span class="fleet-yaml-bool">${b}</span>`;
-  const nul = () => `<span class="fleet-yaml-null">null</span>`;
-  const br = (s: string) => `<span class="fleet-yaml-bracket">${esc(s)}</span>`;
-
-  const model = getModelFromConfig(agent);
-  const tools = getTools(agent);
-  const costLimit = getCostLimit(agent);
-
-  const lines = [
-    `${k('apiVersion')}: ${str('askalf/v1')}`,
-    `${k('kind')}: ${str('Agent')}`,
-    `${k('metadata')}:`,
-    `  ${k('name')}: ${str(agent.name)}`,
-    `  ${k('id')}: ${str(agent.id)}`,
-    `  ${k('namespace')}: ${str(classifyNamespace(agent))}`,
-    `  ${k('created')}: ${str(agent.created_at)}`,
-    `${k('spec')}:`,
-    `  ${k('type')}: ${str(agent.type)}`,
-    `  ${k('model')}: ${str(model)}`,
-    `  ${k('autonomyLevel')}: ${num(agent.autonomy_level)}`,
-    `  ${k('schedule')}: ${agent.schedule ? str(agent.schedule) : nul()}`,
-    `  ${k('costLimit')}: ${num(costLimit)}`,
-    `  ${k('tools')}: ${br('[')}${tools.map((t) => str(t)).join(', ')}${br(']')}`,
-    `${k('status')}:`,
-    `  ${k('phase')}: ${str(agent.status)}`,
-    `  ${k('lastRun')}: ${agent.last_run_at ? str(agent.last_run_at) : nul()}`,
-    `  ${k('tasksCompleted')}: ${num(agent.tasks_completed)}`,
-    `  ${k('tasksFailed')}: ${num(agent.tasks_failed)}`,
-    `  ${k('pendingInterventions')}: ${num(agent.pending_interventions)}`,
-    `  ${k('isDecommissioned')}: ${bool(agent.is_decommissioned)}`,
-  ];
-
-  if (perf) {
-    lines.push(
-      `${k('metrics')}:`,
-      `  ${k('totalExecutions')}: ${num(perf.totalExecutions)}`,
-      `  ${k('successRate')}: ${num(Math.round(perf.successRate * 100))}`,
-      `  ${k('totalCost')}: ${num(parseFloat(perf.totalCost.toFixed(4)))}`,
-      `  ${k('avgDurationMs')}: ${num(Math.round(perf.avgDurationMs))}`,
-    );
-  }
-
-  return lines.join('\n');
-}
-
 // ── Main Component ──
 
 interface ForgeEvent {
@@ -707,38 +302,21 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
 
   // Core state
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [namespace, setNamespace] = useState<Namespace>('All');
+  const [search, setSearch] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [detailData, setDetailData] = useState<AgentDetail | null>(null);
-  const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
-  const [performance, setPerformance] = useState<AgentPerformanceReport | null>(null);
-  const [costSummary, setCostSummary] = useState<CostSummary | null>(null);
-  const [dailyCosts, setDailyCosts] = useState<DailyCost[]>([]);
+  const [, setPerformance] = useState<AgentPerformanceReport | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [sortColumn, setSortColumn] = useState<SortColumn>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [liveLogEntries, setLiveLogEntries] = useState<LiveLogEntry[]>([]);
-  const [deviceSummary, setDeviceSummary] = useState<DeviceSummary | null>(null);
-  // Performance map by agent ID
-  const perfMap = new Map<string, AgentPerformanceEntry>();
-  performance?.agents.forEach((a) => perfMap.set(a.agentId, a));
 
-  // Polling: agents + scheduler + costs every 15s
+  // Polling: agents every 15s
   const pollCallback = useCallback(async () => {
     try {
-      const [agentsRes, schedRes, costRes, devRes] = await Promise.all([
-        hubApi.agents.list(),
-        hubApi.reports.scheduler(),
-        hubApi.costs.summary({ days: 7 }),
-        deviceApi.summary().catch(() => null),
-      ]);
+      const agentsRes = await hubApi.agents.list();
       setAgents(agentsRes.agents);
-      setSchedulerStatus(schedRes);
-      setCostSummary(costRes.summary);
-      setDailyCosts(costRes.dailyCosts || []);
-      if (devRes) setDeviceSummary(devRes);
     } catch {
       addToast('Failed to refresh fleet data', 'error');
     }
@@ -746,20 +324,19 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
 
   usePolling(pollCallback, 15000);
 
-  // WS-accelerated refresh: re-fetch immediately on agent/execution events
+  // WS-accelerated refresh
   const latestEventTs = useRef(0);
   useEffect(() => {
     if (wsEvents.length === 0) return;
     const latest = wsEvents[0];
     if (!latest || latest.receivedAt <= latestEventTs.current) return;
     latestEventTs.current = latest.receivedAt;
-
     if (latest.category === 'agent' || latest.category === 'execution') {
       pollCallback();
     }
   }, [wsEvents, pollCallback]);
 
-  // Optimistic agent status update from WS events
+  // Optimistic agent status from WS
   useEffect(() => {
     if (wsEvents.length === 0) return;
     const latest = wsEvents[0];
@@ -774,7 +351,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
     }
   }, [wsEvents]);
 
-  // Live log refresh: re-fetch detail + append live entry when execution event matches selected agent
+  // Live logs for selected agent
   const liveLogEventTs = useRef(0);
   useEffect(() => {
     if (!selectedAgentId || wsEvents.length === 0) return;
@@ -783,20 +360,18 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
     if (latest.category !== 'execution' || latest.agentId !== selectedAgentId) return;
     liveLogEventTs.current = latest.receivedAt;
 
-    // Re-fetch full detail
     hubApi.agents.detail(selectedAgentId).then(setDetailData).catch(() => {});
 
-    // Append live log entry
     const agentName = agents.find((a) => a.id === selectedAgentId)?.name || 'Agent';
     const eventType = (latest.type as string) || (latest.status as string) || 'event';
     setLiveLogEntries((prev) => [
       {
         id: `live-${latest.receivedAt}`,
         timestamp: new Date(latest.receivedAt).toISOString(),
-        level: eventType === 'failed' ? 'error' : eventType === 'completed' ? 'info' : 'info',
+        level: eventType === 'failed' ? 'error' : 'info',
         message: `[LIVE] ${agentName} — ${eventType}${latest.output ? `: ${String(latest.output).slice(0, 120)}` : ''}`,
       },
-      ...prev.slice(0, 49), // keep max 50 live entries
+      ...prev.slice(0, 49),
     ]);
   }, [wsEvents, selectedAgentId, agents]);
 
@@ -818,9 +393,9 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
 
   // Filter agents
   const activeAgents = agents.filter((a) => !a.is_decommissioned);
-  const filtered = namespace === 'All'
-    ? activeAgents
-    : activeAgents.filter((a) => classifyNamespace(a) === namespace);
+  const filtered = search
+    ? activeAgents.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
+    : activeAgents;
 
   const selectedAgent = agents.find((a) => a.id === selectedAgentId);
 
@@ -829,7 +404,6 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
     setActionLoading((prev) => ({ ...prev, [key]: true }));
     try {
       await fn();
-      // Refresh agents
       const res = await hubApi.agents.list();
       setAgents(res.agents);
       if (label) addToast(`${label} succeeded`, 'success');
@@ -855,20 +429,6 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
     withLoading(id, () => hubApi.agents.decommission(id), `Decommission ${name}`);
   };
 
-  const handleToggleScheduler = () =>
-    withLoading('scheduler', async () => {
-      const action = schedulerStatus?.running ? 'stop' : 'start';
-      await hubApi.reports.toggleScheduler(action);
-      const s = await hubApi.reports.scheduler();
-      setSchedulerStatus(s);
-    }, `${schedulerStatus?.running ? 'Stop' : 'Start'} scheduler`);
-
-  const handleBatchProcess = () =>
-    withLoading('batch', () => hubApi.agents.batchProcess(), 'Batch process');
-
-  const handleBatchPause = () =>
-    withLoading('batch', () => hubApi.agents.batchPause(), 'Scale down');
-
   const handleSort = (col: SortColumn) => {
     if (sortColumn === col) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -880,75 +440,26 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
 
   return (
     <div>
-      <ClusterOverview
-        agents={agents}
-        costSummary={costSummary}
-        dailyCosts={dailyCosts}
-        schedulerStatus={schedulerStatus}
-        onToggleScheduler={handleToggleScheduler}
-        actionLoading={actionLoading}
-        deviceSummary={deviceSummary}
-      />
-
       <div className="fleet-toolbar">
-        <NamespaceSelector agents={agents} namespace={namespace} onSelect={setNamespace} />
-        <div className="fleet-toolbar-right">
-          <button
-            className={`fleet-btn ${viewMode === 'grid' ? 'active' : ''}`}
-            onClick={() => setViewMode('grid')}
-          >
-            Grid
-          </button>
-          <button
-            className={`fleet-btn ${viewMode === 'list' ? 'active' : ''}`}
-            onClick={() => setViewMode('list')}
-          >
-            List
-          </button>
-          <button
-            className="fleet-btn primary"
-            onClick={handleBatchProcess}
-            disabled={actionLoading['batch']}
-          >
-            {actionLoading['batch'] ? 'Processing...' : 'Apply'}
-          </button>
-          <button
-            className="fleet-btn"
-            onClick={handleBatchPause}
-            disabled={actionLoading['batch']}
-          >
-            Scale Down
-          </button>
-        </div>
+        <input
+          className="fleet-search"
+          type="text"
+          placeholder="Search agents..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <span className="fleet-agent-count">{filtered.length} agents</span>
       </div>
 
       <div className="fleet-main">
         <div className="fleet-content">
           {filtered.length === 0 ? (
-            <div className="fleet-empty">No agents in this namespace</div>
-          ) : viewMode === 'grid' ? (
-            <div className="fleet-grid">
-              {filtered.map((agent) => (
-                <PodCard
-                  key={agent.id}
-                  agent={agent}
-                  perf={perfMap.get(agent.id)}
-                  selected={selectedAgentId === agent.id}
-                  onClick={() => {
-                    setSelectedAgentId(selectedAgentId === agent.id ? null : agent.id);
-                    setDetailTab('overview');
-                  }}
-                  onRun={() => handleRun(agent.id)}
-                  onPause={() => handleStop(agent.id)}
-                  onStop={() => handleStop(agent.id)}
-                  actionLoading={!!actionLoading[agent.id]}
-                />
-              ))}
+            <div className="fleet-empty">
+              {search ? 'No agents match your search' : 'No agents'}
             </div>
           ) : (
-            <PodList
+            <AgentList
               agents={filtered}
-              perfMap={perfMap}
               selectedId={selectedAgentId}
               sortColumn={sortColumn}
               sortDir={sortDir}
@@ -962,10 +473,9 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
         </div>
 
         {selectedAgent && (
-          <PodDetail
+          <AgentDetailPanel
             detail={detailData}
             agent={selectedAgent}
-            perf={perfMap.get(selectedAgent.id)}
             tab={detailTab}
             onTabChange={setDetailTab}
             onClose={() => setSelectedAgentId(null)}
@@ -977,7 +487,6 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
           />
         )}
       </div>
-
     </div>
   );
 }
