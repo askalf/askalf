@@ -4,9 +4,9 @@ import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'security' | 'ai-keys' | 'costs' | 'integrations' | 'channels';
+type SettingsTab = 'profile' | 'appearance' | 'security' | 'ai-keys' | 'costs' | 'integrations' | 'channels' | 'devices';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'ai-keys', 'costs', 'integrations', 'channels'];
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'ai-keys', 'costs', 'integrations', 'channels', 'devices'];
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams();
@@ -101,6 +101,16 @@ export default function SettingsPage() {
             </svg>
             Channels
           </button>
+          <button
+            className={`settings-nav-item ${activeTab === 'devices' ? 'active' : ''}`}
+            onClick={() => setActiveTab('devices')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <path d="M8 21h8M12 17v4" />
+            </svg>
+            Devices
+          </button>
         </nav>
 
         <div className="settings-content">
@@ -111,6 +121,7 @@ export default function SettingsPage() {
           {activeTab === 'costs' && <CostControlsTab />}
           {activeTab === 'integrations' && <IntegrationsTab />}
           {activeTab === 'channels' && <ChannelsTab />}
+          {activeTab === 'devices' && <DevicesTab />}
         </div>
       </div>
     </div>
@@ -1528,6 +1539,217 @@ function ChannelsTab() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ============================================
+// Devices Tab — Agent Bridge Device Management
+// ============================================
+
+interface DeviceInfo {
+  id: string;
+  device_name: string;
+  hostname: string | null;
+  os: string | null;
+  status: 'online' | 'offline' | 'busy';
+  platform_capabilities: Record<string, unknown>;
+  last_seen_at: string | null;
+  created_at: string;
+}
+
+function DevicesTab() {
+  const [devices, setDevices] = useState<DeviceInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => { fetchDevices(); }, []);
+
+  const fetchDevices = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/devices`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { devices: DeviceInfo[] };
+        setDevices(data.devices);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  const handleDisconnect = async (id: string) => {
+    setActionLoading(id);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/devices/${id}/disconnect`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error('Failed to disconnect');
+      setMessage({ type: 'success', text: 'Device disconnected' });
+      fetchDevices();
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to disconnect device' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRemove = async (id: string) => {
+    setActionLoading(id);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/devices/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to remove');
+      setMessage({ type: 'success', text: 'Device removed' });
+      fetchDevices();
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to remove device' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const formatTime = (iso: string | null) => {
+    if (!iso) return 'Never';
+    const d = new Date(iso);
+    const now = Date.now();
+    const diffMs = now - d.getTime();
+    if (diffMs < 60_000) return 'Just now';
+    if (diffMs < 3600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
+    if (diffMs < 86400_000) return `${Math.floor(diffMs / 3600_000)}h ago`;
+    return d.toLocaleDateString();
+  };
+
+  if (loading) {
+    return (
+      <div className="settings-section">
+        <h2>Connected Devices</h2>
+        <p className="settings-section-desc">Loading...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-section">
+      <h2>Connected Devices</h2>
+      <p className="settings-section-desc">
+        Connect your local machine to the platform so agents can control your computer
+        (mouse, keyboard, browser, shell). Install the CLI and run the connect command below.
+      </p>
+
+      {message && (
+        <div className={`settings-message settings-message-${message.type}`}>
+          {message.text}
+          <button className="settings-message-dismiss" onClick={() => setMessage(null)}>
+            &times;
+          </button>
+        </div>
+      )}
+
+      <div className="settings-form">
+        <div className="settings-card" style={{ background: 'var(--elevated)', padding: 'var(--space-lg)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', marginBottom: 'var(--space-lg)' }}>
+          <h3 style={{ margin: '0 0 var(--space-sm) 0', fontSize: '0.95rem' }}>Quick Start</h3>
+          <p style={{ margin: '0 0 var(--space-md) 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            1. Install the agent CLI globally
+          </p>
+          <code style={{ display: 'block', padding: 'var(--space-md)', background: 'var(--surface)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', marginBottom: 'var(--space-md)', fontFamily: 'monospace' }}>
+            npm install -g @askalf/agent
+          </code>
+          <p style={{ margin: '0 0 var(--space-md) 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            2. Connect with your API key (generate one in the <strong>AI Keys</strong> tab)
+          </p>
+          <code style={{ display: 'block', padding: 'var(--space-md)', background: 'var(--surface)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', marginBottom: 'var(--space-md)', fontFamily: 'monospace' }}>
+            askalf-agent connect &lt;your-api-key&gt;
+          </code>
+          <p style={{ margin: '0 0 var(--space-md) 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            3. Run as a daemon (auto-reconnects)
+          </p>
+          <code style={{ display: 'block', padding: 'var(--space-md)', background: 'var(--surface)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+            askalf-agent daemon
+          </code>
+        </div>
+
+        {devices.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--text-secondary)' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, margin: '0 auto var(--space-md)', opacity: 0.4, display: 'block' }}>
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <path d="M8 21h8M12 17v4" />
+            </svg>
+            <p>No devices connected yet</p>
+            <p style={{ fontSize: '0.875rem' }}>Follow the quick start guide above to connect your first device</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+            {devices.map((device) => (
+              <div
+                key={device.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-lg)',
+                  padding: 'var(--space-lg)',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-lg)',
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-xs)' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: device.status === 'online' ? '#22c55e' : device.status === 'busy' ? '#f59e0b' : '#ef4444',
+                    }} />
+                    <strong style={{ fontSize: '0.95rem' }}>{device.device_name}</strong>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      padding: '1px 8px',
+                      borderRadius: 'var(--radius-md)',
+                      background: device.status === 'online' ? 'rgba(34,197,94,0.1)' : device.status === 'busy' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+                      color: device.status === 'online' ? '#22c55e' : device.status === 'busy' ? '#f59e0b' : '#ef4444',
+                      fontWeight: 500,
+                    }}>
+                      {device.status}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    {device.os && <span>{device.os}</span>}
+                    {device.hostname && <span> &middot; {device.hostname}</span>}
+                    <span> &middot; Last seen: {formatTime(device.last_seen_at)}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                  {device.status !== 'offline' && (
+                    <button
+                      className="settings-btn-secondary"
+                      onClick={() => handleDisconnect(device.id)}
+                      disabled={actionLoading === device.id}
+                    >
+                      {actionLoading === device.id ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  )}
+                  <button
+                    className="settings-btn-danger"
+                    onClick={() => handleRemove(device.id)}
+                    disabled={actionLoading === device.id}
+                    style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

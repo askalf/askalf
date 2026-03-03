@@ -91,6 +91,16 @@
   gap: 10px;
 }
 
+.fleet-device-summary {
+  font-size: 12px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 1px solid #334155;
+}
+
 .fleet-cluster-right {
   display: flex;
   align-items: center;

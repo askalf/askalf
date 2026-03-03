@@ -1247,4 +1247,52 @@ export const integrationApi = {
     ),
 };
 
+// ============================================
+// Device Management
+// ============================================
+
+interface AgentDevice {
+  id: string;
+  user_id: string;
+  tenant_id: string;
+  api_key_id: string;
+  device_name: string;
+  hostname: string | null;
+  os: string | null;
+  platform_capabilities: Record<string, unknown>;
+  status: 'online' | 'offline' | 'busy';
+  last_seen_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface DeviceSummary {
+  total: number;
+  online: number;
+  busy: number;
+  offline: number;
+}
+
+export const deviceApi = {
+  list: () =>
+    apiFetch<{ devices: AgentDevice[] }>('/api/v1/forge/devices'),
+
+  detail: (id: string) =>
+    apiFetch<{ device: AgentDevice }>(`/api/v1/forge/devices/${id}`),
+
+  summary: () =>
+    apiFetch<DeviceSummary>('/api/v1/forge/devices/summary'),
+
+  remove: (id: string) =>
+    apiFetch<{ deleted: boolean }>(`/api/v1/forge/devices/${id}`, { method: 'DELETE' }),
+
+  disconnect: (id: string) =>
+    apiFetch<{ disconnected: boolean }>(`/api/v1/forge/devices/${id}/disconnect`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+};
+
+export type { AgentDevice, DeviceSummary };
+
 // Deployment logs section appended to hubApi below — see exports
