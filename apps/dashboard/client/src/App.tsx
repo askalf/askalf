@@ -20,15 +20,11 @@ const Docs = lazy(() => import('./pages/Docs'));
 const Status = lazy(() => import('./pages/Status'));
 const Try = lazy(() => import('./pages/Try'));
 
-// Lazy-loaded: app layout (shared sidebar)
+// Lazy-loaded: app layout (full-width wrapper)
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 
 // Lazy-loaded: app pages
 const UnifiedDashboard = lazy(() => import('./pages/UnifiedDashboard'));
-const Settings = lazy(() => import('./pages/Settings'));
-
-// Lazy-loaded: admin-only pages
-const UserAdmin = lazy(() => import('./pages/UserAdmin'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -46,17 +42,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-
-function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuthStore();
-
-  if (isLoading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'admin' && user.role !== 'super_admin') return <Navigate to="/command-center" replace />;
-
-  return <>{children}</>;
-}
-
 
 
 function LoadingScreen() {
@@ -112,12 +97,10 @@ export default function App() {
         <Route path="/repos" element={<Navigate to="/command-center/push" replace />} />
         <Route path="/git-space" element={<Navigate to="/command-center/push" replace />} />
 
-        {/* Platform */}
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/settings/:tab" element={<Settings />} />
-
-        {/* Admin-only */}
-        <Route path="/users" element={<AdminRoute><UserAdmin /></AdminRoute>} />
+        {/* Redirects: Settings & Users now live inside Command Center */}
+        <Route path="/settings" element={<Navigate to="/command-center/settings" replace />} />
+        <Route path="/settings/:tab" element={<Navigate to="/command-center/settings" replace />} />
+        <Route path="/users" element={<Navigate to="/command-center/users" replace />} />
       </Route>
 
       {/* Public pages */}

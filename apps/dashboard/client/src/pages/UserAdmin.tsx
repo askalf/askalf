@@ -31,7 +31,7 @@ interface AdminStats {
   };
 }
 
-export default function UserAdmin() {
+export default function UserAdmin({ embedded }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
 
@@ -320,16 +320,20 @@ export default function UserAdmin() {
      <div className="admin-main">
       {/* Header */}
       <div className="admin-header">
-        <button className="admin-back-btn" onClick={() => navigate('/command-center')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          Back
-        </button>
-        <div className="admin-title-group">
-          <h1>User Management</h1>
-          <p>Manage users and roles</p>
-        </div>
+        {!embedded && (
+          <>
+            <button className="admin-back-btn" onClick={() => navigate('/command-center')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              Back
+            </button>
+            <div className="admin-title-group">
+              <h1>User Management</h1>
+              <p>Manage users and roles</p>
+            </div>
+          </>
+        )}
         <div className="admin-header-actions">
           <button className="admin-create-btn" onClick={() => { setShowCreateModal(true); setCreateError(null); }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
