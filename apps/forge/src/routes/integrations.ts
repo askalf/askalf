@@ -167,11 +167,11 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
 
     if (oauthError) {
       console.error(`[Integration] ${provider} OAuth error: ${oauthError}`);
-      return reply.redirect(`/settings?tab=integrations&error=oauth_denied`);
+      return reply.redirect(`/command-center/settings?tab=integrations&error=oauth_denied`);
     }
 
     if (!code || !state || !isValidProvider(provider)) {
-      return reply.redirect(`/settings?tab=integrations&error=missing_params`);
+      return reply.redirect(`/command-center/settings?tab=integrations&error=missing_params`);
     }
 
     // Validate state
@@ -181,13 +181,13 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
     );
 
     if (!storedState || storedState.provider !== provider || storedState.metadata.flow !== 'integration') {
-      return reply.redirect(`/settings?tab=integrations&error=state_invalid`);
+      return reply.redirect(`/command-center/settings?tab=integrations&error=state_invalid`);
     }
 
     const userId = storedState.metadata.user_id;
     const config = getOAuthConfig(provider);
     if (!config) {
-      return reply.redirect(`/settings?tab=integrations&error=not_configured`);
+      return reply.redirect(`/command-center/settings?tab=integrations&error=not_configured`);
     }
 
     try {
@@ -249,10 +249,10 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
         console.error(`[Integration] Repo sync failed for ${integrationId}:`, err);
       });
 
-      return reply.redirect(`/settings?tab=integrations&connected=${provider}`);
+      return reply.redirect(`/command-center/settings?tab=integrations&connected=${provider}`);
     } catch (err) {
       console.error(`[Integration] ${provider} callback error:`, err);
-      return reply.redirect(`/settings?tab=integrations&error=connect_failed`);
+      return reply.redirect(`/command-center/settings?tab=integrations&error=connect_failed`);
     }
   });
 
