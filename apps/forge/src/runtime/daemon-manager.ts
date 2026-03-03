@@ -5,6 +5,7 @@
 
 import { query } from '../database.js';
 import { AgentDaemon, type DaemonConfig, type DaemonStatus } from './daemon.js';
+import { createTriggerHandler, createMessageHandler, createGoalHandler } from './daemon-handlers.js';
 
 // ============================================
 // Singleton
@@ -56,6 +57,20 @@ export class DaemonManager {
           await this.startDaemon(row.agent_id);
         } catch (err) {
           console.warn(`[DaemonManager] Failed to recover daemon for ${row.agent_id}:`, err instanceof Error ? err.message : err);
+        }
+      }
+    }
+
+    // Auto-start daemons for agents with runtime_mode = 'daemon' that aren't already running
+    const daemonAgents = await query<{ id: string }>(
+      `SELECT id FROM forge_agents WHERE runtime_mode = 'daemon' AND status = 'active'`,
+    );
+    for (const a of daemonAgents) {
+      if (!this.daemons.has(a.id)) {
+        try {
+          await this.startDaemon(a.id);
+        } catch (err) {
+          console.warn(`[DaemonManager] Failed to auto-start daemon for ${a.id}:`, err instanceof Error ? err.message : err);
         }
       }
     }
@@ -123,6 +138,10 @@ export class DaemonManager {
     };
 
     const daemon = new AgentDaemon(config);
+    const deps = { agentId: a.id, agentName: a.name };
+    daemon.setTriggerHandler(createTriggerHandler(deps));
+    daemon.setMessageHandler(createMessageHandler(deps));
+    daemon.setGoalHandler(createGoalHandler(deps));
     this.daemons.set(agentId, daemon);
 
     await daemon.start();

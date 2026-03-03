@@ -15,66 +15,46 @@ import './forge/forge-theme.css';
 
 // Lazy-load all tab panels
 const PushPanel = lazy(() => import('./forge/PushPanel'));
-const ExecutionHistory = lazy(() => import('./hub/ExecutionHistory'));
-const CostDashboard = lazy(() => import('./forge/CostDashboard'));
 const FleetTab = lazy(() => import('./unified/FleetTab'));
 const ChatTab = lazy(() => import('./unified/ChatTab'));
 const BuilderTab = lazy(() => import('./unified/BuilderTab'));
 const TemplatesTab = lazy(() => import('./unified/TemplatesTab'));
 const OrchestratorTab = lazy(() => import('./unified/CoordinatorTab'));
 const Documents = lazy(() => import('./hub/Documents'));
-const InterventionGateway = lazy(() => import('./hub/InterventionGateway'));
-const Tickets = lazy(() => import('./hub/Tickets'));
-const ContentFeed = lazy(() => import('./hub/ContentFeed'));
-const FleetMemory = lazy(() => import('./hub/FleetMemory'));
-const AuditLog = lazy(() => import('./forge/AuditLog'));
 const WorkflowBuilder = lazy(() => import('./forge/WorkflowBuilder'));
-const ProviderHealthPage = lazy(() => import('./forge/ProviderHealth'));
-const GuardrailsManager = lazy(() => import('./forge/GuardrailsManager'));
-const GraphTab = lazy(() => import('./unified/GraphTab'));
+// Merged tabs
+const OperationsTab = lazy(() => import('./unified/OperationsTab'));
+const MonitorTab = lazy(() => import('./unified/MonitorTab'));
+const KnowledgeTab = lazy(() => import('./unified/KnowledgeTab'));
 
 type TabKey =
-  | 'chat' | 'templates' | 'builder' | 'fleet' | 'orchestrator'
-  | 'deploy' | 'executions' | 'documents' | 'costs'
-  | 'interventions' | 'tickets' | 'content' | 'memory' | 'graph'
-  | 'audit' | 'workflows' | 'providers' | 'guardrails';
+  | 'chat' | 'templates' | 'fleet' | 'documents'
+  | 'builder' | 'orchestrator' | 'operations' | 'monitor' | 'knowledge'
+  | 'workflows' | 'deploy';
 
 interface TabGroup { label: string; tabs: { key: TabKey; label: string }[] }
 
 const TAB_GROUPS: TabGroup[] = [
-  { label: 'Command', tabs: [
+  { label: 'Main', tabs: [
     { key: 'chat', label: 'Chat' },
     { key: 'templates', label: 'Templates' },
-    { key: 'builder', label: 'Builder' },
     { key: 'fleet', label: 'Fleet' },
+    { key: 'documents', label: 'Docs' },
+  ]},
+  { label: 'Admin', tabs: [
+    { key: 'builder', label: 'Builder' },
     { key: 'orchestrator', label: 'Orchestrator' },
-  ]},
-  { label: 'Ops', tabs: [
-    { key: 'interventions', label: 'Interventions' },
-    { key: 'tickets', label: 'Tickets' },
-    { key: 'content', label: 'Content' },
-    { key: 'memory', label: 'Memory' },
-    { key: 'graph', label: 'Graph' },
-  ]},
-  { label: 'Observe', tabs: [
-    { key: 'costs', label: 'Costs' },
-    { key: 'providers', label: 'Providers' },
-    { key: 'guardrails', label: 'Guardrails' },
-    { key: 'audit', label: 'Audit' },
-    { key: 'executions', label: 'Executions' },
-  ]},
-  { label: 'Build', tabs: [
+    { key: 'operations', label: 'Operations' },
+    { key: 'monitor', label: 'Monitor' },
+    { key: 'knowledge', label: 'Knowledge' },
     { key: 'workflows', label: 'Workflows' },
     { key: 'deploy', label: 'Deploy' },
-    { key: 'documents', label: 'Docs' },
   ]},
 ];
 
 /** Tabs only visible to admin / super_admin */
 const ADMIN_ONLY_TABS = new Set<TabKey>([
-  'builder', 'orchestrator',
-  'interventions', 'tickets', 'content', 'memory', 'graph',
-  'providers', 'guardrails', 'audit',
+  'builder', 'orchestrator', 'operations', 'monitor', 'knowledge',
   'workflows', 'deploy',
 ]);
 
@@ -115,21 +95,17 @@ export default function UnifiedDashboard() {
 
   // Aggregated counts for topbar
   const [agentCount, setAgentCount] = useState(0);
-  const [ticketCount, setTicketCount] = useState(0);
   const [todayCost, setTodayCost] = useState(0);
   const [budgetLimit, setBudgetLimit] = useState<number | undefined>(undefined);
 
   useEffect(() => {
-    // Fetch initial counts
     const fetchCounts = async () => {
       try {
-        const [agentsData, ticketsData, costsData] = await Promise.all([
+        const [agentsData, costsData] = await Promise.all([
           hubApi.agents.list(),
-          hubApi.tickets.list({ limit: 1, filter: 'open' }),
           hubApi.costs.summary(),
         ]);
         setAgentCount(agentsData.agents.filter((a) => a.status === 'running').length);
-        setTicketCount(ticketsData.pagination?.total ?? 0);
         setTodayCost(costsData.summary?.total?.totalCost ?? 0);
       } catch {
         // ignore
@@ -218,18 +194,11 @@ export default function UnifiedDashboard() {
             </Suspense>
           </ErrorBoundary>
         );
-      case 'executions': return wrap('Executions', ExecutionHistory);
       case 'documents': return wrap('Documents', Documents);
-      case 'costs': return wrap('Costs', CostDashboard);
-      case 'interventions': return wrap('Interventions', InterventionGateway);
-      case 'tickets': return wrap('Tickets', Tickets);
-      case 'content': return wrap('Content', ContentFeed);
-      case 'memory': return wrap('Memory', FleetMemory);
-      case 'graph': return wrap('Graph', GraphTab);
-      case 'audit': return wrap('Audit', AuditLog);
+      case 'operations': return wrap('Operations', OperationsTab);
+      case 'monitor': return wrap('Monitor', MonitorTab);
+      case 'knowledge': return wrap('Knowledge', KnowledgeTab);
       case 'workflows': return wrap('Workflows', WorkflowBuilder);
-      case 'providers': return wrap('Providers', ProviderHealthPage);
-      case 'guardrails': return wrap('Guardrails', GuardrailsManager);
     }
   };
 
@@ -238,7 +207,6 @@ export default function UnifiedDashboard() {
       <TopBar
         wsConnected={connected}
         agentCount={agentCount}
-        ticketCount={ticketCount}
         todayCost={todayCost}
         budgetLimit={budgetLimit}
       />
