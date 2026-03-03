@@ -1,11 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { hubApi } from '../../hooks/useHubApi';
-import type { SchedulerStatus } from '../../hooks/useHubApi';
 
 interface TopBarProps {
   wsConnected: boolean;
   agentCount: number;
-  ticketCount: number;
   todayCost: number;
   budgetLimit?: number;
 }
@@ -19,20 +16,10 @@ interface AuthUser {
   tenantName?: string | null;
 }
 
-export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost, budgetLimit }: TopBarProps) {
-  const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus | null>(null);
-  const [toggling, setToggling] = useState(false);
+export default function TopBar({ wsConnected, agentCount, todayCost, budgetLimit }: TopBarProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    hubApi.reports.scheduler().then(setSchedulerStatus).catch(() => {});
-    const timer = setInterval(() => {
-      hubApi.reports.scheduler().then(setSchedulerStatus).catch(() => {});
-    }, 30000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Fetch current user
   useEffect(() => {
@@ -51,20 +38,6 @@ export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
-
-  const toggleScheduler = async () => {
-    if (toggling || !schedulerStatus) return;
-    setToggling(true);
-    try {
-      const action = schedulerStatus.running ? 'stop' : 'start';
-      await hubApi.reports.toggleScheduler(action);
-      const updated = await hubApi.reports.scheduler();
-      setSchedulerStatus(updated);
-    } catch {
-      // ignore
-    }
-    setToggling(false);
-  };
 
   const handleLogout = async () => {
     try {
@@ -94,21 +67,11 @@ export default function TopBar({ wsConnected, agentCount, ticketCount, todayCost
         <span className="ud-topbar-divider" />
         <span className="ud-topbar-stat">{agentCount} running</span>
         <span className="ud-topbar-divider" />
-        <span className="ud-topbar-stat">{ticketCount} tickets</span>
-        <span className="ud-topbar-divider" />
         <span className={`ud-topbar-stat${budgetLimit && todayCost / budgetLimit > 0.8 ? todayCost / budgetLimit >= 1 ? ' ud-topbar-cost-over' : ' ud-topbar-cost-warn' : ''}`}>
           ${todayCost.toFixed(2)}{budgetLimit ? ` / $${budgetLimit.toFixed(0)}` : ''} today
         </span>
       </div>
       <div className="ud-topbar-right">
-        <button
-          className={`ud-scheduler-toggle ${schedulerStatus?.running ? 'running' : 'stopped'}`}
-          onClick={toggleScheduler}
-          disabled={toggling}
-          title={schedulerStatus?.running ? 'Stop Scheduler' : 'Start Scheduler'}
-        >
-          {schedulerStatus?.running ? '⏸' : '▶'}
-        </button>
         <a className="ud-topbar-icon-btn" href="/settings" title="Settings">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="3" />

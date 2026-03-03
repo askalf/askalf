@@ -705,6 +705,38 @@
   font-size: 13px;
 }
 
+/* ---- Sub-tabs (for merged admin tabs) ---- */
+
+.ud-sub-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.ud-sub-tab {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.ud-sub-tab:hover {
+  color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ud-sub-tab.active {
+  color: #e4e4e7;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 900px) {

@@ -1,112 +1,6 @@
-/* FleetTab.css — Kubernetes-style agent fleet management */
+/* FleetTab.css — Simplified agent fleet management */
 
-/* ── Cluster Overview ── */
-.fleet-cluster-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background:
-    linear-gradient(135deg, rgba(139,92,246,0.03) 0%, rgba(255,255,255,0.01) 50%, rgba(59,130,246,0.02) 100%);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-  gap: 8px;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Subtle top-edge glow */
-.fleet-cluster-bar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 10%;
-  right: 10%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(139,92,246,0.3), transparent);
-  pointer-events: none;
-}
-
-.fleet-cluster-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.fleet-health-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  position: relative;
-}
-
-.fleet-health-dot.healthy {
-  background: #22c55e;
-  box-shadow: 0 0 8px rgba(34,197,94,0.5), 0 0 20px rgba(34,197,94,0.15);
-  animation: fleet-health-breathe 3s ease-in-out infinite;
-}
-.fleet-health-dot.degraded {
-  background: #eab308;
-  box-shadow: 0 0 8px rgba(234,179,8,0.5), 0 0 16px rgba(234,179,8,0.1);
-}
-.fleet-health-dot.unhealthy {
-  background: #ef4444;
-  box-shadow: 0 0 8px rgba(239,68,68,0.5), 0 0 20px rgba(239,68,68,0.15);
-  animation: fleet-health-alert 1.5s ease-in-out infinite;
-}
-
-@keyframes fleet-health-breathe {
-  0%, 100% { box-shadow: 0 0 8px rgba(34,197,94,0.5), 0 0 20px rgba(34,197,94,0.15); }
-  50% { box-shadow: 0 0 12px rgba(34,197,94,0.7), 0 0 28px rgba(34,197,94,0.2); }
-}
-
-@keyframes fleet-health-alert {
-  0%, 100% { box-shadow: 0 0 8px rgba(239,68,68,0.5), 0 0 20px rgba(239,68,68,0.15); }
-  50% { box-shadow: 0 0 14px rgba(239,68,68,0.8), 0 0 32px rgba(239,68,68,0.25); }
-}
-
-.fleet-health-label {
-  font-weight: 600;
-  font-size: 13px;
-  color: #e2e8f0;
-}
-
-.fleet-pod-counts {
-  display: flex;
-  gap: 10px;
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.fleet-pod-counts span { white-space: nowrap; }
-
-.fleet-cost-summary {
-  font-size: 12px;
-  color: #94a3b8;
-  display: flex;
-  gap: 10px;
-}
-
-.fleet-device-summary {
-  font-size: 12px;
-  color: #94a3b8;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-left: 12px;
-  border-left: 1px solid #334155;
-}
-
-.fleet-cluster-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
+/* ── Buttons ── */
 .fleet-btn {
   padding: 4px 10px;
   border-radius: 6px;
@@ -127,153 +21,37 @@
 .fleet-btn.primary { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: #c4b5fd; }
 .fleet-btn.primary:hover { background: rgba(139,92,246,0.25); }
 
-/* ── Namespace Selector ── */
+/* ── Toolbar ── */
 .fleet-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.fleet-namespaces {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.fleet-ns-pill {
-  padding: 3px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.06);
-  background: rgba(255,255,255,0.02);
-  color: #94a3b8;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.fleet-ns-pill:hover {
-  background: rgba(255,255,255,0.05);
-  color: #e2e8f0;
-  border-color: rgba(255,255,255,0.12);
-}
-
-.fleet-ns-pill.active {
-  background: rgba(139,92,246,0.12);
-  border-color: rgba(139,92,246,0.35);
-  color: #c4b5fd;
-  box-shadow: 0 0 10px rgba(139,92,246,0.08);
-}
-
-.fleet-ns-count {
-  display: inline-block;
-  min-width: 14px;
-  text-align: center;
-  font-size: 10px;
-  background: rgba(255,255,255,0.08);
+.fleet-search {
+  padding: 5px 12px;
   border-radius: 6px;
-  padding: 0 4px;
-  margin-left: 4px;
-}
-
-.fleet-toolbar-right {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-/* ── Main Layout ── */
-.fleet-main {
-  display: flex;
-  gap: 0;
-  min-height: 500px;
-}
-
-.fleet-content {
-  flex: 1;
-  min-width: 0;
-}
-
-/* ── Pod Grid ── */
-.fleet-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
-}
-
-.fleet-card {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 12px;
-  padding: 14px;
-  cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-              border-color 0.2s,
-              background 0.2s,
-              box-shadow 0.2s;
-  position: relative;
-}
-
-.fleet-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(139,92,246,0.25);
-  background: rgba(255,255,255,0.04);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(139,92,246,0.1) inset;
-}
-
-.fleet-card.selected {
-  border-color: rgba(139,92,246,0.5);
-  background: rgba(139,92,246,0.06);
-  box-shadow:
-    0 0 20px rgba(139,92,246,0.08),
-    0 0 0 1px rgba(139,92,246,0.15) inset;
-}
-
-.fleet-card-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.fleet-card-abbr {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,52,206,0.12));
-  color: #c4b5fd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
-  flex-shrink: 0;
-  letter-spacing: 0.02em;
-  box-shadow: 0 0 0 1px rgba(139,92,246,0.15) inset;
-}
-
-.fleet-card-title {
-  flex: 1;
-  min-width: 0;
-}
-
-.fleet-card-name {
-  font-size: 13px;
-  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
   color: #e2e8f0;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 12px;
+  width: 200px;
+  outline: none;
+  transition: border-color 0.15s;
 }
 
-.fleet-card-type {
-  font-size: 11px;
+.fleet-search:focus {
+  border-color: rgba(139,92,246,0.4);
+}
+
+.fleet-search::placeholder {
+  color: #64748b;
+}
+
+.fleet-agent-count {
+  font-size: 12px;
   color: #64748b;
 }
 
@@ -297,7 +75,6 @@
 .fleet-status.running {
   background: rgba(34,197,94,0.1);
   color: #4ade80;
-  box-shadow: 0 0 8px rgba(34,197,94,0.1);
 }
 .fleet-status.running .fleet-status-dot {
   background: #22c55e;
@@ -306,19 +83,9 @@
 }
 .fleet-status.idle { background: rgba(107,114,128,0.1); color: #9ca3af; }
 .fleet-status.idle .fleet-status-dot { background: #6b7280; }
-.fleet-status.paused {
-  background: rgba(234,179,8,0.1);
-  color: #facc15;
-}
-.fleet-status.paused .fleet-status-dot {
-  background: #eab308;
-  box-shadow: 0 0 4px rgba(234,179,8,0.4);
-}
-.fleet-status.error {
-  background: rgba(239,68,68,0.1);
-  color: #f87171;
-  box-shadow: 0 0 8px rgba(239,68,68,0.08);
-}
+.fleet-status.paused { background: rgba(234,179,8,0.1); color: #facc15; }
+.fleet-status.paused .fleet-status-dot { background: #eab308; }
+.fleet-status.error { background: rgba(239,68,68,0.1); color: #f87171; }
 .fleet-status.error .fleet-status-dot {
   background: #ef4444;
   box-shadow: 0 0 6px rgba(239,68,68,0.6);
@@ -335,77 +102,19 @@
   50% { opacity: 0.3; box-shadow: 0 0 10px rgba(239,68,68,0.8); }
 }
 
-/* ── Gauge Bars ── */
-.fleet-gauge {
-  margin-top: 6px;
-}
-
-.fleet-gauge-label {
+/* ── Main Layout ── */
+.fleet-main {
   display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: #64748b;
-  margin-bottom: 2px;
+  gap: 0;
+  min-height: 500px;
 }
 
-.fleet-gauge-bar {
-  height: 3px;
-  background: rgba(255,255,255,0.04);
-  border-radius: 3px;
-  overflow: hidden;
+.fleet-content {
+  flex: 1;
+  min-width: 0;
 }
 
-.fleet-gauge-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.fleet-gauge-fill.green {
-  background: linear-gradient(90deg, #059669, #22c55e);
-  box-shadow: 0 0 6px rgba(34,197,94,0.25);
-}
-.fleet-gauge-fill.yellow {
-  background: linear-gradient(90deg, #d97706, #eab308);
-  box-shadow: 0 0 6px rgba(234,179,8,0.25);
-}
-.fleet-gauge-fill.red {
-  background: linear-gradient(90deg, #dc2626, #ef4444);
-  box-shadow: 0 0 6px rgba(239,68,68,0.25);
-}
-
-.fleet-card-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 8px;
-}
-
-.fleet-card-model {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: rgba(255,255,255,0.06);
-  color: #94a3b8;
-}
-
-.fleet-card-age {
-  font-size: 10px;
-  color: #64748b;
-}
-
-.fleet-card-actions {
-  display: flex;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.fleet-card-actions .fleet-btn {
-  padding: 2px 8px;
-  font-size: 11px;
-}
-
-/* ── Pod List (kubectl table) ── */
+/* ── Agent Table ── */
 .fleet-table-wrap {
   overflow-x: auto;
 }
@@ -413,7 +122,6 @@
 .fleet-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   font-size: 12px;
 }
 
@@ -436,7 +144,6 @@
 
 .fleet-sort-arrow {
   font-size: 10px;
-  margin-left: 4px;
 }
 
 .fleet-table td {
@@ -454,7 +161,7 @@
 .fleet-table tr:hover { background: rgba(255,255,255,0.03); }
 .fleet-table tr.selected { background: rgba(139,92,246,0.08); }
 
-/* ── Pod Detail Panel ── */
+/* ── Detail Panel ── */
 .fleet-detail {
   width: 480px;
   flex-shrink: 0;
@@ -512,7 +219,6 @@
 .fleet-detail-tab.active {
   color: #c4b5fd;
   border-bottom-color: #8b5cf6;
-  text-shadow: 0 0 12px rgba(139,92,246,0.3);
 }
 
 .fleet-detail-body {
@@ -545,21 +251,6 @@
   background: rgba(139,92,246,0.1);
   color: #a78bfa;
 }
-
-.fleet-autonomy-bar {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-}
-
-.fleet-autonomy-seg {
-  width: 12px;
-  height: 6px;
-  border-radius: 2px;
-  background: rgba(255,255,255,0.06);
-}
-
-.fleet-autonomy-seg.filled { background: #8b5cf6; }
 
 /* Detail: Logs */
 .fleet-logs {
@@ -594,58 +285,6 @@
   0%, 100% { border-left-color: rgba(59, 130, 246, 0.4); }
   50% { border-left-color: rgba(59, 130, 246, 0.8); }
 }
-
-/* Detail: Events */
-.fleet-events {
-  max-height: 360px;
-  overflow-y: auto;
-}
-
-.fleet-event {
-  display: flex;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  font-size: 12px;
-}
-
-.fleet-event-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-top: 4px;
-  flex-shrink: 0;
-}
-
-.fleet-event-dot.completed { background: #22c55e; }
-.fleet-event-dot.failed { background: #ef4444; }
-.fleet-event-dot.pending { background: #6b7280; }
-.fleet-event-dot.in_progress { background: #3b82f6; }
-
-.fleet-event-content { flex: 1; min-width: 0; }
-.fleet-event-type { color: #e2e8f0; font-weight: 500; }
-.fleet-event-time { color: #475569; font-size: 11px; }
-
-/* Detail: YAML */
-.fleet-yaml {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 11px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  color: #cbd5e1;
-  background: rgba(0,0,0,0.2);
-  border-radius: 8px;
-  padding: 12px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.fleet-yaml-key { color: #c4b5fd; }
-.fleet-yaml-string { color: #4ade80; }
-.fleet-yaml-number { color: #38bdf8; }
-.fleet-yaml-bool { color: #fb923c; }
-.fleet-yaml-null { color: #64748b; font-style: italic; }
-.fleet-yaml-bracket { color: #94a3b8; }
 
 /* Detail: Exec */
 .fleet-exec {
@@ -682,108 +321,6 @@
   gap: 6px;
   padding: 12px 16px;
   border-top: 1px solid rgba(255,255,255,0.08);
-}
-
-/* ── Resource Monitor ── */
-.fleet-resources {
-  margin-top: 12px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.fleet-resources-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.fleet-resources-header:hover { background: rgba(255,255,255,0.02); }
-
-.fleet-resources-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #94a3b8;
-}
-
-.fleet-resources-toggle {
-  font-size: 10px;
-  color: #64748b;
-}
-
-.fleet-resources-body {
-  padding: 0 16px 14px;
-}
-
-.fleet-providers {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.fleet-provider-card {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.fleet-provider-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.fleet-provider-dot.healthy { background: #22c55e; }
-.fleet-provider-dot.degraded { background: #eab308; }
-.fleet-provider-dot.unknown { background: #6b7280; }
-
-.fleet-cost-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 60px;
-  padding-top: 4px;
-}
-
-.fleet-cost-bar-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  justify-content: flex-end;
-}
-
-.fleet-cost-bar {
-  width: 100%;
-  max-width: 32px;
-  background: rgba(139,92,246,0.3);
-  border-radius: 3px 3px 0 0;
-  min-height: 2px;
-  transition: height 0.3s;
-}
-
-.fleet-cost-bar-label {
-  font-size: 9px;
-  color: #475569;
-  margin-top: 2px;
-}
-
-.fleet-cost-bar-value {
-  font-size: 9px;
-  color: #94a3b8;
-  margin-bottom: 2px;
 }
 
 /* ── Empty State ── */
