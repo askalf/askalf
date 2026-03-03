@@ -74,6 +74,7 @@ export default function TryPage() {
         <div className="try-nav-links">
           <a href="https://github.com/SprayberryLabs/agent#readme" className="try-nav-link" target="_blank" rel="noopener noreferrer">Docs</a>
           <a href="https://github.com/SprayberryLabs/agent" className="try-nav-link" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="/login" className="try-nav-cta">Full Platform</a>
         </div>
       </nav>
 

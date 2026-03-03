@@ -19,10 +19,10 @@ export async function authInteractive(): Promise<void> {
     name: 'mode',
     message: 'How do you want to authenticate?',
     choices: [
+      { name: 'Claude Login — use your Claude subscription (recommended, no extra cost)', value: 'oauth' },
       { name: 'API Key — paste your Anthropic API key (pay per use)', value: 'api_key' },
-      { name: 'Claude OAuth — use your Claude subscription (requires Claude CLI)', value: 'oauth' },
     ],
-    default: config.authMode,
+    default: config.authMode ?? 'oauth',
   }]);
 
   if (mode === 'api_key') {

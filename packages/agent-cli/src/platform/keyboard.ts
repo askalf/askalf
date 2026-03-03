@@ -113,6 +113,34 @@ async function keyPressYdotool(parts: string[]): Promise<void> {
 }
 
 async function keyPressWindows(parts: string[]): Promise<void> {
+  const hasWinKey = parts.some(p => ['super', 'meta', 'win', 'cmd', 'command'].includes(p));
+
+  if (hasWinKey) {
+    // SendKeys doesn't support Windows key — use WScript.Shell SendKeys via COM
+    // or use C# interop with keybd_event
+    const otherKeys = parts.filter(p => !['super', 'meta', 'win', 'cmd', 'command'].includes(p));
+    const script = `
+      Add-Type @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class WinKey {
+          [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+          public const byte VK_LWIN = 0x5B;
+          public const uint KEYEVENTF_KEYUP = 0x0002;
+        }
+"@
+      [WinKey]::keybd_event([WinKey]::VK_LWIN, 0, 0, [UIntPtr]::Zero)
+      Start-Sleep -Milliseconds 100
+      ${otherKeys.length > 0 ? `
+      Add-Type -AssemblyName System.Windows.Forms
+      [System.Windows.Forms.SendKeys]::SendWait('${otherKeys.map(k => KEY_MAP_WIN[k] ?? k).join('').replace(/'/g, "''")}')
+      ` : ''}
+      [WinKey]::keybd_event([WinKey]::VK_LWIN, 0, [WinKey]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+    `;
+    await execFileAsync('powershell', ['-NoProfile', '-Command', script]);
+    return;
+  }
+
   let sendKeys = '';
   let mainKey = '';
 
