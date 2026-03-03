@@ -26,11 +26,14 @@ const WorkflowBuilder = lazy(() => import('./forge/WorkflowBuilder'));
 const OperationsTab = lazy(() => import('./unified/OperationsTab'));
 const MonitorTab = lazy(() => import('./unified/MonitorTab'));
 const KnowledgeTab = lazy(() => import('./unified/KnowledgeTab'));
+// Platform pages (embedded as tabs)
+const Settings = lazy(() => import('./Settings'));
+const UserAdmin = lazy(() => import('./UserAdmin'));
 
 type TabKey =
   | 'chat' | 'templates' | 'fleet' | 'documents'
   | 'builder' | 'orchestrator' | 'operations' | 'monitor' | 'knowledge'
-  | 'workflows' | 'deploy';
+  | 'workflows' | 'deploy' | 'settings' | 'users';
 
 interface TabGroup { label: string; tabs: { key: TabKey; label: string }[] }
 
@@ -40,6 +43,7 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'templates', label: 'Templates' },
     { key: 'fleet', label: 'Fleet' },
     { key: 'documents', label: 'Docs' },
+    { key: 'settings', label: 'Settings' },
   ]},
   { label: 'Admin', tabs: [
     { key: 'builder', label: 'Builder' },
@@ -49,13 +53,14 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'knowledge', label: 'Knowledge' },
     { key: 'workflows', label: 'Workflows' },
     { key: 'deploy', label: 'Deploy' },
+    { key: 'users', label: 'Users' },
   ]},
 ];
 
 /** Tabs only visible to admin / super_admin */
 const ADMIN_ONLY_TABS = new Set<TabKey>([
   'builder', 'orchestrator', 'operations', 'monitor', 'knowledge',
-  'workflows', 'deploy',
+  'workflows', 'deploy', 'users',
 ]);
 
 export default function UnifiedDashboard() {
@@ -199,6 +204,22 @@ export default function UnifiedDashboard() {
       case 'monitor': return wrap('Monitor', MonitorTab);
       case 'knowledge': return wrap('Knowledge', KnowledgeTab);
       case 'workflows': return wrap('Workflows', WorkflowBuilder);
+      case 'settings':
+        return (
+          <ErrorBoundary inline key="settings">
+            <Suspense fallback={<div className="ud-loading">Loading Settings...</div>}>
+              <Settings embedded />
+            </Suspense>
+          </ErrorBoundary>
+        );
+      case 'users':
+        return (
+          <ErrorBoundary inline key="users">
+            <Suspense fallback={<div className="ud-loading">Loading Users...</div>}>
+              <UserAdmin embedded />
+            </Suspense>
+          </ErrorBoundary>
+        );
     }
   };
 
@@ -209,6 +230,7 @@ export default function UnifiedDashboard() {
         agentCount={agentCount}
         todayCost={todayCost}
         budgetLimit={budgetLimit}
+        onNavigate={(tab) => setActiveTab(tab as TabKey)}
       />
       <div className="ud-body ud-body-full">
         <div className="ud-main">
