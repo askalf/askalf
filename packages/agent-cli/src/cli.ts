@@ -6,6 +6,7 @@ import { run } from './run.js';
 import { checkPlatform } from './platform/index.js';
 import { loadConfig, saveConfig } from './util/config.js';
 import { isWhisperInstalled, setupWhisper } from './voice/index.js';
+import { startBridge, stopBridge } from './bridge.js';
 import * as output from './util/output.js';
 import chalk from 'chalk';
 import { readFileSync } from 'node:fs';
@@ -132,6 +133,109 @@ program
       const config = await saveConfig(updates);
       output.success('Configuration updated');
       console.log(JSON.stringify(config, null, 2));
+    }
+  });
+
+// ============================================
+// Platform Bridge Commands
+// ============================================
+
+const DEFAULT_PLATFORM_URL = 'wss://askalf.org/ws/agent-bridge';
+
+program
+  .command('connect')
+  .description('Connect this machine to the AskAlf platform for remote task execution')
+  .argument('<token>', 'API key / device token from the platform')
+  .option('-u, --url <url>', 'Platform WebSocket URL', DEFAULT_PLATFORM_URL)
+  .action(async (token, opts) => {
+    output.header('Connecting to AskAlf Platform');
+
+    const config = await loadConfig();
+
+    // Save token and URL for future use
+    await saveConfig({
+      deviceToken: token,
+      platformUrl: opts.url,
+    });
+
+    try {
+      await startBridge({
+        platformUrl: opts.url,
+        token,
+        deviceId: config.deviceId,
+      });
+    } catch (err) {
+      output.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('daemon')
+  .description('Run as a background daemon — auto-reconnects and stays connected')
+  .option('-u, --url <url>', 'Platform WebSocket URL')
+  .action(async (opts) => {
+    const config = await loadConfig();
+    const token = config.deviceToken;
+    const url = opts.url || config.platformUrl || DEFAULT_PLATFORM_URL;
+
+    if (!token) {
+      output.error('No device token configured. Run: askalf-agent connect <token>');
+      process.exit(1);
+    }
+
+    output.header('AskAlf Agent Daemon');
+    output.info('Running in daemon mode — press Ctrl+C to stop');
+
+    // Handle shutdown signals
+    const shutdown = () => {
+      output.info('Shutting down...');
+      stopBridge();
+      process.exit(0);
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+
+    try {
+      await startBridge({
+        platformUrl: url,
+        token,
+        deviceId: config.deviceId,
+        daemon: true,
+      });
+    } catch (err) {
+      output.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('disconnect')
+  .description('Disconnect from the AskAlf platform and clear device credentials')
+  .action(async () => {
+    await saveConfig({
+      deviceToken: undefined,
+      deviceId: undefined,
+      platformUrl: undefined,
+    });
+    output.success('Disconnected. Device credentials cleared.');
+  });
+
+program
+  .command('status')
+  .description('Show connection status and device info')
+  .action(async () => {
+    const config = await loadConfig();
+    output.header('Bridge Status');
+
+    if (config.deviceToken) {
+      console.log(chalk.dim('Platform:'), config.platformUrl || DEFAULT_PLATFORM_URL);
+      console.log(chalk.dim('Device ID:'), config.deviceId || 'not yet registered');
+      console.log(chalk.dim('Token:'), config.deviceToken.substring(0, 12) + '...');
+      output.info('Run "askalf-agent daemon" to start the bridge');
+    } else {
+      output.warn('Not connected to any platform');
+      output.info('Run "askalf-agent connect <token>" to connect');
     }
   });
 

@@ -15,6 +15,7 @@ import { forgeActiveAgents } from './metrics.js';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
+import websocket from '@fastify/websocket';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { initializeDatabase, initializeSubstrateDatabase, closeDatabase, query as dbQuery, substrateQuery } from './database.js';
@@ -47,6 +48,7 @@ import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
 import { startTaskDispatcher, stopTaskDispatcher } from './runtime/task-dispatcher.js';
+import { registerAgentBridge, stopAgentBridge } from './runtime/agent-bridge.js';
 import { initMemoryManager } from './memory/singleton.js';
 import { startMetabolicCycles } from './memory/metabolic.js';
 import { detectAllCapabilities } from './orchestration/capability-registry.js';
@@ -88,6 +90,9 @@ await app.register(cors, {
 
 // Register Cookie parser (for session auth)
 await app.register(cookie);
+
+// Register WebSocket support (for agent bridge)
+await app.register(websocket);
 
 // Register Swagger (OpenAPI documentation)
 await app.register(swagger, {
@@ -344,6 +349,7 @@ await conversationRoutes(app);
 await channelRoutes(app);
 await userBudgetRoutes(app);
 await registerMCPRoutes(app);
+await registerAgentBridge(app);
 
 // ============================================
 // START SERVER
@@ -680,6 +686,7 @@ async function shutdown(signal: string): Promise<void> {
     await app.close();
     console.log('[Forge] Server closed');
 
+    stopAgentBridge();
     await stopTaskDispatcher().catch(() => {});
     await closeAgentCommunication().catch(() => {});
     await closeDatabase();
