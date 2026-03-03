@@ -15,6 +15,10 @@ export enum AgentState {
   WAITING_APPROVAL = 'waiting_approval',
   COMPLETED = 'completed',
   FAILED = 'failed',
+  // Daemon states
+  HIBERNATED = 'hibernated',
+  PAUSED = 'paused',
+  OBSERVING = 'observing',
 }
 
 /**
@@ -22,7 +26,7 @@ export enum AgentState {
  * From each state, only certain transitions are allowed.
  */
 const VALID_TRANSITIONS: Record<AgentState, AgentState[]> = {
-  [AgentState.IDLE]: [AgentState.THINKING],
+  [AgentState.IDLE]: [AgentState.THINKING, AgentState.OBSERVING, AgentState.HIBERNATED, AgentState.PAUSED],
   [AgentState.THINKING]: [
     AgentState.TOOL_CALLING,
     AgentState.COMPLETED,
@@ -39,6 +43,10 @@ const VALID_TRANSITIONS: Record<AgentState, AgentState[]> = {
   ],
   [AgentState.COMPLETED]: [AgentState.IDLE],
   [AgentState.FAILED]: [AgentState.IDLE],
+  // Daemon state transitions
+  [AgentState.HIBERNATED]: [AgentState.IDLE],
+  [AgentState.PAUSED]: [AgentState.IDLE],
+  [AgentState.OBSERVING]: [AgentState.IDLE, AgentState.THINKING],
 };
 
 // ============================================

@@ -6,6 +6,7 @@
 
 import { query } from '../../database.js';
 import { proposeGoals, approveGoal, rejectGoal, getAgentGoals } from '../../orchestration/goal-proposer.js';
+import { decomposeGoal, updateGoalProgress, getSubGoals, getGoalExecutions } from '../../runtime/goal-manager.js';
 import { getExecutionContext } from '../../runtime/execution-context.js';
 import type { ToolResult } from '../registry.js';
 
@@ -14,13 +15,17 @@ import type { ToolResult } from '../registry.js';
 // ============================================
 
 export interface GoalOpsInput {
-  action: 'propose' | 'list' | 'approve' | 'reject' | 'complete';
+  action: 'propose' | 'list' | 'approve' | 'reject' | 'complete' | 'decompose' | 'update_progress' | 'sub_goals' | 'executions';
   // For list:
   status?: string;
   // For approve / complete:
   goal_id?: string;
   // For complete:
   result_summary?: string;
+  // For decompose:
+  sub_goals?: Array<{ title: string; description: string; priority?: string; max_cost_usd?: number }>;
+  // For update_progress:
+  progress?: number;
   // Context:
   agent_id?: string;
 }
@@ -44,6 +49,14 @@ export async function goalOps(input: GoalOpsInput): Promise<ToolResult> {
         return await handleReject(input, startTime);
       case 'complete':
         return await handleComplete(input, startTime);
+      case 'decompose':
+        return await handleDecompose(input, startTime);
+      case 'update_progress':
+        return await handleUpdateProgress(input, startTime);
+      case 'sub_goals':
+        return await handleSubGoals(input, startTime);
+      case 'executions':
+        return await handleExecutions(input, startTime);
       default:
         return {
           output: null,
@@ -228,7 +241,7 @@ async function handleComplete(input: GoalOpsInput, startTime: number): Promise<T
 
   await query(
     `UPDATE forge_agent_goals
-     SET status = 'completed',
+     SET status = 'completed', progress = 100,
          metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('result_summary', $1::text, 'completed_at', NOW()::text),
          updated_at = NOW()
      WHERE id = $2`,
@@ -241,6 +254,114 @@ async function handleComplete(input: GoalOpsInput, startTime: number): Promise<T
       goal_id: input.goal_id,
       title: goal.title,
       message: `Goal "${goal.title}" marked as completed.`,
+    },
+    durationMs: Math.round(performance.now() - startTime),
+  };
+}
+
+// ============================================
+// Decompose Action
+// ============================================
+
+async function handleDecompose(input: GoalOpsInput, startTime: number): Promise<ToolResult> {
+  if (!input.goal_id) {
+    return { output: null, error: 'goal_id is required for decompose', durationMs: 0 };
+  }
+  if (!input.sub_goals || input.sub_goals.length === 0) {
+    return { output: null, error: 'sub_goals array is required for decompose', durationMs: 0 };
+  }
+
+  try {
+    const ids = await decomposeGoal(input.goal_id, input.sub_goals);
+    return {
+      output: {
+        decomposed: true,
+        goal_id: input.goal_id,
+        sub_goal_ids: ids,
+        count: ids.length,
+        message: `Goal decomposed into ${ids.length} sub-goal(s).`,
+      },
+      durationMs: Math.round(performance.now() - startTime),
+    };
+  } catch (err) {
+    return {
+      output: null,
+      error: err instanceof Error ? err.message : String(err),
+      durationMs: Math.round(performance.now() - startTime),
+    };
+  }
+}
+
+// ============================================
+// Update Progress Action
+// ============================================
+
+async function handleUpdateProgress(input: GoalOpsInput, startTime: number): Promise<ToolResult> {
+  if (!input.goal_id) {
+    return { output: null, error: 'goal_id is required for update_progress', durationMs: 0 };
+  }
+  if (input.progress === undefined || input.progress === null) {
+    return { output: null, error: 'progress (0-100) is required for update_progress', durationMs: 0 };
+  }
+
+  await updateGoalProgress(input.goal_id, input.progress);
+
+  return {
+    output: {
+      updated: true,
+      goal_id: input.goal_id,
+      progress: Math.min(100, Math.max(0, input.progress)),
+      message: input.progress >= 100
+        ? `Goal progress set to 100% — auto-completed.`
+        : `Goal progress updated to ${input.progress}%.`,
+    },
+    durationMs: Math.round(performance.now() - startTime),
+  };
+}
+
+// ============================================
+// Sub-Goals Action
+// ============================================
+
+async function handleSubGoals(input: GoalOpsInput, startTime: number): Promise<ToolResult> {
+  if (!input.goal_id) {
+    return { output: null, error: 'goal_id is required for sub_goals', durationMs: 0 };
+  }
+
+  const subGoals = await getSubGoals(input.goal_id);
+
+  return {
+    output: {
+      goal_id: input.goal_id,
+      sub_goals: subGoals.map((g) => ({
+        id: g.id,
+        title: g.title,
+        status: g.status,
+        progress: g.progress,
+        priority: g.priority,
+      })),
+      count: subGoals.length,
+    },
+    durationMs: Math.round(performance.now() - startTime),
+  };
+}
+
+// ============================================
+// Executions Action
+// ============================================
+
+async function handleExecutions(input: GoalOpsInput, startTime: number): Promise<ToolResult> {
+  if (!input.goal_id) {
+    return { output: null, error: 'goal_id is required for executions', durationMs: 0 };
+  }
+
+  const executions = await getGoalExecutions(input.goal_id);
+
+  return {
+    output: {
+      goal_id: input.goal_id,
+      executions,
+      count: executions.length,
     },
     durationMs: Math.round(performance.now() - startTime),
   };
