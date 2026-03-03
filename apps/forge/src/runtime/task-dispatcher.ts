@@ -8,6 +8,7 @@
  * Flow:
  * 1. FleetCoordinator publishes task → `agent:{agentId}:tasks`
  * 2. TaskDispatcher receives via psubscribe → creates execution → runs CLI
+ *    OR routes to a connected remote device via agent bridge
  * 3. On completion, publishes result → `agent:{agentId}:results`
  * 4. TeamManager picks up result → advances DAG → dispatches next tasks
  */
@@ -16,6 +17,8 @@ import { Redis } from 'ioredis';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { runDirectCliExecution } from './worker.js';
+import { getOnlineDeviceSession, dispatchTaskToDevice } from './agent-bridge.js';
+import { findOnlineDevice } from './device-registry.js';
 
 // ============================================
 // Types
@@ -38,6 +41,13 @@ interface DispatchedTask {
 let subscriber: Redis | null = null;
 let publisher: Redis | null = null;
 let running = false;
+
+/**
+ * Get the Redis publisher (used by agent-bridge to publish results).
+ */
+export function getRedisPublisher(): Redis | null {
+  return publisher;
+}
 
 /**
  * Start the task dispatcher daemon.
@@ -108,20 +118,63 @@ async function handleTask(channel: string, message: string): Promise<void> {
   const execId = ulid();
   const ownerId = task.ownerId || 'system:fleet';
 
+  // Check if task owner has an online device — route there for computer-use execution
+  const deviceSession = getOnlineDeviceSession(ownerId);
+  const onlineDevice = deviceSession ? null : await findOnlineDevice(ownerId);
+  const targetDeviceId = deviceSession?.deviceId ?? null;
+
+  const metadata = {
+    planId: task.planId,
+    taskId: task.taskId,
+    source: 'fleet-dispatch',
+    ...(targetDeviceId ? { device_id: targetDeviceId, execution_mode: 'remote-device' } : { execution_mode: 'forge-internal' }),
+  };
+
   await query(
-    `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, created_at)
-     VALUES ($1, $2, $3, $4, 'pending', $5, NOW())`,
+    `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, device_id, created_at)
+     VALUES ($1, $2, $3, $4, 'pending', $5, $6, NOW())`,
     [
       execId,
       task.agentId,
       ownerId,
       task.input,
-      JSON.stringify({ planId: task.planId, taskId: task.taskId, source: 'fleet-dispatch' }),
+      JSON.stringify(metadata),
+      targetDeviceId,
     ],
   );
 
+  // Try dispatching to remote device first
+  if (targetDeviceId) {
+    const maxBudget = agent.max_cost_per_execution ? parseFloat(agent.max_cost_per_execution) : undefined;
+    const dispatched = dispatchTaskToDevice(
+      targetDeviceId,
+      execId,
+      task.agentId,
+      agent.name,
+      task.input,
+      agent.max_iterations ?? undefined,
+      maxBudget,
+    );
+
+    if (dispatched) {
+      console.log(
+        `[TaskDispatcher] Routed ${agent.name} (exec=${execId}) to device=${targetDeviceId} ` +
+        `plan=${task.planId ?? 'none'} task=${task.taskId ?? 'none'}`,
+      );
+      // Result will be reported back via WebSocket → agent-bridge → publishResult
+      return;
+    }
+
+    // Device dispatch failed (connection dropped) — fall through to internal execution
+    console.log(`[TaskDispatcher] Device dispatch failed for ${targetDeviceId}, falling back to internal execution`);
+    await query(
+      `UPDATE forge_executions SET metadata = jsonb_set(metadata, '{execution_mode}', '"forge-internal-fallback"') WHERE id = $1`,
+      [execId],
+    );
+  }
+
   console.log(
-    `[TaskDispatcher] Dispatching ${agent.name} (exec=${execId}) ` +
+    `[TaskDispatcher] Dispatching ${agent.name} (exec=${execId}) internally ` +
     `plan=${task.planId ?? 'none'} task=${task.taskId ?? 'none'}`,
   );
 

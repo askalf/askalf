@@ -15,6 +15,12 @@ export interface AgentConfig {
   maxBudgetUsd: number;
   maxTurns: number;
   voice?: VoiceOptions;
+  /** Platform WebSocket URL for bridge connection */
+  platformUrl?: string;
+  /** Device token (API key) for authenticating with the platform */
+  deviceToken?: string;
+  /** Persistent device ID assigned by the platform on first registration */
+  deviceId?: string;
 }
 
 const CONFIG_DIR = join(homedir(), '.askalf');
