@@ -2223,6 +2223,55 @@
    AI PROVIDER KEYS
    =========================================== */
 
+.settings-oauth-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px solid rgba(124, 58, 237, 0.18);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+}
+
+.settings-oauth-banner-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.settings-oauth-banner-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-oauth-banner-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text, #e4e4e7);
+}
+
+.settings-oauth-banner-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  line-height: 1.4;
+}
+
+.settings-oauth-banner-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.15);
+  color: #a78bfa;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .settings-provider-card {
   padding: var(--space-lg);
   background: var(--surface);

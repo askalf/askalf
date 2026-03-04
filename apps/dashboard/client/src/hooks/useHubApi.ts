@@ -62,12 +62,13 @@ function buildParams(obj: Record<string, string | number | boolean | undefined |
 export interface Agent {
   id: string;
   name: string;
-  type: 'dev' | 'research' | 'support' | 'content' | 'monitor' | 'custom';
+  type: 'dev' | 'research' | 'support' | 'content' | 'monitor' | 'security' | 'custom';
   status: 'idle' | 'running' | 'paused' | 'error';
   description: string;
   system_prompt: string;
   schedule: string | null;
   config: Record<string, unknown>;
+  enabled_tools: string[];
   autonomy_level: number;
   is_decommissioned: boolean;
   decommissioned_at: string | null;

@@ -1483,12 +1483,22 @@ fastify.patch('/api/user/profile', async (request, reply) => {
     return { error: 'Not authenticated' };
   }
 
-  const { name, preferredName } = request.body || {};
+  const { name, displayName } = request.body || {};
+  const updates = [];
+  const values = [];
+  let idx = 1;
   if (name !== undefined) {
-    await query('UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2', [name, user.id]);
+    updates.push(`name = $${idx++}`);
+    values.push(name);
   }
-  if (preferredName !== undefined) {
-    await query('UPDATE users SET display_name = $1, updated_at = NOW() WHERE id = $2', [preferredName, user.id]);
+  if (displayName !== undefined) {
+    updates.push(`display_name = $${idx++}`);
+    values.push(displayName);
+  }
+  if (updates.length > 0) {
+    updates.push('updated_at = NOW()');
+    values.push(user.id);
+    await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, values);
   }
 
   return { success: true };
@@ -2395,6 +2405,7 @@ fastify.get('/api/v1/auth/me', async (request, reply) => {
       email: user.email,
       emailVerified: user.email_verified,
       onboardingCompleted,
+      name: user.name || null,
       displayName: user.display_name,
       role: user.role,
       tenantName: userExtra?.tenant_name || null,

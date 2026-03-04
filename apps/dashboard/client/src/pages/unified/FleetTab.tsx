@@ -5,7 +5,6 @@ import { useToast } from '../../components/Toast';
 import type {
   Agent,
   AgentDetail,
-  AgentPerformanceReport,
 } from '../../hooks/useHubApi';
 import './FleetTab.css';
 
@@ -30,6 +29,7 @@ function relativeTime(dateStr: string | null): string {
 }
 
 function getTools(agent: Agent): string[] {
+  if (agent.enabled_tools?.length) return agent.enabled_tools;
   const cfg = agent.config as Record<string, unknown>;
   return (cfg?.tools as string[]) || (cfg?.enabled_tools as string[]) || [];
 }
@@ -87,7 +87,7 @@ function AgentList({
       case 'name': cmp = a.name.localeCompare(b.name); break;
       case 'status': cmp = a.status.localeCompare(b.status); break;
       case 'tasks': cmp = (a.tasks_completed + a.tasks_failed) - (b.tasks_completed + b.tasks_failed); break;
-      case 'age': cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); break;
+      case 'age': cmp = new Date(a.last_run_at || 0).getTime() - new Date(b.last_run_at || 0).getTime(); break;
     }
     return sortDir === 'asc' ? cmp : -cmp;
   });
@@ -163,6 +163,7 @@ function AgentDetailPanel({
   onRun,
   onPause,
   onDecommission,
+  onRecommission,
   actionLoading,
   liveLogEntries,
 }: {
@@ -174,6 +175,7 @@ function AgentDetailPanel({
   onRun: (prompt?: string) => void;
   onPause: () => void;
   onDecommission: () => void;
+  onRecommission: () => void;
   actionLoading: boolean;
   liveLogEntries: LiveLogEntry[];
 }) {
@@ -305,15 +307,23 @@ function AgentDetailPanel({
       </div>
 
       <div className="fleet-detail-actions">
-        <button className="fleet-btn primary" onClick={() => onRun()} disabled={actionLoading || agent.status === 'running'}>
-          Run
-        </button>
-        <button className="fleet-btn" onClick={onPause} disabled={actionLoading || agent.status === 'paused'}>
-          Pause
-        </button>
-        <button className="fleet-btn danger" onClick={onDecommission} disabled={actionLoading}>
-          Decommission
-        </button>
+        {agent.is_decommissioned ? (
+          <button className="fleet-btn primary" onClick={onRecommission} disabled={actionLoading}>
+            Recommission
+          </button>
+        ) : (
+          <>
+            <button className="fleet-btn primary" onClick={() => onRun()} disabled={actionLoading || agent.status === 'running'}>
+              Run
+            </button>
+            <button className="fleet-btn" onClick={onPause} disabled={actionLoading || agent.status === 'paused'}>
+              Pause
+            </button>
+            <button className="fleet-btn danger" onClick={onDecommission} disabled={actionLoading}>
+              Decommission
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -339,21 +349,21 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
   const [detailData, setDetailData] = useState<AgentDetail | null>(null);
-  const [, setPerformance] = useState<AgentPerformanceReport | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
   const [sortColumn, setSortColumn] = useState<SortColumn>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [liveLogEntries, setLiveLogEntries] = useState<LiveLogEntry[]>([]);
+  const [showDecommissioned, setShowDecommissioned] = useState(false);
 
   // Polling: agents every 15s
   const pollCallback = useCallback(async () => {
     try {
-      const agentsRes = await hubApi.agents.list();
+      const agentsRes = await hubApi.agents.list(showDecommissioned);
       setAgents(agentsRes.agents);
     } catch {
       addToast('Failed to refresh fleet data', 'error');
     }
-  }, [addToast]);
+  }, [addToast, showDecommissioned]);
 
   usePolling(pollCallback, 15000);
 
@@ -408,11 +418,6 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
     ]);
   }, [wsEvents, selectedAgentId, agents]);
 
-  // One-time fetches
-  useEffect(() => {
-    hubApi.agents.performance(7).then(setPerformance).catch(() => {});
-  }, []);
-
   // Fetch detail when agent selected
   useEffect(() => {
     if (!selectedAgentId) {
@@ -425,7 +430,10 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   }, [selectedAgentId]);
 
   // Filter agents
-  const activeAgents = useMemo(() => agents.filter((a) => !a.is_decommissioned), [agents]);
+  const activeAgents = useMemo(() =>
+    showDecommissioned ? agents : agents.filter((a) => !a.is_decommissioned),
+    [agents, showDecommissioned]
+  );
   const filtered = useMemo(() =>
     search
       ? activeAgents.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
@@ -440,7 +448,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
     setActionLoading((prev) => ({ ...prev, [key]: true }));
     try {
       await fn();
-      const res = await hubApi.agents.list();
+      const res = await hubApi.agents.list(showDecommissioned);
       setAgents(res.agents);
       if (label) addToast(`${label} succeeded`, 'success');
     } catch {
@@ -462,7 +470,13 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
 
   const handleDecommission = (id: string) => {
     const name = agents.find((a) => a.id === id)?.name || 'Agent';
+    if (!window.confirm(`Decommission "${name}"? This will archive the agent.`)) return;
     withLoading(id, () => hubApi.agents.decommission(id), `Decommission ${name}`);
+  };
+
+  const handleRecommission = (id: string) => {
+    const name = agents.find((a) => a.id === id)?.name || 'Agent';
+    withLoading(id, () => hubApi.agents.recommission(id), `Recommission ${name}`);
   };
 
   const handleSort = (col: SortColumn) => {
@@ -495,6 +509,14 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
           <div className="fleet-panel-header">
             <span className="fleet-section-title">Agents</span>
             <div className="fleet-panel-meta">
+              <label className="fleet-toggle-label">
+                <input
+                  type="checkbox"
+                  checked={showDecommissioned}
+                  onChange={(e) => setShowDecommissioned(e.target.checked)}
+                />
+                Archived
+              </label>
               <input
                 className="fleet-search"
                 type="text"
@@ -537,6 +559,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
                 onRun={(prompt) => handleRun(selectedAgent.id, prompt)}
                 onPause={() => handleStop(selectedAgent.id)}
                 onDecommission={() => handleDecommission(selectedAgent.id)}
+                onRecommission={() => handleRecommission(selectedAgent.id)}
                 actionLoading={!!actionLoading[selectedAgent.id]}
                 liveLogEntries={liveLogEntries}
               />
