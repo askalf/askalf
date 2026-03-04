@@ -142,13 +142,13 @@ const API_BASE = getApiUrl();
 
 interface ProfileUser {
   email: string;
+  name?: string;
   displayName?: string;
-  preferredName?: string;
 }
 
 function ProfileTab({ user }: { user: ProfileUser | null }) {
+  const [name, setName] = useState(user?.name || '');
   const [displayName, setDisplayName] = useState(user?.displayName || '');
-  const [preferredName, setPreferredName] = useState(user?.preferredName || '');
   const [email] = useState(user?.email || '');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -164,8 +164,8 @@ function ProfileTab({ user }: { user: ProfileUser | null }) {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          name: displayName,
-          preferredName: preferredName
+          name: name,
+          displayName: displayName,
         }),
       });
 
@@ -174,7 +174,6 @@ function ProfileTab({ user }: { user: ProfileUser | null }) {
         throw new Error(data.error || 'Failed to save');
       }
 
-      // Refresh auth state to get updated user data
       await checkAuth();
       setSaveMessage({ type: 'success', text: 'Profile saved!' });
     } catch (err) {
@@ -202,25 +201,25 @@ function ProfileTab({ user }: { user: ProfileUser | null }) {
 
       <div className="settings-form">
         <div className="settings-field">
+          <label>Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your full name"
+          />
+          <p className="settings-field-hint">Your full name</p>
+        </div>
+
+        <div className="settings-field">
           <label>Display Name</label>
           <input
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Your name"
-          />
-          <p className="settings-field-hint">Shown in the UI and your profile</p>
-        </div>
-
-        <div className="settings-field">
-          <label>Preferred Name</label>
-          <input
-            type="text"
-            value={preferredName}
-            onChange={(e) => setPreferredName(e.target.value)}
             placeholder="What should we call you?"
           />
-          <p className="settings-field-hint">Used in personalized interactions</p>
+          <p className="settings-field-hint">Shown in the UI and personalized interactions</p>
         </div>
 
         <div className="settings-field">
@@ -647,6 +646,17 @@ function AIKeysTab() {
         Add your own API keys to power agent executions. Your keys are encrypted at rest
         and only used when you run agents.
       </p>
+
+      <div className="settings-oauth-banner">
+        <div className="settings-oauth-banner-icon">🔗</div>
+        <div className="settings-oauth-banner-content">
+          <span className="settings-oauth-banner-title">OAuth Connect</span>
+          <span className="settings-oauth-banner-desc">
+            Connect your Anthropic or OpenAI account directly via OAuth — no API keys needed.
+          </span>
+        </div>
+        <span className="settings-oauth-banner-badge">Coming Soon</span>
+      </div>
 
       {message && (
         <div className={`settings-message settings-message-${message.type}`}>
@@ -1281,7 +1291,7 @@ function CostControlsTab() {
           <li>Each agent execution has a per-execution limit (default $1, set per agent)</li>
           <li>Daily and monthly limits apply across all your agents combined</li>
           <li>When a limit is reached, new executions are blocked until the period resets</li>
-          <li>View detailed cost breakdowns in the Costs tab on the main dashboard</li>
+          <li>Cost tracking resets daily at midnight UTC and monthly on the 1st</li>
         </ul>
       </div>
     </div>

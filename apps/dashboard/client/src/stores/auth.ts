@@ -50,6 +50,7 @@ export interface User {
   email: string;
   emailVerified?: boolean;
   onboardingCompleted?: boolean;
+  name?: string;
   displayName?: string;
   role: 'user' | 'admin' | 'super_admin';
   tenantName?: string | null;

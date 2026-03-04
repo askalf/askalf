@@ -41,8 +41,8 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         whereClause += ` AND (is_decommissioned IS NULL OR is_decommissioned = false)`;
       }
 
-      // Single query: agents + aggregated execution stats + running exec + interventions
-      const [agents, execStats, runningExecs, interventionCounts] = await Promise.all([
+      // Single query: agents + aggregated execution stats + running exec + interventions + schedules
+      const [agents, execStats, runningExecs, interventionCounts, schedules] = await Promise.all([
         query<ForgeAgent>(`SELECT * FROM forge_agents ${whereClause} ORDER BY name`, params),
         query<{ agent_id: string; completed: string; failed: string; last_completed_at: string | null }>(
           `SELECT agent_id,
@@ -59,6 +59,9 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         substrateQuery<{ agent_id: string; count: string }>(
           `SELECT agent_id, COUNT(*)::text as count FROM agent_interventions WHERE status = 'pending' GROUP BY agent_id`
         ),
+        substrateQuery<{ agent_id: string; schedule_type: string; schedule_interval_minutes: number | null }>(
+          `SELECT agent_id, schedule_type, schedule_interval_minutes FROM agent_schedules`
+        ),
       ]);
 
       const statsMap = new Map(execStats.map(r => [r.agent_id, r]));
@@ -67,20 +70,28 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         if (!runningMap.has(r.agent_id)) runningMap.set(r.agent_id, r.id);
       }
       const iMap = new Map(interventionCounts.map(r => [r.agent_id, parseInt(r.count)]));
+      const schedMap = new Map(schedules.map(r => [r.agent_id, r]));
 
       const result = {
         agents: agents.map(a => {
           const stats = statsMap.get(a.id);
           const running = runningMap.get(a.id);
+          const sched = schedMap.get(a.id);
+          const scheduleLabel = sched
+            ? (sched.schedule_type === 'scheduled' && sched.schedule_interval_minutes
+              ? `every ${sched.schedule_interval_minutes}m`
+              : sched.schedule_type)
+            : null;
           return {
             id: a.id,
             name: a.name,
-            type: mapAgentType(a.metadata),
+            type: a.type || mapAgentType(a.metadata),
             status: running ? 'running' : (a.status === 'paused' ? 'paused' : 'idle'),
             description: a.description || '',
             system_prompt: a.system_prompt || '',
-            schedule: null,
+            schedule: scheduleLabel,
             config: a.provider_config || {},
+            enabled_tools: a.enabled_tools || [],
             autonomy_level: a.autonomy_level ?? 2,
             is_decommissioned: a.status === 'archived',
             decommissioned_at: a.status === 'archived' ? a.updated_at : null,

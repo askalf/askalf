@@ -2,9 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { useAuthStore } from '../../stores/auth';
 import { usePolling } from '../../hooks/usePolling';
-import { useToast } from '../../components/Toast';
-import type { Provider, AuthSource, UserProviderKey } from '../../hooks/useHubApi';
-import { hubApi } from '../../hooks/useHubApi';
+import type { Provider, AuthSource } from '../../hooks/useHubApi';
 import StatusBadge from '../hub/shared/StatusBadge';
 import './forge-observe.css';
 
@@ -35,170 +33,6 @@ const AUTH_SOURCE_CLASSES: Record<AuthSource, string> = {
 
 const PROVIDER_TYPE_ORDER = ['anthropic', 'openai', 'xai', 'deepseek', 'ollama', 'lmstudio', 'custom'];
 
-const FEATURED_PROVIDERS = ['anthropic', 'openai'];
-
-const PROVIDER_INFO: Record<string, { name: string; description: string; prefix: string }> = {
-  anthropic: {
-    name: 'Anthropic',
-    description: 'Claude models — reasoning, coding, and analysis',
-    prefix: 'sk-ant-',
-  },
-  openai: {
-    name: 'OpenAI',
-    description: 'GPT and o-series models',
-    prefix: 'sk-',
-  },
-};
-
-// ─── User-Facing Featured Card ─────────────────────────────────────
-
-function FeaturedProviderCard({
-  providerType,
-  userKey,
-  onRefresh,
-}: {
-  providerType: string;
-  userKey: UserProviderKey | undefined;
-  onRefresh: () => void;
-}) {
-  const { addToast } = useToast();
-  const [editingKey, setEditingKey] = useState(false);
-  const [keyValue, setKeyValue] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [showKey, setShowKey] = useState(false);
-
-  const info = PROVIDER_INFO[providerType];
-  if (!info) return null;
-
-  const isConnected = userKey?.has_key && userKey.is_active;
-
-  const handleSave = async () => {
-    const trimmed = keyValue.trim();
-    if (!trimmed) return;
-    setSaving(true);
-    try {
-      await hubApi.userProviders.set(providerType, { api_key: trimmed });
-      addToast(`${info.name} key saved`, 'success');
-      setEditingKey(false);
-      setKeyValue('');
-      onRefresh();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to save key';
-      addToast(msg, 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleRemove = async () => {
-    if (!confirm(`Remove your ${info.name} API key?`)) return;
-    try {
-      await hubApi.userProviders.remove(providerType);
-      addToast(`${info.name} key removed`, 'info');
-      onRefresh();
-    } catch {
-      addToast('Failed to remove key', 'error');
-    }
-  };
-
-  const handleVerify = async () => {
-    setVerifying(true);
-    try {
-      const res = await hubApi.userProviders.verify(providerType);
-      if (res.status === 'valid') {
-        addToast(`${info.name} key verified`, 'success');
-        onRefresh();
-      } else {
-        addToast(`${info.name} key invalid: ${res.error || 'verification failed'}`, 'error');
-      }
-    } catch {
-      addToast('Verification failed', 'error');
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  return (
-    <div className={`uprov-card ${isConnected ? 'uprov-card--connected' : ''}`}>
-      <div className="uprov-card-header">
-        <div className="uprov-provider-icon">{providerType === 'anthropic' ? '◈' : '◉'}</div>
-        <div className="uprov-provider-info">
-          <h3 className="uprov-provider-name">{info.name}</h3>
-          <p className="uprov-provider-desc">{info.description}</p>
-        </div>
-        <div className={`uprov-status ${isConnected ? 'uprov-status--connected' : 'uprov-status--none'}`}>
-          <span className="uprov-status-dot" />
-          {isConnected ? 'Connected' : 'Not configured'}
-        </div>
-      </div>
-
-      <div className="uprov-card-body">
-        {isConnected && !editingKey ? (
-          <div className="uprov-key-display">
-            <div className="uprov-key-row">
-              <span className="uprov-key-label">API Key</span>
-              <code className="uprov-key-hint">{userKey.key_hint}</code>
-            </div>
-            {userKey.last_verified_at && (
-              <div className="uprov-key-meta">Verified {relativeTime(userKey.last_verified_at)}</div>
-            )}
-            <div className="uprov-key-actions">
-              <button className="uprov-btn uprov-btn--verify" onClick={handleVerify} disabled={verifying}>
-                {verifying ? 'Verifying...' : 'Verify'}
-              </button>
-              <button className="uprov-btn uprov-btn--change" onClick={() => setEditingKey(true)}>
-                Change Key
-              </button>
-              <button className="uprov-btn uprov-btn--remove" onClick={handleRemove}>
-                Remove
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="uprov-key-edit">
-            <div className="uprov-input-row">
-              <input
-                type={showKey ? 'text' : 'password'}
-                className="uprov-key-input"
-                placeholder={`Paste your ${info.name} API key (${info.prefix}...)`}
-                value={keyValue}
-                onChange={(e) => setKeyValue(e.target.value)}
-                autoFocus={editingKey}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && keyValue.trim()) handleSave();
-                  if (e.key === 'Escape') { setEditingKey(false); setKeyValue(''); }
-                }}
-              />
-              <button
-                className="uprov-btn uprov-btn--toggle-vis"
-                onClick={() => setShowKey(!showKey)}
-                title={showKey ? 'Hide' : 'Show'}
-              >
-                {showKey ? '◌' : '◉'}
-              </button>
-            </div>
-            <div className="uprov-input-actions">
-              <button
-                className="uprov-btn uprov-btn--save"
-                onClick={handleSave}
-                disabled={!keyValue.trim() || saving}
-              >
-                {saving ? 'Saving...' : 'Save Key'}
-              </button>
-              {(editingKey && isConnected) && (
-                <button className="uprov-btn uprov-btn--cancel" onClick={() => { setEditingKey(false); setKeyValue(''); }}>
-                  Cancel
-                </button>
-              )}
-            </div>
-            <p className="uprov-key-note">Your key is encrypted at rest and used for agent executions.</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Admin System Provider Card (existing pattern) ─────────────────
 
@@ -378,15 +212,8 @@ export default function ProviderHealth() {
   const fetchProviderModels = useHubStore((s) => s.fetchProviderModels);
   const runProviderHealthCheck = useHubStore((s) => s.runProviderHealthCheck);
   const loading = useHubStore((s) => s.loading);
-  const userProviderKeys = useHubStore((s) => s.userProviderKeys);
-  const fetchUserProviderKeys = useHubStore((s) => s.fetchUserProviderKeys);
 
   const [adminExpanded, setAdminExpanded] = useState(false);
-
-  // Fetch user keys on mount
-  useEffect(() => {
-    fetchUserProviderKeys();
-  }, [fetchUserProviderKeys]);
 
   // Poll admin providers (admin only)
   const adminPoll = useCallback(() => {
@@ -420,26 +247,7 @@ export default function ProviderHealth() {
 
   return (
     <div className="fo-overview">
-      {/* ── Section A: Your API Keys (user-facing) ── */}
-      <div className="uprov-section">
-        <div className="uprov-section-header">
-          <h2 className="uprov-section-title">Your API Keys</h2>
-          <p className="uprov-section-desc">Connect your provider accounts to use your own models in agent executions</p>
-        </div>
-
-        <div className="uprov-featured-grid">
-          {FEATURED_PROVIDERS.map((type) => (
-            <FeaturedProviderCard
-              key={type}
-              providerType={type}
-              userKey={userProviderKeys.find((k) => k.provider_type === type)}
-              onRefresh={fetchUserProviderKeys}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* ── Section B: System Providers (admin-only) ── */}
+      {/* ── System Providers (admin-only) ── */}
       {isAdmin && (
         <div className="uprov-admin-section">
           <button

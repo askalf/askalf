@@ -54,6 +54,7 @@ function rowToUser(row: Record<string, unknown>): User {
       : null,
     status: row['status'] as User['status'],
     role: row['role'] as User['role'],
+    name: row['name'] as string | null,
     display_name: row['display_name'] as string | null,
     avatar_url: row['avatar_url'] as string | null,
     timezone: row['timezone'] as string,

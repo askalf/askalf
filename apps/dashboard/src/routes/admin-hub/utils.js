@@ -120,6 +120,7 @@ export function mapAgentType(metadata) {
     content: 'content',
     monitoring: 'monitor',
     monitor: 'monitor',
+    security: 'security',
   };
   const raw = metadata?.type || '';
   return typeMap[raw.toLowerCase()] || 'custom';
