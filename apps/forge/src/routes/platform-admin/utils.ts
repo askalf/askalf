@@ -17,6 +17,7 @@ export interface ForgeAgent {
   id: string; name: string; description: string | null; system_prompt: string | null;
   status: string; autonomy_level: number; metadata: Record<string, unknown> | null;
   provider_config: Record<string, unknown> | null; model_id: string | null;
+  enabled_tools: string[]; type: string;
   created_at: string; updated_at: string;
 }
 
@@ -40,6 +41,7 @@ export function mapAgentType(metadata: Record<string, unknown> | null): string {
   const typeMap: Record<string, string> = {
     development: 'dev', dev: 'dev', research: 'research',
     support: 'support', content: 'content', monitoring: 'monitor', monitor: 'monitor',
+    security: 'security',
   };
   const raw = (metadata?.['type'] as string) || '';
   return typeMap[raw.toLowerCase()] || 'custom';
@@ -63,12 +65,13 @@ export function transformAgent(a: ForgeAgent, executions: ForgeExecution[] = [],
   return {
     id: a.id,
     name: a.name,
-    type: mapAgentType(a.metadata),
+    type: a.type || mapAgentType(a.metadata),
     status: running ? 'running' : mapAgentStatus(a.status),
     description: a.description || '',
     system_prompt: a.system_prompt || '',
     schedule: null,
     config: a.provider_config || {},
+    enabled_tools: a.enabled_tools || [],
     autonomy_level: a.autonomy_level ?? 2,
     is_decommissioned: a.status === 'archived',
     decommissioned_at: a.status === 'archived' ? a.updated_at : null,

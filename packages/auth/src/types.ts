@@ -30,6 +30,7 @@ export const UserSchema = z.object({
   status: UserStatusSchema.default('active'),
   role: UserRoleSchema.default('user'),
 
+  name: z.string().nullable(),
   display_name: z.string().nullable(),
   avatar_url: z.string().nullable(),
   timezone: z.string().default('UTC'),
