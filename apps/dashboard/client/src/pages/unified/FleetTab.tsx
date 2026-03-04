@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { usePolling } from '../../hooks/usePolling';
 import { hubApi } from '../../hooks/useHubApi';
 import { useToast } from '../../components/Toast';
@@ -32,6 +32,36 @@ function relativeTime(dateStr: string | null): string {
 function getTools(agent: Agent): string[] {
   const cfg = agent.config as Record<string, unknown>;
   return (cfg?.tools as string[]) || (cfg?.enabled_tools as string[]) || [];
+}
+
+// ── Stats Cards ──
+
+function FleetStats({ agents }: { agents: Agent[] }) {
+  const running = agents.filter(a => a.status === 'running').length;
+  const idle = agents.filter(a => a.status === 'idle').length;
+  const errors = agents.filter(a => a.status === 'error').length;
+  const tasksDone = agents.reduce((sum, a) => sum + a.tasks_completed, 0);
+
+  return (
+    <div className="fleet-stats-grid">
+      <div className="fleet-stat-card">
+        <div className="fleet-stat-value green">{running}</div>
+        <div className="fleet-stat-label">Running</div>
+      </div>
+      <div className="fleet-stat-card">
+        <div className="fleet-stat-value muted">{idle}</div>
+        <div className="fleet-stat-label">Idle</div>
+      </div>
+      <div className="fleet-stat-card">
+        <div className="fleet-stat-value red">{errors}</div>
+        <div className="fleet-stat-label">Errors</div>
+      </div>
+      <div className="fleet-stat-card">
+        <div className="fleet-stat-value violet">{tasksDone}</div>
+        <div className="fleet-stat-label">Tasks Done</div>
+      </div>
+    </div>
+  );
 }
 
 // ── Agent List ──
@@ -82,7 +112,7 @@ function AgentList({
               >
                 {c.label}
                 {sortColumn === c.key && (
-                  <span className="fleet-sort-arrow">{sortDir === 'asc' ? ' ▲' : ' ▼'}</span>
+                  <span className="fleet-sort-arrow">{sortDir === 'asc' ? ' \u25B2' : ' \u25BC'}</span>
                 )}
               </th>
             ))}
@@ -95,7 +125,10 @@ function AgentList({
               className={selectedId === agent.id ? 'selected' : ''}
               onClick={() => onSelect(agent.id)}
             >
-              <td>{agent.name}</td>
+              <td>
+                {agent.name}
+                <span className="fleet-agent-type">{agent.type}</span>
+              </td>
               <td>
                 <span className={`fleet-status ${agent.status}`}>
                   <span className="fleet-status-dot" />
@@ -212,8 +245,8 @@ function AgentDetailPanel({
               </div>
             )}
             {tools.length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <span className="fleet-overview-label" style={{ fontSize: 12 }}>Tools</span>
+              <div style={{ marginTop: 12 }}>
+                <span className="fleet-overview-label">Tools</span>
                 <div className="fleet-tools-list">
                   {tools.map((t) => (
                     <span key={t} className="fleet-tool-tag">{t}</span>
@@ -392,10 +425,13 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   }, [selectedAgentId]);
 
   // Filter agents
-  const activeAgents = agents.filter((a) => !a.is_decommissioned);
-  const filtered = search
-    ? activeAgents.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
-    : activeAgents;
+  const activeAgents = useMemo(() => agents.filter((a) => !a.is_decommissioned), [agents]);
+  const filtered = useMemo(() =>
+    search
+      ? activeAgents.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
+      : activeAgents,
+    [activeAgents, search]
+  );
 
   const selectedAgent = agents.find((a) => a.id === selectedAgentId);
 
@@ -439,53 +475,74 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   };
 
   return (
-    <div>
-      <div className="fleet-toolbar">
-        <input
-          className="fleet-search"
-          type="text"
-          placeholder="Search agents..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <span className="fleet-agent-count">{filtered.length} agents</span>
+    <div className="fleet-tab">
+      {/* Header */}
+      <div className="fleet-header">
+        <div className="fleet-title-row">
+          <span className="fleet-icon">&#x2B21;</span>
+          <h2 className="fleet-title">Agent Fleet</h2>
+        </div>
+        <p className="fleet-subtitle">Manage &middot; Monitor &middot; Execute</p>
       </div>
 
-      <div className="fleet-main">
-        <div className="fleet-content">
-          {filtered.length === 0 ? (
-            <div className="fleet-empty">
-              {search ? 'No agents match your search' : 'No agents'}
-            </div>
-          ) : (
-            <AgentList
-              agents={filtered}
-              selectedId={selectedAgentId}
-              sortColumn={sortColumn}
-              sortDir={sortDir}
-              onSort={handleSort}
-              onSelect={(id) => {
-                setSelectedAgentId(selectedAgentId === id ? null : id);
-                setDetailTab('overview');
-              }}
-            />
-          )}
-        </div>
+      {/* Scrollable content */}
+      <div className="fleet-content-area">
+        {/* Stats */}
+        <FleetStats agents={activeAgents} />
 
-        {selectedAgent && (
-          <AgentDetailPanel
-            detail={detailData}
-            agent={selectedAgent}
-            tab={detailTab}
-            onTabChange={setDetailTab}
-            onClose={() => setSelectedAgentId(null)}
-            onRun={(prompt) => handleRun(selectedAgent.id, prompt)}
-            onPause={() => handleStop(selectedAgent.id)}
-            onDecommission={() => handleDecommission(selectedAgent.id)}
-            actionLoading={!!actionLoading[selectedAgent.id]}
-            liveLogEntries={liveLogEntries}
-          />
-        )}
+        {/* Agent panel */}
+        <div className="fleet-panel">
+          <div className="fleet-panel-header">
+            <span className="fleet-section-title">Agents</span>
+            <div className="fleet-panel-meta">
+              <input
+                className="fleet-search"
+                type="text"
+                placeholder="Search agents..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <span className="fleet-agent-count">{filtered.length} total</span>
+            </div>
+          </div>
+
+          <div className="fleet-main">
+            <div className="fleet-content">
+              {filtered.length === 0 ? (
+                <div className="fleet-empty">
+                  {search ? 'No agents match your search' : 'No agents'}
+                </div>
+              ) : (
+                <AgentList
+                  agents={filtered}
+                  selectedId={selectedAgentId}
+                  sortColumn={sortColumn}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  onSelect={(id) => {
+                    setSelectedAgentId(selectedAgentId === id ? null : id);
+                    setDetailTab('overview');
+                  }}
+                />
+              )}
+            </div>
+
+            {selectedAgent && (
+              <AgentDetailPanel
+                detail={detailData}
+                agent={selectedAgent}
+                tab={detailTab}
+                onTabChange={setDetailTab}
+                onClose={() => setSelectedAgentId(null)}
+                onRun={(prompt) => handleRun(selectedAgent.id, prompt)}
+                onPause={() => handleStop(selectedAgent.id)}
+                onDecommission={() => handleDecommission(selectedAgent.id)}
+                actionLoading={!!actionLoading[selectedAgent.id]}
+                liveLogEntries={liveLogEntries}
+              />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
