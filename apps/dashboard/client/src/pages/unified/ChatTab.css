@@ -277,6 +277,20 @@
   border-bottom-left-radius: 4px;
 }
 
+.chat-inline-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--crystal-lighter, #a78bfa);
+}
+
+.chat-msg-text strong {
+  font-weight: 600;
+  color: var(--text, #f4f4f5);
+}
+
 .chat-msg-time {
   font-size: 11px;
   color: var(--text-muted, #666);

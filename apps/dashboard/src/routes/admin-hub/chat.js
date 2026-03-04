@@ -2,7 +2,7 @@
 // Proxies conversation and intent routes to forge
 // Forwards real user ID via X-User-Id header so forge creates per-user conversations
 
-import { callForge } from './utils.js';
+import { callForge, callForgeAdmin } from './utils.js';
 
 // Helper: call forge with user identity forwarded
 function callForgeAsUser(path, userId, options = {}) {
@@ -114,6 +114,21 @@ export async function registerChatRoutes(fastify, requireAuth, query, queryOne) 
     return reply.code(201).send(res);
   });
 
+  // Run agent (user-scoped — for template quick-run and chat dispatches)
+  fastify.post('/api/v1/admin/chat/agents/:id/run', async (request, reply) => {
+    const auth = await requireAuth(request, reply); if (!auth) return;
+    const { id } = request.params;
+    const body = request.body || {};
+    const prompt = body.prompt || (typeof body.input === 'object' ? body.input?.prompt : body.input) || 'Execute default task';
+    const res = await callForgeAsUser(`/executions`, auth.id, {
+      method: 'POST',
+      body: { agentId: id, input: prompt, metadata: { ...(body.metadata || {}), task_type: body.task_type || 'manual' } },
+      timeout: 30000,
+    });
+    if (res.error) return reply.code(res.status || 503).send({ error: 'Failed to run agent', message: res.message });
+    return { execution: res.execution || res };
+  });
+
   // Dispatch multi-agent orchestration plan
   fastify.post('/api/v1/admin/chat/dispatch-orchestration', async (request, reply) => {
     const auth = await requireAuth(request, reply); if (!auth) return;
@@ -129,7 +144,7 @@ export async function registerChatRoutes(fastify, requireAuth, query, queryOne) 
   // Get orchestration session status
   fastify.get('/api/v1/admin/chat/orchestration/:sessionId/status', async (request, reply) => {
     const auth = await requireAuth(request, reply); if (!auth) return;
-    const res = await callForge(`/orchestration/${request.params.sessionId}/status`);
+    const res = await callForgeAdmin(`/orchestration/${request.params.sessionId}/status`);
     if (res.error) return reply.code(res.status || 503).send({ error: res.message });
     return res;
   });
