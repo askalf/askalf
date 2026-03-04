@@ -57,7 +57,7 @@ export default function WaitlistPage() {
     fetch(`${API_BASE}/api/v1/auth/oauth/providers`)
       .then((res) => res.json())
       .then((data: { providers: Array<{ provider: string; enabled: boolean }> }) => {
-        setOauthProviders(data.providers.filter((p) => p.enabled));
+        setOauthProviders(data.providers.filter((p) => p.enabled && p.provider !== 'github'));
       })
       .catch(() => {});
 

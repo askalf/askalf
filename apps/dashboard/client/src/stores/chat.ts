@@ -121,6 +121,7 @@ interface ChatState {
   confirmIntent: (intent: ParsedIntent) => Promise<void>;
   cancelIntent: () => void;
   addAssistantMessage: (content: string, executionId?: string, intent?: ParsedIntent) => Promise<void>;
+  pollOrchestrationStatus: (sessionId: string) => void;
   clearError: () => void;
 }
 
@@ -310,14 +311,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
           },
         );
 
-        const taskSummary = result.tasks.map(t => `- ${t.title} → ${t.agentName}`).join('\n');
+        const taskSummary = result.tasks.map(t => `- **${t.title}** → ${t.agentName}`).join('\n');
         await get().addAssistantMessage(
-          `Orchestration launched! ${result.totalTasks} agents dispatched in **${intent.executionMode}** mode.\n\n${taskSummary}\n\nSession: \`${result.sessionId}\`\nTrack progress in the Fleet tab.`,
+          `Orchestration launched! ${result.totalTasks} agents dispatched in **${intent.executionMode}** mode.\n\n${taskSummary}\n\nSession: \`${result.sessionId}\``,
         );
 
         set({ activeOrchestrationSessionId: result.sessionId, isProcessing: false });
+
+        // Start polling orchestration status
+        get().pollOrchestrationStatus(result.sessionId);
       } else if (intent.templateId) {
-        // ── Single-agent template instantiation ──
+        // ── Single-agent: instantiate from template + auto-run ──
         const result = await chatFetch<{ agent: { id: string; name: string }; message: string }>(
           `/api/v1/admin/chat/templates/${intent.templateId}/instantiate`,
           {
@@ -335,13 +339,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
         );
 
         await get().addAssistantMessage(
-          `Agent "${result.agent.name}" created successfully! You can find it in the Fleet tab.\n\nTo run it, go to Fleet → select the agent → Execute.`,
+          `Agent **${result.agent.name}** created. Starting execution...`,
         );
+
+        // Auto-run the agent
+        try {
+          const execResult = await chatFetch<{ execution: { id: string } }>(
+            `/api/v1/admin/chat/agents/${result.agent.id}/run`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ prompt: intent.summary }),
+            },
+          );
+          await get().addAssistantMessage(
+            `Agent **${result.agent.name}** is now running. Track progress in the Fleet tab.\n\nExecution: \`${execResult.execution?.id ?? 'started'}\``,
+          );
+        } catch {
+          await get().addAssistantMessage(
+            `Agent **${result.agent.name}** was created but failed to auto-start. You can run it manually from the Fleet tab.`,
+          );
+        }
         set({ isProcessing: false });
       } else {
         // ── Single-agent manual config ──
         await get().addAssistantMessage(
-          `I've prepared the configuration for "${intent.agentConfig.name}". You can create it manually in the Builder tab with these settings:\n\n- Model: ${intent.agentConfig.model}\n- Tools: ${intent.agentConfig.tools.join(', ')}\n- Max cost: $${intent.agentConfig.maxCostPerExecution.toFixed(2)}`,
+          `I've prepared the configuration for **${intent.agentConfig.name}**. You can create it in the Builder tab with these settings:\n\n- Model: ${intent.agentConfig.model}\n- Tools: ${intent.agentConfig.tools.join(', ')}\n- Max cost: $${intent.agentConfig.maxCostPerExecution.toFixed(2)}`,
         );
         set({ isProcessing: false });
       }
@@ -393,6 +415,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
       set(s => ({ messages: [...s.messages, localMsg] }));
     }
+  },
+
+  pollOrchestrationStatus: (sessionId: string) => {
+    let attempts = 0;
+    const maxAttempts = 60; // 10 minutes at 10s intervals
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const status = await chatFetch<{
+          tasks: Array<{ executionId: string; agentName: string; title: string; status: string; output?: string }>;
+          allComplete: boolean;
+          summary?: string;
+        }>(`/api/v1/admin/chat/orchestration/${sessionId}/status`);
+
+        if (status.allComplete || attempts >= maxAttempts) {
+          clearInterval(interval);
+          set({ activeOrchestrationSessionId: null });
+
+          const results = status.tasks.map(t => {
+            const icon = t.status === 'completed' ? '\u2713' : t.status === 'failed' ? '\u2717' : '\u2026';
+            const output = t.output ? `\n  ${t.output.slice(0, 200)}` : '';
+            return `${icon} **${t.title}** (${t.agentName}): ${t.status}${output}`;
+          }).join('\n');
+
+          const header = status.allComplete
+            ? 'All orchestration tasks complete!'
+            : `Orchestration status update (${attempts >= maxAttempts ? 'timed out' : 'partial'}):`;
+
+          await get().addAssistantMessage(`${header}\n\n${results}${status.summary ? `\n\n${status.summary}` : ''}`);
+        }
+      } catch {
+        // Silently retry — forge may be temporarily unavailable
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          set({ activeOrchestrationSessionId: null });
+        }
+      }
+    }, 10000);
   },
 
   clearError: () => set({ error: null }),
