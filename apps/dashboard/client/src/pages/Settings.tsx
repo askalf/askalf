@@ -778,29 +778,62 @@ interface AvailableProvider {
   configured: boolean;
 }
 
-const PROVIDER_LABELS: Record<string, string> = {
-  github: 'GitHub',
-  gitlab: 'GitLab',
-  bitbucket: 'Bitbucket',
-};
+interface ProviderDef {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: JSX.Element;
+}
 
-const PROVIDER_ICONS: Record<string, JSX.Element> = {
-  github: (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-      <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-    </svg>
-  ),
-  gitlab: (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-      <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 0 1 4.82 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.49h8.1l2.44-7.51A.42.42 0 0 1 18.6 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.51L23 13.45a.84.84 0 0 1-.35.94z"/>
-    </svg>
-  ),
-  bitbucket: (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-      <path d="M.778 1.213a.768.768 0 0 0-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 0 0 .77-.646L23.99 2.104a.768.768 0 0 0-.768-.891zm13.142 13.477H9.957L8.857 8.891h6.167z"/>
-    </svg>
-  ),
-};
+const PROVIDER_CATEGORIES = [
+  { id: 'source', label: 'Source Control' },
+  { id: 'cloud', label: 'Cloud & Infrastructure' },
+  { id: 'cicd', label: 'CI/CD & Deploy' },
+  { id: 'pm', label: 'Project Management' },
+  { id: 'monitoring', label: 'Monitoring & Observability' },
+  { id: 'storage', label: 'Storage & CDN' },
+];
+
+const ALL_PROVIDERS: ProviderDef[] = [
+  // Source Control
+  { id: 'github', name: 'GitHub', description: 'Repos, PRs, issues, actions', category: 'source', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg> },
+  { id: 'gitlab', name: 'GitLab', description: 'Repos, merge requests, CI pipelines', category: 'source', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 0 1 4.82 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.49h8.1l2.44-7.51A.42.42 0 0 1 18.6 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.51L23 13.45a.84.84 0 0 1-.35.94z"/></svg> },
+  { id: 'bitbucket', name: 'Bitbucket', description: 'Repos, pull requests, pipelines', category: 'source', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M.778 1.213a.768.768 0 0 0-.768.892l3.263 19.81c.084.5.515.868 1.022.873H19.95a.772.772 0 0 0 .77-.646L23.99 2.104a.768.768 0 0 0-.768-.891zm13.142 13.477H9.957L8.857 8.891h6.167z"/></svg> },
+
+  // Cloud & Infrastructure
+  { id: 'aws', name: 'AWS', description: 'EC2, S3, Lambda, CloudWatch', category: 'cloud', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.335a.383.383 0 0 1-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 0 1-.287-.375 6.18 6.18 0 0 1-.248-.471c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.03-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.032-.863.104-.296.072-.583.16-.863.272a2.287 2.287 0 0 1-.28.104.488.488 0 0 1-.127.024c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 0 1 .224-.167c.28-.144.616-.264 1.01-.36a4.84 4.84 0 0 1 1.244-.152c.95 0 1.644.216 2.091.647.44.43.662 1.085.662 1.963v2.586zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 0 0-.735-.136 6.02 6.02 0 0 0-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.838.296zm6.41.862c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 0 1-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 0 1 .32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 0 1 .311-.08h.743c.128 0 .2.064.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 0 1-.056.2l-1.923 6.17c-.048.16-.104.264-.168.312a.549.549 0 0 1-.32.08h-.687c-.152 0-.256-.024-.32-.08-.063-.056-.12-.16-.15-.32L13.545 6.9l-1.23 5.14c-.047.16-.087.264-.15.32-.064.056-.176.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.216-.151-.248-.223a.504.504 0 0 1-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024s.12.064.2.107c.271.135.566.248.878.335.32.088.631.136.95.136.503 0 .894-.088 1.165-.264a.86.86 0 0 0 .415-.758.777.777 0 0 0-.215-.559c-.144-.151-.415-.287-.807-.414l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 0 1-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.176 0 .359.008.535.032.183.024.35.056.518.088.16.04.312.08.455.127.144.048.256.096.336.144a.69.69 0 0 1 .24.2.43.43 0 0 1 .071.263v.375c0 .168-.064.256-.184.256a.83.83 0 0 1-.303-.096 3.652 3.652 0 0 0-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.878.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167zM21.698 16.207c-2.626 1.94-6.442 2.969-9.722 2.969-4.598 0-8.74-1.7-11.87-4.526-.247-.223-.024-.527.27-.351 3.384 1.963 7.559 3.153 11.877 3.153 2.914 0 6.114-.607 9.06-1.852.439-.2.814.287.385.607z"/><path d="M22.792 14.961c-.336-.43-2.22-.207-3.074-.103-.255.032-.295-.192-.063-.36 1.5-1.053 3.967-.75 4.254-.399.287.36-.08 2.826-1.485 4.007-.216.184-.423.088-.327-.151.32-.79 1.03-2.57.695-2.994z"/></svg> },
+  { id: 'gcp', name: 'Google Cloud', description: 'Compute, Cloud Run, BigQuery', category: 'cloud', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12.19 2.38a9.344 9.344 0 0 0-9.234 6.893c.053-.02-.055.013 0 0-3.875 2.551-3.922 8.11-.247 10.941l.006-.007-.007.003a6.542 6.542 0 0 0 3.624 1.108h12.07a6.662 6.662 0 0 0 4.86-2.065 6.552 6.552 0 0 0-.09-9.166l.008.006A9.344 9.344 0 0 0 12.19 2.38zm-.358 4.146c2.423-.04 4.646 1.902 4.965 4.342h1.064a3.28 3.28 0 0 1 3.276 3.276 3.28 3.28 0 0 1-3.276 3.276H6.332a3.267 3.267 0 0 1-2.14-.8 3.279 3.279 0 0 1 1.49-5.6v-.013a5.215 5.215 0 0 1 6.15-4.481z"/></svg> },
+  { id: 'azure', name: 'Azure', description: 'VMs, Functions, DevOps', category: 'cloud', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M5.483 21.3H24L14.025 4.013l-3.038 8.347 5.836 6.938L5.483 21.3zM13.23 2.7L6.105 8.677 0 19.253h5.505l7.725-16.553z"/></svg> },
+  { id: 'digitalocean', name: 'DigitalOcean', description: 'Droplets, App Platform, Spaces', category: 'cloud', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12.04 0C5.408-.02.005 5.37.005 11.992h4.638c0-4.923 4.882-8.731 10.064-6.855a6.95 6.95 0 0 1 4.147 4.148c1.889 5.177-1.924 10.055-6.84 10.064v-4.61H7.391v4.623h4.623V24c7.726 0 13.695-7.236 11.135-15.2A11.08 11.08 0 0 0 15.239.897 12.607 12.607 0 0 0 12.04 0zm-.615 19.339H7.39v4.036h4.036v-4.036zm-4.035 4.036H4.38v3.009H7.39v-3.009z"/></svg> },
+
+  // CI/CD & Deploy
+  { id: 'vercel', name: 'Vercel', description: 'Deployments, serverless, edge functions', category: 'cicd', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M24 22.525H0l12-21.05 12 21.05z"/></svg> },
+  { id: 'netlify', name: 'Netlify', description: 'Sites, builds, serverless functions', category: 'cicd', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16.934 8.519a1.044 1.044 0 0 1 .303.23l2.349-1.045-.652-1.542-2.779 1.24a.96.96 0 0 1-.217.376l.996.741zm4.06 7.777l-1.355-.577a1.06 1.06 0 0 1-.391.256l.477 2.873 1.636-.475-.367-2.077zm-3.741-4.119l.652 1.542 2.793-1.227-.652-1.542-2.793 1.227zm-1.293-5.7l-.65-1.542-2.794 1.228.652 1.542 2.792-1.228zM3.523 7.08l2.349 1.044a1.06 1.06 0 0 1 .302-.23l.996-.74a.96.96 0 0 1-.217-.377L4.174 5.537l-.651 1.543zm6.385 2.58a1.07 1.07 0 0 1-.246-.4l-1.14-.038-.177-.17-.091.07-2.794 1.228.652 1.542 3.554-1.562a1.07 1.07 0 0 1 .242-.67zm3.706-3.942l-.107-.032a1.048 1.048 0 0 1-.907.128l-.535 1.26a1.07 1.07 0 0 1 .478.537l1.097.037.205.167.085-.064 2.087-.917-.652-1.542-1.751.426zm5.56 5.29l-2.793 1.228.651 1.542 2.793-1.228-.651-1.542zm-12.97-.18a1.07 1.07 0 0 1-.47-.541l-1.096-.037-.206-.168-.085.065-2.087.916.652 1.542 1.755-.431.103.031a1.048 1.048 0 0 1 .907-.127l.536-1.26-.009.01zm14.553-1.593l-2.793 1.228.651 1.542 2.794-1.228-.652-1.542zm-5.1-5.14l2.794-1.228-.651-1.542-2.794 1.228.651 1.542zM3.17 8.737L.963 9.708l.652 1.542 2.207-.971-.652-1.542zm.652 1.542l-.652-1.542L.963 9.708l.652 1.542 2.207-.971zM7.88 14.96a1.06 1.06 0 0 1 .386-.255l-.475-2.874-1.637.476.37 2.077 1.356.576zm4.042 1.438a1.046 1.046 0 0 1-.646-.394l-1.08.163-.228-.122-.064.091-2.349 1.045.652 1.542 2.779-1.24a.96.96 0 0 1 .217-.376l-.996-.741.715.032zm3.984 3.742l-2.349-1.044a1.06 1.06 0 0 1-.303.229l-.996.741a.96.96 0 0 1 .217.376l2.779 1.24.652-1.542zm-4.31.575a1.06 1.06 0 0 1-.386.255l.477 2.873 1.636-.475-.37-2.077-1.357-.576zm-.124-1.804a1.046 1.046 0 0 1 .647.394l1.078-.163.229.122.064-.091 2.349-1.044-.651-1.543-2.78 1.24a.96.96 0 0 1-.217.377l.996.74-.715-.032z"/></svg> },
+  { id: 'railway', name: 'Railway', description: 'App hosting, databases, cron', category: 'cicd', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M.113 14.725c.016.074.098.13.183.13h5.96c.079 0 .17-.06.17-.138v-.37c-.006-.079-.011-.185-.023-.295-.142-1.332-.536-3.07-1.39-4.636-1.283-2.353-3.312-3.746-5.027-3.746A.12.12 0 0 0 0 5.783c.068 2.14.108 8.86.113 8.942zm11.502.13h5.975c.074 0 .114-.068.114-.13V8.23a.118.118 0 0 0-.12-.118c-.842.034-4.036.336-5.9 6.552-.028.085-.006.19.074.19h-.143zm-6.218 0h5.954c.079 0 .17-.068.17-.136v-1.383c0-.085-.011-.175-.028-.265-.426-2.353-2.063-4.42-5.977-5.108-.085-.017-.17.034-.17.125v6.631a.12.12 0 0 0 .051.136zm-5.283 3.53a21.985 21.985 0 0 0 5.686 3.476c4.112 1.832 9.275 2.082 12.602-.591.662-.534 1.18-1.12 1.598-1.733a.14.14 0 0 0-.017-.164.12.12 0 0 0-.091-.04H.204a.14.14 0 0 0-.136.107.141.141 0 0 0 .046.147v-.006l.006.006-.006-.006v.005z"/></svg> },
+  { id: 'flyio', name: 'Fly.io', description: 'Edge compute, machines, volumes', category: 'cicd', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm4.5 16.5h-9a1.5 1.5 0 0 1-1.5-1.5V9a1.5 1.5 0 0 1 1.5-1.5h9A1.5 1.5 0 0 1 18 9v6a1.5 1.5 0 0 1-1.5 1.5z"/></svg> },
+
+  // Project Management
+  { id: 'jira', name: 'Jira', description: 'Issues, sprints, boards, workflows', category: 'pm', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24.013 12.5V1.005A1.005 1.005 0 0 0 23.013 0z"/></svg> },
+  { id: 'linear', name: 'Linear', description: 'Issues, projects, cycles, roadmaps', category: 'pm', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.513 12.833a.29.29 0 0 1-.083-.229c.093-1.768.603-3.419 1.395-4.863a.289.289 0 0 1 .413-.098l8.119 5.485a.29.29 0 0 1 .002.48l-1.382.935a.287.287 0 0 1-.326.004L2.513 12.833zm2.59-6.483a.29.29 0 0 1-.01-.408 10.862 10.862 0 0 1 3.596-2.77.29.29 0 0 1 .346.072l5.325 6.508a.29.29 0 0 1-.059.424l-1.348.912a.288.288 0 0 1-.35-.018L5.103 6.35zm5.399-3.893a.29.29 0 0 1 .115-.376A10.758 10.758 0 0 1 17.653 1.5a.29.29 0 0 1 .253.295l-.237 8.498a.289.289 0 0 1-.445.234l-1.348-.912a.29.29 0 0 1-.127-.22l-.367-6.518a.29.29 0 0 0-.492-.187L10.5 7.5l.002-5.043zM1.785 14.55a.29.29 0 0 1 .076-.389.287.287 0 0 1 .168-.055h.002l1.612.035a.29.29 0 0 1 .2.094l7.093 8.132a.289.289 0 0 1-.05.424 10.828 10.828 0 0 1-4.63 1.717.289.289 0 0 1-.312-.193L1.785 14.55z"/></svg> },
+  { id: 'notion', name: 'Notion', description: 'Pages, databases, knowledge base', category: 'pm', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L18.28 2.16c-.466-.373-.746-.28-1.586-.14l-12.609.839c-.466.046-.56.28-.373.466l.747.883zm.793 3.079v13.904c0 .747.373 1.027 1.213.98l14.523-.84c.84-.046.933-.56.933-1.166V6.354c0-.606-.233-.933-.746-.886l-15.177.84c-.56.046-.746.326-.746.979zm14.337.7c.093.42 0 .84-.42.886l-.7.14v10.264c-.606.327-1.166.514-1.633.514-.746 0-.933-.234-1.493-.933l-4.573-7.186v6.953l1.446.327s0 .84-1.166.84l-3.22.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.453-.233 4.76 7.28v-6.44l-1.213-.14c-.094-.514.28-.886.747-.933l3.227-.186z"/></svg> },
+  { id: 'asana', name: 'Asana', description: 'Tasks, projects, timelines, goals', category: 'pm', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18.78 12.653c-2.882 0-5.22 2.337-5.22 5.22s2.338 5.22 5.22 5.22 5.22-2.337 5.22-5.22-2.337-5.22-5.22-5.22zM5.22 12.653C2.338 12.653 0 14.99 0 17.873S2.337 23.093 5.22 23.093s5.22-2.337 5.22-5.22-2.337-5.22-5.22-5.22zM12 .907c-2.882 0-5.22 2.337-5.22 5.22S9.118 11.347 12 11.347s5.22-2.337 5.22-5.22S14.882.907 12 .907z"/></svg> },
+
+  // Monitoring & Observability
+  { id: 'datadog', name: 'Datadog', description: 'Metrics, traces, logs, alerts', category: 'monitoring', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.496 17.631a.749.749 0 0 1-.916-.144l-2.197-2.362-1.624 1.275a.748.748 0 0 1-.754.087L9.08 15.1l-2.713 2.975a.75.75 0 1 1-1.109-1.012l3.188-3.496a.749.749 0 0 1 .754-.174l2.925 1.388 1.478-1.16-2.07-2.227a.75.75 0 0 1 .05-1.06l3.176-2.842a.75.75 0 0 1 1 1.118L13.014 11l2.32 2.496a.75.75 0 0 1-.034 1.048l-.803.63 1.916 2.061a.75.75 0 0 1-.917 1.396z"/></svg> },
+  { id: 'sentry', name: 'Sentry', description: 'Error tracking, performance, releases', category: 'monitoring', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13.91 2.505c-.873-1.553-3.066-1.553-3.94 0L7.791 6.3a11.838 11.838 0 0 1 4.848 3.537A11.838 11.838 0 0 1 14.23 6.3L13.91 2.505zM5.97 6.968C4.2 9.6 3.527 12.78 4.162 15.838h3.565c-.396-2.09.08-4.267 1.343-6.012A11.835 11.835 0 0 0 5.97 6.968zm12.06 0a11.835 11.835 0 0 0-3.1 2.858c1.263 1.745 1.739 3.922 1.343 6.012h3.565c.635-3.058-.038-6.238-1.808-8.87z"/></svg> },
+  { id: 'pagerduty', name: 'PagerDuty', description: 'Incident response, on-call, alerts', category: 'monitoring', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16.965 1.18C15.085.164 13.769 0 10.683 0H3.73v14.55h6.926c2.743 0 4.8-.164 6.61-1.37 1.975-1.303 3.004-3.47 3.004-6.07 0-2.847-1.33-4.886-3.305-5.93zM12.198 10.07c-.96.547-2.147.63-3.593.63H7.39V3.5h1.47c1.392 0 2.46.11 3.32.657.906.575 1.448 1.636 1.448 2.88 0 1.387-.672 2.487-1.43 3.033zM3.73 17.616h3.66V24H3.73z"/></svg> },
+  { id: 'grafana', name: 'Grafana', description: 'Dashboards, alerting, visualization', category: 'monitoring', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 21.6c-5.302 0-9.6-4.298-9.6-9.6S6.698 2.4 12 2.4s9.6 4.298 9.6 9.6-4.298 9.6-9.6 9.6zm-1.2-14.4h2.4v9.6h-2.4V7.2zm-3.6 2.4h2.4v7.2H7.2V9.6zm7.2-1.2h2.4v8.4h-2.4V8.4z"/></svg> },
+
+  // Storage & CDN
+  { id: 'cloudflare', name: 'Cloudflare', description: 'R2 storage, Workers, DNS, CDN', category: 'storage', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16.509 16.516c.204-.578.118-.789-.21-.986-.306-.183-.616-.276-1.727-.309l-8.669.028c-.098 0-.2-.044-.252-.132a.29.29 0 0 1-.024-.28l.212-.605c.104-.296.392-.502.708-.516l9.107-.044c1.441-.068 2.986-.976 3.524-2.586l.675-2.018a.313.313 0 0 0 .012-.136C18.96 4.99 15.714 2 11.769 2 8.332 2 5.413 4.196 4.503 7.205c-.71-.533-1.608-.803-2.558-.708-1.748.176-3.14 1.603-3.282 3.356a3.456 3.456 0 0 0 .1 1.18C-1.1 12.751.283 14.473 2.16 14.473l.6-.002c.097 0 .18-.064.208-.152l.58-1.65c.204-.577.118-.789-.21-.985-.306-.184-.616-.277-1.727-.31l-.285.005c-.68.004-1.19-.58-.99-1.226a1.86 1.86 0 0 1 1.781-1.252c.326 0 .637.085.907.237a.27.27 0 0 0 .376-.132c.558-1.285 1.25-2.326 2.327-3.1A6.387 6.387 0 0 1 9.465 4.47a6.4 6.4 0 0 1 6.07 3.02c.1.16.324.216.5.136.524-.244 1.124-.332 1.764-.225 1.274.214 2.305 1.2 2.567 2.464.104.496.1.98-.002 1.426-.04.16.048.324.2.384.89.35 1.552 1.14 1.652 2.09.146 1.392-.887 2.575-2.253 2.69H5.097c-.098 0-.2.044-.252.132a.29.29 0 0 0-.024.28l.3.853c.104.296.392.502.708.516h14.03c1.703-.107 3.097-1.402 3.297-3.098a3.247 3.247 0 0 0-1.447-3.153c-.304-.204-.66-.356-1.04-.44a.282.282 0 0 0-.32.192l-.84 2.369z"/></svg> },
+  { id: 's3', name: 'Amazon S3', description: 'Object storage, buckets, file hosting', category: 'storage', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0L1.608 6v12L12 24l10.392-6V6L12 0zm-1.073 1.445h.001a1.8 1.8 0 0 1 2.138 0l7.534 4.35a1.794 1.794 0 0 1 .9 1.556v8.652a1.794 1.794 0 0 1-.9 1.556l-7.534 4.35a1.8 1.8 0 0 1-2.138 0l-7.534-4.35A1.794 1.794 0 0 1 2.5 16.003V7.35c0-.641.341-1.234.893-1.555l7.534-4.35zM12 7.2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6z"/></svg> },
+  { id: 'supabase', name: 'Supabase', description: 'Database, auth, storage, functions', category: 'storage', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13.7 21.794c-.485.607-1.478.222-1.5-.582l-.315-10.86h7.818c1.246 0 1.928 1.447 1.13 2.395l-7.134 9.047zM10.3 2.206c.485-.607 1.478-.222 1.5.582l.1 10.86H4.2c-1.246 0-1.928-1.447-1.13-2.395L10.3 2.206z"/></svg> },
+];
+
+const PROVIDER_LABELS: Record<string, string> = Object.fromEntries(ALL_PROVIDERS.map(p => [p.id, p.name]));
+
+const PROVIDER_ICONS: Record<string, JSX.Element> = Object.fromEntries(ALL_PROVIDERS.map(p => [p.id, p.icon]));
 
 function IntegrationsTab() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
@@ -906,7 +939,7 @@ function IntegrationsTab() {
   };
 
   const connectedProviders = new Set(integrations.map((i) => i.provider));
-  const connectableProviders = available.filter((p) => p.configured && !connectedProviders.has(p.provider));
+  const availableSet = new Set(available.filter(p => p.configured).map(p => p.provider));
 
   if (loading) {
     return (
@@ -921,7 +954,7 @@ function IntegrationsTab() {
     <div className="settings-section">
       <h2>Integrations</h2>
       <p className="settings-section-desc">
-        Connect your git providers to link repos for agent tasks
+        Connect external services to unlock agent capabilities across your stack.
       </p>
 
       {message && (
@@ -935,7 +968,8 @@ function IntegrationsTab() {
 
       {/* Connected Integrations */}
       {integrations.length > 0 && (
-        <div className="settings-integrations-list">
+        <div className="settings-integrations-list" style={{ marginBottom: '2rem' }}>
+          <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Connected</h3>
           {integrations.map((intg) => (
             <div key={intg.id} className="settings-integration-card">
               <div className="settings-integration-header">
@@ -1004,30 +1038,48 @@ function IntegrationsTab() {
         </div>
       )}
 
-      {/* Connect New */}
-      {connectableProviders.length > 0 && (
-        <div className="settings-form" style={{ marginTop: 'var(--space-xl)' }}>
-          <h3>Connect a Provider</h3>
-          <div className="settings-connect-buttons">
-            {connectableProviders.map((p) => (
-              <a
-                key={p.provider}
-                href={`${API_BASE}/api/v1/integrations/connect/${p.provider}`}
-                className="settings-connect-btn"
-              >
-                {PROVIDER_ICONS[p.provider]}
-                <span>Connect {PROVIDER_LABELS[p.provider] ?? p.provider}</span>
-              </a>
-            ))}
+      {/* All providers by category */}
+      {PROVIDER_CATEGORIES.map((cat) => {
+        const providers = ALL_PROVIDERS.filter(p => p.category === cat.id);
+        if (!providers.length) return null;
+        return (
+          <div key={cat.id} className="settings-intg-category">
+            <h3 className="settings-intg-category-label">{cat.label}</h3>
+            <div className="settings-intg-grid">
+              {providers.map((p) => {
+                const isConnected = connectedProviders.has(p.id);
+                const isAvailable = availableSet.has(p.id);
+                return (
+                  <div
+                    key={p.id}
+                    className={`settings-intg-provider-card${isConnected ? ' connected' : ''}${!isAvailable && !isConnected ? ' upcoming' : ''}`}
+                  >
+                    <div className="settings-intg-provider-icon">{p.icon}</div>
+                    <div className="settings-intg-provider-body">
+                      <div className="settings-intg-provider-name">{p.name}</div>
+                      <div className="settings-intg-provider-desc">{p.description}</div>
+                    </div>
+                    <div className="settings-intg-provider-action">
+                      {isConnected ? (
+                        <span className="settings-intg-badge connected">Connected</span>
+                      ) : isAvailable ? (
+                        <a
+                          href={`${API_BASE}/api/v1/integrations/connect/${p.id}`}
+                          className="settings-intg-connect-btn"
+                        >
+                          Connect
+                        </a>
+                      ) : (
+                        <span className="settings-intg-badge upcoming">Coming Soon</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
-
-      {integrations.length === 0 && connectableProviders.length === 0 && (
-        <div className="settings-empty">
-          <p>No git providers are configured on this server. Ask your admin to set up GitHub, GitLab, or Bitbucket OAuth credentials.</p>
-        </div>
-      )}
+        );
+      })}
     </div>
   );
 }
@@ -1307,32 +1359,25 @@ interface ChannelDef {
   name: string;
   icon: string;
   description: string;
+  category: string;
   fields: { key: string; label: string; placeholder: string; sensitive?: boolean }[];
 }
 
+const CHANNEL_CATEGORIES = [
+  { id: 'messaging', label: 'Messaging Platforms' },
+  { id: 'developer', label: 'Developer & Automation' },
+  { id: 'email', label: 'Email & SMS' },
+  { id: 'voice', label: 'Voice & Video' },
+];
+
 const CHANNEL_DEFS: ChannelDef[] = [
-  {
-    type: 'api',
-    name: 'API',
-    icon: '\u{1F310}',
-    description: 'Dispatch agents programmatically via REST API using your existing API key.',
-    fields: [],
-  },
-  {
-    type: 'webhooks',
-    name: 'Webhooks',
-    icon: '\u{26A1}',
-    description: 'Receive execution results at your URL with HMAC-signed payloads.',
-    fields: [
-      { key: 'webhook_url', label: 'Webhook URL', placeholder: 'https://your-app.com/webhook' },
-      { key: 'webhook_secret', label: 'Webhook Secret', placeholder: 'Auto-generated if blank', sensitive: true },
-    ],
-  },
+  // Messaging
   {
     type: 'slack',
     name: 'Slack',
     icon: '\u{1F4AC}',
-    description: 'Receive messages in Slack and let agents respond directly in your channels.',
+    category: 'messaging',
+    description: 'Agents respond directly in your Slack channels.',
     fields: [
       { key: 'bot_token', label: 'Bot Token', placeholder: 'xoxb-...', sensitive: true },
       { key: 'signing_secret', label: 'Signing Secret', placeholder: 'From Slack app settings', sensitive: true },
@@ -1342,7 +1387,8 @@ const CHANNEL_DEFS: ChannelDef[] = [
     type: 'discord',
     name: 'Discord',
     icon: '\u{1F3AE}',
-    description: 'Add a slash command to your Discord server that dispatches agent tasks.',
+    category: 'messaging',
+    description: 'Slash commands that dispatch agent tasks.',
     fields: [
       { key: 'bot_token', label: 'Bot Token', placeholder: 'Bot token from Discord Developer Portal', sensitive: true },
       { key: 'application_id', label: 'Application ID', placeholder: 'From Discord app settings' },
@@ -1353,7 +1399,8 @@ const CHANNEL_DEFS: ChannelDef[] = [
     type: 'telegram',
     name: 'Telegram',
     icon: '\u{2708}\uFE0F',
-    description: 'Chat with your agents via a Telegram bot. Webhook auto-registers on save.',
+    category: 'messaging',
+    description: 'Chat with agents via a Telegram bot.',
     fields: [
       { key: 'bot_token', label: 'Bot Token', placeholder: 'From @BotFather', sensitive: true },
     ],
@@ -1362,13 +1409,111 @@ const CHANNEL_DEFS: ChannelDef[] = [
     type: 'whatsapp',
     name: 'WhatsApp',
     icon: '\u{1F4F1}',
-    description: 'Send and receive agent messages through WhatsApp Business.',
+    category: 'messaging',
+    description: 'Agent messages through WhatsApp Business.',
     fields: [
       { key: 'phone_number_id', label: 'Phone Number ID', placeholder: 'From Meta Business settings' },
       { key: 'access_token', label: 'Access Token', placeholder: 'Permanent token from Meta', sensitive: true },
       { key: 'verify_token', label: 'Verify Token', placeholder: 'Your custom verification token' },
       { key: 'app_secret', label: 'App Secret', placeholder: 'From Meta app settings', sensitive: true },
     ],
+  },
+  {
+    type: 'teams',
+    name: 'Microsoft Teams',
+    icon: '\u{1F4BC}',
+    category: 'messaging',
+    description: 'Agents inside your Teams workspace.',
+    fields: [],
+  },
+
+  // Developer & Automation
+  {
+    type: 'api',
+    name: 'REST API',
+    icon: '\u{1F310}',
+    category: 'developer',
+    description: 'Dispatch agents programmatically via API.',
+    fields: [],
+  },
+  {
+    type: 'webhooks',
+    name: 'Webhooks',
+    icon: '\u{26A1}',
+    category: 'developer',
+    description: 'HMAC-signed payloads to your endpoint.',
+    fields: [
+      { key: 'webhook_url', label: 'Webhook URL', placeholder: 'https://your-app.com/webhook' },
+      { key: 'webhook_secret', label: 'Webhook Secret', placeholder: 'Auto-generated if blank', sensitive: true },
+    ],
+  },
+  {
+    type: 'zapier',
+    name: 'Zapier',
+    icon: '\u{1F517}',
+    category: 'developer',
+    description: 'Trigger agents from any Zapier workflow.',
+    fields: [],
+  },
+  {
+    type: 'n8n',
+    name: 'n8n',
+    icon: '\u{2699}\uFE0F',
+    category: 'developer',
+    description: 'Self-hosted workflow automation.',
+    fields: [],
+  },
+  {
+    type: 'make',
+    name: 'Make (Integromat)',
+    icon: '\u{1F504}',
+    category: 'developer',
+    description: 'Visual automation scenarios.',
+    fields: [],
+  },
+
+  // Email & SMS
+  {
+    type: 'email',
+    name: 'Email',
+    icon: '\u{1F4E7}',
+    category: 'email',
+    description: 'Agents respond to inbound emails.',
+    fields: [],
+  },
+  {
+    type: 'twilio',
+    name: 'Twilio SMS',
+    icon: '\u{1F4DE}',
+    category: 'email',
+    description: 'Agent conversations over SMS.',
+    fields: [],
+  },
+  {
+    type: 'sendgrid',
+    name: 'SendGrid',
+    icon: '\u{2709}\uFE0F',
+    category: 'email',
+    description: 'Transactional email delivery for agents.',
+    fields: [],
+  },
+
+  // Voice & Video
+  {
+    type: 'twilio_voice',
+    name: 'Twilio Voice',
+    icon: '\u{1F4DE}',
+    category: 'voice',
+    description: 'Voice calls with AI agent responses.',
+    fields: [],
+  },
+  {
+    type: 'zoom',
+    name: 'Zoom',
+    icon: '\u{1F3A5}',
+    category: 'voice',
+    description: 'Agent assistants in Zoom meetings.',
+    fields: [],
   },
 ];
 
@@ -1463,90 +1608,106 @@ function ChannelsTab() {
     setForms(prev => ({ ...prev, [channelType]: { ...(prev[channelType] ?? {}), [key]: value } }));
   };
 
+  // Channels with fields are "wired" (configurable now)
+  const wiredChannels = new Set(['slack', 'discord', 'telegram', 'whatsapp', 'webhooks']);
+  const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
+
   return (
     <div className="settings-section">
-      <h2>Channel Integrations</h2>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-        Connect external platforms so your agents can receive messages and respond anywhere.
+      <h2>Channels</h2>
+      <p className="settings-section-desc">
+        Connect platforms so your agents can receive messages and respond anywhere.
       </p>
 
-      {CHANNEL_DEFS.map(ch => {
-        const config = configs[ch.type];
-        const isConnected = !!config?.id;
-        const msg = chMsg?.channel === ch.type ? chMsg : null;
-
+      {CHANNEL_CATEGORIES.map(cat => {
+        const channels = CHANNEL_DEFS.filter(c => c.category === cat.id);
+        if (!channels.length) return null;
         return (
-          <div key={ch.type} style={{
-            padding: '1.25rem',
-            background: 'var(--surface)',
-            border: `1px solid ${isConnected ? 'rgba(138, 92, 246, 0.3)' : 'var(--border)'}`,
-            borderRadius: 'var(--radius-md)',
-            marginBottom: '1rem',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: ch.fields.length > 0 ? '1rem' : 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '1.5rem' }}>{ch.icon}</span>
-                <div>
-                  <div style={{ fontWeight: 600, color: 'var(--text)' }}>{ch.name}</div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>{ch.description}</div>
-                </div>
-              </div>
-              {isConnected && (
-                <span style={{ fontSize: '0.6875rem', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }}>Connected</span>
-              )}
-            </div>
+          <div key={cat.id} className="settings-intg-category">
+            <h3 className="settings-intg-category-label">{cat.label}</h3>
+            <div className="settings-intg-grid">
+              {channels.map(ch => {
+                const config = configs[ch.type];
+                const isConnected = !!config?.id;
+                const isWired = wiredChannels.has(ch.type);
+                const isExpanded = expandedChannel === ch.type;
+                const msg = chMsg?.channel === ch.type ? chMsg : null;
 
-            {ch.fields.length > 0 && (
-              <div style={{ display: 'grid', gap: '0.75rem', marginBottom: '1rem' }}>
-                {ch.fields.map(f => (
-                  <div key={f.key}>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>{f.label}</label>
-                    <input
-                      type={f.sensitive ? 'password' : 'text'}
-                      placeholder={f.placeholder}
-                      value={forms[ch.type]?.[f.key] ?? ''}
-                      onChange={(e) => updateForm(ch.type, f.key, e.target.value)}
-                      style={{ width: '100%', padding: '0.5rem 0.75rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text)', fontSize: '0.8125rem', fontFamily: 'JetBrains Mono, monospace' }}
-                    />
+                return (
+                  <div
+                    key={ch.type}
+                    className={`settings-intg-provider-card${isConnected ? ' connected' : ''}${!isWired ? ' upcoming' : ''}`}
+                    style={{ flexDirection: 'column', alignItems: 'stretch', cursor: isWired ? 'pointer' : 'default' }}
+                    onClick={() => {
+                      if (!isWired || ch.type === 'api') return;
+                      setExpandedChannel(isExpanded ? null : ch.type);
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{ch.icon}</span>
+                      <div className="settings-intg-provider-body">
+                        <div className="settings-intg-provider-name">{ch.name}</div>
+                        <div className="settings-intg-provider-desc">{ch.description}</div>
+                      </div>
+                      <div className="settings-intg-provider-action">
+                        {isConnected ? (
+                          <span className="settings-intg-badge connected">Connected</span>
+                        ) : ch.type === 'api' ? (
+                          <span className="settings-intg-badge connected">Built-in</span>
+                        ) : !isWired ? (
+                          <span className="settings-intg-badge upcoming">Coming Soon</span>
+                        ) : (
+                          <span className="settings-intg-badge upcoming">Configure</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expanded config form */}
+                    {isExpanded && isWired && ch.fields.length > 0 && (
+                      <div onClick={e => e.stopPropagation()} style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border, rgba(255,255,255,0.06))', paddingTop: '0.75rem' }}>
+                        <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                          {ch.fields.map(f => (
+                            <div key={f.key}>
+                              <label style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '2px' }}>{f.label}</label>
+                              <input
+                                type={f.sensitive ? 'password' : 'text'}
+                                placeholder={f.placeholder}
+                                value={forms[ch.type]?.[f.key] ?? ''}
+                                onChange={(e) => updateForm(ch.type, f.key, e.target.value)}
+                                style={{ width: '100%', padding: '0.4rem 0.6rem', background: 'var(--void, #0a0a0f)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '0.75rem', fontFamily: 'JetBrains Mono, monospace' }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        {msg && (
+                          <div style={{
+                            padding: '0.375rem 0.625rem', marginBottom: '0.5rem', borderRadius: '6px', fontSize: '0.75rem',
+                            background: msg.type === 'success' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            color: msg.type === 'success' ? '#34d399' : '#ef4444', wordBreak: 'break-all',
+                          }}>
+                            {msg.text}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '0.375rem' }}>
+                          <button className="settings-intg-connect-btn" onClick={() => handleSave(ch.type)} disabled={saving === ch.type}>
+                            {saving === ch.type ? 'Saving...' : isConnected ? 'Update' : 'Save'}
+                          </button>
+                          {isConnected && (
+                            <>
+                              <button className="settings-btn-sm" onClick={() => handleTest(ch.type)} disabled={testing === ch.type}>
+                                {testing === ch.type ? 'Testing...' : 'Test'}
+                              </button>
+                              <button className="settings-btn-sm settings-btn-danger" onClick={() => handleDisconnect(ch.type)}>
+                                Disconnect
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
-
-            {msg && (
-              <div style={{
-                padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem',
-                background: msg.type === 'success' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                color: msg.type === 'success' ? '#34d399' : '#ef4444', wordBreak: 'break-all',
-              }}>
-                {msg.text}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {ch.type !== 'api' && (
-                <button onClick={() => handleSave(ch.type)} disabled={saving === ch.type}
-                  style={{ padding: '0.4rem 1rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', cursor: 'pointer', opacity: saving === ch.type ? 0.6 : 1 }}>
-                  {saving === ch.type ? 'Saving...' : isConnected ? 'Update' : 'Save'}
-                </button>
-              )}
-              {isConnected && ch.type !== 'api' && (
-                <>
-                  <button onClick={() => handleTest(ch.type)} disabled={testing === ch.type}
-                    style={{ padding: '0.4rem 1rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', cursor: 'pointer' }}>
-                    {testing === ch.type ? 'Testing...' : 'Test'}
-                  </button>
-                  <button onClick={() => handleDisconnect(ch.type)}
-                    style={{ padding: '0.4rem 1rem', background: 'transparent', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', cursor: 'pointer' }}>
-                    Disconnect
-                  </button>
-                </>
-              )}
-              {ch.type === 'api' && (
-                <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                  Use your API key to POST to <code style={{ color: '#a78bfa' }}>/api/v1/forge/channels/api/dispatch</code>
-                </span>
-              )}
+                );
+              })}
             </div>
           </div>
         );
@@ -1569,6 +1730,44 @@ interface DeviceInfo {
   last_seen_at: string | null;
   created_at: string;
 }
+
+const DEVICE_CATEGORIES = [
+  { id: 'compute', label: 'Compute' },
+  { id: 'browser', label: 'Browser & Desktop' },
+  { id: 'mobile', label: 'Mobile' },
+  { id: 'iot', label: 'IoT & Edge' },
+];
+
+interface DeviceTypeDef {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  available: boolean;
+}
+
+const DEVICE_TYPES: DeviceTypeDef[] = [
+  // Compute
+  { id: 'cli', name: 'CLI Agent', description: 'Shell access, file system, git ops', category: 'compute', icon: '\u{1F4BB}', available: true },
+  { id: 'docker', name: 'Docker Host', description: 'Container management, builds, deploys', category: 'compute', icon: '\u{1F433}', available: true },
+  { id: 'ssh', name: 'SSH Remote', description: 'Remote server access via SSH tunnel', category: 'compute', icon: '\u{1F510}', available: false },
+  { id: 'k8s', name: 'Kubernetes', description: 'Cluster management, pod orchestration', category: 'compute', icon: '\u{2699}\uFE0F', available: false },
+
+  // Browser & Desktop
+  { id: 'browser', name: 'Browser Bridge', description: 'Web automation, screenshots, DOM', category: 'browser', icon: '\u{1F310}', available: false },
+  { id: 'desktop', name: 'Desktop Control', description: 'Mouse, keyboard, screen capture', category: 'browser', icon: '\u{1F5A5}\uFE0F', available: false },
+  { id: 'vscode', name: 'VS Code', description: 'Editor integration, workspace access', category: 'browser', icon: '\u{1F4DD}', available: false },
+
+  // Mobile
+  { id: 'android', name: 'Android', description: 'ADB bridge, app automation', category: 'mobile', icon: '\u{1F4F1}', available: false },
+  { id: 'ios', name: 'iOS', description: 'Simulator/device testing, shortcuts', category: 'mobile', icon: '\u{1F34E}', available: false },
+
+  // IoT & Edge
+  { id: 'rpi', name: 'Raspberry Pi', description: 'GPIO, sensors, edge compute', category: 'iot', icon: '\u{1F353}', available: false },
+  { id: 'arduino', name: 'Arduino / ESP32', description: 'Microcontroller programming', category: 'iot', icon: '\u{1F4A1}', available: false },
+  { id: 'homeassistant', name: 'Home Assistant', description: 'Smart home automation', category: 'iot', icon: '\u{1F3E0}', available: false },
+];
 
 function DevicesTab() {
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
@@ -1641,7 +1840,7 @@ function DevicesTab() {
   if (loading) {
     return (
       <div className="settings-section">
-        <h2>Connected Devices</h2>
+        <h2>Devices</h2>
         <p className="settings-section-desc">Loading...</p>
       </div>
     );
@@ -1649,10 +1848,9 @@ function DevicesTab() {
 
   return (
     <div className="settings-section">
-      <h2>Connected Devices</h2>
+      <h2>Devices</h2>
       <p className="settings-section-desc">
-        Connect your local machine to the platform so agents can control your computer
-        (mouse, keyboard, browser, shell). Install the CLI and run the connect command below.
+        Connect machines and environments so agents can control computers, containers, and hardware.
       </p>
 
       {message && (
@@ -1664,104 +1862,86 @@ function DevicesTab() {
         </div>
       )}
 
-      <div className="settings-form">
-        <div className="settings-card" style={{ background: 'var(--elevated)', padding: 'var(--space-lg)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', marginBottom: 'var(--space-lg)' }}>
-          <h3 style={{ margin: '0 0 var(--space-sm) 0', fontSize: '0.95rem' }}>Quick Start</h3>
-          <p style={{ margin: '0 0 var(--space-md) 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            1. Install the agent CLI globally
-          </p>
-          <code style={{ display: 'block', padding: 'var(--space-md)', background: 'var(--surface)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', marginBottom: 'var(--space-md)', fontFamily: 'monospace' }}>
-            npm install -g @askalf/agent
-          </code>
-          <p style={{ margin: '0 0 var(--space-md) 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            2. Connect with your API key (generate one in the <strong>AI Keys</strong> tab)
-          </p>
-          <code style={{ display: 'block', padding: 'var(--space-md)', background: 'var(--surface)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', marginBottom: 'var(--space-md)', fontFamily: 'monospace' }}>
-            askalf-agent connect &lt;your-api-key&gt;
-          </code>
-          <p style={{ margin: '0 0 var(--space-md) 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            3. Run as a daemon (auto-reconnects)
-          </p>
-          <code style={{ display: 'block', padding: 'var(--space-md)', background: 'var(--surface)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', fontFamily: 'monospace' }}>
-            askalf-agent daemon
-          </code>
+      {/* Quick Start */}
+      <div style={{ padding: '0.875rem 1rem', background: 'rgba(124, 58, 237, 0.04)', border: '1px solid rgba(124, 58, 237, 0.12)', borderRadius: '8px', marginBottom: '1.25rem' }}>
+        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.375rem' }}>Quick Start</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          <div><span style={{ color: 'var(--text-muted)' }}>1.</span> <code style={{ color: '#a78bfa', fontSize: '0.7rem' }}>npm install -g @askalf/agent</code></div>
+          <div><span style={{ color: 'var(--text-muted)' }}>2.</span> <code style={{ color: '#a78bfa', fontSize: '0.7rem' }}>askalf-agent connect &lt;your-api-key&gt;</code></div>
+          <div><span style={{ color: 'var(--text-muted)' }}>3.</span> <code style={{ color: '#a78bfa', fontSize: '0.7rem' }}>askalf-agent daemon</code></div>
         </div>
+      </div>
 
-        {devices.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--text-secondary)' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, height: 48, margin: '0 auto var(--space-md)', opacity: 0.4, display: 'block' }}>
-              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-              <path d="M8 21h8M12 17v4" />
-            </svg>
-            <p>No devices connected yet</p>
-            <p style={{ fontSize: '0.875rem' }}>Follow the quick start guide above to connect your first device</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+      {/* Connected devices */}
+      {devices.length > 0 && (
+        <div className="settings-intg-category">
+          <h3 className="settings-intg-category-label">Connected</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {devices.map((device) => (
               <div
                 key={device.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-lg)',
-                  padding: 'var(--space-lg)',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-lg)',
-                }}
+                className="settings-intg-provider-card connected"
+                style={{ flexDirection: 'column', alignItems: 'stretch' }}
               >
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-xs)' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: device.status === 'online' ? '#22c55e' : device.status === 'busy' ? '#f59e0b' : '#ef4444',
-                    }} />
-                    <strong style={{ fontSize: '0.95rem' }}>{device.device_name}</strong>
-                    <span style={{
-                      fontSize: '0.75rem',
-                      padding: '1px 8px',
-                      borderRadius: 'var(--radius-md)',
-                      background: device.status === 'online' ? 'rgba(34,197,94,0.1)' : device.status === 'busy' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
-                      color: device.status === 'online' ? '#22c55e' : device.status === 'busy' ? '#f59e0b' : '#ef4444',
-                      fontWeight: 500,
-                    }}>
-                      {device.status}
-                    </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{
+                    display: 'inline-block', width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                    background: device.status === 'online' ? '#22c55e' : device.status === 'busy' ? '#f59e0b' : '#ef4444',
+                  }} />
+                  <div className="settings-intg-provider-body">
+                    <div className="settings-intg-provider-name">{device.device_name}</div>
+                    <div className="settings-intg-provider-desc">
+                      {device.os}{device.hostname ? ` \u00B7 ${device.hostname}` : ''} \u00B7 {formatTime(device.last_seen_at)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    {device.os && <span>{device.os}</span>}
-                    {device.hostname && <span> &middot; {device.hostname}</span>}
-                    <span> &middot; Last seen: {formatTime(device.last_seen_at)}</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-                  {device.status !== 'offline' && (
-                    <button
-                      className="settings-btn-secondary"
-                      onClick={() => handleDisconnect(device.id)}
-                      disabled={actionLoading === device.id}
-                    >
-                      {actionLoading === device.id ? 'Disconnecting...' : 'Disconnect'}
+                  <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
+                    {device.status !== 'offline' && (
+                      <button className="settings-btn-sm" onClick={() => handleDisconnect(device.id)} disabled={actionLoading === device.id}>
+                        {actionLoading === device.id ? '...' : 'Disconnect'}
+                      </button>
+                    )}
+                    <button className="settings-btn-sm settings-btn-danger" onClick={() => handleRemove(device.id)} disabled={actionLoading === device.id}>
+                      Remove
                     </button>
-                  )}
-                  <button
-                    className="settings-btn-danger"
-                    onClick={() => handleRemove(device.id)}
-                    disabled={actionLoading === device.id}
-                    style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
-                  >
-                    Remove
-                  </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* All device types by category */}
+      {DEVICE_CATEGORIES.map(cat => {
+        const types = DEVICE_TYPES.filter(d => d.category === cat.id);
+        if (!types.length) return null;
+        return (
+          <div key={cat.id} className="settings-intg-category">
+            <h3 className="settings-intg-category-label">{cat.label}</h3>
+            <div className="settings-intg-grid">
+              {types.map(dt => (
+                <div
+                  key={dt.id}
+                  className={`settings-intg-provider-card${!dt.available ? ' upcoming' : ''}`}
+                >
+                  <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{dt.icon}</span>
+                  <div className="settings-intg-provider-body">
+                    <div className="settings-intg-provider-name">{dt.name}</div>
+                    <div className="settings-intg-provider-desc">{dt.description}</div>
+                  </div>
+                  <div className="settings-intg-provider-action">
+                    {dt.available ? (
+                      <span className="settings-intg-badge connected">Available</span>
+                    ) : (
+                      <span className="settings-intg-badge upcoming">Coming Soon</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

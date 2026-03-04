@@ -6,7 +6,7 @@
  */
 
 import { spawn, execSync, type ChildProcess } from 'child_process';
-import { readFile, writeFile, access, copyFile, mkdir, unlink, rm } from 'fs/promises';
+import { readFile, writeFile, access, copyFile, mkdir, unlink, rm, chmod } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
 import { AnthropicAdapter } from '../providers/adapters/anthropic.js';
 import type { IProviderAdapter } from '../providers/interface.js';
@@ -1456,7 +1456,8 @@ async function setupCliEnvironment(): Promise<void> {
   try {
     await access('/tmp/claude-credentials.json');
     await copyFile('/tmp/claude-credentials.json', `${CLAUDE_DIR}/.credentials.json`);
-    console.log('[CLI] OAuth credentials installed');
+    await chmod(`${CLAUDE_DIR}/.credentials.json`, 0o600);
+    console.log('[CLI] OAuth credentials installed (mode 600)');
   } catch {
     console.warn('[CLI] No OAuth credentials found at /tmp/claude-credentials.json');
   }
@@ -1473,7 +1474,7 @@ async function setupCliEnvironment(): Promise<void> {
     },
     hasCompletedOnboarding: true,
   };
-  await writeFile(`${CLAUDE_DIR}/settings.json`, JSON.stringify(settings, null, 2));
+  await writeFile(`${CLAUDE_DIR}/settings.json`, JSON.stringify(settings, null, 2), { mode: 0o600 });
   console.log('[CLI] Settings.json written');
 
   // Write MCP config with streamable HTTP transport
@@ -1485,7 +1486,7 @@ async function setupCliEnvironment(): Promise<void> {
       },
     },
   };
-  await writeFile(MCP_CONFIG_PATH, JSON.stringify(mcpConfig, null, 2));
+  await writeFile(MCP_CONFIG_PATH, JSON.stringify(mcpConfig, null, 2), { mode: 0o600 });
   console.log('[CLI] MCP config written');
 
   cliEnvironmentReady = true;
@@ -1577,6 +1578,7 @@ async function refreshCredentials(): Promise<void> {
     } catch { /* no current file */ }
     if ((mountCreds.claudeAiOauth?.expiresAt || 0) > currentExpiry) {
       await copyFile(mountPath, credsPath);
+      await chmod(credsPath, 0o600);
       console.log('[CLI] Refreshed credentials from mount');
     }
 
@@ -1631,12 +1633,12 @@ async function refreshCredentials(): Promise<void> {
     const updatedJson = JSON.stringify(updated);
 
     // Write to CLI credential path
-    await writeFile(credsPath, updatedJson);
+    await writeFile(credsPath, updatedJson, { mode: 0o600 });
     console.log(`[CLI] OAuth token refreshed — expires ${new Date(updated.claudeAiOauth.expiresAt).toISOString()}`);
 
     // Persist back to mount (host file) so it survives container restarts
     try {
-      await writeFile(mountPath, updatedJson);
+      await writeFile(mountPath, updatedJson, { mode: 0o600 });
       console.log('[CLI] Persisted refreshed token to host mount');
     } catch (writeErr) {
       console.warn('[CLI] Could not persist to mount (read-only?):', (writeErr as Error).message);

@@ -59,7 +59,7 @@ const TAB_GROUPS: TabGroup[] = [
 
 /** Tabs only visible to admin / super_admin */
 const ADMIN_ONLY_TABS = new Set<TabKey>([
-  'builder', 'orchestrator', 'operations', 'monitor', 'knowledge',
+  'operations', 'monitor', 'knowledge',
   'workflows', 'deploy', 'users',
 ]);
 
