@@ -88,13 +88,39 @@ function ConversationList({
   );
 }
 
+// Simple markdown renderer — handles **bold**, `code`, and \n
+function renderMarkdown(text: string): React.ReactNode[] {
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+
+  lines.forEach((line, li) => {
+    if (li > 0) result.push(<br key={`br-${li}`} />);
+
+    // Split by **bold** and `code` patterns
+    const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+    parts.forEach((part, pi) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        result.push(<strong key={`${li}-${pi}`}>{part.slice(2, -2)}</strong>);
+      } else if (part.startsWith('`') && part.endsWith('`')) {
+        result.push(<code key={`${li}-${pi}`} className="chat-inline-code">{part.slice(1, -1)}</code>);
+      } else {
+        result.push(part);
+      }
+    });
+  });
+
+  return result;
+}
+
 function ChatMessage({ message }: { message: ConversationMessage }) {
   const isUser = message.role === 'user';
   return (
     <div className={`chat-msg ${isUser ? 'chat-msg-user' : 'chat-msg-assistant'}`}>
       <div className="chat-msg-avatar">{isUser ? 'You' : 'AI'}</div>
       <div className="chat-msg-content">
-        <div className="chat-msg-text">{message.content}</div>
+        <div className="chat-msg-text">
+          {isUser ? message.content : renderMarkdown(message.content)}
+        </div>
         <div className="chat-msg-time">
           {new Date(message.created_at).toLocaleTimeString()}
         </div>
@@ -290,7 +316,7 @@ function IntentPreview({
             ) : hasIntegrations === false ? (
               <div className="chat-intent-no-repos">
                 No connected repos.{' '}
-                <a href="/settings?tab=integrations">Connect a repo in Settings</a>
+                <a href="/command-center/settings?tab=integrations">Connect a repo in Settings</a>
               </div>
             ) : (
               <select

@@ -678,9 +678,9 @@ export const hubApi = {
       apiFetch<{ optimized: string; tokens: { input: number; output: number } }>('/api/v1/admin/agents/optimize-prompt', { method: 'POST', body: JSON.stringify(body) }),
 
     run: (id: string, prompt?: string) =>
-      apiFetch(`/api/v1/admin/agents/${id}/run`, {
+      apiFetch(`/api/v1/admin/chat/agents/${id}/run`, {
         method: 'POST',
-        body: JSON.stringify({ task_type: 'manual', input: prompt ? { prompt } : {} }),
+        body: JSON.stringify({ task_type: 'manual', prompt: prompt || undefined }),
       }),
 
     stop: (id: string) =>
