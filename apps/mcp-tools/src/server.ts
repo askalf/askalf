@@ -14,6 +14,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import { createHmac, timingSafeEqual } from 'crypto';
 import {
   getPrometheusMetrics,
   httpRequestsTotal,
@@ -37,6 +38,44 @@ import { TOOLS as FORGE_TOOLS, handleTool as handleForgeTool } from './forge-too
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
+const INTERNAL_API_SECRET = process.env['INTERNAL_API_SECRET'] ?? '';
+
+/** Verify an internal request via Bearer token or HMAC signature. */
+function verifyInternalAuth(
+  secret: string,
+  method: string,
+  path: string,
+  headers: Record<string, string | string[] | undefined>,
+): boolean {
+  if (!secret) return false;
+  const get = (name: string): string | undefined => {
+    const v = headers[name.toLowerCase()] ?? headers[name];
+    return Array.isArray(v) ? v[0] : v;
+  };
+
+  // Mode 1: Bearer token (used by MCP config / Claude CLI static headers)
+  const auth = get('authorization');
+  if (auth?.startsWith('Bearer ')) {
+    const token = auth.slice(7);
+    try {
+      if (token.length !== secret.length) return false;
+      return timingSafeEqual(Buffer.from(token), Buffer.from(secret));
+    } catch { return false; }
+  }
+
+  // Mode 2: HMAC-SHA256 (programmatic service-to-service calls)
+  const sig = get('x-internal-sig');
+  const ts = get('x-internal-ts');
+  if (!sig || !ts) return false;
+  const tsNum = parseInt(ts, 10);
+  if (isNaN(tsNum)) return false;
+  if (Math.abs(Math.floor(Date.now() / 1000) - tsNum) > 60) return false;
+  const payload = `${method.toUpperCase()}:${path}:${ts}`;
+  const expected = createHmac('sha256', secret).update(payload).digest('hex');
+  try {
+    return timingSafeEqual(Buffer.from(sig, 'hex'), Buffer.from(expected, 'hex'));
+  } catch { return false; }
+}
 
 // ============================================
 // All Tools
@@ -77,6 +116,24 @@ app.use((req, _res, next) => {
     const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
     httpRequestDuration.observe(durationMs, { service: 'mcp-tools', method: req.method });
   });
+  next();
+});
+
+// Internal auth guard — protects MCP endpoints from unauthenticated callers.
+// Bypassed only for /health and /metrics (used by infrastructure, no sensitive data).
+const INTERNAL_PROTECTED = ['/mcp', '/sse', '/message'];
+app.use((req, res, next) => {
+  const isProtected = INTERNAL_PROTECTED.some(p => req.path === p || req.path.startsWith(p + '?'));
+  if (!isProtected) return next();
+  if (!INTERNAL_API_SECRET) {
+    log('WARNING: INTERNAL_API_SECRET not set — /mcp endpoints are unprotected');
+    return next();
+  }
+  if (!verifyInternalAuth(INTERNAL_API_SECRET, req.method, req.path, req.headers as Record<string, string | string[] | undefined>)) {
+    log(`Rejected unauthenticated request: ${req.method} ${req.path} from ${req.ip}`);
+    res.status(401).json({ error: 'Internal auth required' });
+    return;
+  }
   next();
 });
 
