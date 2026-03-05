@@ -76,6 +76,7 @@ import { initRateLimit, rateLimitHook, closeRateLimitRedis } from './middleware/
 
 const app = Fastify({
   logger: true,
+  trustProxy: true, // Read X-Real-IP/X-Forwarded-For from nginx (needed for rate limiter)
   requestTimeout: 120000, // 2 min for long-running agent executions
   bodyLimit: 1024 * 1024 * 2, // 2MB for large prompts
   connectionTimeout: 60000,
