@@ -109,10 +109,12 @@ function AgentList({
                 key={c.key}
                 className={sortColumn === c.key ? 'sorted' : ''}
                 onClick={() => onSort(c.key)}
+                aria-sort={sortColumn === c.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                style={{ cursor: 'pointer' }}
               >
                 {c.label}
                 {sortColumn === c.key && (
-                  <span className="fleet-sort-arrow">{sortDir === 'asc' ? ' \u25B2' : ' \u25BC'}</span>
+                  <span className="fleet-sort-arrow" aria-hidden="true">{sortDir === 'asc' ? ' \u25B2' : ' \u25BC'}</span>
                 )}
               </th>
             ))}
@@ -124,6 +126,11 @@ function AgentList({
               key={agent.id}
               className={selectedId === agent.id ? 'selected' : ''}
               onClick={() => onSelect(agent.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(agent.id); } }}
+              tabIndex={0}
+              aria-selected={selectedId === agent.id}
+              role="row"
+              style={{ cursor: 'pointer' }}
             >
               <td>
                 {agent.name}
@@ -131,7 +138,7 @@ function AgentList({
               </td>
               <td>
                 <span className={`fleet-status ${agent.status}`}>
-                  <span className="fleet-status-dot" />
+                  <span className="fleet-status-dot" aria-hidden="true" />
                   {agent.status}
                 </span>
               </td>
@@ -192,13 +199,15 @@ function AgentDetailPanel({
     <div className="fleet-detail">
       <div className="fleet-detail-header">
         <span className="fleet-detail-title">{agent.name}</span>
-        <button className="fleet-detail-close" onClick={onClose}>&times;</button>
+        <button className="fleet-detail-close" onClick={onClose} aria-label={`Close ${agent.name} details`}>&times;</button>
       </div>
 
-      <div className="fleet-detail-tabs">
+      <div className="fleet-detail-tabs" role="tablist" aria-label={`${agent.name} sections`}>
         {tabs.map((t) => (
           <button
             key={t.key}
+            role="tab"
+            aria-selected={tab === t.key}
             className={`fleet-detail-tab ${tab === t.key ? 'active' : ''}`}
             onClick={() => onTabChange(t.key)}
           >
@@ -213,7 +222,7 @@ function AgentDetailPanel({
             <div className="fleet-overview-row">
               <span className="fleet-overview-label">Status</span>
               <span className={`fleet-status ${agent.status}`}>
-                <span className="fleet-status-dot" />{agent.status}
+                <span className="fleet-status-dot" aria-hidden="true" />{agent.status}
               </span>
             </div>
             <div className="fleet-overview-row">
@@ -288,7 +297,9 @@ function AgentDetailPanel({
 
         {tab === 'exec' && (
           <div className="fleet-exec">
+            <label htmlFor="fleet-exec-prompt" className="fleet-overview-label">Prompt</label>
             <textarea
+              id="fleet-exec-prompt"
               value={execPrompt}
               onChange={(e) => setExecPrompt(e.target.value)}
               placeholder="Enter prompt to run agent with..."
@@ -519,7 +530,8 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
               </label>
               <input
                 className="fleet-search"
-                type="text"
+                type="search"
+                aria-label="Search agents"
                 placeholder="Search agents..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}

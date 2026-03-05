@@ -234,14 +234,16 @@ export default function UnifiedDashboard() {
       />
       <div className="ud-body ud-body-full">
         <div className="ud-main">
-          <div className="ud-tab-bar">
+          <div className="ud-tab-bar" role="tablist" aria-label="Dashboard navigation">
             {visibleGroups.map((group, gi) => (
               <Fragment key={group.label}>
-                {gi > 0 && <div className="ud-tab-divider" />}
-                <span className="ud-tab-group-label">{group.label}</span>
+                {gi > 0 && <div className="ud-tab-divider" role="separator" />}
+                <span className="ud-tab-group-label" role="presentation">{group.label}</span>
                 {group.tabs.map((t) => (
                   <button
                     key={t.key}
+                    role="tab"
+                    aria-selected={activeTab === t.key}
                     className={`ud-tab ${activeTab === t.key ? 'active' : ''}`}
                     onClick={() => setActiveTab(t.key)}
                   >
@@ -251,7 +253,7 @@ export default function UnifiedDashboard() {
               </Fragment>
             ))}
           </div>
-          <div className="ud-tab-content">
+          <div className="ud-tab-content" role="tabpanel" aria-label={activeTab}>
             {tabContent()}
           </div>
         </div>
