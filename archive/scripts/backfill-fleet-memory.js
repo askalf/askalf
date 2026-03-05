@@ -14,7 +14,7 @@
  */
 
 const FORGE_URL = process.env.FORGE_URL || 'http://forge:3005';
-const FORGE_API_KEY = process.env.FORGE_API_KEY || 'fk_a9061ee9b9a863ba4b6c27961cc81d96c6c6c0e2ccee0eca';
+const FORGE_API_KEY = process.env.FORGE_API_KEY || process.env.FORGE_API_KEY || '';
 const ADMIN_HUB_URL = process.env.ADMIN_HUB_URL || 'http://dashboard:3001';
 const RATE_LIMIT_MS = 100; // 10/sec
 
