@@ -589,7 +589,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
           message: `Rebuilding ${ordered.length} service(s): ${ordered.join(', ')}`,
         });
       } catch (err) {
-        return reply.status(500).send({ error: 'Rebuild failed', detail: err instanceof Error ? err.message : String(err) });
+        request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Rebuild failed');
+        return reply.status(500).send({ error: 'Rebuild failed' });
       }
     },
   );
@@ -639,7 +640,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
           logs,
         });
       } catch (err) {
-        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
+        request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Builder inspect failed');
+        return reply.status(500).send({ error: 'Internal server error' });
       }
     },
   );
@@ -669,7 +671,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
         return reply.status(500).send({ error: `Failed to cancel: HTTP ${deleteRes.statusCode}` });
       } catch (err) {
-        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
+        request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Builder cancel failed');
+        return reply.status(500).send({ error: 'Internal server error' });
       }
     },
   );
@@ -728,7 +731,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
         return reply.send({ tasks });
       } catch (err) {
-        return reply.status(500).send({ error: err instanceof Error ? err.message : String(err) });
+        request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Builder task list failed');
+        return reply.status(500).send({ error: 'Internal server error' });
       }
     },
   );
