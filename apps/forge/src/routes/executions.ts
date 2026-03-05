@@ -158,9 +158,11 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
 
         const executionId = ulid();
 
+        const priority = body.priority ?? 'normal';
+
         const execution = await queryOne<ExecutionRow>(
-          `INSERT INTO forge_executions (id, agent_id, session_id, owner_id, input, status, metadata, started_at)
-           VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW())
+          `INSERT INTO forge_executions (id, agent_id, session_id, owner_id, input, status, priority, metadata, started_at)
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, NOW())
            RETURNING *`,
           [
             executionId,
@@ -168,6 +170,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
             body.sessionId ?? null,
             userId,
             body.input,
+            priority,
             JSON.stringify({ source_layer: 'api', ...body.metadata }),
           ],
         );
@@ -177,7 +180,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           action: 'execution.start',
           resourceType: 'execution',
           resourceId: executionId,
-          details: { agentId: body.agentId },
+          details: { agentId: body.agentId, priority },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
         }).catch(() => {});
@@ -194,6 +197,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
             sessionId: body.sessionId,
             maxBudgetUsd: agent.max_cost_per_execution,
             maxTurns: agent.max_iterations ?? undefined,
+            priority,
           },
         ).catch((err) => {
           request.log.error({ err, executionId }, 'Async CLI execution failed');
