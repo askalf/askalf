@@ -54,7 +54,7 @@ import { economyRoutes } from './routes/economy.js';
 import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { sessionAuthMiddleware } from './middleware/session-auth.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
-import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
+import { initializeWorker, runDirectCliExecution, getRunningExecutionCount, waitForRunningExecutions } from './runtime/worker.js';
 import { startTaskDispatcher, stopTaskDispatcher } from './runtime/task-dispatcher.js';
 import { registerAgentBridge, stopAgentBridge } from './runtime/agent-bridge.js';
 import { initMemoryManager } from './memory/singleton.js';
@@ -673,15 +673,38 @@ async function shutdown(signal: string): Promise<void> {
 
   logger.info(`[Forge] Received ${signal}, starting graceful shutdown...`);
 
-  const shutdownTimeout = parseInt(process.env['SHUTDOWN_TIMEOUT'] ?? '30000', 10);
+  // Execution wait: up to 30s. Force-kill after execution wait + 5s headroom for cleanup.
+  const executionWaitMs = parseInt(process.env['EXECUTION_WAIT_TIMEOUT'] ?? '30000', 10);
+  const forceKillMs = executionWaitMs + 5000;
 
   const forceShutdown = setTimeout(() => {
     logger.error('[Forge] Graceful shutdown timeout exceeded, forcing exit');
     process.exit(1);
-  }, shutdownTimeout);
+  }, forceKillMs);
 
   try {
-    // Mark in-flight executions as failed before closing (prevents orphaning on planned shutdowns)
+    // 1. Stop accepting new requests immediately.
+    await app.close();
+    logger.info('[Forge] HTTP server closed — no longer accepting new requests');
+
+    // Clear periodic timers (they'd fire against a closing DB otherwise).
+    clearInterval(rateLimitCleanupInterval);
+    clearInterval(agentGaugeInterval);
+    clearInterval(staleCleanupInterval);
+
+    // 2. Wait for in-flight CLI executions to finish naturally.
+    const initialCount = getRunningExecutionCount();
+    if (initialCount > 0) {
+      logger.info(`[Forge] Waiting for ${initialCount} in-flight execution(s) to complete (up to ${executionWaitMs}ms)...`);
+      const remaining = await waitForRunningExecutions(executionWaitMs);
+      if (remaining > 0) {
+        logger.warn(`[Forge] ${remaining} execution(s) did not finish within timeout — marking as failed`);
+      } else {
+        logger.info('[Forge] All in-flight executions completed cleanly');
+      }
+    }
+
+    // 3. Mark any still-running/pending executions as failed in the DB.
     const shutdownError = `Forge shutting down (${signal})`;
     const inflight = await dbQuery<{ id: string; agent_id: string }>(
       `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW()
@@ -690,7 +713,7 @@ async function shutdown(signal: string): Promise<void> {
       [shutdownError],
     ).catch(() => [] as { id: string; agent_id: string }[]);
     if (inflight.length > 0) {
-      logger.info(`[Forge] Marked ${inflight.length} in-flight executions as failed before shutdown`);
+      logger.info(`[Forge] Marked ${inflight.length} remaining in-flight execution(s) as failed`);
       const eventBus = getEventBus();
       for (const row of inflight) {
         void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
@@ -699,26 +722,17 @@ async function shutdown(signal: string): Promise<void> {
       }
     }
 
-    // Clear periodic timers
-    clearInterval(rateLimitCleanupInterval);
-    clearInterval(agentGaugeInterval);
-    clearInterval(staleCleanupInterval);
-
-    // Close workflow scheduler (BullMQ worker + queue)
+    // 4. Close subsystems: workflow scheduler, channel workers, daemon/trigger engine, comms, DB.
     const scheduler = (app as unknown as { workflowScheduler?: ForgeScheduler }).workflowScheduler;
     if (scheduler) {
       await scheduler.close().catch((err: unknown) => logger.warn('[Forge] Scheduler close error:', err));
       logger.info('[Forge] Workflow scheduler closed');
     }
 
-    // Stop channel workers
     const { stopWebhookRetryWorker } = await import('./channels/webhook-delivery.js');
     stopWebhookRetryWorker();
+    logger.info('[Forge] Channel workers stopped');
 
-    await app.close();
-    logger.info('[Forge] Server closed');
-
-    // Stop daemon manager and trigger engine
     const triggerEng = getTriggerEngine();
     if (triggerEng) {
       await triggerEng.stop().catch((err: unknown) => logger.warn('[Forge] TriggerEngine stop error:', err));
@@ -727,13 +741,16 @@ async function shutdown(signal: string): Promise<void> {
     if (daemonMgr) {
       await daemonMgr.shutdown().catch((err: unknown) => logger.warn('[Forge] DaemonManager shutdown error:', err));
     }
+    logger.info('[Forge] Daemon manager and trigger engine stopped');
 
     stopAgentBridge();
     await stopTaskDispatcher().catch(() => {});
     await closeAgentCommunication().catch(() => {});
     await closeRateLimitRedis().catch(() => {});
+    logger.info('[Forge] Redis connections closed');
+
     await closeDatabase();
-    logger.info('[Forge] Database connection closed');
+    logger.info('[Forge] Database pool closed');
 
     clearTimeout(forceShutdown);
     logger.info('[Forge] Graceful shutdown complete');
