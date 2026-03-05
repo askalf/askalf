@@ -153,12 +153,12 @@ export async function registerSchedulerRoutes(fastify, requireAdmin, requireUser
           continue;
         }
 
-        // Escalation/error interventions older than 60 min — create a ticket for Nexus
+        // Escalation/error interventions older than 60 min — create a ticket for Infra
         if ((intervention.type === 'escalation' || intervention.type === 'error') && ageMinutes > 60) {
           try {
             await query(
               `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, is_agent_ticket, source, metadata)
-               VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Nexus', true, 'agent', $4)
+               VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Infra', true, 'agent', $4)
                ON CONFLICT DO NOTHING`,
               [
                 'INT-' + intervention.id.substring(0, 20),
@@ -168,11 +168,11 @@ export async function registerSchedulerRoutes(fastify, requireAdmin, requireUser
               ]
             );
             await queryOne(
-              `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Nexus ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
+              `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Infra ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
               [intervention.id]
             );
           } catch { /* non-fatal */ }
-          console.log(`[Interventions] Escalated to Nexus ticket: ${intervention.title}`);
+          console.log(`[Interventions] Escalated to Infra ticket: ${intervention.title}`);
           continue;
         }
 

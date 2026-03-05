@@ -331,12 +331,12 @@ async function handleFindingOps(args: Record<string, unknown>): Promise<string> 
         if (existing.rows.length === 0) {
           const tId = generateId();
           let assignTo: string | null = null;
-          if (category === 'security') assignTo = 'Aegis';
-          else if (category === 'performance' || category === 'optimization') assignTo = 'Oracle';
-          else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'DevOps';
+          if (category === 'security') assignTo = 'Security';
+          else if (category === 'performance' || category === 'optimization') assignTo = 'Backend Dev';
+          else if (category === 'infrastructure' || category === 'infrastructure_status') assignTo = 'Infra';
           else if (category === 'bug') assignTo = 'Backend Dev';
-          else if (category === 'service_outage') assignTo = 'DevOps';
-          if (!assignTo) assignTo = 'Nexus';
+          else if (category === 'service_outage') assignTo = 'Infra';
+          if (!assignTo) assignTo = 'Backend Dev';
 
           try {
             await p.query(
