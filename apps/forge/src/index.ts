@@ -21,7 +21,7 @@ import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import { initializeDatabase, initializeSubstrateDatabase, closeDatabase, query as dbQuery, substrateQuery } from './database.js';
+import { initializeDatabase, initializeSubstrateDatabase, closeDatabase, query as dbQuery, substrateQuery, getPool } from './database.js';
 import { loadConfig } from './config.js';
 import { agentRoutes } from './routes/agents.js';
 import { executionRoutes } from './routes/executions.js';
@@ -338,6 +338,39 @@ app.get('/health', { logLevel: 'silent' }, async () => {
       redis: redisOk,
     },
     uptime: Math.round(process.uptime()),
+  };
+});
+
+app.get('/api/v1/health/db', { logLevel: 'silent' }, async (_request, reply) => {
+  const pool = getPool();
+  const total = pool.totalCount;
+  const idle = pool.idleCount;
+  const waiting = pool.waitingCount;
+  const max = 60; // matches initializeDatabase config
+
+  const alert = waiting > 5;
+
+  let dbOk = false;
+  try {
+    await Promise.race([
+      dbQuery('SELECT 1'),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 500)
+      ),
+    ]);
+    dbOk = true;
+  } catch { /* pool saturated or unreachable */ }
+
+  if (alert) {
+    reply.code(503);
+  }
+
+  return {
+    status: alert ? 'degraded' : 'healthy',
+    pool: { total, idle, waiting, max },
+    reachable: dbOk,
+    alert: alert ? `waiting connections (${waiting}) exceeds threshold (5)` : null,
+    timestamp: new Date().toISOString(),
   };
 });
 
