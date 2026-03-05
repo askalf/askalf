@@ -1662,6 +1662,16 @@ async function requireAdmin(request, reply) {
   return user;
 }
 
+// Authenticated user (any role) — for user-facing features like Builder, Orchestrator, Fleet
+async function requireUser(request, reply) {
+  const user = await getUserFromSession(request);
+  if (!user) {
+    reply.status(401);
+    return null;
+  }
+  return user;
+}
+
 // Check if current user is admin
 fastify.get('/api/v1/admin/me', async (request, reply) => {
   const user = await getUserFromSession(request);
@@ -2082,7 +2092,7 @@ fastify.get('/api/v1/admin/plans', async (request, reply) => {
 
 // Agent Hub admin routes
 import { registerAdminHubRoutes } from './routes/admin-hub/index.js';
-await registerAdminHubRoutes(fastify, requireAdmin, query, queryOne);
+await registerAdminHubRoutes(fastify, requireAdmin, requireUser, query, queryOne);
 
 // User Provider Keys (user-facing, not admin-only)
 import { callForge } from './routes/admin-hub/utils.js';

@@ -6,8 +6,8 @@
 
 /* ---- Stat Card ---- */
 .hub-stat {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   text-align: center;
@@ -66,7 +66,7 @@
 
 .hub-stat__label {
   font-size: 0.75rem;
-  color: var(--text-tertiary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
   margin-top: var(--space-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -104,16 +104,16 @@
   font-size: 0.8rem;
   font-weight: 600;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .hub-btn:hover {
-  background: var(--elevated);
-  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .hub-btn:disabled {

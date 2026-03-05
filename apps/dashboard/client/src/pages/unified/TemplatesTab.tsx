@@ -195,7 +195,10 @@ export default function TemplatesTab({
   return (
     <div className="tmpl-container">
       <div className="tmpl-header">
-        <h2>Agent Templates</h2>
+        <div className="tmpl-title-row">
+          <span className="tmpl-icon">&#x2B22;</span>
+          <h2>Agent Templates</h2>
+        </div>
         <p>Pre-configured agent blueprints ready to deploy</p>
       </div>
 

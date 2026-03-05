@@ -470,6 +470,25 @@ export default function BuilderTab({
         metadata: { source_layer: 'builder' },
       } as Parameters<typeof hubApi.agents.create>[0]);
       const agent = (res as { agent: { id: string; name: string } }).agent;
+
+      // Wire schedule if not manual/one-shot
+      if (config.scheduleType !== 'none' && agent.id) {
+        const intervalMap: Record<string, number> = {
+          '30m': 30, '1h': 60, '3h': 180, '6h': 360, '12h': 720, '24h': 1440,
+        };
+        const intervalMinutes = config.scheduleType === 'interval'
+          ? intervalMap[config.scheduleInterval] ?? 360
+          : 360; // cron fallback — default 6h
+        try {
+          await hubApi.agents.setSchedule(agent.id, {
+            schedule_type: 'scheduled',
+            interval_minutes: intervalMinutes,
+          });
+        } catch (schedErr) {
+          console.error('Failed to set schedule:', schedErr);
+        }
+      }
+
       setResult({ agentId: agent.id, name: agent.name ?? config.name });
     } catch (err) {
       console.error('Failed to create agent:', err);

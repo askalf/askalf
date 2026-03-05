@@ -31,7 +31,7 @@
   padding: var(--space-sm) var(--space-md) var(--space-sm) 36px;
   font-size: 0.85rem;
   background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   color: var(--text);
   outline: none;
@@ -53,9 +53,9 @@
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.03);
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
   cursor: pointer;
   position: relative;
   transition: all 0.2s;
@@ -113,14 +113,14 @@
   padding: var(--space-xs) var(--space-sm);
   font-size: 0.8rem;
   background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 6px;
   color: var(--text);
   outline: none;
 }
 
 .cf-filter-group select option {
-  background: var(--surface, #1a1a2e);
+  background: rgba(20, 20, 30, 0.9);
 }
 
 .cf-filter-group select:focus,
@@ -236,7 +236,7 @@
 
 .cf-content-preview {
   font-size: 0.8rem;
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
   line-height: 1.5;
   margin: 2px 0 0;
 }
