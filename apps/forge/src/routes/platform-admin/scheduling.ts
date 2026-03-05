@@ -714,8 +714,31 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
   }
 }
 
+/**
+ * On startup, mark any pending executions as failed.
+ * These are orphans from the previous Forge process — their CLI workers are gone.
+ * Without this, the inFlightMap sees them as in-flight and never re-dispatches the agent.
+ */
+async function markOrphanedPendingExecutions(): Promise<void> {
+  try {
+    const orphaned = await query<{ id: string }>(
+      `UPDATE forge_executions
+       SET status = 'failed', error = 'Execution orphaned: forge process restarted', completed_at = NOW()
+       WHERE status = 'pending'
+       RETURNING id`,
+    );
+    if (orphaned.length > 0) {
+      console.log(`[Scheduler] Startup: marked ${orphaned.length} orphaned pending execution(s) as failed`);
+    }
+  } catch (err) {
+    console.error('[Scheduler] Startup orphan sweep failed:', err);
+  }
+}
+
 function startSchedulerDaemon(): void {
   console.log('[Scheduler] Agent scheduler daemon started (60s interval)');
+  // Clean up pending executions from previous process (they can never complete)
+  void markOrphanedPendingExecutions();
   setInterval(runSchedulerTick, 60_000);
   setTimeout(runSchedulerTick, 10_000);
 }
