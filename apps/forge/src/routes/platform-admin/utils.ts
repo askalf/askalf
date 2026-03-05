@@ -37,6 +37,22 @@ export function paginationResponse(total: number, page: number, limit: number) {
   return { page, limit, total, totalPages, hasNext: page < totalPages, hasPrev: page > 1 };
 }
 
+/** Encode a cursor for keyset pagination. Encodes (id, created_at) as base64url JSON. */
+export function encodeCursor(id: string, createdAt: string): string {
+  return Buffer.from(JSON.stringify({ id, t: createdAt })).toString('base64url');
+}
+
+/** Decode a cursor. Returns null if invalid. */
+export function decodeCursor(cursor: string): { id: string; t: string } | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    if (typeof parsed.id === 'string' && typeof parsed.t === 'string') return parsed as { id: string; t: string };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function mapAgentType(metadata: Record<string, unknown> | null): string {
   const typeMap: Record<string, string> = {
     development: 'dev', dev: 'dev', research: 'research',
