@@ -10,6 +10,9 @@ import { createHash } from 'node:crypto';
 import { substrateQuery, substrateQueryOne, retryQuery } from '../database.js';
 import { sendEmailVerificationEmail, sendPasswordResetEmail } from '@askalf/email';
 import { generateCsrfToken } from '../middleware/csrf-protection.js';
+import { initializeLogger } from '@askalf/observability';
+
+const logger = initializeLogger().child({ component: 'auth' });
 
 // ============================================
 // Types
@@ -184,14 +187,14 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       [`audit_${ulid()}`, tenantId, userId, request.ip, request.headers['user-agent']],
     );
 
-    console.log(`[Auth] New user registered: ${body.email} (${userId}), verification token generated`);
+    logger.info(`[Auth] New user registered: ${body.email} (${userId}), verification token generated`);
 
     // Fire-and-forget: send verification email
     sendEmailVerificationEmail(body.email, {
       userName: body.display_name || body.email.split('@')[0] || 'there',
       verifyUrl: `https://askalf.org/verify-email?token=${verificationToken}`,
       expiresInHours: 24,
-    }).catch((err: unknown) => console.error('[Auth] Failed to send verification email:', err));
+    }).catch((err: unknown) => logger.error('[Auth] Failed to send verification email:', err));
 
     return {
       success: true,
@@ -421,7 +424,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: 'Invalid or expired verification token' });
     }
 
-    console.log(`[Auth] Email verified for user ${result[0]!.email}`);
+    logger.info(`[Auth] Email verified for user ${result[0]!.email}`);
 
     return { success: true, message: 'Email verified successfully' };
   });
@@ -462,7 +465,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(400).send({ error: 'Email already verified or account not active' });
     }
 
-    console.log(`[Auth] Verification token regenerated for user ${session.user_id}`);
+    logger.info(`[Auth] Verification token regenerated for user ${session.user_id}`);
 
     // Fire-and-forget: send verification email
     const verifyUser = await substrateQueryOne<{ email: string; display_name: string | null }>(
@@ -474,7 +477,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         userName: verifyUser.display_name || verifyUser.email.split('@')[0] || 'there',
         verifyUrl: `https://askalf.org/verify-email?token=${newToken}`,
         expiresInHours: 24,
-      }).catch((err: unknown) => console.error('[Auth] Failed to send verification email:', err));
+      }).catch((err: unknown) => logger.error('[Auth] Failed to send verification email:', err));
     }
 
     return { success: true, message: 'Verification email sent' };
@@ -515,7 +518,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       [`audit_${ulid()}`, user.tenant_id, user.id, request.ip],
     ).catch(() => {});
 
-    console.log(`[Auth] Password reset requested for ${body.email}`);
+    logger.info(`[Auth] Password reset requested for ${body.email}`);
 
     // Fire-and-forget: send password reset email
     const resetUser = await substrateQueryOne<{ display_name: string | null }>(
@@ -526,7 +529,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       userName: resetUser?.display_name || body.email.split('@')[0] || 'there',
       resetUrl: `https://askalf.org/reset-password?token=${token}`,
       expiresInMinutes: 60,
-    }).catch((err: unknown) => console.error('[Auth] Failed to send password reset email:', err));
+    }).catch((err: unknown) => logger.error('[Auth] Failed to send password reset email:', err));
 
     return { success: true, message: 'If the email exists, a reset link has been sent' };
   });
