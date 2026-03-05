@@ -12,7 +12,7 @@ let pool: pg.Pool | null = null;
 export function initializeDatabase(connectionString: string): void {
   pool = new Pool({
     connectionString,
-    max: 60, // raised from 40; PgBouncer pool_size=80, PG max_connections=200 — safe headroom
+    max: 60,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 15000,
   });
