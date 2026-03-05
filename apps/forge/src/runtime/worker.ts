@@ -1454,7 +1454,20 @@ export function getRegistry(): ToolRegistry {
 
 let cliEnvironmentReady = false;
 let cliConcurrent = 0;
-const cliQueue: Array<() => void> = [];
+
+/** Numeric weight for each priority level — higher = processed first. */
+const PRIORITY_WEIGHT: Record<string, number> = {
+  urgent: 4,
+  high: 3,
+  normal: 2,
+  low: 1,
+};
+
+interface CliQueueEntry {
+  priority: number;
+  callback: () => void;
+}
+const cliQueue: Array<CliQueueEntry> = [];
 
 const MCP_CONFIG_PATH = '/tmp/claude-home/mcp.json';
 const CLAUDE_DIR = '/tmp/claude-home/.claude';
@@ -1520,19 +1533,21 @@ async function setupCliEnvironment(): Promise<void> {
  * Semaphore: acquire a CLI execution slot.
  * Blocks if MAX_CLI_CONCURRENCY is reached.
  * Times out after 10 minutes to prevent indefinite queueing.
+ * High-priority executions jump ahead of lower-priority ones in the queue.
  */
 const CLI_SLOT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
-function acquireCliSlot(): Promise<void> {
+function acquireCliSlot(priority: string = 'normal'): Promise<void> {
   const cfg = config ?? loadConfig();
   if (cliConcurrent < cfg.maxCliConcurrency) {
     cliConcurrent++;
     return Promise.resolve();
   }
+  const weight = PRIORITY_WEIGHT[priority] ?? PRIORITY_WEIGHT['normal']!;
   return new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => {
       // Remove from queue if still waiting
-      const idx = cliQueue.indexOf(callback);
+      const idx = cliQueue.findIndex((e) => e.callback === callback);
       if (idx >= 0) cliQueue.splice(idx, 1);
       reject(new Error(`CLI slot timeout: waited ${CLI_SLOT_TIMEOUT_MS / 1000}s, all ${cfg.maxCliConcurrency} slots occupied`));
     }, CLI_SLOT_TIMEOUT_MS);
@@ -1542,17 +1557,25 @@ function acquireCliSlot(): Promise<void> {
       cliConcurrent++;
       resolve();
     };
-    cliQueue.push(callback);
-    logger.info(`[CLI] Execution queued — ${cliConcurrent}/${cfg.maxCliConcurrency} slots occupied, ${cliQueue.length} in queue`);
+
+    // Insert in priority order (highest weight first, FIFO within same priority)
+    const insertAt = cliQueue.findIndex((e) => e.priority < weight);
+    if (insertAt === -1) {
+      cliQueue.push({ priority: weight, callback });
+    } else {
+      cliQueue.splice(insertAt, 0, { priority: weight, callback });
+    }
+    logger.info(`[CLI] Execution queued (priority=${priority}) — ${cliConcurrent}/${cfg.maxCliConcurrency} slots occupied, ${cliQueue.length} in queue`);
   });
 }
 
-/** Release a CLI execution slot. */
+/** Release a CLI execution slot, dispatching the highest-priority waiter next. */
 function releaseCliSlot(): void {
   cliConcurrent--;
   if (cliQueue.length > 0) {
+    // Queue is sorted highest-priority first; shift() picks the highest
     const next = cliQueue.shift()!;
-    next();
+    next.callback();
   }
 }
 
@@ -1947,6 +1970,8 @@ export async function runDirectCliExecution(
     maxTurns?: number;
     /** Agent's schedule interval in minutes — used for runtime budgeting. */
     scheduleIntervalMinutes?: number;
+    /** Execution priority — high/urgent are processed before normal/low. */
+    priority?: string;
   },
 ): Promise<void> {
   if (!initialized) {
@@ -1961,8 +1986,8 @@ export async function runDirectCliExecution(
   // Pre-execution validation — fail fast before acquiring resources
   validateCliPrerequisites(executionId, agentId, input);
 
-  // Wait for concurrency slot
-  await acquireCliSlot();
+  // Wait for concurrency slot — high priority executions jump ahead in queue
+  await acquireCliSlot(options?.priority ?? 'normal');
 
   const startTime = Date.now();
   forgeExecutionsTotal.inc();
