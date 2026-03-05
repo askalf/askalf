@@ -323,12 +323,23 @@ async function recordCostEvent(
   outputTokens: number,
   cost: number,
 ): Promise<void> {
-  await query(
-    `INSERT INTO forge_cost_events
-     (id, execution_id, agent_id, owner_id, provider, model, input_tokens, output_tokens, cost, metadata)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-    [ulid(), executionId, agentId, ownerId, provider, model, inputTokens, outputTokens, cost, JSON.stringify({ runtime_mode: 'sdk' })],
-  );
+  try {
+    await query(
+      `INSERT INTO forge_cost_events
+       (id, execution_id, agent_id, owner_id, provider, model, input_tokens, output_tokens, cost, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [ulid(), executionId, agentId, ownerId, provider, model, inputTokens, outputTokens, cost, JSON.stringify({ runtime_mode: 'sdk' })],
+    );
+  } catch (err) {
+    // FK violation (23503): execution_id not in forge_executions. This should not happen
+    // in the SDK engine (execution record is created before the loop), but guard defensively.
+    const pgCode = (err as { code?: string }).code;
+    if (pgCode === '23503') {
+      console.error(`[Engine] FK violation recording cost event for execution ${executionId} — execution record missing. Skipping.`);
+      return;
+    }
+    throw err;
+  }
 }
 
 // ============================================
