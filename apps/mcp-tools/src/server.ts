@@ -81,7 +81,7 @@ app.use((req, _res, next) => {
 });
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'healthy', service: 'mcp-tools', tools: ALL_TOOLS.length });
+  res.json({ status: 'healthy', service: 'mcp-tools', tools: ALL_TOOLS.length, uptime: Math.round(process.uptime()), version: '1.0.0', memory: process.memoryUsage().heapUsed });
 });
 
 app.get('/metrics', (_req, res) => {
