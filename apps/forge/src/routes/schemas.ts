@@ -111,6 +111,12 @@ export const CreateExecutionBody = Type.Object({
   agentId: Type.String({ description: 'Agent to execute' }),
   input: Type.String({ minLength: 1, maxLength: 102400, description: 'Input prompt' }),
   sessionId: Type.Optional(Type.String()),
+  priority: Type.Optional(Type.Union([
+    Type.Literal('low'),
+    Type.Literal('normal'),
+    Type.Literal('high'),
+    Type.Literal('urgent'),
+  ], { description: 'Execution priority. high/urgent are processed before normal/low (default: normal)' })),
   metadata: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
 });
 
