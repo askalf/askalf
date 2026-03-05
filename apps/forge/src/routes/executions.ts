@@ -910,6 +910,96 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
+   * GET /api/v1/forge/executions/bulk-status
+   * Poll status for multiple executions at once.
+   * Query param: ids (comma-separated execution IDs, max 100)
+   */
+  app.get(
+    '/api/v1/forge/executions/bulk-status',
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'Bulk-poll status for multiple executions',
+        response: { 400: ErrorResponse, 500: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const qs = request.query as { ids?: string };
+
+      if (!qs.ids || qs.ids.trim() === '') {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Query param "ids" is required (comma-separated execution IDs)',
+        });
+      }
+
+      const ids = qs.ids
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (ids.length === 0) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'No valid IDs provided',
+        });
+      }
+
+      if (ids.length > 100) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Too many IDs — maximum 100 per request',
+        });
+      }
+
+      try {
+        interface BulkStatusRow {
+          id: string;
+          agent_id: string;
+          status: string;
+          started_at: string | null;
+          completed_at: string | null;
+          error: string | null;
+        }
+
+        const rows = await query<BulkStatusRow>(
+          `SELECT id, agent_id, status, started_at, completed_at, error
+           FROM forge_executions
+           WHERE id = ANY($1::text[]) AND owner_id = $2`,
+          [ids, userId],
+        );
+
+        // Build a map for fast lookup; return null for IDs not found (not owned or missing)
+        const found = new Map(rows.map((r) => [r.id, r]));
+
+        const result = ids.map((id) => {
+          const row = found.get(id);
+          if (!row) return { id, found: false };
+          return {
+            id: row.id,
+            found: true,
+            agentId: row.agent_id,
+            status: row.status,
+            startedAt: row.started_at,
+            completedAt: row.completed_at,
+            error: row.error,
+          };
+        });
+
+        return reply.send({ executions: result });
+      } catch (err: unknown) {
+        request.log.error({ err }, 'Failed to bulk-fetch execution status');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Internal Server Error',
+        });
+      }
+    },
+  );
+
+  /**
    * GET /api/v1/forge/executions/costs/summary
    * Daily and weekly cost summaries for the authenticated user.
    * Source of truth: forge_cost_events joined to forge_executions (owner-scoped).
