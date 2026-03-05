@@ -13,17 +13,30 @@ export async function daemonRoutes(app: FastifyInstance): Promise<void> {
   app.get(
     '/api/v1/forge/daemons',
     { preHandler: [authMiddleware] },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       const manager = getDaemonManager();
       if (!manager) {
         return reply.code(503).send({ error: 'Daemon manager not initialized' });
       }
 
-      const dbDaemons = await query<Record<string, unknown>>(
-        `SELECT d.*, a.name AS agent_name FROM forge_agent_daemons d
-         JOIN forge_agents a ON a.id = d.agent_id
-         ORDER BY d.updated_at DESC`,
-      );
+      const qs = request.query as { limit?: string; offset?: string };
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 200));
+      const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
+
+      const [dbDaemons, countResult] = await Promise.all([
+        query<Record<string, unknown>>(
+          `SELECT d.*, a.name AS agent_name FROM forge_agent_daemons d
+           JOIN forge_agents a ON a.id = d.agent_id
+           ORDER BY d.updated_at DESC
+           LIMIT $1 OFFSET $2`,
+          [limit, offset],
+        ),
+        query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count FROM forge_agent_daemons`,
+        ),
+      ]);
+
+      const total = parseInt(countResult[0]?.count ?? '0', 10);
 
       return reply.send({
         daemons: dbDaemons.map((d) => {
@@ -35,6 +48,9 @@ export async function daemonRoutes(app: FastifyInstance): Promise<void> {
           };
         }),
         active_count: manager.getActiveDaemonCount(),
+        total,
+        limit,
+        offset,
       });
     },
   );

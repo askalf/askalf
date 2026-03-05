@@ -22,10 +22,13 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/admin/agents',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, _reply: FastifyReply) => {
-      const qs = request.query as { status?: string; include_decommissioned?: string };
+      const qs = request.query as { status?: string; include_decommissioned?: string; limit?: string; offset?: string };
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 200));
+      const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
+      const isPaginated = qs.limit !== undefined || qs.offset !== undefined;
 
-      // Only use cache for the default (no-filter) request
-      if (!qs.status && qs.include_decommissioned !== 'true' && agentsCache && Date.now() - agentsCache.ts < AGENTS_CACHE_TTL) {
+      // Only use cache for the default (no-filter, no-pagination) request
+      if (!qs.status && qs.include_decommissioned !== 'true' && !isPaginated && agentsCache && Date.now() - agentsCache.ts < AGENTS_CACHE_TTL) {
         return agentsCache.data;
       }
 
@@ -41,9 +44,13 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         whereClause += ` AND (is_decommissioned IS NULL OR is_decommissioned = false)`;
       }
 
+      const countParams = [...params];
+      params.push(limit, offset);
+
       // Single query: agents + aggregated execution stats + running exec + interventions + schedules
-      const [agents, execStats, runningExecs, interventionCounts, schedules] = await Promise.all([
-        query<ForgeAgent>(`SELECT * FROM forge_agents ${whereClause} ORDER BY name`, params),
+      const [agents, agentTotal, execStats, runningExecs, interventionCounts, schedules] = await Promise.all([
+        query<ForgeAgent>(`SELECT * FROM forge_agents ${whereClause} ORDER BY name LIMIT $${params.length - 1} OFFSET $${params.length}`, params),
+        query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM forge_agents ${whereClause}`, countParams),
         query<{ agent_id: string; completed: string; failed: string; last_completed_at: string | null }>(
           `SELECT agent_id,
                   COUNT(*) FILTER (WHERE status = 'completed')::text AS completed,
@@ -64,6 +71,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         ),
       ]);
 
+      const total = parseInt(agentTotal[0]?.count ?? '0', 10);
       const statsMap = new Map(execStats.map(r => [r.agent_id, r]));
       const runningMap = new Map<string, string>();
       for (const r of runningExecs) {
@@ -107,10 +115,13 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
             raw_status: a.status,
           };
         }),
+        total,
+        limit,
+        offset,
       };
 
-      // Cache the default (no-filter) result
-      if (!qs.status && qs.include_decommissioned !== 'true') {
+      // Cache the default (no-filter, no-pagination) result
+      if (!qs.status && qs.include_decommissioned !== 'true' && !isPaginated) {
         agentsCache = { data: result, ts: Date.now() };
       }
 
