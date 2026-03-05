@@ -9,7 +9,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx tests/unit.ts",
-    "test:integration": "tsx tests/integration.ts",
+    "test:integration": "vitest run tests/forge-api.integration.test.ts",
+    "test:integration:admin": "tsx tests/integration.ts",
     "test": "tsx tests/unit.ts"
   },
   "dependencies": {
@@ -38,6 +39,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/pg": "^8.11.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
   }
 }
