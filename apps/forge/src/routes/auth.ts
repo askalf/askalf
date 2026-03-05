@@ -194,7 +194,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       userName: body.display_name || body.email.split('@')[0] || 'there',
       verifyUrl: `https://askalf.org/verify-email?token=${verificationToken}`,
       expiresInHours: 24,
-    }).catch((err: unknown) => logger.error('[Auth] Failed to send verification email:', err));
+    }).catch((err: unknown) => logger.error(`[Auth] Failed to send verification email: ${err}`));
 
     return {
       success: true,
@@ -496,7 +496,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         userName: verifyUser.display_name || verifyUser.email.split('@')[0] || 'there',
         verifyUrl: `https://askalf.org/verify-email?token=${newToken}`,
         expiresInHours: 24,
-      }).catch((err: unknown) => logger.error('[Auth] Failed to send verification email:', err));
+      }).catch((err: unknown) => logger.error(`[Auth] Failed to send verification email: ${err}`));
     }
 
     return { success: true, message: 'Verification email sent' };
@@ -548,7 +548,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       userName: resetUser?.display_name || body.email.split('@')[0] || 'there',
       resetUrl: `https://askalf.org/reset-password?token=${token}`,
       expiresInMinutes: 60,
-    }).catch((err: unknown) => logger.error('[Auth] Failed to send password reset email:', err));
+    }).catch((err: unknown) => logger.error(`[Auth] Failed to send password reset email: ${err}`));
 
     return { success: true, message: 'If the email exists, a reset link has been sent' };
   });

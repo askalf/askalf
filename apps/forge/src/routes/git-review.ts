@@ -731,7 +731,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
         return reply.send({ tasks });
       } catch (err) {
-        request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Builder task list failed');
+        _request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Builder task list failed');
         return reply.status(500).send({ error: 'Internal server error' });
       }
     },
