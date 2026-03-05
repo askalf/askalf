@@ -210,6 +210,8 @@ app.addHook('onSend', async (_request, reply) => {
   reply.header('X-XSS-Protection', '1; mode=block');
   reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');
+  reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  reply.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   reply.header('X-API-Version', '1.0.0');
 });
 
