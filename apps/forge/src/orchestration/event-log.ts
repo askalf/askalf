@@ -7,22 +7,76 @@
 import { query } from '../database.js';
 import { getEventBus, type ForgeEvent } from './event-bus.js';
 
+// ============================================
+// Concurrency Limiter — prevents pool exhaustion
+// ============================================
+// Under high concurrency (8/8 agents), the event bus can fire 100+ events/sec,
+// each triggering a DB INSERT. Without throttling, these exhaust the pg.Pool
+// (max 60 slots), causing connection timeouts. Limit to MAX_CONCURRENT and
+// drop events gracefully if the queue fills up (analytics are non-critical).
+
+const MAX_CONCURRENT_LOG_WRITES = 5;
+const MAX_QUEUE_SIZE = 200;
+
+let activeLogWrites = 0;
+const logWriteQueue: Array<() => void> = [];
+
+function acquireWriteSlot(): Promise<boolean> {
+  if (activeLogWrites < MAX_CONCURRENT_LOG_WRITES) {
+    activeLogWrites++;
+    return Promise.resolve(true);
+  }
+  if (logWriteQueue.length >= MAX_QUEUE_SIZE) {
+    // Queue full — drop event to prevent memory growth and pool starvation
+    return Promise.resolve(false);
+  }
+  return new Promise<boolean>((resolve) => {
+    logWriteQueue.push(() => resolve(true));
+  });
+}
+
+function releaseWriteSlot(): void {
+  const next = logWriteQueue.shift();
+  if (next) {
+    // Hand off slot to next waiter without decrementing (they take the slot)
+    next();
+  } else {
+    activeLogWrites--;
+  }
+}
+
+// ============================================
+// Core Log Function
+// ============================================
+
 /**
  * Log an event to the persistent store.
+ * Rate-limited to MAX_CONCURRENT_LOG_WRITES concurrent DB writes.
+ * Drops events gracefully when under extreme pressure.
  */
 export async function logEvent(event: ForgeEvent): Promise<void> {
-  const e = event as unknown as Record<string, unknown>;
-  const agentId = (e['agentId'] as string) ?? null;
-  const agentName = (e['agentName'] as string) ?? null;
-  const executionId = (e['executionId'] as string) ?? null;
-  const sessionId = (e['sessionId'] as string) ?? null;
+  const acquired = await acquireWriteSlot();
+  if (!acquired) {
+    console.warn('[EventLog] Write queue full — dropping event:', event.type, event.event);
+    return;
+  }
 
-  await query(
-    `INSERT INTO forge_event_log
-     (event_type, event_name, session_id, execution_id, agent_id, agent_name, data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [event.type, event.event, sessionId, executionId, agentId, agentName, JSON.stringify(event)],
-  );
+  try {
+    const e = event as unknown as Record<string, unknown>;
+    const agentId = (e['agentId'] as string) ?? null;
+    const agentName = (e['agentName'] as string) ?? null;
+    const executionId = (e['executionId'] as string) ?? null;
+    const sessionId = (e['sessionId'] as string) ?? null;
+
+    await query(
+      `INSERT INTO forge_event_log
+       (event_type, event_name, session_id, execution_id, agent_id, agent_name, data)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [event.type, event.event, sessionId, executionId, agentId, agentName, JSON.stringify(event)],
+    );
+  } finally {
+    releaseWriteSlot();
+  }
 }
 
 /**
