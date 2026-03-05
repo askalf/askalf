@@ -73,7 +73,7 @@ import { startEventLogger } from './orchestration/event-log.js';
 import { startReactiveTriggers } from './orchestration/reactive-triggers.js';
 import { startAutonomyLoop } from './orchestration/autonomy-loop.js';
 import { initAgentCommunication, closeAgentCommunication } from './orchestration/communication.js';
-import { initDaemonManager, getDaemonManager } from './runtime/daemon-manager.js';
+import { initDispatcher, getDispatcher } from './runtime/unified-dispatcher.js';
 import { initTriggerEngine, getTriggerEngine } from './runtime/trigger-engine.js';
 import { Redis } from 'ioredis';
 import { ulid } from 'ulid';
@@ -486,12 +486,12 @@ async function start(): Promise<void> {
     initRateLimit(config.redisUrl, internalKeys.map((k) => k.key_prefix));
     logger.info(`[Forge] Redis rate limiter initialized (${internalKeys.length} internal key(s) bypassed)`);
 
-    // Initialize daemon manager (persistent agent processes)
-    const daemonManager = initDaemonManager();
-    await daemonManager.initialize().catch((err) => {
-      logger.warn(`[DaemonManager] Initialization error: ${err instanceof Error ? err.message : String(err)}`);
+    // Initialize unified dispatcher (replaces daemon manager + scheduler daemon)
+    const dispatcher = initDispatcher();
+    await dispatcher.initialize().catch((err) => {
+      logger.warn(`[Dispatcher] Initialization error: ${err instanceof Error ? err.message : String(err)}`);
     });
-    logger.info('[Forge] Daemon manager initialized');
+    logger.info('[Forge] Unified dispatcher initialized');
 
     // Initialize trigger engine (event-driven agent activation)
     const triggerEngine = initTriggerEngine();
@@ -889,11 +889,11 @@ async function shutdown(signal: string): Promise<void> {
     if (triggerEng) {
       await triggerEng.stop().catch((err: unknown) => logger.warn(`[Forge] TriggerEngine stop error: ${err}`));
     }
-    const daemonMgr = getDaemonManager();
-    if (daemonMgr) {
-      await daemonMgr.shutdown().catch((err: unknown) => logger.warn(`[Forge] DaemonManager shutdown error: ${err}`));
+    const disp = getDispatcher();
+    if (disp) {
+      await disp.shutdown().catch((err: unknown) => logger.warn(`[Forge] Dispatcher shutdown error: ${err}`));
     }
-    logger.info('[Forge] Daemon manager and trigger engine stopped');
+    logger.info('[Forge] Dispatcher and trigger engine stopped');
 
     stopAgentBridge();
     await stopTaskDispatcher().catch(() => {});
