@@ -5,7 +5,7 @@
  * Also retains `runExecution()` for SDK-based execution as fallback.
  */
 
-import { spawn, execSync, type ChildProcess } from 'child_process';
+import { spawn, exec, execSync, type ChildProcess } from 'child_process';
 import { readFile, writeFile, access, copyFile, mkdir, unlink, rm, chmod } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
 import { initializeLogger } from '@askalf/observability';
@@ -2364,17 +2364,26 @@ export async function runDirectCliExecution(
     } catch { /* ignore */ }
 
     // Clean up git worktree (branch stays for Push Panel review)
+    // Use async exec (not execSync) to avoid ETIMEDOUT under high concurrency.
+    // 30s timeout gives enough headroom when multiple agents clean up simultaneously.
     if (worktreeCreated) {
-      try {
-        execSync(`git -C "${AGENT_REPO_ROOT}" worktree remove "${agentWorktreeDir}" --force 2>/dev/null || true`, {
-          timeout: 10_000,
-          stdio: 'pipe',
-          env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
-        });
-        logger.info(`[CLI] Removed worktree: ${agentWorktreeDir} (branch ${agentBranchName} preserved for review)`);
-      } catch (cleanupErr) {
-        logger.warn(`[CLI] Worktree cleanup failed: ${cleanupErr instanceof Error ? cleanupErr.message : cleanupErr}`);
-      }
+      await new Promise<void>((resolve) => {
+        exec(
+          `git -C "${AGENT_REPO_ROOT}" worktree remove "${agentWorktreeDir}" --force 2>/dev/null || true`,
+          {
+            timeout: 30_000,
+            env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
+          },
+          (err) => {
+            if (err) {
+              logger.warn(`[CLI] Worktree cleanup failed: ${err.message}`);
+            } else {
+              logger.info(`[CLI] Removed worktree: ${agentWorktreeDir} (branch ${agentBranchName} preserved for review)`);
+            }
+            resolve();
+          },
+        );
+      });
     }
     releaseCliSlot();
   }
