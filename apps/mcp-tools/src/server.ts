@@ -40,6 +40,13 @@ const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
 const INTERNAL_API_SECRET = process.env['INTERNAL_API_SECRET'] ?? '';
 
+const isDev = process.env['NODE_ENV'] !== 'production';
+const ALLOWED_ORIGINS = [
+  'https://askalf.org',
+  'https://www.askalf.org',
+  ...(isDev ? ['http://localhost:3001', 'http://localhost:3005', 'http://localhost:5173'] : []),
+];
+
 /** Verify an internal request via Bearer token or HMAC signature. */
 function verifyInternalAuth(
   secret: string,
@@ -103,7 +110,7 @@ async function dispatchTool(name: string, args: Record<string, unknown>): Promis
 // ============================================
 
 const app = express();
-app.use(cors({ origin: true }));
+app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 app.use(express.json());
 
 // Security + API versioning headers on all responses
