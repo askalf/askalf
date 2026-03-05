@@ -528,6 +528,29 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         updates.push(`description = $${paramIdx++}`);
         values.push(String(body['description']));
       }
+      if (body['name'] !== undefined) {
+        const name = String(body['name']).trim();
+        if (!name) return reply.code(400).send({ error: 'Name cannot be empty' });
+        updates.push(`name = $${paramIdx++}`);
+        values.push(name);
+      }
+      if (body['system_prompt'] !== undefined) {
+        const sp = String(body['system_prompt']);
+        if (sp.length > 10240) return reply.code(400).send({ error: 'system_prompt exceeds 10240 chars' });
+        updates.push(`system_prompt = $${paramIdx++}`);
+        values.push(sp);
+      }
+      if (body['enabled_tools'] !== undefined) {
+        if (!Array.isArray(body['enabled_tools'])) return reply.code(400).send({ error: 'enabled_tools must be an array' });
+        updates.push(`enabled_tools = $${paramIdx++}`);
+        values.push(JSON.stringify(body['enabled_tools']));
+      }
+      if (body['autonomy_level'] !== undefined) {
+        const val = Number(body['autonomy_level']);
+        if (isNaN(val) || val < 0 || val > 5) return reply.code(400).send({ error: 'autonomy_level must be 0–5' });
+        updates.push(`autonomy_level = $${paramIdx++}`);
+        values.push(Math.round(val));
+      }
 
       if (updates.length === 0) return reply.code(400).send({ error: 'No fields to update' });
 

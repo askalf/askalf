@@ -6,11 +6,12 @@ import type {
   Agent,
   AgentDetail,
 } from '../../hooks/useHubApi';
+import AgentConfigEditor from './AgentConfigEditor';
 import './FleetTab.css';
 
 // ── Types ──
 
-type DetailTab = 'overview' | 'logs' | 'exec';
+type DetailTab = 'overview' | 'logs' | 'exec' | 'config';
 type SortColumn = 'name' | 'status' | 'tasks' | 'age';
 type SortDir = 'asc' | 'desc';
 
@@ -173,6 +174,7 @@ function AgentDetailPanel({
   onRecommission,
   actionLoading,
   liveLogEntries,
+  onConfigSaved,
 }: {
   detail: AgentDetail | null;
   agent: Agent;
@@ -185,6 +187,7 @@ function AgentDetailPanel({
   onRecommission: () => void;
   actionLoading: boolean;
   liveLogEntries: LiveLogEntry[];
+  onConfigSaved: () => void;
 }) {
   const [execPrompt, setExecPrompt] = useState('');
   const tools = getTools(agent);
@@ -193,6 +196,7 @@ function AgentDetailPanel({
     { key: 'overview', label: 'Overview' },
     { key: 'logs', label: 'Logs' },
     { key: 'exec', label: 'Exec' },
+    { key: 'config', label: 'Config' },
   ];
 
   return (
@@ -314,6 +318,10 @@ function AgentDetailPanel({
               </button>
             </div>
           </div>
+        )}
+
+        {tab === 'config' && (
+          <AgentConfigEditor agent={agent} onSaved={onConfigSaved} />
         )}
       </div>
 
@@ -574,6 +582,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
                 onRecommission={() => handleRecommission(selectedAgent.id)}
                 actionLoading={!!actionLoading[selectedAgent.id]}
                 liveLogEntries={liveLogEntries}
+                onConfigSaved={pollCallback}
               />
             )}
           </div>
