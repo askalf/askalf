@@ -8,6 +8,9 @@ import { Queue, Worker } from 'bullmq';
 import type { Job } from 'bullmq';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
+import { initializeLogger } from '@askalf/observability';
+
+const logger = initializeLogger().child({ component: 'scheduler' });
 import { DAGEngine } from './dag.js';
 import type {
   NodeStates,
@@ -168,7 +171,7 @@ export class ForgeScheduler {
     );
 
     this.worker.on('failed', (job: Job<WorkflowJobData> | undefined, err: Error) => {
-      console.error(
+      logger.error(
         `[ForgeScheduler] Job ${job?.id ?? 'unknown'} failed:`,
         err.message,
       );
@@ -179,12 +182,12 @@ export class ForgeScheduler {
             `UPDATE forge_workflow_runs SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status != 'failed'`,
             [err.message.substring(0, 2000), job.data.runId],
           ),
-        ).catch((dbErr) => console.error('[ForgeScheduler] Failed to persist job failure:', dbErr));
+        ).catch((dbErr) => logger.error('[ForgeScheduler] Failed to persist job failure:', dbErr));
       }
     });
 
     this.worker.on('completed', (job: Job<WorkflowJobData>) => {
-      console.log(`[ForgeScheduler] Job ${job.id ?? 'unknown'} completed`);
+      logger.info(`[ForgeScheduler] Job ${job.id ?? 'unknown'} completed`);
     });
 
     return this.worker;
