@@ -226,7 +226,7 @@ export async function registerAssistantRoutes(fastify, requireAdmin, query, quer
       };
     } catch (err) {
       console.error('[assistant] Error:', err);
-      return reply.code(500).send({ error: `Assistant error: ${err.message}` });
+      return reply.code(500).send({ error: 'Internal Server Error' });
     }
   });
 }
