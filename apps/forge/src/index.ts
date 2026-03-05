@@ -620,35 +620,74 @@ async function start(): Promise<void> {
       } catch { /* ignore metric update failures */ }
     }, 60_000);
 
-    // Stale execution cleanup (every 5 min) — stored for cleanup in shutdown()
+    // Execution timeout sweeper (every 60s) — marks executions running > 20 min as timed out
+    // and reopens any in_progress tickets that were being worked by the timed-out agent
     staleCleanupInterval = setInterval(async () => {
       try {
-        // Mark pending executions older than 20 min as failed (allows 10 min queue wait + margin)
+        // Mark pending executions older than 20 min as failed (stuck in queue)
         const stalePending = await dbQuery<{ id: string; agent_id: string }>(
-          `UPDATE forge_executions SET status = 'failed', error = 'Timed out in pending state', completed_at = NOW()
+          `UPDATE forge_executions
+           SET status = 'failed', error = 'Execution timeout: stuck in pending state for over 20 minutes', completed_at = NOW()
            WHERE status = 'pending' AND created_at < NOW() - INTERVAL '20 minutes'
            RETURNING id, agent_id`,
         );
-        // Mark running executions older than 20 min as failed
+        // Mark running executions older than 20 min as timed out
         const staleRunning = await dbQuery<{ id: string; agent_id: string }>(
-          `UPDATE forge_executions SET status = 'failed', error = 'Exceeded maximum runtime', completed_at = NOW()
+          `UPDATE forge_executions
+           SET status = 'timeout', error = 'Execution timeout: exceeded 20-minute maximum runtime', completed_at = NOW()
            WHERE status = 'running' AND started_at < NOW() - INTERVAL '20 minutes'
            RETURNING id, agent_id`,
         );
-        const cleaned = [...stalePending, ...staleRunning];
-        if (cleaned.length > 0) {
-          logger.info(`[Forge] Cleaned up ${cleaned.length} stale executions`);
+        const allTimedOut = [...stalePending, ...staleRunning];
+        if (allTimedOut.length > 0) {
+          logger.info(`[Forge] Timeout sweeper: marked ${allTimedOut.length} execution(s) as timed out (${stalePending.length} pending, ${staleRunning.length} running)`);
           const eventBus = getEventBus();
-          for (const row of cleaned) {
+          for (const row of allTimedOut) {
             void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
-              error: 'Stale execution cleanup',
+              error: 'Execution timeout',
             }).catch(() => {});
           }
         }
+
+        // Reopen in_progress tickets for agents whose running executions timed out
+        if (staleRunning.length > 0) {
+          const agentIds = [...new Set(staleRunning.map((e) => e.agent_id))];
+          const agents = await dbQuery<{ id: string; name: string }>(
+            `SELECT id, name FROM forge_agents WHERE id = ANY($1)`,
+            [agentIds],
+          );
+          const agentNameMap = new Map(agents.map((a) => [a.id, a.name]));
+
+          for (const agentId of agentIds) {
+            const agentName = agentNameMap.get(agentId);
+            if (!agentName) continue;
+
+            const reopened = await substrateQuery<{ id: string; title: string }>(
+              `UPDATE agent_tickets
+               SET status = 'open', updated_at = NOW()
+               WHERE status = 'in_progress' AND assigned_to = $1
+               RETURNING id, title`,
+              [agentName],
+            ).catch(() => [] as { id: string; title: string }[]);
+
+            for (const ticket of reopened) {
+              await substrateQuery(
+                `INSERT INTO ticket_notes (id, ticket_id, author, content, created_at)
+                 VALUES ($1, $2, 'system', $3, NOW())`,
+                [
+                  ulid(),
+                  ticket.id,
+                  `Execution timeout: agent ${agentName} exceeded the 20-minute runtime limit. Ticket reopened automatically for the next agent cycle.`,
+                ],
+              ).catch(() => {});
+              logger.info(`[Forge] Timeout sweeper: reopened ticket ${ticket.id} for agent ${agentName}`);
+            }
+          }
+        }
       } catch (err) {
-        logger.warn('[Forge] Stale execution cleanup error:', err instanceof Error ? err.message : err);
+        logger.warn('[Forge] Execution timeout sweeper error:', err instanceof Error ? err.message : err);
       }
-    }, 300_000);
+    }, 60_000);
 
     await app.listen({ port: config.port, host: '0.0.0.0' });
     logger.info(`[Forge] Agent Forge API server started on port ${config.port}`);
