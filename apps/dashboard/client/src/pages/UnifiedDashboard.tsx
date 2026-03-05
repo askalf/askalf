@@ -18,6 +18,7 @@ import './forge/forge-theme.css';
 
 // Lazy-load all tab panels
 const PushPanel = lazy(() => import('./forge/PushPanel'));
+const TerminalTab = lazy(() => import('./unified/TerminalTab'));
 const FleetTab = lazy(() => import('./unified/FleetTab'));
 const ChatTab = lazy(() => import('./unified/ChatTab'));
 const BuilderTab = lazy(() => import('./unified/BuilderTab'));
@@ -34,7 +35,7 @@ const Settings = lazy(() => import('./Settings'));
 const UserAdmin = lazy(() => import('./UserAdmin'));
 
 type TabKey =
-  | 'chat' | 'templates' | 'fleet' | 'documents'
+  | 'terminal' | 'chat' | 'templates' | 'fleet' | 'documents'
   | 'builder' | 'orchestrator' | 'operations' | 'monitor' | 'knowledge'
   | 'workflows' | 'deploy' | 'settings' | 'users';
 
@@ -42,11 +43,12 @@ interface TabGroup { label: string; tabs: { key: TabKey; label: string }[] }
 
 const TAB_GROUPS: TabGroup[] = [
   { label: 'Main', tabs: [
-    { key: 'chat', label: 'Chat' },
+    { key: 'terminal', label: 'Terminal' },
+    { key: 'chat', label: 'Agent Chat' },
     { key: 'templates', label: 'Templates' },
     { key: 'fleet', label: 'Fleet' },
-    { key: 'documents', label: 'Docs' },
     { key: 'settings', label: 'Settings' },
+    { key: 'documents', label: 'Docs' },
   ]},
   { label: 'Admin', tabs: [
     { key: 'builder', label: 'Builder' },
@@ -81,7 +83,7 @@ export default function UnifiedDashboard() {
 
   const visibleKeys = useMemo(() => visibleGroups.flatMap(g => g.tabs.map(t => t.key)), [visibleGroups]);
 
-  const initialTab = (tab && visibleKeys.includes(tab as TabKey)) ? tab as TabKey : 'chat';
+  const initialTab = (tab && visibleKeys.includes(tab as TabKey)) ? tab as TabKey : 'terminal';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
   const [helpOpen, setHelpOpen] = useState(false);
   const { connected, events: wsEvents } = useWebSocket();
@@ -189,10 +191,18 @@ export default function UnifiedDashboard() {
     );
 
     switch (activeTab) {
+      case 'terminal':
+        return (
+          <ErrorBoundary inline key="terminal">
+            <Suspense fallback={<div className="ud-loading">Initializing terminal...</div>}>
+              <TerminalTab onNavigate={(t) => setActiveTab(t as TabKey)} />
+            </Suspense>
+          </ErrorBoundary>
+        );
       case 'chat':
         return (
           <ErrorBoundary inline key="chat">
-            <Suspense fallback={<div className="ud-loading">Loading Chat...</div>}>
+            <Suspense fallback={<div className="ud-loading">Loading Agent Chat...</div>}>
               <ChatTab />
             </Suspense>
           </ErrorBoundary>
