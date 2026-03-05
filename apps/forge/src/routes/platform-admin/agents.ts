@@ -34,6 +34,8 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
 
       let whereClause = '';
       const params: unknown[] = [];
+      // Always exclude soft-deleted agents unless include_deleted is explicitly true
+      const includeDeleted = (qs as { include_deleted?: string }).include_deleted === 'true';
       if (qs.status) {
         params.push(qs.status);
         whereClause = `WHERE status = $${params.length}`;
@@ -42,6 +44,9 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         whereClause = `WHERE (is_decommissioned IS NULL OR is_decommissioned = false)`;
       } else if (qs.include_decommissioned !== 'true' && whereClause) {
         whereClause += ` AND (is_decommissioned IS NULL OR is_decommissioned = false)`;
+      }
+      if (!includeDeleted) {
+        whereClause = whereClause ? `${whereClause} AND deleted_at IS NULL` : `WHERE deleted_at IS NULL`;
       }
 
       const countParams = [...params];
@@ -402,14 +407,34 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     }
   );
 
-  // Delete agent
+  // Soft delete agent (preserves execution history)
   app.delete(
     '/api/v1/admin/agents/:id',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
-      const result = await queryOne<{ id: string }>('DELETE FROM forge_agents WHERE id = $1 RETURNING id', [id]);
+      const result = await queryOne<{ id: string }>(
+        `UPDATE forge_agents SET deleted_at = NOW(), status = 'archived', updated_at = NOW()
+         WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
+        [id],
+      );
       if (!result) return reply.code(404).send({ error: 'Agent not found' });
+      return reply.code(204).send();
+    }
+  );
+
+  // Restore soft-deleted agent
+  app.post(
+    '/api/v1/admin/agents/:id/restore',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const result = await queryOne<{ id: string }>(
+        `UPDATE forge_agents SET deleted_at = NULL, status = 'active', updated_at = NOW()
+         WHERE id = $1 AND deleted_at IS NOT NULL RETURNING id`,
+        [id],
+      );
+      if (!result) return reply.code(404).send({ error: 'Deleted agent not found' });
       return { success: true };
     }
   );
