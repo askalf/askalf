@@ -554,8 +554,12 @@ async function getStats() {
   };
 }
 
-// System stats endpoint (admin view)
-fastify.get('/api/stats', async () => getStats());
+// System stats endpoint (admin view — requires auth)
+fastify.get('/api/stats', async (request, reply) => {
+  const user = await getUserFromSession(request);
+  if (!user) return reply.code(401).send({ error: 'Authentication required' });
+  return getStats();
+});
 
 // Tenant-scoped stats endpoint (requires authentication)
 fastify.get('/api/tenant/stats', async (request, reply) => {
