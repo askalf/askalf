@@ -71,19 +71,27 @@ export async function toolRoutes(app: FastifyInstance): Promise<void> {
         paramIndex++;
       }
 
-      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '100', 10) || 100, 200));
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 200));
       const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
       const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-      const tools = await query<ToolRow>(
-        `SELECT * FROM forge_tools
-         ${whereClause}
-         ORDER BY type, name
-         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-        [...params, limit, offset],
-      );
+      const [tools, countResult] = await Promise.all([
+        query<ToolRow>(
+          `SELECT * FROM forge_tools
+           ${whereClause}
+           ORDER BY type, name
+           LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+          [...params, limit, offset],
+        ),
+        query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count FROM forge_tools ${whereClause}`,
+          params,
+        ),
+      ]);
 
-      return reply.send({ tools });
+      const total = parseInt(countResult[0]?.count ?? '0', 10);
+
+      return reply.send({ tools, total, limit, offset });
     },
   );
 
@@ -234,15 +242,27 @@ export async function toolRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
+      const qs = request.query as { limit?: string; offset?: string };
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 200));
+      const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
 
-      const servers = await query<McpServerRow>(
-        `SELECT * FROM forge_mcp_servers
-         WHERE owner_id = $1
-         ORDER BY created_at DESC`,
-        [userId],
-      );
+      const [servers, countResult] = await Promise.all([
+        query<McpServerRow>(
+          `SELECT * FROM forge_mcp_servers
+           WHERE owner_id = $1
+           ORDER BY created_at DESC
+           LIMIT $2 OFFSET $3`,
+          [userId, limit, offset],
+        ),
+        query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count FROM forge_mcp_servers WHERE owner_id = $1`,
+          [userId],
+        ),
+      ]);
 
-      return reply.send({ servers });
+      const total = parseInt(countResult[0]?.count ?? '0', 10);
+
+      return reply.send({ servers, total, limit, offset });
     },
   );
 
