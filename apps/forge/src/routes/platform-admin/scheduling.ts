@@ -404,9 +404,15 @@ INSTRUCTIONS:
 }
 
 let tickCount = 0;
+let tickRunning = false;
 
 async function runSchedulerTick(): Promise<void> {
   if (!schedulerState.running) return;
+  if (tickRunning) {
+    console.log('[Scheduler] Skipping tick — previous tick still in progress');
+    return;
+  }
+  tickRunning = true;
   tickCount++;
 
   try {
@@ -512,6 +518,16 @@ async function runSchedulerTick(): Promise<void> {
       // Monitor agents (create tickets/findings for others) are exempt from ticket-gating
       const MONITOR_AGENTS = ['QA', 'Watchdog', 'Infra'];
       const isMonitor = MONITOR_AGENTS.includes(agentName);
+
+      // Monitor agents run single-instance patrols — skip if already running
+      if (isMonitor && inFlight >= 1) {
+        await substrateQuery(
+          `UPDATE agent_schedules SET next_run_at = NOW() + ($1 || ' minutes')::INTERVAL WHERE agent_id = $2`,
+          [String(intervalMinutes), agentId],
+        );
+        console.log(`[Scheduler] Skipping ${agentName} (monitor) — already running (${inFlight} in-flight)`);
+        continue;
+      }
 
       // If no tickets assigned and not a monitor agent, skip entirely — don't waste money on busywork
       if (assignedTickets.length === 0 && !isMonitor) {
@@ -693,6 +709,8 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
     }
   } catch (err) {
     console.error('[Scheduler] Tick error:', err);
+  } finally {
+    tickRunning = false;
   }
 }
 
