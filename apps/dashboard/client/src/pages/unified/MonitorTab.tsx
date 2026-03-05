@@ -21,9 +21,9 @@ export default function MonitorTab() {
 
   return (
     <div>
-      <div className="ud-sub-tabs">
+      <div className="ud-sub-tabs" role="tablist" aria-label="Monitor sections">
         {(['costs', 'executions', 'providers', 'guardrails', 'audit'] as Sub[]).map((s) => (
-          <button key={s} className={`ud-sub-tab ${sub === s ? 'active' : ''}`} onClick={() => setSub(s)}>
+          <button key={s} role="tab" aria-selected={sub === s} className={`ud-sub-tab ${sub === s ? 'active' : ''}`} onClick={() => setSub(s)}>
             {labels[s]}
           </button>
         ))}
