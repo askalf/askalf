@@ -1683,3 +1683,278 @@
     flex-direction: column;
   }
 }
+
+/* ============================================
+   EXECUTION LOG VIEWER (ExecutionLogViewer.tsx)
+   ============================================ */
+
+.elv {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.72rem;
+  overflow: hidden;
+}
+
+/* Toolbar */
+.elv-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+
+.elv-toolbar-left,
+.elv-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Search */
+.elv-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.elv-search-icon {
+  position: absolute;
+  left: 7px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.elv-search {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  color: var(--text, #e4e4e7);
+  font-size: 0.72rem;
+  font-family: inherit;
+  padding: 4px 24px 4px 24px;
+  width: 180px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.elv-search:focus {
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.elv-search::placeholder {
+  color: var(--text-muted);
+}
+
+.elv-search-clear {
+  position: absolute;
+  right: 5px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.elv-search-clear:hover { color: var(--text); }
+
+/* Level filter */
+.elv-level-select {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  color: var(--text, #e4e4e7);
+  font-size: 0.7rem;
+  font-family: inherit;
+  padding: 4px 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+.elv-level-select:focus { border-color: rgba(139, 92, 246, 0.5); }
+
+/* Count badge */
+.elv-count {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
+/* Control buttons (TS, auto-scroll) */
+.elv-ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 3px 7px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.elv-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.elv-ctrl-btn--on {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+}
+
+.elv-live-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #4ade80;
+  animation: elv-pulse 1.5s ease-in-out infinite;
+  margin-left: 2px;
+}
+
+@keyframes elv-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Scroll area */
+.elv-scroll {
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  padding: 6px 0;
+}
+
+.elv-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+.elv-scroll::-webkit-scrollbar-track { background: transparent; }
+.elv-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+
+/* Empty state */
+.elv-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: var(--font-sans, system-ui);
+  font-size: 0.78rem;
+}
+
+/* Log line */
+.elv-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 2px 12px;
+  line-height: 1.5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  transition: background 0.1s;
+}
+
+.elv-line:hover { background: rgba(255, 255, 255, 0.025); }
+
+.elv-line--error { background: rgba(239, 68, 68, 0.03); }
+.elv-line--error:hover { background: rgba(239, 68, 68, 0.06); }
+.elv-line--warn { background: rgba(245, 158, 11, 0.02); }
+
+/* Timestamp */
+.elv-ts {
+  color: var(--text-muted);
+  font-size: 0.67rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 0.7;
+  min-width: 56px;
+}
+
+/* Level badge */
+.elv-lvl {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.04em;
+  min-width: 36px;
+  text-align: center;
+}
+
+.elv-lvl--info  { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.elv-lvl--warn  { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.elv-lvl--error { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.elv-lvl--debug { background: rgba(255, 255, 255, 0.06); color: var(--text-muted); }
+
+/* Message */
+.elv-msg {
+  flex: 1;
+  word-break: break-word;
+  white-space: pre-wrap;
+  color: var(--text-secondary, #a1a1aa);
+  line-height: 1.5;
+}
+
+.elv-line--error .elv-msg { color: #fca5a5; }
+
+/* Tool badges */
+.elv-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+  width: 100%;
+  padding-left: calc(56px + 8px + 36px + 8px); /* ts + gap + lvl + gap */
+}
+
+.elv-tool-badge {
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(139, 92, 246, 0.12);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+/* Jump to bottom button */
+.elv-jump-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 5px 12px;
+  background: rgba(139, 92, 246, 0.12);
+  border: none;
+  border-top: 1px solid rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+  font-size: 0.7rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.elv-jump-btn:hover { background: rgba(139, 92, 246, 0.2); }
+
+/* Responsive */
+@media (max-width: 480px) {
+  .elv-search { width: 120px; }
+  .elv-ts { display: none; }
+}
