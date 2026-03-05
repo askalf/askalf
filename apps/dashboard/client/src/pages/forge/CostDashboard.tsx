@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import type { AgentCost } from '../../hooks/useHubApi';
 import './forge-observe.css';
 
 type CostView = 'all' | 'api' | 'cli';
@@ -8,6 +9,7 @@ type CostView = 'all' | 'api' | 'cli';
 export default function CostDashboard() {
   const costSummary = useHubStore((s) => s.costSummary);
   const dailyCosts = useHubStore((s) => s.dailyCosts);
+  const agentCosts = useHubStore((s) => s.agentCosts);
   const agents = useHubStore((s) => s.agents);
   const costAgentFilter = useHubStore((s) => s.costAgentFilter);
   const setCostAgentFilter = useHubStore((s) => s.setCostAgentFilter);
@@ -78,6 +80,15 @@ export default function CostDashboard() {
   const totalTokens = activeSummary
     ? activeSummary.totalInputTokens + activeSummary.totalOutputTokens
     : 0;
+
+  const sortedAgentCosts = useMemo<AgentCost[]>(() => {
+    return [...agentCosts].sort((a, b) => b.totalCost - a.totalCost).slice(0, 12);
+  }, [agentCosts]);
+
+  const maxAgentCost = useMemo(() => {
+    if (!sortedAgentCosts.length) return 1;
+    return Math.max(...sortedAgentCosts.map((a) => a.totalCost), 0.0001);
+  }, [sortedAgentCosts]);
 
   const fmt = (n: number, decimals = 2) => {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -173,6 +184,31 @@ export default function CostDashboard() {
           <div className="cost-kpi-label">Total Tokens</div>
         </div>
       </div>
+
+      {/* Agent breakdown chart */}
+      {sortedAgentCosts.length > 0 && (
+        <div className="cost-chart-panel">
+          <div className="cost-chart-title">Cost by Agent — {viewLabel}</div>
+          <div className="cost-agent-chart">
+            {sortedAgentCosts.map((agent) => {
+              const pct = (agent.totalCost / maxAgentCost) * 100;
+              return (
+                <div key={agent.agentId} className="cost-agent-row">
+                  <div className="cost-agent-name" title={agent.agentName}>{agent.agentName}</div>
+                  <div className="cost-agent-bar-track">
+                    <div
+                      className={`cost-agent-bar-fill ${view === 'api' ? 'cost-bar-fill-api' : view === 'cli' ? 'cost-bar-fill-cli' : ''}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="cost-agent-value">${agent.totalCost.toFixed(4)}</div>
+                  <div className="cost-agent-meta">{agent.totalEvents} exec</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Bar chart */}
       <div className="cost-chart-panel">
