@@ -40,6 +40,7 @@ interface AgentRow {
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 interface AgentCountRow {
@@ -78,7 +79,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
 
         // Check for slug collision
         const existing = await queryOne<{ id: string }>(
-          `SELECT id FROM forge_agents WHERE owner_id = $1 AND slug = $2`,
+          `SELECT id FROM forge_agents WHERE owner_id = $1 AND slug = $2 AND deleted_at IS NULL`,
           [userId, slug],
         );
 
@@ -156,7 +157,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
       const qs = request.query as Static<typeof ListAgentsQuery>;
 
       try {
-        const conditions: string[] = ['owner_id = $1', "status != 'archived'"];
+        const conditions: string[] = ['owner_id = $1', "status != 'archived'", 'deleted_at IS NULL'];
         const params: unknown[] = [userId];
         let paramIndex = 2;
 
@@ -228,7 +229,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         const agent = await queryOne<AgentRow>(
-          `SELECT * FROM forge_agents WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
+          `SELECT * FROM forge_agents WHERE id = $1 AND (owner_id = $2 OR is_public = true) AND deleted_at IS NULL`,
           [id, userId],
         );
 
@@ -273,7 +274,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
       try {
         // Verify ownership
         const existing = await queryOne<AgentRow>(
-          `SELECT id FROM forge_agents WHERE id = $1 AND owner_id = $2`,
+          `SELECT id FROM forge_agents WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
           [id, userId],
         );
 
@@ -369,14 +370,14 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
-   * DELETE /api/v1/forge/agents/:id - Soft delete (archive) an agent
+   * DELETE /api/v1/forge/agents/:id - Soft delete an agent (sets deleted_at, preserves execution history)
    */
   app.delete(
     '/api/v1/forge/agents/:id',
     {
       schema: {
         tags: ['Agents'],
-        summary: 'Archive an agent (soft delete)',
+        summary: 'Soft delete an agent (preserves execution history)',
         params: IdParam,
         response: { 404: ErrorResponse, 500: ErrorResponse },
       },
@@ -389,9 +390,9 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
       try {
         const agent = await queryOne<AgentRow>(
           `UPDATE forge_agents
-           SET status = 'archived'
-           WHERE id = $1 AND owner_id = $2
-           RETURNING id, name, status`,
+           SET status = 'archived', deleted_at = NOW()
+           WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL
+           RETURNING id, name, status, deleted_at`,
           [id, userId],
         );
 
@@ -404,20 +405,70 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
 
         void logAudit({
           ownerId: userId,
-          action: 'agent.archive',
+          action: 'agent.delete',
           resourceType: 'agent',
           resourceId: id,
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
         }).catch(() => {});
 
-        return reply.send({
-          message: 'Agent archived successfully',
-          agent: { id: agent.id, name: agent.name, status: agent.status },
-        });
+        return reply.status(204).send();
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        request.log.error({ err }, 'Failed to archive agent');
+        request.log.error({ err }, 'Failed to delete agent');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: 'Internal Server Error',
+        });
+      }
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/agents/:id/restore - Restore a soft-deleted agent
+   */
+  app.post(
+    '/api/v1/forge/agents/:id/restore',
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'Restore a soft-deleted agent',
+        params: IdParam,
+        response: { 404: ErrorResponse, 500: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+
+      try {
+        const agent = await queryOne<AgentRow>(
+          `UPDATE forge_agents
+           SET deleted_at = NULL, status = 'draft'
+           WHERE id = $1 AND owner_id = $2 AND deleted_at IS NOT NULL
+           RETURNING id, name, status`,
+          [id, userId],
+        );
+
+        if (!agent) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: 'Deleted agent not found or not owned by you',
+          });
+        }
+
+        void logAudit({
+          ownerId: userId,
+          action: 'agent.restore',
+          resourceType: 'agent',
+          resourceId: id,
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        }).catch(() => {});
+
+        return reply.send({ agent });
+      } catch (err: unknown) {
+        request.log.error({ err }, 'Failed to restore agent');
         return reply.status(500).send({
           error: 'Internal Server Error',
           message: 'Internal Server Error',
@@ -446,9 +497,9 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params as { id: string };
 
       try {
-        // Load the source agent (must be owned by user or public)
+        // Load the source agent (must be owned by user or public, not deleted)
         const source = await queryOne<AgentRow>(
-          `SELECT * FROM forge_agents WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
+          `SELECT * FROM forge_agents WHERE id = $1 AND (owner_id = $2 OR is_public = true) AND deleted_at IS NULL`,
           [id, userId],
         );
 
