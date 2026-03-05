@@ -40,7 +40,11 @@ export default function TicketSystem() {
   const updateTicket = useHubStore((s) => s.updateTicket);
   const deleteTicket = useHubStore((s) => s.deleteTicket);
 
-  const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium', category: 'bug' });
+  const agents = useHubStore((s) => s.agents);
+  const fetchAgents = useHubStore((s) => s.fetchAgents);
+
+  const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium', category: 'bug', assigned_to: '' });
+  const [formErrors, setFormErrors] = useState<{ title?: string; description?: string }>({});
   const [creating, setCreating] = useState(false);
   const [searchDebounce, setSearchDebounce] = useState('');
 
@@ -66,15 +70,49 @@ export default function TicketSystem() {
     }
   }, [searchDebounce]);
 
+  const validateForm = () => {
+    const errors: { title?: string; description?: string } = {};
+    const title = newTicket.title.trim();
+    if (!title) {
+      errors.title = 'Title is required.';
+    } else if (title.length < 3) {
+      errors.title = 'Title must be at least 3 characters.';
+    } else if (title.length > 200) {
+      errors.title = 'Title must be 200 characters or fewer.';
+    }
+    if (newTicket.description.length > 2000) {
+      errors.description = 'Description must be 2000 characters or fewer.';
+    }
+    return errors;
+  };
+
   const handleCreate = async () => {
-    if (!newTicket.title.trim()) return;
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     setCreating(true);
-    const ok = await createTicket(newTicket);
+    const body = {
+      title: newTicket.title.trim(),
+      description: newTicket.description,
+      priority: newTicket.priority,
+      category: newTicket.category,
+      ...(newTicket.assigned_to ? { assigned_to: newTicket.assigned_to } : {}),
+    };
+    const ok = await createTicket(body);
     if (ok) {
       setShowCreateTicket(false);
-      setNewTicket({ title: '', description: '', priority: 'medium', category: 'bug' });
+      setNewTicket({ title: '', description: '', priority: 'medium', category: 'bug', assigned_to: '' });
+      setFormErrors({});
     }
     setCreating(false);
+  };
+
+  const handleOpenCreate = () => {
+    if (agents.length === 0) fetchAgents();
+    setShowCreateTicket(true);
   };
 
   return (
@@ -92,7 +130,7 @@ export default function TicketSystem() {
       />
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 'var(--space-md)' }}>
-        <button className="hub-btn hub-btn--primary" onClick={() => setShowCreateTicket(true)}>
+        <button className="hub-btn hub-btn--primary" onClick={handleOpenCreate}>
           New Ticket
         </button>
       </div>
@@ -105,7 +143,7 @@ export default function TicketSystem() {
           icon="✅"
           title="No tickets found"
           message="Create a new ticket to track tasks, bugs, or feature requests."
-          action={{ label: 'New Ticket', onClick: () => setShowCreateTicket(true) }}
+          action={{ label: 'New Ticket', onClick: handleOpenCreate }}
         />
       ) : (
         <div className="hub-ticket-list">
@@ -158,24 +196,29 @@ export default function TicketSystem() {
 
       {/* Create Ticket Modal */}
       {showCreateTicket && (
-        <Modal title="Create Ticket" onClose={() => setShowCreateTicket(false)}>
+        <Modal title="Create Ticket" onClose={() => { setShowCreateTicket(false); setFormErrors({}); setNewTicket({ title: '', description: '', priority: 'medium', category: 'bug', assigned_to: '' }); }}>
           <div className="hub-form-group">
             <label>Title</label>
             <input
               type="text"
               value={newTicket.title}
-              onChange={(e) => setNewTicket({ ...newTicket, title: e.target.value })}
+              onChange={(e) => { setNewTicket({ ...newTicket, title: e.target.value }); if (formErrors.title) setFormErrors({ ...formErrors, title: undefined }); }}
               placeholder="Brief description of the issue"
+              style={formErrors.title ? { borderColor: '#ef4444' } : undefined}
+              autoFocus
             />
+            {formErrors.title && <span className="hub-form-error">{formErrors.title}</span>}
           </div>
           <div className="hub-form-group">
-            <label>Description</label>
+            <label>Description <span className="optional">(optional)</span></label>
             <textarea
               value={newTicket.description}
-              onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
+              onChange={(e) => { setNewTicket({ ...newTicket, description: e.target.value }); if (formErrors.description) setFormErrors({ ...formErrors, description: undefined }); }}
               placeholder="Detailed description, steps to reproduce, etc."
               rows={4}
+              style={formErrors.description ? { borderColor: '#ef4444' } : undefined}
             />
+            {formErrors.description && <span className="hub-form-error">{formErrors.description}</span>}
           </div>
           <div className="hub-form-row">
             <div className="hub-form-group">
@@ -198,9 +241,18 @@ export default function TicketSystem() {
               </select>
             </div>
           </div>
+          <div className="hub-form-group">
+            <label>Assign To <span className="optional">(optional)</span></label>
+            <select value={newTicket.assigned_to} onChange={(e) => setNewTicket({ ...newTicket, assigned_to: e.target.value })}>
+              <option value="">— Unassigned —</option>
+              {agents.filter((a) => !a.is_decommissioned).map((a) => (
+                <option key={a.id} value={a.name}>{a.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="hub-modal-actions">
-            <button className="hub-btn" onClick={() => setShowCreateTicket(false)}>Cancel</button>
-            <button className="hub-btn hub-btn--primary" onClick={handleCreate} disabled={creating || !newTicket.title.trim()}>
+            <button className="hub-btn" onClick={() => { setShowCreateTicket(false); setFormErrors({}); setNewTicket({ title: '', description: '', priority: 'medium', category: 'bug', assigned_to: '' }); }}>Cancel</button>
+            <button className="hub-btn hub-btn--primary" onClick={handleCreate} disabled={creating}>
               {creating ? 'Creating...' : 'Create Ticket'}
             </button>
           </div>
