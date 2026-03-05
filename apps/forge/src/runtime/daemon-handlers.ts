@@ -94,14 +94,6 @@ export function createTriggerHandler(deps: HandlerDeps): TickHandler {
     );
     await daemon.setActing(execId);
 
-    // Insert execution row BEFORE calling runDirectCliExecution so FK constraints
-    // on forge_cost_events and forge_episodic_memories are satisfied at completion.
-    await query(
-      `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
-       VALUES ($1, $2, $3, $4, 'pending', '{"runtime_mode":"daemon"}', NOW())`,
-      [execId, deps.agentId, agent.owner_id || 'system:daemon', prompt],
-    );
-
     try {
       await runDirectCliExecution(execId, deps.agentId, prompt, agent.owner_id || 'system:daemon', {
         modelId: agent.model_id ?? undefined,
@@ -171,13 +163,6 @@ export function createMessageHandler(deps: HandlerDeps): TickHandler {
     );
     await daemon.setActing(execId);
 
-    // Insert execution row BEFORE calling runDirectCliExecution (same fix as trigger handler).
-    await query(
-      `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
-       VALUES ($1, $2, $3, $4, 'pending', '{"runtime_mode":"daemon"}', NOW())`,
-      [execId, deps.agentId, agent.owner_id || 'system:daemon', prompt],
-    );
-
     try {
       await runDirectCliExecution(execId, deps.agentId, prompt, agent.owner_id || 'system:daemon', {
         modelId: agent.model_id ?? undefined,
@@ -239,13 +224,6 @@ export function createGoalHandler(deps: HandlerDeps): TickHandler {
       [execId, deps.agentId, agent.owner_id || 'system:daemon', action.prompt, JSON.stringify({ source: 'daemon', handler: 'goal', goalId: action.goalId })],
     );
     await daemon.setActing(execId);
-
-    // Insert execution row BEFORE calling runDirectCliExecution (same fix as trigger handler).
-    await query(
-      `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
-       VALUES ($1, $2, $3, $4, 'pending', '{"runtime_mode":"daemon"}', NOW())`,
-      [execId, deps.agentId, agent.owner_id || 'system:daemon', action.prompt],
-    );
 
     try {
       await runDirectCliExecution(execId, deps.agentId, action.prompt, agent.owner_id || 'system:daemon', {
