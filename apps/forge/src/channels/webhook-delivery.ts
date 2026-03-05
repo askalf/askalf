@@ -8,8 +8,8 @@ import { query } from '../database.js';
 import { decryptConfigFields, SENSITIVE_KEYS } from './crypto.js';
 import type { ChannelConfig } from './types.js';
 
-const MAX_ATTEMPTS = 3;
-const RETRY_DELAYS_MS = [60_000, 300_000, 1_800_000]; // 1min, 5min, 30min
+const MAX_ATTEMPTS = 5;
+const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000]; // 1s, 2s, 4s, 8s, 16s (exponential backoff)
 const POLL_INTERVAL_MS = 15_000; // Check for pending deliveries every 15s
 
 let intervalHandle: ReturnType<typeof setInterval> | undefined;
@@ -104,6 +104,8 @@ async function deliverWebhook(delivery: {
 
   const attempt = delivery.attempts + 1;
 
+  console.log(`[WebhookDelivery] Attempt ${attempt}/${MAX_ATTEMPTS} delivery=${delivery.id} event=${delivery.event_type} url=${webhookUrl}`);
+
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
@@ -113,28 +115,34 @@ async function deliverWebhook(delivery: {
     });
 
     if (response.ok) {
+      console.log(`[WebhookDelivery] Delivered delivery=${delivery.id} attempt=${attempt} status=${response.status}`);
       await query(
         `UPDATE webhook_deliveries SET status = 'delivered', attempts = $1, delivered_at = NOW() WHERE id = $2`,
         [attempt, delivery.id],
       );
     } else {
       const errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+      console.warn(`[WebhookDelivery] Failed delivery=${delivery.id} attempt=${attempt}/${MAX_ATTEMPTS} error="${errorMsg}"`);
       await handleDeliveryFailure(delivery.id, attempt, errorMsg);
     }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Network error';
+    console.warn(`[WebhookDelivery] Failed delivery=${delivery.id} attempt=${attempt}/${MAX_ATTEMPTS} error="${errorMsg}"`);
     await handleDeliveryFailure(delivery.id, attempt, errorMsg);
   }
 }
 
 async function handleDeliveryFailure(deliveryId: string, attempt: number, error: string): Promise<void> {
   if (attempt >= MAX_ATTEMPTS) {
+    console.error(`[WebhookDelivery] Permanently failed delivery=${deliveryId} after ${attempt} attempts. Last error: "${error}"`);
     await query(
       `UPDATE webhook_deliveries SET status = 'failed', attempts = $1, last_error = $2 WHERE id = $3`,
       [attempt, error, deliveryId],
     );
   } else {
-    const delayMs = RETRY_DELAYS_MS[attempt - 1] ?? 1_800_000;
+    const delayMs = RETRY_DELAYS_MS[attempt - 1] ?? 16_000;
+    const retryAt = new Date(Date.now() + delayMs).toISOString();
+    console.log(`[WebhookDelivery] Scheduling retry delivery=${deliveryId} attempt=${attempt} nextRetry=${retryAt} delayMs=${delayMs}`);
     await query(
       `UPDATE webhook_deliveries SET attempts = $1, last_error = $2, next_retry_at = NOW() + ($3 || ' milliseconds')::INTERVAL WHERE id = $4`,
       [attempt, error, String(delayMs), deliveryId],
