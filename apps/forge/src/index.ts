@@ -55,6 +55,7 @@ import { triggerRoutes } from './routes/triggers.js';
 import { economyRoutes } from './routes/economy.js';
 import { errorRoutes } from './routes/errors.js';
 import { apiKeyRoutes } from './routes/api-keys.js';
+import { cspReportRoutes } from './routes/csp-report.js';
 import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { sessionAuthMiddleware } from './middleware/session-auth.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
@@ -430,6 +431,7 @@ await triggerRoutes(app);
 await economyRoutes(app);
 await errorRoutes(app);
 await apiKeyRoutes(app);
+await cspReportRoutes(app);
 await registerMCPRoutes(app);
 await registerAgentBridge(app);
 
