@@ -19,6 +19,7 @@ export const IdParam = Type.Object({
 export const PaginationQuery = Type.Object({
   limit: Type.Optional(Type.String({ description: 'Max results (default 50, max 100)' })),
   offset: Type.Optional(Type.String({ description: 'Result offset (default 0)' })),
+  after_cursor: Type.Optional(Type.String({ description: 'Opaque cursor from next_cursor for keyset pagination' })),
 });
 
 // ── Agents ──────────────────────────────────────────────────────────
