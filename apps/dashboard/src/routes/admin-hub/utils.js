@@ -5,26 +5,36 @@ export const FORGE_URL = process.env.FORGE_URL || 'http://forge:3005';
 export const FORGE_API_KEY = process.env.FORGE_API_KEY || '';
 
 // Circuit breaker: if forge is down, fail fast instead of waiting 30s per request
-let forgeCircuitOpen = false;
-let forgeCircuitOpenedAt = 0;
-const CIRCUIT_RESET_MS = 10_000; // retry after 10s
+// Separate breakers for admin and public forge paths so one slow path doesn't kill the other.
+const CIRCUIT_RESET_MS = 30_000; // retry after 30s
 
-function checkCircuit() {
-  if (!forgeCircuitOpen) return true;
-  if (Date.now() - forgeCircuitOpenedAt > CIRCUIT_RESET_MS) {
-    forgeCircuitOpen = false; // half-open: allow one attempt
-    return true;
-  }
-  return false;
+function makeCircuit() {
+  let open = false;
+  let openedAt = 0;
+  return {
+    check() {
+      if (!open) return true;
+      if (Date.now() - openedAt > CIRCUIT_RESET_MS) {
+        open = false; // half-open: allow one attempt
+        return true;
+      }
+      return false;
+    },
+    trip() { open = true; openedAt = Date.now(); },
+    close() { open = false; },
+  };
 }
 
-function tripCircuit() {
-  forgeCircuitOpen = true;
-  forgeCircuitOpenedAt = Date.now();
-}
+const adminCircuit = makeCircuit();
+const forgeCircuit = makeCircuit();
 
-function closeCircuit() {
-  forgeCircuitOpen = false;
+// Only trip the circuit on network-level errors (Forge truly unreachable).
+// Timeouts mean Forge is alive but slow under load — do NOT trip the circuit.
+function isNetworkError(err) {
+  if (err.name === 'TimeoutError' || err.name === 'AbortError') return false;
+  const code = err.code || '';
+  return code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'ECONNRESET' ||
+    code === 'EHOSTUNREACH' || code === 'ETIMEDOUT' || err.cause?.code === 'ECONNREFUSED';
 }
 
 export function ulid() {
@@ -43,7 +53,7 @@ export function paginationResponse(total, page, limit) {
 export const schedulerPausedTenants = new Set();
 
 export async function callForgeAdmin(path, options = {}) {
-  if (!checkCircuit()) {
+  if (!adminCircuit.check()) {
     return { error: true, status: 503, message: 'Forge unreachable (circuit open)' };
   }
 
@@ -59,10 +69,10 @@ export async function callForgeAdmin(path, options = {}) {
       method: options.method || 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: AbortSignal.timeout(options.timeout || 8000),
+      signal: AbortSignal.timeout(options.timeout || 15000),
     });
 
-    closeCircuit();
+    adminCircuit.close();
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -71,13 +81,13 @@ export async function callForgeAdmin(path, options = {}) {
 
     return await res.json();
   } catch (err) {
-    tripCircuit();
+    if (isNetworkError(err)) adminCircuit.trip();
     return { error: true, status: 503, message: err.message || 'Forge admin unreachable' };
   }
 }
 
 export async function callForge(path, options = {}) {
-  if (!checkCircuit()) {
+  if (!forgeCircuit.check()) {
     return { error: true, status: 503, message: 'Forge unreachable (circuit open)' };
   }
 
@@ -93,10 +103,10 @@ export async function callForge(path, options = {}) {
       method: options.method || 'GET',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
-      signal: AbortSignal.timeout(options.timeout || 8000),
+      signal: AbortSignal.timeout(options.timeout || 15000),
     });
 
-    closeCircuit();
+    forgeCircuit.close();
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -105,7 +115,7 @@ export async function callForge(path, options = {}) {
 
     return await res.json();
   } catch (err) {
-    tripCircuit();
+    if (isNetworkError(err)) forgeCircuit.trip();
     return { error: true, status: 503, message: `Forge unreachable: ${err.message}` };
   }
 }
