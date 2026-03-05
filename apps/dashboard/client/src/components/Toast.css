@@ -122,6 +122,15 @@
 .toast--error .toast-icon { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 .toast--error .toast-progress { background: rgba(239, 68, 68, 0.4); }
 
+.toast--warning {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  color: #fde68a;
+}
+.toast--warning .toast-accent { background: linear-gradient(180deg, #f59e0b, #d97706); }
+.toast--warning .toast-icon { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.toast--warning .toast-progress { background: rgba(245, 158, 11, 0.4); }
+
 .toast--info {
   background: rgba(139, 92, 246, 0.08);
   border: 1px solid rgba(139, 92, 246, 0.15);
