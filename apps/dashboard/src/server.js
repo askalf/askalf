@@ -86,6 +86,11 @@ fastify.addHook('preHandler', async (request, reply) => {
   }
 });
 
+// API versioning header on all responses
+fastify.addHook('onSend', async (_request, reply) => {
+  reply.header('X-API-Version', '1.0.0');
+});
+
 // ===========================================
 // TENANT CONTEXT HELPER
 // ===========================================
