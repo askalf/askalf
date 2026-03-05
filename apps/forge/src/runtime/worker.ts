@@ -1986,8 +1986,20 @@ export async function runDirectCliExecution(
   // Pre-execution validation — fail fast before acquiring resources
   validateCliPrerequisites(executionId, agentId, input);
 
-  // Wait for concurrency slot — high priority executions jump ahead in queue
-  await acquireCliSlot(options?.priority ?? 'normal');
+  // Wait for concurrency slot — high priority executions jump ahead in queue.
+  // Handle timeout separately: if we can't acquire a slot, mark the execution failed
+  // rather than leaving it in 'pending' (the .catch in the caller only logs).
+  try {
+    await acquireCliSlot(options?.priority ?? 'normal');
+  } catch (slotErr) {
+    const errorMsg = slotErr instanceof Error ? slotErr.message : String(slotErr);
+    logger.error(`[CLI] Slot acquisition failed for execution ${executionId}: ${errorMsg}`);
+    await query(
+      `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2`,
+      [errorMsg, executionId],
+    ).catch(() => {});
+    return;
+  }
 
   const startTime = Date.now();
   forgeExecutionsTotal.inc();
