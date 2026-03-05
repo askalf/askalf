@@ -64,6 +64,19 @@ export async function csrfProtectionMiddleware(
   const safeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase());
   if (safeMethod) return;
 
+  // Skip auth routes that are pre-authentication or session-ending
+  const authExemptPaths = [
+    '/api/v1/auth/login',
+    '/api/v1/auth/register',
+    '/api/v1/auth/logout',
+    '/api/v1/auth/forgot-password',
+    '/api/v1/auth/reset-password',
+    '/api/v1/auth/verify-email',
+    '/api/v1/auth/resend-verification',
+  ];
+  const urlPath = request.url.split('?')[0] ?? '';
+  if (authExemptPaths.includes(urlPath)) return;
+
   // Skip API key authenticated requests (machine-to-machine, no CSRF needed)
   // API keys always have the fk_ prefix in the Authorization header
   const authHeader = request.headers.authorization;

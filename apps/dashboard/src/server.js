@@ -517,7 +517,7 @@ async function getStats() {
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE status = 'open') as open,
         COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress
-      FROM tickets
+      FROM agent_tickets
     `),
     queryOne(`
       SELECT
