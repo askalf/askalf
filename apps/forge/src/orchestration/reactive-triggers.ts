@@ -22,6 +22,12 @@ const MAX_TRIGGERS_PER_HOUR = 3;
 const MIN_PROFICIENCY = 50;
 const MAX_SIGNALS_PER_EVENT = 1;
 
+// Concurrency guard: each evaluation makes 5-8 sequential DB queries.
+// Under 8-agent concurrent dispatch this can saturate the pool.
+// Skip evaluation if already at limit — reactive triggers are best-effort.
+const MAX_CONCURRENT_EVALUATIONS = 2;
+let activeEvaluations = 0;
+
 // ============================================
 // Signal Map Cache
 // ============================================
@@ -117,6 +123,21 @@ async function checkCooldown(sourceAgentId: string, targetCapability: string): P
 async function handleExecutionCompleted(event: ExecutionEvent): Promise<void> {
   // Only handle completed executions (not failed/cancelled)
   if (event.event !== 'completed') return;
+
+  // Concurrency guard: skip if at limit to avoid pool exhaustion
+  if (activeEvaluations >= MAX_CONCURRENT_EVALUATIONS) {
+    console.warn(`[ReactiveTrigger] Concurrency limit (${MAX_CONCURRENT_EVALUATIONS}) reached, skipping evaluation for ${event.agentName}`);
+    return;
+  }
+  activeEvaluations++;
+  try {
+    await handleExecutionCompletedInner(event);
+  } finally {
+    activeEvaluations--;
+  }
+}
+
+async function handleExecutionCompletedInner(event: ExecutionEvent): Promise<void> {
 
   const output = event.data?.output ?? '';
 

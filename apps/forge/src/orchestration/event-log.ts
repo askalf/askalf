@@ -7,6 +7,39 @@
 import { query } from '../database.js';
 import { getEventBus, type ForgeEvent } from './event-bus.js';
 
+// ============================================
+// Bounded concurrency queue for DB writes
+// Prevents pool exhaustion under high event volume (100+ events/sec during 8-agent dispatch).
+// Max 5 concurrent writes, max 200 queued; overflow events are dropped (analytics non-critical).
+// ============================================
+
+class AsyncQueue {
+  private running = 0;
+  private queue: Array<() => void> = [];
+
+  constructor(private concurrency: number, private maxQueue: number) {}
+
+  async run(fn: () => Promise<void>): Promise<boolean> {
+    if (this.running >= this.concurrency) {
+      if (this.queue.length >= this.maxQueue) {
+        return false; // overflow — drop
+      }
+      await new Promise<void>((resolve) => this.queue.push(resolve));
+    }
+    this.running++;
+    try {
+      await fn();
+      return true;
+    } finally {
+      this.running--;
+      const next = this.queue.shift();
+      if (next) next();
+    }
+  }
+}
+
+const writeQueue = new AsyncQueue(5, 200);
+
 /**
  * Log an event to the persistent store.
  */
@@ -36,7 +69,11 @@ export function startEventLogger(): void {
   }
 
   eventBus.on('*', (event) => {
-    void logEvent(event).catch((err) => {
+    void writeQueue.run(() => logEvent(event)).then((accepted) => {
+      if (!accepted) {
+        console.warn('[EventLog] Write queue full, event dropped:', event.event);
+      }
+    }).catch((err) => {
       console.warn('[EventLog] Failed to persist event:', err instanceof Error ? err.message : err);
     });
   });
