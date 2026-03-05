@@ -436,6 +436,7 @@ async function runSchedulerTick(): Promise<void> {
       systemPrompt?: string;
       maxBudget?: string;
       maxTurns?: number;
+      ticketId?: string;
     }
     const batchAgents: ScheduledAgent[] = [];
 
@@ -464,21 +465,22 @@ async function runSchedulerTick(): Promise<void> {
         : '',
     ].filter(Boolean).join('\n');
 
-    // Get agents that already have running/pending executions — skip re-dispatch
-    const inFlightAgents = await query<{ agent_id: string }>(
-      `SELECT DISTINCT agent_id FROM forge_executions WHERE status IN ('running', 'pending')`,
-    ).catch(() => [] as { agent_id: string }[]);
-    const inFlightSet = new Set(inFlightAgents.map((r) => r.agent_id));
+    // Count in-flight executions per agent (allow concurrent work on multiple tickets)
+    const MAX_CONCURRENT_PER_AGENT = 3;
+    const inFlightCounts = await query<{ agent_id: string; cnt: string }>(
+      `SELECT agent_id, COUNT(*)::text as cnt FROM forge_executions WHERE status IN ('running', 'pending') GROUP BY agent_id`,
+    ).catch(() => [] as { agent_id: string; cnt: string }[]);
+    const inFlightMap = new Map(inFlightCounts.map((r) => [r.agent_id, parseInt(r.cnt, 10)]));
 
-    // Track agents queued this tick to prevent duplicate dispatches
-    const queuedThisTick = new Set<string>();
+    // Track how many we've queued this tick per agent
+    const queuedThisTick = new Map<string, number>();
 
     for (const schedule of dueAgents) {
       const agentId = schedule['agent_id'] as string;
       const intervalMinutes = (schedule['schedule_interval_minutes'] as number) || 60;
 
-      // Skip agents already running or already queued this tick
-      if (inFlightSet.has(agentId) || queuedThisTick.has(agentId)) {
+      const inFlight = (inFlightMap.get(agentId) ?? 0) + (queuedThisTick.get(agentId) ?? 0);
+      if (inFlight >= MAX_CONCURRENT_PER_AGENT) {
         await substrateQuery(
           `UPDATE agent_schedules SET next_run_at = NOW() + ($1 || ' minutes')::INTERVAL WHERE agent_id = $2`,
           [String(intervalMinutes), agentId],
@@ -508,7 +510,7 @@ async function runSchedulerTick(): Promise<void> {
       ).catch(() => [] as { id: string; title: string; priority: string; description: string }[]);
 
       // Monitor agents (create tickets/findings for others) are exempt from ticket-gating
-      const MONITOR_AGENTS = ['Heartbeat', 'QA Engineer'];
+      const MONITOR_AGENTS = ['QA', 'Watchdog', 'Infra'];
       const isMonitor = MONITOR_AGENTS.includes(agentName);
 
       // If no tickets assigned and not a monitor agent, skip entirely — don't waste money on busywork
@@ -522,15 +524,21 @@ async function runSchedulerTick(): Promise<void> {
         continue;
       }
 
-      let input: string;
+      // Find tickets already being worked by in-flight executions for this agent
+      const inFlightTickets = await query<{ ticket_id: string }>(
+        `SELECT metadata->>'ticket_id' as ticket_id FROM forge_executions
+         WHERE agent_id = $1 AND status IN ('running', 'pending') AND metadata->>'ticket_id' IS NOT NULL`,
+        [agentId],
+      ).catch(() => [] as { ticket_id: string }[]);
+      const inFlightTicketSet = new Set(inFlightTickets.map(r => r.ticket_id));
 
       if (isMonitor) {
-        // Monitor agents get a patrol/audit prompt — they CREATE tickets, not work them
+        // Monitor agents: single dispatch for patrol + own tickets
         const ownTicketBlock = assignedTickets.length > 0
           ? `\n\nYOU ALSO HAVE ${assignedTickets.length} TICKET(S) ASSIGNED TO YOU:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nWork these first before doing your patrol.`
           : '';
 
-        input = `[PATROL CYCLE — ${new Date().toISOString()}] You are ${agentName}.
+        const input = `[PATROL CYCLE — ${new Date().toISOString()}] You are ${agentName}.
 
 You are a MONITOR agent. Your job is to patrol the system, detect issues, and create tickets/findings for other agents to act on.${ownTicketBlock}
 
@@ -557,13 +565,45 @@ RULES:
 - EVERY patrol must leave at least one finding. No silent runs.
 
 PATROL. Detect. Report. Stop.${fleetContext}`;
+
+        batchAgents.push({
+          agentId,
+          agentName: agent['name'] as string,
+          input,
+          intervalMinutes,
+          modelId: (agent['model_id'] as string) ?? undefined,
+          systemPrompt: (agent['system_prompt'] as string) ?? undefined,
+          maxBudget: (agent['max_cost_per_execution'] as string) ?? undefined,
+          maxTurns: (agent['max_iterations'] as number) ?? undefined,
+        });
+        queuedThisTick.set(agentId, (queuedThisTick.get(agentId) ?? 0) + 1);
       } else {
-        const ticketBlock = `\n\nYOUR ASSIGNED TICKETS:\n${assignedTickets.map((t, i) => `${i + 1}. [${t.priority.toUpperCase()}] ${t.id}: ${t.title}\n   ${t.description}`).join('\n')}\n\nPick the highest priority ticket and work on it.`;
+        // Worker agents: dispatch one execution per unworked ticket (up to concurrency limit)
+        const unworkedTickets = assignedTickets.filter(t => !inFlightTicketSet.has(t.id));
+        if (unworkedTickets.length === 0) {
+          // All tickets already have in-flight executions
+          await substrateQuery(
+            `UPDATE agent_schedules SET next_run_at = NOW() + ($1 || ' minutes')::INTERVAL WHERE agent_id = $2`,
+            [String(intervalMinutes), agentId],
+          );
+          continue;
+        }
 
-        // Standard ticket-focused prompt for worker agents
-        input = `[WORK CYCLE — ${new Date().toISOString()}] You are ${agentName}.
+        const currentInFlight = (inFlightMap.get(agentId) ?? 0) + (queuedThisTick.get(agentId) ?? 0);
+        const slotsAvailable = MAX_CONCURRENT_PER_AGENT - currentInFlight;
+        const ticketsToDispatch = unworkedTickets.slice(0, slotsAvailable);
 
-You have ${assignedTickets.length} ticket(s) assigned. Work on the highest priority one.${ticketBlock}
+        for (const ticket of ticketsToDispatch) {
+          const otherTickets = assignedTickets.filter(t => t.id !== ticket.id);
+          const otherBlock = otherTickets.length > 0
+            ? `\n\nOTHER TICKETS IN YOUR QUEUE (do NOT work these — another instance may handle them):\n${otherTickets.map(t => `- [${t.priority.toUpperCase()}] ${t.id}: ${t.title}`).join('\n')}`
+            : '';
+
+          const input = `[WORK CYCLE — ${new Date().toISOString()}] You are ${agentName}.
+
+YOUR TICKET:
+[${ticket.priority.toUpperCase()}] ${ticket.id}: ${ticket.title}
+${ticket.description}${otherBlock}
 
 TICKET LIFECYCLE (you MUST follow every step):
 1. CLAIM: Update ticket status to in_progress (ticket_ops action=update).
@@ -574,7 +614,7 @@ TICKET LIFECYCLE (you MUST follow every step):
 6. RESOLVE: When done, update ticket status to resolved with a detailed resolution note.
 
 RULES:
-- ONLY work on your assigned tickets. Do NOT invent new work.
+- FOCUS on this ONE ticket only. Do NOT work on other tickets.
 - DO NOT CREATE NEW TICKETS. If you find something that needs a ticket, add a note to your current ticket mentioning it — a human will triage.
 - BEFORE starting: search memory (memory_search) for context another agent may have left.
 - AFTER completing: store what you learned (memory_store) so the fleet benefits.
@@ -584,24 +624,26 @@ RULES:
 - If you cannot complete the ticket in this cycle, add a note explaining what's left and what's blocking you.
 
 FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
-      }
 
-      batchAgents.push({
-        agentId,
-        agentName: agent['name'] as string,
-        input,
-        intervalMinutes,
-        modelId: (agent['model_id'] as string) ?? undefined,
-        systemPrompt: (agent['system_prompt'] as string) ?? undefined,
-        maxBudget: (agent['max_cost_per_execution'] as string) ?? undefined,
-        maxTurns: (agent['max_iterations'] as number) ?? undefined,
-      });
-      queuedThisTick.add(agentId);
+          batchAgents.push({
+            agentId,
+            agentName: agent['name'] as string,
+            input,
+            intervalMinutes,
+            modelId: (agent['model_id'] as string) ?? undefined,
+            systemPrompt: (agent['system_prompt'] as string) ?? undefined,
+            maxBudget: (agent['max_cost_per_execution'] as string) ?? undefined,
+            maxTurns: (agent['max_iterations'] as number) ?? undefined,
+            ticketId: ticket.id,
+          });
+          queuedThisTick.set(agentId, (queuedThisTick.get(agentId) ?? 0) + 1);
+        }
+      }
     }
 
     if (batchAgents.length === 0) return;
 
-    console.log(`[Scheduler] Dispatching ${batchAgents.length} agents (staggered 3s): ${batchAgents.map((a) => a.agentName).join(', ')}`);
+    console.log(`[Scheduler] Dispatching ${batchAgents.length} executions: ${batchAgents.map((a) => a.ticketId ? `${a.agentName}[${a.ticketId}]` : a.agentName).join(', ')}`);
 
     // Stagger dispatches 1s apart — spread connection init without wasting time
     const STAGGER_DELAY_MS = 1_000;
@@ -617,10 +659,12 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
       const execId = ulid();
       const ownerId = 'system:scheduler';
 
+      const metadata = agent.ticketId ? { ticket_id: agent.ticketId } : {};
+
       await queryOne(
         `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
-         VALUES ($1, $2, $3, $4, 'pending', '{}', NOW()) RETURNING id`,
-        [execId, agent.agentId, ownerId, agent.input],
+         VALUES ($1, $2, $3, $4, 'pending', $5, NOW()) RETURNING id`,
+        [execId, agent.agentId, ownerId, agent.input, JSON.stringify(metadata)],
       );
 
       void runDirectCliExecution(execId, agent.agentId, agent.input, ownerId, {
@@ -633,10 +677,15 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
         console.error(`[Scheduler] CLI execution failed for ${agent.agentName}:`, err);
       });
 
-      console.log(`[Scheduler] Dispatched ${agent.agentName} (${i + 1}/${batchAgents.length})`);
+      const ticketSuffix = agent.ticketId ? ` [${agent.ticketId}]` : '';
+      console.log(`[Scheduler] Dispatched ${agent.agentName}${ticketSuffix} (${i + 1}/${batchAgents.length})`);
     }
 
+    // Deduplicate schedule updates (agent may have multiple dispatches)
+    const updatedAgents = new Set<string>();
     for (const agent of batchAgents) {
+      if (updatedAgents.has(agent.agentId)) continue;
+      updatedAgents.add(agent.agentId);
       await substrateQuery(
         `UPDATE agent_schedules SET last_run_at = NOW(), next_run_at = NOW() + ($1 || ' minutes')::INTERVAL WHERE agent_id = $2`,
         [String(agent.intervalMinutes), agent.agentId],

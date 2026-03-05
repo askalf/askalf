@@ -128,11 +128,11 @@ export async function authMiddleware(
   await sessionAuthMiddleware(request, reply);
   if (request.userId) return;
 
-  // Neither worked
-  reply.status(401).send({
+  // Neither worked — return reply to stop Fastify v5 lifecycle
+  return reply.status(401).send({
     error: 'Unauthorized',
     message: 'Valid API key or session required',
-  });
+  }) as never;
 }
 
 /**
