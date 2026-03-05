@@ -1,185 +1,144 @@
 /**
- * Daemon Routes — REST API for managing agent daemons.
- * GET/POST daemons, start/stop/pause/resume per agent.
+ * Daemon Routes — REST API for managing agent dispatch.
+ * Uses the unified dispatcher (replaces old DaemonManager).
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query } from '../database.js';
-import { getDaemonManager } from '../runtime/daemon-manager.js';
+import { getDispatcher } from '../runtime/unified-dispatcher.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 export async function daemonRoutes(app: FastifyInstance): Promise<void> {
-  // ---- List all daemons ----
+  // ---- Dispatcher status ----
   app.get(
     '/api/v1/forge/daemons',
     { preHandler: [authMiddleware] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const manager = getDaemonManager();
-      if (!manager) {
-        return reply.code(503).send({ error: 'Daemon manager not initialized' });
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const dispatcher = getDispatcher();
+      if (!dispatcher) {
+        return reply.code(503).send({ error: 'Dispatcher not initialized' });
       }
 
-      const qs = request.query as { limit?: string; offset?: string };
-      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 200));
-      const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
+      const status = dispatcher.getStatus();
 
-      const [dbDaemons, countResult] = await Promise.all([
-        query<Record<string, unknown>>(
-          `SELECT d.*, a.name AS agent_name FROM forge_agent_daemons d
-           JOIN forge_agents a ON a.id = d.agent_id
-           ORDER BY d.updated_at DESC
-           LIMIT $1 OFFSET $2`,
-          [limit, offset],
-        ),
-        query<{ count: string }>(
-          `SELECT COUNT(*)::text AS count FROM forge_agent_daemons`,
-        ),
-      ]);
-
-      const total = parseInt(countResult[0]?.count ?? '0', 10);
+      // Return agent dispatch info from DB
+      const agents = await query<Record<string, unknown>>(
+        `SELECT a.id AS agent_id, a.name AS agent_name, a.status, a.dispatch_enabled,
+                a.dispatch_mode, a.schedule_interval_minutes, a.next_run_at, a.last_run_at
+         FROM forge_agents a
+         WHERE a.is_internal = true
+         ORDER BY a.name`,
+      );
 
       return reply.send({
-        daemons: dbDaemons.map((d) => {
-          const inMemory = manager.getDaemon(d['agent_id'] as string);
-          return {
-            ...d,
-            live_status: inMemory?.getStatus() ?? d['status'],
-            tick_number: inMemory?.getTickNumber() ?? 0,
-          };
-        }),
-        active_count: manager.getActiveDaemonCount(),
-        total,
-        limit,
-        offset,
+        daemons: agents,
+        dispatcher_status: status,
+        active_count: agents.filter(a => a['dispatch_enabled']).length,
+        total: agents.length,
       });
     },
   );
 
-  // ---- Get daemon for a specific agent ----
+  // ---- Get dispatch info for a specific agent ----
   app.get(
     '/api/v1/forge/daemons/:agentId',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { agentId } = request.params as { agentId: string };
-      const manager = getDaemonManager();
-      if (!manager) {
-        return reply.code(503).send({ error: 'Daemon manager not initialized' });
-      }
 
-      const daemon = manager.getDaemon(agentId);
-      if (daemon) {
-        return reply.send({ daemon: daemon.getInfo() });
-      }
-
-      const dbDaemon = await query<Record<string, unknown>>(
-        `SELECT d.*, a.name AS agent_name FROM forge_agent_daemons d
-         JOIN forge_agents a ON a.id = d.agent_id
-         WHERE d.agent_id = $1`,
+      const agents = await query<Record<string, unknown>>(
+        `SELECT a.id AS agent_id, a.name AS agent_name, a.status, a.dispatch_enabled,
+                a.dispatch_mode, a.schedule_interval_minutes, a.next_run_at, a.last_run_at
+         FROM forge_agents a WHERE a.id = $1`,
         [agentId],
       );
-      if (dbDaemon.length === 0) {
-        return reply.code(404).send({ error: 'No daemon found for agent' });
+
+      if (agents.length === 0) {
+        return reply.code(404).send({ error: 'Agent not found' });
       }
 
-      return reply.send({ daemon: dbDaemon[0] });
+      return reply.send({ daemon: agents[0] });
     },
   );
 
-  // ---- Start daemon ----
+  // ---- Enable dispatch for agent ----
   app.post(
     '/api/v1/forge/daemons/:agentId/start',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { agentId } = request.params as { agentId: string };
-      const manager = getDaemonManager();
-      if (!manager) {
-        return reply.code(503).send({ error: 'Daemon manager not initialized' });
-      }
 
-      try {
-        const daemon = await manager.startDaemon(agentId);
-        return reply.send({ status: 'started', daemon: daemon.getInfo() });
-      } catch (err) {
-        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
-      }
+      await query(
+        `UPDATE forge_agents SET dispatch_enabled = true WHERE id = $1`,
+        [agentId],
+      );
+
+      return reply.send({ status: 'enabled', agentId });
     },
   );
 
-  // ---- Stop daemon ----
+  // ---- Disable dispatch for agent ----
   app.post(
     '/api/v1/forge/daemons/:agentId/stop',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { agentId } = request.params as { agentId: string };
-      const manager = getDaemonManager();
-      if (!manager) {
-        return reply.code(503).send({ error: 'Daemon manager not initialized' });
-      }
 
-      await manager.stopDaemon(agentId);
-      return reply.send({ status: 'stopped', agentId });
+      await query(
+        `UPDATE forge_agents SET dispatch_enabled = false WHERE id = $1`,
+        [agentId],
+      );
+
+      return reply.send({ status: 'disabled', agentId });
     },
   );
 
-  // ---- Pause daemon ----
+  // ---- Pause dispatch (same as stop) ----
   app.post(
     '/api/v1/forge/daemons/:agentId/pause',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { agentId } = request.params as { agentId: string };
-      const manager = getDaemonManager();
-      if (!manager) {
-        return reply.code(503).send({ error: 'Daemon manager not initialized' });
-      }
 
-      try {
-        await manager.pauseDaemon(agentId);
-        return reply.send({ status: 'paused', agentId });
-      } catch (err) {
-        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
-      }
+      await query(
+        `UPDATE forge_agents SET dispatch_enabled = false WHERE id = $1`,
+        [agentId],
+      );
+
+      return reply.send({ status: 'paused', agentId });
     },
   );
 
-  // ---- Resume daemon ----
+  // ---- Resume dispatch ----
   app.post(
     '/api/v1/forge/daemons/:agentId/resume',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { agentId } = request.params as { agentId: string };
-      const manager = getDaemonManager();
-      if (!manager) {
-        return reply.code(503).send({ error: 'Daemon manager not initialized' });
-      }
 
-      try {
-        await manager.resumeDaemon(agentId);
-        return reply.send({ status: 'resumed', agentId });
-      } catch (err) {
-        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
-      }
+      await query(
+        `UPDATE forge_agents SET dispatch_enabled = true WHERE id = $1`,
+        [agentId],
+      );
+
+      return reply.send({ status: 'resumed', agentId });
     },
   );
 
-  // ---- Wake daemon (used by triggers) ----
+  // ---- Wake agent (queue reactive work via dispatcher) ----
   app.post(
     '/api/v1/forge/daemons/:agentId/wake',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { agentId } = request.params as { agentId: string };
       const body = (request.body ?? {}) as { context?: Record<string, unknown> };
-      const manager = getDaemonManager();
-      if (!manager) {
-        return reply.code(503).send({ error: 'Daemon manager not initialized' });
+      const dispatcher = getDispatcher();
+      if (!dispatcher) {
+        return reply.code(503).send({ error: 'Dispatcher not initialized' });
       }
 
-      try {
-        await manager.wakeDaemon(agentId, body.context);
-        const daemon = manager.getDaemon(agentId);
-        return reply.send({ status: 'awake', daemon: daemon?.getInfo() ?? { agentId, status: 'unknown' } });
-      } catch (err) {
-        return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
-      }
+      dispatcher.queueWork(agentId, body.context ?? {});
+      return reply.send({ status: 'queued', agentId });
     },
   );
 }
