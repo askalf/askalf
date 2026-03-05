@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/auth';
 import ErrorBoundary from './components/ErrorBoundary';
 import CookieConsent from './components/CookieConsent';
+import WsToastBridge from './components/WsToastBridge';
 
 // Lazy-loaded: auth pages
 const Login = lazy(() => import('./pages/Login'));
@@ -121,6 +122,7 @@ export default function App() {
       <Route path="*" element={<NotFound />} />
     </Routes>
     </Suspense>
+    <WsToastBridge />
     <CookieConsent />
     </ErrorBoundary>
   );
