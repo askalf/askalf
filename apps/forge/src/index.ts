@@ -49,6 +49,7 @@ import { daemonRoutes } from './routes/daemons.js';
 import { triggerRoutes } from './routes/triggers.js';
 import { economyRoutes } from './routes/economy.js';
 import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
+import { sessionAuthMiddleware } from './middleware/session-auth.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution } from './runtime/worker.js';
 import { startTaskDispatcher, stopTaskDispatcher } from './runtime/task-dispatcher.js';
@@ -187,6 +188,16 @@ app.addHook('onRequest', async (request, reply) => {
     }
   }
 });
+
+// ============================================
+// SESSION RESOLUTION (global — runs before CSRF preHandler)
+// ============================================
+// Resolve the session cookie early in onRequest so that sessionUser and
+// sessionCsrfToken are available when the CSRF preHandler runs. This must
+// happen before route-level authMiddleware because Fastify runs global
+// preHandler hooks before route-level ones.
+
+app.addHook('onRequest', sessionAuthMiddleware);
 
 // ============================================
 // CSRF PROTECTION
