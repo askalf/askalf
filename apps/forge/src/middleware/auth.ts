@@ -29,6 +29,7 @@ declare module 'fastify' {
     userId?: string;
     apiKeyId?: string;
     apiKeyPermissions?: string[];
+    apiKeyExpiresAt?: Date;
   }
 }
 
@@ -107,6 +108,12 @@ async function tryApiKeyAuth(request: FastifyRequest): Promise<boolean> {
     request.userId = (typeof forwardedUserId === 'string' && forwardedUserId) ? forwardedUserId : apiKey.owner_id;
     request.apiKeyId = apiKey.id;
     request.apiKeyPermissions = apiKey.permissions as string[];
+
+    // Attach expiry metadata so the onSend hook can warn callers
+    if (apiKey.expires_at) {
+      request.apiKeyExpiresAt = new Date(apiKey.expires_at);
+    }
+
     return true;
   }
 

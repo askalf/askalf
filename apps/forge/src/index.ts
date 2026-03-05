@@ -15,7 +15,7 @@ import {
 
 const logger = initializeLogger().child({ component: 'forge' });
 import { forgeActiveAgents } from './metrics.js';
-import Fastify from 'fastify';
+import Fastify, { type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
@@ -52,6 +52,7 @@ import { daemonRoutes } from './routes/daemons.js';
 import { triggerRoutes } from './routes/triggers.js';
 import { economyRoutes } from './routes/economy.js';
 import { errorRoutes } from './routes/errors.js';
+import { apiKeyRoutes } from './routes/api-keys.js';
 import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { sessionAuthMiddleware } from './middleware/session-auth.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
@@ -269,6 +270,20 @@ app.addHook('onSend', async (_request, reply, payload) => {
   }
 });
 
+// API key expiry warning — add headers when authenticated key expires within 7 days.
+const EXPIRY_WARN_MS = 7 * 24 * 60 * 60 * 1000;
+app.addHook('onSend', async (request, reply, payload) => {
+  const expiresAt = (request as FastifyRequest & { apiKeyExpiresAt?: Date }).apiKeyExpiresAt;
+  if (!expiresAt) return payload;
+  const msRemaining = expiresAt.getTime() - Date.now();
+  if (msRemaining > 0 && msRemaining <= EXPIRY_WARN_MS) {
+    reply.header('X-Api-Key-Expires-At', expiresAt.toISOString());
+    const daysRemaining = Math.ceil(msRemaining / (24 * 60 * 60 * 1000));
+    reply.header('X-Api-Key-Expiry-Warning', `API key expires in ${daysRemaining} day(s). Rotate before ${expiresAt.toISOString()}.`);
+  }
+  return payload;
+});
+
 // Clean up auth rate limit maps periodically (Redis handles its own TTLs)
 const rateLimitCleanupInterval = setInterval(() => {
   const now = Date.now();
@@ -412,6 +427,7 @@ await daemonRoutes(app);
 await triggerRoutes(app);
 await economyRoutes(app);
 await errorRoutes(app);
+await apiKeyRoutes(app);
 await registerMCPRoutes(app);
 await registerAgentBridge(app);
 
