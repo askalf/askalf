@@ -14,7 +14,9 @@ import {
 } from '@askalf/observability';
 
 const logger = initializeLogger().child({ component: 'forge' });
-import { forgeActiveAgents } from './metrics.js';
+import { forgeActiveAgents, forgeQueueDepth, forgeExecutionsFailed, forgeWorktreeCount, forgeWorktreeDiskBytes } from './metrics.js';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import Fastify, { type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
@@ -672,6 +674,32 @@ async function start(): Promise<void> {
       }
     }
 
+    // Worktree cleanup (every 30 min) — removes stale agent worktrees older than 2 hours
+    const worktreesDir = `${process.env['WORKSPACE_ROOT'] ?? '/workspace'}/.worktrees`;
+    worktreeCleanupInterval = setInterval(async () => {
+      try {
+        const scriptPath = `${process.env['WORKSPACE_ROOT'] ?? '/workspace'}/scripts/cleanup-worktrees.sh`;
+        const { stdout } = await execAsync(`bash "${scriptPath}" 2`, { timeout: 60_000 });
+        // Parse the JSON summary line (last line of output)
+        const jsonLine = stdout.trim().split('\n').pop() ?? '';
+        const summary = JSON.parse(jsonLine) as { remaining: number; disk_bytes: number; removed: number };
+        forgeWorktreeCount.set(summary.remaining);
+        forgeWorktreeDiskBytes.set(summary.disk_bytes);
+        if (summary.removed > 0) {
+          logger.info(`[Forge] Worktree cleanup: removed ${summary.removed} stale worktree(s), ${summary.remaining} remaining (${Math.round(summary.disk_bytes / 1024 / 1024)}MB)`);
+        }
+      } catch (err) {
+        // Fallback: just count worktrees for the metric
+        try {
+          const { stdout } = await execAsync(`ls -1 "${worktreesDir}" 2>/dev/null | wc -l`, { timeout: 5_000 });
+          forgeWorktreeCount.set(parseInt(stdout.trim(), 10));
+          const { stdout: du } = await execAsync(`du -sb "${worktreesDir}" 2>/dev/null | cut -f1`, { timeout: 5_000 });
+          forgeWorktreeDiskBytes.set(parseInt(du.trim(), 10) || 0);
+        } catch { /* ignore */ }
+        logger.warn(`[Forge] Worktree cleanup error: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }, 30 * 60_000);
+
     // Auto-detect agent capabilities on startup (non-blocking)
     void detectAllCapabilities().catch((err) => {
       logger.warn(`[Capabilities] Initial detection failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -682,11 +710,15 @@ async function start(): Promise<void> {
       logger.warn(`[TaskDispatcher] Failed to start: ${err instanceof Error ? err.message : String(err)}`);
     });
 
-    // Periodic active agents gauge update (every 60s) — stored for cleanup in shutdown()
+    // Periodic active agents + queue depth gauge update (every 60s)
     agentGaugeInterval = setInterval(async () => {
       try {
-        const rows = await dbQuery<{ count: string }>(`SELECT COUNT(*) AS count FROM forge_agents WHERE status = 'active'`);
-        forgeActiveAgents.set(parseInt(rows[0]?.count ?? '0', 10));
+        const [agentRows, queueRows] = await Promise.all([
+          dbQuery<{ count: string }>(`SELECT COUNT(*) AS count FROM forge_agents WHERE status = 'active'`),
+          dbQuery<{ count: string }>(`SELECT COUNT(*) AS count FROM forge_executions WHERE status = 'pending'`),
+        ]);
+        forgeActiveAgents.set(parseInt(agentRows[0]?.count ?? '0', 10));
+        forgeQueueDepth.set(parseInt(queueRows[0]?.count ?? '0', 10));
       } catch { /* ignore metric update failures */ }
     }, 60_000);
 
@@ -710,6 +742,7 @@ async function start(): Promise<void> {
         );
         const allTimedOut = [...stalePending, ...staleRunning];
         if (allTimedOut.length > 0) {
+          forgeExecutionsFailed.inc({}, allTimedOut.length);
           logger.info(`[Forge] Timeout sweeper: marked ${allTimedOut.length} execution(s) as timed out (${stalePending.length} pending, ${staleRunning.length} running)`);
           const eventBus = getEventBus();
           for (const row of allTimedOut) {
@@ -772,9 +805,12 @@ async function start(): Promise<void> {
 // GRACEFUL SHUTDOWN
 // ============================================
 
+const execAsync = promisify(exec);
+
 let isShuttingDown = false;
 let agentGaugeInterval: ReturnType<typeof setInterval> | undefined;
 let staleCleanupInterval: ReturnType<typeof setInterval> | undefined;
+let worktreeCleanupInterval: ReturnType<typeof setInterval> | undefined;
 
 async function shutdown(signal: string): Promise<void> {
   if (isShuttingDown) return;
@@ -800,6 +836,7 @@ async function shutdown(signal: string): Promise<void> {
     clearInterval(rateLimitCleanupInterval);
     clearInterval(agentGaugeInterval);
     clearInterval(staleCleanupInterval);
+    clearInterval(worktreeCleanupInterval);
 
     // 2. Wait for in-flight CLI executions to finish naturally.
     const initialCount = getRunningExecutionCount();
