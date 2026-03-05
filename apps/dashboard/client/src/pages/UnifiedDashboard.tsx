@@ -166,7 +166,7 @@ export default function UnifiedDashboard() {
   useKeyboardShortcuts({
     visibleKeys,
     activeTab,
-    setActiveTab,
+    setActiveTab: setActiveTab as (key: string) => void,
     onRefresh: handleRefresh,
     onToggleHelp: handleToggleHelp,
     helpOpen,

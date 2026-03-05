@@ -172,8 +172,7 @@ export class ForgeScheduler {
 
     this.worker.on('failed', (job: Job<WorkflowJobData> | undefined, err: Error) => {
       logger.error(
-        `[ForgeScheduler] Job ${job?.id ?? 'unknown'} failed:`,
-        err.message,
+        `[ForgeScheduler] Job ${job?.id ?? 'unknown'} failed: ${err.message}`,
       );
       // Persist failure to DB so workflow runs don't get stuck in 'running'
       if (job?.data?.runId) {
@@ -182,7 +181,7 @@ export class ForgeScheduler {
             `UPDATE forge_workflow_runs SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status != 'failed'`,
             [err.message.substring(0, 2000), job.data.runId],
           ),
-        ).catch((dbErr) => logger.error('[ForgeScheduler] Failed to persist job failure:', dbErr));
+        ).catch((dbErr) => logger.error(`[ForgeScheduler] Failed to persist job failure: ${dbErr}`));
       }
     });
 
