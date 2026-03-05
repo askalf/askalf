@@ -18,7 +18,7 @@ export interface ForgeAgent {
   status: string; autonomy_level: number; metadata: Record<string, unknown> | null;
   provider_config: Record<string, unknown> | null; model_id: string | null;
   enabled_tools: string[]; type: string;
-  created_at: string; updated_at: string;
+  created_at: string; updated_at: string; deleted_at: string | null;
 }
 
 export interface ForgeExecution {
