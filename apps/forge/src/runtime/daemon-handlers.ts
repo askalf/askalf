@@ -85,6 +85,13 @@ export function createTriggerHandler(deps: HandlerDeps): TickHandler {
     await daemon.setThinking();
 
     const execId = ulid();
+    // INSERT execution row BEFORE setActing to prevent FK violation on forge_cost_events
+    await query(
+      `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, runtime_mode, metadata, started_at)
+       VALUES ($1, $2, $3, $4, 'pending', 'cli', '{"source":"daemon","handler":"trigger"}'::jsonb, NOW())
+       ON CONFLICT (id) DO NOTHING`,
+      [execId, deps.agentId, agent.owner_id || 'system:daemon', prompt],
+    );
     await daemon.setActing(execId);
 
     try {
@@ -147,6 +154,13 @@ export function createMessageHandler(deps: HandlerDeps): TickHandler {
     await daemon.setThinking();
 
     const execId = ulid();
+    // INSERT execution row BEFORE setActing to prevent FK violation on forge_cost_events
+    await query(
+      `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, runtime_mode, metadata, started_at)
+       VALUES ($1, $2, $3, $4, 'pending', 'cli', '{"source":"daemon","handler":"message"}'::jsonb, NOW())
+       ON CONFLICT (id) DO NOTHING`,
+      [execId, deps.agentId, agent.owner_id || 'system:daemon', prompt],
+    );
     await daemon.setActing(execId);
 
     try {
@@ -202,6 +216,13 @@ export function createGoalHandler(deps: HandlerDeps): TickHandler {
     );
 
     const execId = ulid();
+    // INSERT execution row BEFORE setActing to prevent FK violation on forge_cost_events
+    await query(
+      `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, runtime_mode, metadata, started_at)
+       VALUES ($1, $2, $3, $4, 'pending', 'cli', $5, NOW())
+       ON CONFLICT (id) DO NOTHING`,
+      [execId, deps.agentId, agent.owner_id || 'system:daemon', action.prompt, JSON.stringify({ source: 'daemon', handler: 'goal', goalId: action.goalId })],
+    );
     await daemon.setActing(execId);
 
     try {
