@@ -5,7 +5,7 @@
 
 import { query } from '../database.js';
 import { getEventBus, type ForgeEvent } from '../orchestration/event-bus.js';
-import { getDaemonManager } from './daemon-manager.js';
+import { getDispatcher } from './unified-dispatcher.js';
 import { ulid } from 'ulid';
 
 // ============================================
@@ -290,8 +290,8 @@ export class TriggerEngine {
   // ---- Fire ----
 
   private async fire(trigger: TriggerRecord, context: Record<string, unknown>): Promise<void> {
-    const manager = getDaemonManager();
-    if (!manager) return;
+    const dispatcher = getDispatcher();
+    if (!dispatcher) return;
 
     // Update fire counts
     const hourReset = new Date(trigger.hour_reset_at).getTime();
@@ -306,7 +306,7 @@ export class TriggerEngine {
       [resetHour, trigger.id],
     );
 
-    // Wake the daemon
+    // Queue reactive work via unified dispatcher
     const triggerContext = {
       trigger_id: trigger.id,
       trigger_type: trigger.trigger_type,
@@ -314,11 +314,7 @@ export class TriggerEngine {
       ...context,
     };
 
-    try {
-      await manager.wakeDaemon(trigger.agent_id, triggerContext);
-      console.log(`[TriggerEngine] Fired trigger ${trigger.id} (${trigger.trigger_type}) → agent ${trigger.agent_id}`);
-    } catch (err) {
-      console.warn(`[TriggerEngine] Failed to wake daemon for trigger ${trigger.id}:`, err instanceof Error ? err.message : err);
-    }
+    dispatcher.queueWork(trigger.agent_id, triggerContext);
+    console.log(`[TriggerEngine] Fired trigger ${trigger.id} (${trigger.trigger_type}) → agent ${trigger.agent_id}`);
   }
 }
