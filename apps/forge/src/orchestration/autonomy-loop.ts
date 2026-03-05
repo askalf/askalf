@@ -224,7 +224,7 @@ async function assignReview(
     // Create checkpoint for human review
     const cpId = generateId();
     await query(
-      `INSERT INTO forge_checkpoints (id, execution_id, agent_id, type, title, context, status, created_at)
+      `INSERT INTO forge_checkpoints (id, execution_id, owner_id, type, title, context, status, created_at)
        VALUES ($1, $2, $3, 'review', $4, $5, 'pending', NOW())
        ON CONFLICT DO NOTHING`,
       [
