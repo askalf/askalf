@@ -12,7 +12,7 @@ let pool: pg.Pool | null = null;
 export function initializeDatabase(connectionString: string): void {
   pool = new Pool({
     connectionString,
-    max: 40,
+    max: 60,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 15000,
   });

@@ -114,9 +114,30 @@ async function checkCooldown(sourceAgentId: string, targetCapability: string): P
 // Core Handler
 // ============================================
 
+// Limit concurrent trigger evaluations to avoid pool exhaustion under high load.
+// Each evaluation does 5-8 sequential queries; unbounded concurrency starves
+// execution-critical queries.
+const MAX_CONCURRENT_TRIGGER_EVALS = 2;
+let activeTriggerEvals = 0;
+
 async function handleExecutionCompleted(event: ExecutionEvent): Promise<void> {
   // Only handle completed executions (not failed/cancelled)
   if (event.event !== 'completed') return;
+
+  // Skip evaluation if too many are already running to avoid pool contention
+  if (activeTriggerEvals >= MAX_CONCURRENT_TRIGGER_EVALS) {
+    console.log('[ReactiveTrigger] Skipping evaluation — too many concurrent evaluations in progress');
+    return;
+  }
+  activeTriggerEvals++;
+  try {
+    await handleExecutionCompletedInner(event);
+  } finally {
+    activeTriggerEvals--;
+  }
+}
+
+async function handleExecutionCompletedInner(event: ExecutionEvent): Promise<void> {
 
   const output = event.data?.output ?? '';
 
