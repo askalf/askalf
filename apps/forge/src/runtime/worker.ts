@@ -174,7 +174,7 @@ export async function initializeWorker(): Promise<void> {
   try {
     await registry.loadFromDatabase();
   } catch (err) {
-    logger.warn('[Worker] Could not load tools from database:', err);
+    logger.warn(`[Worker] Could not load tools from database: ${err}`);
   }
 
   initialized = true;
@@ -1437,7 +1437,7 @@ export async function runExecution(
       `[Worker] Execution ${executionId} completed: ${result.iterations} iterations, $${result.cost.toFixed(4)} cost`,
     );
   } catch (err) {
-    logger.error(`[Worker] Execution ${executionId} failed:`, err);
+    logger.error(`[Worker] Execution ${executionId} failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
@@ -1560,13 +1560,13 @@ function startTokenRefreshTimer(): void {
   // Initial refresh after 30 seconds (let the server finish booting)
   setTimeout(() => {
     refreshCredentials().catch(err =>
-      logger.warn('[CLI] Periodic token refresh error:', err),
+      logger.warn(`[CLI] Periodic token refresh error: ${err}`),
     );
   }, 30_000);
   // Then every hour (8h token TTL, refresh at 1h before expiry)
   setInterval(() => {
     refreshCredentials().catch(err =>
-      logger.warn('[CLI] Periodic token refresh error:', err),
+      logger.warn(`[CLI] Periodic token refresh error: ${err}`),
     );
   }, ONE_HOUR);
   logger.info('[CLI] OAuth token refresh timer started (every 1h)');
@@ -1663,7 +1663,7 @@ async function refreshCredentials(): Promise<void> {
       await writeFile(mountPath, updatedJson, { mode: 0o600 });
       logger.info('[CLI] Persisted refreshed token to host mount');
     } catch (writeErr) {
-      logger.warn('[CLI] Could not persist to mount (read-only?):', (writeErr as Error).message);
+      logger.warn(`[CLI] Could not persist to mount (read-only?): ${(writeErr as Error).message}`);
     }
   } catch { /* mount may not exist */ }
 }
@@ -2291,12 +2291,12 @@ export async function runDirectCliExecution(
                 modelId: cfg?.model_id,
                 maxBudgetUsd: cfg?.max_budget,
               }).catch((err) => {
-                logger.error(`[Pipeline] Next execution ${next.id} failed:`, err instanceof Error ? err.message : err);
+                logger.error(`[Pipeline] Next execution ${next.id} failed: ${err instanceof Error ? err.message : String(err)}`);
               });
             }
           }
         } catch (err) {
-          logger.error('[Pipeline] Chain check failed:', err instanceof Error ? err.message : err);
+          logger.error(`[Pipeline] Chain check failed: ${err instanceof Error ? err.message : String(err)}`);
         }
       })();
     }
@@ -2326,7 +2326,7 @@ export async function runDirectCliExecution(
       numTurns: parsed.numTurns,
       durationMs,
     }).catch((err) => {
-      logger.warn('[Memory] Post-execution extraction failed:', err instanceof Error ? err.message : err);
+      logger.warn(`[Memory] Post-execution extraction failed: ${err instanceof Error ? err.message : String(err)}`);
     });
 
     // Fire-and-forget knowledge graph extraction (Phase 11)
@@ -2349,8 +2349,7 @@ export async function runDirectCliExecution(
     if (err instanceof ExecutionError) {
       logger.error(
         `[CLI] Execution ${executionId} ${err.retryable ? 'TRANSIENT' : 'FATAL'} error ` +
-        `(${err.code}): ${err.message}`,
-        JSON.stringify(err.metadata),
+        `(${err.code}): ${err.message} metadata=${JSON.stringify(err.metadata)}`,
       );
     } else {
       logger.error(`[CLI] Execution ${executionId} error: ${errorMsg}`);

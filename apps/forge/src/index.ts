@@ -220,7 +220,7 @@ app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => 
   request.log.error({ err: { message: error.message, name: error.name, code: (error as NodeJS.ErrnoException).code } }, 'Route error');
 
   // Handle Fastify validation errors (AJV schema validation failures) — return 400 with descriptive messages.
-  const validationErrors = (error as Record<string, unknown>)['validation'] as Array<{ instancePath: string; message?: string }> | undefined;
+  const validationErrors = (error as unknown as Record<string, unknown>)['validation'] as Array<{ instancePath: string; message?: string }> | undefined;
   if (validationErrors?.length) {
     const details = validationErrors
       .map((e) => {
@@ -240,7 +240,7 @@ app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => 
     ? 'Internal Server Error'
     : (error.name === 'Error' ? 'Error' : error.name) || 'Error';
 
-  reply.code(status).send({ error: errorName, message, statusCode: status });
+  return reply.code(status).send({ error: errorName, message, statusCode: status });
 });
 
 // Normalize all 4xx/5xx JSON responses to include statusCode field.
@@ -429,14 +429,14 @@ async function start(): Promise<void> {
     // Initialize daemon manager (persistent agent processes)
     const daemonManager = initDaemonManager();
     await daemonManager.initialize().catch((err) => {
-      logger.warn('[DaemonManager] Initialization error:', err instanceof Error ? err.message : err);
+      logger.warn(`[DaemonManager] Initialization error: ${err instanceof Error ? err.message : String(err)}`);
     });
     logger.info('[Forge] Daemon manager initialized');
 
     // Initialize trigger engine (event-driven agent activation)
     const triggerEngine = initTriggerEngine();
     await triggerEngine.start().catch((err) => {
-      logger.warn('[TriggerEngine] Start error:', err instanceof Error ? err.message : err);
+      logger.warn(`[TriggerEngine] Start error: ${err instanceof Error ? err.message : String(err)}`);
     });
     logger.info('[Forge] Trigger engine started');
 
@@ -612,7 +612,7 @@ async function start(): Promise<void> {
           retried++;
           logger.info(`[Recovery] Auto-retrying orphaned execution ${row.id} → ${retryId} for agent ${agent.name}`);
         } catch (err) {
-          logger.warn(`[Recovery] Failed to create retry for ${row.id}:`, err instanceof Error ? err.message : err);
+          logger.warn(`[Recovery] Failed to create retry for ${row.id}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
       if (retried > 0) {
@@ -622,12 +622,12 @@ async function start(): Promise<void> {
 
     // Auto-detect agent capabilities on startup (non-blocking)
     void detectAllCapabilities().catch((err) => {
-      logger.warn('[Capabilities] Initial detection failed:', err instanceof Error ? err.message : err);
+      logger.warn(`[Capabilities] Initial detection failed: ${err instanceof Error ? err.message : String(err)}`);
     });
 
     // Start fleet task dispatcher (bridges FleetCoordinator → CLI execution)
     void startTaskDispatcher(config.redisUrl).catch((err) => {
-      logger.warn('[TaskDispatcher] Failed to start:', err instanceof Error ? err.message : err);
+      logger.warn(`[TaskDispatcher] Failed to start: ${err instanceof Error ? err.message : String(err)}`);
     });
 
     // Periodic active agents gauge update (every 60s) — stored for cleanup in shutdown()
@@ -703,7 +703,7 @@ async function start(): Promise<void> {
           }
         }
       } catch (err) {
-        logger.warn('[Forge] Execution timeout sweeper error:', err instanceof Error ? err.message : err);
+        logger.warn(`[Forge] Execution timeout sweeper error: ${err instanceof Error ? err.message : String(err)}`);
       }
     }, 60_000);
 
@@ -711,7 +711,7 @@ async function start(): Promise<void> {
     logger.info(`[Forge] Agent Forge API server started on port ${config.port}`);
     logger.info(`[Forge] Environment: ${config.nodeEnv}`);
   } catch (err) {
-    logger.error('[Forge] Failed to start server:', err);
+    logger.error(`[Forge] Failed to start server: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
 }
@@ -782,7 +782,7 @@ async function shutdown(signal: string): Promise<void> {
     // 4. Close subsystems: workflow scheduler, channel workers, daemon/trigger engine, comms, DB.
     const scheduler = (app as unknown as { workflowScheduler?: ForgeScheduler }).workflowScheduler;
     if (scheduler) {
-      await scheduler.close().catch((err: unknown) => logger.warn('[Forge] Scheduler close error:', err));
+      await scheduler.close().catch((err: unknown) => logger.warn(`[Forge] Scheduler close error: ${err}`));
       logger.info('[Forge] Workflow scheduler closed');
     }
 
@@ -792,11 +792,11 @@ async function shutdown(signal: string): Promise<void> {
 
     const triggerEng = getTriggerEngine();
     if (triggerEng) {
-      await triggerEng.stop().catch((err: unknown) => logger.warn('[Forge] TriggerEngine stop error:', err));
+      await triggerEng.stop().catch((err: unknown) => logger.warn(`[Forge] TriggerEngine stop error: ${err}`));
     }
     const daemonMgr = getDaemonManager();
     if (daemonMgr) {
-      await daemonMgr.shutdown().catch((err: unknown) => logger.warn('[Forge] DaemonManager shutdown error:', err));
+      await daemonMgr.shutdown().catch((err: unknown) => logger.warn(`[Forge] DaemonManager shutdown error: ${err}`));
     }
     logger.info('[Forge] Daemon manager and trigger engine stopped');
 
@@ -813,7 +813,7 @@ async function shutdown(signal: string): Promise<void> {
     logger.info('[Forge] Graceful shutdown complete');
     process.exit(0);
   } catch (err) {
-    logger.error('[Forge] Error during graceful shutdown:', err);
+    logger.error(`[Forge] Error during graceful shutdown: ${err instanceof Error ? err.message : String(err)}`);
     clearTimeout(forceShutdown);
     process.exit(1);
   }
@@ -823,12 +823,12 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
-  logger.error('[Forge] FATAL uncaught exception:', err);
+  logger.error(`[Forge] FATAL uncaught exception: ${err.message}`);
   shutdown('UNCAUGHT_EXCEPTION');
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('[Forge] Unhandled rejection at:', promise, 'reason:', reason);
+  logger.error(`[Forge] Unhandled rejection reason: ${reason}`);
   // Log but don't crash — many fire-and-forget patterns exist.
   // TODO: After transaction adoption reduces fire-and-forget patterns,
   // escalate this to shutdown.
