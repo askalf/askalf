@@ -13,7 +13,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForgeAdmin('/metabolic/status');
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Metabolic status unavailable' });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Metabolic status unavailable' });
     return res;
   });
 
@@ -25,7 +25,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/fleet/stats');
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Fleet memory unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Fleet memory unavailable', message: res.message });
     return res;
   });
 
@@ -41,7 +41,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     params.set('limit', limit);
     params.set('page', page);
     const res = await callForge(`/fleet/search?${params.toString()}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Fleet memory unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Fleet memory unavailable', message: res.message });
     return res;
   });
 
@@ -58,7 +58,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (dateFrom) params.set('dateFrom', dateFrom);
     if (dateTo) params.set('dateTo', dateTo);
     const res = await callForge(`/fleet/recent?${params.toString()}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Fleet memory unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Fleet memory unavailable', message: res.message });
     return res;
   });
 
@@ -70,7 +70,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     params.set('limit', limit);
     params.set('page', page);
     const res = await callForge(`/fleet/recalls?${params.toString()}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Fleet memory unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Fleet memory unavailable', message: res.message });
     return res;
   });
 
@@ -78,7 +78,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForgeAdmin('/memory/store', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Memory store failed' });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Memory store failed' });
     return res;
   });
 
@@ -90,7 +90,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/git/branches');
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Git review unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Git review unavailable', message: res.message });
     return res;
   });
 
@@ -118,7 +118,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { service } = request.params;
     const res = await callForge(`/git/health/${encodeURIComponent(service)}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Health check failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Health check failed', message: res.message });
     return res;
   });
 
@@ -126,7 +126,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/git/merge', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Git merge failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Git merge failed', message: res.message });
     return res;
   });
 
@@ -134,7 +134,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/git/deploy', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Deploy failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Deploy failed', message: res.message });
     return res;
   });
 
@@ -142,7 +142,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/git/rebuild', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Rebuild failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Rebuild failed', message: res.message });
     return res;
   });
 
@@ -150,7 +150,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/git/rebuild/tasks');
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Rebuild tasks unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Rebuild tasks unavailable', message: res.message });
     return res;
   });
 
@@ -159,7 +159,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { builderId } = request.params;
     const res = await callForge(`/git/rebuild/${encodeURIComponent(builderId)}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Rebuild status unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Rebuild status unavailable', message: res.message });
     return res;
   });
 
@@ -168,7 +168,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { builderId } = request.params;
     const res = await callForge(`/git/rebuild/${encodeURIComponent(builderId)}`, { method: 'DELETE' });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Rebuild cancel failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Rebuild cancel failed', message: res.message });
     return res;
   });
 
@@ -176,7 +176,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForgeAdmin('/git-space/ai-review', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'AI review unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'AI review unavailable', message: res.message });
     return res;
   });
 
@@ -185,7 +185,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/git-space/review-result/${encodeURIComponent(id)}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Review result unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Review result unavailable', message: res.message });
     return res;
   });
 
@@ -193,7 +193,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForgeAdmin('/git-space/ai-review/chat', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'AI review chat unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'AI review chat unavailable', message: res.message });
     return reply.send(res);
   });
 
@@ -210,7 +210,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (limit) params.set('limit', limit);
     if (offset) params.set('offset', offset);
     const res = await callForge(`/workflows?${params.toString()}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflows unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Workflows unavailable', message: res.message });
     return res;
   });
 
@@ -219,7 +219,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForge(`/workflows/${encodeURIComponent(id)}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflow not found', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Workflow not found', message: res.message });
     return res;
   });
 
@@ -227,7 +227,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/workflows', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflow creation failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Workflow creation failed', message: res.message });
     return res;
   });
 
@@ -236,7 +236,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForge(`/workflows/${encodeURIComponent(id)}`, { method: 'PUT', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflow update failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Workflow update failed', message: res.message });
     return res;
   });
 
@@ -245,7 +245,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForge(`/workflows/${encodeURIComponent(id)}/run`, { method: 'POST', body: request.body || {} });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Workflow run failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Workflow run failed', message: res.message });
     return res;
   });
 
@@ -263,7 +263,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (agentId) params.set('agentId', agentId);
     if (days) params.set('days', days);
     const res = await callForgeAdmin(`/costs?${params.toString()}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Cost data unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Cost data unavailable', message: res.message });
     return res;
   });
 
@@ -275,7 +275,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (days) params.set('days', days);
     const qs = params.toString();
     const res = await callForgeAdmin(`/executions/costs/summary${qs ? `?${qs}` : ''}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Cost summary unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Cost summary unavailable', message: res.message });
     return res;
   });
 
@@ -287,7 +287,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/admin/guardrails');
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Guardrails unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Guardrails unavailable', message: res.message });
     return res;
   });
 
@@ -295,7 +295,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/admin/guardrails', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Guardrail creation failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Guardrail creation failed', message: res.message });
     return res;
   });
 
@@ -304,7 +304,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForge(`/admin/guardrails/${encodeURIComponent(id)}`, { method: 'PATCH', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Guardrail update failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Guardrail update failed', message: res.message });
     return res;
   });
 
@@ -313,7 +313,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForge(`/admin/guardrails/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Guardrail deletion failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Guardrail deletion failed', message: res.message });
     return res;
   });
 
@@ -325,7 +325,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/providers');
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Providers unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Providers unavailable', message: res.message });
     return res;
   });
 
@@ -333,7 +333,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireUser(request, reply);
     if (!admin) return { error: 'Authentication required' };
     const res = await callForge('/providers/health');
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Provider health unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Provider health unavailable', message: res.message });
     return res;
   });
 
@@ -341,7 +341,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const res = await callForge('/providers/health-check', { method: 'POST', body: {} });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Health check failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Health check failed', message: res.message });
     return res;
   });
 
@@ -350,7 +350,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForge(`/providers/${encodeURIComponent(id)}/models`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Provider models unavailable', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Provider models unavailable', message: res.message });
     return res;
   });
 
@@ -359,7 +359,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForge(`/providers/${encodeURIComponent(id)}`, { method: 'PATCH', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Provider update failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Provider update failed', message: res.message });
     return res;
   });
 
@@ -371,7 +371,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireUser(request, reply);
     if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/sessions');
-    if (res.error) return reply.code(res.status || 503).send({ sessions: [] });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ sessions: [] });
     return res;
   });
 
@@ -380,7 +380,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Authentication required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/coordination/sessions/${encodeURIComponent(id)}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Session unavailable' });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Session unavailable' });
     return res;
   });
 
@@ -388,7 +388,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireUser(request, reply);
     if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/sessions', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Session creation failed' });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Session creation failed' });
     return res;
   });
 
@@ -397,7 +397,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Authentication required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/coordination/sessions/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Session cancel failed' });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Session cancel failed' });
     return res;
   });
 
@@ -405,7 +405,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireUser(request, reply);
     if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/plans');
-    if (res.error) return reply.code(res.status || 503).send({ plans: [] });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ plans: [] });
     return res;
   });
 
@@ -413,7 +413,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireUser(request, reply);
     if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/stats');
-    if (res.error) return reply.code(res.status || 503).send({ totalSessions: 0, activeSessions: 0, completedSessions: 0, failedSessions: 0 });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ totalSessions: 0, activeSessions: 0, completedSessions: 0, failedSessions: 0 });
     return res;
   });
 
@@ -421,7 +421,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireUser(request, reply);
     if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/orchestrate', { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Orchestration failed', message: res.message });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Orchestration failed', message: res.message });
     return res;
   });
 
@@ -439,7 +439,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (limit) params.set('limit', limit);
     const qs = params.toString();
     const res = await callForgeAdmin(`/checkpoints${qs ? `?${qs}` : ''}`);
-    if (res.error) return reply.code(res.status || 503).send({ checkpoints: [] });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ checkpoints: [] });
     return res;
   });
 
@@ -448,7 +448,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/checkpoints/${encodeURIComponent(id)}`);
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Checkpoint unavailable' });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Checkpoint unavailable' });
     return res;
   });
 
@@ -457,7 +457,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/checkpoints/${encodeURIComponent(id)}/respond`, { method: 'POST', body: request.body });
-    if (res.error) return reply.code(res.status || 503).send({ error: 'Checkpoint response failed' });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Checkpoint response failed' });
     return res;
   });
 
@@ -701,7 +701,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     params.set('limit', '200');
     const qs = params.toString();
     const res = await callForge(`/tools?${qs}`);
-    if (res.error) return reply.code(res.status || 503).send({ tools: [] });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ tools: [] });
     return res;
   });
 
