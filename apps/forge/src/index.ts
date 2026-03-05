@@ -68,6 +68,7 @@ import { initDaemonManager, getDaemonManager } from './runtime/daemon-manager.js
 import { initTriggerEngine, getTriggerEngine } from './runtime/trigger-engine.js';
 import { Redis } from 'ioredis';
 import { ulid } from 'ulid';
+import { initRateLimit, rateLimitHook, closeRateLimitRedis } from './middleware/rate-limit.js';
 
 const app = Fastify({
   logger: true,
@@ -128,39 +129,27 @@ await app.register(swaggerUi, {
 // RATE LIMITING
 // ============================================
 
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 100;
-const RATE_WINDOW = 60000;
+// Redis sliding window rate limit (initialized in start() once Redis is ready)
+// Registered here at module level so it applies to all routes before their preHandlers.
+app.addHook('onRequest', rateLimitHook);
 
-// Auth endpoint dedicated rate limits (brute-force protection)
+// Auth endpoint dedicated rate limits (brute-force protection — in-memory, stricter)
 const authLoginRateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const AUTH_LOGIN_LIMIT = 5;              // 5 attempts per window
+const AUTH_LOGIN_LIMIT = 5;               // 5 attempts per window
 const AUTH_LOGIN_WINDOW = 5 * 60 * 1000; // 5 minutes
 
 const authRegisterRateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const AUTH_REGISTER_LIMIT = 3;              // 3 attempts per window
+const AUTH_REGISTER_LIMIT = 3;                // 3 attempts per window
 const AUTH_REGISTER_WINDOW = 60 * 60 * 1000; // 1 hour
 
 app.addHook('onRequest', async (request, reply) => {
   const ip = request.ip || 'unknown';
-  // Skip rate limiting for internal Docker network IPs (service-to-service calls)
-  if (ip.startsWith('172.') || ip.startsWith('10.') || ip === '127.0.0.1') {
-    return;
-  }
+  // Internal Docker network IPs are already bypassed in rateLimitHook
+  if (ip.startsWith('172.') || ip.startsWith('10.') || ip === '127.0.0.1') return;
+
   const now = Date.now();
-  const record = rateLimitMap.get(ip);
+  const url = request.url.split('?')[0];
 
-  if (!record || now > record.resetTime) {
-    rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_WINDOW });
-  } else {
-    record.count++;
-    if (record.count > RATE_LIMIT) {
-      return reply.status(429).send({ error: 'Too many requests' });
-    }
-  }
-
-  // Auth-specific rate limiting (stricter, with Retry-After header)
-  const url = request.url.split('?')[0]; // strip query string
   if (url === '/api/v1/auth/login') {
     const loginRecord = authLoginRateLimitMap.get(ip);
     if (!loginRecord || now > loginRecord.resetTime) {
@@ -251,12 +240,9 @@ app.addHook('onSend', async (_request, reply, payload) => {
   }
 });
 
-// Clean up rate limit maps periodically
+// Clean up auth rate limit maps periodically (Redis handles its own TTLs)
 const rateLimitCleanupInterval = setInterval(() => {
   const now = Date.now();
-  for (const [ip, record] of rateLimitMap.entries()) {
-    if (now > record.resetTime) rateLimitMap.delete(ip);
-  }
   for (const [ip, record] of authLoginRateLimitMap.entries()) {
     if (now > record.resetTime) authLoginRateLimitMap.delete(ip);
   }
@@ -399,6 +385,14 @@ async function start(): Promise<void> {
     initAgentCommunication(config.redisUrl);
 
     console.log('[Forge] Event bus + shared context + agent communication initialized');
+
+    // Initialize Redis sliding window rate limiter
+    // Load internal API key prefixes so those callers bypass rate limiting
+    const internalKeys = await dbQuery<{ key_prefix: string }>(
+      `SELECT key_prefix FROM forge_api_keys WHERE id LIKE 'internal-%' AND is_active = true`,
+    ).catch(() => [] as { key_prefix: string }[]);
+    initRateLimit(config.redisUrl, internalKeys.map((k) => k.key_prefix));
+    console.log(`[Forge] Redis rate limiter initialized (${internalKeys.length} internal key(s) bypassed)`);
 
     // Initialize daemon manager (persistent agent processes)
     const daemonManager = initDaemonManager();
@@ -723,6 +717,7 @@ async function shutdown(signal: string): Promise<void> {
     stopAgentBridge();
     await stopTaskDispatcher().catch(() => {});
     await closeAgentCommunication().catch(() => {});
+    await closeRateLimitRedis().catch(() => {});
     await closeDatabase();
     console.log('[Forge] Database connection closed');
 
