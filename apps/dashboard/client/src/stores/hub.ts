@@ -361,7 +361,7 @@ interface HubState {
   respondToIntervention: (id: string, action: 'approve' | 'deny' | 'feedback') => Promise<void>;
 
   // Ticket actions
-  createTicket: (body: { title: string; description: string; priority: string; category: string }) => Promise<boolean>;
+  createTicket: (body: { title: string; description: string; priority: string; category: string; assigned_to?: string }) => Promise<boolean>;
   updateTicket: (id: string, updates: Partial<Ticket>) => Promise<void>;
   deleteTicket: (id: string) => Promise<void>;
   fetchTicketNotes: (id: string) => Promise<void>;
