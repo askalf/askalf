@@ -27,6 +27,7 @@ import {
   type Workflow,
   type CostSummary,
   type DailyCost,
+  type AgentCost,
   type AuditEntry,
   type Guardrail,
   type Provider,
@@ -220,6 +221,7 @@ interface HubState {
   // Costs
   costSummary: CostSummary | null;
   dailyCosts: DailyCost[];
+  agentCosts: AgentCost[];
   costAgentFilter: string;
   setCostAgentFilter: (s: string) => void;
 
@@ -547,6 +549,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   // Costs
   costSummary: null,
   dailyCosts: [],
+  agentCosts: [],
   costAgentFilter: '',
   setCostAgentFilter: (s) => set({ costAgentFilter: s }),
 
@@ -1008,7 +1011,7 @@ export const useHubStore = create<HubState>((set, get) => ({
     try {
       const { costAgentFilter } = get();
       const data = await hubApi.costs.summary({ agentId: costAgentFilter || undefined, days: 30 });
-      set({ costSummary: data.summary || null, dailyCosts: data.dailyCosts || [] });
+      set({ costSummary: data.summary || null, dailyCosts: data.dailyCosts || [], agentCosts: data.byAgent || [] });
     } catch (err) {
       console.error('Failed to fetch costs:', err);
     } finally {
