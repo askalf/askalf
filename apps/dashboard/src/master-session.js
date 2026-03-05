@@ -129,11 +129,13 @@ async function setupCliEnvironment() {
   }
 
   // Write MCP config if mcp-tools is available
+  const internalSecret = process.env['INTERNAL_API_SECRET'] ?? '';
   const mcpConfig = {
     mcpServers: {
       'mcp-tools': {
         type: 'http',
         url: 'http://mcp-tools:3010/mcp',
+        ...(internalSecret ? { headers: { Authorization: `Bearer ${internalSecret}` } } : {}),
       },
     },
   };

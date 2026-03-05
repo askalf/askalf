@@ -1500,11 +1500,13 @@ async function setupCliEnvironment(): Promise<void> {
   logger.info('[CLI] Settings.json written');
 
   // Write MCP config with streamable HTTP transport
+  const internalSecret = process.env['INTERNAL_API_SECRET'] ?? '';
   const mcpConfig = {
     mcpServers: {
       'mcp-tools': {
         type: 'http',
         url: 'http://mcp-tools:3010/mcp',
+        ...(internalSecret ? { headers: { Authorization: `Bearer ${internalSecret}` } } : {}),
       },
     },
   };
