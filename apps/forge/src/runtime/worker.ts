@@ -8,6 +8,9 @@
 import { spawn, execSync, type ChildProcess } from 'child_process';
 import { readFile, writeFile, access, copyFile, mkdir, unlink, rm, chmod } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
+import { initializeLogger } from '@askalf/observability';
+
+const logger = initializeLogger().child({ component: 'worker' });
 import { AnthropicAdapter } from '../providers/adapters/anthropic.js';
 import type { IProviderAdapter } from '../providers/interface.js';
 import { ToolRegistry } from '../tools/registry.js';
@@ -152,11 +155,11 @@ export async function initializeWorker(): Promise<void> {
   try {
     await registry.loadFromDatabase();
   } catch (err) {
-    console.warn('[Worker] Could not load tools from database:', err);
+    logger.warn('[Worker] Could not load tools from database:', err);
   }
 
   initialized = true;
-  console.log(`[Worker] Execution worker initialized with ${registry.size} tools`);
+  logger.info(`[Worker] Execution worker initialized with ${registry.size} tools`);
 
   // Start periodic OAuth token refresh (every 6 hours)
   // Ensures token stays fresh even when no CLI executions are happening
@@ -1411,11 +1414,11 @@ export async function runExecution(
 
   try {
     const result = await execute(ctx, deps);
-    console.log(
+    logger.info(
       `[Worker] Execution ${executionId} completed: ${result.iterations} iterations, $${result.cost.toFixed(4)} cost`,
     );
   } catch (err) {
-    console.error(`[Worker] Execution ${executionId} failed:`, err);
+    logger.error(`[Worker] Execution ${executionId} failed:`, err);
   }
 }
 
@@ -1457,9 +1460,9 @@ async function setupCliEnvironment(): Promise<void> {
     await access('/tmp/claude-credentials.json');
     await copyFile('/tmp/claude-credentials.json', `${CLAUDE_DIR}/.credentials.json`);
     await chmod(`${CLAUDE_DIR}/.credentials.json`, 0o600);
-    console.log('[CLI] OAuth credentials installed (mode 600)');
+    logger.info('[CLI] OAuth credentials installed (mode 600)');
   } catch {
-    console.warn('[CLI] No OAuth credentials found at /tmp/claude-credentials.json');
+    logger.warn('[CLI] No OAuth credentials found at /tmp/claude-credentials.json');
   }
 
   // Write settings.json — auto-accept all permissions
@@ -1475,7 +1478,7 @@ async function setupCliEnvironment(): Promise<void> {
     hasCompletedOnboarding: true,
   };
   await writeFile(`${CLAUDE_DIR}/settings.json`, JSON.stringify(settings, null, 2), { mode: 0o600 });
-  console.log('[CLI] Settings.json written');
+  logger.info('[CLI] Settings.json written');
 
   // Write MCP config with streamable HTTP transport
   const mcpConfig = {
@@ -1487,7 +1490,7 @@ async function setupCliEnvironment(): Promise<void> {
     },
   };
   await writeFile(MCP_CONFIG_PATH, JSON.stringify(mcpConfig, null, 2), { mode: 0o600 });
-  console.log('[CLI] MCP config written');
+  logger.info('[CLI] MCP config written');
 
   cliEnvironmentReady = true;
 }
@@ -1519,7 +1522,7 @@ function acquireCliSlot(): Promise<void> {
       resolve();
     };
     cliQueue.push(callback);
-    console.log(`[CLI] Execution queued — ${cliConcurrent}/${cfg.maxCliConcurrency} slots occupied, ${cliQueue.length} in queue`);
+    logger.info(`[CLI] Execution queued — ${cliConcurrent}/${cfg.maxCliConcurrency} slots occupied, ${cliQueue.length} in queue`);
   });
 }
 
@@ -1538,16 +1541,16 @@ function startTokenRefreshTimer(): void {
   // Initial refresh after 30 seconds (let the server finish booting)
   setTimeout(() => {
     refreshCredentials().catch(err =>
-      console.warn('[CLI] Periodic token refresh error:', err),
+      logger.warn('[CLI] Periodic token refresh error:', err),
     );
   }, 30_000);
   // Then every hour (8h token TTL, refresh at 1h before expiry)
   setInterval(() => {
     refreshCredentials().catch(err =>
-      console.warn('[CLI] Periodic token refresh error:', err),
+      logger.warn('[CLI] Periodic token refresh error:', err),
     );
   }, ONE_HOUR);
-  console.log('[CLI] OAuth token refresh timer started (every 1h)');
+  logger.info('[CLI] OAuth token refresh timer started (every 1h)');
 }
 
 /** Claude Code CLI OAuth client ID (constant) */
@@ -1579,7 +1582,7 @@ async function refreshCredentials(): Promise<void> {
     if ((mountCreds.claudeAiOauth?.expiresAt || 0) > currentExpiry) {
       await copyFile(mountPath, credsPath);
       await chmod(credsPath, 0o600);
-      console.log('[CLI] Refreshed credentials from mount');
+      logger.info('[CLI] Refreshed credentials from mount');
     }
 
     // Step 2: Check if token needs auto-refresh
@@ -1595,7 +1598,7 @@ async function refreshCredentials(): Promise<void> {
       return; // Token still valid for > 1 hour
     }
 
-    console.log(`[CLI] OAuth token expires in ${Math.round((expiresAt - now) / 60000)}min — auto-refreshing`);
+    logger.info(`[CLI] OAuth token expires in ${Math.round((expiresAt - now) / 60000)}min — auto-refreshing`);
 
     const res = await fetch(OAUTH_TOKEN_URL, {
       method: 'POST',
@@ -1610,7 +1613,7 @@ async function refreshCredentials(): Promise<void> {
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      console.error(`[CLI] OAuth token refresh failed: ${res.status} ${errText.slice(0, 200)}`);
+      logger.error(`[CLI] OAuth token refresh failed: ${res.status} ${errText.slice(0, 200)}`);
       return;
     }
 
@@ -1634,14 +1637,14 @@ async function refreshCredentials(): Promise<void> {
 
     // Write to CLI credential path
     await writeFile(credsPath, updatedJson, { mode: 0o600 });
-    console.log(`[CLI] OAuth token refreshed — expires ${new Date(updated.claudeAiOauth.expiresAt).toISOString()}`);
+    logger.info(`[CLI] OAuth token refreshed — expires ${new Date(updated.claudeAiOauth.expiresAt).toISOString()}`);
 
     // Persist back to mount (host file) so it survives container restarts
     try {
       await writeFile(mountPath, updatedJson, { mode: 0o600 });
-      console.log('[CLI] Persisted refreshed token to host mount');
+      logger.info('[CLI] Persisted refreshed token to host mount');
     } catch (writeErr) {
-      console.warn('[CLI] Could not persist to mount (read-only?):', (writeErr as Error).message);
+      logger.warn('[CLI] Could not persist to mount (read-only?):', (writeErr as Error).message);
     }
   } catch { /* mount may not exist */ }
 }
@@ -1707,7 +1710,7 @@ function executeClaudeCode(
         // Log first few lines in real-time for diagnostics
         const lines = text.trim().split('\n');
         for (const line of lines.slice(0, 3)) {
-          if (line.trim()) console.log(`[CLI:stderr] ${line.substring(0, 200)}`);
+          if (line.trim()) logger.info(`[CLI:stderr] ${line.substring(0, 200)}`);
         }
       });
 
@@ -1824,8 +1827,8 @@ function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
       isError = true;
     }
   } catch {
-    console.error(`[CLI] JSON parse failed for stdout (first 200): ${stdout.substring(0, 200)}`);
-    if (stderr) console.error(`[CLI] stderr (first 500): ${stderr.substring(0, 500)}`);
+    logger.error(`[CLI] JSON parse failed for stdout (first 200): ${stdout.substring(0, 200)}`);
+    if (stderr) logger.error(`[CLI] stderr (first 500): ${stderr.substring(0, 500)}`);
     if (exitCode !== 0) isError = true;
   }
 
@@ -1942,7 +1945,7 @@ export async function runDirectCliExecution(
 
   const startTime = Date.now();
   forgeExecutionsTotal.inc();
-  console.log(`[CLI] Processing execution ${executionId} for agent ${agentId}`);
+  logger.info(`[CLI] Processing execution ${executionId} for agent ${agentId}`);
 
   // Propagate execution context via AsyncLocalStorage so tools (agent_call, agent_delegate)
   // can access ownerId, executionId, and depth for sub-agent invocations
@@ -2007,11 +2010,11 @@ export async function runDirectCliExecution(
             REPO_PROVIDER: repoCredentials.provider,
             REPO_DEFAULT_BRANCH: repoCredentials.defaultBranch,
           };
-          console.log(`[CLI] Repo credentials resolved for ${repoCredentials.repoFullName} (${repoCredentials.provider})`);
+          logger.info(`[CLI] Repo credentials resolved for ${repoCredentials.repoFullName} (${repoCredentials.provider})`);
         }
       }
     } catch (credErr) {
-      console.warn(`[CLI] Failed to resolve repo credentials: ${credErr instanceof Error ? credErr.message : credErr}`);
+      logger.warn(`[CLI] Failed to resolve repo credentials: ${credErr instanceof Error ? credErr.message : credErr}`);
     }
 
     // ---- Runtime budget calculation ----
@@ -2026,7 +2029,7 @@ export async function runDirectCliExecution(
     const agentMaxTurns = options?.maxTurns ?? cfg.cliMaxTurns;
     const budgetAwareTurns = suggestMaxTurns(agentMaxTurns, complexity, dynamicTimeout);
 
-    console.log(
+    logger.info(
       `[CLI] Runtime budget: ${Math.round(dynamicTimeout / 1000)}s timeout, ` +
       `complexity=${complexity}, turns=${budgetAwareTurns}/${agentMaxTurns} ` +
       `(schedule=${options?.scheduleIntervalMinutes ?? 'manual'}min)`,
@@ -2045,9 +2048,9 @@ export async function runDirectCliExecution(
         env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
       });
       worktreeCreated = true;
-      console.log(`[CLI] Created worktree for ${agentName}: ${agentWorktreeDir} (branch: ${agentBranchName})`);
+      logger.info(`[CLI] Created worktree for ${agentName}: ${agentWorktreeDir} (branch: ${agentBranchName})`);
     } catch (wtErr) {
-      console.error(`[CLI] Failed to create worktree, falling back to shared workspace: ${wtErr instanceof Error ? wtErr.message : wtErr}`);
+      logger.error(`[CLI] Failed to create worktree, falling back to shared workspace: ${wtErr instanceof Error ? wtErr.message : wtErr}`);
     }
 
     const agentWorkDir = worktreeCreated ? agentWorktreeDir : WORKSPACE_DIR;
@@ -2057,7 +2060,7 @@ export async function runDirectCliExecution(
       try {
         // Inject relevant memories into the system prompt
         const memoryResult = await buildMemoryContext(agentId, input, { fleetWide: true }).catch((err) => {
-          console.warn(`[CLI] Memory context build failed for ${agentName}: ${err instanceof Error ? err.message : err}`);
+          logger.warn(`[CLI] Memory context build failed for ${agentName}: ${err instanceof Error ? err.message : err}`);
           return { text: '', count: 0 };
         });
         const memoryContext = memoryResult.text;
@@ -2109,7 +2112,7 @@ export async function runDirectCliExecution(
           .join('\n');
         await writeFile(`${agentWorkDir}/CLAUDE.md`, fullPrompt);
       } catch {
-        console.warn('[CLI] Could not write CLAUDE.md to workspace');
+        logger.warn('[CLI] Could not write CLAUDE.md to workspace');
       }
     }
 
@@ -2126,7 +2129,7 @@ export async function runDirectCliExecution(
     // Use agent's configured model
     if (options?.modelId) {
       args.push('--model', options.modelId);
-      console.log(`[CLI] Using model: ${options.modelId}`);
+      logger.info(`[CLI] Using model: ${options.modelId}`);
     }
 
     // Execute CLI with retry for transient failures
@@ -2137,7 +2140,7 @@ export async function runDirectCliExecution(
         if (res.exitCode !== 0) {
           const classified = classifyCliError(res.exitCode, res.stderr, res.stdout);
           if (classified.retryable) {
-            console.warn(
+            logger.warn(
               `[CLI] Execution ${executionId} transient failure (${classified.code}): ${classified.message} — will retry`,
             );
             throw classified;
@@ -2160,7 +2163,7 @@ export async function runDirectCliExecution(
     const parsed = parseCliOutput(result.stdout, result.stderr, result.exitCode);
     forgeExecutionDuration.observe(durationMs);
 
-    console.log(
+    logger.info(
       `[CLI] Execution ${executionId} ${parsed.isError ? 'FAILED' : 'completed'} ` +
       `in ${durationMs}ms — cost=$${parsed.costUsd.toFixed(4)} ` +
       `tokens=${parsed.inputTokens}/${parsed.outputTokens} turns=${parsed.numTurns}`,
@@ -2254,7 +2257,7 @@ export async function runDirectCliExecution(
             );
             if (nextExec[0]) {
               const next = nextExec[0];
-              console.log(`[Pipeline] Chaining: ${executionId} completed, starting ${next.id}`);
+              logger.info(`[Pipeline] Chaining: ${executionId} completed, starting ${next.id}`);
               const nextAgent = await query<{ system_prompt: string; model_id: string; max_budget: string }>(
                 `SELECT system_prompt,
                         COALESCE(metadata->>'model_id', 'claude-sonnet-4-6') AS model_id,
@@ -2269,12 +2272,12 @@ export async function runDirectCliExecution(
                 modelId: cfg?.model_id,
                 maxBudgetUsd: cfg?.max_budget,
               }).catch((err) => {
-                console.error(`[Pipeline] Next execution ${next.id} failed:`, err instanceof Error ? err.message : err);
+                logger.error(`[Pipeline] Next execution ${next.id} failed:`, err instanceof Error ? err.message : err);
               });
             }
           }
         } catch (err) {
-          console.error('[Pipeline] Chain check failed:', err instanceof Error ? err.message : err);
+          logger.error('[Pipeline] Chain check failed:', err instanceof Error ? err.message : err);
         }
       })();
     }
@@ -2304,7 +2307,7 @@ export async function runDirectCliExecution(
       numTurns: parsed.numTurns,
       durationMs,
     }).catch((err) => {
-      console.warn('[Memory] Post-execution extraction failed:', err instanceof Error ? err.message : err);
+      logger.warn('[Memory] Post-execution extraction failed:', err instanceof Error ? err.message : err);
     });
 
     // Fire-and-forget knowledge graph extraction (Phase 11)
@@ -2325,13 +2328,13 @@ export async function runDirectCliExecution(
 
     // Structured error logging with classification
     if (err instanceof ExecutionError) {
-      console.error(
+      logger.error(
         `[CLI] Execution ${executionId} ${err.retryable ? 'TRANSIENT' : 'FATAL'} error ` +
         `(${err.code}): ${err.message}`,
         JSON.stringify(err.metadata),
       );
     } else {
-      console.error(`[CLI] Execution ${executionId} error: ${errorMsg}`);
+      logger.error(`[CLI] Execution ${executionId} error: ${errorMsg}`);
     }
 
     // Emit failure event
@@ -2368,9 +2371,9 @@ export async function runDirectCliExecution(
           stdio: 'pipe',
           env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
         });
-        console.log(`[CLI] Removed worktree: ${agentWorktreeDir} (branch ${agentBranchName} preserved for review)`);
+        logger.info(`[CLI] Removed worktree: ${agentWorktreeDir} (branch ${agentBranchName} preserved for review)`);
       } catch (cleanupErr) {
-        console.warn(`[CLI] Worktree cleanup failed: ${cleanupErr instanceof Error ? cleanupErr.message : cleanupErr}`);
+        logger.warn(`[CLI] Worktree cleanup failed: ${cleanupErr instanceof Error ? cleanupErr.message : cleanupErr}`);
       }
     }
     releaseCliSlot();
