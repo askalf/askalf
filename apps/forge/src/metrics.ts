@@ -15,3 +15,7 @@ export const forgeExecutionDuration = createHistogram('forge_execution_duration_
 export const forgeActiveAgents = createGauge('forge_active_agents', 'Number of active agents');
 export const forgeToolCalls = createCounter('forge_tool_calls_total', 'Total tool calls across all executions');
 export const forgeMcpConnections = createGauge('forge_mcp_connections', 'Active MCP SSE connections');
+export const forgeQueueDepth = createGauge('forge_queue_depth', 'Number of pending executions in queue');
+export const forgeExecutionsFailed = createCounter('forge_executions_failed_total', 'Total agent executions that failed or timed out');
+export const forgeWorktreeCount = createGauge('forge_worktree_count', 'Number of active git worktrees');
+export const forgeWorktreeDiskBytes = createGauge('forge_worktree_disk_bytes', 'Total disk usage of git worktrees in bytes');
