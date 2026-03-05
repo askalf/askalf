@@ -407,7 +407,7 @@ async function autoDeploy(services: string[], mergeCommit: string, proposalId: s
     console.log(`[AutonomyLoop] Deploy rate limit reached (${MAX_DEPLOYS_PER_HOUR}/hour). Skipping deploy for ${services.join(', ')}`);
     await query(
       `INSERT INTO agent_tickets (id, title, description, status, priority, category, assigned_to, is_agent_ticket, source, metadata)
-       VALUES ($1, $2, $3, 'open', 'medium', 'deploy', 'DevOps', true, 'autonomy-loop', $4)
+       VALUES ($1, $2, $3, 'open', 'medium', 'deploy', 'Infra', true, 'autonomy-loop', $4)
        ON CONFLICT DO NOTHING`,
       [generateId(), `[DEPLOY] Rate-limited: ${services.join(', ')} needs restart`,
        `Auto-deploy rate limit reached. Services ${services.join(', ')} have new code (commit ${mergeCommit}) but need manual restart.`,
@@ -455,13 +455,13 @@ async function autoDeploy(services: string[], mergeCommit: string, proposalId: s
   if (needsForge) {
     await query(
       `INSERT INTO agent_tickets (id, title, description, status, priority, category, assigned_to, is_agent_ticket, source, metadata)
-       VALUES ($1, $2, $3, 'open', 'high', 'deploy', 'DevOps', true, 'autonomy-loop', $4)
+       VALUES ($1, $2, $3, 'open', 'high', 'deploy', 'Infra', true, 'autonomy-loop', $4)
        ON CONFLICT DO NOTHING`,
       [generateId(), `[DEPLOY] Forge needs restart (${mergeCommit.slice(0, 8)})`,
        `New code merged for forge (commit ${mergeCommit}). Forge cannot self-restart — needs manual deploy.`,
        JSON.stringify({ services: ['forge'], merge_commit: mergeCommit, deploy_tag: tag })],
     );
-    console.log(`[AutonomyLoop] Forge needs manual restart — created DevOps ticket`);
+    console.log(`[AutonomyLoop] Forge needs manual restart — created Infra ticket`);
   }
 
   // Log deployment result
@@ -597,7 +597,7 @@ async function rollbackDeploy(mergeCommit: string, services: string[], deployTag
       console.error(`[AutonomyLoop] Revert failed: ${revertRes.stderr}`);
       await query(
         `INSERT INTO agent_tickets (id, title, description, status, priority, category, assigned_to, is_agent_ticket, source, metadata)
-         VALUES ($1, $2, $3, 'open', 'urgent', 'deploy-failure', 'DevOps', true, 'autonomy-loop', $4)
+         VALUES ($1, $2, $3, 'open', 'urgent', 'deploy-failure', 'Infra', true, 'autonomy-loop', $4)
          ON CONFLICT DO NOTHING`,
         [generateId(), `[ROLLBACK FAILED] Manual intervention — ${mergeCommit.slice(0, 8)}`,
          `Auto-revert failed. Deploy tag: ${deployTag}. Services: ${services.join(', ')}. Error: ${revertRes.stderr.slice(0, 500)}`,

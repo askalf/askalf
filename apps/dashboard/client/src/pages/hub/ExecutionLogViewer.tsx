@@ -224,13 +224,13 @@ export function ExecutionLogViewer({ logs, isLive = false, maxHeight = 400 }: Pr
               <span className="elv-msg">
                 <AnsiText text={log.message} />
               </span>
-              {log.metadata?.tool_calls && Array.isArray(log.metadata.tool_calls) && (
+              {log.metadata?.tool_calls && Array.isArray(log.metadata.tool_calls) ? (
                 <div className="elv-tools" aria-label="Tool calls">
                   {(log.metadata.tool_calls as Array<{ name?: string; tool?: string }>).map((tc, i) => (
                     <span key={i} className="elv-tool-badge">{tc.name || tc.tool || 'tool'}</span>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
           ))
         )}

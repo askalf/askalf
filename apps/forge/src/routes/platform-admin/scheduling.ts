@@ -199,12 +199,12 @@ async function processInterventions(): Promise<void> {
         continue;
       }
 
-      // Escalate errors/escalations older than 60 min → create Nexus ticket
+      // Escalate errors/escalations older than 60 min → create Infra ticket
       if ((intervention['type'] === 'escalation' || intervention['type'] === 'error') && ageMinutes > 60) {
         try {
           await substrateQuery(
             `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, is_agent_ticket, source, metadata)
-             VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Nexus', true, 'agent', $4)
+             VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Infra', true, 'agent', $4)
              ON CONFLICT DO NOTHING`,
             [
               'INT-' + (intervention['id'] as string).substring(0, 20),
@@ -214,7 +214,7 @@ async function processInterventions(): Promise<void> {
             ],
           );
           await substrateQuery(
-            `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Nexus ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
+            `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Infra ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
             [intervention['id']],
           );
         } catch { /* non-fatal */ }
@@ -562,11 +562,11 @@ PATROL PROTOCOL:
 1. CHECK: Run your standard checks as defined in your system prompt.
 2. FINDINGS: Create findings (finding_ops) for any issues detected — categorize and describe clearly.
 3. TICKETS: For actionable issues, create tickets (ticket_ops action=create) assigned to the correct agent:
-   - Security issues → Aegis
-   - Infrastructure/container issues → DevOps
+   - Security issues → Security
+   - Infrastructure/container issues → Infra
    - Code bugs → Backend Dev
    - UI/dashboard issues → Frontend Dev
-   - Documentation gaps → Doc Writer
+   - Documentation gaps → Writer
    - Architecture concerns → Architect
 4. DEDUP: Before creating any ticket, check for existing open tickets with similar title (ticket_ops action=list).
 5. SUMMARY: Create one summary finding with what you checked and what you found.
