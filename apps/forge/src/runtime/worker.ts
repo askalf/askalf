@@ -103,6 +103,25 @@ let initialized = false;
 const runningCliProcesses = new Map<string, ChildProcess>();
 
 /**
+ * Returns the number of currently running CLI execution processes.
+ */
+export function getRunningExecutionCount(): number {
+  return runningCliProcesses.size;
+}
+
+/**
+ * Wait for all running CLI executions to drain, up to timeoutMs.
+ * Polls every second. Returns the number still running (0 = fully drained).
+ */
+export async function waitForRunningExecutions(timeoutMs: number): Promise<number> {
+  const deadline = Date.now() + timeoutMs;
+  while (runningCliProcesses.size > 0 && Date.now() < deadline) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+  }
+  return runningCliProcesses.size;
+}
+
+/**
  * Cancel a running CLI execution by sending SIGTERM to its process.
  * Returns true if a running process was found and signalled, false otherwise.
  */
