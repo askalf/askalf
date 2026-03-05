@@ -15,6 +15,14 @@ build/
 .env.local
 .env.*.local
 .env.production
+.env.development
+.env.staging
+.env.test
+# Nested .env files in app subdirectories
+**/.env
+**/.env.*
+!**/.env.*.example
+!**/.env.example
 
 # IDE
 .idea/
