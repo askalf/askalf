@@ -10,7 +10,10 @@ import {
   httpRequestsTotal,
   httpRequestDuration,
   httpRequestsInFlight,
+  initializeLogger,
 } from '@askalf/observability';
+
+const logger = initializeLogger().child({ component: 'forge' });
 import { forgeActiveAgents } from './metrics.js';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
@@ -367,26 +370,26 @@ async function start(): Promise<void> {
 
   // Initialize databases
   initializeDatabase(config.databaseUrl);
-  console.log('[Forge] Forge database connection initialized');
+  logger.info('[Forge] Forge database connection initialized');
 
   if (config.substrateDatabaseUrl) {
     initializeSubstrateDatabase(config.substrateDatabaseUrl);
-    console.log('[Forge] Substrate database connection initialized');
+    logger.info('[Forge] Substrate database connection initialized');
   }
 
   // Initialize email service (falls back to console if EMAIL_PROVIDER not set)
   initializeEmailFromEnv();
-  console.log('[Forge] Email service initialized');
+  logger.info('[Forge] Email service initialized');
 
   try {
     // Initialize execution worker (provider + tools)
     await initializeWorker();
-    console.log('[Forge] Execution worker initialized');
+    logger.info('[Forge] Execution worker initialized');
 
     // Initialize universal memory system
     await initMemoryManager(config.redisUrl);
     startMetabolicCycles();
-    console.log('[Forge] Universal memory + metabolic cycles activated');
+    logger.info('[Forge] Universal memory + metabolic cycles activated');
 
     // Initialize event bus and shared context
     await initEventBus(config.redisUrl);
@@ -395,7 +398,7 @@ async function start(): Promise<void> {
     // Initialize agent-to-agent communication
     initAgentCommunication(config.redisUrl);
 
-    console.log('[Forge] Event bus + shared context + agent communication initialized');
+    logger.info('[Forge] Event bus + shared context + agent communication initialized');
 
     // Initialize Redis sliding window rate limiter
     // Load internal API key prefixes so those callers bypass rate limiting
@@ -403,28 +406,28 @@ async function start(): Promise<void> {
       `SELECT key_prefix FROM forge_api_keys WHERE id LIKE 'internal-%' AND is_active = true`,
     ).catch(() => [] as { key_prefix: string }[]);
     initRateLimit(config.redisUrl, internalKeys.map((k) => k.key_prefix));
-    console.log(`[Forge] Redis rate limiter initialized (${internalKeys.length} internal key(s) bypassed)`);
+    logger.info(`[Forge] Redis rate limiter initialized (${internalKeys.length} internal key(s) bypassed)`);
 
     // Initialize daemon manager (persistent agent processes)
     const daemonManager = initDaemonManager();
     await daemonManager.initialize().catch((err) => {
-      console.warn('[DaemonManager] Initialization error:', err instanceof Error ? err.message : err);
+      logger.warn('[DaemonManager] Initialization error:', err instanceof Error ? err.message : err);
     });
-    console.log('[Forge] Daemon manager initialized');
+    logger.info('[Forge] Daemon manager initialized');
 
     // Initialize trigger engine (event-driven agent activation)
     const triggerEngine = initTriggerEngine();
     await triggerEngine.start().catch((err) => {
-      console.warn('[TriggerEngine] Start error:', err instanceof Error ? err.message : err);
+      logger.warn('[TriggerEngine] Start error:', err instanceof Error ? err.message : err);
     });
-    console.log('[Forge] Trigger engine started');
+    logger.info('[Forge] Trigger engine started');
 
     // Start channel integration handlers
     const { startChannelResultHandler } = await import('./channels/result-handler.js');
     const { startWebhookRetryWorker } = await import('./channels/webhook-delivery.js');
     startChannelResultHandler();
     startWebhookRetryWorker();
-    console.log('[Forge] Channel result handler + webhook delivery worker started');
+    logger.info('[Forge] Channel result handler + webhook delivery worker started');
 
     // Start persistent event logger (logs all events to postgres)
     startEventLogger();
@@ -467,7 +470,7 @@ async function start(): Promise<void> {
     workflowScheduler.processWorkflowJobs(config.redisUrl, 2);
     // Expose scheduler for workflow routes
     app.decorate('workflowScheduler', workflowScheduler);
-    console.log('[Forge] Workflow scheduler initialized (BullMQ DAG engine)');
+    logger.info('[Forge] Workflow scheduler initialized (BullMQ DAG engine)');
 
     // Clean up orphaned executions from previous process (restart recovery)
     // Two-phase: first tag resumable orphans (have checkpoint data), then mark rest as failed.
@@ -502,7 +505,7 @@ async function start(): Promise<void> {
     }[]);
     if (orphaned.length > 0) {
       const resumableCount = orphaned.filter(o => o.iterations > 0).length;
-      console.log(`[Forge] Recovered ${orphaned.length} orphaned executions (${resumableCount} with checkpoint data): ${orphaned.map(o => o.iterations > 0 ? `${o.id}@iter${o.iterations}` : o.id).join(', ')}`);
+      logger.info(`[Forge] Recovered ${orphaned.length} orphaned executions (${resumableCount} with checkpoint data): ${orphaned.map(o => o.iterations > 0 ? `${o.id}@iter${o.iterations}` : o.id).join(', ')}`);
       // Emit failure events so SSE clients and parent executions are notified
       const eventBus = getEventBus();
       for (const row of orphaned) {
@@ -585,28 +588,28 @@ async function start(): Promise<void> {
             maxTurns: agent.max_iterations ?? undefined,
             scheduleIntervalMinutes: intervalMinutes,
           }).catch((err) => {
-            console.error(`[Recovery] Retry execution ${retryId} failed to start:`, err);
+            logger.error(`[Recovery] Retry execution ${retryId} failed to start:`, err);
           });
 
           retried++;
-          console.log(`[Recovery] Auto-retrying orphaned execution ${row.id} → ${retryId} for agent ${agent.name}`);
+          logger.info(`[Recovery] Auto-retrying orphaned execution ${row.id} → ${retryId} for agent ${agent.name}`);
         } catch (err) {
-          console.warn(`[Recovery] Failed to create retry for ${row.id}:`, err instanceof Error ? err.message : err);
+          logger.warn(`[Recovery] Failed to create retry for ${row.id}:`, err instanceof Error ? err.message : err);
         }
       }
       if (retried > 0) {
-        console.log(`[Recovery] Auto-retried ${retried}/${orphaned.length} orphaned executions`);
+        logger.info(`[Recovery] Auto-retried ${retried}/${orphaned.length} orphaned executions`);
       }
     }
 
     // Auto-detect agent capabilities on startup (non-blocking)
     void detectAllCapabilities().catch((err) => {
-      console.warn('[Capabilities] Initial detection failed:', err instanceof Error ? err.message : err);
+      logger.warn('[Capabilities] Initial detection failed:', err instanceof Error ? err.message : err);
     });
 
     // Start fleet task dispatcher (bridges FleetCoordinator → CLI execution)
     void startTaskDispatcher(config.redisUrl).catch((err) => {
-      console.warn('[TaskDispatcher] Failed to start:', err instanceof Error ? err.message : err);
+      logger.warn('[TaskDispatcher] Failed to start:', err instanceof Error ? err.message : err);
     });
 
     // Periodic active agents gauge update (every 60s) — stored for cleanup in shutdown()
@@ -634,7 +637,7 @@ async function start(): Promise<void> {
         );
         const cleaned = [...stalePending, ...staleRunning];
         if (cleaned.length > 0) {
-          console.log(`[Forge] Cleaned up ${cleaned.length} stale executions`);
+          logger.info(`[Forge] Cleaned up ${cleaned.length} stale executions`);
           const eventBus = getEventBus();
           for (const row of cleaned) {
             void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
@@ -643,15 +646,15 @@ async function start(): Promise<void> {
           }
         }
       } catch (err) {
-        console.warn('[Forge] Stale execution cleanup error:', err instanceof Error ? err.message : err);
+        logger.warn('[Forge] Stale execution cleanup error:', err instanceof Error ? err.message : err);
       }
     }, 300_000);
 
     await app.listen({ port: config.port, host: '0.0.0.0' });
-    console.log(`[Forge] Agent Forge API server started on port ${config.port}`);
-    console.log(`[Forge] Environment: ${config.nodeEnv}`);
+    logger.info(`[Forge] Agent Forge API server started on port ${config.port}`);
+    logger.info(`[Forge] Environment: ${config.nodeEnv}`);
   } catch (err) {
-    console.error('[Forge] Failed to start server:', err);
+    logger.error('[Forge] Failed to start server:', err);
     process.exit(1);
   }
 }
@@ -668,12 +671,12 @@ async function shutdown(signal: string): Promise<void> {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
-  console.log(`[Forge] Received ${signal}, starting graceful shutdown...`);
+  logger.info(`[Forge] Received ${signal}, starting graceful shutdown...`);
 
   const shutdownTimeout = parseInt(process.env['SHUTDOWN_TIMEOUT'] ?? '30000', 10);
 
   const forceShutdown = setTimeout(() => {
-    console.error('[Forge] Graceful shutdown timeout exceeded, forcing exit');
+    logger.error('[Forge] Graceful shutdown timeout exceeded, forcing exit');
     process.exit(1);
   }, shutdownTimeout);
 
@@ -687,7 +690,7 @@ async function shutdown(signal: string): Promise<void> {
       [shutdownError],
     ).catch(() => [] as { id: string; agent_id: string }[]);
     if (inflight.length > 0) {
-      console.log(`[Forge] Marked ${inflight.length} in-flight executions as failed before shutdown`);
+      logger.info(`[Forge] Marked ${inflight.length} in-flight executions as failed before shutdown`);
       const eventBus = getEventBus();
       for (const row of inflight) {
         void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
@@ -704,8 +707,8 @@ async function shutdown(signal: string): Promise<void> {
     // Close workflow scheduler (BullMQ worker + queue)
     const scheduler = (app as unknown as { workflowScheduler?: ForgeScheduler }).workflowScheduler;
     if (scheduler) {
-      await scheduler.close().catch((err: unknown) => console.warn('[Forge] Scheduler close error:', err));
-      console.log('[Forge] Workflow scheduler closed');
+      await scheduler.close().catch((err: unknown) => logger.warn('[Forge] Scheduler close error:', err));
+      logger.info('[Forge] Workflow scheduler closed');
     }
 
     // Stop channel workers
@@ -713,16 +716,16 @@ async function shutdown(signal: string): Promise<void> {
     stopWebhookRetryWorker();
 
     await app.close();
-    console.log('[Forge] Server closed');
+    logger.info('[Forge] Server closed');
 
     // Stop daemon manager and trigger engine
     const triggerEng = getTriggerEngine();
     if (triggerEng) {
-      await triggerEng.stop().catch((err: unknown) => console.warn('[Forge] TriggerEngine stop error:', err));
+      await triggerEng.stop().catch((err: unknown) => logger.warn('[Forge] TriggerEngine stop error:', err));
     }
     const daemonMgr = getDaemonManager();
     if (daemonMgr) {
-      await daemonMgr.shutdown().catch((err: unknown) => console.warn('[Forge] DaemonManager shutdown error:', err));
+      await daemonMgr.shutdown().catch((err: unknown) => logger.warn('[Forge] DaemonManager shutdown error:', err));
     }
 
     stopAgentBridge();
@@ -730,13 +733,13 @@ async function shutdown(signal: string): Promise<void> {
     await closeAgentCommunication().catch(() => {});
     await closeRateLimitRedis().catch(() => {});
     await closeDatabase();
-    console.log('[Forge] Database connection closed');
+    logger.info('[Forge] Database connection closed');
 
     clearTimeout(forceShutdown);
-    console.log('[Forge] Graceful shutdown complete');
+    logger.info('[Forge] Graceful shutdown complete');
     process.exit(0);
   } catch (err) {
-    console.error('[Forge] Error during graceful shutdown:', err);
+    logger.error('[Forge] Error during graceful shutdown:', err);
     clearTimeout(forceShutdown);
     process.exit(1);
   }
@@ -746,12 +749,12 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
-  console.error('[Forge] FATAL uncaught exception:', err);
+  logger.error('[Forge] FATAL uncaught exception:', err);
   shutdown('UNCAUGHT_EXCEPTION');
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Forge] Unhandled rejection at:', promise, 'reason:', reason);
+  logger.error('[Forge] Unhandled rejection at:', promise, 'reason:', reason);
   // Log but don't crash — many fire-and-forget patterns exist.
   // TODO: After transaction adoption reduces fire-and-forget patterns,
   // escalate this to shutdown.
