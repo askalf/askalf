@@ -107,7 +107,24 @@ export interface ReviewEntry {
   error?: string;
 }
 
+// Bounded review store: max 50 entries (evict oldest on overflow).
+// Entries are also persisted to DB so eviction only affects in-process cache.
+const REVIEW_STORE_MAX = 50;
 export const reviewStore = new Map<string, ReviewEntry>();
+
+function evictOldestReview(): void {
+  const firstKey = reviewStore.keys().next().value;
+  if (firstKey !== undefined) {
+    reviewStore.delete(firstKey);
+  }
+}
+
+export function reviewStoreSet(id: string, entry: ReviewEntry): void {
+  if (!reviewStore.has(id) && reviewStore.size >= REVIEW_STORE_MAX) {
+    evictOldestReview();
+  }
+  reviewStore.set(id, entry);
+}
 
 /** Upsert review to forge_reviews table (fire-and-forget). */
 export async function persistReview(id: string, data: ReviewEntry): Promise<void> {
@@ -161,7 +178,7 @@ export async function loadReviewFromDb(id: string): Promise<ReviewEntry | null> 
       error: row.error ?? undefined,
     };
     // Backfill Map cache
-    reviewStore.set(id, entry);
+    reviewStoreSet(id, entry);
     return entry;
   } catch {
     return null;

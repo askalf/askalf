@@ -6,7 +6,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { authMiddleware } from '../../middleware/auth.js';
 import { requireAdmin } from '../../middleware/session-auth.js';
-import { reviewStore, REVIEW_SYSTEM_PROMPT, runCliQuery, persistReview, loadReviewFromDb } from './utils.js';
+import { reviewStore, reviewStoreSet, REVIEW_SYSTEM_PROMPT, runCliQuery, persistReview, loadReviewFromDb } from './utils.js';
 
 export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> {
 
@@ -188,7 +188,7 @@ export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> 
 
       const reviewId = ulid();
       const initialEntry = { status: 'pending' as const, branch: branch || 'unknown', diff };
-      reviewStore.set(reviewId, initialEntry);
+      reviewStoreSet(reviewId, initialEntry);
       void persistReview(reviewId, initialEntry);
 
       void (async () => {
