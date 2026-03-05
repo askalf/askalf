@@ -730,7 +730,7 @@ export const hubApi = {
   interventions: {
     list: (params: { status?: string; page?: number; limit?: number } = {}) =>
       apiFetch<{ interventions: Intervention[]; pagination: Pagination }>(
-        `/api/v1/admin/interventions?${buildParams({ status: params.status, page: params.page, limit: params.limit || 20 })}`
+        `/api/v1/admin/interventions?${buildParams({ status: params.status, page: params.page, limit: params.limit || 50 })}`
       ),
 
     respond: (id: string, action: 'approve' | 'deny' | 'feedback', response?: string) =>
@@ -743,7 +743,7 @@ export const hubApi = {
   tasks: {
     list: (params: { status?: string; agent_id?: string; page?: number; limit?: number } = {}) =>
       apiFetch<{ tasks: Task[]; pagination: Pagination }>(
-        `/api/v1/admin/tasks?${buildParams({ status: params.status, agent_id: params.agent_id, page: params.page, limit: params.limit || 20 })}`
+        `/api/v1/admin/tasks?${buildParams({ status: params.status, agent_id: params.agent_id, page: params.page, limit: params.limit || 50 })}`
       ),
 
     stats: () =>
@@ -756,7 +756,7 @@ export const hubApi = {
   tickets: {
     list: (params: { filter?: string; source?: string; search?: string; page?: number; limit?: number } = {}) =>
       apiFetch<{ tickets: Ticket[]; pagination: Pagination }>(
-        `/api/v1/admin/tickets?${buildParams({ filter: params.filter, source: params.source, search: params.search, page: params.page, limit: params.limit || 20 })}`
+        `/api/v1/admin/tickets?${buildParams({ filter: params.filter, source: params.source, search: params.search, page: params.page, limit: params.limit || 50 })}`
       ),
 
     create: (body: { title: string; description: string; priority: string; category: string }) =>
@@ -787,7 +787,7 @@ export const hubApi = {
 
     findings: (params: { page?: number; limit?: number; search?: string; severity?: string; agent_name?: string } = {}) =>
       apiFetch<{ findings: RecentFinding[]; pagination: Pagination }>(
-        `/api/v1/admin/reports/findings?${buildParams({ page: params.page, limit: params.limit || 20, search: params.search, severity: params.severity, agent_name: params.agent_name })}`
+        `/api/v1/admin/reports/findings?${buildParams({ page: params.page, limit: params.limit || 50, search: params.search, severity: params.severity, agent_name: params.agent_name })}`
       ),
 
     findingDetail: (id: string) =>
@@ -804,7 +804,7 @@ export const hubApi = {
 
     feed: (params: { agent?: string; category?: string; dateFrom?: string; dateTo?: string; search?: string; severity?: string; type?: string; page?: number; limit?: number } = {}) =>
       apiFetch<{ items: ReportFeedItem[]; pagination: Pagination; total: number }>(
-        `/api/v1/admin/reports/feed?${buildParams({ agent: params.agent, category: params.category, dateFrom: params.dateFrom, dateTo: params.dateTo, search: params.search, severity: params.severity, type: params.type, page: params.page, limit: params.limit || 20 })}`
+        `/api/v1/admin/reports/feed?${buildParams({ agent: params.agent, category: params.category, dateFrom: params.dateFrom, dateTo: params.dateTo, search: params.search, severity: params.severity, type: params.type, page: params.page, limit: params.limit || 50 })}`
       ),
 
     feedAgents: () =>
@@ -817,7 +817,7 @@ export const hubApi = {
   content: {
     feed: (params: { agent?: string; source?: string; severity?: string; category?: string; dateFrom?: string; dateTo?: string; search?: string; page?: number; limit?: number } = {}) =>
       apiFetch<{ items: ContentFeedItem[]; pagination: Pagination }>(
-        `/api/v1/admin/reports/feed?${buildParams({ agent: params.agent, source: params.source, severity: params.severity, category: params.category, dateFrom: params.dateFrom, dateTo: params.dateTo, search: params.search, page: params.page, limit: params.limit || 20 })}`
+        `/api/v1/admin/reports/feed?${buildParams({ agent: params.agent, source: params.source, severity: params.severity, category: params.category, dateFrom: params.dateFrom, dateTo: params.dateTo, search: params.search, page: params.page, limit: params.limit || 50 })}`
       ),
 
     feedAgents: () =>
@@ -830,7 +830,7 @@ export const hubApi = {
   documents: {
     list: (params: { agent?: string; search?: string; dateFrom?: string; dateTo?: string; page?: number; limit?: number } = {}) =>
       apiFetch<{ documents: DocumentItem[]; pagination: Pagination }>(
-        `/api/v1/admin/reports/documents?${buildParams({ agent: params.agent, search: params.search, dateFrom: params.dateFrom, dateTo: params.dateTo, page: params.page, limit: params.limit || 20 })}`
+        `/api/v1/admin/reports/documents?${buildParams({ agent: params.agent, search: params.search, dateFrom: params.dateFrom, dateTo: params.dateTo, page: params.page, limit: params.limit || 50 })}`
       ),
 
     detail: (id: string) =>
@@ -846,7 +846,7 @@ export const hubApi = {
 
     search: (params: { q: string; tier?: string; agent_id?: string; source_type?: string; limit?: number; page?: number }) =>
       apiFetch<{ memories: FleetMemoryItem[]; total: number; page: number; limit: number; totalPages: number }>(
-        `/api/v1/admin/memory/search?${buildParams({ q: params.q, tier: params.tier, agent_id: params.agent_id, source_type: params.source_type, limit: params.limit || 20, page: params.page })}`
+        `/api/v1/admin/memory/search?${buildParams({ q: params.q, tier: params.tier, agent_id: params.agent_id, source_type: params.source_type, limit: params.limit || 50, page: params.page })}`
       ),
 
     recent: (params: { limit?: number; page?: number; agent_id?: string; source_type?: string; tier?: string; dateFrom?: string; dateTo?: string } = {}) =>
@@ -901,7 +901,7 @@ export const hubApi = {
       apiFetch<KnowledgeNode>(`/api/v1/admin/knowledge/nodes/${nodeId}`),
     search: (q: string, params: { type?: string; agentId?: string; limit?: number } = {}) =>
       apiFetch<{ nodes: KnowledgeNode[] }>(
-        `/api/v1/admin/knowledge/search?${buildParams({ q, type: params.type, agentId: params.agentId, limit: params.limit || 20 })}`
+        `/api/v1/admin/knowledge/search?${buildParams({ q, type: params.type, agentId: params.agentId, limit: params.limit || 50 })}`
       ),
     topConnected: (limit?: number) =>
       apiFetch<{ nodes: KnowledgeNode[] }>(
