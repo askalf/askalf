@@ -131,9 +131,12 @@ export default function CostDashboard() {
             <div className="cost-split-meta">{costSummary.api.totalEvents} executions</div>
           </div>
           <div className="cost-split-card cost-split-cli">
-            <div className="cost-split-label">CLI / OAuth (plan usage)</div>
-            <div className="cost-split-value">${costSummary.cli.totalCost.toFixed(2)}</div>
+            <div className="cost-split-label">CLI / OAuth (subscription)</div>
+            <div className="cost-split-value">$0.00</div>
             <div className="cost-split-meta">{costSummary.cli.totalEvents} executions</div>
+            {(costSummary.cli as { estimatedCost?: number }).estimatedCost ? (
+              <div className="cost-split-est">~${((costSummary.cli as { estimatedCost?: number }).estimatedCost ?? 0).toFixed(2)} est. if billed</div>
+            ) : null}
           </div>
         </div>
       )}
@@ -228,10 +231,10 @@ export default function CostDashboard() {
                     <div className="cost-bar-tip-date">{day.date.slice(5)}</div>
                     <div className="cost-bar-tip-cost">${day.viewCost.toFixed(4)}</div>
                     <div className="cost-bar-tip-meta">{day.viewEvents} exec · {fmt(day.totalInputTokens + day.totalOutputTokens, 0)} tok</div>
-                    {view === 'all' && (day.apiCost > 0 || day.cliCost > 0) && (
+                    {view === 'all' && (day.apiCost > 0 || day.cliEvents > 0) && (
                       <div className="cost-bar-tip-split">
                         <span className="cost-tip-api">API ${day.apiCost.toFixed(4)}</span>
-                        <span className="cost-tip-cli">CLI ${day.cliCost.toFixed(4)}</span>
+                        <span className="cost-tip-cli">CLI {day.cliEvents} runs{day.cliEstimatedCost ? ` (~$${day.cliEstimatedCost.toFixed(2)} est.)` : ''}</span>
                       </div>
                     )}
                   </div>
@@ -255,9 +258,9 @@ export default function CostDashboard() {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th style={{ textAlign: 'right' }}>Total</th>
+                  <th style={{ textAlign: 'right' }}>Billed</th>
                   <th style={{ textAlign: 'right' }}>API</th>
-                  <th style={{ textAlign: 'right' }}>CLI</th>
+                  <th style={{ textAlign: 'right' }}>CLI Est.</th>
                   <th style={{ textAlign: 'right' }}>Execs</th>
                   <th style={{ textAlign: 'right' }}>Tokens</th>
                 </tr>
@@ -268,7 +271,7 @@ export default function CostDashboard() {
                     <td>{day.date.slice(0, 10)}</td>
                     <td className="fobs-mono" style={{ textAlign: 'right' }}>${day.totalCost.toFixed(4)}</td>
                     <td className="fobs-mono" style={{ textAlign: 'right', color: 'var(--crystal-lighter, #a78bfa)' }}>${day.apiCost.toFixed(4)}</td>
-                    <td className="fobs-mono" style={{ textAlign: 'right', color: '#60a5fa' }}>${day.cliCost.toFixed(4)}</td>
+                    <td className="fobs-mono" style={{ textAlign: 'right', color: '#60a5fa' }}>{day.cliEstimatedCost ? `~$${day.cliEstimatedCost.toFixed(2)}` : '$0.00'}</td>
                     <td style={{ textAlign: 'right' }}>{day.eventCount}</td>
                     <td style={{ textAlign: 'right' }}>{fmt(day.totalInputTokens + day.totalOutputTokens, 0)}</td>
                   </tr>

@@ -2258,7 +2258,8 @@ export async function runDirectCliExecution(
     );
 
     // Record cost event for the cost dashboard (trackCost retries internally)
-    if (parsed.costUsd > 0) {
+    // CLI/OAuth runs are subscription-covered — record $0 cost but keep token counts for usage tracking
+    if (parsed.costUsd > 0 || parsed.inputTokens > 0) {
       void trackCost({
         executionId,
         agentId,
@@ -2267,8 +2268,8 @@ export async function runDirectCliExecution(
         model: agentModelId,
         inputTokens: parsed.inputTokens,
         outputTokens: parsed.outputTokens,
-        cost: parsed.costUsd,
-        metadata: { turns: parsed.numTurns, durationMs, memory_count: memoryCount },
+        cost: 0, // CLI runs use OAuth subscription — no actual cost
+        metadata: { turns: parsed.numTurns, durationMs, memory_count: memoryCount, runtime_mode: 'cli', estimated_cost: parsed.costUsd },
       }).catch(() => {
         // trackCost logs full details on final failure — nothing more to do here
       });
