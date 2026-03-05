@@ -212,7 +212,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to start execution');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to start execution: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -285,7 +285,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to get execution');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to get execution: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -321,7 +321,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to verify execution for stream');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to verify execution: ${message}`,
+          message: 'Internal Server Error',
         });
       }
 
@@ -547,7 +547,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to list executions');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to list executions: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -628,7 +628,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to process batch execution');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to process batch execution: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -754,7 +754,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to retry execution');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to retry execution: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -820,7 +820,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to cancel execution');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to cancel execution: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -864,7 +864,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to list resumable executions');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to list resumable executions: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -978,7 +978,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to get cost summary');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to get cost summary: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },

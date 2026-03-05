@@ -127,7 +127,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to create session');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to create session: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -197,7 +197,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to list sessions');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to list sessions: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -248,7 +248,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to get session');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to get session: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -372,7 +372,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to send session message');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to send message: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -430,7 +430,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to deactivate session');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to deactivate session: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },

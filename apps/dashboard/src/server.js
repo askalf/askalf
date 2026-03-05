@@ -223,7 +223,7 @@ fastify.get('/health', { logLevel: 'silent' }, async (_request, reply) => {
     await queryOne('SELECT 1');
     return { status: 'healthy', service: 'dashboard', database: 'connected' };
   } catch (err) {
-    return reply.code(503).send({ status: 'degraded', service: 'dashboard', database: 'disconnected', error: err.message });
+    return reply.code(503).send({ status: 'degraded', service: 'dashboard', database: 'disconnected' });
   }
 });
 
