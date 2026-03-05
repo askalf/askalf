@@ -4,6 +4,7 @@ import { usePolling } from '../../hooks/usePolling';
 import StatusBadge from './shared/StatusBadge';
 import PaginationBar from './shared/PaginationBar';
 import FilterBar from './shared/FilterBar';
+import { ExecutionLogViewer } from './ExecutionLogViewer';
 import '../forge/forge-observe.css';
 
 const formatDate = (iso: string | null) => {
@@ -234,8 +235,6 @@ export default function ExecutionHistory() {
   const fetchTaskStats = useHubStore((s) => s.fetchTaskStats);
   const fetchTaskDetail = useHubStore((s) => s.fetchTaskDetail);
 
-  const [expandedLogs, setExpandedLogs] = useState(false);
-
   useEffect(() => { fetchTasks(); fetchTaskStats(); }, [fetchTasks, fetchTaskStats]);
   useEffect(() => { fetchTasks(); }, [page, statusFilter, fetchTasks]);
 
@@ -244,10 +243,16 @@ export default function ExecutionHistory() {
   }, [fetchTasks, fetchTaskStats]);
   usePolling(pollTasks, 15000);
 
+  // Poll detail faster when viewing a running execution
+  const isLiveExecution = selectedTask?.status === 'in_progress' || selectedTask?.status === 'pending';
+  const pollDetail = useCallback(async () => {
+    if (selectedTask) await fetchTaskDetail(selectedTask.id);
+  }, [selectedTask, fetchTaskDetail]);
+  usePolling(pollDetail, isLiveExecution ? 3000 : 0);
+
   useEffect(() => {
     if (selectedTask) {
       fetchTaskDetail(selectedTask.id);
-      setExpandedLogs(false);
     }
   }, [selectedTask, fetchTaskDetail]);
 
@@ -545,32 +550,26 @@ export default function ExecutionHistory() {
             })()}
 
             {/* Logs */}
-            {selectedTaskDetail?.logs && selectedTaskDetail.logs.length > 0 && (
-              <div className="hub-detail-section">
-                <div className="hub-hist-section-header">
-                  <h3>Execution Log ({selectedTaskDetail.logs.length})</h3>
-                  {selectedTaskDetail.logs.length > 5 && (
-                    <button className="hub-btn hub-btn--sm" onClick={() => setExpandedLogs(!expandedLogs)}>
-                      {expandedLogs ? 'Show Less' : `Show All (${selectedTaskDetail.logs.length})`}
-                    </button>
-                  )}
-                </div>
-                {(expandedLogs ? selectedTaskDetail.logs : selectedTaskDetail.logs.slice(0, 5)).map((log) => (
-                  <div key={log.id} className="hub-detail-log-item">
-                    <span className="hub-detail-log-time">{formatDate(log.created_at)}</span>
-                    <span className={`hub-detail-log-level ${log.level}`}>{log.level}</span>
-                    <span className="hub-detail-log-msg">{log.message}</span>
-                    {log.metadata && !!(log.metadata as Record<string, unknown>).tool_calls && (
-                      <div className="hub-hist-log-tools">
-                        {(((log.metadata as Record<string, unknown>).tool_calls) as Array<{ name?: string; tool?: string }>)?.map((tc, i) => (
-                          <span key={i} className="hub-hist-tool-badge">{tc.name || tc.tool || 'tool'}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="hub-detail-section">
+              <h3>
+                Execution Log
+                {selectedTaskDetail?.logs && selectedTaskDetail.logs.length > 0 && (
+                  <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+                    ({selectedTaskDetail.logs.length})
+                  </span>
+                )}
+                {isLiveExecution && (
+                  <span style={{ marginLeft: '8px', fontSize: '0.65rem', color: '#4ade80', fontWeight: 500, verticalAlign: 'middle' }}>
+                    ● LIVE
+                  </span>
+                )}
+              </h3>
+              <ExecutionLogViewer
+                logs={selectedTaskDetail?.logs ?? []}
+                isLive={isLiveExecution}
+                maxHeight={420}
+              />
+            </div>
 
             {/* Child / Handoff Tasks */}
             {selectedTaskDetail?.childTasks && selectedTaskDetail.childTasks.length > 0 && (
