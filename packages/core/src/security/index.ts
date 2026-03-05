@@ -30,6 +30,12 @@ export {
   type ShardLogicScannerConfig,
 } from './shard-logic-scanner.js';
 
+// Internal service-to-service HMAC signing
+export {
+  createInternalHeaders,
+  verifyInternalRequest,
+} from './internal-hmac.js';
+
 // Re-export a convenient middleware-style function
 import { scanner, rateLimiter, type ScanResult } from './injection-scanner.js';
 
