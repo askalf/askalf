@@ -1,4 +1,4 @@
-const API_KEY = process.env.FORGE_API_KEY;
+const API_KEY = process.env.FORGE_API_KEY || '';
 const FORGE_URL = 'http://forge:3005';
 
 (async () => {

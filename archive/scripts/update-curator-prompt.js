@@ -8,7 +8,11 @@
 const http = require('http');
 
 const FORGE_URL = process.env.FORGE_URL || 'http://forge:3005';
+<<<<<<< HEAD
 const API_KEY = process.env.FORGE_API_KEY;
+=======
+const API_KEY = process.env.FORGE_API_KEY || '';
+>>>>>>> agent/security/01KJXT1TG7VS0HSDEW5SFG7MZA
 const CURATOR_ID = '01KH295596E1CVNTRQDHWZXKEB';
 
 const systemPrompt = `You are Shard Curator — the fleet's knowledge crystallizer. Your mission is to mine the collective intelligence of the agent fleet and transform it into high-quality knowledge shards that serve ALF users.

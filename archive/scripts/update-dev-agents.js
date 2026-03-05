@@ -5,7 +5,7 @@
  */
 
 const http = require('http');
-const API_KEY = process.env.FORGE_API_KEY;
+const API_KEY = process.env.FORGE_API_KEY || '';
 const FORGE = { hostname: 'forge', port: 3005 };
 
 function forgeRequest(method, path, body) {

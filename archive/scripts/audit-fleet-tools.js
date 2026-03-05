@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 const API_KEY = process.env.FORGE_API_KEY;
+=======
+const API_KEY = process.env.FORGE_API_KEY || '';
+>>>>>>> agent/security/01KJXT1TG7VS0HSDEW5SFG7MZA
 const FORGE_URL = 'http://forge:3005';
 
 // All 19 available tools and what they do

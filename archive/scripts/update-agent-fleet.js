@@ -5,7 +5,11 @@
  * Run inside the forge container: node /tmp/update-agent-fleet.js
  */
 
+<<<<<<< HEAD
 const API_KEY = process.env.FORGE_API_KEY;
+=======
+const API_KEY = process.env.FORGE_API_KEY || '';
+>>>>>>> agent/security/01KJXT1TG7VS0HSDEW5SFG7MZA
 const FORGE_URL = 'http://localhost:3005';
 
 // ============================================================
