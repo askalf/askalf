@@ -157,11 +157,18 @@ fastify.addHook('onSend', async (_request, reply) => {
 
 // Health check (no auth)
 fastify.get('/health', { logLevel: 'silent' }, async (_request, _reply) => {
+  const mem = process.memoryUsage();
+  const base = {
+    service: 'admin-console',
+    version: '1.0.0',
+    uptime: Math.round(process.uptime()),
+    memory: { heapUsed: mem.heapUsed, rss: mem.rss },
+  };
   try {
     await query('SELECT 1');
-    return { status: 'healthy', service: 'admin-console', database: 'connected' };
+    return { status: 'healthy', ...base, database: 'connected' };
   } catch (err) {
-    return { status: 'degraded', service: 'admin-console', database: 'disconnected', error: err.message };
+    return { status: 'degraded', ...base, database: 'disconnected', error: err.message };
   }
 });
 
