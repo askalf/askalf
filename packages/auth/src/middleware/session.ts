@@ -3,7 +3,7 @@
 
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import '@fastify/cookie'; // Import for type augmentation
-import { validateSessionWithUser } from '../sessions.js';
+import { validateSessionWithUser, computeFingerprint } from '../sessions.js';
 import type { AuthContext, SafeUser, Session } from '../types.js';
 
 // Cookie settings
@@ -71,7 +71,11 @@ export async function sessionMiddleware(
   }
 
   try {
-    const sessionWithUser = await validateSessionWithUser(token);
+    const userAgent = request.headers['user-agent'];
+    const acceptLanguage = request.headers['accept-language'];
+    const fingerprint = computeFingerprint(userAgent, acceptLanguage);
+
+    const sessionWithUser = await validateSessionWithUser(token, fingerprint);
 
     if (sessionWithUser) {
       request.auth = {
