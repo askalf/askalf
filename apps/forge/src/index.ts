@@ -299,9 +299,14 @@ app.get('/health', { logLevel: 'silent' }, async () => {
   let redisOk = false;
 
   try {
-    await dbQuery('SELECT 1');
+    await Promise.race([
+      dbQuery('SELECT 1'),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('db health check timeout')), 500)
+      ),
+    ]);
     dbOk = true;
-  } catch { /* db pool saturated under load — transient */ }
+  } catch { /* db pool saturated or timed out — transient */ }
 
   try {
     const eventBus = getEventBus();
