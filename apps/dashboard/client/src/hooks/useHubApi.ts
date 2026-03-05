@@ -759,7 +759,7 @@ export const hubApi = {
         `/api/v1/admin/tickets?${buildParams({ filter: params.filter, source: params.source, search: params.search, page: params.page, limit: params.limit || 50 })}`
       ),
 
-    create: (body: { title: string; description: string; priority: string; category: string }) =>
+    create: (body: { title: string; description: string; priority: string; category: string; assigned_to?: string }) =>
       apiFetch<{ ticket: Ticket }>('/api/v1/admin/tickets', { method: 'POST', body: JSON.stringify(body) }),
 
     update: (id: string, body: Partial<Ticket>) =>

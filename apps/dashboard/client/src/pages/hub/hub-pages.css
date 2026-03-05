@@ -1093,6 +1093,12 @@
   font-family: inherit;
 }
 
+.hub-form-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-top: 2px;
+}
+
 .hub-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
