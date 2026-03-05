@@ -101,7 +101,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         tags: ['Executions'],
         summary: 'Start an agent execution',
         body: CreateExecutionBody,
-        response: { 400: ErrorResponse, 403: ErrorResponse, 404: ErrorResponse },
+        response: { 400: ErrorResponse, 403: ErrorResponse, 404: ErrorResponse, 500: ErrorResponse },
       },
       preHandler: [authMiddleware],
     },
@@ -109,103 +109,112 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.userId!;
       const body = request.body as Static<typeof CreateExecutionBody>;
 
-      // Verify agent exists and is accessible
-      const agent = await queryOne<AgentCheckRow>(
-        `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
-         FROM forge_agents
-         WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
-        [body.agentId, userId],
-      );
+      try {
+        // Verify agent exists and is accessible
+        const agent = await queryOne<AgentCheckRow>(
+          `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
+           FROM forge_agents
+           WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
+          [body.agentId, userId],
+        );
 
-      if (!agent) {
-        return reply.status(404).send({
-          error: 'Not Found',
-          message: 'Agent not found or not accessible',
+        if (!agent) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: 'Agent not found or not accessible',
+          });
+        }
+
+        if (agent.status === 'archived') {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: 'Cannot execute an archived agent',
+          });
+        }
+
+        // Run guardrail checks
+        const guardrailResult = await checkGuardrails({
+          ownerId: userId,
+          agentId: body.agentId,
+          input: body.input,
+          estimatedCost: parseFloat(agent.max_cost_per_execution),
         });
-      }
 
-      if (agent.status === 'archived') {
-        return reply.status(400).send({
-          error: 'Bad Request',
-          message: 'Cannot execute an archived agent',
-        });
-      }
+        if (!guardrailResult.allowed) {
+          return reply.status(403).send({
+            error: 'Forbidden',
+            message: guardrailResult.reason ?? 'Blocked by guardrails',
+          });
+        }
 
-      // Run guardrail checks
-      const guardrailResult = await checkGuardrails({
-        ownerId: userId,
-        agentId: body.agentId,
-        input: body.input,
-        estimatedCost: parseFloat(agent.max_cost_per_execution),
-      });
+        // Check user budget limits (from forge_user_preferences)
+        const budgetResult = await checkUserBudget(userId);
+        if (!budgetResult.allowed) {
+          return reply.status(403).send({
+            error: 'Forbidden',
+            message: budgetResult.reason ?? 'Budget exceeded',
+          });
+        }
 
-      if (!guardrailResult.allowed) {
-        return reply.status(403).send({
-          error: 'Forbidden',
-          message: guardrailResult.reason ?? 'Blocked by guardrails',
-        });
-      }
+        const executionId = ulid();
 
-      // Check user budget limits (from forge_user_preferences)
-      const budgetResult = await checkUserBudget(userId);
-      if (!budgetResult.allowed) {
-        return reply.status(403).send({
-          error: 'Forbidden',
-          message: budgetResult.reason ?? 'Budget exceeded',
-        });
-      }
+        const execution = await queryOne<ExecutionRow>(
+          `INSERT INTO forge_executions (id, agent_id, session_id, owner_id, input, status, metadata, started_at)
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW())
+           RETURNING *`,
+          [
+            executionId,
+            body.agentId,
+            body.sessionId ?? null,
+            userId,
+            body.input,
+            JSON.stringify({ source_layer: 'api', ...body.metadata }),
+          ],
+        );
 
-      const executionId = ulid();
+        void logAudit({
+          ownerId: userId,
+          action: 'execution.start',
+          resourceType: 'execution',
+          resourceId: executionId,
+          details: { agentId: body.agentId },
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        }).catch(() => {});
 
-      const execution = await queryOne<ExecutionRow>(
-        `INSERT INTO forge_executions (id, agent_id, session_id, owner_id, input, status, metadata, started_at)
-         VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW())
-         RETURNING *`,
-        [
+        // Fire CLI execution asynchronously — return immediately, CLI runs in background
+        void runDirectCliExecution(
           executionId,
           body.agentId,
-          body.sessionId ?? null,
-          userId,
           body.input,
-          JSON.stringify({ source_layer: 'api', ...body.metadata }),
-        ],
-      );
-
-      void logAudit({
-        ownerId: userId,
-        action: 'execution.start',
-        resourceType: 'execution',
-        resourceId: executionId,
-        details: { agentId: body.agentId },
-        ipAddress: request.ip,
-        userAgent: request.headers['user-agent'],
-      }).catch(() => {});
-
-      // Fire CLI execution asynchronously — return immediately, CLI runs in background
-      void runDirectCliExecution(
-        executionId,
-        body.agentId,
-        body.input,
-        userId,
-        {
-          modelId: agent.model_id ?? undefined,
-          systemPrompt: agent.system_prompt ?? undefined,
-          sessionId: body.sessionId,
-          maxBudgetUsd: agent.max_cost_per_execution,
-          maxTurns: agent.max_iterations ?? undefined,
-        },
-      ).catch((err) => {
-        console.error(`[Executions] Async CLI execution failed for ${executionId}:`, err);
-        const errMsg = err instanceof Error ? err.message : String(err);
-        void query(
-          `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status IN ('pending', 'running')`,
-          [`Failed to start: ${errMsg}`, executionId],
-        ).catch((dbErr) => {
-          console.error(`[Executions] Failed to update execution ${executionId} status:`, dbErr);
+          userId,
+          {
+            modelId: agent.model_id ?? undefined,
+            systemPrompt: agent.system_prompt ?? undefined,
+            sessionId: body.sessionId,
+            maxBudgetUsd: agent.max_cost_per_execution,
+            maxTurns: agent.max_iterations ?? undefined,
+          },
+        ).catch((err) => {
+          request.log.error({ err, executionId }, 'Async CLI execution failed');
+          const errMsg = err instanceof Error ? err.message : String(err);
+          void query(
+            `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status IN ('pending', 'running')`,
+            [`Failed to start: ${errMsg}`, executionId],
+          ).catch((dbErr) => {
+            request.log.error({ err: dbErr, executionId }, 'Failed to update execution status after CLI failure');
+          });
         });
-      });
 
-      return reply.status(201).send({ execution });
+        return reply.status(201).send({ execution });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to start execution');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to start execution: ${message}`,
+        });
+      }
     },
   );
 
@@ -219,7 +228,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         tags: ['Executions'],
         summary: 'Get execution details',
         params: IdParam,
-        response: { 404: ErrorResponse },
+        response: { 404: ErrorResponse, 500: ErrorResponse },
       },
       preHandler: [authMiddleware],
     },
@@ -227,49 +236,58 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.userId!;
       const { id } = request.params as Static<typeof IdParam>;
 
-      const execution = await queryOne<ExecutionRow>(
-        `SELECT
-           e.*,
-           COALESCE(a.name, 'Unknown') AS agent_name,
-           COALESCE(ce.total_input_tokens, e.input_tokens, 0)::int AS input_tokens,
-           COALESCE(ce.total_output_tokens, e.output_tokens, 0)::int AS output_tokens,
-           (COALESCE(ce.total_input_tokens, e.input_tokens, 0) + COALESCE(ce.total_output_tokens, e.output_tokens, 0))::int AS total_tokens,
-           COALESCE(ce.total_cost, e.cost, 0)::text AS cost,
-           ce.total_cost::text AS cost_events_total,
-           ce.model
-         FROM forge_executions e
-         LEFT JOIN forge_agents a ON a.id = e.agent_id
-         LEFT JOIN (
-           SELECT execution_id,
-             COALESCE(SUM(cost), 0) AS total_cost,
-             COALESCE(SUM(input_tokens), 0) AS total_input_tokens,
-             COALESCE(SUM(output_tokens), 0) AS total_output_tokens,
-             MAX(model) AS model
-           FROM forge_cost_events GROUP BY execution_id
-         ) ce ON ce.execution_id = e.id
-         WHERE e.id = $1 AND e.owner_id = $2`,
-        [id, userId],
-      );
+      try {
+        const execution = await queryOne<ExecutionRow>(
+          `SELECT
+             e.*,
+             COALESCE(a.name, 'Unknown') AS agent_name,
+             COALESCE(ce.total_input_tokens, e.input_tokens, 0)::int AS input_tokens,
+             COALESCE(ce.total_output_tokens, e.output_tokens, 0)::int AS output_tokens,
+             (COALESCE(ce.total_input_tokens, e.input_tokens, 0) + COALESCE(ce.total_output_tokens, e.output_tokens, 0))::int AS total_tokens,
+             COALESCE(ce.total_cost, e.cost, 0)::text AS cost,
+             ce.total_cost::text AS cost_events_total,
+             ce.model
+           FROM forge_executions e
+           LEFT JOIN forge_agents a ON a.id = e.agent_id
+           LEFT JOIN (
+             SELECT execution_id,
+               COALESCE(SUM(cost), 0) AS total_cost,
+               COALESCE(SUM(input_tokens), 0) AS total_input_tokens,
+               COALESCE(SUM(output_tokens), 0) AS total_output_tokens,
+               MAX(model) AS model
+             FROM forge_cost_events GROUP BY execution_id
+           ) ce ON ce.execution_id = e.id
+           WHERE e.id = $1 AND e.owner_id = $2`,
+          [id, userId],
+        );
 
-      if (!execution) {
-        return reply.status(404).send({
-          error: 'Not Found',
-          message: 'Execution not found',
+        if (!execution) {
+          return reply.status(404).send({
+            error: 'Not Found',
+            message: 'Execution not found',
+          });
+        }
+
+        return reply.send({
+          execution: {
+            ...execution,
+            agentName: execution.agent_name,
+            cost: resolveCost(execution),
+            estimatedCost: resolveCost(execution),
+            inputTokens: execution.input_tokens || 0,
+            outputTokens: execution.output_tokens || 0,
+            totalTokens: execution.total_tokens || 0,
+            model: execution.model ?? null,
+          },
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to get execution');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to get execution: ${message}`,
         });
       }
-
-      return reply.send({
-        execution: {
-          ...execution,
-          agentName: execution.agent_name,
-          cost: resolveCost(execution),
-          estimatedCost: resolveCost(execution),
-          inputTokens: execution.input_tokens || 0,
-          outputTokens: execution.output_tokens || 0,
-          totalTokens: execution.total_tokens || 0,
-          model: execution.model ?? null,
-        },
-      });
     },
   );
 
@@ -283,7 +301,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         tags: ['Executions'],
         summary: 'SSE stream for execution updates',
         params: IdParam,
-        response: { 404: ErrorResponse },
+        response: { 404: ErrorResponse, 500: ErrorResponse },
       },
       preHandler: [authMiddleware],
     },
@@ -292,10 +310,20 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params as { id: string };
 
       // Verify the execution exists and belongs to the user
-      const execution = await queryOne<ExecutionRow>(
-        `SELECT id, status FROM forge_executions WHERE id = $1 AND owner_id = $2`,
-        [id, userId],
-      );
+      let execution: { id: string; status: string } | null = null;
+      try {
+        execution = await queryOne<ExecutionRow>(
+          `SELECT id, status FROM forge_executions WHERE id = $1 AND owner_id = $2`,
+          [id, userId],
+        );
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to verify execution for stream');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to verify execution: ${message}`,
+        });
+      }
 
       if (!execution) {
         return reply.status(404).send({
@@ -425,6 +453,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         tags: ['Executions'],
         summary: 'List executions for owner',
         querystring: ListExecutionsQuery,
+        response: { 500: ErrorResponse },
       },
       preHandler: [authMiddleware],
     },
@@ -432,86 +461,95 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.userId!;
       const qs = request.query as Static<typeof ListExecutionsQuery>;
 
-      const conditions: string[] = ['owner_id = $1'];
-      const params: unknown[] = [userId];
-      let paramIndex = 2;
+      try {
+        const conditions: string[] = ['owner_id = $1'];
+        const params: unknown[] = [userId];
+        let paramIndex = 2;
 
-      if (qs.agentId) {
-        conditions.push(`agent_id = $${paramIndex}`);
-        params.push(qs.agentId);
-        paramIndex++;
+        if (qs.agentId) {
+          conditions.push(`agent_id = $${paramIndex}`);
+          params.push(qs.agentId);
+          paramIndex++;
+        }
+
+        if (qs.sessionId) {
+          conditions.push(`session_id = $${paramIndex}`);
+          params.push(qs.sessionId);
+          paramIndex++;
+        }
+
+        if (qs.status) {
+          conditions.push(`status = $${paramIndex}`);
+          params.push(qs.status);
+          paramIndex++;
+        }
+
+        const limit = Math.min(parseInt(qs.limit ?? '50', 10) || 50, 100);
+        const offset = parseInt(qs.offset ?? '0', 10) || 0;
+        const whereClause = conditions.join(' AND ');
+
+        const [executions, countResult] = await Promise.all([
+          query<ExecutionRow>(
+            `SELECT
+               e.id, e.agent_id,
+               COALESCE(a.name, 'Unknown') AS agent_name,
+               e.session_id, e.owner_id, e.status,
+               e.input, e.output, e.messages, e.tool_calls,
+               e.iterations,
+               COALESCE(ce.total_input_tokens, e.input_tokens, 0)::int AS input_tokens,
+               COALESCE(ce.total_output_tokens, e.output_tokens, 0)::int AS output_tokens,
+               (COALESCE(ce.total_input_tokens, e.input_tokens, 0) + COALESCE(ce.total_output_tokens, e.output_tokens, 0))::int AS total_tokens,
+               COALESCE(ce.total_cost, e.cost, 0)::text AS cost,
+               ce.total_cost::text AS cost_events_total,
+               ce.model,
+               e.duration_ms, e.error, e.metadata,
+               e.started_at, e.completed_at, e.created_at
+             FROM forge_executions e
+             LEFT JOIN forge_agents a ON a.id = e.agent_id
+             LEFT JOIN (
+               SELECT
+                 execution_id,
+                 COALESCE(SUM(cost), 0) AS total_cost,
+                 COALESCE(SUM(input_tokens), 0) AS total_input_tokens,
+                 COALESCE(SUM(output_tokens), 0) AS total_output_tokens,
+                 MAX(model) AS model
+               FROM forge_cost_events
+               GROUP BY execution_id
+             ) ce ON ce.execution_id = e.id
+             WHERE ${whereClause}
+             ORDER BY e.created_at DESC
+             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+            [...params, limit, offset],
+          ),
+          queryOne<ExecutionCountRow>(
+            `SELECT COUNT(*) AS total FROM forge_executions WHERE ${whereClause}`,
+            params,
+          ),
+        ]);
+
+        return reply.send({
+          executions: executions.map((e) => ({
+            ...e,
+            agentName: e.agent_name,
+            cost: resolveCost(e),
+            estimatedCost: resolveCost(e),
+            inputTokens: e.input_tokens || 0,
+            outputTokens: e.output_tokens || 0,
+            totalTokens: e.total_tokens || 0,
+            model: e.model ?? null,
+          })),
+          total: countResult ? parseInt(countResult.total, 10) : 0,
+          limit,
+          offset,
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to list executions');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to list executions: ${message}`,
+        });
       }
-
-      if (qs.sessionId) {
-        conditions.push(`session_id = $${paramIndex}`);
-        params.push(qs.sessionId);
-        paramIndex++;
-      }
-
-      if (qs.status) {
-        conditions.push(`status = $${paramIndex}`);
-        params.push(qs.status);
-        paramIndex++;
-      }
-
-      const limit = Math.min(parseInt(qs.limit ?? '50', 10) || 50, 100);
-      const offset = parseInt(qs.offset ?? '0', 10) || 0;
-      const whereClause = conditions.join(' AND ');
-
-      const [executions, countResult] = await Promise.all([
-        query<ExecutionRow>(
-          `SELECT
-             e.id, e.agent_id,
-             COALESCE(a.name, 'Unknown') AS agent_name,
-             e.session_id, e.owner_id, e.status,
-             e.input, e.output, e.messages, e.tool_calls,
-             e.iterations,
-             COALESCE(ce.total_input_tokens, e.input_tokens, 0)::int AS input_tokens,
-             COALESCE(ce.total_output_tokens, e.output_tokens, 0)::int AS output_tokens,
-             (COALESCE(ce.total_input_tokens, e.input_tokens, 0) + COALESCE(ce.total_output_tokens, e.output_tokens, 0))::int AS total_tokens,
-             COALESCE(ce.total_cost, e.cost, 0)::text AS cost,
-             ce.total_cost::text AS cost_events_total,
-             ce.model,
-             e.duration_ms, e.error, e.metadata,
-             e.started_at, e.completed_at, e.created_at
-           FROM forge_executions e
-           LEFT JOIN forge_agents a ON a.id = e.agent_id
-           LEFT JOIN (
-             SELECT
-               execution_id,
-               COALESCE(SUM(cost), 0) AS total_cost,
-               COALESCE(SUM(input_tokens), 0) AS total_input_tokens,
-               COALESCE(SUM(output_tokens), 0) AS total_output_tokens,
-               MAX(model) AS model
-             FROM forge_cost_events
-             GROUP BY execution_id
-           ) ce ON ce.execution_id = e.id
-           WHERE ${whereClause}
-           ORDER BY e.created_at DESC
-           LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-          [...params, limit, offset],
-        ),
-        queryOne<ExecutionCountRow>(
-          `SELECT COUNT(*) AS total FROM forge_executions WHERE ${whereClause}`,
-          params,
-        ),
-      ]);
-
-      return reply.send({
-        executions: executions.map((e) => ({
-          ...e,
-          agentName: e.agent_name,
-          cost: resolveCost(e),
-          estimatedCost: resolveCost(e),
-          inputTokens: e.input_tokens || 0,
-          outputTokens: e.output_tokens || 0,
-          totalTokens: e.total_tokens || 0,
-          model: e.model ?? null,
-        })),
-        total: countResult ? parseInt(countResult.total, 10) : 0,
-        limit,
-        offset,
-      });
     },
   );
 
@@ -527,7 +565,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         tags: ['Executions'],
         summary: 'Batch execute multiple agents',
         body: BatchExecutionBody,
-        response: { 400: ErrorResponse },
+        response: { 400: ErrorResponse, 500: ErrorResponse },
       },
       preHandler: [authMiddleware],
     },
@@ -535,55 +573,64 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.userId!;
       const body = request.body as Static<typeof BatchExecutionBody>;
 
-      // Dispatch each agent as an individual CLI execution
-      const executionIds: string[] = [];
-      for (const a of body.agents) {
-        const execId = ulid();
-        const agent = await queryOne<AgentCheckRow>(
-          `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
-           FROM forge_agents WHERE id = $1`,
-          [a.agentId],
-        );
-        if (!agent || agent.status === 'archived') continue;
+      try {
+        // Dispatch each agent as an individual CLI execution
+        const executionIds: string[] = [];
+        for (const a of body.agents) {
+          const execId = ulid();
+          const agent = await queryOne<AgentCheckRow>(
+            `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
+             FROM forge_agents WHERE id = $1`,
+            [a.agentId],
+          );
+          if (!agent || agent.status === 'archived') continue;
 
-        // Enforce guardrails per-execution — prevents cost/resource abuse via batch
-        const guardrailResult = await checkGuardrails({
-          ownerId: userId,
-          agentId: a.agentId,
-          input: a.input,
-          estimatedCost: parseFloat(agent.max_cost_per_execution),
-        });
-        if (!guardrailResult.allowed) {
-          console.warn(`[Batch] Agent ${a.agentId} blocked by guardrails: ${guardrailResult.reason}`);
-          continue;
+          // Enforce guardrails per-execution — prevents cost/resource abuse via batch
+          const guardrailResult = await checkGuardrails({
+            ownerId: userId,
+            agentId: a.agentId,
+            input: a.input,
+            estimatedCost: parseFloat(agent.max_cost_per_execution),
+          });
+          if (!guardrailResult.allowed) {
+            request.log.warn({ agentId: a.agentId, reason: guardrailResult.reason }, 'Batch agent blocked by guardrails');
+            continue;
+          }
+
+          await queryOne<ExecutionRow>(
+            `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
+             VALUES ($1, $2, $3, $4, 'pending', '{}', NOW()) RETURNING *`,
+            [execId, a.agentId, userId, a.input],
+          );
+
+          void runDirectCliExecution(execId, a.agentId, a.input, userId, {
+            modelId: agent.model_id ?? undefined,
+            systemPrompt: agent.system_prompt ?? undefined,
+            maxBudgetUsd: agent.max_cost_per_execution,
+            maxTurns: agent.max_iterations ?? undefined,
+          }).catch((err) => {
+            request.log.error({ err, executionId: execId }, 'Batch CLI execution failed');
+          });
+
+          executionIds.push(execId);
         }
 
-        await queryOne<ExecutionRow>(
-          `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
-           VALUES ($1, $2, $3, $4, 'pending', '{}', NOW()) RETURNING *`,
-          [execId, a.agentId, userId, a.input],
-        );
+        request.log.info({ count: executionIds.length }, 'Batch CLI executions dispatched');
 
-        void runDirectCliExecution(execId, a.agentId, a.input, userId, {
-          modelId: agent.model_id ?? undefined,
-          systemPrompt: agent.system_prompt ?? undefined,
-          maxBudgetUsd: agent.max_cost_per_execution,
-          maxTurns: agent.max_iterations ?? undefined,
-        }).catch((err) => {
-          console.error(`[Batch→CLI] Execution ${execId} failed:`, err);
+        return reply.status(202).send({
+          message: `${executionIds.length} CLI executions started`,
+          agentCount: executionIds.length,
+          executionIds,
+          mode: 'cli',
         });
-
-        executionIds.push(execId);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to process batch execution');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to process batch execution: ${message}`,
+        });
       }
-
-      console.log(`[Batch→CLI] Dispatched ${executionIds.length} individual CLI executions`);
-
-      return reply.status(202).send({
-        message: `${executionIds.length} CLI executions started`,
-        agentCount: executionIds.length,
-        executionIds,
-        mode: 'cli',
-      });
     },
   );
 
@@ -597,7 +644,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         tags: ['Executions'],
         summary: 'Retry a failed or cancelled execution',
         params: IdParam,
-        response: { 400: ErrorResponse, 404: ErrorResponse },
+        response: { 400: ErrorResponse, 403: ErrorResponse, 404: ErrorResponse, 500: ErrorResponse },
       },
       preHandler: [authMiddleware],
     },
@@ -605,102 +652,111 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.userId!;
       const { id } = request.params as Static<typeof IdParam>;
 
-      // Fetch the original execution — must belong to this user
-      const original = await queryOne<ExecutionRow>(
-        `SELECT * FROM forge_executions WHERE id = $1 AND owner_id = $2`,
-        [id, userId],
-      );
+      try {
+        // Fetch the original execution — must belong to this user
+        const original = await queryOne<ExecutionRow>(
+          `SELECT * FROM forge_executions WHERE id = $1 AND owner_id = $2`,
+          [id, userId],
+        );
 
-      if (!original) {
-        return reply.status(404).send({ error: 'Not Found', message: 'Execution not found' });
-      }
+        if (!original) {
+          return reply.status(404).send({ error: 'Not Found', message: 'Execution not found' });
+        }
 
-      if (original.status !== 'failed' && original.status !== 'cancelled') {
-        return reply.status(400).send({
-          error: 'Bad Request',
-          message: `Only failed or cancelled executions can be retried (current status: ${original.status})`,
+        if (original.status !== 'failed' && original.status !== 'cancelled') {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: `Only failed or cancelled executions can be retried (current status: ${original.status})`,
+          });
+        }
+
+        // Verify the agent is still accessible and not archived
+        const agent = await queryOne<AgentCheckRow>(
+          `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
+           FROM forge_agents
+           WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
+          [original.agent_id, userId],
+        );
+
+        if (!agent) {
+          return reply.status(404).send({ error: 'Not Found', message: 'Agent not found or not accessible' });
+        }
+
+        if (agent.status === 'archived') {
+          return reply.status(400).send({ error: 'Bad Request', message: 'Cannot retry: agent is archived' });
+        }
+
+        // Run guardrail checks
+        const guardrailResult = await checkGuardrails({
+          ownerId: userId,
+          agentId: original.agent_id,
+          input: original.input,
+          estimatedCost: parseFloat(agent.max_cost_per_execution),
         });
-      }
 
-      // Verify the agent is still accessible and not archived
-      const agent = await queryOne<AgentCheckRow>(
-        `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
-         FROM forge_agents
-         WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
-        [original.agent_id, userId],
-      );
+        if (!guardrailResult.allowed) {
+          return reply.status(403).send({
+            error: 'Forbidden',
+            message: guardrailResult.reason ?? 'Blocked by guardrails',
+          });
+        }
 
-      if (!agent) {
-        return reply.status(404).send({ error: 'Not Found', message: 'Agent not found or not accessible' });
-      }
+        const newExecutionId = ulid();
 
-      if (agent.status === 'archived') {
-        return reply.status(400).send({ error: 'Bad Request', message: 'Cannot retry: agent is archived' });
-      }
+        const newExecution = await queryOne<ExecutionRow>(
+          `INSERT INTO forge_executions (id, agent_id, session_id, owner_id, input, status, metadata, started_at)
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW())
+           RETURNING *`,
+          [
+            newExecutionId,
+            original.agent_id,
+            original.session_id,
+            userId,
+            original.input,
+            JSON.stringify({ retried_from: id }),
+          ],
+        );
 
-      // Run guardrail checks
-      const guardrailResult = await checkGuardrails({
-        ownerId: userId,
-        agentId: original.agent_id,
-        input: original.input,
-        estimatedCost: parseFloat(agent.max_cost_per_execution),
-      });
+        void logAudit({
+          ownerId: userId,
+          action: 'execution.retry',
+          resourceType: 'execution',
+          resourceId: newExecutionId,
+          details: { originalExecutionId: id, agentId: original.agent_id },
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        }).catch(() => {});
 
-      if (!guardrailResult.allowed) {
-        return reply.status(403).send({
-          error: 'Forbidden',
-          message: guardrailResult.reason ?? 'Blocked by guardrails',
-        });
-      }
-
-      const newExecutionId = ulid();
-
-      const newExecution = await queryOne<ExecutionRow>(
-        `INSERT INTO forge_executions (id, agent_id, session_id, owner_id, input, status, metadata, started_at)
-         VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW())
-         RETURNING *`,
-        [
+        void runDirectCliExecution(
           newExecutionId,
           original.agent_id,
-          original.session_id,
-          userId,
           original.input,
-          JSON.stringify({ retried_from: id }),
-        ],
-      );
+          userId,
+          {
+            modelId: agent.model_id ?? undefined,
+            systemPrompt: agent.system_prompt ?? undefined,
+            sessionId: original.session_id ?? undefined,
+            maxBudgetUsd: agent.max_cost_per_execution,
+            maxTurns: agent.max_iterations ?? undefined,
+          },
+        ).catch((err) => {
+          request.log.error({ err, executionId: newExecutionId }, 'Retry CLI execution failed');
+          const errMsg = err instanceof Error ? err.message : String(err);
+          void query(
+            `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status IN ('pending', 'running')`,
+            [`Failed to start retry: ${errMsg}`, newExecutionId],
+          ).catch(() => {});
+        });
 
-      void logAudit({
-        ownerId: userId,
-        action: 'execution.retry',
-        resourceType: 'execution',
-        resourceId: newExecutionId,
-        details: { originalExecutionId: id, agentId: original.agent_id },
-        ipAddress: request.ip,
-        userAgent: request.headers['user-agent'],
-      }).catch(() => {});
-
-      void runDirectCliExecution(
-        newExecutionId,
-        original.agent_id,
-        original.input,
-        userId,
-        {
-          modelId: agent.model_id ?? undefined,
-          systemPrompt: agent.system_prompt ?? undefined,
-          sessionId: original.session_id ?? undefined,
-          maxBudgetUsd: agent.max_cost_per_execution,
-          maxTurns: agent.max_iterations ?? undefined,
-        },
-      ).catch((err) => {
-        console.error(`[Executions] Retry CLI execution failed for ${newExecutionId}:`, err);
-        const errMsg = err instanceof Error ? err.message : String(err);
-        void query(
-          `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status IN ('pending', 'running')`,
-          [`Failed to start retry: ${errMsg}`, newExecutionId],
-        ).catch(() => {});
-      });
-
-      return reply.status(201).send({ execution: newExecution });
+        return reply.status(201).send({ execution: newExecution });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to retry execution');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to retry execution: ${message}`,
+        });
+      }
     },
   );
 
@@ -714,7 +770,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
         tags: ['Executions'],
         summary: 'Cancel a pending or running execution',
         params: IdParam,
-        response: { 400: ErrorResponse, 404: ErrorResponse },
+        response: { 400: ErrorResponse, 404: ErrorResponse, 500: ErrorResponse },
       },
       preHandler: [authMiddleware],
     },
@@ -722,42 +778,51 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.userId!;
       const { id } = request.params as Static<typeof IdParam>;
 
-      const execution = await queryOne<ExecutionRow>(
-        `SELECT id, status, agent_id FROM forge_executions WHERE id = $1 AND owner_id = $2`,
-        [id, userId],
-      );
+      try {
+        const execution = await queryOne<ExecutionRow>(
+          `SELECT id, status, agent_id FROM forge_executions WHERE id = $1 AND owner_id = $2`,
+          [id, userId],
+        );
 
-      if (!execution) {
-        return reply.status(404).send({ error: 'Not Found', message: 'Execution not found' });
-      }
+        if (!execution) {
+          return reply.status(404).send({ error: 'Not Found', message: 'Execution not found' });
+        }
 
-      if (execution.status !== 'pending' && execution.status !== 'running') {
-        return reply.status(400).send({
-          error: 'Bad Request',
-          message: `Only pending or running executions can be cancelled (current status: ${execution.status})`,
+        if (execution.status !== 'pending' && execution.status !== 'running') {
+          return reply.status(400).send({
+            error: 'Bad Request',
+            message: `Only pending or running executions can be cancelled (current status: ${execution.status})`,
+          });
+        }
+
+        // Mark as cancelled in DB first
+        await query(
+          `UPDATE forge_executions SET status = 'cancelled', completed_at = NOW() WHERE id = $1 AND status IN ('pending', 'running')`,
+          [id],
+        );
+
+        // Attempt to kill the running process (best-effort)
+        const killed = cancelCliExecution(id);
+
+        void logAudit({
+          ownerId: userId,
+          action: 'execution.cancel',
+          resourceType: 'execution',
+          resourceId: id,
+          details: { agentId: execution.agent_id, processKilled: killed },
+          ipAddress: request.ip,
+          userAgent: request.headers['user-agent'],
+        }).catch(() => {});
+
+        return reply.send({ cancelled: true, processKilled: killed });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to cancel execution');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to cancel execution: ${message}`,
         });
       }
-
-      // Mark as cancelled in DB first
-      await query(
-        `UPDATE forge_executions SET status = 'cancelled', completed_at = NOW() WHERE id = $1 AND status IN ('pending', 'running')`,
-        [id],
-      );
-
-      // Attempt to kill the running process (best-effort)
-      const killed = cancelCliExecution(id);
-
-      void logAudit({
-        ownerId: userId,
-        action: 'execution.cancel',
-        resourceType: 'execution',
-        resourceId: id,
-        details: { agentId: execution.agent_id, processKilled: killed },
-        ipAddress: request.ip,
-        userAgent: request.headers['user-agent'],
-      }).catch(() => {});
-
-      return reply.send({ cancelled: true, processKilled: killed });
     },
   );
 
@@ -767,25 +832,41 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/executions/resumable',
-    { preHandler: authMiddleware },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
-      const rows = await query<ExecutionRow>(
-        `SELECT id, agent_id, session_id, owner_id, status, input, output,
-                messages, tool_calls, iterations, input_tokens, output_tokens,
-                total_tokens, cost, duration_ms, error, metadata, started_at,
-                completed_at, created_at
-         FROM forge_executions
-         WHERE status = 'failed'
-           AND (metadata->>'resumable')::boolean = true
-           AND iterations > 0
-         ORDER BY completed_at DESC
-         LIMIT 50`,
-      );
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'List resumable (failed) executions with checkpoint data',
+        response: { 500: ErrorResponse },
+      },
+      preHandler: authMiddleware,
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const rows = await query<ExecutionRow>(
+          `SELECT id, agent_id, session_id, owner_id, status, input, output,
+                  messages, tool_calls, iterations, input_tokens, output_tokens,
+                  total_tokens, cost, duration_ms, error, metadata, started_at,
+                  completed_at, created_at
+           FROM forge_executions
+           WHERE status = 'failed'
+             AND (metadata->>'resumable')::boolean = true
+             AND iterations > 0
+           ORDER BY completed_at DESC
+           LIMIT 50`,
+        );
 
-      return reply.send({
-        executions: rows,
-        count: rows.length,
-      });
+        return reply.send({
+          executions: rows,
+          count: rows.length,
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to list resumable executions');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to list resumable executions: ${message}`,
+        });
+      }
     },
   );
 
@@ -797,93 +878,109 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/executions/costs/summary',
-    { preHandler: [authMiddleware] },
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'Cost summary (daily + weekly) for the authenticated user',
+        response: { 500: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
       const qs = request.query as { days?: string };
       const days = Math.min(parseInt(qs.days ?? '30', 10) || 30, 90);
 
-      const [daily, weekly, totals] = await Promise.all([
-        query<DailyCostSummaryRow>(
-          `SELECT
-             DATE(ce.created_at)::text AS date,
-             COALESCE(SUM(ce.cost), 0)::text AS total_cost,
-             COALESCE(SUM(ce.input_tokens), 0)::text AS total_input_tokens,
-             COALESCE(SUM(ce.output_tokens), 0)::text AS total_output_tokens,
-             COUNT(DISTINCT ce.execution_id)::text AS execution_count
-           FROM forge_cost_events ce
-           JOIN forge_executions e ON e.id = ce.execution_id
-           WHERE e.owner_id = $1
-             AND ce.created_at >= NOW() - INTERVAL '1 day' * $2
-           GROUP BY DATE(ce.created_at)
-           ORDER BY date DESC`,
-          [userId, days],
-        ),
+      try {
+        const [daily, weekly, totals] = await Promise.all([
+          query<DailyCostSummaryRow>(
+            `SELECT
+               DATE(ce.created_at)::text AS date,
+               COALESCE(SUM(ce.cost), 0)::text AS total_cost,
+               COALESCE(SUM(ce.input_tokens), 0)::text AS total_input_tokens,
+               COALESCE(SUM(ce.output_tokens), 0)::text AS total_output_tokens,
+               COUNT(DISTINCT ce.execution_id)::text AS execution_count
+             FROM forge_cost_events ce
+             JOIN forge_executions e ON e.id = ce.execution_id
+             WHERE e.owner_id = $1
+               AND ce.created_at >= NOW() - INTERVAL '1 day' * $2
+             GROUP BY DATE(ce.created_at)
+             ORDER BY date DESC`,
+            [userId, days],
+          ),
 
-        query<WeeklyCostSummaryRow>(
-          `SELECT
-             DATE_TRUNC('week', ce.created_at)::text AS week_start,
-             COALESCE(SUM(ce.cost), 0)::text AS total_cost,
-             COALESCE(SUM(ce.input_tokens), 0)::text AS total_input_tokens,
-             COALESCE(SUM(ce.output_tokens), 0)::text AS total_output_tokens,
-             COUNT(DISTINCT ce.execution_id)::text AS execution_count
-           FROM forge_cost_events ce
-           JOIN forge_executions e ON e.id = ce.execution_id
-           WHERE e.owner_id = $1
-             AND ce.created_at >= NOW() - INTERVAL '1 day' * $2
-           GROUP BY DATE_TRUNC('week', ce.created_at)
-           ORDER BY week_start DESC`,
-          [userId, days],
-        ),
+          query<WeeklyCostSummaryRow>(
+            `SELECT
+               DATE_TRUNC('week', ce.created_at)::text AS week_start,
+               COALESCE(SUM(ce.cost), 0)::text AS total_cost,
+               COALESCE(SUM(ce.input_tokens), 0)::text AS total_input_tokens,
+               COALESCE(SUM(ce.output_tokens), 0)::text AS total_output_tokens,
+               COUNT(DISTINCT ce.execution_id)::text AS execution_count
+             FROM forge_cost_events ce
+             JOIN forge_executions e ON e.id = ce.execution_id
+             WHERE e.owner_id = $1
+               AND ce.created_at >= NOW() - INTERVAL '1 day' * $2
+             GROUP BY DATE_TRUNC('week', ce.created_at)
+             ORDER BY week_start DESC`,
+            [userId, days],
+          ),
 
-        queryOne<{
-          total_cost: string;
-          total_input_tokens: string;
-          total_output_tokens: string;
-          execution_count: string;
-          avg_cost_per_execution: string;
-        }>(
-          `SELECT
-             COALESCE(SUM(ce.cost), 0)::text AS total_cost,
-             COALESCE(SUM(ce.input_tokens), 0)::text AS total_input_tokens,
-             COALESCE(SUM(ce.output_tokens), 0)::text AS total_output_tokens,
-             COUNT(DISTINCT ce.execution_id)::text AS execution_count,
-             CASE WHEN COUNT(DISTINCT ce.execution_id) > 0
-               THEN (SUM(ce.cost) / COUNT(DISTINCT ce.execution_id))::text
-               ELSE '0'
-             END AS avg_cost_per_execution
-           FROM forge_cost_events ce
-           JOIN forge_executions e ON e.id = ce.execution_id
-           WHERE e.owner_id = $1
-             AND ce.created_at >= NOW() - INTERVAL '1 day' * $2`,
-          [userId, days],
-        ),
-      ]);
+          queryOne<{
+            total_cost: string;
+            total_input_tokens: string;
+            total_output_tokens: string;
+            execution_count: string;
+            avg_cost_per_execution: string;
+          }>(
+            `SELECT
+               COALESCE(SUM(ce.cost), 0)::text AS total_cost,
+               COALESCE(SUM(ce.input_tokens), 0)::text AS total_input_tokens,
+               COALESCE(SUM(ce.output_tokens), 0)::text AS total_output_tokens,
+               COUNT(DISTINCT ce.execution_id)::text AS execution_count,
+               CASE WHEN COUNT(DISTINCT ce.execution_id) > 0
+                 THEN (SUM(ce.cost) / COUNT(DISTINCT ce.execution_id))::text
+                 ELSE '0'
+               END AS avg_cost_per_execution
+             FROM forge_cost_events ce
+             JOIN forge_executions e ON e.id = ce.execution_id
+             WHERE e.owner_id = $1
+               AND ce.created_at >= NOW() - INTERVAL '1 day' * $2`,
+            [userId, days],
+          ),
+        ]);
 
-      return reply.send({
-        period: { days },
-        totals: {
-          totalCost: parseFloat(totals?.total_cost ?? '0') || 0,
-          totalInputTokens: parseInt(totals?.total_input_tokens ?? '0', 10) || 0,
-          totalOutputTokens: parseInt(totals?.total_output_tokens ?? '0', 10) || 0,
-          executionCount: parseInt(totals?.execution_count ?? '0', 10) || 0,
-          avgCostPerExecution: parseFloat(totals?.avg_cost_per_execution ?? '0') || 0,
-        },
-        daily: daily.map((r) => ({
-          date: r.date,
-          totalCost: parseFloat(r.total_cost) || 0,
-          totalInputTokens: parseInt(r.total_input_tokens, 10) || 0,
-          totalOutputTokens: parseInt(r.total_output_tokens, 10) || 0,
-          executionCount: parseInt(r.execution_count, 10) || 0,
-        })),
-        weekly: weekly.map((r) => ({
-          weekStart: r.week_start,
-          totalCost: parseFloat(r.total_cost) || 0,
-          totalInputTokens: parseInt(r.total_input_tokens, 10) || 0,
-          totalOutputTokens: parseInt(r.total_output_tokens, 10) || 0,
-          executionCount: parseInt(r.execution_count, 10) || 0,
-        })),
-      });
+        return reply.send({
+          period: { days },
+          totals: {
+            totalCost: parseFloat(totals?.total_cost ?? '0') || 0,
+            totalInputTokens: parseInt(totals?.total_input_tokens ?? '0', 10) || 0,
+            totalOutputTokens: parseInt(totals?.total_output_tokens ?? '0', 10) || 0,
+            executionCount: parseInt(totals?.execution_count ?? '0', 10) || 0,
+            avgCostPerExecution: parseFloat(totals?.avg_cost_per_execution ?? '0') || 0,
+          },
+          daily: daily.map((r) => ({
+            date: r.date,
+            totalCost: parseFloat(r.total_cost) || 0,
+            totalInputTokens: parseInt(r.total_input_tokens, 10) || 0,
+            totalOutputTokens: parseInt(r.total_output_tokens, 10) || 0,
+            executionCount: parseInt(r.execution_count, 10) || 0,
+          })),
+          weekly: weekly.map((r) => ({
+            weekStart: r.week_start,
+            totalCost: parseFloat(r.total_cost) || 0,
+            totalInputTokens: parseInt(r.total_input_tokens, 10) || 0,
+            totalOutputTokens: parseInt(r.total_output_tokens, 10) || 0,
+            executionCount: parseInt(r.execution_count, 10) || 0,
+          })),
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        request.log.error({ err }, 'Failed to get cost summary');
+        return reply.status(500).send({
+          error: 'Internal Server Error',
+          message: `Failed to get cost summary: ${message}`,
+        });
+      }
     },
   );
 }
