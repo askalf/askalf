@@ -46,6 +46,7 @@ export {
   createSession,
   validateSession,
   validateSessionWithUser,
+  computeFingerprint,
   refreshSession,
   revokeSession,
   revokeSessionById,
