@@ -24,6 +24,7 @@ interface CostSummaryRow {
   cli_input_tokens: string;
   cli_output_tokens: string;
   cli_events: string;
+  cli_estimated_cost: string;
 }
 
 interface DailyCostRow {
@@ -36,6 +37,7 @@ interface DailyCostRow {
   api_events: string;
   cli_cost: string;
   cli_events: string;
+  cli_estimated_cost: string;
 }
 
 interface AgentCostRow {
@@ -103,7 +105,8 @@ export async function registerAnalyticsRoutes(app: FastifyInstance): Promise<voi
              COALESCE(SUM(CASE WHEN ${IS_CLI} THEN cost ELSE 0 END), 0)::text AS cli_cost,
              COALESCE(SUM(CASE WHEN ${IS_CLI} THEN input_tokens ELSE 0 END), 0)::text AS cli_input_tokens,
              COALESCE(SUM(CASE WHEN ${IS_CLI} THEN output_tokens ELSE 0 END), 0)::text AS cli_output_tokens,
-             COUNT(*) FILTER (WHERE ${IS_CLI})::text AS cli_events
+             COUNT(*) FILTER (WHERE ${IS_CLI})::text AS cli_events,
+             COALESCE(SUM(CASE WHEN ${IS_CLI} THEN (metadata->>'estimated_cost')::numeric ELSE 0 END), 0)::text AS cli_estimated_cost
            FROM forge_cost_events
            ${where}`,
           params,
@@ -120,7 +123,8 @@ export async function registerAnalyticsRoutes(app: FastifyInstance): Promise<voi
              COALESCE(SUM(CASE WHEN NOT (${IS_CLI}) THEN cost ELSE 0 END), 0)::text AS api_cost,
              COUNT(*) FILTER (WHERE NOT (${IS_CLI}))::text AS api_events,
              COALESCE(SUM(CASE WHEN ${IS_CLI} THEN cost ELSE 0 END), 0)::text AS cli_cost,
-             COUNT(*) FILTER (WHERE ${IS_CLI})::text AS cli_events
+             COUNT(*) FILTER (WHERE ${IS_CLI})::text AS cli_events,
+             COALESCE(SUM(CASE WHEN ${IS_CLI} THEN (metadata->>'estimated_cost')::numeric ELSE 0 END), 0)::text AS cli_estimated_cost
            FROM forge_cost_events
            ${where}
            GROUP BY DATE(created_at)
@@ -165,6 +169,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance): Promise<voi
           totalInputTokens: row ? parseInt(row.cli_input_tokens, 10) || 0 : 0,
           totalOutputTokens: row ? parseInt(row.cli_output_tokens, 10) || 0 : 0,
           totalEvents: row ? parseInt(row.cli_events, 10) || 0 : 0,
+          estimatedCost: row ? parseFloat(row.cli_estimated_cost) || 0 : 0,
         },
       };
 
@@ -178,6 +183,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance): Promise<voi
         apiEvents: parseInt(r.api_events, 10) || 0,
         cliCost: parseFloat(r.cli_cost) || 0,
         cliEvents: parseInt(r.cli_events, 10) || 0,
+        cliEstimatedCost: parseFloat(r.cli_estimated_cost) || 0,
       }));
 
       const byAgent = agentRows.map((r) => ({

@@ -486,7 +486,7 @@ export interface CostBucket {
 export interface CostSummary {
   total: CostBucket;
   api: CostBucket;
-  cli: CostBucket;
+  cli: CostBucket & { estimatedCost?: number };
 }
 
 export interface DailyCost {
@@ -499,6 +499,7 @@ export interface DailyCost {
   apiEvents: number;
   cliCost: number;
   cliEvents: number;
+  cliEstimatedCost?: number;
 }
 
 export interface AgentCost {
