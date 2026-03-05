@@ -27,14 +27,16 @@ export async function buildMemoryContext(
   input: string,
   options?: ContextOptions,
 ): Promise<MemoryContextResult> {
-  // Hard timeout: never let memory context block agent dispatch for more than 15s
-  const TIMEOUT_MS = 15_000;
-  return Promise.race([
-    buildMemoryContextInner(agentId, input, options),
-    new Promise<MemoryContextResult>((_, reject) =>
-      setTimeout(() => reject(new Error(`Memory context timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
-    ),
-  ]);
+  // Hard timeout: never let memory context block agent dispatch for more than 45s
+  // Raised from 15s — embedding API takes 20-40s under load (observed: 26-39s actual completion time)
+  const TIMEOUT_MS = 45_000;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<MemoryContextResult>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Memory context timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS);
+  });
+  return Promise.race([buildMemoryContextInner(agentId, input, options), timeoutPromise]).finally(() => {
+    clearTimeout(timer);
+  });
 }
 
 async function buildMemoryContextInner(
