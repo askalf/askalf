@@ -93,6 +93,8 @@ const corsOrigins = process.env['ALLOWED_ORIGINS']?.split(',') || [
   'https://askalf.org',
   'https://www.askalf.org',
   ...(nodeEnv !== 'production' ? [
+    'http://localhost:3001',
+    'http://localhost:3002',
     'http://localhost:3005',
     'http://localhost:5173',
     'http://localhost:5174',
