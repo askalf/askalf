@@ -1,0 +1,205 @@
+/* ===================================================
+   TERMINAL TAB — CLI Command Center
+   Dark terminal aesthetic with monospace everything
+   =================================================== */
+
+.terminal-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0c0c0e;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #c8c8d0;
+  cursor: text;
+  position: relative;
+}
+
+/* ── Scrollable output area ── */
+
+.terminal-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.3) transparent;
+}
+
+.terminal-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.terminal-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal-viewport::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.3);
+  border-radius: 3px;
+}
+
+.terminal-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.5);
+}
+
+/* ── Lines ── */
+
+.terminal-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 22px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal-ts {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 11px;
+  flex-shrink: 0;
+  width: 60px;
+  user-select: none;
+}
+
+.terminal-content {
+  flex: 1;
+}
+
+/* Line types */
+
+.terminal-system .terminal-content {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.terminal-input .terminal-content {
+  color: #e4e4e9;
+  font-weight: 500;
+}
+
+.terminal-output .terminal-content {
+  color: #c8c8d0;
+}
+
+.terminal-error .terminal-content {
+  color: #f87171;
+}
+
+.terminal-success .terminal-content {
+  color: #34d399;
+}
+
+.terminal-info .terminal-content {
+  color: #a78bfa;
+}
+
+/* Banner */
+
+.terminal-banner {
+  justify-content: center;
+  padding: 0;
+}
+
+.terminal-banner-text {
+  color: #7c3aed;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  text-align: center;
+  width: 100%;
+  text-shadow: 0 0 20px rgba(124, 58, 237, 0.4);
+  line-height: 1.4;
+}
+
+.terminal-banner-text:empty {
+  display: block;
+  height: 4px;
+}
+
+/* Divider */
+
+.terminal-divider {
+  height: 1px;
+  padding: 4px 0;
+}
+
+.terminal-divider-line {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Suggestions bar ── */
+
+.terminal-suggestions {
+  display: flex;
+  gap: 8px;
+  padding: 6px 24px;
+  background: rgba(124, 58, 237, 0.06);
+  border-top: 1px solid rgba(124, 58, 237, 0.15);
+  flex-wrap: wrap;
+}
+
+.terminal-suggestion {
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: rgba(124, 58, 237, 0.12);
+  color: #a78bfa;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.terminal-suggestion:hover {
+  background: rgba(124, 58, 237, 0.25);
+}
+
+/* ── Input area ── */
+
+.terminal-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px 16px;
+  background: #0c0c0e;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.terminal-prompt {
+  color: #7c3aed;
+  font-weight: 600;
+  flex-shrink: 0;
+  font-size: 13px;
+  user-select: none;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e4e4e9;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  caret-color: #7c3aed;
+}
+
+.terminal-input::placeholder {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Blinking cursor effect on input focus ── */
+
+.terminal-input:focus {
+  outline: none;
+}
+
+/* ── Selection styling ── */
+
+.terminal-container ::selection {
+  background: rgba(124, 58, 237, 0.3);
+  color: #f4f4f5;
+}
