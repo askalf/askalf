@@ -85,6 +85,12 @@ export function createTriggerHandler(deps: HandlerDeps): TickHandler {
     await daemon.setThinking();
 
     const execId = ulid();
+    await query(
+      `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, runtime_mode, started_at)
+       VALUES ($1, $2, $3, 'running', $4, 'cli', NOW())
+       ON CONFLICT (id) DO UPDATE SET status = 'running', started_at = NOW()`,
+      [execId, deps.agentId, agent.owner_id || 'system:daemon', prompt.slice(0, 2000)],
+    );
     await daemon.setActing(execId);
 
     try {
@@ -147,6 +153,12 @@ export function createMessageHandler(deps: HandlerDeps): TickHandler {
     await daemon.setThinking();
 
     const execId = ulid();
+    await query(
+      `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, runtime_mode, started_at)
+       VALUES ($1, $2, $3, 'running', $4, 'cli', NOW())
+       ON CONFLICT (id) DO UPDATE SET status = 'running', started_at = NOW()`,
+      [execId, deps.agentId, agent.owner_id || 'system:daemon', prompt.slice(0, 2000)],
+    );
     await daemon.setActing(execId);
 
     try {
@@ -202,6 +214,12 @@ export function createGoalHandler(deps: HandlerDeps): TickHandler {
     );
 
     const execId = ulid();
+    await query(
+      `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, runtime_mode, started_at)
+       VALUES ($1, $2, $3, 'running', $4, 'cli', NOW())
+       ON CONFLICT (id) DO UPDATE SET status = 'running', started_at = NOW()`,
+      [execId, deps.agentId, agent.owner_id || 'system:daemon', action.prompt.slice(0, 2000)],
+    );
     await daemon.setActing(execId);
 
     try {
