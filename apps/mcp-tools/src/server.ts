@@ -67,6 +67,12 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 
+// API versioning header on all responses
+app.use((_req, res, next) => {
+  res.setHeader('X-API-Version', '1.0.0');
+  next();
+});
+
 // Metrics instrumentation
 app.use((req, _res, next) => {
   httpRequestsInFlight.inc({ service: 'mcp-tools' });
