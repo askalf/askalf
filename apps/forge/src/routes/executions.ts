@@ -80,6 +80,20 @@ interface ExecutionCountRow {
   total: string;
 }
 
+function encodeCursor(id: string, createdAt: string): string {
+  return Buffer.from(JSON.stringify({ id, t: createdAt })).toString('base64url');
+}
+
+function decodeCursor(cursor: string): { id: string; t: string } | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    if (typeof parsed.id === 'string' && typeof parsed.t === 'string') return parsed as { id: string; t: string };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 interface AgentCheckRow {
   id: string;
   owner_id: string;
@@ -486,11 +500,17 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
 
         const limit = Math.min(parseInt(qs.limit ?? '50', 10) || 50, 100);
         const offset = parseInt(qs.offset ?? '0', 10) || 0;
-        const whereClause = conditions.join(' AND ');
 
-        const [executions, countResult] = await Promise.all([
-          query<ExecutionRow>(
-            `SELECT
+        // Cursor mode: keyset pagination on (created_at DESC, id DESC)
+        const afterCursor = qs.after_cursor ? decodeCursor(qs.after_cursor) : null;
+        if (afterCursor) {
+          conditions.push(`(e.created_at, e.id) < ($${paramIndex}::timestamptz, $${paramIndex + 1})`);
+          params.push(afterCursor.t, afterCursor.id);
+          paramIndex += 2;
+        }
+
+        const whereClause = conditions.join(' AND ');
+        const listSql = `SELECT
                e.id, e.agent_id,
                COALESCE(a.name, 'Unknown') AS agent_name,
                e.session_id, e.owner_id, e.status,
@@ -517,15 +537,29 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
                GROUP BY execution_id
              ) ce ON ce.execution_id = e.id
              WHERE ${whereClause}
-             ORDER BY e.created_at DESC
-             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-            [...params, limit, offset],
-          ),
-          queryOne<ExecutionCountRow>(
-            `SELECT COUNT(*) AS total FROM forge_executions WHERE ${whereClause}`,
-            params,
-          ),
-        ]);
+             ORDER BY e.created_at DESC, e.id DESC
+             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+
+        let executions: ExecutionRow[];
+        let total: number | undefined;
+
+        if (afterCursor) {
+          // Cursor mode: skip expensive COUNT, use OFFSET=0
+          executions = await query<ExecutionRow>(listSql, [...params, limit, 0]);
+        } else {
+          const [rows, countResult] = await Promise.all([
+            query<ExecutionRow>(listSql, [...params, limit, offset]),
+            queryOne<ExecutionCountRow>(
+              `SELECT COUNT(*) AS total FROM forge_executions WHERE ${conditions.join(' AND ')}`,
+              params,
+            ),
+          ]);
+          executions = rows;
+          total = countResult ? parseInt(countResult.total, 10) : 0;
+        }
+
+        const lastItem = executions.length === limit ? executions[executions.length - 1] : null;
+        const nextCursor = lastItem ? encodeCursor(lastItem.id, lastItem.created_at) : null;
 
         return reply.send({
           executions: executions.map((e) => ({
@@ -538,9 +572,10 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
             totalTokens: e.total_tokens || 0,
             model: e.model ?? null,
           })),
-          total: countResult ? parseInt(countResult.total, 10) : 0,
+          ...(total !== undefined && { total }),
           limit,
-          offset,
+          ...(afterCursor ? {} : { offset }),
+          next_cursor: nextCursor,
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';

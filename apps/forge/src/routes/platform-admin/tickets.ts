@@ -8,7 +8,7 @@ import { queryOne } from '../../database.js';
 import { substrateQuery, substrateQueryOne } from '../../database.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { requireAdmin } from '../../middleware/session-auth.js';
-import { paginationResponse } from './utils.js';
+import { paginationResponse, encodeCursor, decodeCursor } from './utils.js';
 
 export async function registerTicketRoutes(app: FastifyInstance): Promise<void> {
 
@@ -19,12 +19,12 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
     async (request: FastifyRequest) => {
       const qs = request.query as {
         status?: string; source?: string; assigned_to?: string;
-        filter?: string; page?: string; limit?: string;
+        filter?: string; page?: string; limit?: string; after_cursor?: string;
       };
       const conditions: string[] = [];
       const params: unknown[] = [];
-      const page = parseInt(qs.page ?? '1');
-      const limit = parseInt(qs.limit ?? '20');
+      const page = Math.max(parseInt(qs.page ?? '1') || 1, 1);
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '20') || 20, 200));
       const offset = (page - 1) * limit;
 
       if (qs.filter === 'open') {
@@ -47,21 +47,44 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         conditions.push(`assigned_to = $${params.length}`);
       }
 
-      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      // Cursor mode: keyset pagination on (created_at DESC, id DESC)
+      const afterCursor = qs.after_cursor ? decodeCursor(qs.after_cursor) : null;
+      if (afterCursor) {
+        params.push(afterCursor.t, afterCursor.id);
+        conditions.push(`(created_at, id) < ($${params.length - 1}::timestamptz, $${params.length})`);
+      }
 
-      const [tickets, countResult] = await Promise.all([
-        substrateQuery(
-          `SELECT * FROM agent_tickets ${whereClause}
-           ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END,
-           created_at DESC
-           LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-          [...params, limit, offset],
-        ),
-        substrateQueryOne<{ count: string }>(
-          `SELECT COUNT(*) as count FROM agent_tickets ${whereClause}`,
-          params,
-        ),
-      ]);
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      // Cursor mode uses simple created_at sort; offset mode uses priority sort
+      const orderClause = afterCursor
+        ? `ORDER BY created_at DESC, id DESC`
+        : `ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END, created_at DESC`;
+
+      let tickets: unknown[];
+      let total: number | undefined;
+
+      if (afterCursor) {
+        tickets = await substrateQuery(
+          `SELECT * FROM agent_tickets ${whereClause} ${orderClause}
+           LIMIT $${params.length + 1} OFFSET 0`,
+          [...params, limit],
+        );
+      } else {
+        // Rebuild whereClause without cursor conditions for COUNT (cursor not added when afterCursor is null)
+        const [rows, countResult] = await Promise.all([
+          substrateQuery(
+            `SELECT * FROM agent_tickets ${whereClause} ${orderClause}
+             LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+            [...params, limit, offset],
+          ),
+          substrateQueryOne<{ count: string }>(
+            `SELECT COUNT(*) as count FROM agent_tickets ${whereClause}`,
+            params,
+          ),
+        ]);
+        tickets = rows;
+        total = parseInt(countResult?.count || '0');
+      }
 
       // Enrich tickets with linked execution info
       for (const ticket of tickets as Record<string, unknown>[]) {
@@ -81,8 +104,14 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         }
       }
 
-      const total = parseInt(countResult?.count || '0');
-      return { tickets, total, page, limit, pagination: paginationResponse(total, page, limit) };
+      const ticketArray = tickets as Record<string, unknown>[];
+      const lastTicket = ticketArray.length === limit ? ticketArray[ticketArray.length - 1] : null;
+      const nextCursor = lastTicket ? encodeCursor(lastTicket['id'] as string, lastTicket['created_at'] as string) : null;
+
+      if (total !== undefined) {
+        return { tickets, total, page, limit, pagination: paginationResponse(total, page, limit), next_cursor: nextCursor };
+      }
+      return { tickets, limit, next_cursor: nextCursor };
     },
   );
 
