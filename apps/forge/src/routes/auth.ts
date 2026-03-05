@@ -263,6 +263,25 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(401).send({ error: 'Invalid email or password' });
     }
 
+    // Enforce concurrent session limit — evict oldest session if at cap
+    const MAX_CONCURRENT_SESSIONS = 10;
+    const sessionCountRow = await substrateQueryOne<{ count: string }>(
+      `SELECT COUNT(*) as count FROM sessions WHERE user_id = $1 AND revoked = false AND expires_at > NOW()`,
+      [user['id']],
+    );
+    if (parseInt(sessionCountRow?.count ?? '0', 10) >= MAX_CONCURRENT_SESSIONS) {
+      await substrateQuery(
+        `UPDATE sessions SET revoked = true, revoked_at = NOW(), revoked_reason = 'session_limit_exceeded'
+         WHERE id = (
+           SELECT id FROM sessions
+           WHERE user_id = $1 AND revoked = false AND expires_at > NOW()
+           ORDER BY last_active_at ASC
+           LIMIT 1
+         )`,
+        [user['id']],
+      );
+    }
+
     // Create session
     const sessionId = `sess_${ulid()}`;
     const sessionToken = generateSessionToken();

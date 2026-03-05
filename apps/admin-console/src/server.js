@@ -133,8 +133,12 @@ async function authenticate(request) {
 // ---- Fastify setup ----
 const fastify = Fastify({ logger: true });
 
+const sessionSecret = process.env['SESSION_SECRET'];
+if (!sessionSecret && process.env['NODE_ENV'] === 'production') {
+  throw new Error('SESSION_SECRET environment variable is required in production');
+}
 await fastify.register(fastifyCookie, {
-  secret: process.env['SESSION_SECRET'] || 'admin-console-dev-secret',
+  secret: sessionSecret || 'admin-console-dev-secret',
   parseOptions: {
     httpOnly: true,
     secure: process.env['NODE_ENV'] === 'production',
