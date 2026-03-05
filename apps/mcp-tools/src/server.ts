@@ -106,8 +106,12 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 
-// API versioning header on all responses
+// Security + API versioning headers on all responses
 app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.setHeader('X-API-Version', '1.0.0');
   next();
 });
