@@ -385,7 +385,10 @@ services:
     stop_grace_period: 15s
     security_opt:
       - no-new-privileges:true
-    # NOTE: Cannot cap_drop ALL — needs docker socket access
+    cap_drop:
+      - ALL
+    # NOTE: Docker socket access is file I/O (not Linux caps); cap_drop ALL is safe here.
+    # Raw /var/run/docker.sock mount is an accepted high-privilege risk for super-admin use.
     tmpfs:
       - /tmp:mode=1777,size=128m
     logging:
