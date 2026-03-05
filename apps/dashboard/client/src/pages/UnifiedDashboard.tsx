@@ -2,9 +2,12 @@ import { useState, useEffect, lazy, Suspense, useCallback, Fragment, useMemo } f
 import { useParams, useNavigate } from 'react-router-dom';
 import TopBar from '../components/unified/TopBar';
 import ErrorBoundary from '../components/ErrorBoundary';
+import KeyboardHelpOverlay from '../components/KeyboardHelpOverlay';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { hubApi } from '../hooks/useHubApi';
 import { useAuthStore } from '../stores/auth';
+import { useHubStore } from '../stores/hub';
 import './UnifiedDashboard.css';
 // Hub component CSS (previously imported by CommandCenter)
 import './hub/shared/hub-shared.css';
@@ -80,7 +83,10 @@ export default function UnifiedDashboard() {
 
   const initialTab = (tab && visibleKeys.includes(tab as TabKey)) ? tab as TabKey : 'chat';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { connected, events: wsEvents } = useWebSocket();
+
+  const { fetchAgents, fetchTickets, fetchCosts, fetchCoordinationSessions, fetchCoordinationStats, fetchRibbonData, fetchInterventions } = useHubStore();
 
   const setActiveTab = useCallback((key: TabKey) => {
     setActiveTabState(key);
@@ -133,6 +139,38 @@ export default function UnifiedDashboard() {
       })
       .catch(() => {});
   }, []);
+
+  // Keyboard shortcut: refresh current tab's data
+  const handleRefresh = useCallback(() => {
+    switch (activeTab) {
+      case 'orchestrator': fetchAgents(); fetchCoordinationSessions(); fetchCoordinationStats(); break;
+      case 'fleet': fetchAgents(); break;
+      case 'operations': fetchTickets(); fetchInterventions(); fetchRibbonData(); break;
+      case 'monitor': fetchCosts(); fetchAgents(); break;
+      default: break;
+    }
+  }, [activeTab, fetchAgents, fetchTickets, fetchCosts, fetchCoordinationSessions, fetchCoordinationStats, fetchRibbonData, fetchInterventions]);
+
+  const handleToggleHelp = useCallback(() => setHelpOpen(h => !h), []);
+
+  // Tab list for help overlay (1-indexed, max 9)
+  const tabListForHelp = useMemo(
+    () => visibleKeys.slice(0, 9).map((key, i) => ({
+      index: i + 1,
+      key,
+      label: visibleGroups.flatMap(g => g.tabs).find(t => t.key === key)?.label ?? key,
+    })),
+    [visibleKeys, visibleGroups]
+  );
+
+  useKeyboardShortcuts({
+    visibleKeys,
+    activeTab,
+    setActiveTab,
+    onRefresh: handleRefresh,
+    onToggleHelp: handleToggleHelp,
+    helpOpen,
+  });
 
   // Template → Builder navigation
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -225,6 +263,7 @@ export default function UnifiedDashboard() {
 
   return (
     <div className="ud-container">
+      <KeyboardHelpOverlay open={helpOpen} onClose={handleToggleHelp} tabList={tabListForHelp} />
       <TopBar
         wsConnected={connected}
         agentCount={agentCount}
