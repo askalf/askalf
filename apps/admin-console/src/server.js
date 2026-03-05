@@ -13,6 +13,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import Fastify from 'fastify';
+import fastifyCors from '@fastify/cors';
 import fastifyWebsocket from '@fastify/websocket';
 import fastifyCookie from '@fastify/cookie';
 import pg from 'pg';
@@ -137,6 +138,9 @@ const sessionSecret = process.env['SESSION_SECRET'];
 if (!sessionSecret && process.env['NODE_ENV'] === 'production') {
   throw new Error('SESSION_SECRET environment variable is required in production');
 }
+// CORS — admin-console has no cross-origin callers; deny all cross-origin requests explicitly
+await fastify.register(fastifyCors, { origin: false });
+
 await fastify.register(fastifyCookie, {
   secret: sessionSecret || 'admin-console-dev-secret',
   parseOptions: {

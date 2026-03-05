@@ -138,7 +138,9 @@ const ALLOWED_ORIGINS = [
   // Development origins
   ...(process.env['NODE_ENV'] !== 'production' ? [
     'http://localhost:3001',
+    'http://localhost:3005',
     'http://localhost:5173',
+    'http://localhost:5174',
     'http://127.0.0.1:3001',
     'http://127.0.0.1:5173',
   ] : []),
