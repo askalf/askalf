@@ -1,19 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-
-function useTheme() {
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    const stored = localStorage.getItem('theme');
-    return stored !== 'light';
-  });
-
-  useEffect(() => {
-    const theme = isDark ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-  }, [isDark]);
-
-  return { isDark, toggle: () => setIsDark(d => !d) };
-}
+import { useThemeStore } from '../../stores/theme';
 
 interface TopBarProps {
   wsConnected: boolean;
@@ -36,7 +22,9 @@ export default function TopBar({ wsConnected, agentCount, todayCost, budgetLimit
   const [user, setUser] = useState<AuthUser | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { isDark, toggle: toggleTheme } = useTheme();
+  const { theme, setTheme } = useThemeStore();
+  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
 
   // Fetch current user
   useEffect(() => {
