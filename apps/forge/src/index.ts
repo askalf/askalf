@@ -51,6 +51,7 @@ import { deviceRoutes } from './routes/devices.js';
 import { daemonRoutes } from './routes/daemons.js';
 import { triggerRoutes } from './routes/triggers.js';
 import { economyRoutes } from './routes/economy.js';
+import { errorRoutes } from './routes/errors.js';
 import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
 import { sessionAuthMiddleware } from './middleware/session-auth.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
@@ -377,6 +378,7 @@ await deviceRoutes(app);
 await daemonRoutes(app);
 await triggerRoutes(app);
 await economyRoutes(app);
+await errorRoutes(app);
 await registerMCPRoutes(app);
 await registerAgentBridge(app);
 
