@@ -38,6 +38,7 @@ initializePool({ connectionString: databaseUrl });
 initializeEmailFromEnv();
 
 const fastify = Fastify({ logger: true });
+const startTime = Date.now();
 
 // ===========================================
 // RATE LIMITING
@@ -218,12 +219,18 @@ fastify.addHook('onResponse', async (request, reply) => {
 
 // Health check endpoint for container orchestration
 fastify.get('/health', { logLevel: 'silent' }, async (_request, reply) => {
-  // Validate database connectivity
+  const mem = process.memoryUsage();
+  const base = {
+    service: 'dashboard',
+    version: '1.0.0',
+    uptime: Math.floor((Date.now() - startTime) / 1000),
+    memory: { heapUsed: mem.heapUsed, rss: mem.rss },
+  };
   try {
     await queryOne('SELECT 1');
-    return { status: 'healthy', service: 'dashboard', database: 'connected' };
+    return { status: 'healthy', ...base, database: 'connected' };
   } catch (err) {
-    return reply.code(503).send({ status: 'degraded', service: 'dashboard', database: 'disconnected', error: err.message });
+    return reply.code(503).send({ status: 'degraded', ...base, database: 'disconnected', error: err.message });
   }
 });
 
