@@ -501,6 +501,15 @@ export interface DailyCost {
   cliEvents: number;
 }
 
+export interface AgentCost {
+  agentId: string;
+  agentName: string;
+  totalCost: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalEvents: number;
+}
+
 // Audit types
 export interface AuditEntry {
   id: string;
@@ -911,7 +920,7 @@ export const hubApi = {
 
   costs: {
     summary: (params: { startDate?: string; endDate?: string; agentId?: string; days?: number } = {}) =>
-      apiFetch<{ summary: CostSummary; dailyCosts: DailyCost[] }>(
+      apiFetch<{ summary: CostSummary; dailyCosts: DailyCost[]; byAgent: AgentCost[] }>(
         `/api/v1/admin/costs?${buildParams({ startDate: params.startDate, endDate: params.endDate, agentId: params.agentId, days: params.days || 30 })}`
       ),
   },
