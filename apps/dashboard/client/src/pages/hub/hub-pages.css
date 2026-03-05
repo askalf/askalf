@@ -1964,3 +1964,260 @@
   .elv-search { width: 120px; }
   .elv-ts { display: none; }
 }
+
+/* ====================
+   AGENT ACTIVITY TIMELINE (.atl-)
+   ==================== */
+
+.atl-root {
+  padding: var(--space-md, 1rem);
+  animation: forge-fade-in 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 0.5rem);
+}
+
+.atl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md, 1rem);
+  flex-wrap: wrap;
+}
+
+.atl-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.atl-count {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-muted, #64748b);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+.atl-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.atl-range-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.atl-range-btn:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.4);
+  color: var(--text-primary, #e2e8f0);
+}
+
+.atl-range-btn.active {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.6);
+  color: #a78bfa;
+}
+
+.atl-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #64748b);
+}
+
+.atl-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.atl-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Chart layout: label column + track area */
+.atl-chart {
+  display: flex;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.atl-labels {
+  width: 160px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.atl-label-spacer {
+  height: 28px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.atl-label {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+}
+
+.atl-label:last-child { border-bottom: none; }
+
+/* Scrollable track area */
+.atl-track-area {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+/* Time axis row */
+.atl-axis {
+  height: 28px;
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.atl-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.atl-tick-line {
+  width: 1px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  margin-top: auto;
+}
+
+.atl-tick-label {
+  font-size: 0.65rem;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Agent track row */
+.atl-track {
+  height: 36px;
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.atl-track:last-child { border-bottom: none; }
+
+.atl-grid-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+/* Execution bar */
+.atl-bar {
+  position: absolute;
+  top: 6px;
+  height: 24px;
+  border-radius: 4px;
+  min-width: 4px;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.15s, transform 0.1s;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.atl-bar:hover {
+  opacity: 1;
+  transform: scaleY(1.1);
+  z-index: 10;
+}
+
+.atl-bar--running {
+  animation: atl-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes atl-pulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
+}
+
+/* Tooltip */
+.atl-tooltip {
+  position: absolute;
+  z-index: 100;
+  background: rgba(15, 15, 25, 0.95);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+
+.atl-tooltip-agent {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 5px;
+}
+
+.atl-tooltip-row {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.atl-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
