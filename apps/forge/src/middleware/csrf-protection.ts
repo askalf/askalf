@@ -8,7 +8,7 @@
  */
 
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 
 const CSRF_HEADER = 'x-csrf-token';
 const CSRF_FORM_FIELD = 'csrf_token';
@@ -64,9 +64,10 @@ export async function csrfProtectionMiddleware(
   const safeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase());
   if (safeMethod) return;
 
-  // Skip API key authenticated requests (assume they're safe)
-  const apiKeyAuth = (request as FastifyRequest & { apiKeyAuth?: boolean }).apiKeyAuth;
-  if (apiKeyAuth) return;
+  // Skip API key authenticated requests (machine-to-machine, no CSRF needed)
+  // API keys always have the fk_ prefix in the Authorization header
+  const authHeader = request.headers.authorization;
+  if (typeof authHeader === 'string' && authHeader.startsWith('Bearer fk_')) return;
 
   // Get session user
   const sessionUser = (request as FastifyRequest & { sessionUser?: unknown }).sessionUser;
@@ -114,6 +115,5 @@ export async function csrfProtectionMiddleware(
 declare module 'fastify' {
   interface FastifyRequest {
     sessionCsrfToken?: string;
-    apiKeyAuth?: boolean;
   }
 }
