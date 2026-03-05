@@ -131,7 +131,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to create agent');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to create agent: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -202,7 +202,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to list agents');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to list agents: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -245,7 +245,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to get agent');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to get agent: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -362,7 +362,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to update agent');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to update agent: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -420,7 +420,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to archive agent');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to archive agent: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -511,7 +511,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
         request.log.error({ err }, 'Failed to fork agent');
         return reply.status(500).send({
           error: 'Internal Server Error',
-          message: `Failed to fork agent: ${message}`,
+          message: 'Internal Server Error',
         });
       }
     },
@@ -587,7 +587,7 @@ Return ONLY the optimized system prompt text — no explanations, no markdown fe
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         request.log.error({ err }, 'Prompt optimization failed');
-        return reply.status(500).send({ error: 'Internal Server Error', message: `Optimization failed: ${message}` });
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'Internal Server Error' });
       }
     },
   );

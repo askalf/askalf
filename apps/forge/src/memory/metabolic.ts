@@ -596,6 +596,42 @@ async function runAutonomyLoop(): Promise<void> {
         ],
       );
       console.log(`[Autonomy] Anomaly: cost spike $${hourCost.toFixed(2)} vs $${hourlyBaseCost.toFixed(2)}/hr (${severity})`);
+
+      // Auto-heal: create urgent ticket so humans can investigate (deduplicated per hour)
+      try {
+        const existingTicket = await substrateQuery<{ id: string }>(
+          `SELECT id FROM agent_tickets WHERE category = 'cost-spike' AND created_at > NOW() - INTERVAL '1 hour' AND status != 'resolved' LIMIT 1`,
+          [],
+        );
+        if (existingTicket.length === 0) {
+          const ticketId = `CS-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+          const ratio = (hourCost / hourlyBaseCost).toFixed(1);
+          await substrateQuery(
+            `INSERT INTO agent_tickets (id, title, description, status, priority, category, assigned_to, is_agent_ticket, source, metadata)
+             VALUES ($1, $2, $3, 'open', $4, 'cost-spike', 'Backend Dev', true, 'autonomy-loop', $5)
+             ON CONFLICT DO NOTHING`,
+            [
+              ticketId,
+              `[${severity.toUpperCase()}] Cost spike anomaly detected by Autonomy Loop: $${hourCost.toFixed(2)}/hr vs baseline $${hourlyBaseCost.toFixed(2)}/hr (${ratio}x over normal)`,
+              `Cost spike anomaly detected by Autonomy Loop at ${new Date().toISOString()}.\n\n` +
+              `- Last hour cost: $${hourCost.toFixed(2)}\n` +
+              `- Baseline (24h avg): $${hourlyBaseCost.toFixed(2)}/hr\n` +
+              `- Ratio: ${ratio}x over normal\n\n` +
+              `Likely causes:\n` +
+              `- Concurrent agent dispatches (scheduler double-fire)\n` +
+              `- Runaway execution loop\n` +
+              `- Multiple tickets dispatched to same agent simultaneously\n\n` +
+              `Recommend monitoring cost events over next 15 minutes to confirm this is a burst not sustained overage. Finding ID: ${findingId}`,
+              severity === 'critical' ? 'urgent' : 'high',
+              JSON.stringify({ type: 'cost_spike', hour_cost: hourCost, baseline_hourly: hourlyBaseCost, finding_id: findingId }),
+            ],
+          );
+          autoHealed++;
+          console.log(`[Autonomy] Auto-heal: created ${severity} cost spike ticket ${ticketId} ($${hourCost.toFixed(2)}/hr, ${ratio}x baseline)`);
+        }
+      } catch (ticketErr) {
+        console.warn('[Autonomy] Cost spike ticket creation failed:', ticketErr instanceof Error ? ticketErr.message : ticketErr);
+      }
     }
 
     // Per-agent failure detection: >50% failure rate in last hour, min 3 executions

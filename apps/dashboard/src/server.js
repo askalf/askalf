@@ -38,7 +38,6 @@ initializePool({ connectionString: databaseUrl });
 initializeEmailFromEnv();
 
 const fastify = Fastify({ logger: true });
-const startTime = Date.now();
 
 // ===========================================
 // RATE LIMITING
@@ -84,11 +83,6 @@ fastify.addHook('preHandler', async (request, reply) => {
     reply.status(429);
     return { error: 'Too Many Requests', retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
   }
-});
-
-// API versioning header on all responses
-fastify.addHook('onSend', async (_request, reply) => {
-  reply.header('X-API-Version', '1.0.0');
 });
 
 // ===========================================
@@ -168,12 +162,8 @@ await fastify.register(fastifyCors, {
 });
 
 // Cookie support for session auth with secure options
-const sessionSecret = process.env['SESSION_SECRET'];
-if (!sessionSecret && process.env['NODE_ENV'] === 'production') {
-  throw new Error('SESSION_SECRET environment variable is required in production');
-}
 await fastify.register(fastifyCookie, {
-  secret: sessionSecret || 'dev-session-secret-not-for-production',
+  secret: process.env['SESSION_SECRET'] || 'dev-session-secret-not-for-production',
   hook: 'onRequest',
   parseOptions: {
     httpOnly: true,
@@ -228,18 +218,12 @@ fastify.addHook('onResponse', async (request, reply) => {
 
 // Health check endpoint for container orchestration
 fastify.get('/health', { logLevel: 'silent' }, async (_request, reply) => {
-  const mem = process.memoryUsage();
-  const base = {
-    service: 'dashboard',
-    version: '1.0.0',
-    uptime: Math.floor((Date.now() - startTime) / 1000),
-    memory: { heapUsed: mem.heapUsed, rss: mem.rss },
-  };
+  // Validate database connectivity
   try {
     await queryOne('SELECT 1');
-    return { status: 'healthy', ...base, database: 'connected' };
+    return { status: 'healthy', service: 'dashboard', database: 'connected' };
   } catch (err) {
-    return reply.code(503).send({ status: 'degraded', ...base, database: 'disconnected', error: err.message });
+    return reply.code(503).send({ status: 'degraded', service: 'dashboard', database: 'disconnected' });
   }
 });
 
@@ -522,7 +506,7 @@ async function getStats() {
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE status = 'open') as open,
         COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress
-      FROM agent_tickets
+      FROM tickets
     `),
     queryOne(`
       SELECT
@@ -559,12 +543,8 @@ async function getStats() {
   };
 }
 
-// System stats endpoint (admin view — requires auth)
-fastify.get('/api/stats', async (request, reply) => {
-  const user = await getUserFromSession(request);
-  if (!user) return reply.code(401).send({ error: 'Authentication required' });
-  return getStats();
-});
+// System stats endpoint (admin view)
+fastify.get('/api/stats', async () => getStats());
 
 // Tenant-scoped stats endpoint (requires authentication)
 fastify.get('/api/tenant/stats', async (request, reply) => {

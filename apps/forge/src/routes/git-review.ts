@@ -108,7 +108,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
       const branchRes = await git(['branch', '--list', 'agent/*', '--no-merged', 'main', '--format=%(refname:short)|%(committerdate:iso8601)|%(committername)']);
       if (branchRes.exitCode !== 0) {
-        return reply.status(500).send({ error: 'Failed to list branches', detail: branchRes.stderr });
+        request.log.error({ stderr: branchRes.stderr }, 'Failed to list branches');
+        return reply.status(500).send({ error: 'Failed to list branches' });
       }
 
       const lines = branchRes.stdout.trim().split('\n').filter(Boolean);
@@ -213,7 +214,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         git(['diff', '--shortstat', `main...${branch}`]),
       ]);
       if (diffRes.exitCode !== 0) {
-        return reply.status(500).send({ error: 'Failed to get diff', detail: diffRes.stderr });
+        request.log.error({ stderr: diffRes.stderr }, 'Failed to get diff');
+        return reply.status(500).send({ error: 'Failed to get diff' });
       }
 
       let diff = diffRes.stdout;
@@ -255,7 +257,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
       const logRes = await git(['log', `main..${branch}`, '--format=%H|%s|%an|%aI', '-n', '50']);
       if (logRes.exitCode !== 0) {
-        return reply.status(500).send({ error: 'Failed to get log', detail: logRes.stderr });
+        request.log.error({ stderr: logRes.stderr }, 'Failed to get log');
+        return reply.status(500).send({ error: 'Failed to get log' });
       }
 
       const commits = logRes.stdout.trim().split('\n').filter(Boolean).map((line: string) => {
@@ -281,7 +284,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
       const numstatRes = await git(['diff', '--numstat', `main...${branch}`]);
       if (numstatRes.exitCode !== 0) {
-        return reply.status(500).send({ error: 'Failed to get file stats', detail: numstatRes.stderr });
+        request.log.error({ stderr: numstatRes.stderr }, 'Failed to get file stats');
+        return reply.status(500).send({ error: 'Failed to get file stats' });
       }
 
       const files = numstatRes.stdout.trim().split('\n').filter(Boolean).map((line: string) => {
@@ -311,7 +315,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
       // Ensure we're on main and up to date
       const checkoutRes = await git(['checkout', 'main']);
       if (checkoutRes.exitCode !== 0) {
-        return reply.status(500).send({ error: 'Failed to checkout main', detail: checkoutRes.stderr });
+        request.log.error({ stderr: checkoutRes.stderr }, 'Failed to checkout main');
+        return reply.status(500).send({ error: 'Failed to checkout main' });
       }
 
       // Merge with no-ff to preserve merge commit (safe: array args prevent shell injection)
@@ -326,7 +331,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
             message: 'Merge conflicts detected. The agent branch needs to be rebased or conflicts resolved manually.',
           });
         }
-        return reply.status(500).send({ error: 'Merge failed', detail: mergeRes.stderr });
+        request.log.error({ stderr: mergeRes.stderr }, 'Merge failed');
+        return reply.status(500).send({ error: 'Merge failed' });
       }
 
       // Get the merge commit hash
@@ -567,7 +573,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         });
 
         if (createRes.statusCode !== 201) {
-          return reply.status(500).send({ error: 'Failed to create builder container', detail: createRes.data.substring(0, 500) });
+          request.log.error({ statusCode: createRes.statusCode, data: createRes.data.substring(0, 500) }, 'Failed to create builder container');
+          return reply.status(500).send({ error: 'Failed to create builder container' });
         }
 
         const builder = JSON.parse(createRes.data);
@@ -578,7 +585,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         if (startRes.statusCode !== 204 && startRes.statusCode !== 200) {
           // Cleanup failed container
           await dockerApi('DELETE', `/v1.44/containers/${builderId}?force=true`).catch(() => {});
-          return reply.status(500).send({ error: 'Failed to start builder', detail: startRes.data.substring(0, 500) });
+          request.log.error({ statusCode: startRes.statusCode, data: startRes.data.substring(0, 500) }, 'Failed to start builder');
+          return reply.status(500).send({ error: 'Failed to start builder' });
         }
 
         return reply.send({
@@ -589,7 +597,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
           message: `Rebuilding ${ordered.length} service(s): ${ordered.join(', ')}`,
         });
       } catch (err) {
-        request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Rebuild failed');
+        request.log.error({ err }, 'Rebuild failed');
         return reply.status(500).send({ error: 'Rebuild failed' });
       }
     },
@@ -640,8 +648,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
           logs,
         });
       } catch (err) {
-        request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Builder inspect failed');
-        return reply.status(500).send({ error: 'Internal server error' });
+        request.log.error({ err }, 'Failed to poll builder container');
+        return reply.status(500).send({ error: 'Failed to poll builder container' });
       }
     },
   );
@@ -671,8 +679,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
         return reply.status(500).send({ error: `Failed to cancel: HTTP ${deleteRes.statusCode}` });
       } catch (err) {
-        request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Builder cancel failed');
-        return reply.status(500).send({ error: 'Internal server error' });
+        request.log.error({ err }, 'Failed to cancel builder container');
+        return reply.status(500).send({ error: 'Failed to cancel builder container' });
       }
     },
   );
@@ -731,8 +739,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
         return reply.send({ tasks });
       } catch (err) {
-        _request.log.error({ err: err instanceof Error ? err.message : String(err) }, 'Builder task list failed');
-        return reply.status(500).send({ error: 'Internal server error' });
+        request.log.error({ err }, 'Failed to list builder tasks');
+        return reply.status(500).send({ error: 'Failed to list builder tasks' });
       }
     },
   );
