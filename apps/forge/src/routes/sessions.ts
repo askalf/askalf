@@ -73,7 +73,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
         tags: ['Sessions'],
         summary: 'Create a new session',
         body: CreateSessionBody,
-        response: { 404: ErrorResponse, 500: ErrorResponse },
+        response: { 400: ErrorResponse, 404: ErrorResponse, 500: ErrorResponse },
       },
       preHandler: [authMiddleware],
     },
