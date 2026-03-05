@@ -42,6 +42,7 @@ const writeQueue = new AsyncQueue(5, 200);
 
 /**
  * Log an event to the persistent store.
+ * Called via writeQueue in startEventLogger for throttled writes.
  */
 export async function logEvent(event: ForgeEvent): Promise<void> {
   const e = event as unknown as Record<string, unknown>;
