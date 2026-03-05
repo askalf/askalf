@@ -34,10 +34,10 @@ let lastReport: HealthReport | null = null;
 
 /** Map alert metrics to the agent responsible for handling them */
 const ALERT_ASSIGNMENT: Record<string, string> = {
-  execution_failure_rate: 'Nexus',
-  stuck_executions: 'DevOps',
-  hourly_cost: 'Crucible',
-  agents_in_error: 'DevOps',
+  execution_failure_rate: 'Backend Dev',
+  stuck_executions: 'Infra',
+  hourly_cost: 'Infra',
+  agents_in_error: 'Infra',
 };
 
 /**
@@ -57,7 +57,7 @@ async function createAlertTicket(alert: Alert): Promise<void> {
     if (existing.length > 0) return;
 
     const id = `MON-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
-    const assignedTo = ALERT_ASSIGNMENT[alert.metric] || 'Nexus';
+    const assignedTo = ALERT_ASSIGNMENT[alert.metric] || 'Infra';
     const priority = alert.severity === 'critical' ? 'urgent' : 'high';
 
     await substrateQuery(

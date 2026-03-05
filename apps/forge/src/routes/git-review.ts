@@ -692,7 +692,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
   app.get(
     '/api/v1/forge/git/rebuild/tasks',
     { preHandler: [authMiddleware] },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const filters = encodeURIComponent(JSON.stringify({ label: ['substrate.role=builder'] }));
         const listRes = await dockerApi('GET', `/v1.44/containers/json?all=true&filters=${filters}`);
