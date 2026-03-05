@@ -27,21 +27,15 @@ export async function buildMemoryContext(
   input: string,
   options?: ContextOptions,
 ): Promise<MemoryContextResult> {
-  // Hard timeout: never let memory context block agent dispatch indefinitely.
-  // Set to 60s to accommodate embedding API latency of 20-50s under concurrent load.
-  // Each fetch has its own 10s timeout + 1 retry (max ~21s), so 60s gives headroom
-  // for up to 2 sequential embedding calls plus DB query time.
-  const TIMEOUT_MS = 60_000;
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<MemoryContextResult>((_, reject) => {
-    timeoutHandle = setTimeout(
-      () => reject(new Error(`Memory context timed out after ${TIMEOUT_MS}ms`)),
-      TIMEOUT_MS,
-    );
-  });
+  // Hard timeout: never let memory context block agent dispatch for more than 25s.
+  // The embedding fetch itself has a 5s per-attempt timeout (2 attempts = ~11s max),
+  // leaving ~14s for DB vector searches before this fires.
+  const TIMEOUT_MS = 25_000;
   return Promise.race([
-    buildMemoryContextInner(agentId, input, options).finally(() => clearTimeout(timeoutHandle)),
-    timeoutPromise,
+    buildMemoryContextInner(agentId, input, options),
+    new Promise<MemoryContextResult>((_, reject) =>
+      setTimeout(() => reject(new Error(`Memory context timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
+    ),
   ]);
 }
 
