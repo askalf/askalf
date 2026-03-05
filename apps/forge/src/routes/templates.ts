@@ -55,12 +55,25 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
       },
       preHandler: [authMiddleware],
     },
-    async (_request: FastifyRequest, _reply: FastifyReply) => {
-      const templates = await query<TemplateRow>(
-        `SELECT * FROM forge_agent_templates
-         WHERE is_active = true
-         ORDER BY sort_order ASC, name ASC`,
-      );
+    async (request: FastifyRequest, _reply: FastifyReply) => {
+      const qs = request.query as { limit?: string; offset?: string };
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 200));
+      const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
+
+      const [templates, countResult] = await Promise.all([
+        query<TemplateRow>(
+          `SELECT * FROM forge_agent_templates
+           WHERE is_active = true
+           ORDER BY sort_order ASC, name ASC
+           LIMIT $1 OFFSET $2`,
+          [limit, offset],
+        ),
+        query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count FROM forge_agent_templates WHERE is_active = true`,
+        ),
+      ]);
+
+      const total = parseInt(countResult[0]?.count ?? '0', 10);
 
       // Group by category
       const grouped: Record<string, TemplateRow[]> = {};
@@ -72,7 +85,9 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
       return {
         templates,
         categories: grouped,
-        total: templates.length,
+        total,
+        limit,
+        offset,
       };
     },
   );

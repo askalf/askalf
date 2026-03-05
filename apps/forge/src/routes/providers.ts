@@ -107,12 +107,23 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
   app.get(
     '/api/v1/forge/providers',
     { preHandler: [authMiddleware] },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
-      const providers = await query<ProviderRow>(
-        `SELECT id, name, type, base_url, api_key_encrypted, is_enabled, health_status, last_health_check, config, created_at, updated_at
-         FROM forge_providers
-         ORDER BY name`,
-      );
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const qs = request.query as { limit?: string; offset?: string };
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 200));
+      const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
+
+      const [providers, countResult] = await Promise.all([
+        query<ProviderRow>(
+          `SELECT id, name, type, base_url, api_key_encrypted, is_enabled, health_status, last_health_check, config, created_at, updated_at
+           FROM forge_providers
+           ORDER BY name
+           LIMIT $1 OFFSET $2`,
+          [limit, offset],
+        ),
+        query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM forge_providers`),
+      ]);
+
+      const total = parseInt(countResult[0]?.count ?? '0', 10);
 
       // Return providers with auth info but never expose raw keys
       const result = await Promise.all(providers.map(async (p) => {
@@ -135,7 +146,7 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
         };
       }));
 
-      return reply.send({ providers: result });
+      return reply.send({ providers: result, total, limit, offset });
     },
   );
 
@@ -166,6 +177,8 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
         tools?: string;
         vision?: string;
         reasoning?: string;
+        limit?: string;
+        offset?: string;
       };
 
       const conditions: string[] = ['provider_id = $1'];
@@ -198,12 +211,23 @@ export async function providerRoutes(app: FastifyInstance): Promise<void> {
 
       const whereClause = conditions.join(' AND ');
 
-      const models = await query<ModelRow>(
-        `SELECT * FROM forge_models WHERE ${whereClause} ORDER BY display_name`,
-        params,
-      );
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 200));
+      const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
 
-      return reply.send({ provider: { id: provider.id, name: provider.name, type: provider.type }, models });
+      const [models, countResult] = await Promise.all([
+        query<ModelRow>(
+          `SELECT * FROM forge_models WHERE ${whereClause} ORDER BY display_name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+          [...params, limit, offset],
+        ),
+        query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count FROM forge_models WHERE ${whereClause}`,
+          params,
+        ),
+      ]);
+
+      const total = parseInt(countResult[0]?.count ?? '0', 10);
+
+      return reply.send({ provider: { id: provider.id, name: provider.name, type: provider.type }, models, total, limit, offset });
     },
   );
 
