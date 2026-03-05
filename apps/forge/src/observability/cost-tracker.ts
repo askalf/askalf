@@ -53,13 +53,42 @@ export interface CostBucket {
   totalEvents: number;
 }
 
+const MANUAL_RECOVERY_FIELDS = (opts: TrackCostOptions) =>
+  JSON.stringify({
+    executionId: opts.executionId,
+    agentId: opts.agentId,
+    cost: opts.cost,
+    inputTokens: opts.inputTokens,
+    outputTokens: opts.outputTokens,
+    model: opts.model,
+  });
+
 /**
  * Record a cost event for an execution.
- * Retries up to 3 times with exponential backoff to prevent silent data loss.
+ * Checks that the execution record exists before inserting to avoid FK violations.
+ * Retries up to 3 times with exponential backoff for transient errors only.
+ * FK violations (23503) are detected immediately and not retried — they indicate
+ * a missing execution record and retrying will not resolve them.
  */
 export async function trackCost(opts: TrackCostOptions): Promise<string> {
   const id = ulid();
   const MAX_RETRIES = 3;
+
+  // Verify the execution record exists before attempting the insert.
+  // FK violations cannot self-heal via retry — bail early with enough info for manual recovery.
+  const execExists = await queryOne<{ id: string }>(
+    `SELECT id FROM forge_executions WHERE id = $1`,
+    [opts.executionId],
+  ).catch(() => null);
+
+  if (!execExists) {
+    console.error(
+      `[Cost] SKIPPED: execution ${opts.executionId} not found in forge_executions. ` +
+      `Cost data cannot be recorded. MANUAL RECOVERY NEEDED:`,
+      MANUAL_RECOVERY_FIELDS(opts),
+    );
+    return id;
+  }
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -81,20 +110,24 @@ export async function trackCost(opts: TrackCostOptions): Promise<string> {
       );
       return id;
     } catch (err) {
+      // FK violation (23503): execution_id doesn't exist. No point retrying.
+      const pgCode = (err as { code?: string }).code;
+      if (pgCode === '23503') {
+        console.error(
+          `[Cost] FK VIOLATION inserting cost event for execution ${opts.executionId}. ` +
+          `Execution record missing or deleted. MANUAL RECOVERY NEEDED:`,
+          MANUAL_RECOVERY_FIELDS(opts),
+        );
+        return id;
+      }
+
       if (attempt < MAX_RETRIES) {
         const delayMs = 500 * Math.pow(2, attempt); // 500ms, 1s, 2s
         console.warn(`[Cost] Retry ${attempt + 1}/${MAX_RETRIES} for execution ${opts.executionId} (waiting ${delayMs}ms):`, err instanceof Error ? err.message : err);
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       } else {
         // Final failure — log enough detail to reconstruct manually
-        console.error(`[Cost] FAILED to record cost after ${MAX_RETRIES} retries. MANUAL RECOVERY NEEDED:`, JSON.stringify({
-          executionId: opts.executionId,
-          agentId: opts.agentId,
-          cost: opts.cost,
-          inputTokens: opts.inputTokens,
-          outputTokens: opts.outputTokens,
-          model: opts.model,
-        }));
+        console.error(`[Cost] FAILED to record cost after ${MAX_RETRIES} retries. MANUAL RECOVERY NEEDED:`, MANUAL_RECOVERY_FIELDS(opts));
         throw err;
       }
     }
