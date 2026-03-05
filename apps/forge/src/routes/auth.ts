@@ -515,7 +515,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       [`audit_${ulid()}`, user.tenant_id, user.id, request.ip],
     ).catch(() => {});
 
-    console.log(`[Auth] Password reset requested for ${body.email}, token: ${token.slice(0, 8)}...`);
+    console.log(`[Auth] Password reset requested for ${body.email}`);
 
     // Fire-and-forget: send password reset email
     const resetUser = await substrateQueryOne<{ display_name: string | null }>(
