@@ -219,6 +219,18 @@ app.setErrorHandler((error: Error & { statusCode?: number }, request, reply) => 
 
   request.log.error({ err: { message: error.message, name: error.name, code: (error as NodeJS.ErrnoException).code } }, 'Route error');
 
+  // Handle Fastify validation errors (AJV schema validation failures) — return 400 with descriptive messages.
+  const validationErrors = (error as Record<string, unknown>)['validation'] as Array<{ instancePath: string; message?: string }> | undefined;
+  if (validationErrors?.length) {
+    const details = validationErrors
+      .map((e) => {
+        const field = e.instancePath ? e.instancePath.replace(/^\//, '').replace(/\//g, '.') : 'request';
+        return `${field}: ${e.message ?? 'invalid value'}`;
+      })
+      .join('; ');
+    return reply.code(400).send({ error: 'Validation Error', message: details, statusCode: 400 });
+  }
+
   // In production, never reveal internal error details for 5xx
   const message = (isProd && status >= 500)
     ? 'Internal Server Error'
