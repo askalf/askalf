@@ -43,6 +43,10 @@ interface TotalsRow {
 }
 
 export async function registerCostSummaryRoutes(app: FastifyInstance): Promise<void> {
+  // In-memory cache keyed by days parameter — cost data doesn't need real-time precision
+  const costsCache = new Map<number, { data: unknown; ts: number }>();
+  const COSTS_CACHE_TTL = 60_000; // 60s
+
   /**
    * GET /api/v1/admin/costs/summary
    * Returns total spend broken down by agent, by day, and by model.
@@ -55,6 +59,12 @@ export async function registerCostSummaryRoutes(app: FastifyInstance): Promise<v
     async (request: FastifyRequest) => {
       const qs = request.query as { days?: string };
       const days = Math.max(1, Math.min(parseInt(qs.days ?? '30', 10) || 30, 90));
+
+      const now = Date.now();
+      const cached = costsCache.get(days);
+      if (cached && now - cached.ts < COSTS_CACHE_TTL) {
+        return cached.data;
+      }
 
       const [byAgent, byDay, byModel, totals] = await Promise.all([
         // Spend per agent
@@ -118,7 +128,7 @@ export async function registerCostSummaryRoutes(app: FastifyInstance): Promise<v
         ),
       ]);
 
-      return {
+      const result = {
         period: { days },
         totals: {
           totalCost: parseFloat(totals?.total_cost ?? '0') || 0,
@@ -150,6 +160,14 @@ export async function registerCostSummaryRoutes(app: FastifyInstance): Promise<v
           eventCount: parseInt(r.event_count, 10) || 0,
         })),
       };
+
+      costsCache.set(days, { data: result, ts: now });
+      // Evict stale entries (keep cache bounded)
+      for (const [k, v] of costsCache.entries()) {
+        if (now - v.ts > COSTS_CACHE_TTL * 2) costsCache.delete(k);
+      }
+
+      return result;
     },
   );
 }
