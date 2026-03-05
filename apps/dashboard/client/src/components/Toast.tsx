@@ -3,7 +3,7 @@ import './Toast.css';
 
 // ── Types ──
 
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error' | 'warning' | 'info';
 
 interface Toast {
   id: number;
@@ -33,12 +33,14 @@ const MAX_TOASTS = 3;
 const DEFAULT_DURATION: Record<ToastType, number> = {
   success: 5000,
   error: 8000,
+  warning: 5000,
   info: 5000,
 };
 
 const ICON: Record<ToastType, string> = {
   success: '\u2713',  // ✓
   error: '!',
+  warning: '\u26a0',  // ⚠
   info: 'i',
 };
 
