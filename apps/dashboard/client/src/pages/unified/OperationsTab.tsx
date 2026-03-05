@@ -68,10 +68,12 @@ export default function OperationsTab() {
       </div>
 
       <div className="ops-content">
-        <div className="ops-sub-tabs">
+        <div className="ops-sub-tabs" role="tablist" aria-label="Operations sections">
           {SUB_TABS.map((t) => (
             <button
               key={t.key}
+              role="tab"
+              aria-selected={sub === t.key}
               className={`ops-sub-tab ${sub === t.key ? 'active' : ''}`}
               onClick={() => setSub(t.key)}
             >
