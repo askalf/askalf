@@ -221,7 +221,7 @@ fastify.get('/health', { logLevel: 'silent' }, async (_request, reply) => {
   // Validate database connectivity
   try {
     await queryOne('SELECT 1');
-    return { status: 'healthy', service: 'dashboard', database: 'connected' };
+    return { status: 'healthy', service: 'dashboard', database: 'connected', uptime: Math.round(process.uptime()), version: '1.0.0', memory: process.memoryUsage().heapUsed };
   } catch (err) {
     return reply.code(503).send({ status: 'degraded', service: 'dashboard', database: 'disconnected', error: err.message });
   }

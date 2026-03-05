@@ -159,7 +159,7 @@ fastify.addHook('onSend', async (_request, reply) => {
 fastify.get('/health', { logLevel: 'silent' }, async (_request, _reply) => {
   try {
     await query('SELECT 1');
-    return { status: 'healthy', service: 'admin-console', database: 'connected' };
+    return { status: 'healthy', service: 'admin-console', database: 'connected', uptime: Math.round(process.uptime()), version: '1.0.0', memory: process.memoryUsage().heapUsed };
   } catch (err) {
     return { status: 'degraded', service: 'admin-console', database: 'disconnected', error: err.message };
   }

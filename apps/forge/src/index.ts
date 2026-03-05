@@ -315,6 +315,7 @@ app.get('/health', { logLevel: 'silent' }, async () => {
       redis: redisOk,
     },
     uptime: Math.round(process.uptime()),
+    memory: process.memoryUsage().heapUsed,
   };
 });
 
