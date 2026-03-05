@@ -173,4 +173,58 @@ export async function registerTaskRoutes(fastify, requireAdmin, query, queryOne)
 
     return { task, interventions, logs, childTasks };
   });
+
+  // GET /api/v1/admin/executions/timeline?hours=24
+  fastify.get('/api/v1/admin/executions/timeline', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+
+    const hours = Math.min(parseInt(request.query.hours || '24'), 72);
+    const limit = 300;
+
+    const [execsRes, agentsRes] = await Promise.all([
+      callForgeAdmin(`/executions?limit=${limit}&offset=0`),
+      callForgeAdmin('/agents'),
+    ]);
+
+    if (execsRes.error) {
+      return reply.code(503).send({ error: 'Failed to fetch executions', message: execsRes.message });
+    }
+
+    const agentMap = {};
+    for (const a of (agentsRes.agents || [])) {
+      agentMap[a.id] = { name: a.name };
+    }
+
+    const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+    const executions = (execsRes.executions || [])
+      .filter(e => {
+        const ts = e.started_at || e.created_at;
+        return ts && new Date(ts) >= cutoff;
+      })
+      .map(e => {
+        const modelId = e.model_id || '';
+        let model_tier = 'unknown';
+        if (modelId.includes('opus')) model_tier = 'opus';
+        else if (modelId.includes('sonnet')) model_tier = 'sonnet';
+        else if (modelId.includes('haiku')) model_tier = 'haiku';
+
+        return {
+          id: e.id,
+          agent_id: e.agent_id,
+          agent_name: agentMap[e.agent_id]?.name || 'Unknown',
+          status: e.status,
+          model_tier,
+          started_at: e.started_at || e.created_at,
+          completed_at: e.completed_at || null,
+          created_at: e.created_at,
+          duration_ms: e.duration_ms || null,
+          cost: parseFloat(e.cost || '0'),
+          tokens: e.total_tokens || 0,
+        };
+      });
+
+    return { executions, hours };
+  });
 }
