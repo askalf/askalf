@@ -63,7 +63,7 @@
   font-size: 0.8125rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--crystal, #a78bfa);
+  color: var(--crystal, #7c3aed);
 }
 
 .ud-topbar-label {
@@ -583,14 +583,14 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  color: var(--text-tertiary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
   text-decoration: none;
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .ud-topbar-icon-btn:hover {
   color: var(--text);
-  background: var(--elevated);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ---- Account Menu ---- */

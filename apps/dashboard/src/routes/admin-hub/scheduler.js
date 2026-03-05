@@ -1,7 +1,7 @@
 // Scheduler daemon, scheduler status/control, schedule CRUD, intervention auto-handler, data retention
 import { callForgeAdmin, schedulerPausedTenants } from './utils.js';
 
-export async function registerSchedulerRoutes(fastify, requireAdmin, query, queryOne) {
+export async function registerSchedulerRoutes(fastify, requireAdmin, requireUser, query, queryOne) {
 
   // GET /api/v1/admin/reports/scheduler - Scheduler status (per-tenant)
   fastify.get('/api/v1/admin/reports/scheduler', async (request, reply) => {
@@ -58,8 +58,8 @@ export async function registerSchedulerRoutes(fastify, requireAdmin, query, quer
 
   // POST /api/v1/admin/agents/:id/schedule - Set agent schedule
   fastify.post('/api/v1/admin/agents/:id/schedule', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
 
     const { id } = request.params;
     const { schedule_type, schedule_interval_minutes, is_continuous, execution_mode } = request.body || {};

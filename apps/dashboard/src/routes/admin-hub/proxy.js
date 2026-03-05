@@ -3,7 +3,7 @@
 // cost optimization, knowledge graph, monitoring
 import { callForge, callForgeAdmin, FORGE_URL, FORGE_API_KEY } from './utils.js';
 
-export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne) {
+export async function registerProxyRoutes(fastify, requireAdmin, requireUser, query, queryOne) {
 
   // ============================================
   // METABOLIC STATUS
@@ -330,8 +330,8 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   });
 
   fastify.get('/api/v1/admin/providers/health', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
     const res = await callForge('/providers/health');
     if (res.error) return reply.code(res.status || 503).send({ error: 'Provider health unavailable', message: res.message });
     return res;
@@ -368,16 +368,16 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   // ============================================
 
   fastify.get('/api/v1/admin/coordination/sessions', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/sessions');
     if (res.error) return reply.code(res.status || 503).send({ sessions: [] });
     return res;
   });
 
   fastify.get('/api/v1/admin/coordination/sessions/:id', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/coordination/sessions/${encodeURIComponent(id)}`);
     if (res.error) return reply.code(res.status || 503).send({ error: 'Session unavailable' });
@@ -385,16 +385,16 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   });
 
   fastify.post('/api/v1/admin/coordination/sessions', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/sessions', { method: 'POST', body: request.body });
     if (res.error) return reply.code(res.status || 503).send({ error: 'Session creation failed' });
     return res;
   });
 
   fastify.post('/api/v1/admin/coordination/sessions/:id/cancel', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
     const { id } = request.params;
     const res = await callForgeAdmin(`/coordination/sessions/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
     if (res.error) return reply.code(res.status || 503).send({ error: 'Session cancel failed' });
@@ -402,24 +402,24 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   });
 
   fastify.get('/api/v1/admin/coordination/plans', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/plans');
     if (res.error) return reply.code(res.status || 503).send({ plans: [] });
     return res;
   });
 
   fastify.get('/api/v1/admin/coordination/stats', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/stats');
     if (res.error) return reply.code(res.status || 503).send({ totalSessions: 0, activeSessions: 0, completedSessions: 0, failedSessions: 0 });
     return res;
   });
 
   fastify.post('/api/v1/admin/coordination/orchestrate', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
     const res = await callForgeAdmin('/coordination/orchestrate', { method: 'POST', body: request.body });
     if (res.error) return reply.code(res.status || 503).send({ error: 'Orchestration failed', message: res.message });
     return res;
@@ -692,8 +692,8 @@ export async function registerProxyRoutes(fastify, requireAdmin, query, queryOne
   // ============================================
 
   fastify.get('/api/v1/admin/tools', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
     const { type, enabled } = request.query;
     const params = new URLSearchParams();
     if (type) params.set('type', type);

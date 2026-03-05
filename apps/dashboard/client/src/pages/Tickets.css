@@ -8,6 +8,7 @@
   padding: var(--space-xl);
   max-width: 1200px;
   margin: 0 auto;
+  animation: forge-fade-in 0.3s ease-out;
 }
 
 /* Header */
@@ -17,7 +18,7 @@
   justify-content: space-between;
   margin-bottom: var(--space-xl);
   padding-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   gap: var(--space-lg);
   flex-wrap: wrap;
 }
@@ -34,16 +35,16 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-lg);
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .tickets-header .back-btn:hover {
-  background: var(--elevated);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
 }
 
@@ -88,7 +89,7 @@
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  color: #9ca3af;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
@@ -96,7 +97,7 @@
 
 .source-tabs button:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: #e5e7eb;
+  color: var(--text, #e4e4e7);
 }
 
 .source-tabs button.active {
@@ -112,8 +113,8 @@
 
 .filter-tabs {
   display: flex;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -129,7 +130,7 @@
 }
 
 .filter-tabs button:hover {
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
 }
 
 .filter-tabs button.active {
@@ -153,7 +154,7 @@
 }
 
 .create-btn:hover {
-  background: #0ea572;
+  filter: brightness(1.1);
 }
 
 /* Content */
@@ -196,8 +197,8 @@
 }
 
 .ticket-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   transition: all 0.15s ease;
@@ -251,7 +252,7 @@
   padding: 2px 6px;
   background: var(--deep);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
 }
 
 .ticket-priority {
@@ -274,7 +275,7 @@
 
 .ticket-description {
   font-size: 0.8125rem;
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
   margin: 0 0 var(--space-md);
   line-height: 1.5;
 }
@@ -284,7 +285,7 @@
   align-items: center;
   justify-content: space-between;
   padding-top: var(--space-sm);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .ticket-meta {
@@ -335,8 +336,8 @@
 }
 
 .modal-content {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-xl);
   padding: var(--space-xl);
   width: 100%;
@@ -360,7 +361,7 @@
   display: block;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
   margin-bottom: var(--space-xs);
 }
 
@@ -370,7 +371,7 @@
   width: 100%;
   padding: var(--space-sm) var(--space-md);
   background: var(--deep);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
   color: var(--text);
   font-size: 0.875rem;
@@ -401,22 +402,22 @@
   gap: var(--space-sm);
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .cancel-btn {
   padding: var(--space-sm) var(--space-lg);
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .cancel-btn:hover {
-  background: var(--elevated);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
 }
 
@@ -433,7 +434,7 @@
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #0ea572;
+  filter: brightness(1.1);
 }
 
 .submit-btn:disabled {
@@ -491,7 +492,7 @@
 }
 
 .close-btn:hover {
-  background: var(--elevated);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text);
 }
 
@@ -534,7 +535,7 @@
 
 .priority-select {
   padding: 4px 8px;
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid;
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -550,13 +551,13 @@
   display: block;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
   margin-bottom: var(--space-sm);
 }
 
 .description-content {
   background: var(--deep);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   max-height: 400px;
@@ -583,7 +584,7 @@
   display: flex;
   justify-content: space-between;
   padding-top: var(--space-lg);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .delete-btn {
@@ -617,7 +618,7 @@
 }
 
 .close-detail-btn:hover {
-  background: #0ea572;
+  filter: brightness(1.1);
 }
 
 /* Task Info Section */
@@ -685,7 +686,7 @@
 
 .task-info-item .task-status.pending {
   background: rgba(107, 114, 128, 0.2);
-  color: #9ca3af;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
 }
 
 .task-info-item .task-status.running {
@@ -759,13 +760,13 @@
   gap: var(--space-lg);
   padding: var(--space-lg);
   margin-top: var(--space-lg);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .tickets-pagination button {
   padding: var(--space-sm) var(--space-lg);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
   color: var(--text);
   font-size: 0.875rem;
@@ -784,7 +785,7 @@
 }
 
 .tickets-pagination .page-info {
-  color: var(--text-secondary);
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
   font-size: 0.875rem;
 }
 

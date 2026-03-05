@@ -1,12 +1,12 @@
 // Agent CRUD, actions, batch operations, interventions, feedback, capabilities, model update
 import { callForge, callForgeAdmin, transformAgent, transformExecution, mapAgentType, paginationResponse } from './utils.js';
 
-export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne) {
+export async function registerAgentRoutes(fastify, requireAdmin, requireUser, query, queryOne) {
 
   // 1. GET /api/v1/admin/agents - List agents with stats
   fastify.get('/api/v1/admin/agents', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
 
     const agentsRes = await callForgeAdmin('/agents');
     if (agentsRes.error) {
@@ -22,8 +22,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // 2. GET /api/v1/admin/agents/:id - Agent detail with logs
   fastify.get('/api/v1/admin/agents/:id', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
 
     const { id } = request.params;
     const agentRes = await callForgeAdmin(`/agents/${id}`);
@@ -38,8 +38,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // 3. POST /api/v1/admin/agents - Create agent
   fastify.post('/api/v1/admin/agents', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
 
     const body = request.body || {};
     const forgeBody = {
@@ -67,8 +67,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // 3b. POST /api/v1/admin/agents/optimize-prompt - Optimize system prompt with AI
   fastify.post('/api/v1/admin/agents/optimize-prompt', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
 
     const body = request.body || {};
     const res = await callForge('/agents/optimize-prompt', { method: 'POST', body });
@@ -80,8 +80,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // 4. POST /api/v1/admin/agents/:id/run - Run agent
   fastify.post('/api/v1/admin/agents/:id/run', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
 
     const { id } = request.params;
     const body = request.body || {};
@@ -106,8 +106,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // 5. POST /api/v1/admin/agents/:id/stop - Stop (pause) agent
   fastify.post('/api/v1/admin/agents/:id/stop', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
 
     const { id } = request.params;
     const res = await callForgeAdmin(`/agents/${id}`, {
@@ -268,8 +268,8 @@ export async function registerAgentRoutes(fastify, requireAdmin, query, queryOne
 
   // 11. GET /api/v1/admin/orchestration - Orchestration overview
   fastify.get('/api/v1/admin/orchestration', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
 
     const [agentsRes, execsRes] = await Promise.all([
       callForgeAdmin('/agents'),

@@ -1,31 +1,48 @@
-/* Templates Tab — Layer 2 template gallery */
+/* Templates Tab — glassmorphism design system */
 
 .tmpl-container {
-  padding: 20px;
   height: 100%;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: forge-fade-in 0.3s ease-out;
 }
 
 .tmpl-loading {
   padding: 40px;
   text-align: center;
-  color: var(--text-muted, #666);
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
 }
 
+/* ── Header ── */
+
 .tmpl-header {
-  margin-bottom: 20px;
+  padding: var(--space-lg, 1.5rem) var(--space-lg, 1.5rem) var(--space-md, 1rem);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.tmpl-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tmpl-icon {
+  font-size: 1.4rem;
+  color: var(--crystal, #7c3aed);
 }
 
 .tmpl-header h2 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary, #e0e0e0);
-  margin-bottom: 4px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text, #e4e4e7);
+  margin: 0;
 }
 
 .tmpl-header p {
-  font-size: 13px;
-  color: var(--text-secondary, #a0a0b0);
+  font-size: 0.8rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  margin: 0.25rem 0 0;
 }
 
 /* ── Filters ── */
@@ -33,28 +50,31 @@
 .tmpl-filters {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 0.75rem;
+  padding: var(--space-md, 1rem) var(--space-lg, 1.5rem);
+  flex-shrink: 0;
 }
 
 .tmpl-search {
   padding: 8px 14px;
-  background: var(--bg-secondary, #0d0d14);
-  border: 1px solid var(--border, #1e1e2e);
-  border-radius: 6px;
-  color: var(--text-primary, #e0e0e0);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  color: var(--text, #e4e4e7);
   font-size: 13px;
+  font-family: inherit;
   outline: none;
   max-width: 300px;
   transition: border-color 0.15s;
+  backdrop-filter: blur(8px);
 }
 
 .tmpl-search:focus {
-  border-color: var(--accent, #6366f1);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .tmpl-search::placeholder {
-  color: var(--text-muted, #666);
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
 }
 
 .tmpl-category-pills {
@@ -65,23 +85,26 @@
 
 .tmpl-pill {
   padding: 4px 12px;
-  background: var(--bg-secondary, #0d0d14);
-  border: 1px solid var(--border, #1e1e2e);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
-  color: var(--text-secondary, #a0a0b0);
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
   font-size: 12px;
+  font-family: inherit;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .tmpl-pill:hover {
-  border-color: var(--text-muted, #666);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text, #e4e4e7);
 }
 
 .tmpl-pill.active {
-  background: var(--accent, #6366f1);
-  border-color: var(--accent, #6366f1);
-  color: white;
+  background: var(--crystal, #7c3aed);
+  border-color: var(--crystal, #7c3aed);
+  color: var(--void, #0a0a0f);
+  font-weight: 600;
 }
 
 /* ── Grid ── */
@@ -89,32 +112,48 @@
 .tmpl-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  gap: var(--space-md, 1rem);
+  padding: 0 var(--space-lg, 1.5rem) var(--space-lg, 1.5rem);
+  flex: 1;
+  overflow-y: auto;
+  align-content: start;
 }
 
 .tmpl-empty {
   grid-column: 1 / -1;
   padding: 40px;
   text-align: center;
-  color: var(--text-muted, #666);
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
   font-size: 14px;
 }
 
 /* ── Card ── */
 
 .tmpl-card {
-  background: var(--bg-secondary, #0d0d14);
-  border: 1px solid var(--border, #1e1e2e);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 10px;
+  backdrop-filter: blur(8px);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: border-color 0.15s;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  animation: forge-fade-in 0.3s ease-out both;
 }
 
+/* Staggered card entrance */
+.tmpl-card:nth-child(1) { animation-delay: 0ms; }
+.tmpl-card:nth-child(2) { animation-delay: 30ms; }
+.tmpl-card:nth-child(3) { animation-delay: 60ms; }
+.tmpl-card:nth-child(4) { animation-delay: 90ms; }
+.tmpl-card:nth-child(5) { animation-delay: 120ms; }
+.tmpl-card:nth-child(6) { animation-delay: 150ms; }
+.tmpl-card:nth-child(n+7) { animation-delay: 180ms; }
+
 .tmpl-card:hover {
-  border-color: var(--accent, #6366f1);
+  transform: translateY(-2px);
+  border-color: rgba(124, 58, 237, 0.3);
 }
 
 .tmpl-card-header {
@@ -139,13 +178,13 @@
 .tmpl-card-name {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary, #e0e0e0);
+  color: var(--text, #e4e4e7);
   margin: 0;
 }
 
 .tmpl-card-desc {
   font-size: 13px;
-  color: var(--text-secondary, #a0a0b0);
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
   line-height: 1.4;
   margin: 0;
   flex: 1;
@@ -155,26 +194,11 @@
   display: flex;
   gap: 12px;
   font-size: 12px;
-  color: var(--text-muted, #666);
+  color: var(--text-muted, rgba(255, 255, 255, 0.25));
 }
 
-.tmpl-card-use {
-  padding: 8px 16px;
-  background: var(--accent, #6366f1);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s;
-}
+/* ── Buttons ── */
 
-.tmpl-card-use:hover {
-  background: var(--accent-hover, #5558e6);
-}
-
-/* Quick Run / Customize split buttons */
 .tmpl-card-actions {
   display: flex;
   gap: 8px;
@@ -183,34 +207,58 @@
 .tmpl-card-quick {
   flex: 1;
   padding: 8px 12px;
-  background: var(--accent, #6366f1);
-  color: white;
+  background: var(--crystal, #7c3aed);
+  color: var(--void, #0a0a0f);
   border: none;
   border-radius: 6px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 
 .tmpl-card-quick:hover {
-  background: var(--accent-hover, #5558e6);
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.tmpl-card-use {
+  padding: 8px 16px;
+  background: var(--crystal, #7c3aed);
+  color: var(--void, #0a0a0f);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tmpl-card-use:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
 }
 
 .tmpl-card-actions .tmpl-card-use {
   flex: 0;
   padding: 8px 12px;
   background: transparent;
-  color: var(--text-secondary, #a0a0b0);
-  border: 1px solid var(--border, #2a2a3a);
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-weight: 500;
 }
 
 .tmpl-card-actions .tmpl-card-use:hover {
-  background: var(--surface-hover, #1a1a2a);
-  color: var(--text-primary, #e0e0e0);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text, #e4e4e7);
+  filter: none;
+  transform: none;
 }
 
-/* Inline prompt */
+/* ── Inline Prompt ── */
+
 .tmpl-card-prompt {
   display: flex;
   flex-direction: column;
@@ -220,17 +268,19 @@
 .tmpl-card-prompt-input {
   width: 100%;
   padding: 8px 10px;
-  background: var(--bg, #0a0a14);
-  border: 1px solid var(--border, #2a2a3a);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
-  color: var(--text-primary, #e0e0e0);
+  color: var(--text, #e4e4e7);
   font-size: 13px;
+  font-family: inherit;
   outline: none;
   box-sizing: border-box;
+  transition: border-color 0.15s;
 }
 
 .tmpl-card-prompt-input:focus {
-  border-color: var(--accent, #6366f1);
+  border-color: var(--crystal, #7c3aed);
 }
 
 .tmpl-card-prompt-actions {
@@ -247,7 +297,9 @@
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
+  transition: all 0.15s;
 }
 
 .tmpl-card-run:hover {
@@ -262,23 +314,27 @@
 .tmpl-card-cancel {
   padding: 7px 12px;
   background: transparent;
-  color: var(--text-muted, #666);
-  border: 1px solid var(--border, #2a2a3a);
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 6px;
   font-size: 13px;
+  font-family: inherit;
   cursor: pointer;
+  transition: color 0.15s;
 }
 
 .tmpl-card-cancel:hover {
-  color: var(--text-primary, #e0e0e0);
+  color: var(--text, #e4e4e7);
 }
 
-/* Run message banner */
+/* ── Run Message Banner ── */
+
 .tmpl-message {
   padding: 10px 16px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 13px;
-  margin-bottom: 16px;
+  margin: 0 var(--space-lg, 1.5rem) var(--space-md, 1rem);
+  backdrop-filter: blur(8px);
 }
 
 .tmpl-message-success {
@@ -291,4 +347,16 @@
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #ef4444;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 768px) {
+  .tmpl-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tmpl-header {
+    padding: var(--space-md, 1rem);
+  }
 }
