@@ -85,6 +85,7 @@ export const SessionSchema = z.object({
   ip_address: z.string().nullable(),
   user_agent: z.string().nullable(),
   device_type: z.enum(['desktop', 'mobile', 'tablet']).nullable(),
+  fingerprint_hash: z.string().nullable(),
 
   expires_at: z.date(),
   last_active_at: z.date(),
@@ -101,6 +102,7 @@ export type Session = z.infer<typeof SessionSchema>;
 export interface SessionMetadata {
   ip_address?: string;
   user_agent?: string;
+  accept_language?: string;
   device_type?: 'desktop' | 'mobile' | 'tablet';
 }
 

@@ -2,6 +2,7 @@
 // HTTP session creation, validation, and revocation
 
 import { ulid } from 'ulid';
+import { createHash } from 'node:crypto';
 import { query, queryOne } from '@askalf/database';
 import { generateSessionToken, hashToken } from './password.js';
 import { getUserById, toSafeUser } from './users.js';
@@ -10,6 +11,20 @@ import type { Session, SessionMetadata, SessionWithUser, SafeUser } from './type
 // Session settings
 const SESSION_DURATION_DAYS = 7;
 const SESSION_REFRESH_THRESHOLD_HOURS = 24; // Refresh if less than this time remaining
+
+/**
+ * Compute a browser fingerprint hash from user-agent and accept-language headers.
+ * Returns null if both inputs are empty.
+ */
+export function computeFingerprint(
+  userAgent?: string | null,
+  acceptLanguage?: string | null
+): string | null {
+  const ua = userAgent?.trim() ?? '';
+  const lang = acceptLanguage?.trim() ?? '';
+  if (!ua && !lang) return null;
+  return createHash('sha256').update(`${ua}|${lang}`).digest('hex');
+}
 
 /**
  * Convert a database row to a Session object
@@ -22,6 +37,7 @@ function rowToSession(row: Record<string, unknown>): Session {
     ip_address: row['ip_address'] as string | null,
     user_agent: row['user_agent'] as string | null,
     device_type: row['device_type'] as Session['device_type'],
+    fingerprint_hash: (row['fingerprint_hash'] as string | null) ?? null,
     expires_at: new Date(row['expires_at'] as string),
     last_active_at: new Date(row['last_active_at'] as string),
     revoked: row['revoked'] as boolean,
@@ -71,12 +87,13 @@ export async function createSession(
     Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000
   );
   const deviceType = metadata?.device_type ?? detectDeviceType(metadata?.user_agent);
+  const fingerprintHash = computeFingerprint(metadata?.user_agent, metadata?.accept_language);
 
   const sql = `
     INSERT INTO sessions (
       id, user_id, token_hash, ip_address, user_agent, device_type,
-      expires_at, last_active_at, created_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+      fingerprint_hash, expires_at, last_active_at, created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
     RETURNING *
   `;
 
@@ -87,6 +104,7 @@ export async function createSession(
     metadata?.ip_address ?? null,
     metadata?.user_agent ?? null,
     deviceType,
+    fingerprintHash,
     expiresAt,
   ]);
 
@@ -130,12 +148,25 @@ export async function validateSession(token: string): Promise<Session | null> {
  * Validate a session and return with user data
  */
 export async function validateSessionWithUser(
-  token: string
+  token: string,
+  incomingFingerprint?: string | null
 ): Promise<SessionWithUser | null> {
   const session = await validateSession(token);
 
   if (!session) {
     return null;
+  }
+
+  // Fingerprint check: only enforce if session has a stored fingerprint
+  if (session.fingerprint_hash && incomingFingerprint !== undefined) {
+    if (session.fingerprint_hash !== incomingFingerprint) {
+      console.warn('[security] Session fingerprint mismatch — revoking session', {
+        session_id: session.id,
+        user_id: session.user_id,
+      });
+      await revokeSession(token, 'fingerprint_mismatch');
+      return null;
+    }
   }
 
   const user = await getUserById(session.user_id);
