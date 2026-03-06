@@ -197,9 +197,9 @@ export default function Documents() {
   return (
     <div className="docs-container">
       <div className="docs-header">
-        <h2>Documents</h2>
+        <h2>Library</h2>
         {documentsPagination && (
-          <span className="docs-header-count">{documentsPagination.total} document{documentsPagination.total !== 1 ? 's' : ''}</span>
+          <span className="docs-header-count">{documentsPagination.total} item{documentsPagination.total !== 1 ? 's' : ''}</span>
         )}
       </div>
 
@@ -212,7 +212,7 @@ export default function Documents() {
         <input
           className="docs-search-input"
           type="text"
-          placeholder="Search documents..."
+          placeholder="Search library..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
         />
@@ -242,8 +242,8 @@ export default function Documents() {
       {!loading['documents'] && documents.length === 0 && (
         <EmptyState
           icon={hasFilters ? '?' : '...'}
-          title={hasFilters ? 'No Results' : 'No Documents'}
-          message={hasFilters ? 'No documents match your filters.' : 'No completed execution outputs yet.'}
+          title={hasFilters ? 'No Results' : 'No Content Yet'}
+          message={hasFilters ? 'No content matches your filters.' : 'Content from Writer, Researcher, Analyst, and Sentinel agents will appear here — reports, documentation, research, and security audits.'}
         />
       )}
 

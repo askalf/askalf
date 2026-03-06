@@ -45,10 +45,10 @@ const TAB_GROUPS: TabGroup[] = [
   { label: 'Main', tabs: [
     { key: 'terminal', label: 'Terminal' },
     { key: 'chat', label: 'Agent Chat' },
+    { key: 'documents', label: 'Library' },
     { key: 'templates', label: 'Templates' },
     { key: 'fleet', label: 'Fleet' },
     { key: 'settings', label: 'Settings' },
-    { key: 'documents', label: 'Docs' },
   ]},
   { label: 'Admin', tabs: [
     { key: 'builder', label: 'Builder' },
