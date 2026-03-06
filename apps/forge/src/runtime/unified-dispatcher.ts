@@ -485,12 +485,12 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
 
     try {
       const pending = await substrateQuery<{
-        id: string; agent_id: string; agent_name: string; type: string;
+        id: string; agent_id: string; type: string;
         title: string; description: string; proposed_action: string;
-        risk_level: string; created_at: string;
+        created_at: string;
       }>(
-        `SELECT id, agent_id, agent_name, type, title, description, proposed_action, risk_level, created_at
-         FROM agent_interventions WHERE status = 'pending' ORDER BY created_at ASC LIMIT 20`,
+        `SELECT id, agent_id, type, title, description, proposed_action, created_at
+         FROM intervention_requests WHERE status = 'pending' ORDER BY created_at ASC LIMIT 20`,
       );
 
       if (pending.length === 0) return;
@@ -498,19 +498,10 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
       for (const intervention of pending) {
         const ageMinutes = (Date.now() - new Date(intervention.created_at).getTime()) / 60_000;
 
-        // Auto-approve low-risk interventions older than 10 min
-        if (intervention.risk_level === 'low' && ageMinutes > 10) {
-          await substrateQuery(
-            `UPDATE agent_interventions SET status = 'approved', human_response = 'Auto-approved (low risk, 10min timeout)', responded_by = 'system:timeout', responded_at = NOW() WHERE id = $1`,
-            [intervention.id],
-          );
-          continue;
-        }
-
         // Auto-approve resource requests older than 15 min
         if (intervention.type === 'resource_request' && ageMinutes > 15) {
           await substrateQuery(
-            `UPDATE agent_interventions SET status = 'approved', human_response = 'Auto-approved (resource request, 15min timeout)', responded_by = 'system:timeout', responded_at = NOW() WHERE id = $1`,
+            `UPDATE intervention_requests SET status = 'approved', human_response = 'Auto-approved (resource request, 15min timeout)', responded_by = 'system:timeout', responded_at = NOW() WHERE id = $1`,
             [intervention.id],
           );
           continue;
@@ -519,32 +510,27 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
         // Auto-approve confirmation/info interventions older than 30 min
         if ((intervention.type === 'confirmation' || intervention.type === 'info') && ageMinutes > 30) {
           await substrateQuery(
-            `UPDATE agent_interventions SET status = 'approved', human_response = 'Auto-approved (timeout 30min)', responded_by = 'system:timeout', responded_at = NOW() WHERE id = $1`,
+            `UPDATE intervention_requests SET status = 'approved', human_response = 'Auto-approved (timeout 30min)', responded_by = 'system:timeout', responded_at = NOW() WHERE id = $1`,
             [intervention.id],
           );
           continue;
         }
 
-        // Escalation/error interventions older than 60 min — create a ticket for Infra
+        // Escalation/error interventions older than 60 min — auto-resolve
         if ((intervention.type === 'escalation' || intervention.type === 'error') && ageMinutes > 60) {
-          try {
-            await substrateQuery(
-              `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, assigned_to, is_agent_ticket, source, metadata)
-               VALUES ($1, $2, $3, 'open', 'urgent', 'escalation', 'system', 'Infra', true, 'agent', $4)
-               ON CONFLICT DO NOTHING`,
-              [
-                'INT-' + intervention.id.substring(0, 20),
-                `[ESCALATION] ${intervention.title}`,
-                `Agent ${intervention.agent_name} requested intervention: ${intervention.description || intervention.title}\n\nProposed action: ${intervention.proposed_action || 'None'}`,
-                JSON.stringify({ intervention_id: intervention.id, auto_escalated: true }),
-              ],
-            );
-            await substrateQuery(
-              `UPDATE agent_interventions SET status = 'resolved', human_response = 'Auto-escalated to Infra ticket after 60min', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
-              [intervention.id],
-            );
-          } catch { /* non-fatal */ }
+          await substrateQuery(
+            `UPDATE intervention_requests SET status = 'resolved', human_response = 'Auto-resolved after 60min timeout', responded_by = 'system:escalation', responded_at = NOW() WHERE id = $1`,
+            [intervention.id],
+          );
           continue;
+        }
+
+        // Auto-approve any remaining interventions older than 60 min
+        if (ageMinutes > 60) {
+          await substrateQuery(
+            `UPDATE intervention_requests SET status = 'approved', human_response = 'Auto-approved (60min timeout)', responded_by = 'system:timeout', responded_at = NOW() WHERE id = $1`,
+            [intervention.id],
+          );
         }
       }
     } catch (err) {

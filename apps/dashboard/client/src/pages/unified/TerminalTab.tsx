@@ -78,12 +78,13 @@ const COMMANDS: SlashCommand[] = [
       line('output', '/tickets           Active ticket board'),
       line('output', '/settings [tab]    Open settings (profile|security|ai-keys|costs)'),
       line('output', '/agents            List all agents'),
-      line('output', '/exec <agent> ...  Dispatch agent with prompt'),
+      line('output', '/connect           Import Anthropic OAuth token'),
       line('output', '/logs [agent]      Recent execution logs'),
       line('output', '/whoami            Current user info'),
       line('output', '/clear             Clear terminal'),
       line('divider', ''),
-      line('info', 'Type any natural language to chat with the system.'),
+      line('info', 'Type natural language to chat with Claude directly.'),
+      line('info', 'Conversation history is preserved within this session.'),
       line('info', 'Use Tab to autocomplete commands.'),
     ],
   },
@@ -335,6 +336,25 @@ const COMMANDS: SlashCommand[] = [
     },
   },
   {
+    name: 'connect',
+    aliases: ['oauth', 'import'],
+    description: 'Import Anthropic OAuth token from Claude Code',
+    handler: async () => [
+      line('divider', ''),
+      line('info', 'CONNECT ANTHROPIC OAUTH'),
+      line('divider', ''),
+      line('output', 'To connect your Claude subscription:'),
+      line('output', ''),
+      line('output', '  1. Open a terminal on your machine'),
+      line('output', '  2. Run: cat ~/.claude/.credentials.json'),
+      line('output', '  3. Copy the entire JSON output'),
+      line('output', '  4. Paste it here and press Enter'),
+      line('output', ''),
+      line('info', 'Or add an API key: /settings ai-keys'),
+      line('divider', ''),
+    ],
+  },
+  {
     name: 'clear',
     aliases: ['cls'],
     description: 'Clear terminal',
@@ -352,6 +372,8 @@ export default function TerminalTab({ onNavigate }: { onNavigate?: (tab: string)
   const [historyIdx, setHistoryIdx] = useState(-1);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [setup, setSetup] = useState<SetupState>({ hasApiKey: false, hasProfile: false, agentCount: 0, fleetHealthy: false, loading: true });
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -369,12 +391,13 @@ export default function TerminalTab({ onNavigate }: { onNavigate?: (tab: string)
   useEffect(() => {
     const checkSetup = async () => {
       try {
-        const [providers, agents] = await Promise.all([
+        const [providers, agents, cred] = await Promise.all([
           apiFetch<{ providers: { has_key: boolean }[] }>('/api/v1/user/providers').catch(() => ({ providers: [] })),
           apiFetch<{ agents: { id: string; status: string }[] }>('/api/v1/forge/agents').catch(() => ({ agents: [] })),
+          apiFetch<{ has_credential: boolean; credential_type: string | null }>('/api/v1/terminal/credential').catch(() => ({ has_credential: false, credential_type: null })),
         ]);
 
-        const hasKey = providers.providers.some(p => p.has_key);
+        const hasKey = cred.has_credential || providers.providers.some(p => p.has_key);
         const hasProfile = !!(user?.name || user?.email);
         const activeAgents = agents.agents.filter(a => a.status === 'active').length;
 
@@ -406,8 +429,8 @@ export default function TerminalTab({ onNavigate }: { onNavigate?: (tab: string)
       bootLines.push(line('info', 'Complete your profile: /settings profile'));
       bootLines.push(line('divider', ''));
     } else {
-      bootLines.push(line('success', `Ready. ${setup.agentCount} agents online.`));
-      bootLines.push(line('info', 'Type /help for commands or enter a natural language request.'));
+      bootLines.push(line('success', `Ready. ${setup.agentCount} agents online. CLI mode active.`));
+      bootLines.push(line('info', 'Type a message to chat with Claude, or /help for commands.'));
       bootLines.push(line('divider', ''));
     }
 
@@ -456,18 +479,76 @@ export default function TerminalTab({ onNavigate }: { onNavigate?: (tab: string)
       return;
     }
 
-    // Natural language — echo back as a coming-soon for now
-    // TODO: Wire to chat/assistant API for natural language processing
-    setLines(prev => [
-      ...prev,
-      line('info', 'Natural language processing coming soon.'),
-      line('info', 'For now, use slash commands. Type /help to see what\'s available.'),
-    ]);
-  }, [ctx]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Check if this looks like a JSON credentials paste (for /connect)
+    if (trimmed.startsWith('{') && trimmed.includes('claudeAiOauth')) {
+      setLines(prev => [...prev, line('info', 'Importing OAuth credentials...')]);
+      try {
+        const result = await apiFetch<{ success: boolean; expires_at: string | null; has_refresh: boolean }>('/api/v1/terminal/oauth/import', {
+          method: 'POST',
+          body: JSON.stringify({ credentials: trimmed }),
+        });
+        if (result.success) {
+          setLines(prev => [
+            ...prev,
+            line('success', 'OAuth token imported successfully!'),
+            line('output', `  Expires: ${result.expires_at ? new Date(result.expires_at).toLocaleString() : 'unknown'}`),
+            line('output', `  Refresh: ${result.has_refresh ? 'yes (auto-renew)' : 'no (manual re-import needed)'}`),
+            line('info', 'You can now chat with Claude directly. Just type your message.'),
+          ]);
+          setSetup(s => ({ ...s, hasApiKey: true }));
+        }
+      } catch (err) {
+        setLines(prev => [...prev, line('error', `Import failed: ${err instanceof Error ? err.message : String(err)}`)]);
+      }
+      return;
+    }
+
+    // Natural language — send to Claude via terminal API
+    setIsThinking(true);
+    setLines(prev => [...prev, line('info', 'thinking...')]);
+
+    try {
+      const result = await apiFetch<{ text: string; model: string; usage: { input_tokens: number; output_tokens: number }; credential_type: string }>('/api/v1/terminal/message', {
+        method: 'POST',
+        body: JSON.stringify({
+          message: trimmed,
+          history: chatHistory.slice(-20),
+        }),
+      });
+
+      // Remove "thinking..." line and add response
+      setLines(prev => {
+        const withoutThinking = prev.filter(l => l.text !== 'thinking...' || l.type !== 'info');
+        const responseLines = result.text.split('\n').map(t => line('output', t));
+        const meta = line('system', `  [${result.model} | ${result.usage.input_tokens + result.usage.output_tokens} tokens | ${result.credential_type}]`);
+        return [...withoutThinking, ...responseLines, meta];
+      });
+
+      // Update chat history
+      setChatHistory(h => [...h, { role: 'user' as const, content: trimmed }, { role: 'assistant' as const, content: result.text }].slice(-40));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setLines(prev => {
+        const withoutThinking = prev.filter(l => l.text !== 'thinking...' || l.type !== 'info');
+        // Parse error JSON if possible
+        try {
+          const errData = JSON.parse(msg) as { error?: string; hint?: string };
+          const errLines = [line('error', errData.error ?? msg)];
+          if (errData.hint) errLines.push(line('info', errData.hint));
+          return [...withoutThinking, ...errLines];
+        } catch {
+          return [...withoutThinking, line('error', msg)];
+        }
+      });
+    } finally {
+      setIsThinking(false);
+    }
+  }, [ctx, chatHistory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+      if (isThinking) return;
       void processInput(input);
       setInput('');
       setSuggestions([]);
