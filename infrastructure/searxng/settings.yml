@@ -1,4 +1,4 @@
-# SearXNG Settings — Agent Forge search backend
+# SearXNG Settings — Search backend for amnesia.tax + agent tools
 # Docs: https://docs.searxng.org/admin/settings/
 
 use_default_settings:
@@ -11,12 +11,12 @@ use_default_settings:
       - reuters
 
 general:
-  instance_name: "substrate-search"
+  instance_name: "askalf-search"
   debug: false
 
 search:
   safe_search: 0
-  autocomplete: ""
+  autocomplete: "google"
   default_lang: "en"
   formats:
     - html
@@ -26,7 +26,7 @@ server:
   bind_address: "0.0.0.0"
   port: 8080
   secret_key: "cd0d9894fb473c59ce622e5a4f3df75264869345d480a0017e5201803ae62367"
-  limiter: false  # Disabled — nginx handles rate limiting; internal limiter caused false 429s
+  limiter: true
   image_proxy: false
   base_url: false
   real_ip:
@@ -40,7 +40,7 @@ ui:
   results_on_new_tab: false
 
 valkey:
-  url: false  # Overridden by SEARXNG_VALKEY_URL env var in docker-compose
+  url: false  # Overridden by SEARXNG_VALKEY_URL env var
 
 outgoing:
   request_timeout: 6.0
@@ -50,13 +50,13 @@ outgoing:
   pool_maxsize: 20
   enable_http2: true
 
-# Override specific engines from defaults
+# Engine configuration
+# Reliable: brave, bing, duckduckgo, startpage, wikipedia, github
+# Unreliable from server IPs: google, google news, mojeek
 engines:
-  - name: google
-    engine: google
-    shortcut: g
+  - name: brave
     disabled: false
-    timeout: 10.0
+    weight: 1.5
 
   - name: bing
     engine: bing
@@ -84,18 +84,19 @@ engines:
     shortcut: gh
     disabled: false
 
+  # Google — blocked from server IPs, disabled
+  - name: google
+    engine: google
+    shortcut: g
+    disabled: true
+
   - name: google news
     engine: google_news
     shortcut: gn
-    disabled: false
+    disabled: true
 
-  # stackoverflow engine removed — not available in this SearXNG version
-
-  - name: brave
-    disabled: false
-
+  # Mojeek — returns 403, disabled
   - name: mojeek
     engine: mojeek
     shortcut: mj
-    disabled: false
-    timeout: 10.0
+    disabled: true
