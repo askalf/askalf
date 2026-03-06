@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AskAlf — 16 AI Agents That Evolve. Your Servers.</title>
+  <meta name="description" content="The first self-hosted AI fleet that evolves itself. 16 specialized agents across 6 divisions. Self-healing infrastructure. Prompt evolution. Any AI model. Your hardware.">
+  <meta property="og:title" content="AskAlf — The Self-Evolving AI Fleet">
+  <meta property="og:description" content="16 agents. 6 divisions. They predict failures, heal infrastructure, and evolve their own strategies. Self-hosted. Open source.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://askalf.org">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #06d6a0;
+      --green-dim: rgba(6,214,160,0.1);
+      --green-glow: rgba(6,214,160,0.25);
+      --purple: #7c3aed;
+      --purple-light: #a78bfa;
+      --purple-dim: rgba(124,58,237,0.1);
+      --cyan: #22d3ee;
+      --amber: #fbbf24;
+      --rose: #fb7185;
+      --red: #f87171;
+      --blue: #60a5fa;
+      --teal: #2dd4bf;
+      --orange: #fb923c;
+      --lime: #4ade80;
+      --violet: #8b5cf6;
+      --sky: #38bdf8;
+      --void: #050507;
+      --surface: #0c0c10;
+      --elevated: #131318;
+      --panel: rgba(12,12,16,0.7);
+      --text: #f0f0f2;
+      --text-2: rgba(240,240,242,0.7);
+      --text-3: rgba(240,240,242,0.45);
+      --text-4: rgba(240,240,242,0.25);
+      --border: rgba(255,255,255,0.06);
+      --border-h: rgba(255,255,255,0.12);
+      --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-xl: 24px; --r-full: 9999px;
+      --font: 'Outfit', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    @keyframes fade-up { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse { 0%,100% { opacity:0.3; } 50% { opacity:1; } }
+    @keyframes glow { 0%,100% { opacity:0.2; } 50% { opacity:0.5; } }
+    @keyframes feed-scroll { 0% { transform:translateY(0); } 100% { transform:translateY(-50%); } }
+    @keyframes cursor-blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
+    @keyframes gradient-shift { 0% { background-position:0% 50%; } 50% { background-position:100% 50%; } 100% { background-position:0% 50%; } }
+    @keyframes genesis-pulse { 0%,100% { box-shadow:0 0 20px rgba(6,214,160,0.05), 0 0 60px rgba(124,58,237,0.03); } 50% { box-shadow:0 0 40px rgba(6,214,160,0.12), 0 0 80px rgba(124,58,237,0.08); } }
+
+    .reveal { opacity:0; transform:translateY(32px); transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1); }
+    .reveal.vis { opacity:1; transform:translateY(0); }
+
+    body { min-height:100vh; background:var(--void); color:var(--text); font-family:var(--font); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+
+    .atmosphere { position:fixed; inset:0; z-index:0; pointer-events:none; }
+    .atmosphere::before { content:''; position:absolute; top:-20%; left:-10%; width:70%; height:70%; background:radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 60%); animation:glow 8s ease-in-out infinite; }
+    .atmosphere::after { content:''; position:absolute; bottom:-10%; right:-10%; width:60%; height:60%; background:radial-gradient(ellipse, rgba(6,214,160,0.05) 0%, transparent 60%); animation:glow 10s ease-in-out infinite 3s; }
+    .dot-grid { position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.025; background-image:radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px); background-size:32px 32px; }
+
+    .container { max-width:1200px; margin:0 auto; padding:0 2rem; position:relative; z-index:1; }
+    .section { padding:7rem 0; }
+
+    /* Nav */
+    nav { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 2rem; max-width:1200px; margin:0 auto; position:relative; z-index:10; }
+    .logo { font-family:var(--mono); font-weight:800; font-size:1.25rem; letter-spacing:-0.03em; text-decoration:none; color:var(--text); }
+    .nav-links { display:flex; align-items:center; gap:1.5rem; }
+    .nav-link { color:var(--text-3); text-decoration:none; font-size:0.8125rem; font-weight:500; transition:color 0.15s; }
+    .nav-link:hover { color:var(--text); }
+    .nav-cta { padding:0.5rem 1.25rem; background:var(--purple); color:#fff; font-size:0.8125rem; font-weight:600; border-radius:var(--r-sm); text-decoration:none; transition:all 0.2s; border:none; }
+    .nav-cta:hover { background:#6d28d9; box-shadow:0 4px 20px rgba(124,58,237,0.35); }
+
+    /* Hero */
+    .hero { min-height:92vh; display:flex; align-items:center; padding:4rem 2rem; max-width:1200px; margin:0 auto; position:relative; z-index:1; }
+    .hero-grid { display:grid; grid-template-columns:1.1fr 0.9fr; gap:4rem; align-items:center; width:100%; }
+    .hero-content { animation:fade-up 1s cubic-bezier(0.16,1,0.3,1) forwards; }
+    .hero-eyebrow { display:inline-flex; align-items:center; gap:0.5rem; padding:0.3rem 0.875rem; margin-bottom:1.75rem; background:rgba(6,214,160,0.06); border:1px solid rgba(6,214,160,0.15); border-radius:var(--r-full); font-family:var(--mono); font-size:0.625rem; font-weight:700; color:var(--green); text-transform:uppercase; letter-spacing:0.1em; }
+    .hero-eyebrow::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s ease-in-out infinite; }
+    .hero h1 { font-size:4.25rem; font-weight:800; line-height:1.05; letter-spacing:-0.045em; margin-bottom:1.75rem; }
+    .hero h1 .gradient { background:linear-gradient(135deg, var(--purple-light), var(--green), var(--cyan)); background-size:300% 300%; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:gradient-shift 6s ease infinite; }
+    .hero-sub { font-size:1.125rem; color:var(--text-2); line-height:1.7; max-width:520px; margin-bottom:2.5rem; font-weight:400; }
+    .hero-sub strong { color:var(--text); font-weight:600; }
+    .hero-actions { display:flex; align-items:center; gap:0.875rem; }
+    .btn-primary { display:inline-flex; align-items:center; gap:0.5rem; padding:0.875rem 2rem; background:var(--purple); color:#fff; font-size:0.9375rem; font-weight:600; font-family:var(--font); border-radius:var(--r-md); text-decoration:none; border:none; cursor:pointer; transition:all 0.3s cubic-bezier(0.16,1,0.3,1); }
+    .btn-primary:hover { background:#6d28d9; transform:translateY(-2px); box-shadow:0 8px 32px rgba(124,58,237,0.4); }
+    .btn-secondary { display:inline-flex; align-items:center; gap:0.5rem; padding:0.875rem 2rem; background:transparent; color:var(--text-2); font-size:0.9375rem; font-weight:500; font-family:var(--font); border:1px solid var(--border); border-radius:var(--r-md); text-decoration:none; cursor:pointer; transition:all 0.3s cubic-bezier(0.16,1,0.3,1); }
+    .btn-secondary:hover { color:var(--text); border-color:var(--border-h); background:rgba(255,255,255,0.03); }
+
+    .hero-stats { display:flex; gap:2.5rem; margin-top:3rem; padding-top:2rem; border-top:1px solid var(--border); }
+    .hero-stat-num { font-family:var(--mono); font-size:1.75rem; font-weight:800; letter-spacing:-0.03em; line-height:1; }
+    .hero-stat-label { font-size:0.6875rem; color:var(--text-4); font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-top:0.375rem; }
+
+    /* Feed */
+    .feed-panel { animation:fade-up 1s 0.2s cubic-bezier(0.16,1,0.3,1) both; border-radius:var(--r-xl); border:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); overflow:hidden; box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 32px 80px rgba(0,0,0,0.5), 0 0 60px rgba(124,58,237,0.04); }
+    .feed-bar { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.015); }
+    .feed-title { font-family:var(--mono); font-size:0.625rem; font-weight:700; color:var(--text-4); text-transform:uppercase; letter-spacing:0.1em; }
+    .feed-live { display:flex; align-items:center; gap:0.375rem; font-family:var(--mono); font-size:0.625rem; font-weight:600; color:var(--green); }
+    .feed-live::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s ease-in-out infinite; }
+    .feed-viewport { max-height:380px; overflow:hidden; position:relative; }
+    .feed-viewport::after { content:''; position:absolute; bottom:0; left:0; right:0; height:48px; z-index:1; background:linear-gradient(to bottom, transparent, rgba(5,5,7,0.9)); pointer-events:none; }
+    .feed-track { animation:feed-scroll 32s linear infinite; }
+    .feed-track:hover { animation-play-state:paused; }
+    .feed-item { display:grid; grid-template-columns:auto 1fr auto; gap:0.75rem; align-items:center; padding:0.625rem 1.25rem; }
+    .feed-badge { width:30px; height:30px; border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; font-size:0.5625rem; font-weight:700; font-family:var(--mono); flex-shrink:0; }
+    .feed-body { min-width:0; }
+    .feed-action { font-size:0.75rem; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .feed-meta { font-size:0.625rem; color:var(--text-4); margin-top:2px; display:flex; align-items:center; gap:0.4rem; }
+    .feed-tag { padding:0.1rem 0.4rem; background:rgba(255,255,255,0.04); border-radius:var(--r-full); font-family:var(--mono); font-size:0.5625rem; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.04em; }
+    .feed-cost { font-family:var(--mono); font-size:0.625rem; font-weight:600; color:var(--green); white-space:nowrap; }
+
+    /* Feed badge colors */
+    .fb-arc { background:rgba(45,212,191,0.1); color:var(--teal); border:1px solid rgba(45,212,191,0.2); }
+    .fb-bld { background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
+    .fb-rev { background:rgba(34,211,238,0.1); color:var(--cyan); border:1px solid rgba(34,211,238,0.2); }
+    .fb-dbg { background:rgba(251,191,36,0.1); color:var(--amber); border:1px solid rgba(251,191,36,0.2); }
+    .fb-tst { background:rgba(192,132,252,0.1); color:#c084fc; border:1px solid rgba(192,132,252,0.2); }
+    .fb-dep { background:rgba(96,165,250,0.1); color:var(--blue); border:1px solid rgba(96,165,250,0.2); }
+    .fb-sys { background:rgba(251,146,60,0.1); color:var(--orange); border:1px solid rgba(251,146,60,0.2); }
+    .fb-med { background:rgba(251,113,133,0.1); color:var(--rose); border:1px solid rgba(251,113,133,0.2); }
+    .fb-grd { background:rgba(248,113,113,0.1); color:var(--red); border:1px solid rgba(248,113,113,0.2); }
+    .fb-snt { background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2); }
+    .fb-sct { background:rgba(56,189,248,0.1); color:var(--sky); border:1px solid rgba(56,189,248,0.2); }
+    .fb-anl { background:rgba(34,211,238,0.1); color:var(--cyan); border:1px solid rgba(34,211,238,0.2); }
+    .fb-orc { background:rgba(139,92,246,0.1); color:var(--violet); border:1px solid rgba(139,92,246,0.2); }
+    .fb-scr { background:rgba(167,139,250,0.1); color:var(--purple-light); border:1px solid rgba(167,139,250,0.2); }
+    .fb-her { background:rgba(251,191,36,0.1); color:var(--amber); border:1px solid rgba(251,191,36,0.2); }
+    .fb-dar { background:rgba(6,214,160,0.15); color:var(--green); border:1px solid rgba(6,214,160,0.3); }
+
+    /* Divider & Section headers */
+    .divider { max-width:1200px; margin:0 auto; border:none; border-top:1px solid var(--border); }
+    .sh-label { font-family:var(--mono); font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:var(--purple-light); margin-bottom:0.75rem; }
+    .sh-title { font-size:2.75rem; font-weight:700; letter-spacing:-0.035em; line-height:1.1; margin-bottom:1rem; }
+    .sh-sub { font-size:1.0625rem; color:var(--text-3); line-height:1.65; max-width:600px; }
+
+    /* ========== DIVISIONS ROSTER ========== */
+    .division { margin-bottom:1.75rem; }
+    .div-header { display:flex; align-items:baseline; gap:0.75rem; margin-bottom:0.875rem; padding-left:0.25rem; }
+    .div-name { font-family:var(--mono); font-size:0.6875rem; font-weight:800; text-transform:uppercase; letter-spacing:0.14em; }
+    .div-sep { color:var(--text-4); font-size:0.75rem; }
+    .div-desc { font-size:0.75rem; color:var(--text-4); font-weight:500; }
+    .div-agents { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; }
+    .div-agents-3 { grid-template-columns:repeat(3, 1fr); }
+    .div-agents-2 { grid-template-columns:repeat(2, 1fr); }
+    .agent-card { padding:1.25rem 1rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); transition:all 0.35s cubic-bezier(0.16,1,0.3,1); position:relative; overflow:hidden; }
+    .agent-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; transform:scaleX(0); transform-origin:left; transition:transform 0.4s cubic-bezier(0.16,1,0.3,1); }
+    .agent-card:hover { transform:translateY(-4px); border-color:var(--border-h); }
+    .agent-card:hover::after { transform:scaleX(1); }
+    .agent-dot { width:10px; height:10px; border-radius:50%; margin-bottom:0.75rem; }
+    .agent-name { font-size:0.9375rem; font-weight:700; margin-bottom:0.25rem; }
+    .agent-role { font-family:var(--mono); font-size:0.5625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.5rem; }
+    .agent-desc { font-size:0.75rem; color:var(--text-3); line-height:1.5; }
+    .agent-unique { position:absolute; top:0.75rem; right:0.75rem; font-family:var(--mono); font-size:0.5rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; padding:0.15rem 0.4rem; border-radius:var(--r-full); background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
+
+    /* ========== GENESIS SECTION ========== */
+    .genesis-section { padding:7rem 0; position:relative; overflow:hidden; }
+    .genesis-section::before { content:''; position:absolute; top:50%; left:50%; width:1000px; height:1000px; transform:translate(-50%,-50%); background:radial-gradient(ellipse, rgba(6,214,160,0.06) 0%, rgba(124,58,237,0.04) 30%, transparent 55%); pointer-events:none; }
+    .genesis-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; max-width:960px; margin:0 auto; }
+    .genesis-panel { background:var(--panel); border:1px solid var(--border); border-radius:var(--r-xl); overflow:hidden; backdrop-filter:blur(16px); animation:genesis-pulse 4s ease-in-out infinite; }
+    .genesis-bar { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.015); }
+    .genesis-bar-title { font-family:var(--mono); font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; }
+    .genesis-bar-badge { font-family:var(--mono); font-size:0.5rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; padding:0.15rem 0.5rem; border-radius:var(--r-full); background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
+    .genesis-body { padding:1.5rem; }
+    .gen-entry { margin-bottom:1.25rem; padding-bottom:1.25rem; border-bottom:1px solid var(--border); }
+    .gen-entry:last-child { margin-bottom:0; padding-bottom:0; border-bottom:none; }
+    .gen-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem; }
+    .gen-label { font-family:var(--mono); font-size:0.75rem; font-weight:700; }
+    .gen-metric { font-family:var(--mono); font-size:0.6875rem; font-weight:700; }
+    .gen-bar-track { height:4px; background:rgba(255,255,255,0.05); border-radius:2px; margin-bottom:0.375rem; overflow:hidden; }
+    .gen-bar-fill { height:100%; border-radius:2px; }
+    .gen-detail { font-family:var(--mono); font-size:0.625rem; color:var(--text-4); line-height:1.6; }
+    .gen-detail em { font-style:normal; color:var(--green); }
+    .gen-incident { margin-bottom:1.25rem; }
+    .gen-incident:last-child { margin-bottom:0; }
+    .gen-alert { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; }
+    .gen-alert-icon { color:var(--rose); font-size:0.875rem; }
+    .gen-alert-text { font-family:var(--mono); font-size:0.75rem; font-weight:700; color:var(--text); }
+    .gen-tree { padding-left:1.25rem; border-left:2px solid rgba(251,113,133,0.2); }
+    .gen-tree-line { font-family:var(--mono); font-size:0.625rem; color:var(--text-3); line-height:1.8; }
+    .gen-tree-line .action { color:var(--rose); }
+    .gen-tree-line .result { color:var(--green); }
+    .gen-tree-line .prevent { color:var(--amber); }
+    .genesis-loop { max-width:960px; margin:2rem auto 0; display:grid; grid-template-columns:repeat(3, 1fr); gap:1px; background:var(--border); border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); }
+    .loop-card { padding:1.5rem; background:var(--void); text-align:center; transition:all 0.3s; position:relative; }
+    .loop-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; transform:scaleX(0); transform-origin:left; transition:transform 0.4s cubic-bezier(0.16,1,0.3,1); }
+    .loop-card:hover { background:rgba(6,214,160,0.02); }
+    .loop-card:hover::before { transform:scaleX(1); }
+    .loop-card:nth-child(1)::before { background:var(--violet); }
+    .loop-card:nth-child(2)::before { background:var(--rose); }
+    .loop-card:nth-child(3)::before { background:var(--green); }
+    .loop-icon { font-size:1.5rem; margin-bottom:0.75rem; }
+    .loop-name { font-family:var(--mono); font-size:0.875rem; font-weight:700; margin-bottom:0.25rem; }
+    .loop-desc { font-size:0.75rem; color:var(--text-3); line-height:1.5; }
+
+    /* ========== ORCHESTRATION ========== */
+    .orch-panel { max-width:900px; margin:0 auto; background:var(--panel); border:1px solid var(--border); border-radius:var(--r-xl); overflow:hidden; backdrop-filter:blur(16px); box-shadow:0 32px 80px rgba(0,0,0,0.4), 0 0 60px rgba(124,58,237,0.03); }
+    .orch-bar { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.015); }
+    .orch-bar-title { font-family:var(--mono); font-size:0.625rem; font-weight:700; color:var(--text-4); text-transform:uppercase; letter-spacing:0.1em; }
+    .orch-bar-status { font-family:var(--mono); font-size:0.5625rem; font-weight:700; color:var(--green); display:flex; align-items:center; gap:0.375rem; }
+    .orch-bar-status::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s ease-in-out infinite; }
+    .orch-body { padding:2rem 2rem 2.5rem; }
+    .orch-prompt { display:flex; align-items:center; gap:0.75rem; padding:0.875rem 1.25rem; margin-bottom:2rem; background:rgba(255,255,255,0.025); border:1px solid var(--border); border-radius:var(--r-md); }
+    .orch-chevron { color:var(--green); font-family:var(--mono); font-weight:700; font-size:0.875rem; }
+    .orch-prompt-text { font-family:var(--mono); font-size:0.8125rem; color:var(--text-2); flex:1; }
+    .orch-cursor { width:2px; height:1.1em; background:var(--green); animation:cursor-blink 1s step-end infinite; flex-shrink:0; }
+    .orch-flow { display:flex; flex-direction:column; align-items:center; gap:0; }
+    .orch-node { padding:0.4rem 1rem; border-radius:var(--r-full); font-family:var(--mono); font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; }
+    .orch-node-source { background:var(--purple-dim); border:1px solid rgba(124,58,237,0.3); color:var(--purple-light); }
+    .orch-node-result { background:var(--green-dim); border:1px solid var(--green-glow); color:var(--green); }
+    .orch-line { width:1px; height:20px; background:var(--border); position:relative; }
+    .orch-line::after { content:''; position:absolute; top:0; left:-1px; width:3px; height:100%; background:var(--purple); opacity:0.3; animation:glow 2s ease-in-out infinite; }
+    .orch-label { padding:0.2rem 0.625rem; background:rgba(255,255,255,0.025); border:1px solid var(--border); border-radius:var(--r-full); font-family:var(--mono); font-size:0.5625rem; font-weight:700; color:var(--text-4); text-transform:uppercase; letter-spacing:0.1em; }
+    .orch-agents { display:flex; gap:0.625rem; flex-wrap:wrap; justify-content:center; padding:0 1rem; }
+    .orch-agent { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.875rem; background:rgba(255,255,255,0.015); border:1px solid var(--border); border-radius:var(--r-md); transition:all 0.3s; }
+    .orch-agent:hover { border-color:var(--border-h); background:rgba(255,255,255,0.03); }
+    .orch-agent-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .orch-agent-name { font-family:var(--mono); font-size:0.6875rem; font-weight:600; color:var(--text-2); }
+    .orch-agent-task { font-family:var(--mono); font-size:0.5rem; font-weight:600; color:var(--text-4); text-transform:uppercase; letter-spacing:0.06em; }
+    .orch-patterns { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:2.5rem; max-width:900px; margin-left:auto; margin-right:auto; }
+    .orch-pat { padding:1.25rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); text-align:center; transition:all 0.3s; }
+    .orch-pat:hover { border-color:var(--border-h); }
+    .orch-pat-icon { font-size:1.25rem; margin-bottom:0.5rem; }
+    .orch-pat h4 { font-family:var(--mono); font-size:0.8125rem; font-weight:700; margin-bottom:0.25rem; }
+    .orch-pat p { font-size:0.6875rem; color:var(--text-4); line-height:1.5; }
+
+    /* ========== INTEGRATIONS ========== */
+    .int-section { padding:7rem 0; position:relative; overflow:hidden; }
+    .int-section::before { content:''; position:absolute; top:50%; left:50%; width:900px; height:900px; transform:translate(-50%,-50%); background:radial-gradient(ellipse, rgba(124,58,237,0.05) 0%, rgba(6,214,160,0.02) 30%, transparent 60%); pointer-events:none; }
+    .int-stats { display:flex; align-items:center; justify-content:center; gap:2rem; margin-bottom:1.5rem; }
+    .int-stat { display:flex; align-items:baseline; gap:0.375rem; font-family:var(--mono); }
+    .int-stat-n { font-size:1.5rem; font-weight:800; letter-spacing:-0.03em; }
+    .int-stat-l { font-size:0.625rem; font-weight:600; color:var(--text-4); text-transform:uppercase; letter-spacing:0.08em; }
+    .int-sep { color:var(--text-4); font-size:1.25rem; font-weight:300; }
+    .int-row { margin-bottom:1.5rem; }
+    .int-row-label { font-family:var(--mono); font-size:0.5625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.14em; color:var(--text-4); margin-bottom:0.75rem; }
+    .int-cluster { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+    .int-cluster-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:1.5rem; }
+    .int-sub { font-family:var(--mono); font-size:0.5625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; margin-bottom:0.5rem; }
+    .int-tiles { display:grid; grid-template-columns:repeat(auto-fill, minmax(110px,1fr)); gap:6px; }
+    .int-tiles-2 { grid-template-columns:1fr 1fr; }
+    .int-tile { display:flex; flex-direction:column; align-items:center; gap:0.5rem; padding:1rem 0.5rem; background:rgba(255,255,255,0.015); border:1px solid var(--border); border-radius:var(--r-md); transition:all 0.35s cubic-bezier(0.16,1,0.3,1); cursor:default; position:relative; overflow:hidden; }
+    .int-tile::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; transform:scaleX(0); transform-origin:left; transition:transform 0.4s cubic-bezier(0.16,1,0.3,1); }
+    .int-tile:hover { transform:translateY(-3px); }
+    .int-tile:hover::after { transform:scaleX(1); }
+    .int-icon { width:40px; height:40px; border-radius:var(--r-md); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:0.8125rem; font-weight:800; transition:all 0.3s; }
+    .int-tile:hover .int-icon { transform:scale(1.08); }
+    .int-name { font-size:0.6875rem; font-weight:600; color:var(--text-2); text-align:center; line-height:1.2; }
+    .int-tile:hover .int-name { color:var(--text); }
+    .int-divider { height:1px; background:linear-gradient(to right, transparent, var(--border), transparent); margin:0.5rem 0; }
+    .t-green .int-icon { background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
+    .t-green::after { background:var(--green); } .t-green:hover { border-color:rgba(6,214,160,0.25); box-shadow:0 6px 24px rgba(6,214,160,0.08); } .t-green:hover .int-icon { box-shadow:0 0 16px rgba(6,214,160,0.2); }
+    .t-amber .int-icon { background:rgba(251,191,36,0.1); color:var(--amber); border:1px solid rgba(251,191,36,0.2); }
+    .t-amber::after { background:var(--amber); } .t-amber:hover { border-color:rgba(251,191,36,0.25); box-shadow:0 6px 24px rgba(251,191,36,0.08); } .t-amber:hover .int-icon { box-shadow:0 0 16px rgba(251,191,36,0.2); }
+    .t-blue .int-icon { background:rgba(96,165,250,0.1); color:var(--blue); border:1px solid rgba(96,165,250,0.2); }
+    .t-blue::after { background:var(--blue); } .t-blue:hover { border-color:rgba(96,165,250,0.25); box-shadow:0 6px 24px rgba(96,165,250,0.08); } .t-blue:hover .int-icon { box-shadow:0 0 16px rgba(96,165,250,0.2); }
+    .t-teal .int-icon { background:rgba(45,212,191,0.1); color:var(--teal); border:1px solid rgba(45,212,191,0.2); }
+    .t-teal::after { background:var(--teal); } .t-teal:hover { border-color:rgba(45,212,191,0.25); box-shadow:0 6px 24px rgba(45,212,191,0.08); } .t-teal:hover .int-icon { box-shadow:0 0 16px rgba(45,212,191,0.2); }
+    .t-purple .int-icon { background:rgba(124,58,237,0.1); color:var(--purple-light); border:1px solid rgba(124,58,237,0.2); }
+    .t-purple::after { background:var(--purple-light); } .t-purple:hover { border-color:rgba(124,58,237,0.25); box-shadow:0 6px 24px rgba(124,58,237,0.08); } .t-purple:hover .int-icon { box-shadow:0 0 16px rgba(124,58,237,0.2); }
+    .t-red .int-icon { background:rgba(248,113,113,0.1); color:var(--red); border:1px solid rgba(248,113,113,0.2); }
+    .t-red::after { background:var(--red); } .t-red:hover { border-color:rgba(248,113,113,0.25); box-shadow:0 6px 24px rgba(248,113,113,0.08); } .t-red:hover .int-icon { box-shadow:0 0 16px rgba(248,113,113,0.2); }
+    .t-cyan .int-icon { background:rgba(34,211,238,0.1); color:var(--cyan); border:1px solid rgba(34,211,238,0.2); }
+    .t-cyan::after { background:var(--cyan); } .t-cyan:hover { border-color:rgba(34,211,238,0.25); box-shadow:0 6px 24px rgba(34,211,238,0.08); } .t-cyan:hover .int-icon { box-shadow:0 0 16px rgba(34,211,238,0.2); }
+    .t-rose .int-icon { background:rgba(251,113,133,0.1); color:var(--rose); border:1px solid rgba(251,113,133,0.2); }
+    .t-rose::after { background:var(--rose); } .t-rose:hover { border-color:rgba(251,113,133,0.25); box-shadow:0 6px 24px rgba(251,113,133,0.08); } .t-rose:hover .int-icon { box-shadow:0 0 16px rgba(251,113,133,0.2); }
+    .t-silver .int-icon { background:rgba(226,232,240,0.05); color:#cbd5e1; border:1px solid rgba(226,232,240,0.12); }
+    .t-silver::after { background:#94a3b8; } .t-silver:hover { border-color:rgba(226,232,240,0.2); box-shadow:0 6px 24px rgba(226,232,240,0.06); } .t-silver:hover .int-icon { box-shadow:0 0 16px rgba(226,232,240,0.15); }
+
+    /* ========== PLATFORM FEATURES ========== */
+    .feat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); }
+    .feat-card { padding:2rem; background:var(--void); transition:all 0.3s; position:relative; }
+    .feat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--purple); transform:scaleX(0); transform-origin:left; transition:transform 0.4s cubic-bezier(0.16,1,0.3,1); }
+    .feat-card:hover { background:rgba(124,58,237,0.02); } .feat-card:hover::before { transform:scaleX(1); }
+    .feat-icon { width:40px; height:40px; border-radius:var(--r-md); background:var(--purple-dim); border:1px solid rgba(124,58,237,0.2); display:flex; align-items:center; justify-content:center; margin-bottom:1.125rem; font-size:1rem; }
+    .feat-card h3 { font-size:1rem; font-weight:600; margin-bottom:0.375rem; }
+    .feat-card p { font-size:0.8125rem; color:var(--text-3); line-height:1.6; }
+
+    /* Terminal */
+    .terminal { max-width:740px; margin:0 auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,0.4); }
+    .terminal-bar { display:flex; align-items:center; gap:0.75rem; padding:0.625rem 1.25rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.015); }
+    .terminal-path { font-family:var(--mono); font-size:0.5625rem; font-weight:600; color:var(--text-4); text-transform:uppercase; letter-spacing:0.08em; }
+    .terminal-bar-right { margin-left:auto; display:flex; align-items:center; gap:0.5rem; font-family:var(--mono); font-size:0.5625rem; font-weight:600; color:var(--green); }
+    .terminal-bar-right::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s ease-in-out infinite; }
+    .terminal pre { padding:1.5rem; font-family:var(--mono); font-size:0.8125rem; line-height:1.9; color:var(--text-2); overflow-x:auto; }
+    .terminal .c { color:var(--text-4); } .terminal .g { color:var(--green); } .terminal .p { color:var(--purple-light); }
+
+    /* CTA & Footer */
+    .final-cta { text-align:center; }
+    .final-headline { font-size:3rem; font-weight:800; letter-spacing:-0.04em; line-height:1.1; margin-bottom:1rem; }
+    .final-sub { font-size:1.0625rem; color:var(--text-3); line-height:1.65; margin-bottom:2.5rem; max-width:560px; margin-left:auto; margin-right:auto; }
+    .final-actions { display:flex; align-items:center; justify-content:center; gap:0.875rem; flex-wrap:wrap; }
+    footer { border-top:1px solid var(--border); padding:2.5rem 2rem; }
+    .footer-inner { max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
+    .footer-copy { font-size:0.75rem; color:var(--text-4); }
+    .footer-links { display:flex; gap:2rem; }
+    .footer-link { font-size:0.75rem; color:var(--text-4); text-decoration:none; transition:color 0.2s; }
+    .footer-link:hover { color:var(--purple-light); }
+
+    /* ========== RESPONSIVE — TABLET (1024px) ========== */
+    @media (max-width:1024px) {
+      .hero-grid { grid-template-columns:1fr; gap:3rem; text-align:center; }
+      .hero-sub { margin:0 auto 2.5rem; }
+      .hero-actions { justify-content:center; }
+      .hero-stats { justify-content:center; }
+      .div-agents { grid-template-columns:repeat(2,1fr); }
+      .div-agents-3 { grid-template-columns:repeat(3,1fr); }
+      .div-agents-2 { grid-template-columns:repeat(2,1fr); }
+      .genesis-grid { grid-template-columns:1fr; }
+      .int-cluster { grid-template-columns:1fr; }
+      .int-cluster-3 { grid-template-columns:repeat(2,1fr); }
+      .feat-grid { grid-template-columns:repeat(2,1fr); }
+    }
+
+    /* ========== RESPONSIVE — SMALL TABLET / LARGE PHONE (768px) ========== */
+    @media (max-width:768px) {
+      .container { padding:0 1.25rem; }
+      .section { padding:4.5rem 0; }
+      .genesis-section { padding:4.5rem 0; }
+      .int-section { padding:4.5rem 0; }
+
+      /* Nav */
+      nav { padding:1rem 1.25rem; }
+      .nav-link { display:none; }
+      .nav-links { gap:0.75rem; }
+
+      /* Hero */
+      .hero { min-height:auto; padding:3rem 1.25rem 4rem; }
+      .hero h1 { font-size:2.75rem; }
+      .hero-sub { font-size:1rem; }
+      .hero-stats { flex-wrap:wrap; gap:1.25rem; }
+      .hero-stat-num { font-size:1.5rem; }
+      .hero-actions { flex-direction:column; }
+      .btn-primary, .btn-secondary { width:100%; justify-content:center; }
+
+      /* Feed */
+      .feed-panel { border-radius:var(--r-lg); }
+      .feed-viewport { max-height:300px; }
+      .feed-item { padding:0.5rem 1rem; gap:0.5rem; }
+      .feed-badge { width:26px; height:26px; font-size:0.5rem; }
+      .feed-action { font-size:0.6875rem; }
+
+      /* Section headers */
+      .sh-title { font-size:2rem; }
+      .sh-sub { font-size:0.9375rem; }
+
+      /* Divisions */
+      .div-agents, .div-agents-3, .div-agents-2 { grid-template-columns:1fr; }
+      .div-header { flex-wrap:wrap; gap:0.25rem; }
+      .agent-card { padding:1rem 0.875rem; }
+      .agent-desc { font-size:0.6875rem; }
+
+      /* Genesis */
+      .genesis-body { padding:1.125rem; }
+      .gen-label { font-size:0.625rem; }
+      .gen-metric { font-size:0.5625rem; }
+      .gen-alert-text { font-size:0.625rem; word-break:break-word; }
+      .gen-tree { padding-left:0.875rem; }
+      .gen-tree-line { font-size:0.5625rem; }
+      .genesis-loop { grid-template-columns:1fr; }
+      .loop-card { padding:1.25rem; }
+
+      /* Orchestration */
+      .orch-body { padding:1.25rem 1rem 1.5rem; }
+      .orch-prompt { padding:0.625rem 0.875rem; gap:0.5rem; }
+      .orch-prompt-text { font-size:0.6875rem; }
+      .orch-agents { gap:0.375rem; padding:0 0.5rem; }
+      .orch-agent { padding:0.375rem 0.625rem; gap:0.375rem; }
+      .orch-agent-name { font-size:0.5625rem; }
+      .orch-agent-task { font-size:0.4375rem; }
+      .orch-node-result { font-size:0.5625rem; padding:0.3rem 0.75rem; text-align:center; line-height:1.4; }
+      .orch-patterns { grid-template-columns:1fr; }
+
+      /* Integrations */
+      .int-cluster-3 { grid-template-columns:1fr; }
+      .int-stats { gap:1rem; flex-wrap:wrap; }
+      .int-stat-n { font-size:1.25rem; }
+      .int-tiles { grid-template-columns:repeat(2, 1fr) !important; }
+      .int-tile { padding:0.75rem 0.375rem; }
+      .int-icon { width:34px; height:34px; font-size:0.6875rem; }
+      .int-name { font-size:0.625rem; }
+
+      /* Platform features */
+      .feat-grid { grid-template-columns:1fr; }
+      .feat-card { padding:1.5rem; }
+
+      /* Terminal */
+      .terminal pre { padding:1rem; font-size:0.6875rem; line-height:1.7; }
+
+      /* CTA */
+      .final-headline { font-size:2rem; }
+      .final-sub { font-size:0.9375rem; }
+      .final-actions { flex-direction:column; }
+      .final-actions .btn-primary, .final-actions .btn-secondary { width:100%; }
+
+      /* Footer */
+      footer { padding:2rem 1.25rem; }
+      .footer-inner { flex-direction:column; gap:1rem; text-align:center; }
+    }
+
+    /* ========== RESPONSIVE — PHONE (480px) ========== */
+    @media (max-width:480px) {
+      .container { padding:0 1rem; }
+      .section { padding:3.5rem 0; }
+      .genesis-section { padding:3.5rem 0; }
+      .int-section { padding:3.5rem 0; }
+
+      /* Hero */
+      .hero { padding:2rem 1rem 3rem; }
+      .hero h1 { font-size:2.25rem; margin-bottom:1.25rem; }
+      .hero-eyebrow { font-size:0.5625rem; padding:0.25rem 0.625rem; margin-bottom:1.25rem; }
+      .hero-sub { font-size:0.9375rem; line-height:1.6; margin-bottom:2rem; }
+      .hero-stats { gap:1rem; margin-top:2rem; padding-top:1.5rem; }
+      .hero-stat-num { font-size:1.25rem; }
+      .hero-stat-label { font-size:0.5625rem; }
+
+      /* Feed */
+      .feed-viewport { max-height:260px; }
+      .feed-bar { padding:0.625rem 1rem; }
+      .feed-item { padding:0.4375rem 0.875rem; }
+      .feed-cost { display:none; }
+
+      /* Section headers */
+      .sh-title { font-size:1.625rem; letter-spacing:-0.03em; }
+      .sh-sub { font-size:0.875rem; }
+      .sh-label { font-size:0.5625rem; }
+
+      /* Divisions */
+      .agent-card { padding:0.875rem 0.75rem; }
+      .agent-name { font-size:0.8125rem; }
+      .agent-dot { width:8px; height:8px; margin-bottom:0.5rem; }
+      .agent-unique { font-size:0.4375rem; padding:0.1rem 0.3rem; top:0.5rem; right:0.5rem; }
+
+      /* Genesis */
+      .genesis-bar { padding:0.625rem 1rem; }
+      .genesis-bar-title { font-size:0.5625rem; }
+      .genesis-body { padding:1rem; }
+      .gen-entry { margin-bottom:1rem; padding-bottom:1rem; }
+      .gen-header { flex-direction:column; align-items:flex-start; gap:0.25rem; }
+      .gen-detail { font-size:0.5625rem; }
+      .gen-incident { margin-bottom:1rem; }
+      .gen-tree-line { font-size:0.5rem; line-height:1.7; }
+      .loop-card { padding:1rem; }
+      .loop-name { font-size:0.75rem; }
+      .loop-desc { font-size:0.6875rem; }
+
+      /* Orchestration */
+      .orch-body { padding:1rem 0.75rem 1.25rem; }
+      .orch-prompt { flex-wrap:wrap; padding:0.5rem 0.75rem; }
+      .orch-prompt-text { font-size:0.625rem; min-width:0; }
+      .orch-agents { padding:0 0.25rem; }
+      .orch-agent { padding:0.3rem 0.5rem; }
+      .orch-agent-name { font-size:0.5rem; }
+      .orch-agent-task { display:none; }
+      .orch-node { font-size:0.5625rem; padding:0.3rem 0.75rem; }
+      .orch-node-result { font-size:0.5rem; max-width:100%; word-break:break-word; }
+      .orch-label { font-size:0.5rem; }
+      .orch-pat { padding:1rem 0.75rem; }
+      .orch-pat h4 { font-size:0.6875rem; }
+
+      /* Integrations */
+      .int-tiles { gap:4px; }
+      .int-tile { padding:0.625rem 0.25rem; gap:0.375rem; }
+      .int-icon { width:30px; height:30px; font-size:0.625rem; border-radius:var(--r-sm); }
+      .int-name { font-size:0.5625rem; }
+      .int-row-label { font-size:0.5rem; }
+      .int-sub { font-size:0.5rem; }
+
+      /* Platform features */
+      .feat-card { padding:1.25rem 1rem; }
+      .feat-card h3 { font-size:0.875rem; }
+      .feat-card p { font-size:0.75rem; }
+      .feat-icon { width:34px; height:34px; font-size:0.875rem; }
+
+      /* Terminal */
+      .terminal { border-radius:var(--r-md); }
+      .terminal pre { padding:0.875rem; font-size:0.5625rem; line-height:1.6; white-space:pre-wrap; word-break:break-all; }
+      .terminal-bar { padding:0.625rem 1rem; }
+      .terminal-path { font-size:0.5rem; }
+
+      /* CTA */
+      .final-headline { font-size:1.625rem; }
+      .final-sub { font-size:0.875rem; padding:0 0.5rem; }
+
+      /* Nav */
+      nav { padding:0.875rem 1rem; }
+      .logo { font-size:1.125rem; }
+    }
+
+    /* ========== RESPONSIVE — SMALL PHONE (375px) ========== */
+    @media (max-width:375px) {
+      .hero h1 { font-size:1.875rem; }
+      .hero-stat-num { font-size:1.125rem; }
+      .hero-stats { gap:0.75rem; }
+      .sh-title { font-size:1.375rem; }
+      .final-headline { font-size:1.375rem; }
+      .int-tiles { grid-template-columns:1fr 1fr !important; }
+      .orch-agents { gap:0.25rem; }
+      .orch-agent { padding:0.25rem 0.375rem; }
+      .feed-action { font-size:0.5625rem; }
+      .feed-badge { width:22px; height:22px; font-size:0.4375rem; }
+      .terminal pre { font-size:0.5rem; }
+    }
+
+    /* ========== TOUCH DEVICE OVERRIDES ========== */
+    @media (hover:none) {
+      .agent-card:hover { transform:none; }
+      .int-tile:hover { transform:none; }
+      .orch-agent:hover { background:rgba(255,255,255,0.015); border-color:var(--border); }
+      .feat-card:hover { background:var(--void); }
+      .feat-card:hover::before { transform:scaleX(0); }
+      .loop-card:hover { background:var(--void); }
+      .loop-card:hover::before { transform:scaleX(0); }
+    }
+
+    /* ========== SAFE AREA (notched phones) ========== */
+    @supports (padding: env(safe-area-inset-bottom)) {
+      footer { padding-bottom:calc(2.5rem + env(safe-area-inset-bottom)); }
+      nav { padding-left:calc(1.25rem + env(safe-area-inset-left)); padding-right:calc(1.25rem + env(safe-area-inset-right)); }
+    }
+
+    /* ========== REDUCED MOTION ========== */
+    @media (prefers-reduced-motion:reduce) {
+      .reveal { transition:none; opacity:1; transform:none; }
+      .feed-track { animation:none; }
+      .hero-content, .feed-panel { animation:none; opacity:1; }
+      .atmosphere::before, .atmosphere::after { animation:none; }
+      .hero h1 .gradient { animation:none; }
+      .genesis-panel { animation:none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="atmosphere" aria-hidden="true"></div>
+<div class="dot-grid" aria-hidden="true"></div>
+
+<nav>
+  <a href="/" class="logo">askalf</a>
+  <div class="nav-links">
+    <a href="#fleet" class="nav-link">Fleet</a>
+    <a href="#genesis" class="nav-link">Genesis</a>
+    <a href="#orchestration" class="nav-link">Orchestration</a>
+    <a href="#integrations" class="nav-link">Integrations</a>
+    <a href="#quickstart" class="nav-link">Quick Start</a>
+    <a href="https://github.com/SprayberryLabs" class="nav-cta">GitHub</a>
+  </div>
+</nav>
+
+<!-- ==================== HERO ==================== -->
+<section class="hero">
+  <div class="hero-grid">
+    <div class="hero-content">
+      <div class="hero-eyebrow">Open Source &middot; Self-Hosted</div>
+      <h1>16 agents.<br><span class="gradient">They evolve.<br>Your servers.</span></h1>
+      <p class="hero-sub">Six divisions of AI agents that <strong>design, build, ship, secure, research, and heal</strong> your infrastructure &mdash; then <strong>get better on their own</strong>. Any AI model. No vendor lock-in. No data leaves your network.</p>
+      <div class="hero-actions">
+        <a href="https://github.com/SprayberryLabs" class="btn-primary">View on GitHub</a>
+        <a href="#quickstart" class="btn-secondary">Quick Start</a>
+      </div>
+      <div class="hero-stats">
+        <div><div class="hero-stat-num" style="color:var(--green)">6</div><div class="hero-stat-label">Divisions</div></div>
+        <div><div class="hero-stat-num" style="color:var(--purple-light)">16</div><div class="hero-stat-label">Agents</div></div>
+        <div><div class="hero-stat-num" style="color:var(--cyan)">24</div><div class="hero-stat-label">MCP Tools</div></div>
+        <div><div class="hero-stat-num" style="color:var(--amber)">&infin;</div><div class="hero-stat-label">AI Models</div></div>
+      </div>
+    </div>
+
+    <div class="feed-panel">
+      <div class="feed-bar">
+        <span class="feed-title">Fleet Activity</span>
+        <span class="feed-live">16 agents</span>
+      </div>
+      <div class="feed-viewport">
+        <div class="feed-track">
+          <div class="feed-item"><div class="feed-badge fb-arc">ARC</div><div class="feed-body"><div class="feed-action">Mapped service graph: 47 endpoints, 3 circular deps flagged</div><div class="feed-meta"><span class="feed-tag">github</span>2s ago</div></div><div class="feed-cost">$0.12</div></div>
+          <div class="feed-item"><div class="feed-badge fb-bld">BLD</div><div class="feed-body"><div class="feed-action">Implemented OAuth2 PKCE flow &mdash; 847 lines, 6 files, 4 tests</div><div class="feed-meta"><span class="feed-tag">gitlab</span>5s ago</div></div><div class="feed-cost">$0.31</div></div>
+          <div class="feed-item"><div class="feed-badge fb-rev">REV</div><div class="feed-body"><div class="feed-action">Reviewed 14 PRs: approved 11, flagged 3 for security review</div><div class="feed-meta"><span class="feed-tag">github</span>9s ago</div></div><div class="feed-cost">$0.09</div></div>
+          <div class="feed-item"><div class="feed-badge fb-dbg">DBG</div><div class="feed-body"><div class="feed-action">Traced memory leak to unclosed WebSocket pool, deployed patch</div><div class="feed-meta"><span class="feed-tag">sentry</span>14s ago</div></div><div class="feed-cost">$0.15</div></div>
+          <div class="feed-item"><div class="feed-badge fb-tst">TST</div><div class="feed-body"><div class="feed-action">Generated 312 fuzz inputs, found 2 panic edge cases, filed tickets</div><div class="feed-meta"><span class="feed-tag">linear</span>18s ago</div></div><div class="feed-cost">$0.22</div></div>
+          <div class="feed-item"><div class="feed-badge fb-dep">DEP</div><div class="feed-body"><div class="feed-action">Blue-green deploy to prod &mdash; zero downtime, all health checks green</div><div class="feed-meta"><span class="feed-tag">aws</span>23s ago</div></div><div class="feed-cost">$0.07</div></div>
+          <div class="feed-item"><div class="feed-badge fb-sys">SYS</div><div class="feed-body"><div class="feed-action">Auto-scaled workers 2&rarr;6 during traffic spike, scaled back after</div><div class="feed-meta"><span class="feed-tag">grafana</span>28s ago</div></div><div class="feed-cost">$0.04</div></div>
+          <div class="feed-item"><div class="feed-badge fb-med">MED</div><div class="feed-body"><div class="feed-action">Detected stale DB pool, recycled connections, recovered in 2.3s</div><div class="feed-meta"><span class="feed-tag">datadog</span>31s ago</div></div><div class="feed-cost">$0.02</div></div>
+          <div class="feed-item"><div class="feed-badge fb-grd">GRD</div><div class="feed-body"><div class="feed-action">Scanned 847 deps: CVE-2026-1847 found, auto-patched, PR merged</div><div class="feed-meta"><span class="feed-tag">github</span>36s ago</div></div><div class="feed-cost">$0.11</div></div>
+          <div class="feed-item"><div class="feed-badge fb-snt">SNT</div><div class="feed-body"><div class="feed-action">Rotated 12 API keys across vault, zero downtime, notified team</div><div class="feed-meta"><span class="feed-tag">slack</span>41s ago</div></div><div class="feed-cost">$0.05</div></div>
+          <div class="feed-item"><div class="feed-badge fb-sct">SCT</div><div class="feed-body"><div class="feed-action">Crawled 23 competitor pages, generated positioning report</div><div class="feed-meta"><span class="feed-tag">notion</span>46s ago</div></div><div class="feed-cost">$0.18</div></div>
+          <div class="feed-item"><div class="feed-badge fb-anl">ANL</div><div class="feed-body"><div class="feed-action">Profiled API endpoints: found 3 N+1 queries, suggested indexes</div><div class="feed-meta"><span class="feed-tag">grafana</span>51s ago</div></div><div class="feed-cost">$0.08</div></div>
+          <div class="feed-item"><div class="feed-badge fb-orc">ORC</div><div class="feed-body"><div class="feed-action">Predicted disk exhaustion in 72h, triggered preemptive cleanup</div><div class="feed-meta"><span class="feed-tag">pagerduty</span>55s ago</div></div><div class="feed-cost">$0.03</div></div>
+          <div class="feed-item"><div class="feed-badge fb-scr">SCR</div><div class="feed-body"><div class="feed-action">Generated v3.0 changelog from 47 merged PRs, published to docs</div><div class="feed-meta"><span class="feed-tag">notion</span>1m ago</div></div><div class="feed-cost">$0.06</div></div>
+          <div class="feed-item"><div class="feed-badge fb-her">HRL</div><div class="feed-body"><div class="feed-action">Sent weekly fleet digest to 6 Slack channels, 2 email groups</div><div class="feed-meta"><span class="feed-tag">slack</span>1m ago</div></div><div class="feed-cost">$0.01</div></div>
+          <div class="feed-item"><div class="feed-badge fb-dar">DRW</div><div class="feed-body"><div class="feed-action">Mutated Builder prompt &mdash; task completion rate +12% over 30 runs</div><div class="feed-meta"><span class="feed-tag">internal</span>1m ago</div></div><div class="feed-cost">$0.04</div></div>
+          <!-- duplicate for seamless loop -->
+          <div class="feed-item"><div class="feed-badge fb-arc">ARC</div><div class="feed-body"><div class="feed-action">Mapped service graph: 47 endpoints, 3 circular deps flagged</div><div class="feed-meta"><span class="feed-tag">github</span>2s ago</div></div><div class="feed-cost">$0.12</div></div>
+          <div class="feed-item"><div class="feed-badge fb-bld">BLD</div><div class="feed-body"><div class="feed-action">Implemented OAuth2 PKCE flow &mdash; 847 lines, 6 files, 4 tests</div><div class="feed-meta"><span class="feed-tag">gitlab</span>5s ago</div></div><div class="feed-cost">$0.31</div></div>
+          <div class="feed-item"><div class="feed-badge fb-rev">REV</div><div class="feed-body"><div class="feed-action">Reviewed 14 PRs: approved 11, flagged 3 for security review</div><div class="feed-meta"><span class="feed-tag">github</span>9s ago</div></div><div class="feed-cost">$0.09</div></div>
+          <div class="feed-item"><div class="feed-badge fb-dbg">DBG</div><div class="feed-body"><div class="feed-action">Traced memory leak to unclosed WebSocket pool, deployed patch</div><div class="feed-meta"><span class="feed-tag">sentry</span>14s ago</div></div><div class="feed-cost">$0.15</div></div>
+          <div class="feed-item"><div class="feed-badge fb-tst">TST</div><div class="feed-body"><div class="feed-action">Generated 312 fuzz inputs, found 2 panic edge cases, filed tickets</div><div class="feed-meta"><span class="feed-tag">linear</span>18s ago</div></div><div class="feed-cost">$0.22</div></div>
+          <div class="feed-item"><div class="feed-badge fb-dep">DEP</div><div class="feed-body"><div class="feed-action">Blue-green deploy to prod &mdash; zero downtime, all health checks green</div><div class="feed-meta"><span class="feed-tag">aws</span>23s ago</div></div><div class="feed-cost">$0.07</div></div>
+          <div class="feed-item"><div class="feed-badge fb-sys">SYS</div><div class="feed-body"><div class="feed-action">Auto-scaled workers 2&rarr;6 during traffic spike, scaled back after</div><div class="feed-meta"><span class="feed-tag">grafana</span>28s ago</div></div><div class="feed-cost">$0.04</div></div>
+          <div class="feed-item"><div class="feed-badge fb-med">MED</div><div class="feed-body"><div class="feed-action">Detected stale DB pool, recycled connections, recovered in 2.3s</div><div class="feed-meta"><span class="feed-tag">datadog</span>31s ago</div></div><div class="feed-cost">$0.02</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== AGENT FLEET ==================== -->
+<section id="fleet" class="section reveal">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:4rem">
+      <p class="sh-label">The Fleet</p>
+      <h2 class="sh-title">6 divisions. 16 specialists.</h2>
+      <p class="sh-sub" style="margin:0 auto">Not one chatbot pretending to do everything. A structured organization of specialists &mdash; each built for one job, working in parallel on your infrastructure.</p>
+    </div>
+
+    <!-- FORGE -->
+    <div class="division">
+      <div class="div-header"><span class="div-name" style="color:var(--green)">Forge</span><span class="div-sep">&middot;</span><span class="div-desc">Engineering</span></div>
+      <div class="div-agents">
+        <div class="agent-card"><div class="agent-dot" style="background:var(--teal);box-shadow:0 0 12px rgba(45,212,191,0.4)"></div><div class="agent-name">Architect</div><div class="agent-role" style="color:var(--teal)">design</div><div class="agent-desc">System design, dependency mapping, migration planning, tech debt scoring.</div></div>
+        <div class="agent-card"><div class="agent-dot" style="background:var(--green);box-shadow:0 0 12px rgba(6,214,160,0.4)"></div><div class="agent-name">Builder</div><div class="agent-role" style="color:var(--green)">code</div><div class="agent-desc">Full-stack code generation, feature implementation, refactoring, scaffolding.</div></div>
+        <div class="agent-card"><div class="agent-dot" style="background:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,0.4)"></div><div class="agent-name">Reviewer</div><div class="agent-role" style="color:var(--cyan)">quality</div><div class="agent-desc">Code review, PR triage, quality gates, style enforcement, merge decisions.</div></div>
+        <div class="agent-card"><div class="agent-dot" style="background:var(--amber);box-shadow:0 0 12px rgba(251,191,36,0.4)"></div><div class="agent-name">Debugger</div><div class="agent-role" style="color:var(--amber)">fix</div><div class="agent-desc">Root cause analysis, crash triage, stack trace parsing, hotfix generation.</div></div>
+      </div>
+    </div>
+
+    <!-- LAUNCH -->
+    <div class="division">
+      <div class="div-header"><span class="div-name" style="color:var(--blue)">Launch</span><span class="div-sep">&middot;</span><span class="div-desc">DevOps</span></div>
+      <div class="div-agents div-agents-3">
+        <div class="agent-card"><div class="agent-dot" style="background:#c084fc;box-shadow:0 0 12px rgba(192,132,252,0.4)"></div><div class="agent-name">Tester</div><div class="agent-role" style="color:#c084fc">verify</div><div class="agent-desc">Test generation, fuzzing, E2E suites, flaky quarantine, coverage analysis.</div></div>
+        <div class="agent-card"><div class="agent-dot" style="background:var(--blue);box-shadow:0 0 12px rgba(96,165,250,0.4)"></div><div class="agent-name">Deployer</div><div class="agent-role" style="color:var(--blue)">ship</div><div class="agent-desc">CI/CD pipelines, blue-green deploys, rollback, release gates, canary.</div></div>
+        <div class="agent-card"><div class="agent-dot" style="background:var(--orange);box-shadow:0 0 12px rgba(251,146,60,0.4)"></div><div class="agent-name">Sysop</div><div class="agent-role" style="color:var(--orange)">scale</div><div class="agent-desc">Auto-scaling, monitoring, Terraform, resource management, cost tracking.</div></div>
+      </div>
+    </div>
+
+    <!-- SHIELD -->
+    <div class="division">
+      <div class="div-header"><span class="div-name" style="color:var(--red)">Shield</span><span class="div-sep">&middot;</span><span class="div-desc">Security</span></div>
+      <div class="div-agents div-agents-2">
+        <div class="agent-card"><div class="agent-dot" style="background:var(--red);box-shadow:0 0 12px rgba(248,113,113,0.4)"></div><div class="agent-name">Guardian</div><div class="agent-role" style="color:var(--red)">scan</div><div class="agent-desc">Vulnerability scanning, dependency audit, OWASP compliance, supply chain security.</div></div>
+        <div class="agent-card"><div class="agent-dot" style="background:#ef4444;box-shadow:0 0 12px rgba(239,68,68,0.4)"></div><div class="agent-name">Sentinel</div><div class="agent-role" style="color:#ef4444">watch</div><div class="agent-desc">Threat detection, anomaly monitoring, key rotation, access control, incident forensics.</div></div>
+      </div>
+    </div>
+
+    <!-- INTEL -->
+    <div class="division">
+      <div class="div-header"><span class="div-name" style="color:var(--sky)">Intel</span><span class="div-sep">&middot;</span><span class="div-desc">Intelligence</span></div>
+      <div class="div-agents div-agents-2">
+        <div class="agent-card"><div class="agent-dot" style="background:var(--sky);box-shadow:0 0 12px rgba(56,189,248,0.4)"></div><div class="agent-name">Scout</div><div class="agent-role" style="color:var(--sky)">research</div><div class="agent-desc">Web research, competitor intelligence, market analysis, SEO auditing, trend detection.</div></div>
+        <div class="agent-card"><div class="agent-dot" style="background:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,0.4)"></div><div class="agent-name">Analyst</div><div class="agent-role" style="color:var(--cyan)">measure</div><div class="agent-desc">Performance profiling, data analysis, metrics interpretation, forecasting, anomaly detection.</div></div>
+      </div>
+    </div>
+
+    <!-- SIGNAL -->
+    <div class="division">
+      <div class="div-header"><span class="div-name" style="color:var(--purple-light)">Signal</span><span class="div-sep">&middot;</span><span class="div-desc">Communication</span></div>
+      <div class="div-agents div-agents-2">
+        <div class="agent-card"><div class="agent-dot" style="background:var(--purple-light);box-shadow:0 0 12px rgba(167,139,250,0.4)"></div><div class="agent-name">Scribe</div><div class="agent-role" style="color:var(--purple-light)">document</div><div class="agent-desc">Changelogs, API docs, release notes, knowledge base, technical writing.</div></div>
+        <div class="agent-card"><div class="agent-dot" style="background:var(--amber);box-shadow:0 0 12px rgba(251,191,36,0.4)"></div><div class="agent-name">Herald</div><div class="agent-role" style="color:var(--amber)">broadcast</div><div class="agent-desc">Cross-channel alerts, weekly digests, stakeholder reports, notifications across 15 channels.</div></div>
+      </div>
+    </div>
+
+    <!-- GENESIS -->
+    <div class="division">
+      <div class="div-header">
+        <span class="div-name" style="background:linear-gradient(135deg,var(--green),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Genesis</span>
+        <span class="div-sep">&middot;</span>
+        <span class="div-desc">Evolution &amp; Self-Healing</span>
+        <span class="agent-unique" style="margin-left:auto">Only on AskAlf</span>
+      </div>
+      <div class="div-agents div-agents-3">
+        <div class="agent-card" style="border-color:rgba(139,92,246,0.15)"><div class="agent-unique">Unique</div><div class="agent-dot" style="background:var(--violet);box-shadow:0 0 12px rgba(139,92,246,0.4)"></div><div class="agent-name">Oracle</div><div class="agent-role" style="color:var(--violet)">predict</div><div class="agent-desc">Failure prediction, cost forecasting, capacity planning, anomaly detection before impact.</div></div>
+        <div class="agent-card" style="border-color:rgba(251,113,133,0.15)"><div class="agent-unique">Unique</div><div class="agent-dot" style="background:var(--rose);box-shadow:0 0 12px rgba(251,113,133,0.4)"></div><div class="agent-name">Medic</div><div class="agent-role" style="color:var(--rose)">heal</div><div class="agent-desc">Self-healing infrastructure. Crash recovery, connection recycling, auto-remediation, zero human intervention.</div></div>
+        <div class="agent-card" style="border-color:rgba(6,214,160,0.15)"><div class="agent-unique">Unique</div><div class="agent-dot" style="background:var(--green);box-shadow:0 0 16px rgba(6,214,160,0.5)"></div><div class="agent-name">Darwin</div><div class="agent-role" style="color:var(--green)">evolve</div><div class="agent-desc">Prompt evolution, strategy mutation, A/B testing agent configs, fleet-wide optimization across generations.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== GENESIS — THE DIFFERENTIATOR ==================== -->
+<section id="genesis" class="genesis-section reveal">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:3.5rem">
+      <p class="sh-label" style="color:var(--green)">Genesis Division</p>
+      <h2 class="sh-title">The fleet that <em style="font-style:normal;background:linear-gradient(135deg,var(--green),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">evolves itself</em></h2>
+      <p class="sh-sub" style="margin:0 auto">Three agents that don't exist anywhere else. Oracle predicts failures before they happen. Medic heals your infrastructure autonomously. Darwin evolves the entire fleet's strategies across generations.</p>
+    </div>
+
+    <div class="genesis-grid">
+      <!-- Darwin — Evolution Engine -->
+      <div class="genesis-panel">
+        <div class="genesis-bar"><span class="genesis-bar-title" style="color:var(--green)">Darwin &middot; Evolution Engine</span><span class="genesis-bar-badge">Live</span></div>
+        <div class="genesis-body">
+          <div class="gen-entry">
+            <div class="gen-header"><span class="gen-label" style="color:var(--text-3)">gen 001 &mdash; Builder v1.0</span><span class="gen-metric" style="color:var(--text-4)">67%</span></div>
+            <div class="gen-bar-track"><div class="gen-bar-fill" style="width:67%;background:var(--text-4)"></div></div>
+            <div class="gen-detail">baseline &middot; no mutations applied</div>
+          </div>
+          <div class="gen-entry">
+            <div class="gen-header"><span class="gen-label" style="color:var(--text-2)">gen 005 &mdash; Builder v1.4</span><span class="gen-metric" style="color:var(--amber)">78% <em>+11%</em></span></div>
+            <div class="gen-bar-track"><div class="gen-bar-fill" style="width:78%;background:var(--amber)"></div></div>
+            <div class="gen-detail">mutation: <em>+error handling patterns, -verbose preamble</em></div>
+          </div>
+          <div class="gen-entry">
+            <div class="gen-header"><span class="gen-label" style="color:var(--text)">gen 012 &mdash; Builder v2.1</span><span class="gen-metric" style="color:var(--purple-light)">89% <em>+22%</em></span></div>
+            <div class="gen-bar-track"><div class="gen-bar-fill" style="width:89%;background:var(--purple-light)"></div></div>
+            <div class="gen-detail">mutation: <em>+test-first approach, +dependency awareness</em></div>
+          </div>
+          <div class="gen-entry">
+            <div class="gen-header"><span class="gen-label" style="color:var(--text)">gen 030 &mdash; Builder v3.0</span><span class="gen-metric" style="color:var(--green)">96% <em>+29%</em></span></div>
+            <div class="gen-bar-track"><div class="gen-bar-fill" style="width:96%;background:var(--green)"></div></div>
+            <div class="gen-detail">fleet-wide improvement: <em>+34% avg success across all 16 agents</em></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Medic — Self-Healing -->
+      <div class="genesis-panel">
+        <div class="genesis-bar"><span class="genesis-bar-title" style="color:var(--rose)">Medic &middot; Self-Healing</span><span class="genesis-bar-badge">Watching</span></div>
+        <div class="genesis-body">
+          <div class="gen-incident">
+            <div class="gen-alert"><span class="gen-alert-icon">&#x25B2;</span><span class="gen-alert-text">postgres connection pool exhausted</span></div>
+            <div class="gen-tree">
+              <div class="gen-tree-line"><span class="action">detected:</span> connection leak in /api/v1/search</div>
+              <div class="gen-tree-line"><span class="action">action:</span> killed 14 idle connections, pool 10&rarr;25</div>
+              <div class="gen-tree-line"><span class="result">recovered:</span> 2.3s &mdash; zero downtime</div>
+              <div class="gen-tree-line"><span class="prevent">prevention:</span> added connection timeout, deployed fix</div>
+            </div>
+          </div>
+          <div class="gen-incident">
+            <div class="gen-alert"><span class="gen-alert-icon">&#x25B2;</span><span class="gen-alert-text">disk usage 94% on /var/lib/docker</span></div>
+            <div class="gen-tree">
+              <div class="gen-tree-line"><span class="action">detected:</span> stale build cache (12.4 GB)</div>
+              <div class="gen-tree-line"><span class="action">action:</span> pruned dangling images, rotated logs</div>
+              <div class="gen-tree-line"><span class="result">recovered:</span> freed 8.2 GB &mdash; usage now 61%</div>
+              <div class="gen-tree-line"><span class="prevent">prevention:</span> scheduled weekly cleanup cron</div>
+            </div>
+          </div>
+          <div class="gen-incident">
+            <div class="gen-alert"><span class="gen-alert-icon">&#x25B2;</span><span class="gen-alert-text">OOM kill on forge worker</span></div>
+            <div class="gen-tree">
+              <div class="gen-tree-line"><span class="action">detected:</span> memory limit 512MB exceeded during batch</div>
+              <div class="gen-tree-line"><span class="action">action:</span> increased limit to 1GB, restarted worker</div>
+              <div class="gen-tree-line"><span class="result">recovered:</span> 4.1s &mdash; no tasks lost</div>
+              <div class="gen-tree-line"><span class="prevent">prevention:</span> added memory profiling to batch pipeline</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- The Loop -->
+    <div class="genesis-loop">
+      <div class="loop-card">
+        <div class="loop-icon" style="color:var(--violet)">&#x25C9;</div>
+        <div class="loop-name" style="color:var(--violet)">Oracle Predicts</div>
+        <div class="loop-desc">Analyzes patterns across all executions. Forecasts failures 24&ndash;72 hours before impact.</div>
+      </div>
+      <div class="loop-card">
+        <div class="loop-icon" style="color:var(--rose)">&#x2692;</div>
+        <div class="loop-name" style="color:var(--rose)">Medic Heals</div>
+        <div class="loop-desc">Acts on predictions. Fixes infrastructure before you know something's wrong. Zero human intervention.</div>
+      </div>
+      <div class="loop-card">
+        <div class="loop-icon" style="color:var(--green)">&#x21BB;</div>
+        <div class="loop-name" style="color:var(--green)">Darwin Evolves</div>
+        <div class="loop-desc">Learns from every incident. Mutates agent strategies. The fleet gets permanently smarter.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== ORCHESTRATION ==================== -->
+<section id="orchestration" class="section reveal">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:3rem">
+      <p class="sh-label">Orchestration</p>
+      <h2 class="sh-title">One prompt. Eight agents. One result.</h2>
+      <p class="sh-sub" style="margin:0 auto">Fan-out a request across divisions. Each agent works its specialty in parallel. Results converge automatically.</p>
+    </div>
+    <div class="orch-panel">
+      <div class="orch-bar"><span class="orch-bar-title">Orchestration Pipeline</span><span class="orch-bar-status">Executing</span></div>
+      <div class="orch-body">
+        <div class="orch-prompt">
+          <span class="orch-chevron">&gt;</span>
+          <span class="orch-prompt-text">"Audit our entire stack before the v3.0 release"</span>
+          <span class="orch-cursor"></span>
+        </div>
+        <div class="orch-flow">
+          <div class="orch-node orch-node-source">Coordinator</div>
+          <div class="orch-line"></div>
+          <div class="orch-label">fan-out &mdash; 8 agents from 5 divisions</div>
+          <div class="orch-line"></div>
+          <div class="orch-agents">
+            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--teal);box-shadow:0 0 8px rgba(45,212,191,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Architect</div><div class="orch-agent-task">reviewing deps</div></div></div>
+            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--cyan);box-shadow:0 0 8px rgba(34,211,238,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Reviewer</div><div class="orch-agent-task">open PRs</div></div></div>
+            <div class="orch-agent"><div class="orch-agent-dot" style="background:#c084fc;box-shadow:0 0 8px rgba(192,132,252,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Tester</div><div class="orch-agent-task">full suite</div></div></div>
+            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--red);box-shadow:0 0 8px rgba(248,113,113,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Guardian</div><div class="orch-agent-task">scanning deps</div></div></div>
+            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--orange);box-shadow:0 0 8px rgba(251,146,60,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Sysop</div><div class="orch-agent-task">load limits</div></div></div>
+            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--cyan);box-shadow:0 0 8px rgba(34,211,238,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Analyst</div><div class="orch-agent-task">profiling APIs</div></div></div>
+            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--violet);box-shadow:0 0 8px rgba(139,92,246,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Oracle</div><div class="orch-agent-task">risk forecast</div></div></div>
+            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--purple-light);box-shadow:0 0 8px rgba(167,139,250,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Scribe</div><div class="orch-agent-task">release notes</div></div></div>
+          </div>
+          <div class="orch-line"></div>
+          <div class="orch-label">converge &mdash; results merged</div>
+          <div class="orch-line"></div>
+          <div class="orch-node orch-node-result">Release audit complete &mdash; 8 reports, 5 patches, 0 blockers &mdash; $0.73</div>
+        </div>
+      </div>
+    </div>
+    <div class="orch-patterns">
+      <div class="orch-pat"><div class="orch-pat-icon">&#x21C9;</div><h4>Fan-Out</h4><p>Split one task across multiple agents working in parallel.</p></div>
+      <div class="orch-pat"><div class="orch-pat-icon">&#x2192;&#x2192;&#x2192;</div><h4>Pipeline</h4><p>Chain agents. Output of one becomes input for the next.</p></div>
+      <div class="orch-pat"><div class="orch-pat-icon">&#x2261;</div><h4>Consensus</h4><p>Multiple agents review. Majority agreement to proceed.</p></div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== INTEGRATIONS ==================== -->
+<section id="integrations" class="int-section reveal">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:3.5rem">
+      <p class="sh-label">Ecosystem</p>
+      <h2 class="sh-title">Plug into <em style="font-style:normal;background:linear-gradient(135deg,var(--green),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">everything</em></h2>
+      <div class="int-stats">
+        <div class="int-stat"><span class="int-stat-n" style="color:var(--green)">22</span><span class="int-stat-l">Integrations</span></div>
+        <span class="int-sep">/</span>
+        <div class="int-stat"><span class="int-stat-n" style="color:var(--purple-light)">&infin;</span><span class="int-stat-l">AI Models</span></div>
+        <span class="int-sep">/</span>
+        <div class="int-stat"><span class="int-stat-n" style="color:var(--cyan)">15</span><span class="int-stat-l">Channels</span></div>
+      </div>
+    </div>
+
+    <div class="int-row">
+      <div class="int-row-label">Source Control &amp; DevOps</div>
+      <div class="int-cluster">
+        <div><div class="int-sub" style="color:var(--green)">Version control</div><div class="int-tiles" style="grid-template-columns:1fr 1fr 1fr"><div class="int-tile t-green"><div class="int-icon">GH</div><span class="int-name">GitHub</span></div><div class="int-tile t-green"><div class="int-icon">GL</div><span class="int-name">GitLab</span></div><div class="int-tile t-green"><div class="int-icon">BB</div><span class="int-name">Bitbucket</span></div></div></div>
+        <div><div class="int-sub" style="color:var(--amber)">Ship &amp; deploy</div><div class="int-tiles int-tiles-2"><div class="int-tile t-amber"><div class="int-icon">VC</div><span class="int-name">Vercel</span></div><div class="int-tile t-amber"><div class="int-icon">NF</div><span class="int-name">Netlify</span></div><div class="int-tile t-amber"><div class="int-icon">RW</div><span class="int-name">Railway</span></div><div class="int-tile t-amber"><div class="int-icon">FI</div><span class="int-name">Fly.io</span></div></div></div>
+      </div>
+    </div>
+    <div class="int-divider"></div>
+
+    <div class="int-row">
+      <div class="int-row-label">Cloud &amp; Infrastructure</div>
+      <div class="int-cluster">
+        <div><div class="int-sub" style="color:var(--blue)">Cloud platforms</div><div class="int-tiles int-tiles-2"><div class="int-tile t-blue"><div class="int-icon">AWS</div><span class="int-name">Amazon Web Services</span></div><div class="int-tile t-blue"><div class="int-icon">GCP</div><span class="int-name">Google Cloud</span></div><div class="int-tile t-blue"><div class="int-icon">AZ</div><span class="int-name">Azure</span></div><div class="int-tile t-blue"><div class="int-icon">DO</div><span class="int-name">DigitalOcean</span></div></div></div>
+        <div><div class="int-sub" style="color:var(--teal)">Storage &amp; edge</div><div class="int-tiles" style="grid-template-columns:1fr 1fr 1fr"><div class="int-tile t-teal"><div class="int-icon">CF</div><span class="int-name">Cloudflare</span></div><div class="int-tile t-teal"><div class="int-icon">S3</div><span class="int-name">Amazon S3</span></div><div class="int-tile t-teal"><div class="int-icon">SB</div><span class="int-name">Supabase</span></div></div></div>
+      </div>
+    </div>
+    <div class="int-divider"></div>
+
+    <div class="int-row">
+      <div class="int-row-label">Project Management &amp; Monitoring</div>
+      <div class="int-cluster">
+        <div><div class="int-sub" style="color:var(--purple-light)">Plan &amp; track</div><div class="int-tiles int-tiles-2"><div class="int-tile t-purple"><div class="int-icon">JR</div><span class="int-name">Jira</span></div><div class="int-tile t-purple"><div class="int-icon">LN</div><span class="int-name">Linear</span></div><div class="int-tile t-purple"><div class="int-icon">NT</div><span class="int-name">Notion</span></div><div class="int-tile t-purple"><div class="int-icon">AS</div><span class="int-name">Asana</span></div></div></div>
+        <div><div class="int-sub" style="color:var(--red)">Watch &amp; alert</div><div class="int-tiles int-tiles-2"><div class="int-tile t-red"><div class="int-icon">DD</div><span class="int-name">Datadog</span></div><div class="int-tile t-red"><div class="int-icon">SN</div><span class="int-name">Sentry</span></div><div class="int-tile t-red"><div class="int-icon">PD</div><span class="int-name">PagerDuty</span></div><div class="int-tile t-red"><div class="int-icon">GR</div><span class="int-name">Grafana</span></div></div></div>
+      </div>
+    </div>
+    <div class="int-divider"></div>
+
+    <div class="int-row">
+      <div class="int-row-label">AI Providers &mdash; model agnostic</div>
+      <div class="int-cluster-3">
+        <div><div class="int-sub" style="color:var(--purple-light)">Native adapters</div><div class="int-tiles" style="grid-template-columns:1fr 1fr"><div class="int-tile t-purple"><div class="int-icon">A</div><span class="int-name">Anthropic</span></div><div class="int-tile t-purple"><div class="int-icon">O</div><span class="int-name">OpenAI</span></div><div class="int-tile t-purple"><div class="int-icon">G</div><span class="int-name">Google Gemini</span></div></div></div>
+        <div><div class="int-sub" style="color:var(--green)">Run locally</div><div class="int-tiles" style="grid-template-columns:1fr"><div class="int-tile t-green"><div class="int-icon" style="font-size:1.125rem">&#x1F999;</div><span class="int-name">Ollama</span></div></div><p style="font-family:var(--mono);font-size:0.625rem;color:var(--text-4);margin-top:0.5rem;line-height:1.5">Llama, Mistral, Phi, Qwen, CodeGemma &mdash; any model Ollama supports</p></div>
+        <div><div class="int-sub" style="color:#cbd5e1">OpenAI-compatible</div><div class="int-tiles int-tiles-2"><div class="int-tile t-silver"><div class="int-icon">X</div><span class="int-name">xAI / Grok</span></div><div class="int-tile t-silver"><div class="int-icon">DS</div><span class="int-name">DeepSeek</span></div><div class="int-tile t-silver"><div class="int-icon">MI</div><span class="int-name">Mistral</span></div><div class="int-tile t-silver"><div class="int-icon">GQ</div><span class="int-name">Groq</span></div><div class="int-tile t-silver"><div class="int-icon">TG</div><span class="int-name">Together</span></div><div class="int-tile t-silver"><div class="int-icon">CO</div><span class="int-name">Cohere</span></div><div class="int-tile t-silver"><div class="int-icon">PX</div><span class="int-name">Perplexity</span></div><div class="int-tile t-silver"><div class="int-icon">+</div><span class="int-name">Any endpoint</span></div></div></div>
+      </div>
+    </div>
+    <div class="int-divider"></div>
+
+    <div class="int-row">
+      <div class="int-row-label">Channels &mdash; 15 ways to reach your agents</div>
+      <div class="int-cluster-3">
+        <div><div class="int-sub" style="color:var(--cyan)">Talk to your agents</div><div class="int-tiles int-tiles-2"><div class="int-tile t-cyan"><div class="int-icon">#</div><span class="int-name">Slack</span></div><div class="int-tile t-cyan"><div class="int-icon">&#x25C6;</div><span class="int-name">Discord</span></div><div class="int-tile t-cyan"><div class="int-icon">&#x25B7;</div><span class="int-name">Telegram</span></div><div class="int-tile t-cyan"><div class="int-icon">&#x25CB;</div><span class="int-name">WhatsApp</span></div><div class="int-tile t-cyan"><div class="int-icon">MS</div><span class="int-name">Teams</span></div></div></div>
+        <div><div class="int-sub" style="color:var(--amber)">Trigger your agents</div><div class="int-tiles int-tiles-2"><div class="int-tile t-amber"><div class="int-icon">&#x2039;/&#x203A;</div><span class="int-name">REST API</span></div><div class="int-tile t-amber"><div class="int-icon">&#x21AF;</div><span class="int-name">Webhooks</span></div><div class="int-tile t-amber"><div class="int-icon">&#x26A1;</div><span class="int-name">Zapier</span></div><div class="int-tile t-amber"><div class="int-icon">n8</div><span class="int-name">n8n</span></div><div class="int-tile t-amber"><div class="int-icon">&#x2699;</div><span class="int-name">Make</span></div></div></div>
+        <div><div class="int-sub" style="color:var(--rose)">Reach your users</div><div class="int-tiles int-tiles-2"><div class="int-tile t-rose"><div class="int-icon">@</div><span class="int-name">Email</span></div><div class="int-tile t-rose"><div class="int-icon">SG</div><span class="int-name">SendGrid</span></div><div class="int-tile t-rose"><div class="int-icon">SM</div><span class="int-name">Twilio SMS</span></div><div class="int-tile t-rose"><div class="int-icon">&#x260E;</div><span class="int-name">Twilio Voice</span></div><div class="int-tile t-rose"><div class="int-icon">ZM</div><span class="int-name">Zoom</span></div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== PLATFORM ==================== -->
+<section class="section reveal">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:3.5rem">
+      <p class="sh-label">Platform</p>
+      <h2 class="sh-title">Production-ready out of the box</h2>
+      <p class="sh-sub" style="margin:0 auto">Fleet orchestration, cost control, model agnostic, full observability, self-healing, and evolutionary optimization. Self-hosted means you own everything.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card"><div class="feat-icon">&#x2726;</div><h3>Fleet Orchestration</h3><p>Fan-out, pipeline, and consensus patterns. Coordinate 16 agents on complex multi-step tasks across divisions.</p></div>
+      <div class="feat-card"><div class="feat-icon">&#x21C4;</div><h3>Model Agnostic</h3><p>Anthropic, OpenAI, Google, Ollama, or any OpenAI-compatible API. Switch per-agent, per-task, per-division.</p></div>
+      <div class="feat-card"><div class="feat-icon">$</div><h3>Cost Control</h3><p>Per-agent budgets, execution caps, real-time tracking. Oracle forecasts spend before it happens.</p></div>
+      <div class="feat-card"><div class="feat-icon">&#x229B;</div><h3>Guardrails</h3><p>Human-in-the-loop approvals, content filtering, execution boundaries. You stay in control.</p></div>
+      <div class="feat-card"><div class="feat-icon">&#x2692;</div><h3>24 Built-in Tools</h3><p>Database, Docker, web search, code analysis, team coordination. All via Model Context Protocol.</p></div>
+      <div class="feat-card"><div class="feat-icon">&#x25C9;</div><h3>Full Observability</h3><p>Structured logs, execution traces, cost metrics, evolution history. See exactly what every agent does and why.</p></div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== QUICK START ==================== -->
+<section id="quickstart" class="section reveal">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:3.5rem">
+      <p class="sh-label">Quick Start</p>
+      <h2 class="sh-title">Running in under 2 minutes</h2>
+    </div>
+    <div class="terminal">
+      <div class="terminal-bar"><span class="terminal-path">~/askalf</span><span class="terminal-bar-right">bash</span></div>
+      <pre><span class="c"># Clone, configure, run</span>
+<span class="g">$</span> git clone https://github.com/SprayberryLabs/askalf.git && cd askalf
+<span class="g">$</span> ./setup.sh          <span class="c"># generates secrets, creates .env</span>
+<span class="g">$</span> nano .env            <span class="c"># add your Anthropic/OpenAI key</span>
+<span class="g">$</span> docker compose up -d
+
+<span class="g">&#10003;</span> postgres     <span class="c">ready   1.2s</span>
+<span class="g">&#10003;</span> redis        <span class="c">ready   0.8s</span>
+<span class="g">&#10003;</span> forge        <span class="c">ready   3.1s  (16 agents across 6 divisions)</span>
+<span class="g">&#10003;</span> dashboard    <span class="c">ready   2.4s  &#x2192; http://localhost:3001</span>
+<span class="g">&#10003;</span> mcp-tools    <span class="c">ready   1.9s  (24 tools registered)</span>
+<span class="g">&#10003;</span> searxng      <span class="c">ready   4.2s  (web search &#x2014; no API key needed)</span>
+<span class="g">&#10003;</span> nginx        <span class="c">ready   0.5s</span>
+
+<span class="p">Fleet online.</span> <span class="c">7 containers, 6 divisions, 16 agents, 24 tools.</span>
+<span class="p">Genesis active.</span> <span class="c">Oracle watching. Medic standing by. Darwin evolving.</span></pre>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ==================== FINAL CTA ==================== -->
+<section class="section final-cta reveal">
+  <div class="container">
+    <h2 class="final-headline">Stop renting AI. <span style="background:linear-gradient(135deg,var(--green),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Own the fleet.</span></h2>
+    <p class="final-sub">16 agents. 6 divisions. 22 integrations. 15 channels. Any model. Self-healing. Self-evolving. Your hardware. No vendor lock-in. No data leaving your network. No monthly fees.</p>
+    <div class="final-actions">
+      <a href="https://github.com/SprayberryLabs" class="btn-primary">View on GitHub</a>
+      <a href="#quickstart" class="btn-secondary">Quick Start</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <span class="footer-copy">&copy; 2026 AskAlf. Open source under MIT.</span>
+    <div class="footer-links">
+      <a href="https://github.com/SprayberryLabs" class="footer-link">GitHub</a>
+      <a href="https://x.com/ask_alf" class="footer-link" target="_blank" rel="noopener noreferrer">X / Twitter</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var o = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting) e.target.classList.add('vis'); });
+  }, { threshold:0.1, rootMargin:'0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(function(el){ o.observe(el); });
+})();
+</script>
+</body>
+</html>

@@ -33,13 +33,22 @@ function ScrollToTop() {
   return null;
 }
 
+const isSelfHosted = import.meta.env.VITE_SELFHOSTED === 'true';
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuthStore();
 
   if (isLoading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.emailVerified === false) return <Navigate to="/verify-email" replace />;
-  if (!user.onboardingCompleted) return <Navigate to="/onboard" replace />;
+  if (!user) {
+    // In self-hosted mode, redirect to login (auto-created user)
+    // In SaaS mode, same behavior
+    return <Navigate to="/login" replace />;
+  }
+  // Skip email verification and onboarding checks in self-hosted mode
+  if (!isSelfHosted) {
+    if (user.emailVerified === false) return <Navigate to="/verify-email" replace />;
+    if (!user.onboardingCompleted) return <Navigate to="/onboard" replace />;
+  }
 
   return <>{children}</>;
 }
@@ -105,7 +114,7 @@ export default function App() {
       </Route>
 
       {/* Public pages */}
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={isSelfHosted ? <Navigate to="/command-center" replace /> : <Landing />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/docs" element={<Docs />} />

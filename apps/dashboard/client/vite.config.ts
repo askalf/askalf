@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'import.meta.env.VITE_SELFHOSTED': JSON.stringify(process.env['SELFHOSTED'] || 'false'),
+  },
   test: {
     environment: 'jsdom',
     globals: true,
