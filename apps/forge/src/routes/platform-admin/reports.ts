@@ -324,6 +324,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
         `e.output IS NOT NULL`,
         `LENGTH(e.output) > 100`,
         `(a.is_internal IS NOT TRUE)`,
+        `a.type IN ('content', 'research', 'security')`,
       ];
       const params: unknown[] = [];
 
@@ -396,7 +397,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
          FROM forge_executions e
          JOIN forge_agents a ON a.id = e.agent_id
          WHERE e.status = 'completed' AND e.output IS NOT NULL AND LENGTH(e.output) > 100
-           AND (a.is_internal IS NOT TRUE)
+           AND (a.is_internal IS NOT TRUE) AND a.type IN ('content', 'research', 'security')
          ORDER BY a.name`,
       );
       return { agents: rows.map((r) => r.agent_name) };
@@ -416,7 +417,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
                 a.name AS agent_name, a.metadata AS agent_metadata
          FROM forge_executions e
          LEFT JOIN forge_agents a ON a.id = e.agent_id
-         WHERE e.id = $1 AND e.status = 'completed' AND (a.is_internal IS NOT TRUE)`,
+         WHERE e.id = $1 AND e.status = 'completed' AND (a.is_internal IS NOT TRUE) AND a.type IN ('content', 'research', 'security')`,
         [id],
       );
       if (!e) return reply.code(404).send({ error: 'Document not found' });
