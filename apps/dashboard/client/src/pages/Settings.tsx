@@ -652,10 +652,10 @@ function AIKeysTab() {
         <div className="settings-oauth-banner-content">
           <span className="settings-oauth-banner-title">OAuth Connect</span>
           <span className="settings-oauth-banner-desc">
-            Connect your Anthropic or OpenAI account directly via OAuth — no API keys needed.
+            Import your Anthropic OAuth token via the Terminal tab — run <code>/connect</code> for instructions.
           </span>
         </div>
-        <span className="settings-oauth-banner-badge">Coming Soon</span>
+        <span className="settings-oauth-banner-badge" style={{ background: '#059669' }}>Available</span>
       </div>
 
       {message && (
