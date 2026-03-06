@@ -11,7 +11,7 @@ import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails, checkUserBudget } from '../observability/guardrails.js';
 import { runDirectCliExecution } from '../runtime/worker.js';
-import { calculateCost } from '../runtime/token-counter.js';
+import { calculateCost, estimateTokens } from '../runtime/token-counter.js';
 import {
   CreateExecutionBody, ListExecutionsQuery, BatchExecutionBody,
   IdParam, ErrorResponse,
@@ -669,6 +669,143 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           error: 'Internal Server Error',
           message: 'Internal Server Error',
         });
+      }
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/executions/estimate - Estimate cost before running an execution
+   * Returns min/expected/max cost based on agent config and historical data.
+   */
+  app.post(
+    '/api/v1/forge/executions/estimate',
+    {
+      schema: {
+        tags: ['Executions'],
+        summary: 'Estimate cost for an agent execution before running it',
+        response: { 400: ErrorResponse, 404: ErrorResponse, 500: ErrorResponse },
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const body = request.body as { agentId?: string; input?: string };
+
+      if (!body.agentId) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'agentId is required' });
+      }
+
+      try {
+        const agent = await queryOne<AgentCheckRow>(
+          `SELECT id, owner_id, status, max_cost_per_execution, model_id, system_prompt, max_iterations
+           FROM forge_agents
+           WHERE id = $1 AND (owner_id = $2 OR is_public = true)`,
+          [body.agentId, userId],
+        );
+
+        if (!agent) {
+          return reply.status(404).send({ error: 'Not Found', message: 'Agent not found or not accessible' });
+        }
+
+        const model = agent.model_id ?? 'claude-sonnet-4-6';
+        const maxBudget = parseFloat(agent.max_cost_per_execution) || 2.0;
+        const maxTurns = agent.max_iterations ?? 25;
+
+        interface HistoricalStatsRow {
+          execution_count: string;
+          avg_cost: string | null;
+          p10_cost: string | null;
+          p90_cost: string | null;
+          avg_input_tokens: string | null;
+          avg_output_tokens: string | null;
+        }
+
+        const stats = await queryOne<HistoricalStatsRow>(
+          `SELECT
+             COUNT(*) AS execution_count,
+             AVG(total_cost)::text AS avg_cost,
+             PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY total_cost)::text AS p10_cost,
+             PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY total_cost)::text AS p90_cost,
+             AVG(total_input_tokens)::text AS avg_input_tokens,
+             AVG(total_output_tokens)::text AS avg_output_tokens
+           FROM (
+             SELECT
+               execution_id,
+               COALESCE(SUM(cost), 0) AS total_cost,
+               COALESCE(SUM(input_tokens), 0) AS total_input_tokens,
+               COALESCE(SUM(output_tokens), 0) AS total_output_tokens
+             FROM forge_cost_events
+             WHERE agent_id = $1
+             GROUP BY execution_id
+             HAVING SUM(cost) > 0
+           ) sub`,
+          [body.agentId],
+        );
+
+        const executionCount = parseInt(stats?.execution_count ?? '0', 10);
+
+        let minCost: number;
+        let expectedCost: number;
+        let maxCost: number;
+        let estimatedInputTokens: number;
+        let estimatedOutputTokens: number;
+        let basis: 'historical' | 'heuristic';
+
+        if (executionCount >= 3) {
+          // Use historical percentiles
+          basis = 'historical';
+          const avgCost = parseFloat(stats?.avg_cost ?? '0') || 0;
+          const p10 = parseFloat(stats?.p10_cost ?? '0') || 0;
+          const p90 = parseFloat(stats?.p90_cost ?? '0') || avgCost * 2;
+
+          minCost = Math.max(0, p10);
+          expectedCost = avgCost;
+          maxCost = Math.min(p90, maxBudget);
+          estimatedInputTokens = parseInt(stats?.avg_input_tokens ?? '0', 10) || 0;
+          estimatedOutputTokens = parseInt(stats?.avg_output_tokens ?? '0', 10) || 0;
+        } else {
+          // Heuristic estimate from token counts
+          basis = 'heuristic';
+          const systemTokens = estimateTokens(agent.system_prompt ?? '');
+          const inputTokens = estimateTokens(body.input ?? '');
+          estimatedInputTokens = systemTokens + inputTokens;
+
+          // Assume ~500 output tokens per turn; expected = 30% of max turns
+          const outputPerTurn = 500;
+          const expectedTurns = Math.ceil(maxTurns * 0.3);
+          estimatedOutputTokens = outputPerTurn * expectedTurns;
+
+          minCost = calculateCost(estimatedInputTokens, outputPerTurn, model);
+          expectedCost = calculateCost(estimatedInputTokens * expectedTurns, estimatedOutputTokens, model);
+          maxCost = Math.min(calculateCost(estimatedInputTokens * maxTurns, outputPerTurn * maxTurns, model), maxBudget);
+        }
+
+        return reply.send({
+          agentId: body.agentId,
+          model,
+          maxBudget,
+          estimate: {
+            min: Math.round(minCost * 1e6) / 1e6,
+            expected: Math.round(expectedCost * 1e6) / 1e6,
+            max: Math.round(maxCost * 1e6) / 1e6,
+          },
+          tokens: {
+            estimatedInput: estimatedInputTokens,
+            estimatedOutput: estimatedOutputTokens,
+          },
+          basis,
+          ...(executionCount >= 3 && {
+            historicalStats: {
+              executionCount,
+              avgCost: parseFloat(stats?.avg_cost ?? '0') || 0,
+              p10Cost: parseFloat(stats?.p10_cost ?? '0') || 0,
+              p90Cost: parseFloat(stats?.p90_cost ?? '0') || 0,
+            },
+          }),
+        });
+      } catch (err: unknown) {
+        request.log.error({ err }, 'Failed to estimate execution cost');
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'Internal Server Error' });
       }
     },
   );
