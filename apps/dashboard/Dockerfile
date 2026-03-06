@@ -42,6 +42,8 @@ RUN pnpm --filter @askalf/core build && \
     pnpm --filter @askalf/email build
 
 # Build React client
+ARG SELFHOSTED=false
+ENV SELFHOSTED=${SELFHOSTED}
 WORKDIR /app/apps/dashboard/client
 RUN npm install && npm run build
 

@@ -79,6 +79,8 @@ import { initTriggerEngine, getTriggerEngine } from './runtime/trigger-engine.js
 import { Redis } from 'ioredis';
 import { ulid } from 'ulid';
 import { initRateLimit, rateLimitHook, closeRateLimitRedis } from './middleware/rate-limit.js';
+import { runSelfHostedSetup } from './selfhosted/setup.js';
+import { loadSkills } from './selfhosted/skills-loader.js';
 
 const app = Fastify({
   logger: true,
@@ -456,6 +458,16 @@ async function start(): Promise<void> {
     initializeSubstrateDatabase(config.substrateDatabaseUrl);
     logger.info('[Forge] Substrate database connection initialized');
   }
+
+  // Self-hosted: seed admin user on first boot
+  await runSelfHostedSetup().catch((err) => {
+    logger.warn(`[SelfHosted] Setup error: ${err instanceof Error ? err.message : String(err)}`);
+  });
+
+  // Load skills from markdown files (skills/ directory)
+  await loadSkills().catch((err) => {
+    logger.warn(`[Skills] Load error: ${err instanceof Error ? err.message : String(err)}`);
+  });
 
   // Initialize email service (falls back to console if EMAIL_PROVIDER not set)
   initializeEmailFromEnv();
