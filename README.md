@@ -1,47 +1,78 @@
 # AskAlf
 
-**AI agents that actually use computers.** Mouse, keyboard, browser, SSH, applications. Not chatbots — digital employees.
+**Self-hosted AI agent platform.** Deploy a fleet of AI agents that research, code, monitor, and automate — running on your own infrastructure.
 
-- [askalf.org](https://askalf.org) — Platform
-- [amnesia.tax](https://amnesia.tax) — Search engine
+## Quick Start
 
-## What Makes It Different
+```bash
+git clone https://github.com/askalf/askalf.git
+cd askalf
 
-Agents that do everything a human can do on a computer:
+# Generate secrets and create .env
+./setup.sh
 
-- **Mouse & Keyboard** — Move cursors, click buttons, type into fields, use keyboard shortcuts
-- **Real Browser Sessions** — Navigate any website, fill forms, extract data, take screenshots
-- **Run Any Application** — IDEs, spreadsheets, design tools, terminals
-- **SSH Into Anything** — Servers, containers, VMs, routers, IoT devices, cloud instances
-- **File System Control** — Read, write, organize files across codebases and documents
-- **Shell & CLI** — Build scripts, deploy pipelines, test suites, piped commands
-- **Voice Control** — Speak commands via local whisper.cpp — free, private, offline
+# Edit .env — add your API key
+nano .env
 
-## Architecture
+# Start everything
+docker compose -f docker-compose.selfhosted.yml up -d
 
+# Open http://localhost:3001
 ```
-Internet -> Cloudflare (SSL, WAF) -> cloudflared tunnel -> nginx
-    |
-+------------------------------------------+
-|  Forge (3005) - Agent orchestration      |
-|  Dashboard (3001) - React SPA + Fastify  |
-|  MCP-Tools (3010) - 24 MCP tools        |
-+------------------------------------------+
-    |
-PostgreSQL 17 + pgvector
-Redis (event bus, caching)
+
+## What It Does
+
+AskAlf gives you a team of AI agents with real capabilities:
+
+- **14 Skills** — Research, security scanning, code review, content writing, monitoring, data analysis, and more
+- **Agent Chat** — Talk to agents naturally, they pick the right skills automatically
+- **Fleet Orchestration** — Fan-out tasks, pipeline workflows, consensus patterns
+- **24 Built-in Tools** — Database queries, Docker control, web search, code analysis, team coordination (MCP)
+- **Multi-Provider** — Anthropic, OpenAI, Google. Switch per-agent, per-task
+- **Cost Control** — Per-agent budgets, execution caps, real-time tracking
+- **Terminal** — Built-in Claude Code CLI with full workspace access
+- **22 Integrations** — GitHub, AWS, Jira, Datadog, Vercel, and more
+- **5 Channels** — Slack, Discord, Telegram, WhatsApp, webhooks
+
+## Skills
+
+Skills are markdown files in the `skills/` directory. Each skill defines an agent's capabilities:
+
+```markdown
+---
+name: Competitor Research
+slug: competitor-research
+category: research
+model: claude-sonnet-4-6
+max_iterations: 15
+max_cost: 0.50
+tools:
+  - web_search
+  - web_browse
+  - memory_store
+---
+
+# Competitor Research
+
+You are a competitive research analyst...
 ```
+
+Create your own skills by adding `.md` files to `skills/`. They sync automatically on startup.
+
+### Built-in Skills
+
+| Category | Skills |
+|----------|--------|
+| Research | Competitor Research, SEO Analyzer |
+| Security | Security Scanner, Dependency Auditor |
+| Build | QA Code Review, Frontend Dev, Backend Dev, API Tester |
+| Automate | Content Writer, Release Notes Generator |
+| Monitor | System Monitor, Incident Responder |
+| Analyze | Data Analyst, Performance Profiler |
 
 ## Agent Fleet
 
-### Internal Agents (5, admin-only, ticket-gated)
-- **Frontend Dev** — React/UI work
-- **Backend Dev** — API/DB/server work
-- **Infra** — DevOps, Docker, deployments
-- **QA** — Testing, code quality
-- **Security** — Scanning, vulnerability detection
-
-### User-Facing Agents (6, dispatched via chat/templates)
+### User-Facing Agents (6)
 - **Researcher** — Web research, competitor analysis, SEO
 - **Sentinel** — Security scanning, dependency auditing
 - **Developer** — Code review, testing, full-stack dev
@@ -49,49 +80,66 @@ Redis (event bus, caching)
 - **Watchdog** — System monitoring, incident response
 - **Analyst** — Data analysis, performance profiling
 
-## Platform Features
+### Internal Agents (5, ticket-gated)
+- **Frontend Dev** — React/UI work
+- **Backend Dev** — API/DB/server work
+- **Infra** — DevOps, Docker, deployments
+- **QA** — Testing, code quality
+- **Security** — Scanning, vulnerability detection
 
-- **Fleet Orchestration** — Fan-out tasks, pipeline workflows, consensus patterns
-- **Multi-Provider** — Anthropic, OpenAI, Google. Switch per-agent, per-task
-- **Cost Control** — Per-agent budgets, execution caps, real-time tracking
-- **Guardrails** — Human-in-the-loop approvals, content filtering, execution boundaries
-- **24 Built-in Tools** — Database, Docker, web search, code analysis, team coordination via MCP
-- **Full Observability** — Structured logs, execution traces, performance metrics
-
-## Security & Privacy
-
-Agents with full computer access demand uncompromising security:
-
-- **End-to-End Encryption** — TLS 1.3 in transit, AES-256 at rest. Sessions, credentials, and outputs never stored in plaintext
-- **Zero-Knowledge Architecture** — Per-tenant encryption keys. We cannot read your agent sessions, credentials, or data
-- **Full Audit Trail** — Immutable, tamper-proof logs. Every agent action traced — who, what, when, why
-- **Compliance-Ready** — Built for regulated environments. Role-based access, data residency controls, audit-ready infrastructure
-- **Credential Vault** — SSH keys, API tokens, and passwords in a hardware-backed vault. Injected at runtime, never persisted in memory or logs
-- **Sandboxed Execution** — Every agent runs in an isolated container. Network policies, filesystem restrictions, and resource limits enforced at the kernel level
-
-## Monorepo Structure
+## Architecture
 
 ```
-substrate/
-+-- apps/
-|   +-- forge/        # Agent orchestration engine (Fastify)
-|   +-- dashboard/    # React SPA + Fastify server (Vite)
-|   +-- mcp-tools/    # 24 MCP tools for agent capabilities
-|   +-- admin-console/ # Master control terminal
-+-- packages/
-|   +-- agent-cli/    # @askalf/agent CLI (computer-use + voice control)
-|   +-- core/         # Shared types, Zod validation, ulid
-|   +-- database/     # PostgreSQL client, migrations, repositories
-|   +-- db/           # Shared DB pools
-|   +-- auth/         # Session/API key authentication
-|   +-- observability/ # Pino logging, Prometheus metrics
-|   +-- email/        # Nodemailer email service
-+-- infrastructure/
-|   +-- nginx/        # Reverse proxy, domain routing
-|   +-- backup/       # Daily PostgreSQL backups
-+-- scripts/          # Build, deploy, migration scripts
+┌─────────────────────────────────────────┐
+│  Dashboard (3001) — React SPA + Fastify │
+│  Forge (3005) — Agent Orchestration     │
+│  MCP-Tools (3010) — 24 Agent Tools      │
+├─────────────────────────────────────────┤
+│  PostgreSQL 17 + pgvector               │
+│  Redis (event bus, caching)             │
+│  SearXNG (web search, no API keys)      │
+│  Docker Proxy (container management)    │
+└─────────────────────────────────────────┘
+```
+
+7 containers. `docker compose up` and you're running.
+
+## Configuration
+
+All configuration lives in `.env`. See `.env.example` for all options.
+
+### Required
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — Your login credentials
+- At least one AI API key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_AI_KEY`)
+
+### Optional
+- **Integrations** — Add API keys for GitHub, AWS, Jira, etc. to enable them in Settings
+- **Channels** — Add bot tokens for Slack, Discord, Telegram to receive agent messages
+- **OAuth** — Connect your Claude subscription for agent CLI execution
+
+## Project Structure
+
+```
+askalf/
+├── apps/
+│   ├── forge/        # Agent orchestration engine (Fastify)
+│   ├── dashboard/    # React SPA + Fastify server
+│   └── mcp-tools/    # 24 MCP tools for agent capabilities
+├── packages/
+│   ├── core/         # Shared types, validation, ulid
+│   ├── database/     # PostgreSQL client, migrations
+│   ├── auth/         # Session authentication
+│   ├── observability/ # Logging, metrics
+│   └── email/        # Email service
+├── skills/           # Markdown skill definitions
+├── infrastructure/   # SearXNG, Redis configs
+└── scripts/          # Build, deploy scripts
 ```
 
 ## Stack
 
-`TypeScript` · `Node.js 22` · `Fastify v5` · `ESM` · `Claude (Anthropic)` · `OpenAI` · `Google GenAI` · `Claude Code CLI` · `MCP Protocol` · `PostgreSQL 17 + pgvector` · `Redis` · `Docker Compose` · `Nginx` · `Cloudflare Zero Trust`
+`TypeScript` · `Node.js 22` · `Fastify v5` · `ESM` · `Claude (Anthropic)` · `OpenAI` · `Google GenAI` · `Claude Code CLI` · `MCP Protocol` · `PostgreSQL 17 + pgvector` · `Redis` · `Docker Compose`
+
+## License
+
+Private. All rights reserved.

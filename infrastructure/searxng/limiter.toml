@@ -1,5 +1,6 @@
 # SearXNG Rate Limiter Configuration
 # Docs: https://docs.searxng.org/admin/limiter.html
+# Uses Redis for rate counting (SEARXNG_VALKEY_URL)
 
 [botdetection]
 
@@ -26,7 +27,8 @@ link_token = false
 
 block_ip = []
 
-# Allow all internal/private networks unrestricted (mcp-tools, self, forge, LAN clients)
+# Allow all internal/private networks unrestricted
+# (forge agents, mcp-tools, dev stack, LAN)
 pass_ip = [
   '127.0.0.0/8',
   '172.16.0.0/12',
@@ -34,5 +36,5 @@ pass_ip = [
   '192.168.0.0/16',
 ]
 
-# Disable fetching blocklist from searxng.org
+# Don't fetch external blocklists
 pass_searxng_org = false
