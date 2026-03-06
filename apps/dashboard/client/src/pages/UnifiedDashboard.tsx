@@ -46,11 +46,11 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'terminal', label: 'Terminal' },
     { key: 'chat', label: 'Agent Chat' },
     { key: 'documents', label: 'Library' },
-    { key: 'templates', label: 'Templates' },
+    { key: 'templates', label: 'Skills' },
     { key: 'fleet', label: 'Fleet' },
     { key: 'settings', label: 'Settings' },
   ]},
-  { label: 'Admin', tabs: [
+  { label: 'Advanced', tabs: [
     { key: 'builder', label: 'Builder' },
     { key: 'orchestrator', label: 'Orchestrator' },
     { key: 'operations', label: 'Operations' },
@@ -58,21 +58,23 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'knowledge', label: 'Knowledge' },
     { key: 'workflows', label: 'Workflows' },
     { key: 'deploy', label: 'Deploy' },
-    { key: 'users', label: 'Users' },
+    ...(!isSelfHosted ? [{ key: 'users' as TabKey, label: 'Users' }] : []),
   ]},
 ];
 
-/** Tabs only visible to admin / super_admin */
+/** Tabs only visible to admin / super_admin (disabled in self-hosted mode) */
 const ADMIN_ONLY_TABS = new Set<TabKey>([
   'operations', 'monitor', 'knowledge',
   'workflows', 'deploy', 'users',
 ]);
 
+const isSelfHosted = import.meta.env.VITE_SELFHOSTED === 'true';
+
 export default function UnifiedDashboard() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const isAdmin = isSelfHosted || user?.role === 'admin' || user?.role === 'super_admin';
 
   const visibleGroups = useMemo(() => {
     if (isAdmin) return TAB_GROUPS;

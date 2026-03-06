@@ -189,7 +189,7 @@ export default function TemplatesTab({
   const categoryKeys = Object.keys(categories);
 
   if (loading) {
-    return <div className="tmpl-loading">Loading templates...</div>;
+    return <div className="tmpl-loading">Loading skills...</div>;
   }
 
   return (
@@ -197,16 +197,16 @@ export default function TemplatesTab({
       <div className="tmpl-header">
         <div className="tmpl-title-row">
           <span className="tmpl-icon">&#x2B22;</span>
-          <h2>Agent Templates</h2>
+          <h2>Skills</h2>
         </div>
-        <p>Pre-configured agent blueprints ready to deploy</p>
+        <p>Agent skills — deploy pre-configured capabilities or create your own</p>
       </div>
 
       <div className="tmpl-filters">
         <input
           className="tmpl-search"
           type="text"
-          placeholder="Search templates..."
+          placeholder="Search skills..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -244,7 +244,7 @@ export default function TemplatesTab({
           <TemplateCard key={t.id} template={t} onUse={handleUse} onQuickRun={handleQuickRun} />
         ))}
         {filteredTemplates.length === 0 && (
-          <div className="tmpl-empty">No templates match your search</div>
+          <div className="tmpl-empty">No skills match your search</div>
         )}
       </div>
     </div>
