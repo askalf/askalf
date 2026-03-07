@@ -35,7 +35,7 @@ import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';
 import { TOOLS as INFRA_TOOLS, handleTool as handleInfraTool } from './infra.js';
 import { TOOLS as AGENT_TOOLS, handleTool as handleAgentTool } from './agent-tools.js';
 import { TOOLS as FORGE_TOOLS, handleTool as handleForgeTool } from './forge-tools.js';
-import { handleExtract, handleContext } from './memory-api.js';
+import { handleExtract, handleContext, handleSeed, handleConsolidate, handleStats } from './memory-api.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
@@ -193,6 +193,36 @@ app.get('/api/memory/context', async (req, res) => {
     res.json(result);
   } catch (err) {
     log(`Memory context error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.post('/api/memory/seed', async (req, res) => {
+  try {
+    const result = await handleSeed(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Memory seed error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.post('/api/memory/consolidate', async (_req, res) => {
+  try {
+    const result = await handleConsolidate();
+    res.json(result);
+  } catch (err) {
+    log(`Memory consolidate error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/stats', async (_req, res) => {
+  try {
+    const result = await handleStats();
+    res.json(result);
+  } catch (err) {
+    log(`Memory stats error: ${err}`);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
   }
 });
