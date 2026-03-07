@@ -38,7 +38,7 @@ $serviceList = $services -join ", "
 Write-Host "=== BUILD: $serviceList$(if ($noCache) { ' (no-cache)' }) ===" -ForegroundColor Cyan
 
 $buildArgs = @(
-    "compose", "-f", "docker-compose.prod.yml",
+    "compose", "-f", "docker-compose.selfhosted.yml",
     "--env-file", ".env.production",
     "build"
 )
@@ -60,7 +60,7 @@ Write-Host ""
 Write-Host "=== DEPLOY: $serviceList ===" -ForegroundColor Cyan
 
 $upArgs = @(
-    "compose", "-f", "docker-compose.prod.yml",
+    "compose", "-f", "docker-compose.selfhosted.yml",
     "--env-file", ".env.production",
     "up", "-d", "--no-deps"
 ) + $services

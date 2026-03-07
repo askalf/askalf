@@ -54,6 +54,9 @@ outgoing:
   pool_connections: 100
   pool_maxsize: 20
   enable_http2: true
+  proxies:
+    all://:
+      - http://gluetun:8888
 
 engines:
   # === Web Search ===
@@ -212,24 +215,32 @@ engines:
   - name: piratebay
     disabled: false
 
-  # === Disabled — blocked from server IPs ===
+  # === Re-enabled via VPN proxy (gluetun/ProtonVPN) ===
   - name: google
-    disabled: true
+    disabled: false
+    weight: 2.0
+    timeout: 12.0
 
   - name: google news
-    disabled: true
+    disabled: false
+    timeout: 12.0
 
   - name: google images
-    disabled: true
+    disabled: false
+    timeout: 15.0
 
   - name: google videos
-    disabled: true
+    disabled: false
+    timeout: 12.0
 
   - name: google scholar
-    disabled: true
+    disabled: false
+    timeout: 12.0
 
   - name: startpage images
-    disabled: true
+    disabled: false
+    timeout: 15.0
 
   - name: mojeek
-    disabled: true
+    disabled: false
+    timeout: 12.0

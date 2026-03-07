@@ -36,7 +36,7 @@ $serviceList = $services -join ", "
 Write-Host "Building: $serviceList$(if ($noCache) { ' (no-cache)' })" -ForegroundColor Cyan
 
 $buildArgs = @(
-    "compose", "-f", "docker-compose.prod.yml",
+    "compose", "-f", "docker-compose.selfhosted.yml",
     "--env-file", ".env.production",
     "build"
 )

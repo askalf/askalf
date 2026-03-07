@@ -115,6 +115,44 @@ services:
           memory: 96M
 
   # ===========================================
+  # GLUETUN — VPN proxy for SearXNG outgoing requests
+  # ===========================================
+  gluetun:
+    image: qmcgaw/gluetun:v3.40.0
+    container_name: webhost-gluetun
+    labels:
+      - "autoheal-webhost=true"
+    environment:
+      VPN_SERVICE_PROVIDER: protonvpn
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${PROTON_WIREGUARD_PRIVATE_KEY}
+      SERVER_COUNTRIES: ${PROTON_SERVER_COUNTRIES:-Netherlands}
+      HTTPPROXY: "on"
+      HTTPPROXY_LISTENING_ADDRESS: ":8888"
+      HTTPPROXY_LOG: "on"
+      HTTPPROXY_STEALTH: "on"
+      BLOCK_MALICIOUS: "on"
+      DOT: "on"
+      DOT_PROVIDERS: cloudflare
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8888 2>&1 | grep -q '400\\|200\\|503' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - webhost-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  # ===========================================
   # SEARXNG — search backend for amnesia.tax
   # ===========================================
   searxng:
@@ -126,6 +164,8 @@ services:
       SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:
       redis:
+        condition: service_healthy
+      gluetun:
         condition: service_healthy
     volumes:
       - ./infrastructure/searxng/webhost-settings.yml:/etc/searxng/settings.yml:ro
