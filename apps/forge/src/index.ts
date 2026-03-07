@@ -38,9 +38,7 @@ import { adminRoutes } from './routes/admin.js';
 import { proposalRoutes } from './routes/proposals.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { gitReviewRoutes } from './routes/git-review.js';
-import { authRoutes } from './routes/auth.js';
 import { onboardingRoutes } from './routes/onboarding.js';
-import { oauthRoutes } from './routes/oauth.js';
 import { integrationRoutes } from './routes/integrations.js';
 import { platformAdminRoutes } from './routes/platform-admin/index.js';
 import { cliRoutes } from './routes/cli.js';
@@ -57,8 +55,6 @@ import { economyRoutes } from './routes/economy.js';
 import { errorRoutes } from './routes/errors.js';
 import { apiKeyRoutes } from './routes/api-keys.js';
 import { cspReportRoutes } from './routes/csp-report.js';
-import { csrfProtectionMiddleware } from './middleware/csrf-protection.js';
-import { sessionAuthMiddleware } from './middleware/session-auth.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution, getRunningExecutionCount, waitForRunningExecutions } from './runtime/worker.js';
 import { startTaskDispatcher, stopTaskDispatcher } from './runtime/task-dispatcher.js';
@@ -148,65 +144,6 @@ await app.register(swaggerUi, {
 // Registered here at module level so it applies to all routes before their preHandlers.
 app.addHook('onRequest', rateLimitHook);
 
-// Auth endpoint dedicated rate limits (brute-force protection — in-memory, stricter)
-const authLoginRateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const AUTH_LOGIN_LIMIT = 5;               // 5 attempts per window
-const AUTH_LOGIN_WINDOW = 5 * 60 * 1000; // 5 minutes
-
-const authRegisterRateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const AUTH_REGISTER_LIMIT = 3;                // 3 attempts per window
-const AUTH_REGISTER_WINDOW = 60 * 60 * 1000; // 1 hour
-
-app.addHook('onRequest', async (request, reply) => {
-  const ip = request.ip || 'unknown';
-  // Internal Docker network IPs are already bypassed in rateLimitHook
-  if (ip.startsWith('172.') || ip.startsWith('10.') || ip === '127.0.0.1') return;
-
-  const now = Date.now();
-  const url = request.url.split('?')[0];
-
-  if (url === '/api/v1/auth/login') {
-    const loginRecord = authLoginRateLimitMap.get(ip);
-    if (!loginRecord || now > loginRecord.resetTime) {
-      authLoginRateLimitMap.set(ip, { count: 1, resetTime: now + AUTH_LOGIN_WINDOW });
-    } else {
-      loginRecord.count++;
-      if (loginRecord.count > AUTH_LOGIN_LIMIT) {
-        const retryAfter = Math.ceil((loginRecord.resetTime - now) / 1000);
-        reply.header('Retry-After', String(retryAfter));
-        return reply.status(429).send({ error: 'Too many login attempts. Please try again later.' });
-      }
-    }
-  } else if (url === '/api/v1/auth/register') {
-    const regRecord = authRegisterRateLimitMap.get(ip);
-    if (!regRecord || now > regRecord.resetTime) {
-      authRegisterRateLimitMap.set(ip, { count: 1, resetTime: now + AUTH_REGISTER_WINDOW });
-    } else {
-      regRecord.count++;
-      if (regRecord.count > AUTH_REGISTER_LIMIT) {
-        const retryAfter = Math.ceil((regRecord.resetTime - now) / 1000);
-        reply.header('Retry-After', String(retryAfter));
-        return reply.status(429).send({ error: 'Too many registration attempts. Please try again later.' });
-      }
-    }
-  }
-});
-
-// ============================================
-// SESSION RESOLUTION (global — runs before CSRF preHandler)
-// ============================================
-// Resolve the session cookie early in onRequest so that sessionUser and
-// sessionCsrfToken are available when the CSRF preHandler runs. This must
-// happen before route-level authMiddleware because Fastify runs global
-// preHandler hooks before route-level ones.
-
-app.addHook('onRequest', sessionAuthMiddleware);
-
-// ============================================
-// CSRF PROTECTION
-// ============================================
-
-app.addHook('preHandler', csrfProtectionMiddleware);
 
 // Security headers + API versioning
 app.addHook('onSend', async (_request, reply) => {
@@ -293,17 +230,6 @@ app.addHook('onSend', async (request, reply, payload) => {
   }
   return payload;
 });
-
-// Clean up auth rate limit maps periodically (Redis handles its own TTLs)
-const rateLimitCleanupInterval = setInterval(() => {
-  const now = Date.now();
-  for (const [ip, record] of authLoginRateLimitMap.entries()) {
-    if (now > record.resetTime) authLoginRateLimitMap.delete(ip);
-  }
-  for (const [ip, record] of authRegisterRateLimitMap.entries()) {
-    if (now > record.resetTime) authRegisterRateLimitMap.delete(ip);
-  }
-}, 60000);
 
 // ============================================
 // PROMETHEUS METRICS
@@ -408,9 +334,7 @@ app.get('/metrics', { logLevel: 'silent' }, async (_request, reply) => {
 // REGISTER ROUTES
 // ============================================
 
-await authRoutes(app);
 await onboardingRoutes(app);
-await oauthRoutes(app);
 await integrationRoutes(app);
 await agentRoutes(app);
 await executionRoutes(app);
@@ -853,7 +777,6 @@ async function shutdown(signal: string): Promise<void> {
     logger.info('[Forge] HTTP server closed — no longer accepting new requests');
 
     // Clear periodic timers (they'd fire against a closing DB otherwise).
-    clearInterval(rateLimitCleanupInterval);
     clearInterval(agentGaugeInterval);
     clearInterval(staleCleanupInterval);
     clearInterval(worktreeCleanupInterval);

@@ -9,7 +9,7 @@ export default function NotFound() {
           <span className="landing-nav-logo-text">askalf</span>
         </Link>
         <div className="landing-nav-links">
-          <Link to="/login" className="landing-nav-signin">Sign In</Link>
+          <Link to="/command-center" className="landing-nav-signin">Dashboard</Link>
         </div>
       </nav>
 

@@ -3,9 +3,9 @@
  * Shared interfaces for all channel providers (API, Webhooks, Slack, Discord, Telegram, WhatsApp)
  */
 
-export type ChannelType = 'api' | 'webhooks' | 'slack' | 'discord' | 'telegram' | 'whatsapp';
+export type ChannelType = 'api' | 'webhooks' | 'slack' | 'discord' | 'telegram' | 'whatsapp' | 'teams' | 'zapier' | 'n8n' | 'make' | 'email' | 'twilio' | 'sendgrid' | 'twilio_voice' | 'zoom';
 
-export const CHANNEL_TYPES: ChannelType[] = ['api', 'webhooks', 'slack', 'discord', 'telegram', 'whatsapp'];
+export const CHANNEL_TYPES: ChannelType[] = ['api', 'webhooks', 'slack', 'discord', 'telegram', 'whatsapp', 'teams', 'zapier', 'n8n', 'make', 'email', 'twilio', 'sendgrid', 'twilio_voice', 'zoom'];
 
 export interface ChannelConfig {
   id: string;

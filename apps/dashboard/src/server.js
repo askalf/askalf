@@ -13,18 +13,12 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import crypto from 'crypto';
 import { initializePool, query, queryOne } from '@askalf/database';
-import { initializeEmailFromEnv, sendWaitlistEmail, sendBetaInviteEmail, sendAdminNotification } from '@askalf/email';
+import { initializeEmailFromEnv } from '@askalf/email';
 import {
-  validateSession,
   getUserById,
   listApiKeysByUser,
   createApiKey,
   revokeApiKey,
-  getActiveSubscription,
-  getSubscriptionWithPlan,
-  getUsageSummary,
-  changePassword,
-  createUser,
 } from '@askalf/auth';
 import { getMasterSession } from './master-session.js';
 import { getCodexSession } from './codex-session.js';
@@ -191,15 +185,17 @@ fastify.addHook('onSend', async (request, reply) => {
 // SESSION AUTH HELPER
 // ===========================================
 
-async function getUserFromSession(request) {
-  const sessionId = request.cookies?.['substrate_session'];
-  if (!sessionId) return null;
-
-  const session = await validateSession(sessionId);
-  if (!session) return null;
-
-  const user = await getUserById(session.user_id);
-  return user;
+let _cachedAdminUser = null;
+async function getAdminUser() {
+  if (_cachedAdminUser) return _cachedAdminUser;
+  const admin = await queryOne(
+    `SELECT id FROM users WHERE role IN ('super_admin', 'admin') AND status = 'active' ORDER BY created_at ASC LIMIT 1`
+  );
+  if (admin) {
+    const user = await getUserById(admin.id);
+    if (user) { _cachedAdminUser = user; return user; }
+  }
+  return null;
 }
 
 // Metrics instrumentation
@@ -335,14 +331,7 @@ setInterval(cleanupDeadConnections, 30000);
 
 // WebSocket endpoint with authentication
 fastify.get('/ws', { websocket: true }, async (socket, req) => {
-  // Authenticate WebSocket connection via session cookie
-  const user = await getUserFromSession(req);
-
-  // Reject unauthenticated connections — no anonymous access to live stats
-  if (!user) {
-    socket.close(4401, 'Authentication required');
-    return;
-  }
+  const user = await getAdminUser();
 
   // Track connection with heartbeat
   const pingInterval = setInterval(() => {
@@ -351,8 +340,8 @@ fastify.get('/ws', { websocket: true }, async (socket, req) => {
     }
   }, 30000);
 
-  wsClients.set(socket, { lastPing: Date.now(), pingInterval, userId: user.id, isAuthenticated: true });
-  console.log(`WebSocket client connected (${wsClients.size} total, user: ${user.id})`);
+  wsClients.set(socket, { lastPing: Date.now(), pingInterval, userId: user?.id, isAuthenticated: true });
+  console.log(`WebSocket client connected (${wsClients.size} total, user: ${user?.id})`);
 
   socket.on('pong', () => {
     const data = wsClients.get(socket);
@@ -401,16 +390,11 @@ fastify.get('/ws', { websocket: true }, async (socket, req) => {
 const masterSession = getMasterSession();
 
 fastify.get('/ws/master', { websocket: true }, async (socket, req) => {
-  // Admin-only: require authenticated admin session
-  const user = await getUserFromSession(req);
-  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-    socket.close(4403, 'Admin access required');
-    return;
-  }
+  const user = await getAdminUser();
 
   // Register this WebSocket as a subscriber
   masterSession.addSubscriber(socket);
-  console.log(`[MasterSession] WS client connected (user: ${user.id})`);
+  console.log(`[MasterSession] WS client connected (user: ${user?.id})`);
 
   // Heartbeat ping/pong — keep connection alive through proxies
   let lastPong = Date.now();
@@ -483,8 +467,6 @@ fastify.get('/ws/master', { websocket: true }, async (socket, req) => {
 
 // Master session status endpoint (REST)
 fastify.get('/api/v1/admin/master-session/status', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
-  if (!admin) return { error: 'Admin access required' };
   return masterSession.getStatus();
 });
 
@@ -495,14 +477,10 @@ fastify.get('/api/v1/admin/master-session/status', async (request, reply) => {
 const codexSession = getCodexSession();
 
 fastify.get('/ws/codex', { websocket: true }, async (socket, req) => {
-  const user = await getUserFromSession(req);
-  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-    socket.close(4403, 'Admin access required');
-    return;
-  }
+  const user = await getAdminUser();
 
   codexSession.addSubscriber(socket);
-  console.log(`[CodexSession] WS client connected (user: ${user.id})`);
+  console.log(`[CodexSession] WS client connected (user: ${user?.id})`);
 
   // Heartbeat ping/pong
   let lastPong = Date.now();
@@ -572,8 +550,6 @@ fastify.get('/ws/codex', { websocket: true }, async (socket, req) => {
 });
 
 fastify.get('/api/v1/admin/codex-session/status', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
-  if (!admin) return { error: 'Admin access required' };
   return codexSession.getStatus();
 });
 
@@ -663,7 +639,7 @@ fastify.get('/api/stats', async () => getStats());
 // Tenant-scoped stats endpoint (requires authentication)
 fastify.get('/api/tenant/stats', async (request, reply) => {
   // Require authentication for tenant stats
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Authentication required for tenant stats' };
@@ -983,13 +959,11 @@ fastify.get('/api/episodes/types', async () => {
 
 // Get current user
 fastify.get('/api/user/me', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
   }
-
-  const subscription = await getSubscriptionWithPlan(user.tenant_id);
 
   return {
     user: {
@@ -1001,51 +975,13 @@ fastify.get('/api/user/me', async (request, reply) => {
       role: user.role,
       email_verified: user.email_verified,
     },
-    subscription: subscription ? {
-      status: subscription.status,
-      plan: subscription.plan,
-      current_period_end: subscription.current_period_end,
-    } : null,
   };
 });
 
-// Get user usage summary
-fastify.get('/api/user/usage', async (request, reply) => {
-  const user = await getUserFromSession(request);
-  if (!user) {
-    reply.status(401);
-    return { error: 'Not authenticated' };
-  }
-
-  const usage = await getUsageSummary(user.tenant_id);
-  return usage;
-});
-
-// Get user subscription
-fastify.get('/api/user/subscription', async (request, reply) => {
-  const user = await getUserFromSession(request);
-  if (!user) {
-    reply.status(401);
-    return { error: 'Not authenticated' };
-  }
-
-  const subscription = await getSubscriptionWithPlan(user.tenant_id);
-  if (!subscription) {
-    return { plan: { display_name: 'Free', description: 'Free tier', price_monthly_formatted: 'Free' }, status: 'active' };
-  }
-
-  return {
-    status: subscription.status,
-    plan: subscription.plan,
-    current_period_start: subscription.current_period_start,
-    current_period_end: subscription.current_period_end,
-    cancel_at_period_end: subscription.cancel_at_period_end,
-  };
-});
 
 // Get user stats
 fastify.get('/api/user/stats', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1083,7 +1019,7 @@ fastify.get('/api/user/stats', async (request, reply) => {
 
 // Get user's shards
 fastify.get('/api/user/shards', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1113,7 +1049,7 @@ fastify.get('/api/user/shards', async (request, reply) => {
 
 // Get user's traces
 fastify.get('/api/user/traces', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1133,7 +1069,7 @@ fastify.get('/api/user/traces', async (request, reply) => {
 
 // Get user's API keys
 fastify.get('/api/user/api-keys', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1145,7 +1081,7 @@ fastify.get('/api/user/api-keys', async (request, reply) => {
 
 // Create API key with optional TTL
 fastify.post('/api/user/api-keys', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1182,7 +1118,7 @@ fastify.post('/api/user/api-keys', async (request, reply) => {
 
 // Revoke API key
 fastify.delete('/api/user/api-keys/:id', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1199,7 +1135,7 @@ fastify.delete('/api/user/api-keys/:id', async (request, reply) => {
 
 // Get user's token bundles and balance
 fastify.get('/api/user/bundles', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1248,7 +1184,7 @@ fastify.get('/api/user/bundles', async (request, reply) => {
 
 // Purchase a token bundle
 fastify.post('/api/user/bundles/purchase', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1335,7 +1271,7 @@ function decryptApiKey(encryptedKey) {
 
 // Get user's AI connectors
 fastify.get('/api/user/connectors', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1371,7 +1307,7 @@ fastify.get('/api/user/connectors', async (request, reply) => {
 
 // Save AI connector
 fastify.post('/api/user/connectors/:provider', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1430,7 +1366,7 @@ fastify.post('/api/user/connectors/:provider', async (request, reply) => {
 
 // Test AI connector
 fastify.post('/api/user/connectors/test', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1540,7 +1476,7 @@ fastify.post('/api/user/connectors/test', async (request, reply) => {
 
 // Delete AI connector
 fastify.delete('/api/user/connectors/:provider', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1558,7 +1494,7 @@ fastify.delete('/api/user/connectors/:provider', async (request, reply) => {
 
 // Save model preferences
 fastify.post('/api/user/connectors/preferences', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1591,7 +1527,7 @@ fastify.post('/api/user/connectors/preferences', async (request, reply) => {
 
 // Update profile
 fastify.patch('/api/user/profile', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1618,32 +1554,9 @@ fastify.patch('/api/user/profile', async (request, reply) => {
   return { success: true };
 });
 
-// Update password
-fastify.post('/api/user/password', async (request, reply) => {
-  const user = await getUserFromSession(request);
-  if (!user) {
-    reply.status(401);
-    return { error: 'Not authenticated' };
-  }
-
-  const { currentPassword, newPassword } = request.body || {};
-  if (!currentPassword || !newPassword) {
-    reply.status(400);
-    return { error: 'Current and new passwords are required' };
-  }
-
-  try {
-    await changePassword(user.id, currentPassword, newPassword);
-    return { success: true };
-  } catch (e) {
-    reply.status(400);
-    return { error: e instanceof Error ? e.message : 'Failed to update password' };
-  }
-});
-
 // Get user's recent activity feed
 fastify.get('/api/user/activity', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1717,7 +1630,7 @@ fastify.get('/api/user/activity', async (request, reply) => {
 
 // Get user's usage history (for charts)
 fastify.get('/api/user/usage-history', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1763,32 +1676,10 @@ fastify.get('/api/user/usage-history', async (request, reply) => {
 // ADMIN API ENDPOINTS (Admin-only)
 // ===========================================
 
-async function requireAdmin(request, reply) {
-  const user = await getUserFromSession(request);
-  if (!user) {
-    reply.status(401);
-    return null;
-  }
-  if (user.role !== 'admin' && user.role !== 'super_admin') {
-    reply.status(403);
-    return null;
-  }
-  return user;
-}
-
-// Authenticated user (any role) — for user-facing features like Builder, Orchestrator, Fleet
-async function requireUser(request, reply) {
-  const user = await getUserFromSession(request);
-  if (!user) {
-    reply.status(401);
-    return null;
-  }
-  return user;
-}
 
 // Check if current user is admin
 fastify.get('/api/v1/admin/me', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) {
     reply.status(401);
     return { error: 'Not authenticated' };
@@ -1807,7 +1698,7 @@ fastify.get('/api/v1/admin/me', async (request, reply) => {
 
 // Get admin stats
 fastify.get('/api/v1/admin/stats', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const tenantScope = admin.role !== 'super_admin';
@@ -1857,7 +1748,7 @@ fastify.get('/api/v1/admin/stats', async (request, reply) => {
 
 // List users (admin)
 fastify.get('/api/v1/admin/users', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const { limit = 50, offset = 0, status, search, role, plan, sort = 'created_at:desc' } = request.query;
@@ -1941,7 +1832,7 @@ fastify.get('/api/v1/admin/users', async (request, reply) => {
 
 // Get single user (admin)
 fastify.get('/api/v1/admin/users/:id', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const { id } = request.params;
@@ -2003,7 +1894,7 @@ fastify.get('/api/v1/admin/users/:id', async (request, reply) => {
 
 // Create user (admin)
 fastify.post('/api/v1/admin/users', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const { email, password, display_name, role } = request.body || {};
@@ -2019,17 +1910,15 @@ fastify.post('/api/v1/admin/users', async (request, reply) => {
       `INSERT INTO tenants (id, name, slug, type, tier) VALUES ($1, $2, $3, 'user', 'free')`,
       [tenantId, display_name || email.split('@')[0], slug]
     );
-    const result = await createUser(tenantId, { email, password, display_name });
+    const userId = crypto.randomUUID();
+    const userRole = role || 'user';
+    await query(
+      `INSERT INTO users (id, tenant_id, email, name, display_name, role, status, email_verified, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $4, $5, 'active', true, NOW(), NOW())`,
+      [userId, tenantId, email, display_name || email.split('@')[0], userRole]
+    );
 
-    // Set role if specified (default is 'user')
-    if (role && role !== 'user') {
-      await query(`UPDATE users SET role = $1 WHERE id = $2`, [role, result.user.id]);
-    }
-
-    // Auto-verify email for admin-created users
-    await query(`UPDATE users SET email_verified = true, email_verification_token = NULL WHERE id = $1`, [result.user.id]);
-
-    return { user: { ...result.user, role: role || 'user', emailVerified: true } };
+    return { user: { id: userId, email, name: display_name, role: userRole, emailVerified: true } };
   } catch (err) {
     reply.status(400);
     return { error: err.message || 'Failed to create user' };
@@ -2038,7 +1927,7 @@ fastify.post('/api/v1/admin/users', async (request, reply) => {
 
 // Suspend user (admin)
 fastify.post('/api/v1/admin/users/:id/suspend', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const { id } = request.params;
@@ -2048,7 +1937,7 @@ fastify.post('/api/v1/admin/users/:id/suspend', async (request, reply) => {
 
 // Unsuspend user (admin)
 fastify.post('/api/v1/admin/users/:id/unsuspend', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const { id } = request.params;
@@ -2058,7 +1947,7 @@ fastify.post('/api/v1/admin/users/:id/unsuspend', async (request, reply) => {
 
 // Update user role (admin)
 fastify.patch('/api/v1/admin/users/:id/role', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const { id } = request.params;
@@ -2076,7 +1965,7 @@ fastify.patch('/api/v1/admin/users/:id/role', async (request, reply) => {
 
 // Update user (admin) - combined update for name, role, status, plan
 fastify.patch('/api/v1/admin/users/:id', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const { id } = request.params;
@@ -2133,7 +2022,7 @@ fastify.patch('/api/v1/admin/users/:id', async (request, reply) => {
 
 // Delete user (admin)
 fastify.delete('/api/v1/admin/users/:id', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const { id } = request.params;
@@ -2165,7 +2054,7 @@ fastify.delete('/api/v1/admin/users/:id', async (request, reply) => {
 
 // List tenants (admin)
 fastify.get('/api/v1/admin/tenants', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const tenants = await query(`
@@ -2190,7 +2079,7 @@ fastify.get('/api/v1/admin/tenants', async (request, reply) => {
 
 // List plans (admin)
 fastify.get('/api/v1/admin/plans', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
+  const admin = await getAdminUser();
   if (!admin) return { error: 'Admin access required' };
 
   const plans = await query(`
@@ -2206,13 +2095,13 @@ fastify.get('/api/v1/admin/plans', async (request, reply) => {
 
 // Agent Hub admin routes
 import { registerAdminHubRoutes } from './routes/admin-hub/index.js';
-await registerAdminHubRoutes(fastify, requireAdmin, requireUser, query, queryOne);
+await registerAdminHubRoutes(fastify, getAdminUser, getAdminUser, query, queryOne);
 
 // User Provider Keys (user-facing, not admin-only)
 import { callForge } from './routes/admin-hub/utils.js';
 
 fastify.get('/api/v1/user-providers', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) return reply.status(401).send({ error: 'Not authenticated' });
   const res = await callForge('/user-providers', { headers: { 'x-user-id': user.id } });
   if (res.error) return reply.code(res.status || 503).send({ error: 'User providers unavailable', message: res.message });
@@ -2220,7 +2109,7 @@ fastify.get('/api/v1/user-providers', async (request, reply) => {
 });
 
 fastify.put('/api/v1/user-providers/:providerType', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) return reply.status(401).send({ error: 'Not authenticated' });
   const { providerType } = request.params;
   const res = await callForge(`/user-providers/${encodeURIComponent(providerType)}`, {
@@ -2231,7 +2120,7 @@ fastify.put('/api/v1/user-providers/:providerType', async (request, reply) => {
 });
 
 fastify.delete('/api/v1/user-providers/:providerType', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) return reply.status(401).send({ error: 'Not authenticated' });
   const { providerType } = request.params;
   const res = await callForge(`/user-providers/${encodeURIComponent(providerType)}`, {
@@ -2242,7 +2131,7 @@ fastify.delete('/api/v1/user-providers/:providerType', async (request, reply) =>
 });
 
 fastify.post('/api/v1/user-providers/:providerType/verify', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) return reply.status(401).send({ error: 'Not authenticated' });
   const { providerType } = request.params;
   const res = await callForge(`/user-providers/${encodeURIComponent(providerType)}/verify`, {
@@ -2254,7 +2143,7 @@ fastify.post('/api/v1/user-providers/:providerType/verify', async (request, repl
 
 // User preferences (theme, etc.) — direct DB, no forge proxy needed
 fastify.put('/api/v1/auth/preferences', async (request, reply) => {
-  const user = await getUserFromSession(request);
+  const user = await getAdminUser();
   if (!user) return reply.status(401).send({ error: 'Not authenticated' });
   const body = request.body || {};
   const validThemes = ['dark', 'light', 'system'];
@@ -2264,215 +2153,12 @@ fastify.put('/api/v1/auth/preferences', async (request, reply) => {
   return { success: true };
 });
 
-// Onboarding (user-facing, proxied to forge — under /api/v1/auth/ so nginx routes to dashboard)
-fastify.get('/api/v1/auth/onboarding/status', async (request, reply) => {
-  const user = await getUserFromSession(request);
-  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
-  const res = await callForge('/onboarding/status', { headers: { 'x-user-id': user.id } });
-  if (res.error) return reply.code(res.status || 503).send({ error: 'Onboarding status unavailable', message: res.message });
-  return res;
-});
-
-fastify.post('/api/v1/auth/onboarding/complete', async (request, reply) => {
-  const user = await getUserFromSession(request);
-  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
-  const res = await callForge('/onboarding/complete', {
-    method: 'POST', body: request.body || {}, headers: { 'x-user-id': user.id },
-  });
-  if (res.error) return reply.code(res.status || 503).send({ error: 'Onboarding failed', message: res.message });
-  return res;
-});
 
 // System Assistant (agentic AI for fleet management)
 import { registerAssistantRoutes } from './routes/admin-assistant.js';
-await registerAssistantRoutes(fastify, requireAdmin, query, queryOne);
+await registerAssistantRoutes(fastify, getAdminUser, query, queryOne);
 
-// ===========================================
-// WAITLIST
-// ===========================================
 
-const waitlistRateLimit = new Map(); // ip -> { count, resetAt }
-const WAITLIST_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const WAITLIST_MAX = 5; // 5 submissions per 15 min per IP
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of waitlistRateLimit.entries()) {
-    if (v.resetAt < now) waitlistRateLimit.delete(k);
-  }
-}, 60000);
-
-fastify.post('/api/v1/auth/waitlist', async (request, reply) => {
-  const { name, email, website, source } = request.body || {};
-
-  // Honeypot — bots fill hidden fields
-  if (website) {
-    return reply.send({ ok: true }); // silent success to fool bots
-  }
-
-  // Per-IP rate limit (tighter than global)
-  const ip = request.ip || 'unknown';
-  const now = Date.now();
-  let entry = waitlistRateLimit.get(ip);
-  if (!entry || entry.resetAt < now) {
-    entry = { count: 1, resetAt: now + WAITLIST_WINDOW_MS };
-    waitlistRateLimit.set(ip, entry);
-  } else {
-    entry.count++;
-  }
-  if (entry.count > WAITLIST_MAX) {
-    return reply.code(429).send({ error: 'Too many requests. Please try again later.' });
-  }
-
-  // Required fields
-  if (!name || !email) {
-    return reply.code(400).send({ error: 'Name and email are required' });
-  }
-
-  // Input validation
-  const trimmedName = String(name).trim().slice(0, 100);
-  const trimmedEmail = String(email).trim().toLowerCase().slice(0, 254);
-
-  if (trimmedName.length < 1) {
-    return reply.code(400).send({ error: 'Name is required' });
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-    return reply.code(400).send({ error: 'Invalid email address' });
-  }
-
-  // Block disposable email domains
-  const disposable = ['mailinator.com', 'guerrillamail.com', 'tempmail.com', 'throwaway.email', 'yopmail.com', 'sharklasers.com', 'guerrillamailblock.com', 'grr.la', 'dispostable.com', 'trashmail.com'];
-  const domain = trimmedEmail.split('@')[1];
-  if (disposable.includes(domain)) {
-    return reply.code(400).send({ error: 'Please use a valid email address' });
-  }
-
-  // Sanitize source
-  const VALID_SOURCES = ['askalf', 'amnesia'];
-  const trimmedSource = VALID_SOURCES.includes(String(source || '').trim()) ? String(source).trim() : 'askalf';
-
-  try {
-    await queryOne(
-      `INSERT INTO waitlist (id, name, email, source) VALUES ($1, $2, $3, $4)
-       ON CONFLICT (email) DO UPDATE SET name = $2, source = $4, created_at = NOW()
-       RETURNING id`,
-      [crypto.randomUUID(), trimmedName, trimmedEmail, trimmedSource],
-    );
-
-    // Fire-and-forget: send welcome + admin notification
-    sendWaitlistEmail(trimmedEmail, { name: trimmedName, email: trimmedEmail }, trimmedSource).catch(err =>
-      console.error('[Waitlist] Email send failed:', err)
-    );
-    sendAdminNotification(process.env['ADMIN_EMAIL'] || 'support@askalf.org', {
-      type: 'waitlist_signup',
-      email: trimmedEmail,
-      source: trimmedSource,
-      timestamp: new Date().toISOString(),
-    }).catch(err =>
-      console.error('[Waitlist] Admin notification failed:', err)
-    );
-
-    return reply.send({ ok: true });
-  } catch (err) {
-    console.error('[Waitlist] Error:', err);
-    return reply.code(500).send({ error: 'Failed to join waitlist' });
-  }
-});
-
-// ===========================================
-// ADMIN: WAITLIST MANAGEMENT
-// ===========================================
-
-// GET /api/v1/admin/waitlist — list waitlist entries
-fastify.get('/api/v1/admin/waitlist', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
-  if (!admin) return;
-
-  const { page = '1', limit = '50', status } = request.query;
-  const pg = parseInt(page);
-  const lim = Math.min(parseInt(limit) || 50, 200);
-  const offset = (pg - 1) * lim;
-
-  let whereClause = '';
-  const params = [];
-  if (status === 'invited') {
-    whereClause = 'WHERE beta_invite_sent_at IS NOT NULL';
-  } else if (status === 'pending') {
-    whereClause = 'WHERE beta_invite_sent_at IS NULL';
-  }
-
-  const [entries, countRow] = await Promise.all([
-    query(`SELECT * FROM waitlist ${whereClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, lim, offset]),
-    queryOne(`SELECT COUNT(*)::int as count FROM waitlist ${whereClause}`, params),
-  ]);
-
-  return {
-    entries,
-    total: countRow?.count || 0,
-    page: pg,
-    limit: lim,
-  };
-});
-
-// POST /api/v1/admin/waitlist/:id/approve — approve and send beta invite
-fastify.post('/api/v1/admin/waitlist/:id/approve', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
-  if (!admin) return;
-
-  const { id } = request.params;
-  const entry = await queryOne('SELECT * FROM waitlist WHERE id = $1', [id]);
-  if (!entry) return reply.code(404).send({ error: 'Waitlist entry not found' });
-
-  if (entry.beta_invite_sent_at) {
-    return reply.code(400).send({ error: 'Already invited', invited_at: entry.beta_invite_sent_at });
-  }
-
-  const signupUrl = `https://askalf.org/register?email=${encodeURIComponent(entry.email)}`;
-
-  // Send beta invite email
-  try {
-    await sendBetaInviteEmail(entry.email, {
-      email: entry.email,
-      signupUrl,
-    });
-  } catch (err) {
-    console.error('[Waitlist] Beta invite email failed:', err);
-    // Continue anyway — mark as invited even if email fails (can resend)
-  }
-
-  // Mark as invited
-  await query('UPDATE waitlist SET beta_invite_sent_at = NOW() WHERE id = $1', [id]);
-
-  return { ok: true, email: entry.email, signupUrl };
-});
-
-// POST /api/v1/admin/waitlist/bulk-approve — approve multiple entries
-fastify.post('/api/v1/admin/waitlist/bulk-approve', async (request, reply) => {
-  const admin = await requireAdmin(request, reply);
-  if (!admin) return;
-
-  const { ids } = request.body || {};
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return reply.code(400).send({ error: 'ids array is required' });
-  }
-
-  const results = [];
-  for (const id of ids.slice(0, 50)) {
-    const entry = await queryOne('SELECT * FROM waitlist WHERE id = $1 AND beta_invite_sent_at IS NULL', [id]);
-    if (!entry) { results.push({ id, status: 'skipped' }); continue; }
-
-    const signupUrl = `https://askalf.org/register?email=${encodeURIComponent(entry.email)}`;
-    try {
-      await sendBetaInviteEmail(entry.email, { email: entry.email, signupUrl });
-    } catch (err) {
-      console.error(`[Waitlist] Invite failed for ${entry.email}:`, err);
-    }
-    await query('UPDATE waitlist SET beta_invite_sent_at = NOW() WHERE id = $1', [id]);
-    results.push({ id, email: entry.email, status: 'invited' });
-  }
-
-  return { ok: true, results };
-});
 
 // ===========================================
 // AUTH PROXY — forward auth routes to Forge
@@ -2527,57 +2213,13 @@ async function proxyToForge(request, reply, path) {
   }
 }
 
-// Get current authenticated user (called by frontend after login)
+// Get current authenticated user
 fastify.get('/api/v1/auth/me', async (request, reply) => {
-  const user = await getUserFromSession(request);
-  if (!user) {
-    reply.status(401);
-    return { error: 'Not authenticated' };
-  }
-
-  const subscription = await getSubscriptionWithPlan(user.tenant_id);
-
-  // Check onboarding status + theme preference (migrations 025, 026)
-  const userExtra = await queryOne(
-    'SELECT u.onboarding_completed_at, u.theme_preference, t.name as tenant_name FROM users u JOIN tenants t ON u.tenant_id = t.id WHERE u.id = $1',
-    [user.id],
-  );
-  const onboardingCompleted = !!userExtra?.onboarding_completed_at;
-
-  return {
-    user: {
-      id: user.id,
-      email: user.email,
-      emailVerified: user.email_verified,
-      onboardingCompleted,
-      name: user.name || null,
-      displayName: user.display_name,
-      role: user.role,
-      tenantName: userExtra?.tenant_name || null,
-      themePreference: userExtra?.theme_preference || null,
-    },
-    subscription: subscription ? {
-      status: subscription.status,
-      plan: subscription.plan,
-      current_period_end: subscription.current_period_end,
-    } : null,
-  };
+  const user = await getAdminUser();
+  if (!user) return reply.status(500).send({ error: 'No admin user found' });
+  return { user };
 });
 
-const authProxyRoutes = [
-  'login', 'register', 'logout', 'check',
-  'forgot-password', 'reset-password',
-  'verify-email', 'resend-verification',
-];
-
-for (const route of authProxyRoutes) {
-  fastify.post(`/api/v1/auth/${route}`, (req, reply) =>
-    proxyToForge(req, reply, `/api/v1/auth/${route}`));
-}
-
-// GET for auth check (session validation)
-fastify.get('/api/v1/auth/check', (req, reply) =>
-  proxyToForge(req, reply, '/api/v1/auth/check'));
 
 // ===========================================
 // FORGE API PROXY — forward forge routes

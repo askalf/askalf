@@ -8,6 +8,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { query, queryOne, transaction } from '../database.js';
 import { getProvider, getOAuthConfig, isValidProvider, type IntegrationProvider } from '../integrations/index.js';
+import { isApiKeyProvider, testApiKeyIntegration, PROVIDER_CONFIGS, API_KEY_PROVIDERS, type ApiKeyProvider } from '../integrations/api-key-providers.js';
 
 // ============================================
 // Auth helper (same pattern as auth.ts)
@@ -103,11 +104,119 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   // List which providers are configurable
   // ------------------------------------------
   app.get('/api/v1/integrations/available', async () => {
-    const providers = (['github', 'gitlab', 'bitbucket'] as const).map((p) => ({
+    const oauthProviders = (['github', 'gitlab', 'bitbucket'] as const).map((p) => ({
       provider: p,
       configured: !!getOAuthConfig(p),
+      type: 'oauth' as const,
     }));
-    return { providers };
+
+    // API key providers are always "available" — they just need configuration
+    const apiKeyProviders = API_KEY_PROVIDERS.map((p) => ({
+      provider: p,
+      configured: true, // Always available for API key entry
+      type: 'api_key' as const,
+    }));
+
+    return { providers: [...oauthProviders, ...apiKeyProviders] };
+  });
+
+  // ------------------------------------------
+  // POST /api/v1/integrations/connect/:provider/apikey
+  // Connect an API key-based integration
+  // ------------------------------------------
+  app.post('/api/v1/integrations/connect/:provider/apikey', async (request: FastifyRequest, reply: FastifyReply) => {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) return reply.code(401).send({ error: 'Not authenticated' });
+
+    const { provider } = request.params as { provider: string };
+    if (!isApiKeyProvider(provider)) {
+      return reply.code(400).send({ error: `Not an API key provider: ${provider}` });
+    }
+
+    const body = (request.body ?? {}) as { config?: Record<string, string> };
+    if (!body.config || Object.keys(body.config).length === 0) {
+      return reply.code(400).send({ error: 'config is required' });
+    }
+
+    // Check if already connected
+    const existing = await queryOne<{ id: string }>(
+      `SELECT id FROM user_integrations WHERE user_id = $1 AND provider = $2`,
+      [auth.userId, provider],
+    );
+
+    const providerConfig = PROVIDER_CONFIGS[provider as ApiKeyProvider];
+
+    if (existing) {
+      // Update existing
+      await query(
+        `UPDATE user_integrations SET access_token = $1, status = 'active', display_name = $2, updated_at = NOW() WHERE id = $3`,
+        [JSON.stringify(body.config), providerConfig?.name ?? provider, existing.id],
+      );
+      return { id: existing.id, updated: true };
+    }
+
+    // Test the connection first
+    const testResult = await testApiKeyIntegration(provider as ApiKeyProvider, body.config);
+
+    const integrationId = `intg_${ulid()}`;
+    await query(
+      `INSERT INTO user_integrations (id, user_id, provider, provider_user_id, provider_username, display_name, access_token, status, scopes, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
+      [
+        integrationId, auth.userId, provider,
+        provider, // provider_user_id
+        testResult.username ?? provider, // provider_username
+        providerConfig?.name ?? provider, // display_name
+        JSON.stringify(body.config), // store config as JSON in access_token
+        testResult.success ? 'active' : 'pending', // status
+        providerConfig?.requiredFields.map(f => f.key) ?? [], // scopes
+      ],
+    );
+
+    return {
+      id: integrationId,
+      created: true,
+      testResult,
+    };
+  });
+
+  // ------------------------------------------
+  // POST /api/v1/integrations/:id/test
+  // Test an API key integration
+  // ------------------------------------------
+  app.post('/api/v1/integrations/:id/test', async (request: FastifyRequest, reply: FastifyReply) => {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) return reply.code(401).send({ error: 'Not authenticated' });
+
+    const { id } = request.params as { id: string };
+
+    const integration = await queryOne<{ provider: string; access_token: string }>(
+      `SELECT provider, access_token FROM user_integrations WHERE id = $1 AND user_id = $2`,
+      [id, auth.userId],
+    );
+    if (!integration) return reply.code(404).send({ error: 'Integration not found' });
+
+    if (!isApiKeyProvider(integration.provider)) {
+      return reply.code(400).send({ error: 'Not an API key provider' });
+    }
+
+    let config: Record<string, string>;
+    try {
+      config = JSON.parse(integration.access_token);
+    } catch {
+      return reply.code(400).send({ error: 'Invalid config format' });
+    }
+
+    const result = await testApiKeyIntegration(integration.provider as ApiKeyProvider, config);
+
+    if (result.success) {
+      await query(
+        `UPDATE user_integrations SET status = 'active', updated_at = NOW() WHERE id = $1`,
+        [id],
+      );
+    }
+
+    return result;
   });
 
   // ------------------------------------------

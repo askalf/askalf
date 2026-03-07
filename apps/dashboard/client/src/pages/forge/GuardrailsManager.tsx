@@ -12,8 +12,8 @@ const TYPE_INFO: Record<string, { label: string; color: string; desc: string }> 
   cost_limit: { label: 'Cost Limit', color: '#f59e0b', desc: 'Limit per-execution and daily spending' },
   rate_limit: { label: 'Rate Limit', color: '#ef4444', desc: 'Limit execution frequency per minute/hour' },
   tool_restriction: { label: 'Tool Restriction', color: '#8b5cf6', desc: 'Allow or block specific tools' },
-  output_filter: { label: 'Output Filter', color: '#7c3aed', desc: 'Filter agent output content (coming soon)' },
-  custom: { label: 'Custom', color: '#6b7280', desc: 'Custom guardrail logic (coming soon)' },
+  output_filter: { label: 'Output Filter', color: '#7c3aed', desc: 'Block agent output containing PII, sensitive data, or custom patterns' },
+  custom: { label: 'Custom', color: '#6b7280', desc: 'User-defined rules via regex patterns or webhook callbacks' },
 };
 
 // Default configs for new guardrails
@@ -22,8 +22,8 @@ const DEFAULT_CONFIGS: Record<string, Record<string, unknown>> = {
   cost_limit: { maxCostPerExecution: 5.00, maxCostPerDay: 50.00 },
   rate_limit: { maxExecutionsPerMinute: 10, maxExecutionsPerHour: 100 },
   tool_restriction: { blockedTools: [], allowedTools: [] },
-  output_filter: {},
-  custom: {},
+  output_filter: { blockedPatterns: [], blockPII: true, maxOutputLength: 100000, caseSensitive: false },
+  custom: { mode: 'regex', patterns: [] },
 };
 
 // Readable config display per type
@@ -101,6 +101,49 @@ function ConfigDisplay({ type, config }: { type: string; config: Record<string, 
           )}
           {blocked.length === 0 && allowed.length === 0 && (
             <span className="gr-config-empty">No restrictions configured</span>
+          )}
+        </div>
+      );
+    }
+    case 'output_filter': {
+      const patterns = (config.blockedPatterns as string[]) || [];
+      return (
+        <div className="gr-config-detail">
+          {patterns.length > 0 && (
+            <div className="gr-config-row">
+              <span className="gr-config-key">Blocked patterns:</span>
+              <span className="gr-config-val">{patterns.length} patterns</span>
+            </div>
+          )}
+          {Boolean(config.blockPII) && <div className="gr-config-row"><span className="gr-config-note">PII detection enabled</span></div>}
+          {config.maxOutputLength !== undefined && (
+            <div className="gr-config-row">
+              <span className="gr-config-key">Max output length:</span>
+              <span className="gr-config-val">{String(config.maxOutputLength)} chars</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+    case 'custom': {
+      const patterns = (config.patterns as Array<{ pattern: string; action: string; message?: string }>) || [];
+      return (
+        <div className="gr-config-detail">
+          <div className="gr-config-row">
+            <span className="gr-config-key">Mode:</span>
+            <span className="gr-config-val">{String(config.mode ?? 'regex')}</span>
+          </div>
+          {patterns.length > 0 && (
+            <div className="gr-config-row">
+              <span className="gr-config-key">Rules:</span>
+              <span className="gr-config-val">{patterns.length} patterns</span>
+            </div>
+          )}
+          {!!config.webhookUrl && (
+            <div className="gr-config-row">
+              <span className="gr-config-key">Webhook:</span>
+              <span className="gr-config-val fobs-mono">{String(config.webhookUrl)}</span>
+            </div>
           )}
         </div>
       );
@@ -241,6 +284,99 @@ function ConfigEditor({ type, config, onChange }: { type: string; config: Record
               <button className="fo-action-btn" disabled={!newAllowed.trim()} onClick={() => { if (newAllowed.trim()) { onChange({ ...config, allowedTools: [...allowed, newAllowed.trim()] }); setNewAllowed(''); } }}>Allow</button>
             </div>
           </div>
+        </div>
+      );
+    }
+    case 'output_filter': {
+      const patterns = (config.blockedPatterns as string[]) || [];
+      const [newPat, setNewPat] = useState('');
+      return (
+        <div className="gr-config-editor">
+          <label>Blocked Patterns</label>
+          <div className="gr-keyword-list gr-keyword-list--edit">
+            {patterns.map((p, i) => (
+              <span key={i} className="gr-keyword-tag">
+                {p}
+                <button className="gr-keyword-remove" onClick={() => {
+                  onChange({ ...config, blockedPatterns: patterns.filter((_, idx) => idx !== i) });
+                }}>&times;</button>
+              </span>
+            ))}
+          </div>
+          <div className="gr-keyword-add">
+            <input type="text" className="fobs-input" placeholder="Add blocked pattern..." value={newPat}
+              onChange={(e) => setNewPat(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && newPat.trim()) { onChange({ ...config, blockedPatterns: [...patterns, newPat.trim()] }); setNewPat(''); } }} />
+            <button className="fo-action-btn" disabled={!newPat.trim()} onClick={() => { if (newPat.trim()) { onChange({ ...config, blockedPatterns: [...patterns, newPat.trim()] }); setNewPat(''); } }}>Add</button>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginTop: '0.5rem', fontSize: '0.8rem' }}>
+            <input type="checkbox" checked={!!config.blockPII} onChange={(e) => onChange({ ...config, blockPII: e.target.checked })} />
+            Block PII (SSN, credit cards, passport numbers)
+          </label>
+          <div className="gr-config-field" style={{ marginTop: '0.5rem' }}>
+            <label>Max output length (chars)</label>
+            <input type="number" className="fobs-input" step="1000" min="0"
+              value={config.maxOutputLength as number ?? ''}
+              onChange={(e) => onChange({ ...config, maxOutputLength: parseInt(e.target.value) || 0 })} />
+          </div>
+        </div>
+      );
+    }
+    case 'custom': {
+      const rules = (config.patterns as Array<{ pattern: string; action: string; message?: string }>) || [];
+      const [newRule, setNewRule] = useState('');
+      const [newMsg, setNewMsg] = useState('');
+      return (
+        <div className="gr-config-editor">
+          <div className="gr-config-field">
+            <label>Mode</label>
+            <select className="fobs-input" value={String(config.mode ?? 'regex')}
+              onChange={(e) => onChange({ ...config, mode: e.target.value })}>
+              <option value="regex">Regex Patterns</option>
+              <option value="webhook">Webhook Callback</option>
+            </select>
+          </div>
+          {(config.mode ?? 'regex') === 'regex' && (
+            <>
+              <label>Rules</label>
+              <div className="gr-keyword-list gr-keyword-list--edit">
+                {rules.map((r, i) => (
+                  <span key={i} className="gr-keyword-tag gr-keyword-tag--danger">
+                    /{r.pattern}/ → {r.action}
+                    <button className="gr-keyword-remove" onClick={() => {
+                      onChange({ ...config, patterns: rules.filter((_, idx) => idx !== i) });
+                    }}>&times;</button>
+                  </span>
+                ))}
+              </div>
+              <div className="gr-keyword-add" style={{ flexDirection: 'column', gap: '0.25rem' }}>
+                <input type="text" className="fobs-input" placeholder="Regex pattern..." value={newRule} onChange={(e) => setNewRule(e.target.value)} />
+                <input type="text" className="fobs-input" placeholder="Block message (optional)" value={newMsg} onChange={(e) => setNewMsg(e.target.value)} />
+                <button className="fo-action-btn" disabled={!newRule.trim()} onClick={() => {
+                  if (newRule.trim()) {
+                    onChange({ ...config, patterns: [...rules, { pattern: newRule.trim(), action: 'block', message: newMsg.trim() || undefined }] });
+                    setNewRule(''); setNewMsg('');
+                  }
+                }}>Add Rule</button>
+              </div>
+            </>
+          )}
+          {config.mode === 'webhook' && (
+            <>
+              <div className="gr-config-field">
+                <label>Webhook URL</label>
+                <input type="text" className="fobs-input" placeholder="https://your-server.com/guardrail"
+                  value={String(config.webhookUrl ?? '')}
+                  onChange={(e) => onChange({ ...config, webhookUrl: e.target.value })} />
+              </div>
+              <div className="gr-config-field">
+                <label>Timeout (ms)</label>
+                <input type="number" className="fobs-input" step="1000" min="1000" max="30000"
+                  value={config.webhookTimeoutMs as number ?? 5000}
+                  onChange={(e) => onChange({ ...config, webhookTimeoutMs: parseInt(e.target.value) || 5000 })} />
+              </div>
+            </>
+          )}
         </div>
       );
     }

@@ -78,23 +78,38 @@ FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc
 
 RUN apk add --no-cache bash curl python3 make g++ && \
     npm install -g @anthropic-ai/claude-code && \
-    claude install --force && \
+    claude install --force 2>&1 || true && \
     npm uninstall -g @anthropic-ai/claude-code && \
-    apk del python3 make g++
+    apk del python3 make g++ && \
+    test -f /root/.local/bin/claude
+
+# Codex CLI stage - install with platform-specific native binary
+FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS codex-installer
+
+RUN npm install -g @openai/codex && \
+    codex --version
 
 # Production stage - minimal Alpine
 FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS runner
 
-# Runtime deps only: bash (node-pty), git (claude), curl (healthchecks)
+# Runtime deps only: bash (node-pty), git (claude/codex), curl (healthchecks)
 RUN apk add --no-cache bash git curl
 
 # Security: run as non-root
 RUN addgroup -g 1001 -S substrate && \
     adduser -S -u 1001 -G substrate substrate && \
-    mkdir -p /home/substrate/.local/bin
+    mkdir -p /home/substrate/.local/bin \
+             /home/substrate/.claude-session \
+             /home/substrate/.codex-session && \
+    chown -R substrate:substrate /home/substrate
 
 # Copy Claude binary directly to user home (single copy, no duplication)
 COPY --from=claude-installer --chown=substrate:substrate /root/.local/bin/claude /home/substrate/.local/bin/claude
+
+# Copy Codex CLI (full npm global install — includes platform-specific native binary)
+COPY --from=codex-installer /usr/local/lib/node_modules/@openai /usr/local/lib/node_modules/@openai
+# Must be a symlink (not a copy) so require.resolve() finds the native binary package
+RUN ln -s /usr/local/lib/node_modules/@openai/codex/bin/codex.js /usr/local/bin/codex
 
 WORKDIR /app
 
@@ -103,6 +118,7 @@ COPY --from=builder --chown=substrate:substrate /app/deploy ./
 
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV PATH="/home/substrate/.local/bin:${PATH}"
 
 USER substrate
 

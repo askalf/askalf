@@ -8,7 +8,7 @@ import { ulid } from 'ulid';
 import { query, queryOne } from '../../database.js';
 import { substrateQuery, substrateQueryOne } from '../../database.js';
 import { authMiddleware } from '../../middleware/auth.js';
-import { requireAdmin } from '../../middleware/session-auth.js';
+import { requireAdmin } from '../../middleware/auth.js';
 import { detectCapabilities, getAgentCapabilities, findAgentsWithCapability, detectAllCapabilities } from '../../orchestration/capability-registry.js';
 import { processFeedback, getAgentFeedbackStats } from '../../learning/feedback-processor.js';
 import { getEventBus, type ForgeEvent } from '../../orchestration/event-bus.js';

@@ -71,7 +71,7 @@ async function resolveUserCredential(userId: string): Promise<UserCredential | n
 async function loadPlatformOAuthToken(): Promise<string | null> {
   try {
     const fs = await import('node:fs/promises');
-    const paths = ['/tmp/claude-credentials.json', '/tmp/claude-home/.claude/.credentials.json'];
+    const paths = ['/tmp/claude-credentials/.credentials.json', '/tmp/claude-credentials.json', '/tmp/claude-home/.claude/.credentials.json'];
     for (const p of paths) {
       try {
         const raw = await fs.readFile(p, 'utf-8');

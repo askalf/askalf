@@ -113,6 +113,10 @@ async function evaluateGuardrail(
       return evaluateContentFilter(guardrail, opts);
     case 'tool_restriction':
       return evaluateToolRestriction(guardrail, opts);
+    case 'output_filter':
+      return evaluateOutputFilter(guardrail, opts);
+    case 'custom':
+      return evaluateCustomGuardrail(guardrail, opts);
     default:
       // Unknown guardrail types are allowed by default
       return { allowed: true };
@@ -310,6 +314,132 @@ export async function checkUserBudget(userId: string): Promise<GuardrailResult> 
           reason: `Monthly budget exceeded: $${monthCost.toFixed(2)}/$${monthlyLimit.toFixed(2)}`,
         };
       }
+    }
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Output Filter: scan agent output for blocked patterns, PII, or sensitive content.
+ */
+function evaluateOutputFilter(
+  guardrail: GuardrailRow,
+  opts: CheckGuardrailsOptions,
+): GuardrailResult {
+  const config = guardrail.config as {
+    blockedPatterns?: string[];
+    blockPII?: boolean;
+    maxOutputLength?: number;
+    caseSensitive?: boolean;
+  };
+
+  const input = opts.input;
+
+  // Check blocked patterns in output
+  if (config.blockedPatterns && config.blockedPatterns.length > 0) {
+    const target = config.caseSensitive ? input : input.toLowerCase();
+    for (const pattern of config.blockedPatterns) {
+      const search = config.caseSensitive ? pattern : pattern.toLowerCase();
+      if (target.includes(search)) {
+        return {
+          allowed: false,
+          reason: `Output filter triggered: output contains blocked pattern`,
+        };
+      }
+    }
+  }
+
+  // Block PII patterns (SSN, credit card, email-like patterns in output)
+  if (config.blockPII) {
+    const piiPatterns = [
+      /\b\d{3}-\d{2}-\d{4}\b/,           // SSN
+      /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/, // Credit card
+      /\b[A-Z]{2}\d{6,8}\b/i,             // Passport-like
+    ];
+    for (const regex of piiPatterns) {
+      if (regex.test(input)) {
+        return {
+          allowed: false,
+          reason: `Output filter triggered: potential PII detected in content`,
+        };
+      }
+    }
+  }
+
+  // Check max output length
+  if (config.maxOutputLength && input.length > config.maxOutputLength) {
+    return {
+      allowed: false,
+      reason: `Output filter triggered: content length (${input.length}) exceeds maximum (${config.maxOutputLength})`,
+    };
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Custom guardrail: evaluate user-defined rules via regex patterns,
+ * JSON schema validation, or webhook callbacks.
+ */
+async function evaluateCustomGuardrail(
+  guardrail: GuardrailRow,
+  opts: CheckGuardrailsOptions,
+): Promise<GuardrailResult> {
+  const config = guardrail.config as {
+    mode?: 'regex' | 'webhook' | 'script';
+    patterns?: Array<{ pattern: string; action: 'block' | 'warn'; message?: string }>;
+    webhookUrl?: string;
+    webhookTimeoutMs?: number;
+    script?: string;
+  };
+
+  const mode = config.mode ?? 'regex';
+
+  if (mode === 'regex' && config.patterns) {
+    for (const rule of config.patterns) {
+      try {
+        const regex = new RegExp(rule.pattern, 'i');
+        if (regex.test(opts.input)) {
+          if (rule.action === 'block') {
+            return {
+              allowed: false,
+              reason: rule.message ?? `Custom guardrail '${guardrail.name}' blocked: pattern matched`,
+            };
+          }
+        }
+      } catch {
+        // Invalid regex — skip
+      }
+    }
+  }
+
+  if (mode === 'webhook' && config.webhookUrl) {
+    try {
+      const response = await fetch(config.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          guardrailId: guardrail.id,
+          guardrailName: guardrail.name,
+          input: opts.input.substring(0, 10000),
+          agentId: opts.agentId,
+          toolName: opts.toolName,
+        }),
+        signal: AbortSignal.timeout(config.webhookTimeoutMs ?? 5000),
+      });
+
+      if (response.ok) {
+        const result = await response.json() as { allowed?: boolean; reason?: string };
+        if (result.allowed === false) {
+          return {
+            allowed: false,
+            reason: result.reason ?? `Custom guardrail '${guardrail.name}' webhook blocked execution`,
+          };
+        }
+      }
+    } catch {
+      // Webhook failure — allow by default (fail-open for custom guardrails)
     }
   }
 

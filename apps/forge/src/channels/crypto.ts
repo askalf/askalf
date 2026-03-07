@@ -88,4 +88,13 @@ export const SENSITIVE_KEYS: Record<string, string[]> = {
   discord: ['bot_token', 'public_key'],
   telegram: ['bot_token'],
   whatsapp: ['access_token', 'app_secret'],
+  teams: ['app_password'],
+  zapier: ['api_key'],
+  n8n: ['api_key'],
+  make: ['api_key'],
+  email: ['smtp_pass'],
+  twilio: ['auth_token'],
+  sendgrid: ['api_key'],
+  twilio_voice: ['auth_token'],
+  zoom: ['client_secret', 'verification_token'],
 };
