@@ -22,9 +22,6 @@ COPY packages/database/package.json ./packages/database/package.json
 COPY packages/auth/package.json ./packages/auth/package.json
 COPY packages/email/package.json ./packages/email/package.json
 COPY packages/db/package.json ./packages/db/package.json
-COPY packages/cli/package.json ./packages/cli/package.json
-COPY packages/sdk/package.json ./packages/sdk/package.json
-COPY packages/agent-cli/package.json ./packages/agent-cli/package.json
 COPY apps/dashboard/package.json ./apps/dashboard/package.json
 
 # Install all dependencies (cached unless package.json/lockfile change)
