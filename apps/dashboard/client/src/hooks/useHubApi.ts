@@ -897,7 +897,7 @@ export const hubApi = {
         `/api/v1/admin/knowledge/graph?${buildParams({ limit: params.limit || 500, offset: params.offset, type: params.type, agent_id: params.agent_id, min_mentions: params.min_mentions })}`
       ),
     stats: () =>
-      apiFetch<{ total_nodes: number; total_edges: number; top_entities: { entity_type: string; count: number }[]; top_relations: { relation: string; count: number }[] }>(
+      apiFetch<{ totalNodes: number; totalEdges: number; topEntities: { entity_type: string; count: number }[]; topRelations: { relation: string; count: number }[] }>(
         '/api/v1/admin/knowledge/stats'
       ),
     entityTypes: () =>
