@@ -39,7 +39,7 @@ export default function GraphTab() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(null);
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
-  const [stats, setStats] = useState<{ totalNodes: number; totalEdges: number; topEntities: { entity_type: string; count: number }[] } | null>(null);
+  const [stats, setStats] = useState<{ totalNodes: number; totalEdges: number; topEntities: { entity_type: string; count: number }[]; topRelations?: { relation: string; count: number }[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<GraphData['nodes'][0] | null>(null);
   const [, setNeighbors] = useState<KnowledgeNode[]>([]);

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
 import type { Workflow, WorkflowNode, WorkflowEdge } from '../../hooks/useHubApi';
@@ -532,6 +532,52 @@ function FlowNode({
   );
 }
 
+/* ─── DAG Validation ─── */
+function validateDAG(nodes: WorkflowNode[], edges: WorkflowEdge[]): string[] {
+  const warnings: string[] = [];
+  if (nodes.length === 0) return ['Workflow has no nodes'];
+
+  const hasInput = nodes.some(n => n.type === 'input');
+  const hasOutput = nodes.some(n => n.type === 'output');
+  if (!hasInput) warnings.push('Missing an Input node (workflow entry point)');
+  if (!hasOutput) warnings.push('Missing an Output node (collect final result)');
+
+  // Orphaned nodes (no edges at all)
+  const connected = new Set<string>();
+  for (const e of edges) { connected.add(e.from); connected.add(e.to); }
+  const orphans = nodes.filter(n => !connected.has(n.id) && nodes.length > 1);
+  if (orphans.length > 0) warnings.push(`Orphaned nodes: ${orphans.map(n => n.label).join(', ')}`);
+
+  // Agent nodes without agentId
+  const unassigned = nodes.filter(n => n.type === 'agent' && !n.agentId && !n.config?.prompt);
+  if (unassigned.length > 0) warnings.push(`Agent nodes missing config: ${unassigned.map(n => n.label).join(', ')}`);
+
+  // Cycle detection (DFS)
+  const adj = new Map<string, string[]>();
+  for (const n of nodes) adj.set(n.id, []);
+  for (const e of edges) adj.get(e.from)?.push(e.to);
+  const visited = new Set<string>();
+  const stack = new Set<string>();
+  function hasCycle(id: string): boolean {
+    visited.add(id);
+    stack.add(id);
+    for (const next of (adj.get(id) || [])) {
+      if (stack.has(next)) return true;
+      if (!visited.has(next) && hasCycle(next)) return true;
+    }
+    stack.delete(id);
+    return false;
+  }
+  for (const n of nodes) {
+    if (!visited.has(n.id) && hasCycle(n.id)) {
+      warnings.push('Circular dependency detected — workflow will loop forever');
+      break;
+    }
+  }
+
+  return warnings;
+}
+
 /* ─── Main Component ─── */
 export default function WorkflowBuilder() {
   const workflows = useHubStore((s) => s.workflows);
@@ -544,8 +590,11 @@ export default function WorkflowBuilder() {
   const createWorkflow = useHubStore((s) => s.createWorkflow);
   const updateWorkflow = useHubStore((s) => s.updateWorkflow);
   const runWorkflow = useHubStore((s) => s.runWorkflow);
+  const fetchWorkflowRuns = useHubStore((s) => s.fetchWorkflowRuns);
+  const workflowRuns = useHubStore((s) => s.workflowRuns);
   const loading = useHubStore((s) => s.loading);
 
+  const [showRuns, setShowRuns] = useState(false);
   const [newWorkflow, setNewWorkflow] = useState({ name: '', description: '' });
   const [creating, setCreating] = useState(false);
   const [running, setRunning] = useState(false);
@@ -560,8 +609,16 @@ export default function WorkflowBuilder() {
   const poll = useCallback(() => { fetchWorkflows(); }, [fetchWorkflows]);
   usePolling(poll, 30000);
 
+  useEffect(() => {
+    if (selectedWorkflow) {
+      fetchWorkflowRuns(selectedWorkflow.id);
+    }
+  }, [selectedWorkflow?.id, fetchWorkflowRuns]);
+
   const nodes: WorkflowNode[] = selectedWorkflow?.definition?.nodes || [];
   const edges: WorkflowEdge[] = selectedWorkflow?.definition?.edges || [];
+  const dagWarnings = useMemo(() => validateDAG(nodes, edges), [nodes, edges]);
+  const hasCriticalWarning = dagWarnings.some(w => w.includes('Circular') || w.includes('no nodes'));
 
   // Stats
   const stats = useMemo(() => {
@@ -795,18 +852,24 @@ export default function WorkflowBuilder() {
               <button
                 className="fo-action-btn fo-action-btn--primary"
                 onClick={() => handleRun(selectedWorkflow)}
-                disabled={running || nodes.length === 0}
+                disabled={running || nodes.length === 0 || hasCriticalWarning}
+                title={hasCriticalWarning ? dagWarnings.join('; ') : ''}
               >
                 {running ? 'Starting...' : '▶ Run'}
               </button>
               {selectedWorkflow.status === 'draft' && (
-                <button className="fo-action-btn" onClick={() => updateWorkflow(selectedWorkflow.id, { status: 'active' })}>
+                <button className="fo-action-btn" onClick={() => updateWorkflow(selectedWorkflow.id, { status: 'active' })} disabled={hasCriticalWarning}>
                   Activate
                 </button>
               )}
               {selectedWorkflow.status === 'active' && (
-                <button className="fo-action-btn" onClick={() => updateWorkflow(selectedWorkflow.id, { status: 'draft' })}>
+                <button className="fo-action-btn" onClick={() => updateWorkflow(selectedWorkflow.id, { status: 'paused' })}>
                   Pause
+                </button>
+              )}
+              {selectedWorkflow.status === 'paused' && (
+                <button className="fo-action-btn" onClick={() => updateWorkflow(selectedWorkflow.id, { status: 'active' })} disabled={hasCriticalWarning}>
+                  Resume
                 </button>
               )}
               <button
@@ -820,6 +883,14 @@ export default function WorkflowBuilder() {
 
           {selectedWorkflow.description && (
             <p className="fwb-detail-desc">{selectedWorkflow.description}</p>
+          )}
+
+          {dagWarnings.length > 0 && (
+            <div className="fwb-dag-warnings">
+              {dagWarnings.map((w, i) => (
+                <div key={i} className="fwb-dag-warning">{w}</div>
+              ))}
+            </div>
           )}
 
           {/* Canvas */}
@@ -904,6 +975,40 @@ export default function WorkflowBuilder() {
               </div>
             </div>
           )}
+
+          {/* Run History */}
+          <div className="fo-panel">
+            <div className="fo-panel-header" style={{ cursor: 'pointer' }} onClick={() => setShowRuns(!showRuns)}>
+              <span className="fo-panel-title">Run History {showRuns ? '\u25BE' : '\u25B8'}</span>
+              <span className="fo-panel-count">{workflowRuns.length}</span>
+            </div>
+            {showRuns && (
+              <div className="fwb-run-list" style={{ padding: '0.5rem' }}>
+                {workflowRuns.length === 0 ? (
+                  <div className="fwb-canvas-empty" style={{ padding: '1rem' }}>
+                    <p>No runs yet. Click "Run" to execute this workflow.</p>
+                  </div>
+                ) : workflowRuns.map(run => (
+                  <div key={run.id} className="fwb-edge-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <StatusBadge status={run.status} />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #9ca3af)' }}>
+                      {new Date(run.created_at).toLocaleString()}
+                    </span>
+                    {run.current_node && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary, #6b7280)' }}>
+                        @ {run.current_node}
+                      </span>
+                    )}
+                    {run.error && (
+                      <span style={{ fontSize: '0.75rem', color: '#ef4444', marginLeft: 'auto', maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {run.error}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       )}
 

@@ -375,4 +375,32 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
       return reply.send({ run });
     },
   );
+
+  /**
+   * GET /api/v1/forge/workflows/:id/runs - List workflow runs
+   */
+  app.get(
+    '/api/v1/forge/workflows/:id/runs',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id: workflowId } = request.params as { id: string };
+      const { limit = '20', offset = '0' } = request.query as { limit?: string; offset?: string };
+
+      const runs = await query<WorkflowRunRow>(
+        `SELECT * FROM forge_workflow_runs
+         WHERE workflow_id = $1 AND owner_id = $2
+         ORDER BY created_at DESC
+         LIMIT $3 OFFSET $4`,
+        [workflowId, userId, parseInt(limit), parseInt(offset)],
+      );
+
+      const countResult = await queryOne<{ count: string }>(
+        `SELECT COUNT(*) as count FROM forge_workflow_runs WHERE workflow_id = $1 AND owner_id = $2`,
+        [workflowId, userId],
+      );
+
+      return reply.send({ runs, total: parseInt(countResult?.count || '0') });
+    },
+  );
 }
