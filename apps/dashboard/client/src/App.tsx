@@ -5,27 +5,19 @@ import ErrorBoundary from './components/ErrorBoundary';
 import CookieConsent from './components/CookieConsent';
 import WsToastBridge from './components/WsToastBridge';
 
-// Lazy-loaded: auth pages
+// Lazy-loaded: auth
 const Login = lazy(() => import('./pages/Login'));
-const Signup = lazy(() => import('./pages/Signup'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const ResetPassword = lazy(() => import('./pages/ResetPassword'));
-const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
-const Register = lazy(() => import('./pages/Register'));
-const Landing = lazy(() => import('./pages/Landing'));
-const Onboard = lazy(() => import('./pages/Onboard'));
+
+// Lazy-loaded: app
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
+const UnifiedDashboard = lazy(() => import('./pages/UnifiedDashboard'));
+
+// Lazy-loaded: static pages
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Docs = lazy(() => import('./pages/Docs'));
 const Status = lazy(() => import('./pages/Status'));
-const Try = lazy(() => import('./pages/Try'));
-
-// Lazy-loaded: app layout (full-width wrapper)
-const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
-
-// Lazy-loaded: app pages
-const UnifiedDashboard = lazy(() => import('./pages/UnifiedDashboard'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -33,26 +25,14 @@ function ScrollToTop() {
   return null;
 }
 
-const isSelfHosted = import.meta.env.VITE_SELFHOSTED === 'true';
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuthStore();
 
   if (isLoading) return <LoadingScreen />;
-  if (!user) {
-    // In self-hosted mode, redirect to login (auto-created user)
-    // In SaaS mode, same behavior
-    return <Navigate to="/login" replace />;
-  }
-  // Skip email verification and onboarding checks in self-hosted mode
-  if (!isSelfHosted) {
-    if (user.emailVerified === false) return <Navigate to="/verify-email" replace />;
-    if (!user.onboardingCompleted) return <Navigate to="/onboard" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />;
 
   return <>{children}</>;
 }
-
 
 function LoadingScreen() {
   return (
@@ -77,16 +57,10 @@ export default function App() {
     <ScrollToTop />
     <Suspense fallback={<LoadingScreen />}>
     <Routes>
-      {/* Auth routes */}
+      {/* Auth */}
       <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/onboard" element={<Onboard />} />
 
-      {/* Main app with sidebar layout */}
+      {/* Main app */}
       <Route
         element={
           <ProtectedRoute>
@@ -94,32 +68,23 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        {/* Ask Alf — dev project, super_admin only */}
-
-
-        {/* Unified Dashboard — all tabs */}
         <Route path="/command-center" element={<UnifiedDashboard />} />
         <Route path="/command-center/:tab" element={<UnifiedDashboard />} />
 
-        {/* Legacy redirect */}
+        {/* Legacy redirects */}
         <Route path="/agents" element={<Navigate to="/command-center" replace />} />
-        {/* Git space → Push tab in Command Center */}
-        <Route path="/repos" element={<Navigate to="/command-center/push" replace />} />
-        <Route path="/git-space" element={<Navigate to="/command-center/push" replace />} />
-
-        {/* Redirects: Settings & Users now live inside Command Center */}
+        <Route path="/repos" element={<Navigate to="/command-center/deploy" replace />} />
+        <Route path="/git-space" element={<Navigate to="/command-center/deploy" replace />} />
         <Route path="/settings" element={<Navigate to="/command-center/settings" replace />} />
         <Route path="/settings/:tab" element={<Navigate to="/command-center/settings" replace />} />
-        <Route path="/users" element={<Navigate to="/command-center/users" replace />} />
       </Route>
 
       {/* Public pages */}
-      <Route path="/" element={isSelfHosted ? <Navigate to="/command-center" replace /> : <Landing />} />
+      <Route path="/" element={<Navigate to="/command-center" replace />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/docs" element={<Docs />} />
       <Route path="/status" element={<Status />} />
-      <Route path="/try" element={<Try />} />
 
       {/* Legacy redirects */}
       <Route path="/app/*" element={<Navigate to="/command-center" replace />} />

@@ -148,7 +148,7 @@ function ConfigureStep({
         />
       </label>
       <label className="builder-field">
-        <span>Autonomy Level (1-5)</span>
+        <span>Autonomy Level</span>
         <div className="builder-slider-row">
           <input
             type="range"
@@ -158,6 +158,13 @@ function ConfigureStep({
             onChange={e => onChange({ autonomyLevel: parseInt(e.target.value, 10) })}
           />
           <span className="builder-slider-val">{config.autonomyLevel}</span>
+        </div>
+        <div className="builder-autonomy-desc">
+          {config.autonomyLevel === 1 && <span><strong>Manual</strong> — Agent proposes actions, waits for your approval before doing anything</span>}
+          {config.autonomyLevel === 2 && <span><strong>Guided</strong> — Agent handles routine tasks, asks before anything risky or destructive</span>}
+          {config.autonomyLevel === 3 && <span><strong>Balanced</strong> — Agent works independently on most tasks, checks in on major decisions</span>}
+          {config.autonomyLevel === 4 && <span><strong>Autonomous</strong> — Agent operates freely, only alerts you on errors or cost thresholds</span>}
+          {config.autonomyLevel === 5 && <span><strong>Full Auto</strong> — Agent runs end-to-end without interruption, including deploys and git pushes</span>}
         </div>
       </label>
     </div>
@@ -354,7 +361,7 @@ function ReviewStep({
         <p>{config.description || 'No description'}</p>
         <div className="builder-review-grid">
           <div><strong>Model:</strong> {config.model}</div>
-          <div><strong>Autonomy:</strong> Level {config.autonomyLevel}</div>
+          <div><strong>Autonomy:</strong> {config.autonomyLevel === 1 ? 'Manual' : config.autonomyLevel === 2 ? 'Guided' : config.autonomyLevel === 3 ? 'Balanced' : config.autonomyLevel === 4 ? 'Autonomous' : 'Full Auto'} ({config.autonomyLevel}/5)</div>
           <div><strong>Tools:</strong> {config.tools.length > 0 ? config.tools.map(t => toolNames[t] || t).join(', ') : 'None'}</div>
           <div><strong>Max Cost:</strong> ${config.maxCostPerExecution.toFixed(2)}</div>
           <div><strong>Max Iterations:</strong> {config.maxIterations}</div>
