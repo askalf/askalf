@@ -1,7 +1,7 @@
 {
   "name": "@askalf/auth",
   "version": "1.0.0",
-  "description": "Authentication, sessions, and API key management for AskAlf",
+  "description": "API key management for AskAlf",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
@@ -9,22 +9,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./api-keys": {
-      "types": "./dist/api-keys.d.ts",
-      "import": "./dist/api-keys.js"
-    },
-    "./types": {
-      "types": "./dist/types.d.ts",
-      "import": "./dist/types.js"
-    },
-    "./password": {
-      "types": "./dist/password.d.ts",
-      "import": "./dist/password.js"
-    },
-    "./usage": {
-      "types": "./dist/usage.d.ts",
-      "import": "./dist/usage.js"
     }
   },
   "scripts": {
@@ -41,9 +25,7 @@
     "ulid": "^2.3.0"
   },
   "devDependencies": {
-    "@fastify/cookie": "^11.0.0",
     "@types/bcrypt": "^5.0.2",
-    "fastify": "^5.2.0",
     "typescript": "^5.7.0"
   }
 }
