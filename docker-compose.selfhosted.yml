@@ -253,6 +253,8 @@ services:
     container_name: askalf-mcp-tools
     labels:
       - "autoheal-askalf=true"
+    ports:
+      - "127.0.0.1:3010:3010"
     environment:
       NODE_ENV: production
       PORT: 3010
