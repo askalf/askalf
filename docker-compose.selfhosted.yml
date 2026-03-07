@@ -10,8 +10,10 @@ services:
   postgres:
     image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
     container_name: askalf-postgres
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    labels:
+      - "autoheal-askalf=true"
+    expose:
+      - "5432"
     environment:
       POSTGRES_USER: substrate
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -23,6 +25,10 @@ services:
       - ./packages/database/src/migrations:/docker-entrypoint-initdb.d:ro
       - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+      - /var/run/postgresql:mode=755,size=8m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U substrate -d askalf"]
       interval: 10s
@@ -57,6 +63,8 @@ services:
   redis:
     image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
     container_name: askalf-redis
+    labels:
+      - "autoheal-askalf=true"
     command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
@@ -79,6 +87,7 @@ services:
     cap_add:
       - SETUID
       - SETGID
+    read_only: true
     logging:
       driver: json-file
       options:
@@ -101,8 +110,8 @@ services:
     container_name: askalf-forge
     labels:
       - "autoheal-askalf=true"
-    ports:
-      - "${FORGE_PORT:-3005}:3005"
+    expose:
+      - "3005"
     environment:
       NODE_ENV: production
       PORT: 3005
@@ -224,8 +233,6 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    cap_add:
-      - SYS_PTRACE
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=512m
@@ -304,6 +311,8 @@ services:
   docker-proxy:
     image: tecnativa/docker-socket-proxy:latest@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
     container_name: askalf-docker-proxy
+    labels:
+      - "autoheal-askalf=true"
     environment:
       CONTAINERS: 1
       EXEC: 1
@@ -315,6 +324,17 @@ services:
     networks:
       - askalf-net
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=8m
+      - /run:mode=755,size=8m
+      - /var/lib/haproxy:mode=755,size=8m
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:2375/version || exit 1"]
       interval: 10s
@@ -334,6 +354,8 @@ services:
   searxng:
     image: searxng/searxng@sha256:1a143665b6445079d1cd5b6facdf599d22ac9c29698dd2e7d15eb9b5f5a854cc
     container_name: askalf-searxng
+    labels:
+      - "autoheal-askalf=true"
     environment:
       SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:
@@ -352,6 +374,9 @@ services:
     networks:
       - askalf-net
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=32m
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -359,7 +384,6 @@ services:
     cap_add:
       - SETGID
       - SETUID
-      - DAC_OVERRIDE
     logging:
       driver: json-file
       options:
