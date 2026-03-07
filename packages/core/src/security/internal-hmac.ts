@@ -1,7 +1,7 @@
 /**
  * Internal service-to-service HMAC-SHA256 request signing.
  *
- * Use this to authenticate requests between forge, dashboard, mcp-tools, and admin-console.
+ * Use this to authenticate requests between forge, dashboard, and mcp-tools.
  * All internal services share a secret via the INTERNAL_API_SECRET environment variable.
  *
  * Two modes are supported:

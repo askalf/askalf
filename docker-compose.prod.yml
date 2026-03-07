@@ -7,7 +7,7 @@ services:
   postgres:
     image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
     container_name: askalf-postgres
-    # No exposed ports — all access through pgbouncer inside Docker network
+    # No exposed ports — accessed directly by app services on Docker network
     environment:
       POSTGRES_USER: substrate
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -20,7 +20,7 @@ services:
       - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     # Shared memory for PostgreSQL (matches shared_buffers)
-    shm_size: 256m
+    shm_size: 192m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U substrate -d askalf"]
       interval: 10s
@@ -46,8 +46,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "50m"
-        max-file: "5"
+        max-size: "100m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -88,8 +88,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "50m"
-        max-file: "5"
+        max-size: "20m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -107,14 +107,13 @@ services:
       context: .
       dockerfile: apps/dashboard/Dockerfile
     container_name: askalf-dashboard
-    # NO PUBLIC PORTS - dashboard is only accessible via cloudflared tunnel
-    expose:
-      - "3001"
+    ports:
+      - "3001:3001"
     environment:
       NODE_ENV: production
       PORT: 3001
-      # Database (via pgbouncer for connection pooling)
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
+      # Database
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
       SESSION_SECRET: ${SESSION_SECRET}
       # Encryption key for API keys (shared with API)
       JWT_SECRET: ${JWT_SECRET}
@@ -135,7 +134,7 @@ services:
       - .:/workspace:rw
       - ./.claude-credentials.json:/home/substrate/claude-credentials.json:rw
     depends_on:
-      pgbouncer:
+      postgres:
         condition: service_healthy
       forge:
         condition: service_healthy
@@ -174,7 +173,7 @@ services:
           cpus: '0.25'
           memory: 192M
 
-  # Unified MCP Tools Server — 15 tools (workflow, data, infra, agent)
+  # Unified MCP Tools Server — 24 tools (workflow, data, infra, agent, forge)
   mcp-tools:
     build:
       context: .
@@ -183,9 +182,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3010
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
+      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       SEARXNG_URL: http://searxng:8080
       FORGE_URL: http://forge:3005
@@ -196,7 +195,7 @@ services:
     volumes:
       - .:/workspace:ro
     depends_on:
-      pgbouncer:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -246,9 +245,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3005
-      # Unified askalf database (via pgbouncer)
-      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
-      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
+      # Unified askalf database
+      FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # AI Providers — ANTHROPIC_API_KEY empty to force OAuth subscription (CLI uses OAuth)
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -299,7 +298,7 @@ services:
     group_add:
       - "0"
     depends_on:
-      pgbouncer:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -326,90 +325,17 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "50m"
+        max-size: "100m"
         max-file: "5"
     deploy:
       resources:
         limits:
           cpus: '2.0'
-          memory: 2048M
+          memory: 1536M
         reservations:
           cpus: '0.5'
-          memory: 512M
+          memory: 384M
 
-  # Admin Console — Standalone Super-Admin Terminal (integration.tax)
-  # Independent from dashboard — survives dashboard crashes
-  # Full Docker control via mounted socket + docker CLI
-  admin-console:
-    build:
-      context: .
-      dockerfile: apps/admin-console/Dockerfile
-    container_name: askalf-admin-console
-    expose:
-      - "3002"
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@pgbouncer:5432/askalf
-      SESSION_SECRET: ${SESSION_SECRET}
-      ANTHROPIC_API_KEY: ''
-      WORKSPACE_DIR: /workspace
-      ADMIN_CONSOLE_TOKEN: ${ADMIN_CONSOLE_TOKEN}
-      DOCKER_HOST: unix:///var/run/docker.sock
-      SSH_HOST_USER: masterm1nd
-      SSH_HOST_ADDR: host.docker.internal
-      SSH_HOST_KEY: /tmp/admin-claude-home/.ssh/id_ed25519
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:rw
-      - .:/workspace:rw
-      - ./.claude-credentials.json:/tmp/claude-credentials.json:rw
-      - admin-claude-home:/tmp/admin-claude-home
-    group_add:
-      - "0"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      pgbouncer:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    networks:
-      - askalf-net
-    restart: unless-stopped
-    labels:
-      - "autoheal=true"
-    stop_grace_period: 15s
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    # NOTE: Docker socket access is file I/O (not Linux caps); cap_drop ALL is safe here.
-    # Raw /var/run/docker.sock mount is an accepted high-privilege risk for super-admin use.
-    tmpfs:
-      - /tmp:mode=1777,size=128m
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
-
-  # self: RETIRED — conversation-first AI service (archived to archive/apps/self/)
-
-  # askalf: RETIRED — universal chat service (archived to archive/apps/askalf/)
-
-  # just-push: RETIRED — consolidated into Dashboard Command Center "Push" tab
 
   # ===========================================
   # INFRASTRUCTURE LAYER
@@ -462,8 +388,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "50m"
-        max-file: "5"
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -472,70 +398,6 @@ services:
         reservations:
           cpus: '0.1'
           memory: 32M
-
-  # Database connection pooler
-  pgbouncer:
-    image: edoburu/pgbouncer:v1.25.1-p0@sha256:c7bfcaa24de830e29588bb9ad1eb39cebaf07c27149e1974445899b695634bb4
-    container_name: askalf-pgbouncer
-    environment:
-      # Unified askalf database pooled
-      DATABASE_URLS: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
-      POOL_MODE: transaction
-      MAX_CLIENT_CONN: 1000
-      DEFAULT_POOL_SIZE: 80
-      MIN_POOL_SIZE: 15
-      RESERVE_POOL_SIZE: 15
-      # Authentication for PostgreSQL 17 SCRAM
-      AUTH_TYPE: scram-sha-256
-      STATS_USERS: substrate
-      # Connection hygiene
-      SERVER_RESET_QUERY: DISCARD ALL
-      SERVER_LIFETIME: 3600
-      SERVER_IDLE_TIMEOUT: 600
-      # TCP keepalive for connection stability
-      TCP_KEEPALIVE: 1
-      TCP_KEEPIDLE: 60
-      TCP_KEEPINTVL: 10
-      TCP_KEEPCNT: 6
-      # Reduce log noise (stats still logged)
-      LOG_CONNECTIONS: 0
-      LOG_DISCONNECTIONS: 0
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U substrate -d askalf || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - askalf-net
-    restart: unless-stopped
-    labels:
-      - "autoheal=true"
-    stop_grace_period: 15s
-    read_only: true
-    tmpfs:
-      - /var/run/pgbouncer:size=10M,mode=1777
-      - /etc/pgbouncer:size=10M,mode=1777
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "5"
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 64M
-        reservations:
-          cpus: '0.05'
-          memory: 16M
 
   # Cloudflare Tunnel for Zero Trust access (managed via Cloudflare dashboard)
   cloudflared:
@@ -567,8 +429,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "50m"
-        max-file: "5"
+        max-size: "10m"
+        max-file: "2"
     deploy:
       resources:
         limits:
@@ -614,8 +476,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "50m"
-        max-file: "5"
+        max-size: "5m"
+        max-file: "2"
     deploy:
       resources:
         limits:
@@ -628,7 +490,7 @@ services:
   # Auto-heal for container recovery
   # Only restarts containers with label "autoheal=true" that become unhealthy
   # Excluded: postgres, redis (stateful - prefer manual intervention)
-  # Included: forge, dashboard, mcp-tools, nginx, pgbouncer, cloudflared, searxng
+  # Included: forge, dashboard, mcp-tools, nginx, cloudflared, searxng
   autoheal:
     image: willfarrell/autoheal@sha256:63fb6c9afa4420bd118cb22ddee919f99dd2439105261c61f1a0fb506119f66b
     container_name: askalf-autoheal
@@ -654,8 +516,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "50m"
-        max-file: "5"
+        max-size: "5m"
+        max-file: "2"
     deploy:
       resources:
         limits:
@@ -703,8 +565,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "50m"
-        max-file: "5"
+        max-size: "20m"
+        max-file: "3"
     deploy:
       resources:
         limits:
@@ -732,10 +594,6 @@ volumes:
   searxng_cache:
     name: substrate_prod_searxng_cache
     external: true
-  admin-claude-home:
-    name: admin_claude_home
-    external: true
-
 networks:
   askalf-net:
     name: askalf-net

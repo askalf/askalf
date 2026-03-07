@@ -42,17 +42,14 @@ const DOCKER_CONN: Record<string, unknown> = (() => {
 })();
 
 const SERVICE_MAP: Record<string, string> = {
-  api: 'askalf-api',
   dashboard: 'askalf-dashboard',
   forge: 'askalf-forge',
-  worker: 'askalf-worker',
-  scheduler: 'askalf-scheduler',
+  'mcp-tools': 'askalf-mcp-tools',
   nginx: 'askalf-nginx',
-  mcp: 'askalf-mcp',
-  self: 'askalf-self',
+  searxng: 'askalf-searxng',
 };
 
-const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
+const PROTECTED_SERVICES = ['postgres', 'redis', 'cloudflared'];
 
 const HEALTH_ENDPOINTS: Record<string, string> = {
   dashboard: 'http://askalf-dashboard:3001/health',

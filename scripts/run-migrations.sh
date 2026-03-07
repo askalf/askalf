@@ -52,12 +52,12 @@ if [ "$USE_DOCKER" = true ]; then
   log "Running migrations via Docker..."
 
   # Check if container is running
-  if ! docker ps --format '{{.Names}}' | grep -q "askalf-api"; then
-    error "askalf-api container is not running"
+  if ! docker ps --format '{{.Names}}' | grep -q "askalf-forge"; then
+    error "askalf-forge container is not running"
   fi
 
-  # Run migrations inside the API container (it has the built migrate.js)
-  docker exec -it askalf-api node -e "
+  # Run migrations inside the forge container
+  docker exec -it askalf-forge node -e "
     const { migrate } = require('postgres-migrations');
     const { Client } = require('pg');
     const path = require('path');

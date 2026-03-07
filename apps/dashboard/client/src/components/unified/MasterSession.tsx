@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useMasterSession } from '../../hooks/useMasterSession';
 import '@xterm/xterm/css/xterm.css';
 
@@ -11,8 +11,18 @@ export default function MasterSession() {
   const termRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<InstanceType<typeof import('@xterm/xterm').Terminal> | null>(null);
   const fitAddonRef = useRef<InstanceType<typeof import('@xterm/addon-fit').FitAddon> | null>(null);
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const { connected, status, send, sendSignal, resize, restart, onData, onHistory } = useMasterSession();
+
+  // Debounced resize — prevent flooding backend on animated resizes
+  const debouncedResize = useCallback((cols: number, rows: number) => {
+    if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+    resizeTimerRef.current = setTimeout(() => {
+      resize(cols, rows);
+    }, 150);
+  }, [resize]);
 
   // Load xterm dynamically
   useEffect(() => {
@@ -25,6 +35,8 @@ export default function MasterSession() {
       FitAddon = fitModule.FitAddon;
       WebLinksAddon = linksModule.WebLinksAddon;
       setLoaded(true);
+    }).catch(() => {
+      setLoadError(true);
     });
   }, []);
 
@@ -81,24 +93,25 @@ export default function MasterSession() {
       send(data);
     });
 
-    // Handle resize
+    // Handle resize with debounce
     const resizeObserver = new ResizeObserver(() => {
       try {
         fitAddon.fit();
-        resize(term.cols, term.rows);
+        debouncedResize(term.cols, term.rows);
       } catch {
-        // ignore
+        // terminal may be disposed during resize
       }
     });
     resizeObserver.observe(termRef.current);
 
     return () => {
       resizeObserver.disconnect();
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
       term.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [loaded, send, resize]);
+  }, [loaded, send, debouncedResize]);
 
   // Wire up data/history callbacks
   useEffect(() => {
@@ -115,16 +128,33 @@ export default function MasterSession() {
     };
   }, [onData, onHistory]);
 
+  if (loadError) {
+    return (
+      <div className="ud-master-session">
+        <div className="ud-master-overlay">
+          <span>Failed to load terminal</span>
+        </div>
+      </div>
+    );
+  }
+
   const statusLabel = status?.status || 'connecting';
   const statusColor = connected
     ? status?.status === 'running' ? '#22c55e' : '#eab308'
     : '#ef4444';
 
+  const isFailed = status?.status === 'failed';
+
   return (
-    <div className="ud-master-session">
+    <div className="ud-master-session" role="region" aria-label="Claude Code terminal">
       <div className="ud-master-toolbar">
         <div className="ud-master-status">
-          <span className="ud-health-dot" style={{ background: statusColor }} />
+          <span
+            className="ud-health-dot"
+            style={{ background: statusColor }}
+            role="status"
+            aria-label={`Session status: ${statusLabel}`}
+          />
           <span>{statusLabel}</span>
           {status?.pid && <span className="ud-master-pid">PID {status.pid}</span>}
         </div>
@@ -132,23 +162,26 @@ export default function MasterSession() {
           <button
             className="ud-btn-sm"
             onClick={() => sendSignal('SIGINT')}
-            title="Send Ctrl+C"
+            title="Send Ctrl+C (interrupt)"
+            aria-label="Send interrupt signal"
+            disabled={!connected}
           >
             Ctrl+C
           </button>
           <button
             className="ud-btn-sm"
             onClick={restart}
-            title="Restart session"
+            title="Restart Claude Code session"
+            aria-label="Restart session"
           >
             Restart
           </button>
         </div>
       </div>
-      <div className="ud-master-terminal" ref={termRef} />
-      {!connected && (
+      <div className="ud-master-terminal" ref={termRef} role="log" aria-label="Terminal output" />
+      {(!connected || isFailed) && (
         <div className="ud-master-overlay">
-          <span>Reconnecting...</span>
+          <span>{isFailed ? 'Session failed — click Restart' : 'Reconnecting...'}</span>
         </div>
       )}
     </div>
