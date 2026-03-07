@@ -172,7 +172,7 @@ export const TOOLS = [
 const PROTECTED_CONTAINERS = [
   'askalf-dashboard', 'askalf-forge',
   'askalf-nginx', 'askalf-postgres', 'askalf-redis',
-  'askalf-pgbouncer', 'askalf-cloudflared', 'askalf-self',
+  'askalf-cloudflared',
   'askalf-mcp-tools', 'askalf-searxng',
 ];
 
@@ -274,10 +274,10 @@ async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
 
 const SERVICE_MAP: Record<string, string> = {
   dashboard: 'askalf-dashboard', forge: 'askalf-forge',
-  nginx: 'askalf-nginx', self: 'askalf-self',
+  nginx: 'askalf-nginx',
   'mcp-tools': 'askalf-mcp-tools', searxng: 'askalf-searxng',
 };
-const PROTECTED_SERVICES = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
+const PROTECTED_SERVICES = ['postgres', 'redis', 'cloudflared'];
 
 const HEALTH_ENDPOINTS: Record<string, string> = {
   forge: 'http://askalf-forge:3005/health',

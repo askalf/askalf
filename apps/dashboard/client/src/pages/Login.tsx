@@ -12,7 +12,7 @@ function validateEmail(email: string): string | null {
 
 function getApiUrl() {
   const host = window.location.hostname;
-  if (host.includes('askalf.org') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
+  if (host.includes('askalf.org') || host.includes('amnesia.tax')) return '';
   return 'http://localhost:3001';
 }
 
@@ -180,15 +180,17 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="auth-footer">
-          <p>
-            Don't have an account?{' '}
-            <Link to="/signup" className="auth-link">Join the waitlist</Link>
-          </p>
-          <Link to="/forgot-password" className="auth-link-subtle">
-            Forgot your password?
-          </Link>
-        </div>
+        {import.meta.env.VITE_SELFHOSTED !== 'true' && (
+          <div className="auth-footer">
+            <p>
+              Don't have an account?{' '}
+              <Link to="/signup" className="auth-link">Join the waitlist</Link>
+            </p>
+            <Link to="/forgot-password" className="auth-link-subtle">
+              Forgot your password?
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="auth-background">

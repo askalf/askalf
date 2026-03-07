@@ -784,7 +784,7 @@ Restart Docker containers (protected services excluded).
 **Authentication:** Required
 **Method:** POST
 
-**Protected Services:** postgres, redis, pgbouncer, cloudflared (cannot be restarted)
+**Protected Services:** postgres, redis, cloudflared (cannot be restarted)
 
 **Request Body:**
 ```json
@@ -818,7 +818,7 @@ Start a rebuild or restart of Docker services.
 **Authentication:** Required
 **Method:** POST
 
-**Protected Services:** postgres, redis, pgbouncer, cloudflared (cannot be restarted)
+**Protected Services:** postgres, redis, cloudflared (cannot be restarted)
 
 **Request Body:**
 ```json

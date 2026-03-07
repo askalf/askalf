@@ -9,12 +9,11 @@ const SERVICES = [
   { id: 'dashboard',     label: 'Dashboard',     desc: 'askalf-dashboard' },
   { id: 'forge',         label: 'Forge',          desc: 'askalf-forge' },
   { id: 'mcp-tools',     label: 'MCP Tools',      desc: 'askalf-mcp-tools' },
-  { id: 'admin-console', label: 'Admin Console',  desc: 'askalf-admin-console' },
   { id: 'nginx',         label: 'Nginx',           desc: 'askalf-nginx' },
 ];
 
 const SERVICE_GROUPS = [
-  { id: 'apps',  label: 'Apps',  services: ['dashboard', 'forge', 'mcp-tools', 'admin-console'] },
+  { id: 'apps',  label: 'Apps',  services: ['dashboard', 'forge', 'mcp-tools'] },
   { id: 'infra', label: 'Infra', services: ['nginx'] },
   { id: 'all',   label: 'All',   services: SERVICES.map((s) => s.id) },
 ];

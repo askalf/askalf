@@ -206,11 +206,11 @@ CMD ["dist/index.js"]
 
 ### Recommendations:
 1. **Network isolation**: Consider creating separate networks for:
-   - Database layer (postgres, redis, pgbouncer)
-   - Application layer (api, dashboard, mcp, forge, self)
+   - Database layer (postgres, redis)
+   - Application layer (dashboard, forge, mcp-tools)
    - Infrastructure layer (nginx, cloudflared)
-   
-   Currently all on `substrate-prod-net` - fine for small deployments but reduces blast radius isolation.
+
+   Currently all on `askalf-net` - fine for small deployments but reduces blast radius isolation.
 
 2. **Secrets management**: Currently using `.env` file
    - Consider Docker Secrets for swarm mode

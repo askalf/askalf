@@ -17,7 +17,6 @@ You are running as an embedded Codex CLI instance inside the AskAlf dashboard co
 - `apps/forge/` — Agent orchestration engine (port 3005)
 - `apps/dashboard/` — Unified frontend + Fastify server (port 3001)
 - `apps/mcp-tools/` — 24 MCP tools across 6 categories (port 3010)
-- `apps/admin-console/` — Super-admin terminal (port 3002)
 - `packages/` — Shared packages: @askalf/db, @askalf/auth, @askalf/core, @askalf/database, @askalf/observability, @askalf/email
 - `skills/` — 28 markdown skill files with YAML frontmatter
 
