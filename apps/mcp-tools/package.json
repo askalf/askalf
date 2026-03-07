@@ -10,17 +10,13 @@
     "dev": "tsx watch src/server.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.25.2",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@askalf/db": "workspace:*",
-    "express": "^5.1.0",
-    "cors": "^2.8.5",
     "openai": "^4.77.0",
     "@askalf/observability": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "@types/express": "^5.0.0",
-    "@types/cors": "^2.8.17",
+    "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
     "tsx": "^4.7.0"
   }

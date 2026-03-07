@@ -23,13 +23,31 @@
   "devDependencies": {
     "@types/node": "^20.17.0",
     "eslint": "^9.17.0",
-    "prettier": "^3.4.0",
+    "prettier": "^3.8.1",
     "tsx": "^4.21.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
-    "pg": "^8.13.0"
+    "dotenv": "^17.3.1",
+    "pg": "^8.20.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "fast-xml-parser": ">=5.3.5",
+      "hono": ">=4.12.4",
+      "@hono/node-server": ">=1.19.10",
+      "minimatch": ">=10.2.3",
+      "rollup": ">=4.59.0",
+      "esbuild": ">=0.25.0",
+      "ajv": ">=8.18.0",
+      "@isaacs/brace-expansion": ">=5.0.1",
+      "diff": ">=4.0.4",
+      "qs": ">=6.14.2",
+      "fastify": ">=5.8.1"
+    },
+    "peerDependencyRules": {
+      "ignoreMissing": ["hono"]
+    }
   }
 }
