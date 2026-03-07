@@ -6,7 +6,6 @@ import KeyboardHelpOverlay from '../components/KeyboardHelpOverlay';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { hubApi } from '../hooks/useHubApi';
-import { useAuthStore } from '../stores/auth';
 import { useHubStore } from '../stores/hub';
 import './UnifiedDashboard.css';
 // Hub component CSS (previously imported by CommandCenter)
@@ -32,16 +31,13 @@ const MonitorTab = lazy(() => import('./unified/MonitorTab'));
 const KnowledgeTab = lazy(() => import('./unified/KnowledgeTab'));
 // Platform pages (embedded as tabs)
 const Settings = lazy(() => import('./Settings'));
-const UserAdmin = lazy(() => import('./UserAdmin'));
 
 type TabKey =
   | 'terminal' | 'chat' | 'templates' | 'fleet' | 'documents'
   | 'builder' | 'orchestrator' | 'operations' | 'monitor' | 'knowledge'
-  | 'workflows' | 'deploy' | 'settings' | 'users';
+  | 'workflows' | 'deploy' | 'settings';
 
 interface TabGroup { label: string; tabs: { key: TabKey; label: string }[] }
-
-const isSelfHosted = import.meta.env.VITE_SELFHOSTED === 'true';
 
 const TAB_GROUPS: TabGroup[] = [
   { label: 'Main', tabs: [
@@ -60,30 +56,16 @@ const TAB_GROUPS: TabGroup[] = [
     { key: 'knowledge', label: 'Knowledge' },
     { key: 'workflows', label: 'Workflows' },
     { key: 'deploy', label: 'Deploy' },
-    ...(!isSelfHosted ? [{ key: 'users' as TabKey, label: 'Users' }] : []),
   ]},
 ];
 
-/** Tabs only visible to admin / super_admin (disabled in self-hosted mode) */
-const ADMIN_ONLY_TABS = new Set<TabKey>([
-  'operations', 'monitor', 'knowledge',
-  'workflows', 'deploy', 'users',
-]);
 
 export default function UnifiedDashboard() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const isAdmin = isSelfHosted || user?.role === 'admin' || user?.role === 'super_admin';
+  const visibleGroups = TAB_GROUPS;
 
-  const visibleGroups = useMemo(() => {
-    if (isAdmin) return TAB_GROUPS;
-    return TAB_GROUPS
-      .map(g => ({ ...g, tabs: g.tabs.filter(t => !ADMIN_ONLY_TABS.has(t.key)) }))
-      .filter(g => g.tabs.length > 0);
-  }, [isAdmin]);
-
-  const visibleKeys = useMemo(() => visibleGroups.flatMap(g => g.tabs.map(t => t.key)), [visibleGroups]);
+  const visibleKeys = useMemo(() => TAB_GROUPS.flatMap(g => g.tabs.map(t => t.key)), []);
 
   const initialTab = (tab && visibleKeys.includes(tab as TabKey)) ? tab as TabKey : 'chat';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
@@ -259,14 +241,6 @@ export default function UnifiedDashboard() {
           <ErrorBoundary inline key="settings">
             <Suspense fallback={<div className="ud-loading">Loading Settings...</div>}>
               <Settings embedded />
-            </Suspense>
-          </ErrorBoundary>
-        );
-      case 'users':
-        return (
-          <ErrorBoundary inline key="users">
-            <Suspense fallback={<div className="ud-loading">Loading Users...</div>}>
-              <UserAdmin embedded />
             </Suspense>
           </ErrorBoundary>
         );

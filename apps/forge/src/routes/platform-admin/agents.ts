@@ -189,8 +189,9 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       const id = ulid();
       const slug = ((body['name'] as string) || 'agent').toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const agent = await queryOne<ForgeAgent>(
-        `INSERT INTO forge_agents (id, owner_id, name, slug, description, system_prompt, autonomy_level, model_id, metadata, status, type)
-         VALUES ($1, 'system:forge', $2, $3, $4, $5, $6, $7, $8, 'active', $9) RETURNING *`,
+        `INSERT INTO forge_agents (id, owner_id, name, slug, description, system_prompt, autonomy_level, model_id,
+          enabled_tools, max_iterations, max_cost_per_execution, metadata, status, type)
+         VALUES ($1, 'system:forge', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active', $12) RETURNING *`,
         [
           id,
           body['name'] || 'New Agent',
@@ -198,7 +199,10 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
           body['description'] || '',
           body['systemPrompt'] || body['system_prompt'] || '',
           body['autonomyLevel'] ?? body['autonomy_level'] ?? 2,
-          body['model_id'] || null,
+          body['modelId'] || body['model_id'] || null,
+          body['enabledTools'] || body['enabled_tools'] || [],
+          body['maxIterations'] ?? body['max_iterations'] ?? 15,
+          body['maxCostPerExecution'] ?? body['max_cost_per_execution'] ?? 1.0,
           JSON.stringify(body['metadata'] || {}),
           (body['metadata'] as Record<string, unknown>)?.['type'] || body['type'] || 'custom',
         ]

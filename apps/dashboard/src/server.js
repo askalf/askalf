@@ -2601,7 +2601,11 @@ for (const prefix of ['/api/v1/forge/', '/api/v1/integrations/', '/api/v1/termin
 
 // Catch-all for React Router (must be after all API routes)
 fastify.setNotFoundHandler((request, reply) => {
-  // If it's an API route, return 404
+  // Proxy unhandled /api/v1/admin/ routes to forge (agents, tools, providers, costs, etc.)
+  if (request.url.startsWith('/api/v1/admin/')) {
+    return proxyToForge(request, reply, request.url);
+  }
+  // Other unhandled API routes → 404
   if (request.url.startsWith('/api/') || request.url.startsWith('/ws')) {
     return reply.code(404).send({ error: 'Not found' });
   }
