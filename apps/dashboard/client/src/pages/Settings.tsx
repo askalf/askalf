@@ -362,9 +362,11 @@ function SecurityTab() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   const handleChangePassword = async () => {
     setError('');
+    setPwSuccess(false);
 
     if (!currentPassword) {
       setError('Current password is required');
@@ -418,7 +420,7 @@ function SecurityTab() {
       setNewPassword('');
       setConfirmPassword('');
       setError('');
-      alert('Password changed successfully');
+      setPwSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');
     } finally {
@@ -435,6 +437,13 @@ function SecurityTab() {
 
       <div className="settings-form">
         <h3>Change Password</h3>
+
+        {pwSuccess && (
+          <div className="settings-message settings-message-success">
+            Password changed successfully
+            <button className="settings-message-dismiss" onClick={() => setPwSuccess(false)}>&times;</button>
+          </div>
+        )}
 
         {error && (
           <div className="settings-error">{error}</div>
@@ -1206,71 +1215,42 @@ function CostControlsTab() {
       )}
 
       {/* Current spend summary */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '1rem',
-        marginBottom: '1.5rem',
-      }}>
-        <div style={{
-          padding: '1rem 1.25rem',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-        }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Spent Today</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>
-            ${spentToday.toFixed(4)}
-          </div>
+      <div className="settings-spend-grid">
+        <div className="settings-spend-card">
+          <div className="settings-spend-label">Spent Today</div>
+          <div className="settings-spend-amount">${spentToday.toFixed(4)}</div>
           {dailyLimit.trim() && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <div style={{
-                height: '4px',
-                background: 'var(--border)',
-                borderRadius: '2px',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${dailyPct}%`,
-                  background: dailyPct >= 90 ? '#ef4444' : dailyPct >= 70 ? '#f59e0b' : '#10b981',
-                  borderRadius: '2px',
-                  transition: 'width 0.3s',
-                }} />
+            <div>
+              <div className="settings-spend-bar-track">
+                <div
+                  className="settings-spend-bar-fill"
+                  style={{
+                    width: `${dailyPct}%`,
+                    background: dailyPct >= 90 ? '#ef4444' : dailyPct >= 70 ? '#f59e0b' : '#10b981',
+                  }}
+                />
               </div>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+              <div className="settings-spend-bar-label">
                 {dailyPct.toFixed(0)}% of ${parseFloat(dailyLimit).toFixed(2)} daily limit
               </div>
             </div>
           )}
         </div>
-        <div style={{
-          padding: '1rem 1.25rem',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-        }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Spent This Month</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>
-            ${spentThisMonth.toFixed(4)}
-          </div>
+        <div className="settings-spend-card">
+          <div className="settings-spend-label">Spent This Month</div>
+          <div className="settings-spend-amount">${spentThisMonth.toFixed(4)}</div>
           {monthlyLimit.trim() && (
-            <div style={{ marginTop: '0.5rem' }}>
-              <div style={{
-                height: '4px',
-                background: 'var(--border)',
-                borderRadius: '2px',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${monthlyPct}%`,
-                  background: monthlyPct >= 90 ? '#ef4444' : monthlyPct >= 70 ? '#f59e0b' : '#10b981',
-                  borderRadius: '2px',
-                  transition: 'width 0.3s',
-                }} />
+            <div>
+              <div className="settings-spend-bar-track">
+                <div
+                  className="settings-spend-bar-fill"
+                  style={{
+                    width: `${monthlyPct}%`,
+                    background: monthlyPct >= 90 ? '#ef4444' : monthlyPct >= 70 ? '#f59e0b' : '#10b981',
+                  }}
+                />
               </div>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+              <div className="settings-spend-bar-label">
                 {monthlyPct.toFixed(0)}% of ${parseFloat(monthlyLimit).toFixed(2)} monthly limit
               </div>
             </div>
@@ -1329,17 +1309,9 @@ function CostControlsTab() {
         </div>
       </div>
 
-      <div style={{
-        marginTop: '1.5rem',
-        padding: '1rem 1.25rem',
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-      }}>
-        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.375rem' }}>
-          How cost controls work
-        </div>
-        <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+      <div className="settings-cost-info">
+        <div className="settings-cost-info-title">How cost controls work</div>
+        <ul>
           <li>Each agent execution has a per-execution limit (default $1, set per agent)</li>
           <li>Daily and monthly limits apply across all your agents combined</li>
           <li>When a limit is reached, new executions are blocked until the period resets</li>
@@ -1636,15 +1608,15 @@ function ChannelsTab() {
                 return (
                   <div
                     key={ch.type}
-                    className={`settings-intg-provider-card${isConnected ? ' connected' : ''}${!isWired ? ' upcoming' : ''}`}
-                    style={{ flexDirection: 'column', alignItems: 'stretch', cursor: isWired ? 'pointer' : 'default' }}
+                    className={`settings-intg-provider-card settings-channel-card${isConnected ? ' connected' : ''}${!isWired ? ' upcoming' : ''}`}
+                    style={{ cursor: isWired ? 'pointer' : 'default' }}
                     onClick={() => {
                       if (!isWired || ch.type === 'api') return;
                       setExpandedChannel(isExpanded ? null : ch.type);
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{ch.icon}</span>
+                    <div className="settings-channel-header">
+                      <span className="settings-channel-icon">{ch.icon}</span>
                       <div className="settings-intg-provider-body">
                         <div className="settings-intg-provider-name">{ch.name}</div>
                         <div className="settings-intg-provider-desc">{ch.description}</div>
@@ -1664,31 +1636,26 @@ function ChannelsTab() {
 
                     {/* Expanded config form */}
                     {isExpanded && isWired && ch.fields.length > 0 && (
-                      <div onClick={e => e.stopPropagation()} style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border, rgba(255,255,255,0.06))', paddingTop: '0.75rem' }}>
-                        <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <div onClick={e => e.stopPropagation()} className="settings-channel-form">
+                        <div className="settings-channel-fields">
                           {ch.fields.map(f => (
-                            <div key={f.key}>
-                              <label style={{ display: 'block', fontSize: '0.6875rem', color: 'var(--text-muted)', marginBottom: '2px' }}>{f.label}</label>
+                            <div key={f.key} className="settings-channel-field">
+                              <label>{f.label}</label>
                               <input
                                 type={f.sensitive ? 'password' : 'text'}
                                 placeholder={f.placeholder}
                                 value={forms[ch.type]?.[f.key] ?? ''}
                                 onChange={(e) => updateForm(ch.type, f.key, e.target.value)}
-                                style={{ width: '100%', padding: '0.4rem 0.6rem', background: 'var(--void, #0a0a0f)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text)', fontSize: '0.75rem', fontFamily: 'JetBrains Mono, monospace' }}
                               />
                             </div>
                           ))}
                         </div>
                         {msg && (
-                          <div style={{
-                            padding: '0.375rem 0.625rem', marginBottom: '0.5rem', borderRadius: '6px', fontSize: '0.75rem',
-                            background: msg.type === 'success' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                            color: msg.type === 'success' ? '#34d399' : '#ef4444', wordBreak: 'break-all',
-                          }}>
+                          <div className={`settings-channel-msg ${msg.type}`}>
                             {msg.text}
                           </div>
                         )}
-                        <div style={{ display: 'flex', gap: '0.375rem' }}>
+                        <div className="settings-channel-actions">
                           <button className="settings-intg-connect-btn" onClick={() => handleSave(ch.type)} disabled={saving === ch.type}>
                             {saving === ch.type ? 'Saving...' : isConnected ? 'Update' : 'Save'}
                           </button>
@@ -1863,12 +1830,12 @@ function DevicesTab() {
       )}
 
       {/* Quick Start */}
-      <div style={{ padding: '0.875rem 1rem', background: 'rgba(124, 58, 237, 0.04)', border: '1px solid rgba(124, 58, 237, 0.12)', borderRadius: '8px', marginBottom: '1.25rem' }}>
-        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.375rem' }}>Quick Start</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-          <div><span style={{ color: 'var(--text-muted)' }}>1.</span> <code style={{ color: '#a78bfa', fontSize: '0.7rem' }}>npm install -g @askalf/agent</code></div>
-          <div><span style={{ color: 'var(--text-muted)' }}>2.</span> <code style={{ color: '#a78bfa', fontSize: '0.7rem' }}>askalf-agent connect &lt;your-api-key&gt;</code></div>
-          <div><span style={{ color: 'var(--text-muted)' }}>3.</span> <code style={{ color: '#a78bfa', fontSize: '0.7rem' }}>askalf-agent daemon</code></div>
+      <div className="settings-quickstart">
+        <div className="settings-quickstart-title">Quick Start</div>
+        <div className="settings-quickstart-steps">
+          <div>1. <code>npm install -g @askalf/agent</code></div>
+          <div>2. <code>askalf-agent connect &lt;your-api-key&gt;</code></div>
+          <div>3. <code>askalf-agent daemon</code></div>
         </div>
       </div>
 
@@ -1876,34 +1843,30 @@ function DevicesTab() {
       {devices.length > 0 && (
         <div className="settings-intg-category">
           <h3 className="settings-intg-category-label">Connected</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div className="settings-intg-grid" style={{ gridTemplateColumns: '1fr' }}>
             {devices.map((device) => (
               <div
                 key={device.id}
                 className="settings-intg-provider-card connected"
-                style={{ flexDirection: 'column', alignItems: 'stretch' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span style={{
-                    display: 'inline-block', width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                    background: device.status === 'online' ? '#22c55e' : device.status === 'busy' ? '#f59e0b' : '#ef4444',
-                  }} />
-                  <div className="settings-intg-provider-body">
-                    <div className="settings-intg-provider-name">{device.device_name}</div>
-                    <div className="settings-intg-provider-desc">
-                      {device.os}{device.hostname ? ` \u00B7 ${device.hostname}` : ''} \u00B7 {formatTime(device.last_seen_at)}
-                    </div>
+                <span
+                  className={`settings-device-dot ${device.status}`}
+                />
+                <div className="settings-intg-provider-body">
+                  <div className="settings-intg-provider-name">{device.device_name}</div>
+                  <div className="settings-intg-provider-desc">
+                    {device.os}{device.hostname ? ` \u00B7 ${device.hostname}` : ''} \u00B7 {formatTime(device.last_seen_at)}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.375rem', flexShrink: 0 }}>
-                    {device.status !== 'offline' && (
-                      <button className="settings-btn-sm" onClick={() => handleDisconnect(device.id)} disabled={actionLoading === device.id}>
-                        {actionLoading === device.id ? '...' : 'Disconnect'}
-                      </button>
-                    )}
-                    <button className="settings-btn-sm settings-btn-danger" onClick={() => handleRemove(device.id)} disabled={actionLoading === device.id}>
-                      Remove
+                </div>
+                <div className="settings-provider-actions">
+                  {device.status !== 'offline' && (
+                    <button className="settings-btn-sm" onClick={() => handleDisconnect(device.id)} disabled={actionLoading === device.id}>
+                      {actionLoading === device.id ? '...' : 'Disconnect'}
                     </button>
-                  </div>
+                  )}
+                  <button className="settings-btn-sm settings-btn-danger" onClick={() => handleRemove(device.id)} disabled={actionLoading === device.id}>
+                    Remove
+                  </button>
                 </div>
               </div>
             ))}

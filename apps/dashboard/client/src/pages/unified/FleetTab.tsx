@@ -38,16 +38,17 @@ function getTools(agent: Agent): string[] {
 // ── Stats Cards ──
 
 function FleetStats({ agents }: { agents: Agent[] }) {
-  const running = agents.filter(a => a.status === 'running').length;
+  const active = agents.filter(a => a.status === 'active' || a.status === 'running').length;
   const idle = agents.filter(a => a.status === 'idle').length;
   const errors = agents.filter(a => a.status === 'error').length;
   const tasksDone = agents.reduce((sum, a) => sum + a.tasks_completed, 0);
+  const tasksFailed = agents.reduce((sum, a) => sum + a.tasks_failed, 0);
 
   return (
     <div className="fleet-stats-grid">
       <div className="fleet-stat-card">
-        <div className="fleet-stat-value green">{running}</div>
-        <div className="fleet-stat-label">Running</div>
+        <div className="fleet-stat-value green">{active}</div>
+        <div className="fleet-stat-label">Active</div>
       </div>
       <div className="fleet-stat-card">
         <div className="fleet-stat-value muted">{idle}</div>
@@ -59,7 +60,7 @@ function FleetStats({ agents }: { agents: Agent[] }) {
       </div>
       <div className="fleet-stat-card">
         <div className="fleet-stat-value violet">{tasksDone}</div>
-        <div className="fleet-stat-label">Tasks Done</div>
+        <div className="fleet-stat-label">Completed{tasksFailed > 0 ? ` / ${tasksFailed} failed` : ''}</div>
       </div>
     </div>
   );
@@ -96,7 +97,7 @@ function AgentList({
   const cols: { key: SortColumn; label: string }[] = [
     { key: 'name', label: 'NAME' },
     { key: 'status', label: 'STATUS' },
-    { key: 'tasks', label: 'TASKS' },
+    { key: 'tasks', label: 'DONE/TOTAL' },
     { key: 'age', label: 'LAST RUN' },
   ];
 

@@ -7,6 +7,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { buildIntentSystemPrompt, getPlatformContext, buildSessionContext } from '../runtime/platform-context.js';
 
 interface TemplateRow {
   id: string;
@@ -51,36 +52,63 @@ interface ParsedIntent {
   repoProvider?: string;
 }
 
-const INTENT_SYSTEM_PROMPT = `You are an intent parser for an AI agent platform. Given a user's natural language request, determine:
+const INTENT_SYSTEM_PROMPT = `You are the intent parser for AskAlf (askalf.org) — a self-hosted AI agent orchestration platform. Your job is to parse natural language requests into structured agent configurations.
 
-1. category: One of: research, monitor, build, analyze, automate, security
+The platform runs on: PostgreSQL 17 + pgvector, Redis, Node.js 22, Fastify v5, Docker Compose. It has 11 AI agents (5 internal, 6 user-facing), 28 skills, 24 MCP tools, and supports channel integrations (Slack, Discord, Telegram, WhatsApp) and git integrations (GitHub, GitLab, Bitbucket).
+
+Given a user request, determine:
+
+1. category: One of: research, monitor, build, analyze, automate, security, dev
 2. What the user wants an agent to do
 3. Whether this is a one-time task or recurring
 4. Estimated complexity (low/medium/high)
 5. executionMode: Determine if this needs multiple agents working together:
    - "single": One agent can handle this alone (most requests — use this by default)
-   - "pipeline": Sequential steps where output of one feeds into the next (e.g. "research then write a report")
+   - "pipeline": Sequential steps where output feeds into the next (e.g. "research then write a report")
    - "fan-out": Multiple independent parallel tasks that converge (e.g. "analyze security, performance, and code quality")
-   - "consensus": Multiple agents tackle the same problem from different angles for better accuracy
-   ONLY use multi-agent modes when the task genuinely requires different expertise areas or has clearly separable sub-objectives. Simple research, single scans, monitoring, code review = "single".
+   - "consensus": Multiple agents tackle the same problem from different angles
+   ONLY use multi-agent modes when genuinely needed. Simple research, scans, monitoring, code review = "single".
 6. If executionMode is NOT "single", provide subtasks (2-6 items). Each subtask needs:
-   - title: short name for the subtask
-   - description: what the agent assigned to this subtask should do
-   - suggestedAgentType: one of dev, research, security, content, monitor, custom
-   - dependencies: list of other subtask titles that must complete first (empty array if none)
-   - estimatedComplexity: low, medium, or high
+   - title, description, suggestedAgentType (dev|research|security|content|monitor|custom), dependencies (array), estimatedComplexity
 
-Available template categories and their tools:
-- research: web_search, web_browse, memory_store — for researching topics, competitors, markets
-- security: security_scan, code_analysis, finding_ops — for security scanning and vulnerability assessment
-- build: code_analysis, ticket_ops — for code review, development tasks
-- automate: web_search, memory_store — for content creation, automation tasks
-- monitor: docker_api, deploy_ops, finding_ops — for system monitoring and health checks
-- analyze: db_query, web_search, memory_store — for data analysis and insights
+## Categories and their typical tools:
+- research: web_search, web_browse, memory_store, memory_search — topics, competitors, markets, SEO
+- security: security_scan, code_analysis, finding_ops — vulnerability scanning, dependency auditing, OWASP checks
+- build: code_analysis, ticket_ops, deploy_ops — code review, testing, CI/CD, deployments
+- dev: code_analysis, web_browse, finding_ops, memory_store, db_query — PR review, migrations, repo analysis, full-stack development
+- automate: web_search, memory_store, finding_ops, team_coordinate — content creation, channel management, orchestration, broadcasting
+- monitor: docker_api, deploy_ops, finding_ops, forge_cost, forge_fleet_intel — system health, incident response, cost tracking
+- analyze: db_query, web_search, memory_store, code_analysis, forge_knowledge_graph — data analysis, performance profiling, knowledge building
+
+## Full MCP tool catalog (24 tools):
+Workflow: ticket_ops, finding_ops, intervention_ops, agent_call, proposal_ops
+Data: db_query, substrate_db_query, memory_search, memory_store
+Infrastructure: docker_api, deploy_ops, security_scan, code_analysis
+Agent: web_search, web_browse, team_coordinate
+Forge: forge_checkpoints, forge_capabilities, forge_knowledge_graph, forge_goals, forge_fleet_intel, forge_memory, forge_cost, forge_coordination
+
+## Agent fleet:
+User-facing: Researcher, Sentinel (security), Developer, Writer, Watchdog (monitoring), Analyst
+Internal (admin-only): Frontend Dev, Backend Dev, Infra, QA, Security
+
+## Available skills (28):
+Research: competitor-research, seo-analyzer
+Security: security-scanner, dependency-auditor
+Build: frontend-dev, backend-dev, api-tester, qa-code-review
+Dev: github-pr-review, db-migration-planner, repo-analyzer
+Automate: slack-digest, discord-moderator, telegram-responder, whatsapp-support, deploy-manager, fleet-orchestrator, github-issue-triage, content-writer, release-notes, multi-channel-broadcast, checkpoint-reviewer
+Monitor: system-monitor, incident-responder, cost-optimizer
+Analyze: data-analyst, performance-profiler, knowledge-builder
+
+## Channel integrations:
+Slack, Discord, Telegram, WhatsApp — agents can digest, moderate, respond, and broadcast across channels.
+
+## Git integrations:
+GitHub, GitLab, Bitbucket — agents can review PRs, triage issues, analyze repos, and manage deployments.
 
 Respond in JSON format:
 {
-  "category": "research|monitor|build|analyze|automate|security",
+  "category": "research|monitor|build|analyze|automate|security|dev",
   "confidence": 0.0-1.0,
   "taskDescription": "What the agent should do",
   "agentName": "Short descriptive name for the agent",
@@ -96,11 +124,12 @@ Respond in JSON format:
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   security: ['security', 'vulnerab', 'scan', 'audit', 'cve', 'dependency', 'pentest', 'owasp', 'exploit', 'threat', 'attack', 'ssl', 'tls', 'xss', 'injection', 'auth'],
-  build: ['build', 'code', 'develop', 'implement', 'fix', 'bug', 'feature', 'refactor', 'test', 'review', 'pr', 'pull request', 'deploy', 'ci', 'cd', 'typescript', 'react', 'api', 'endpoint', 'migration'],
+  dev: ['pr review', 'pull request', 'github', 'gitlab', 'bitbucket', 'migration', 'repo', 'repository', 'code review', 'diff', 'commit', 'branch', 'merge', 'git'],
+  build: ['build', 'code', 'develop', 'implement', 'fix', 'bug', 'feature', 'refactor', 'test', 'review', 'deploy', 'ci', 'cd', 'typescript', 'react', 'api', 'endpoint'],
   research: ['research', 'find', 'search', 'look up', 'investigate', 'competitor', 'market', 'compare', 'what is', 'how does', 'tell me about', 'learn', 'discover', 'explore', 'seo'],
   monitor: ['monitor', 'health', 'uptime', 'status', 'alert', 'incident', 'docker', 'container', 'log', 'cpu', 'memory', 'disk', 'performance', 'latency', 'error rate'],
   analyze: ['analyze', 'analysis', 'data', 'metric', 'report', 'insight', 'trend', 'statistics', 'profil', 'benchmark', 'cost', 'usage', 'dashboard'],
-  automate: ['automate', 'schedule', 'write', 'content', 'generate', 'create', 'draft', 'blog', 'post', 'email', 'newsletter', 'summarize', 'document', 'release note'],
+  automate: ['automate', 'schedule', 'write', 'content', 'generate', 'create', 'draft', 'blog', 'post', 'email', 'newsletter', 'summarize', 'document', 'release note', 'slack', 'discord', 'telegram', 'whatsapp', 'broadcast', 'channel'],
 };
 
 function classifyIntentLocal(message: string): { category: string; confidence: number; complexity: 'low' | 'medium' | 'high' } {
@@ -199,6 +228,14 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
         const { default: Anthropic } = await import('@anthropic-ai/sdk');
         const client = new Anthropic({ apiKey });
 
+        // Build system prompt dynamically from DB state (agents, skills, tools)
+        let systemPrompt: string;
+        try {
+          systemPrompt = await buildIntentSystemPrompt();
+        } catch {
+          systemPrompt = INTENT_SYSTEM_PROMPT; // Fallback to static prompt
+        }
+
         const templateContext = templates.map(t =>
           `- ${t.name} (${t.category}): ${t.description} [tools: ${t.required_tools.join(', ')}]`
         ).join('\n');
@@ -212,7 +249,7 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
             const response = await client.messages.create({
               model: 'claude-haiku-4-5-20251001',
               max_tokens: 1024,
-              system: INTENT_SYSTEM_PROMPT,
+              system: systemPrompt,
               messages: [{ role: 'user', content: userContent }],
             });
 
@@ -372,6 +409,50 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
           message: `Failed to dispatch orchestration: ${msg}`,
         });
       }
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/intent/platform-context
+   * Returns live platform context (agents, skills, tools, integrations).
+   * Used by dashboard sessions to generate dynamic instruction files.
+   */
+  app.get(
+    '/api/v1/forge/intent/platform-context',
+    {
+      schema: {
+        tags: ['Intent'],
+        summary: 'Get live platform context for session injection',
+      },
+      preHandler: [authMiddleware],
+    },
+    async (_request: FastifyRequest, _reply: FastifyReply) => {
+      return getPlatformContext();
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/intent/session-context
+   * Returns a rendered markdown context document for embedding in CLI sessions.
+   */
+  app.get(
+    '/api/v1/forge/intent/session-context',
+    {
+      schema: {
+        tags: ['Intent'],
+        summary: 'Get rendered session context markdown',
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, _reply: FastifyReply) => {
+      const qs = request.query as { type?: string; projectName?: string; projectDescription?: string };
+      const sessionType = qs.type === 'codex' ? 'codex' as const : 'claude-code' as const;
+      const markdown = await buildSessionContext({
+        sessionType,
+        projectName: qs.projectName,
+        projectDescription: qs.projectDescription,
+      });
+      return { markdown };
     },
   );
 }
