@@ -137,7 +137,6 @@ services:
       GIT_CONFIG_COUNT: "1"
       GIT_CONFIG_KEY_0: safe.directory
       GIT_CONFIG_VALUE_0: /workspace
-      DOCKER_HOST: tcp://docker-proxy:2375
       MAX_CLI_CONCURRENCY: ${MAX_CLI_CONCURRENCY:-4}
       SEARXNG_URL: http://searxng:8080
       # OAuth (for Claude CLI subscription)
@@ -147,14 +146,13 @@ services:
       - .:/workspace
       - claude_credentials:/tmp/claude-credentials
       - ${CLAUDE_CREDENTIALS_FILE:-${USERPROFILE}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     group_add:
       - "0"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      docker-proxy:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
@@ -267,15 +265,13 @@ services:
       FORGE_API_KEY: ${FORGE_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       REPO_ROOT: /workspace
-      DOCKER_HOST: tcp://docker-proxy:2375
     volumes:
       - .:/workspace:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      docker-proxy:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
@@ -308,49 +304,6 @@ services:
   # ===========================================
   # INFRASTRUCTURE
   # ===========================================
-  docker-proxy:
-    image: tecnativa/docker-socket-proxy:latest@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
-    container_name: askalf-docker-proxy
-    labels:
-      - "autoheal-askalf=true"
-    environment:
-      CONTAINERS: 1
-      EXEC: 1
-      IMAGES: 1
-      POST: 1
-      ALLOW_RESTARTS: 1
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - askalf-net
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777,size=8m
-      - /run:mode=755,size=8m
-      - /var/lib/haproxy:mode=755,size=8m
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:2375/version || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    logging:
-      driver: json-file
-      options:
-        max-size: "5m"
-        max-file: "2"
-    deploy:
-      resources:
-        limits:
-          memory: 64M
-
   searxng:
     image: searxng/searxng@sha256:1a143665b6445079d1cd5b6facdf599d22ac9c29698dd2e7d15eb9b5f5a854cc
     container_name: askalf-searxng
