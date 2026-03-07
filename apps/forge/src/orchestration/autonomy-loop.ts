@@ -395,7 +395,7 @@ async function mergeApprovedProposals(): Promise<void> {
 
 // Service classification for deployment strategy
 const BAKED_SERVICES = new Set(['dashboard', 'mcp-tools']); // need docker compose build + up
-const PROTECTED_SERVICES = new Set(['postgres', 'redis', 'pgbouncer', 'cloudflared']);
+const PROTECTED_SERVICES = new Set(['postgres', 'redis', 'cloudflared']);
 
 async function autoDeploy(services: string[], mergeCommit: string, proposalId: string): Promise<void> {
   // Rate limit

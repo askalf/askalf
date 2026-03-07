@@ -168,11 +168,7 @@ nginx (reverse proxy)
     └─► MCP-Tools :3010
 
 PostgreSQL 17 + pgvector
-    ├─ substrate DB  (users, tickets, schedules, chat)
-    ├─ forge DB      (agents, executions, memories, tools)
-    ├─ self DB       (retired)
-    └─ askalf DB     (retired)
-    via pgbouncer (connection pooling)
+    └─ askalf DB (unified — users, agents, executions, tickets, memories)
 
 Redis 7 (event bus + caching)
 SearXNG (self-hosted web search, no external API keys)

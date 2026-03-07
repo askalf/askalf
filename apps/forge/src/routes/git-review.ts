@@ -426,7 +426,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'services array is required' });
       }
 
-      const PROTECTED = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
+      const PROTECTED = ['postgres', 'redis', 'cloudflared'];
       const blocked = services.filter(s => PROTECTED.includes(s));
       if (blocked.length > 0) {
         return reply.status(400).send({ error: `Protected services cannot be restarted: ${blocked.join(', ')}` });
@@ -485,7 +485,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'services array is required' });
       }
 
-      const PROTECTED = ['postgres', 'redis', 'pgbouncer', 'cloudflared'];
+      const PROTECTED = ['postgres', 'redis', 'cloudflared'];
       const blocked = services.filter(s => PROTECTED.includes(s));
       if (blocked.length > 0) {
         return reply.status(400).send({ error: `Protected services: ${blocked.join(', ')}` });

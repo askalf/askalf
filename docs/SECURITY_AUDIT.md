@@ -33,9 +33,8 @@ The application follows security best practices with proper input sanitization, 
 - Metrics endpoint restricted to internal IPs
 
 ### Database Security (PASS)
-- PostgreSQL only accessible via pgbouncer
-- No public port exposure
-- Connection pooling prevents DoS
+- PostgreSQL only accessible within Docker network (no public port)
+- Connection pooling via pg.Pool in application layer
 - Parameterized queries throughout (no SQL injection vectors found)
 
 ---
