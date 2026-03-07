@@ -68,6 +68,7 @@ replace_if_default "JWT_SECRET" "$(gen_secret 48)"
 replace_if_default "SESSION_SECRET" "$(gen_secret 48)"
 replace_if_default "FORGE_API_KEY" "fk_$(gen_secret 32)"
 replace_if_default "CHANNEL_ENCRYPTION_KEY" "$(gen_hex 32)"
+replace_if_default "SEARXNG_SECRET_KEY" "$(gen_hex 32)"
 
 echo ""
 echo "Configuration saved to .env"
