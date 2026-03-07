@@ -151,6 +151,8 @@ class CodexSessionManager {
       HOME: CODEX_HOME,
       OPENAI_API_KEY: apiKey,
       TERM: 'xterm-256color',
+      // Expose SearXNG URL so Codex can curl it for web searches
+      SEARXNG_URL: process.env['SEARXNG_URL'] || 'http://searxng:8080',
     };
 
     try {
