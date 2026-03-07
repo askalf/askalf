@@ -45,7 +45,14 @@
   flex: 1;
   overflow-y: auto;
   padding: var(--space-lg, 1.5rem);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.2) transparent;
 }
+
+.fleet-content-area::-webkit-scrollbar { width: 6px; }
+.fleet-content-area::-webkit-scrollbar-track { background: transparent; }
+.fleet-content-area::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.2); border-radius: 3px; }
+.fleet-content-area::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.4); }
 
 /* ── Stats Grid ── */
 .fleet-stats-grid {
@@ -174,6 +181,7 @@
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   font-size: 12px;
   font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
@@ -214,6 +222,12 @@
 .fleet-btn.danger:hover {
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.3);
+}
+
+.fleet-btn.danger:disabled {
+  color: var(--text-muted, rgba(255, 255, 255, 0.25));
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* ── Status Chips ── */
@@ -271,6 +285,25 @@
   background: #ef4444;
   box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
   animation: fleet-error-throb 1.2s ease-in-out infinite;
+}
+
+.fleet-status.active {
+  background: rgba(34, 197, 94, 0.08);
+  color: #86efac;
+}
+
+.fleet-status.active .fleet-status-dot {
+  background: #22c55e;
+}
+
+.fleet-status.decommissioned {
+  background: rgba(107, 114, 128, 0.08);
+  color: #6b7280;
+  text-decoration: line-through;
+}
+
+.fleet-status.decommissioned .fleet-status-dot {
+  background: #4b5563;
 }
 
 @keyframes fleet-pulse {
@@ -382,7 +415,13 @@
   overflow-y: auto;
   max-height: calc(100vh - 240px);
   animation: fleet-slide-in 0.2s ease-out;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.2) transparent;
 }
+
+.fleet-detail::-webkit-scrollbar { width: 5px; }
+.fleet-detail::-webkit-scrollbar-track { background: transparent; }
+.fleet-detail::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.2); border-radius: 3px; }
 
 @keyframes fleet-slide-in {
   from { opacity: 0; transform: translateX(12px); }
@@ -426,6 +465,7 @@
 .fleet-detail-tab {
   padding: 8px 12px;
   font-size: 12px;
+  font-family: inherit;
   color: var(--text-muted, rgba(255, 255, 255, 0.3));
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -491,7 +531,13 @@
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 11px;
   line-height: 1.6;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.2) transparent;
 }
+
+.fleet-logs::-webkit-scrollbar { width: 5px; }
+.fleet-logs::-webkit-scrollbar-track { background: transparent; }
+.fleet-logs::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.2); border-radius: 3px; }
 
 .fleet-log-line {
   display: flex;

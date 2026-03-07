@@ -44,7 +44,14 @@
   flex: 1;
   overflow-y: auto;
   padding: 4px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.2) transparent;
 }
+
+.chat-conv-list::-webkit-scrollbar { width: 5px; }
+.chat-conv-list::-webkit-scrollbar-track { background: transparent; }
+.chat-conv-list::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.2); border-radius: 3px; }
+.chat-conv-list::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.4); }
 
 .chat-conv-item {
   display: flex;
@@ -164,7 +171,14 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.2) transparent;
 }
+
+.chat-messages::-webkit-scrollbar { width: 6px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.2); border-radius: 3px; }
+.chat-messages::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.4); }
 
 /* ── Welcome Screen ── */
 
@@ -259,6 +273,17 @@
   color: var(--text-muted, rgba(255, 255, 255, 0.3));
 }
 
+.chat-msg-system .chat-msg-avatar {
+  background: rgba(124, 58, 237, 0.12);
+  color: var(--crystal-lighter, #a78bfa);
+  font-size: 14px;
+}
+
+.chat-msg-system .chat-msg-text {
+  border-color: rgba(124, 58, 237, 0.15);
+  background: rgba(124, 58, 237, 0.04);
+}
+
 .chat-msg-content {
   display: flex;
   flex-direction: column;
@@ -327,7 +352,8 @@
   border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 10px;
   padding: 16px;
-  max-width: 500px;
+  max-width: 600px;
+  width: 100%;
   align-self: flex-start;
   margin-left: 42px;
   backdrop-filter: blur(12px);
@@ -672,6 +698,12 @@
   color: var(--text-muted, rgba(255, 255, 255, 0.25));
 }
 
+.chat-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.01);
+}
+
 .chat-send-btn {
   padding: 10px 20px;
   background: var(--crystal, #7c3aed);
@@ -719,6 +751,34 @@
   cursor: pointer;
   font-size: 12px;
   text-decoration: underline;
+}
+
+/* ── Dark select options ── */
+
+.chat-intent-field select option,
+.chat-intent-field select optgroup {
+  background: #1a1a2e;
+  color: var(--text, #e4e4e7);
+}
+
+/* ── Welcome inline code ── */
+
+.chat-welcome code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--crystal-lighter, #a78bfa);
+}
+
+/* ── Keyboard hint ── */
+
+.chat-input-hint {
+  font-size: 10px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.2));
+  padding: 0 20px 4px;
+  text-align: right;
 }
 
 /* ── Responsive ── */

@@ -10,6 +10,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { query } from '../database.js';
 import { initializeLogger } from '@askalf/observability';
+import { invalidatePlatformContext } from '../runtime/platform-context.js';
 
 const logger = initializeLogger().child({ component: 'skills-loader' });
 
@@ -150,4 +151,9 @@ export async function loadSkills(): Promise<void> {
   }
 
   logger.info(`[Skills] Synced ${synced}/${files.length} skill(s) from skills/ directory`);
+
+  // Invalidate platform context cache so intent parser and sessions pick up new skills
+  if (synced > 0) {
+    invalidatePlatformContext();
+  }
 }

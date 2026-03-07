@@ -117,6 +117,25 @@
   flex: 1;
   overflow-y: auto;
   align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.2) transparent;
+}
+
+.tmpl-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tmpl-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tmpl-grid::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.2);
+  border-radius: 3px;
+}
+
+.tmpl-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.4);
 }
 
 .tmpl-empty {
@@ -163,7 +182,13 @@
 }
 
 .tmpl-card-icon {
-  font-size: 24px;
+  font-size: 22px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tmpl-card-category {
@@ -188,13 +213,67 @@
   line-height: 1.4;
   margin: 0;
   flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .tmpl-card-meta {
   display: flex;
-  gap: 12px;
-  font-size: 12px;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
   color: var(--text-muted, rgba(255, 255, 255, 0.25));
+  flex-wrap: wrap;
+}
+
+.tmpl-card-model {
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.tmpl-card-tools-toggle {
+  padding: 1px 6px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 4px;
+  color: rgba(167, 139, 250, 0.6);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tmpl-card-tools-toggle:hover {
+  background: rgba(124, 58, 237, 0.15);
+  color: #a78bfa;
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+/* ── Tool Tags (expandable list) ── */
+
+.tmpl-card-tool-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 2px;
+}
+
+.tmpl-tool-tag {
+  padding: 2px 7px;
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px solid rgba(124, 58, 237, 0.12);
+  border-radius: 4px;
+  color: rgba(167, 139, 250, 0.5);
+  font-size: 10px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: 0.02em;
 }
 
 /* ── Buttons ── */
@@ -309,6 +388,16 @@
 .tmpl-card-run:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.tmpl-card-run--done {
+  background: #22c55e !important;
+  opacity: 1 !important;
+}
+
+.tmpl-card-run--error {
+  background: #ef4444 !important;
+  opacity: 1 !important;
 }
 
 .tmpl-card-cancel {

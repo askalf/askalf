@@ -26,6 +26,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   automate: 'Automate',
   monitor: 'Monitor',
   analyze: 'Analyze',
+  dev: 'Development',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -35,6 +36,43 @@ const CATEGORY_COLORS: Record<string, string> = {
   automate: '#f59e0b',
   monitor: '#3b82f6',
   analyze: '#8b5cf6',
+  dev: '#14b8a6',
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  research: '\u{1F50D}',  // magnifying glass
+  security: '\u{1F6E1}',  // shield
+  build: '\u{1F528}',     // hammer
+  automate: '\u{2699}',   // gear
+  monitor: '\u{1F4CA}',   // bar chart
+  analyze: '\u{1F9EA}',   // test tube
+  dev: '\u{1F4BB}',       // laptop
+};
+
+const TOOL_LABELS: Record<string, string> = {
+  web_search: 'Web Search',
+  web_browse: 'Web Browse',
+  memory_search: 'Memory Search',
+  memory_store: 'Memory Store',
+  db_query: 'DB Query',
+  substrate_db_query: 'Substrate DB',
+  ticket_ops: 'Tickets',
+  finding_ops: 'Findings',
+  intervention_ops: 'Interventions',
+  agent_call: 'Agent Call',
+  docker_api: 'Docker',
+  deploy_ops: 'Deploy',
+  security_scan: 'Security Scan',
+  code_analysis: 'Code Analysis',
+  team_coordinate: 'Team Coord',
+  forge_checkpoints: 'Checkpoints',
+  forge_capabilities: 'Capabilities',
+  forge_knowledge_graph: 'Knowledge Graph',
+  forge_goals: 'Goals',
+  forge_fleet_intel: 'Fleet Intel',
+  forge_memory: 'Memory',
+  forge_cost: 'Costs',
+  forge_coordination: 'Coordination',
 };
 
 // ── Sub-components ──
@@ -50,23 +88,38 @@ function TemplateCard({
 }) {
   const [showPrompt, setShowPrompt] = useState(false);
   const [prompt, setPrompt] = useState('');
-  const [running, setRunning] = useState(false);
+  const [runState, setRunState] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
+  const [showTools, setShowTools] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const budgetCap = (template.agent_config as Record<string, unknown>)?.maxCostPerExecution;
   const budgetLabel = typeof budgetCap === 'number' ? `$${budgetCap.toFixed(2)} cap` : null;
+  const model = (template.agent_config as Record<string, unknown>)?.model as string | undefined;
+  const modelShort = model?.replace('claude-', '').replace('gpt-', '').split('-').slice(0, 2).join('-') ?? null;
   const catColor = CATEGORY_COLORS[template.category] ?? '#666';
+  const catIcon = CATEGORY_ICONS[template.category] ?? '\u{2B22}';
 
-  const handleRun = () => {
-    if (!prompt.trim()) return;
-    setRunning(true);
-    onQuickRun(template, prompt.trim());
-    setTimeout(() => { setRunning(false); setShowPrompt(false); setPrompt(''); }, 2000);
+  const handleRun = async () => {
+    if (!prompt.trim() || runState === 'running') return;
+    setRunState('running');
+    try {
+      await onQuickRun(template, prompt.trim());
+      setRunState('done');
+      setTimeout(() => { setRunState('idle'); setShowPrompt(false); setPrompt(''); }, 2500);
+    } catch {
+      setRunState('error');
+      setTimeout(() => setRunState('idle'), 3000);
+    }
   };
+
+  const runLabel = runState === 'running' ? 'Dispatching...'
+    : runState === 'done' ? 'Dispatched!'
+    : runState === 'error' ? 'Failed'
+    : 'Run';
 
   return (
     <div className="tmpl-card">
       <div className="tmpl-card-header">
-        <span className="tmpl-card-icon">{template.icon ?? '🤖'}</span>
+        <span className="tmpl-card-icon" aria-hidden="true">{catIcon}</span>
         <span
           className="tmpl-card-category"
           style={{ backgroundColor: `${catColor}20`, color: catColor, borderColor: `${catColor}40` }}
@@ -78,11 +131,25 @@ function TemplateCard({
       <p className="tmpl-card-desc">{template.description}</p>
       <div className="tmpl-card-meta">
         {budgetLabel && <span className="tmpl-card-cost">{budgetLabel}</span>}
-        <span className="tmpl-card-tools">{template.required_tools.length} tools</span>
+        {modelShort && <span className="tmpl-card-model">{modelShort}</span>}
+        <button
+          className="tmpl-card-tools-toggle"
+          onClick={(e) => { e.stopPropagation(); setShowTools(v => !v); }}
+          title={template.required_tools.map(t => TOOL_LABELS[t] ?? t).join(', ')}
+        >
+          {template.required_tools.length} tool{template.required_tools.length !== 1 ? 's' : ''}
+        </button>
         {template.usage_count > 0 && (
-          <span className="tmpl-card-usage">{template.usage_count} uses</span>
+          <span className="tmpl-card-usage">{template.usage_count} use{template.usage_count !== 1 ? 's' : ''}</span>
         )}
       </div>
+      {showTools && template.required_tools.length > 0 && (
+        <div className="tmpl-card-tool-list">
+          {template.required_tools.map(t => (
+            <span key={t} className="tmpl-tool-tag">{TOOL_LABELS[t] ?? t}</span>
+          ))}
+        </div>
+      )}
       {showPrompt ? (
         <div className="tmpl-card-prompt">
           <input
@@ -90,22 +157,24 @@ function TemplateCard({
             type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleRun(); if (e.key === 'Escape') setShowPrompt(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleRun(); if (e.key === 'Escape') { setShowPrompt(false); setPrompt(''); } }}
             placeholder="Describe your task..."
             className="tmpl-card-prompt-input"
+            disabled={runState === 'running'}
             autoFocus
           />
           <div className="tmpl-card-prompt-actions">
             <button
-              className="tmpl-card-run"
+              className={`tmpl-card-run ${runState === 'done' ? 'tmpl-card-run--done' : ''} ${runState === 'error' ? 'tmpl-card-run--error' : ''}`}
               onClick={handleRun}
-              disabled={running || !prompt.trim()}
+              disabled={runState !== 'idle' || !prompt.trim()}
             >
-              {running ? 'Dispatching...' : 'Run'}
+              {runLabel}
             </button>
             <button
               className="tmpl-card-cancel"
-              onClick={() => { setShowPrompt(false); setPrompt(''); }}
+              onClick={() => { setShowPrompt(false); setPrompt(''); setRunState('idle'); }}
+              disabled={runState === 'running'}
             >
               Cancel
             </button>
@@ -161,21 +230,17 @@ export default function TemplatesTab({
   }, [onUseTemplate]);
 
   const handleQuickRun = useCallback(async (template: Template, prompt: string) => {
-    try {
-      // Instantiate agent from template, then run it
-      const result = await hubApi.templates.instantiate(template.id, { name: `${template.name} (quick)` });
-      const agentId = (result as { agent?: { id?: string } })?.agent?.id;
-      if (agentId) {
-        await hubApi.agents.run(agentId, prompt);
-        setRunMessage({ type: 'success', text: `Dispatched "${template.name}" — check Executions for results` });
-        // Update usage count locally
-        setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, usage_count: t.usage_count + 1 } : t));
-      } else {
-        setRunMessage({ type: 'error', text: 'Failed to create agent from template' });
-      }
-    } catch (err) {
-      setRunMessage({ type: 'error', text: err instanceof Error ? err.message : 'Quick run failed' });
+    // Instantiate agent from template, then run it
+    const result = await hubApi.templates.instantiate(template.id, { name: `${template.name} (quick)` });
+    const agentId = (result as { agent?: { id?: string } })?.agent?.id;
+    if (!agentId) {
+      setRunMessage({ type: 'error', text: 'Failed to create agent from template' });
+      setTimeout(() => setRunMessage(null), 4000);
+      throw new Error('Failed to create agent');
     }
+    await hubApi.agents.run(agentId, prompt);
+    setRunMessage({ type: 'success', text: `Dispatched "${template.name}" — check Fleet for progress` });
+    setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, usage_count: t.usage_count + 1 } : t));
     setTimeout(() => setRunMessage(null), 4000);
   }, []);
 

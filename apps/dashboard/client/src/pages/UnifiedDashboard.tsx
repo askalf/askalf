@@ -41,16 +41,18 @@ type TabKey =
 
 interface TabGroup { label: string; tabs: { key: TabKey; label: string }[] }
 
+const isSelfHosted = import.meta.env.VITE_SELFHOSTED === 'true';
+
 const TAB_GROUPS: TabGroup[] = [
   { label: 'Main', tabs: [
-    { key: 'terminal', label: 'Terminal' },
-    { key: 'chat', label: 'Agent Chat' },
-    { key: 'documents', label: 'Library' },
+    { key: 'chat', label: 'Chat' },
+    { key: 'terminal', label: 'Code' },
     { key: 'templates', label: 'Skills' },
     { key: 'fleet', label: 'Fleet' },
     { key: 'settings', label: 'Settings' },
   ]},
   { label: 'Advanced', tabs: [
+    { key: 'documents', label: 'Library' },
     { key: 'builder', label: 'Builder' },
     { key: 'orchestrator', label: 'Orchestrator' },
     { key: 'operations', label: 'Operations' },
@@ -68,8 +70,6 @@ const ADMIN_ONLY_TABS = new Set<TabKey>([
   'workflows', 'deploy', 'users',
 ]);
 
-const isSelfHosted = import.meta.env.VITE_SELFHOSTED === 'true';
-
 export default function UnifiedDashboard() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
@@ -85,7 +85,7 @@ export default function UnifiedDashboard() {
 
   const visibleKeys = useMemo(() => visibleGroups.flatMap(g => g.tabs.map(t => t.key)), [visibleGroups]);
 
-  const initialTab = (tab && visibleKeys.includes(tab as TabKey)) ? tab as TabKey : 'terminal';
+  const initialTab = (tab && visibleKeys.includes(tab as TabKey)) ? tab as TabKey : 'chat';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
   const [helpOpen, setHelpOpen] = useState(false);
   const { connected, events: wsEvents } = useWebSocket();
@@ -204,8 +204,8 @@ export default function UnifiedDashboard() {
       case 'chat':
         return (
           <ErrorBoundary inline key="chat">
-            <Suspense fallback={<div className="ud-loading">Loading Agent Chat...</div>}>
-              <ChatTab />
+            <Suspense fallback={<div className="ud-loading">Loading Chat...</div>}>
+              <ChatTab onNavigate={(t) => setActiveTab(t as TabKey)} />
             </Suspense>
           </ErrorBoundary>
         );

@@ -2,7 +2,7 @@
  * MasterSessionManager — Persistent Claude Code PTY session
  *
  * Spawns `claude --dangerously-skip-permissions` via node-pty,
- * keeps a ring buffer for reconnection replay, and exposes
+ * keeps a circular buffer for reconnection replay, and exposes
  * send/signal/resize methods for WebSocket consumers.
  *
  * Uses OAuth credentials (same method as forge agents):
@@ -12,42 +12,66 @@
  */
 
 import pty from 'node-pty';
-import { readFile, writeFile, copyFile, mkdir, access } from 'fs/promises';
+import { readFile, writeFile, copyFile, mkdir, access, rename } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 const RING_BUFFER_SIZE = 5000;
 const MAX_RESTART_RETRIES = 5;
-const RESTART_BACKOFF_MS = 3000;
+const RESTART_BACKOFF_BASE_MS = 2000;
+const STARTUP_TIMEOUT_MS = 120_000;
+const MAX_RESIZE_COLS = 500;
+const MAX_RESIZE_ROWS = 200;
 
 // OAuth config (matches forge worker.ts)
-const CLAUDE_HOME = '/tmp/master-claude-home';
+const CLAUDE_HOME = process.env['CLAUDE_SESSION_HOME'] || '/home/substrate/.claude-session';
 const CLAUDE_DIR = `${CLAUDE_HOME}/.claude`;
-const CREDENTIALS_MOUNT = '/home/substrate/claude-credentials.json';
+const CREDENTIALS_MOUNT = '/tmp/claude-credentials/.credentials.json';
 const CREDENTIALS_PATH = `${CLAUDE_DIR}/.credentials.json`;
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
 const TOKEN_REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const TOKEN_REFRESH_BUFFER_MS = 60 * 60 * 1000;   // Refresh if <1h remaining
 
-class RingBuffer {
+/** O(1) circular buffer — no shift() overhead */
+class CircularBuffer {
   constructor(capacity) {
     this.capacity = capacity;
-    this.buffer = [];
+    this.buffer = new Array(capacity);
+    this.head = 0;
+    this.size = 0;
   }
 
-  push(line) {
-    this.buffer.push(line);
-    if (this.buffer.length > this.capacity) {
-      this.buffer.shift();
-    }
+  push(item) {
+    this.buffer[this.head] = item;
+    this.head = (this.head + 1) % this.capacity;
+    if (this.size < this.capacity) this.size++;
   }
 
   getAll() {
-    return this.buffer.slice();
+    if (this.size === 0) return [];
+    if (this.size < this.capacity) {
+      return this.buffer.slice(0, this.size);
+    }
+    // Buffer is full: read from head (oldest) to end, then 0 to head
+    return [
+      ...this.buffer.slice(this.head),
+      ...this.buffer.slice(0, this.head),
+    ];
   }
 
   clear() {
-    this.buffer = [];
+    this.buffer = new Array(this.capacity);
+    this.head = 0;
+    this.size = 0;
   }
+}
+
+/** Atomic file write: write to temp then rename */
+async function atomicWriteFile(filePath, data) {
+  const tempPath = join(tmpdir(), `.cred-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`);
+  await writeFile(tempPath, data);
+  await rename(tempPath, filePath);
 }
 
 /** Set up Claude CLI environment with OAuth credentials */
@@ -59,10 +83,17 @@ async function setupCliEnvironment() {
   // Copy OAuth credentials from host mount
   try {
     await access(CREDENTIALS_MOUNT);
-    await copyFile(CREDENTIALS_MOUNT, CREDENTIALS_PATH);
+    const mountData = await readFile(CREDENTIALS_MOUNT, 'utf8');
+    // Validate JSON before copying
+    JSON.parse(mountData);
+    await atomicWriteFile(CREDENTIALS_PATH, mountData);
     console.log('[MasterSession] OAuth credentials installed');
-  } catch {
-    console.warn('[MasterSession] No OAuth credentials found at', CREDENTIALS_MOUNT);
+  } catch (err) {
+    if (err instanceof SyntaxError) {
+      console.error('[MasterSession] Credentials mount contains invalid JSON');
+    } else {
+      console.warn('[MasterSession] No OAuth credentials found at', CREDENTIALS_MOUNT);
+    }
   }
 
   // Write settings.json (auto-accept permissions, onboarding done)
@@ -144,8 +175,51 @@ async function setupCliEnvironment() {
   console.log('[MasterSession] CLI environment ready');
 }
 
-/** Refresh OAuth credentials if expiring */
+/**
+ * Fetch dynamic platform context from forge and write as a project-level
+ * context file. This keeps the Claude Code session aware of current agents,
+ * skills, tools, and integrations without hardcoding.
+ */
+async function injectPlatformContext(cwd, projectName, projectDescription) {
+  const forgeUrl = process.env['FORGE_INTERNAL_URL'] || 'http://forge:3005';
+  const internalSecret = process.env['INTERNAL_API_SECRET'] ?? '';
+  try {
+    const params = new URLSearchParams({ type: 'claude-code' });
+    if (projectName) params.set('projectName', projectName);
+    if (projectDescription) params.set('projectDescription', projectDescription);
+    const res = await fetch(
+      `${forgeUrl}/api/v1/forge/intent/session-context?${params}`,
+      {
+        headers: {
+          Authorization: `Bearer ${internalSecret}`,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    if (!res.ok) {
+      console.warn(`[MasterSession] Context fetch failed: HTTP ${res.status}`);
+      return;
+    }
+    const { markdown } = await res.json();
+    if (markdown) {
+      // Write to .claude/ dir in workspace so Claude Code picks it up
+      const contextDir = `${cwd}/.claude`;
+      await mkdir(contextDir, { recursive: true });
+      await writeFile(`${contextDir}/platform-context.md`, markdown);
+      console.log('[MasterSession] Platform context injected into', contextDir);
+    }
+  } catch (err) {
+    // Non-fatal — forge may not be ready yet
+    console.warn('[MasterSession] Could not inject platform context:', err.message);
+  }
+}
+
+/** Refresh OAuth credentials if expiring — guarded against concurrent calls */
+let _refreshLock = false;
 async function refreshCredentials() {
+  if (_refreshLock) return;
+  _refreshLock = true;
   try {
     // First try to get fresher token from mount
     try {
@@ -161,7 +235,7 @@ async function refreshCredentials() {
       } catch { /* no current creds yet */ }
 
       if ((mountCreds.claudeAiOauth?.expiresAt || 0) > currentExpiry) {
-        await copyFile(CREDENTIALS_MOUNT, CREDENTIALS_PATH);
+        await atomicWriteFile(CREDENTIALS_PATH, mountRaw);
         console.log('[MasterSession] Refreshed credentials from mount');
       }
     } catch { /* mount not available */ }
@@ -214,7 +288,7 @@ async function refreshCredentials() {
     };
 
     const updatedJson = JSON.stringify(updated, null, 2);
-    await writeFile(CREDENTIALS_PATH, updatedJson);
+    await atomicWriteFile(CREDENTIALS_PATH, updatedJson);
     console.log(`[MasterSession] OAuth token refreshed — expires ${new Date(updated.claudeAiOauth.expiresAt).toISOString()}`);
 
     // Persist back to host mount for container restart survival
@@ -226,21 +300,27 @@ async function refreshCredentials() {
     }
   } catch (err) {
     console.error('[MasterSession] Credential refresh error:', err.message);
+  } finally {
+    _refreshLock = false;
   }
 }
 
 class MasterSessionManager {
   constructor() {
     this.pty = null;
-    this.ringBuffer = new RingBuffer(RING_BUFFER_SIZE);
+    this.ringBuffer = new CircularBuffer(RING_BUFFER_SIZE);
     this.subscribers = new Set();
     this.restartCount = 0;
     this.status = 'stopped';
     this.cwd = process.env['MASTER_SESSION_CWD'] || process.env['WORKSPACE_DIR'] || '/workspace';
     this.refreshTimer = null;
-    this._startLock = null; // Prevents concurrent start() calls
-    this._restartTimer = null; // Track restart timer for cancellation
-    this._hasRestarted = false; // First boot vs restart (for --continue flag)
+    this._startLock = null;
+    this._restartTimer = null;
+    this._stabilityTimer = null;
+    this._startupTimer = null;
+    this._hasRestarted = false;
+    this._setupComplete = false;
+    this._outputBuffer = '';
   }
 
   /** Start (or restart) the Claude Code process */
@@ -276,6 +356,7 @@ class MasterSessionManager {
     try {
       await setupCliEnvironment();
       await refreshCredentials();
+      await injectPlatformContext(this.cwd);
     } catch (err) {
       console.error('[MasterSession] Environment setup failed:', err.message);
     }
@@ -316,12 +397,24 @@ class MasterSessionManager {
       this.status = 'running';
       this._setupComplete = false;
       this._outputBuffer = '';
-      // Reset restart count after running stable for 30s (not on spawn)
+
+      // Reset restart count after running stable for 30s
+      this._clearTimers();
       this._stabilityTimer = setTimeout(() => {
         if (this.status === 'running') {
           this.restartCount = 0;
         }
       }, 30_000);
+
+      // Startup timeout — if prompts aren't navigated within 2min, mark complete anyway
+      this._startupTimer = setTimeout(() => {
+        if (!this._setupComplete) {
+          console.warn('[MasterSession] Startup prompt timeout — marking setup complete');
+          this._setupComplete = true;
+          this._outputBuffer = '';
+        }
+      }, STARTUP_TIMEOUT_MS);
+
       console.log(`[MasterSession] Started (pid=${this.pty.pid}, cwd=${this.cwd}, auth=oauth)`);
       this._broadcastStatus();
 
@@ -351,6 +444,18 @@ class MasterSessionManager {
     }
   }
 
+  /** Clear all pending timers */
+  _clearTimers() {
+    if (this._stabilityTimer) {
+      clearTimeout(this._stabilityTimer);
+      this._stabilityTimer = null;
+    }
+    if (this._startupTimer) {
+      clearTimeout(this._startupTimer);
+      this._startupTimer = null;
+    }
+  }
+
   /** Stop the PTY process */
   stop() {
     // Cancel any pending restart
@@ -358,6 +463,7 @@ class MasterSessionManager {
       clearTimeout(this._restartTimer);
       this._restartTimer = null;
     }
+    this._clearTimers();
     this.restartCount = MAX_RESTART_RETRIES; // Prevent auto-restart
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
@@ -408,13 +514,10 @@ class MasterSessionManager {
     // 2. Permissions bypass warning — select menu with:
     //    ❯ 1. No, exit
     //      2. Yes, I accept
-    //    Need: down arrow to select option 2, then Enter to confirm
-    //    Match the actual select menu, NOT the status bar ("bypass permissions on")
     if (clean.includes('no,exit') && clean.includes('yes,iaccept')) {
       console.log('[MasterSession] Auto-accepting permissions bypass (arrow down + enter)');
       setTimeout(() => {
         if (this.pty) {
-          // Down arrow to move from "No, exit" to "Yes, I accept"
           this.pty.write('\x1b[B');
           setTimeout(() => {
             if (this.pty) this.pty.write('\r');
@@ -423,6 +526,7 @@ class MasterSessionManager {
       }, 500);
       this._outputBuffer = '';
       this._setupComplete = true;
+      if (this._startupTimer) { clearTimeout(this._startupTimer); this._startupTimer = null; }
       return;
     }
 
@@ -437,20 +541,21 @@ class MasterSessionManager {
     }
 
     // 4. Status bar or main prompt — indicates we're past all startup prompts
-    //    Status bar shows "bypass permissions on" or we see the input prompt
     if (clean.includes('bypass permissions on') || clean.includes('shift+tab to cycle')) {
       console.log('[MasterSession] Status bar detected — setup complete');
       this._setupComplete = true;
       this._outputBuffer = '';
+      if (this._startupTimer) { clearTimeout(this._startupTimer); this._startupTimer = null; }
       return;
     }
 
-    // Also detect the main input prompt ">" at start of line (not in select menu)
+    // Also detect the main input prompt
     if (!clean.includes('no,exit') && !clean.includes('entertoconfirm')) {
       if (clean.includes('\n>') || clean.includes('\n❯')) {
         console.log('[MasterSession] Interactive prompt detected — setup complete');
         this._setupComplete = true;
         this._outputBuffer = '';
+        if (this._startupTimer) { clearTimeout(this._startupTimer); this._startupTimer = null; }
         return;
       }
     }
@@ -475,11 +580,13 @@ class MasterSessionManager {
     }
   }
 
-  /** Resize the PTY */
+  /** Resize the PTY with bounds checking */
   resize(cols, rows) {
     if (this.pty) {
+      const c = Math.max(1, Math.min(cols, MAX_RESIZE_COLS));
+      const r = Math.max(1, Math.min(rows, MAX_RESIZE_ROWS));
       try {
-        this.pty.resize(Math.max(1, cols), Math.max(1, rows));
+        this.pty.resize(c, r);
       } catch {
         // ignore resize errors on dead PTY
       }
@@ -496,7 +603,7 @@ class MasterSessionManager {
     this.subscribers.delete(ws);
   }
 
-  /** Get ring buffer history for reconnection */
+  /** Get circular buffer history for reconnection */
   getHistory() {
     return this.ringBuffer.getAll();
   }
@@ -507,7 +614,7 @@ class MasterSessionManager {
       status: this.status,
       pid: this.pty?.pid ?? null,
       restartCount: this.restartCount,
-      bufferSize: this.ringBuffer.buffer.length,
+      bufferSize: this.ringBuffer.size,
     };
   }
 
@@ -517,7 +624,7 @@ class MasterSessionManager {
     const msg = JSON.stringify({ type: 'output', data });
     for (const ws of this.subscribers) {
       if (ws.readyState === 1) {
-        try { ws.send(msg); } catch { /* ignore */ }
+        try { ws.send(msg); } catch { /* dead socket, cleaned up on close */ }
       }
     }
   }
@@ -526,7 +633,7 @@ class MasterSessionManager {
     const msg = JSON.stringify({ type: 'status', data: this.getStatus() });
     for (const ws of this.subscribers) {
       if (ws.readyState === 1) {
-        try { ws.send(msg); } catch { /* ignore */ }
+        try { ws.send(msg); } catch { /* dead socket, cleaned up on close */ }
       }
     }
   }
@@ -543,8 +650,11 @@ class MasterSessionManager {
     this.status = 'restarting';
     this._broadcastStatus();
 
-    const delay = RESTART_BACKOFF_MS * this.restartCount;
-    console.log(`[MasterSession] Restarting in ${delay}ms (attempt ${this.restartCount}/${MAX_RESTART_RETRIES})`);
+    // Exponential backoff with jitter
+    const base = RESTART_BACKOFF_BASE_MS * Math.pow(2, this.restartCount - 1);
+    const jitter = Math.random() * 1000;
+    const delay = Math.min(base + jitter, 30_000);
+    console.log(`[MasterSession] Restarting in ${Math.round(delay)}ms (attempt ${this.restartCount}/${MAX_RESTART_RETRIES})`);
     this._restartTimer = setTimeout(() => {
       this._restartTimer = null;
       this.start();

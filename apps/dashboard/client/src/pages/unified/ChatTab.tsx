@@ -1,9 +1,157 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useChatStore } from '../../stores/chat';
 import type { ConversationMessage, ParsedIntent, IntentSubtask, Conversation } from '../../stores/chat';
+import { useAuthStore } from '../../stores/auth';
 import { integrationApi } from '../../hooks/useHubApi';
 import type { UserRepo } from '../../hooks/useHubApi';
 import './ChatTab.css';
+
+// ── API helper for slash commands ──
+
+const getApiBase = () => {
+  const host = window.location.hostname;
+  if (host.includes('askalf.org') || host.includes('integration.tax') || host.includes('amnesia.tax')) return '';
+  if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3001';
+  return '';
+};
+
+async function cmdFetch<T = unknown>(path: string): Promise<T> {
+  const res = await fetch(`${getApiBase()}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+  if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+  return res.json();
+}
+
+// ── Slash command system ──
+
+interface SlashResult { text: string; }
+
+async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab: string) => void): Promise<SlashResult | null> {
+  switch (cmd) {
+    case 'help':
+    case '?':
+    case 'h':
+      return { text: [
+        '**Available Commands**',
+        '`/help` — Show this help',
+        '`/status` — System status overview',
+        '`/fleet` — Agent fleet overview',
+        '`/costs` — Cost summary (30 days)',
+        '`/logs [agent]` — Recent execution logs',
+        '`/tickets` — Open ticket board',
+        '`/keys` — AI provider key status',
+        '`/whoami` — Current user info',
+        '`/settings [tab]` — Open settings',
+        '`/connect` — Import Anthropic OAuth token',
+        '`/clear` — Clear conversation',
+        '',
+        'Type naturally to dispatch an agent.',
+      ].join('\n') };
+
+    case 'status':
+    case 'stat':
+    case 'st': {
+      const [health, agents] = await Promise.all([
+        cmdFetch<{ status: string; database?: string; checks?: { database: boolean; redis: boolean }; uptime?: number }>('/health'),
+        cmdFetch<{ agents: { status: string }[] }>('/api/v1/forge/agents').catch(() => ({ agents: [] })),
+      ]);
+      const dbOk = health.checks?.database ?? health.database === 'connected';
+      const active = agents.agents.filter(a => a.status === 'active').length;
+      const lines = [
+        `**System Status**`,
+        `Platform: **${health.status.toUpperCase()}**`,
+        `Database: ${dbOk ? 'connected' : '**DOWN**'}`,
+        `Agents: ${active}/${agents.agents.length} active`,
+      ];
+      if (health.uptime) {
+        const h = Math.floor(health.uptime / 3600);
+        const m = Math.floor((health.uptime % 3600) / 60);
+        lines.push(`Uptime: ${h}h ${m}m`);
+      }
+      return { text: lines.join('\n') };
+    }
+
+    case 'fleet':
+    case 'agents': {
+      const data = await cmdFetch<{ agents: { name: string; status: string; role: string }[] }>('/api/v1/forge/agents');
+      if (!data.agents.length) return { text: 'No agents found.' };
+      const rows = data.agents.map(a => `${a.status === 'active' ? '\u25CF' : '\u25CB'} **${a.name}** — ${a.role} (${a.status})`);
+      return { text: `**Agent Fleet** (${data.agents.length})\n${rows.join('\n')}` };
+    }
+
+    case 'costs':
+    case 'cost':
+    case 'spend': {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await cmdFetch<{ summary: { total: { totalCost: number; executionCount: number }; byAgent?: { name: string; totalCost: number; executionCount: number }[] } }>('/api/v1/admin/reports/costs/summary').catch(() => ({ summary: { total: { totalCost: 0, executionCount: 0 } } as any }));
+      const lines = [`**Cost Summary (30 days)**`, `Total: **$${data.summary.total.totalCost.toFixed(2)}** (${data.summary.total.executionCount} runs)`];
+      if (data.summary.byAgent?.length) {
+        lines.push('', '**By Agent:**');
+        for (const a of data.summary.byAgent.slice(0, 8)) {
+          lines.push(`\`${a.name.padEnd(18)}\` $${a.totalCost.toFixed(2)} (${a.executionCount} runs)`);
+        }
+      }
+      return { text: lines.join('\n') };
+    }
+
+    case 'logs':
+    case 'log':
+    case 'executions': {
+      const url = args ? `/api/v1/forge/executions?limit=10&agent_name=${encodeURIComponent(args)}` : '/api/v1/forge/executions?limit=10';
+      const data = await cmdFetch<{ executions: { agent_name: string; status: string; created_at: string; total_cost: number }[] }>(url);
+      if (!data.executions?.length) return { text: 'No executions found.' };
+      const rows = data.executions.map(e => {
+        const ts = new Date(e.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+        const icon = e.status === 'completed' ? '\u2713' : e.status === 'failed' ? '\u2717' : '\u25CB';
+        return `${icon} ${ts} \`${e.agent_name}\` ${e.status} $${(e.total_cost ?? 0).toFixed(2)}`;
+      });
+      return { text: `**Recent Executions${args ? ` (${args})` : ''}**\n${rows.join('\n')}` };
+    }
+
+    case 'tickets':
+    case 'ticket': {
+      const data = await cmdFetch<{ tickets: { title: string; status: string; assigned_agent: string | null; priority: string }[] }>('/api/v1/forge/tickets?status=open&limit=15');
+      if (!data.tickets?.length) return { text: 'No open tickets.' };
+      const rows = data.tickets.map(t => `[${t.priority?.charAt(0)?.toUpperCase() ?? '-'}] **${t.title.slice(0, 50)}** → ${t.assigned_agent ?? 'unassigned'}`);
+      return { text: `**Open Tickets** (${data.tickets.length})\n${rows.join('\n')}` };
+    }
+
+    case 'keys':
+    case 'apikeys':
+    case 'providers': {
+      const data = await cmdFetch<{ providers: { provider: string; has_key: boolean; model_count: number }[] }>('/api/v1/user/providers').catch(() => ({ providers: [] }));
+      if (!data.providers.length) return { text: 'No providers configured. Use `/settings ai-keys` to add one.' };
+      const rows = data.providers.map(p => `${p.has_key ? '\u2713' : '\u2717'} **${p.provider}** — ${p.has_key ? 'connected' : 'not set'} (${p.model_count} models)`);
+      return { text: `**AI Provider Keys**\n${rows.join('\n')}` };
+    }
+
+    case 'whoami': {
+      const user = useAuthStore.getState().user;
+      return { text: `**${user?.name ?? 'Unknown'}**\nEmail: ${user?.email ?? 'unknown'}\nRole: ${user?.role ?? 'unknown'}` };
+    }
+
+    case 'settings': {
+      const tab = args.trim() || 'profile';
+      onNavigate?.(`settings-${tab}`);
+      return { text: `Opening settings: **${tab}**` };
+    }
+
+    case 'connect':
+      return { text: [
+        '**Import OAuth Token**',
+        '1. On your machine: `cat ~/.claude/.credentials.json`',
+        '2. Copy the entire JSON output',
+        '3. Paste it here and press Enter',
+        '',
+        'Or add an API key: `/settings ai-keys`',
+      ].join('\n') };
+
+    case 'clear':
+      return null; // handled specially by caller
+
+    default:
+      return { text: `Unknown command: \`/${cmd}\`. Type \`/help\` for available commands.` };
+  }
+}
 
 // ── Sub-components ──
 
@@ -114,9 +262,11 @@ function renderMarkdown(text: string): React.ReactNode[] {
 
 function ChatMessage({ message }: { message: ConversationMessage }) {
   const isUser = message.role === 'user';
+  const isCmd = message.id.startsWith('cmd-') || message.id.startsWith('oauth-');
+  const avatarLabel = isUser ? 'You' : isCmd ? '\u{2699}' : 'AI';
   return (
-    <div className={`chat-msg ${isUser ? 'chat-msg-user' : 'chat-msg-assistant'}`}>
-      <div className="chat-msg-avatar">{isUser ? 'You' : 'AI'}</div>
+    <div className={`chat-msg ${isUser ? 'chat-msg-user' : 'chat-msg-assistant'}${isCmd && !isUser ? ' chat-msg-system' : ''}`}>
+      <div className="chat-msg-avatar">{avatarLabel}</div>
       <div className="chat-msg-content">
         <div className="chat-msg-text">
           {isUser ? message.content : renderMarkdown(message.content)}
@@ -444,7 +594,7 @@ function ChatInput({
         value={input}
         onChange={e => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Tell me what you need an agent to do..."
+        placeholder="Ask anything or type / for commands..."
         rows={2}
         disabled={disabled}
       />
@@ -461,7 +611,7 @@ function ChatInput({
 
 // ── Main Component ──
 
-export default function ChatTab() {
+export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const {
     conversations, activeConversationId, messages, isProcessing,
     pendingIntent, error,
@@ -486,8 +636,96 @@ export default function ChatTab() {
   }, [createConversation]);
 
   const handleSend = useCallback(async (content: string) => {
+    // Slash command interception
+    if (content.startsWith('/')) {
+      const spaceIdx = content.indexOf(' ');
+      const cmd = (spaceIdx > 0 ? content.slice(1, spaceIdx) : content.slice(1)).toLowerCase();
+      const args = spaceIdx > 0 ? content.slice(spaceIdx + 1).trim() : '';
+
+      // /clear — reset conversation messages locally
+      if (cmd === 'clear') {
+        // Add the command as a user message, then create a fresh conversation
+        await createConversation();
+        return;
+      }
+
+      // Ensure a conversation exists for displaying command results
+      if (!activeConversationId) {
+        await createConversation();
+      }
+
+      // Show the command as a user message
+      const now = new Date().toISOString();
+      const userMsg: ConversationMessage = {
+        id: `cmd-${Date.now()}`,
+        conversation_id: activeConversationId ?? '',
+        role: 'user',
+        content,
+        execution_id: null,
+        intent: null,
+        metadata: {},
+        created_at: now,
+      };
+      useChatStore.setState(s => ({ messages: [...s.messages, userMsg] }));
+
+      try {
+        const result = await executeSlashCommand(cmd, args, onNavigate);
+        if (result) {
+          const sysMsg: ConversationMessage = {
+            id: `cmd-res-${Date.now()}`,
+            conversation_id: activeConversationId ?? '',
+            role: 'assistant',
+            content: result.text,
+            execution_id: null,
+            intent: null,
+            metadata: {},
+            created_at: new Date().toISOString(),
+          };
+          useChatStore.setState(s => ({ messages: [...s.messages, sysMsg] }));
+        }
+      } catch (err) {
+        const errMsg: ConversationMessage = {
+          id: `cmd-err-${Date.now()}`,
+          conversation_id: activeConversationId ?? '',
+          role: 'assistant',
+          content: `**Error:** ${err instanceof Error ? err.message : 'Command failed'}`,
+          execution_id: null,
+          intent: null,
+          metadata: {},
+          created_at: new Date().toISOString(),
+        };
+        useChatStore.setState(s => ({ messages: [...s.messages, errMsg] }));
+      }
+      return;
+    }
+
+    // OAuth credential paste detection — JSON starting with { "oauth_token" or similar
+    if (content.startsWith('{') && content.includes('oauth_token')) {
+      try {
+        JSON.parse(content); // validate it's JSON
+        const res = await fetch(`${getApiBase()}/api/v1/user/claude-credentials`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: content,
+        });
+        const sysMsg: ConversationMessage = {
+          id: `oauth-${Date.now()}`,
+          conversation_id: activeConversationId ?? '',
+          role: 'assistant',
+          content: res.ok ? '**OAuth token imported successfully.** Claude Code will use this credential.' : `**Failed to import token:** ${await res.text()}`,
+          execution_id: null,
+          intent: null,
+          metadata: {},
+          created_at: new Date().toISOString(),
+        };
+        useChatStore.setState(s => ({ messages: [...s.messages, sysMsg] }));
+        return;
+      } catch { /* not valid JSON, fall through to normal send */ }
+    }
+
     await sendMessage(content);
-  }, [sendMessage]);
+  }, [sendMessage, activeConversationId, createConversation, onNavigate]);
 
   const handleConfirm = useCallback(async (modified?: ParsedIntent) => {
     if (modified) {
@@ -512,7 +750,7 @@ export default function ChatTab() {
           {messages.length === 0 && (
             <div className="chat-welcome">
               <h2>Welcome to AskAlf</h2>
-              <p>Tell me what you need done in plain English. I'll create and configure an agent for you.</p>
+              <p>Tell me what you need done in plain English, or use <code>/help</code> for slash commands.</p>
               <div className="chat-suggestions">
                 <button onClick={() => handleSend('Research my top competitors')}>
                   Research my competitors
@@ -561,6 +799,7 @@ export default function ChatTab() {
           <div ref={messagesEndRef} />
         </div>
 
+        <div className="chat-input-hint">Enter to send &middot; Shift+Enter for new line &middot; /help for commands</div>
         <ChatInput onSend={handleSend} disabled={isProcessing} />
       </div>
     </div>

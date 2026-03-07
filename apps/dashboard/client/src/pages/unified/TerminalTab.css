@@ -16,6 +16,43 @@
   position: relative;
 }
 
+/* ── Mode toggle bar ── */
+
+.terminal-mode-bar {
+  display: flex;
+  gap: 2px;
+  padding: 6px 12px;
+  background: #0a0a0c;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+  flex-shrink: 0;
+}
+
+.terminal-mode-btn {
+  padding: 4px 14px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #71717a;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.terminal-mode-btn:hover {
+  color: #a1a1aa;
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.terminal-mode-btn.active {
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
 /* ── Scrollable output area ── */
 
 .terminal-viewport {
@@ -114,7 +151,7 @@
 
 .terminal-banner-text:empty {
   display: block;
-  height: 4px;
+  height: 12px;
 }
 
 /* Divider */
@@ -191,6 +228,11 @@
   color: rgba(255, 255, 255, 0.15);
 }
 
+.terminal-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ── Blinking cursor effect on input focus ── */
 
 .terminal-input:focus {
@@ -202,4 +244,169 @@
 .terminal-container ::selection {
   background: rgba(124, 58, 237, 0.3);
   color: #f4f4f5;
+}
+
+/* ===================================================
+   MASTER SESSION — Claude Code PTY (xterm.js)
+   =================================================== */
+
+.ud-master-session {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0a0a0f;
+}
+
+.ud-master-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #0a0a0c;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.ud-master-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  color: #a1a1aa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ud-health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ud-master-pid {
+  color: #52525b;
+  margin-left: 4px;
+}
+
+.ud-master-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.ud-btn-sm {
+  padding: 3px 10px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #71717a;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ud-btn-sm:hover {
+  color: #a1a1aa;
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+.ud-master-terminal {
+  flex: 1;
+  min-height: 0;
+  padding: 4px;
+}
+
+.ud-master-terminal .xterm {
+  height: 100%;
+}
+
+.ud-master-terminal .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.3) transparent;
+}
+
+.ud-master-terminal .xterm-viewport::-webkit-scrollbar { width: 6px; }
+.ud-master-terminal .xterm-viewport::-webkit-scrollbar-track { background: transparent; }
+.ud-master-terminal .xterm-viewport::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.3); border-radius: 3px; }
+.ud-master-terminal .xterm-viewport::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.5); }
+
+.ud-master-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 15, 0.85);
+  color: #a78bfa;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  z-index: 5;
+}
+
+/* Codex session — green accent */
+.ud-codex-session .ud-btn-sm:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.ud-codex-session .ud-master-overlay {
+  color: #10b981;
+}
+
+/* Disabled buttons */
+.ud-btn-sm:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 640px) {
+  .terminal-container {
+    font-size: 12px;
+  }
+
+  .terminal-viewport {
+    padding: 12px 12px 4px;
+  }
+
+  .terminal-input-row {
+    padding: 8px 12px 12px;
+  }
+
+  .terminal-mode-bar {
+    padding: 4px 8px;
+    flex-wrap: wrap;
+  }
+
+  .terminal-mode-btn {
+    padding: 3px 10px;
+    font-size: 10px;
+  }
+
+  .terminal-banner-text {
+    font-size: 16px;
+    letter-spacing: 3px;
+  }
+
+  .terminal-ts {
+    display: none;
+  }
+
+  .ud-master-toolbar {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
 }

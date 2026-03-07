@@ -27,6 +27,7 @@ import {
   createUser,
 } from '@askalf/auth';
 import { getMasterSession } from './master-session.js';
+import { getCodexSession } from './codex-session.js';
 import { createEventBridge } from './event-bridge.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -135,15 +136,13 @@ function getTenantId(request) {
 const ALLOWED_ORIGINS = [
   'https://askalf.org',
   'https://www.askalf.org',
-  // Development origins
-  ...(process.env['NODE_ENV'] !== 'production' ? [
-    'http://localhost:3001',
-    'http://localhost:3005',
-    'http://localhost:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:3001',
-    'http://127.0.0.1:5173',
-  ] : []),
+  // Localhost origins (dashboard serves on 3001, always allow its own origin)
+  'http://localhost:3001',
+  'http://localhost:3005',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:5173',
 ];
 
 await fastify.register(fastifyCors, {
@@ -413,6 +412,21 @@ fastify.get('/ws/master', { websocket: true }, async (socket, req) => {
   masterSession.addSubscriber(socket);
   console.log(`[MasterSession] WS client connected (user: ${user.id})`);
 
+  // Heartbeat ping/pong — keep connection alive through proxies
+  let lastPong = Date.now();
+  const pingInterval = setInterval(() => {
+    if (socket.readyState === 1) {
+      if (Date.now() - lastPong > 90_000) {
+        console.log('[MasterSession] WS client timed out (no pong)');
+        socket.close();
+        return;
+      }
+      try { socket.ping(); } catch { /* ignore */ }
+    }
+  }, 30_000);
+
+  socket.on('pong', () => { lastPong = Date.now(); });
+
   // Send history buffer for reconnection
   const history = masterSession.getHistory();
   if (history.length > 0) {
@@ -423,6 +437,7 @@ fastify.get('/ws/master', { websocket: true }, async (socket, req) => {
   socket.send(JSON.stringify({ type: 'status', data: masterSession.getStatus() }));
 
   socket.on('message', (msg) => {
+    lastPong = Date.now(); // Any message counts as alive
     try {
       const parsed = JSON.parse(msg.toString());
       switch (parsed.type) {
@@ -433,27 +448,35 @@ fastify.get('/ws/master', { websocket: true }, async (socket, req) => {
           masterSession.sendSignal(parsed.signal || 'SIGINT');
           break;
         case 'resize':
-          if (parsed.cols && parsed.rows) {
+          if (typeof parsed.cols === 'number' && typeof parsed.rows === 'number' &&
+              parsed.cols > 0 && parsed.rows > 0) {
             masterSession.resize(parsed.cols, parsed.rows);
           }
           break;
         case 'restart':
           masterSession.restart();
           break;
+        case 'ping':
+          if (socket.readyState === 1) {
+            try { socket.send(JSON.stringify({ type: 'pong' })); } catch { /* ignore */ }
+          }
+          break;
         default:
           break;
       }
-    } catch {
-      // ignore invalid messages
+    } catch (err) {
+      console.warn('[MasterSession] Invalid WS message:', err.message);
     }
   });
 
   socket.on('close', () => {
+    clearInterval(pingInterval);
     masterSession.removeSubscriber(socket);
     console.log(`[MasterSession] WS client disconnected`);
   });
 
   socket.on('error', () => {
+    clearInterval(pingInterval);
     masterSession.removeSubscriber(socket);
   });
 });
@@ -463,6 +486,95 @@ fastify.get('/api/v1/admin/master-session/status', async (request, reply) => {
   const admin = await requireAdmin(request, reply);
   if (!admin) return { error: 'Admin access required' };
   return masterSession.getStatus();
+});
+
+// ===========================================
+// WEBSOCKET - Codex Session (OpenAI Codex PTY)
+// ===========================================
+
+const codexSession = getCodexSession();
+
+fastify.get('/ws/codex', { websocket: true }, async (socket, req) => {
+  const user = await getUserFromSession(req);
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+    socket.close(4403, 'Admin access required');
+    return;
+  }
+
+  codexSession.addSubscriber(socket);
+  console.log(`[CodexSession] WS client connected (user: ${user.id})`);
+
+  // Heartbeat ping/pong
+  let lastPong = Date.now();
+  const pingInterval = setInterval(() => {
+    if (socket.readyState === 1) {
+      if (Date.now() - lastPong > 90_000) {
+        console.log('[CodexSession] WS client timed out (no pong)');
+        socket.close();
+        return;
+      }
+      try { socket.ping(); } catch { /* ignore */ }
+    }
+  }, 30_000);
+
+  socket.on('pong', () => { lastPong = Date.now(); });
+
+  const history = codexSession.getHistory();
+  if (history.length > 0) {
+    socket.send(JSON.stringify({ type: 'history', data: history }));
+  }
+
+  socket.send(JSON.stringify({ type: 'status', data: codexSession.getStatus() }));
+
+  socket.on('message', (msg) => {
+    lastPong = Date.now();
+    try {
+      const parsed = JSON.parse(msg.toString());
+      switch (parsed.type) {
+        case 'input':
+          codexSession.sendInput(parsed.data || '');
+          break;
+        case 'signal':
+          codexSession.sendSignal(parsed.signal || 'SIGINT');
+          break;
+        case 'resize':
+          if (typeof parsed.cols === 'number' && typeof parsed.rows === 'number' &&
+              parsed.cols > 0 && parsed.rows > 0) {
+            codexSession.resize(parsed.cols, parsed.rows);
+          }
+          break;
+        case 'restart':
+          codexSession.restart();
+          break;
+        case 'ping':
+          if (socket.readyState === 1) {
+            try { socket.send(JSON.stringify({ type: 'pong' })); } catch { /* ignore */ }
+          }
+          break;
+        default:
+          break;
+      }
+    } catch (err) {
+      console.warn('[CodexSession] Invalid WS message:', err.message);
+    }
+  });
+
+  socket.on('close', () => {
+    clearInterval(pingInterval);
+    codexSession.removeSubscriber(socket);
+    console.log(`[CodexSession] WS client disconnected`);
+  });
+
+  socket.on('error', () => {
+    clearInterval(pingInterval);
+    codexSession.removeSubscriber(socket);
+  });
+});
+
+fastify.get('/api/v1/admin/codex-session/status', async (request, reply) => {
+  const admin = await requireAdmin(request, reply);
+  if (!admin) return { error: 'Admin access required' };
+  return codexSession.getStatus();
 });
 
 // Periodic broadcast (every 30 seconds - reduced from 5s to prevent database overload)
@@ -2370,26 +2482,47 @@ const FORGE_AUTH_URL = process.env.FORGE_URL || 'http://forge:3005';
 
 async function proxyToForge(request, reply, path) {
   try {
+    const hasBody = request.method !== 'GET' && request.method !== 'HEAD' && request.body != null;
+    const headers = {
+      'x-forwarded-host': request.headers.host || '',
+      'x-forwarded-for': request.ip || '',
+      'user-agent': request.headers['user-agent'] || '',
+    };
+    if (request.headers.cookie) headers.cookie = request.headers.cookie;
+    if (hasBody) headers['Content-Type'] = request.headers['content-type'] || 'application/json';
+
     const res = await fetch(`${FORGE_AUTH_URL}${path}`, {
       method: request.method,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-forwarded-host': request.headers.host || '',
-        ...(request.headers.cookie ? { cookie: request.headers.cookie } : {}),
-        'x-forwarded-for': request.ip || '',
-        'user-agent': request.headers['user-agent'] || '',
-      },
-      body: request.method !== 'GET' ? JSON.stringify(request.body || {}) : undefined,
+      headers,
+      body: hasBody ? JSON.stringify(request.body) : undefined,
+      redirect: 'manual',
     });
-    const data = await res.json();
+
+    // Handle redirects (OAuth connect flows)
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get('location');
+      if (location) return reply.redirect(res.status, location);
+    }
 
     // Forward set-cookie headers from Forge
     const setCookie = res.headers.get('set-cookie');
     if (setCookie) reply.header('set-cookie', setCookie);
 
-    return reply.code(res.status).send(data);
+    // Forward content type
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType) reply.header('content-type', contentType);
+
+    // Parse response based on content type
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      return reply.code(res.status).send(data);
+    }
+
+    // Non-JSON response (text, html, etc.)
+    const text = await res.text();
+    return reply.code(res.status).send(text);
   } catch (err) {
-    console.error(`[Auth Proxy] Error forwarding to ${path}:`, err.message);
+    console.error(`[Proxy] Error forwarding to ${path}:`, err.message);
     return reply.code(502).send({ error: 'Service unavailable' });
   }
 }
@@ -2445,6 +2578,22 @@ for (const route of authProxyRoutes) {
 // GET for auth check (session validation)
 fastify.get('/api/v1/auth/check', (req, reply) =>
   proxyToForge(req, reply, '/api/v1/auth/check'));
+
+// ===========================================
+// FORGE API PROXY — forward forge routes
+// In production, nginx handles this. In self-hosted
+// mode (no nginx), dashboard must proxy these.
+// ===========================================
+for (const prefix of ['/api/v1/forge/', '/api/v1/integrations/', '/api/v1/terminal/']) {
+  for (const method of ['get', 'post', 'put', 'delete', 'patch']) {
+    fastify[method](`${prefix}*`, (req, reply) => {
+      const path = req.url.split('?')[0];
+      const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+      return proxyToForge(req, reply, path + qs);
+    });
+  }
+}
+
 
 // ===========================================
 // SPA FALLBACK - Serve index.html for client routes
@@ -2618,5 +2767,17 @@ fastify.listen({ port: Number(port), host }, async (err, address) => {
     console.log('[MasterSession] Started at boot');
   } catch (startErr) {
     console.error('[MasterSession] Failed to start at boot:', startErr.message);
+  }
+
+  // Start codex session if OPENAI_API_KEY is set
+  if (process.env['OPENAI_API_KEY']) {
+    try {
+      await codexSession.start();
+      console.log('[CodexSession] Started at boot');
+    } catch (startErr) {
+      console.error('[CodexSession] Failed to start at boot:', startErr.message);
+    }
+  } else {
+    console.log('[CodexSession] Skipped — no OPENAI_API_KEY configured');
   }
 });
