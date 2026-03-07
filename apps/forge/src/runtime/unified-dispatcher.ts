@@ -11,6 +11,7 @@ import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { substrateQuery } from '../database.js';
 import { runDirectCliExecution } from './worker.js';
+import { checkGuardrails } from '../observability/guardrails.js';
 
 // ============================================
 // Types
@@ -408,6 +409,17 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
     ownerId: string,
     metadata: Record<string, unknown> = {},
   ): Promise<void> {
+    // Enforce guardrails before dispatching
+    const guardrailResult = await checkGuardrails({
+      ownerId,
+      agentId: agent.id,
+      input,
+    });
+    if (!guardrailResult.allowed) {
+      console.log(`[Dispatcher] Guardrail blocked ${agent.name}: ${guardrailResult.reason}`);
+      return;
+    }
+
     const execId = ulid();
 
     await queryOne(
