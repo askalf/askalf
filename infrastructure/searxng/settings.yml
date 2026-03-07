@@ -1,4 +1,4 @@
-# SearXNG Settings — Search backend for amnesia.tax + agent tools
+# SearXNG Settings — Self-hosted search backend for agent tools
 # Docs: https://docs.searxng.org/admin/settings/
 
 use_default_settings:
@@ -7,7 +7,6 @@ use_default_settings:
       - ahmia
       - torch
       - radio browser
-      - wikidata
       - reuters
 
 general:
@@ -16,18 +15,22 @@ general:
 
 search:
   safe_search: 0
-  autocomplete: "google"
+  autocomplete: "duckduckgo"
   default_lang: "en"
   formats:
     - html
     - json
+  suspended_times:
+    SearxEngineAccessDenied: 300
+    SearxEngineCaptcha: 600
+    SearxEngineTooManyRequests: 300
 
 server:
   bind_address: "0.0.0.0"
   port: 8080
-  secret_key: "cd0d9894fb473c59ce622e5a4f3df75264869345d480a0017e5201803ae62367"
+  secret_key: "${SEARXNG_SECRET}"
   limiter: true
-  image_proxy: false
+  image_proxy: true
   base_url: false
   real_ip:
     x_for: 1
@@ -38,6 +41,8 @@ ui:
   static_use_hash: true
   default_theme: simple
   results_on_new_tab: false
+  infinite_scroll: true
+  query_in_title: true
 
 valkey:
   url: false  # Overridden by SEARXNG_VALKEY_URL env var
@@ -51,52 +56,208 @@ outgoing:
   enable_http2: true
 
 # Engine configuration
-# Reliable: brave, bing, duckduckgo, startpage, wikipedia, github
-# Unreliable from server IPs: google, google news, mojeek
+# Without VPN, Google/Mojeek/Qwant are typically blocked from server IPs.
+# If you add Gluetun VPN proxy, enable them and add:
+#   outgoing.proxies:
+#     all://: [http://gluetun:8888]
+
 engines:
+  # === Web Search (Tier 1 — reliable without VPN) ===
   - name: brave
     disabled: false
-    weight: 1.5
-
-  - name: bing
-    engine: bing
-    shortcut: b
-    disabled: false
-    timeout: 10.0
+    weight: 2.0
+    timeout: 6.0
 
   - name: duckduckgo
-    engine: duckduckgo
-    shortcut: ddg
     disabled: false
+    weight: 1.5
+    timeout: 6.0
 
   - name: startpage
-    engine: startpage
-    shortcut: sp
     disabled: false
+    weight: 1.5
+    timeout: 8.0
 
-  - name: wikipedia
-    engine: wikipedia
-    shortcut: wp
+  - name: bing
     disabled: false
+    weight: 1.0
+    timeout: 6.0
 
-  - name: github
-    engine: github
-    shortcut: gh
-    disabled: false
-
-  # Google — blocked from server IPs, disabled
+  # === Web Search (Tier 2 — need VPN, disabled by default) ===
   - name: google
-    engine: google
-    shortcut: g
     disabled: true
+    weight: 2.5
+    timeout: 8.0
+    use_mobile_ui: true
+
+  - name: mojeek
+    disabled: true
+    weight: 0.8
+    timeout: 8.0
+
+  - name: qwant
+    disabled: true
+    weight: 0.8
+    timeout: 8.0
+
+  # === Reference ===
+  - name: wikipedia
+    disabled: false
+    weight: 1.0
+
+  - name: wikidata
+    disabled: false
+
+  - name: currency
+    disabled: false
+
+  - name: dictzone
+    disabled: false
+
+  - name: lingva
+    disabled: false
+
+  # === IT / Dev ===
+  - name: github
+    disabled: false
+
+  - name: stackoverflow
+    disabled: false
+    timeout: 6.0
+
+  - name: npm
+    disabled: false
+
+  - name: pypi
+    disabled: false
+
+  - name: docker hub
+    disabled: false
+
+  - name: crates.io
+    disabled: false
+
+  - name: packagist
+    disabled: false
+
+  - name: mdn
+    disabled: false
+
+  # === News ===
+  - name: brave.news
+    disabled: false
+    weight: 1.5
+    timeout: 6.0
+
+  - name: bing news
+    disabled: false
+    timeout: 6.0
+
+  - name: duckduckgo news
+    disabled: false
+    timeout: 6.0
 
   - name: google news
-    engine: google_news
-    shortcut: gn
     disabled: true
+    timeout: 8.0
 
-  # Mojeek — returns 403, disabled
-  - name: mojeek
-    engine: mojeek
-    shortcut: mj
+  - name: wikinews
+    disabled: false
+
+  # === Image Search ===
+  - name: brave.images
+    disabled: false
+    weight: 1.5
+    timeout: 8.0
+
+  - name: bing images
+    disabled: false
+    timeout: 8.0
+
+  - name: duckduckgo images
+    disabled: false
+    timeout: 8.0
+
+  - name: unsplash
+    disabled: false
+    timeout: 8.0
+
+  - name: pexels
+    disabled: false
+    timeout: 8.0
+
+  - name: deviantart
+    disabled: false
+    timeout: 8.0
+
+  - name: flickr
+    disabled: false
+    timeout: 8.0
+
+  # === Video Search ===
+  - name: brave.videos
+    disabled: false
+    weight: 1.5
+    timeout: 8.0
+
+  - name: bing videos
+    disabled: false
+    timeout: 8.0
+
+  - name: duckduckgo videos
+    disabled: false
+    timeout: 8.0
+
+  - name: piped
+    disabled: false
+    timeout: 8.0
+
+  # === Science / Academic ===
+  - name: arxiv
+    disabled: false
+
+  - name: crossref
+    disabled: false
+
+  - name: semantic scholar
+    disabled: false
+
+  - name: pubmed
+    disabled: false
+
+  - name: google scholar
     disabled: true
+    timeout: 10.0
+
+  # === Social ===
+  - name: reddit
+    disabled: false
+    timeout: 8.0
+
+  - name: lemmy communities
+    disabled: false
+
+  - name: lemmy posts
+    disabled: false
+
+  # === Files ===
+  - name: 1337x
+    disabled: false
+    timeout: 8.0
+
+  - name: nyaa
+    disabled: false
+
+  - name: piratebay
+    disabled: false
+
+  # === Maps ===
+  - name: openstreetmap
+    disabled: false
+
+  # === Music ===
+  - name: bandcamp
+    disabled: false
+
+  - name: mixcloud
+    disabled: false
