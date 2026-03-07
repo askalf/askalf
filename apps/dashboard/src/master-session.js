@@ -102,10 +102,12 @@ async function setupCliEnvironment() {
     permissions: {
       allow: [
         'Bash(*)', 'Read(*)', 'Write(*)', 'Edit(*)',
-        'Glob(*)', 'Grep(*)', 'WebFetch(*)', 'WebSearch(*)',
+        'Glob(*)', 'Grep(*)', 'WebFetch(*)',
         'NotebookEdit(*)', 'Task(*)',
+        'mcp__mcp-tools__web_search(*)',
+        'mcp__mcp-tools__web_browse(*)',
       ],
-      deny: [],
+      deny: ['WebSearch'],
     },
     hasCompletedOnboarding: true,
   };
