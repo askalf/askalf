@@ -370,7 +370,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
-      const result = await queryOne<{ id: string }>(`UPDATE forge_agents SET status = 'active', updated_at = NOW() WHERE id = $1 RETURNING id`, [id]);
+      const result = await queryOne<{ id: string }>(`UPDATE forge_agents SET status = 'active', dispatch_enabled = true, updated_at = NOW() WHERE id = $1 RETURNING id`, [id]);
       if (!result) return reply.code(404).send({ error: 'Agent not found' });
       return { success: true };
     }
@@ -387,7 +387,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       const params: unknown[] = [];
       let idx = 1;
 
-      for (const field of ['name', 'description', 'system_prompt', 'model_id', 'status', 'autonomy_level'] as const) {
+      for (const field of ['name', 'description', 'system_prompt', 'model_id', 'status', 'autonomy_level', 'dispatch_enabled', 'dispatch_mode', 'schedule_interval_minutes'] as const) {
         if (body[field] !== undefined) {
           sets.push(`${field} = $${idx}`);
           params.push(body[field]);

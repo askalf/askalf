@@ -112,7 +112,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, requireUser, qu
     const { id } = request.params;
     const res = await callForgeAdmin(`/agents/${id}`, {
       method: 'PUT',
-      body: { status: 'paused' },
+      body: { status: 'paused', dispatch_enabled: false },
     });
 
     if (res.error) {
@@ -148,7 +148,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, requireUser, qu
     const { id } = request.params;
     const res = await callForgeAdmin(`/agents/${id}`, {
       method: 'PUT',
-      body: { status: 'active' },
+      body: { status: 'active', dispatch_enabled: true },
     });
 
     if (res.error) {
@@ -225,7 +225,7 @@ export async function registerAgentRoutes(fastify, requireAdmin, requireUser, qu
     for (const agent of (agentsRes.agents || [])) {
       const res = await callForgeAdmin(`/agents/${agent.id}`, {
         method: 'PUT',
-        body: { status: 'paused' },
+        body: { status: 'paused', dispatch_enabled: false },
       });
       results.push({
         agent_id: agent.id,
