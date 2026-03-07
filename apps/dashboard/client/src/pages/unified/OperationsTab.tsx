@@ -1,5 +1,6 @@
-import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense, useMemo } from 'react';
 import { useHubStore } from '../../stores/hub';
+import { usePolling } from '../../hooks/usePolling';
 import './OperationsTab.css';
 
 const InterventionGateway = lazy(() => import('../hub/InterventionGateway'));
@@ -23,9 +24,8 @@ export default function OperationsTab() {
   const ribbonData = useHubStore((s) => s.ribbonData);
   const fetchRibbonData = useHubStore((s) => s.fetchRibbonData);
 
-  useEffect(() => {
-    fetchRibbonData();
-  }, [fetchRibbonData]);
+  const poll = useCallback(() => { fetchRibbonData(); }, [fetchRibbonData]);
+  usePolling(poll, 15000);
 
   const stats = useMemo(() => {
     const openTickets = ribbonData.openTickets || tickets.filter((t) => t.status === 'open').length;

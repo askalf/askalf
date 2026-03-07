@@ -7,8 +7,9 @@
 import { exec, execFile } from 'child_process';
 import http from 'http';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { ulid } from 'ulid';
 import { authMiddleware } from '../middleware/auth.js';
-import { query } from '../database.js';
+import { query, queryOne } from '../database.js';
 
 const REPO_ROOT = process.env['REPO_ROOT'] ?? '/workspace';
 const EXEC_TIMEOUT_MS = 30_000;
@@ -743,5 +744,153 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(500).send({ error: 'Failed to list builder tasks' });
       }
     },
+  );
+
+  // ── AI Code Review Routes ──────────────────────────────────────────────
+
+  /**
+   * POST /api/v1/forge/git-space/ai-review
+   * Kick off an AI-powered code review of a git diff.
+   */
+  app.post(
+    '/api/v1/forge/git-space/ai-review',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { branch, diff } = request.body as { branch: string; diff: string };
+      if (!diff) return reply.status(400).send({ error: 'No diff provided' });
+
+      const executionId = ulid();
+
+      await query(
+        `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, started_at)
+         VALUES ($1, 'code-reviewer', 'system:ai-review', $2, 'running', NOW())`,
+        [executionId, JSON.stringify({ branch, diff: diff.substring(0, 50000) })],
+      );
+
+      // Run review async — return immediately
+      runCodeReview(executionId, branch, diff).catch((err) => {
+        query(
+          `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2`,
+          [String(err), executionId],
+        ).catch(() => {});
+      });
+
+      return reply.status(201).send({
+        review_id: executionId,
+        execution_id: executionId,
+        agent_name: 'Code Reviewer',
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/git-space/review-result/:id
+   * Poll for the result of an AI code review.
+   */
+  app.get(
+    '/api/v1/forge/git-space/review-result/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const row = await queryOne<{ status: string; output: string | null }>(
+        `SELECT status, output FROM forge_executions WHERE id = $1`,
+        [id],
+      );
+      if (!row) return reply.status(404).send({ error: 'Review not found' });
+
+      let output: Record<string, unknown> = {};
+      if (row.output) {
+        try {
+          output = typeof row.output === 'string' ? JSON.parse(row.output) : row.output;
+        } catch {
+          output = { summary: row.output };
+        }
+      }
+      return reply.send({ status: row.status, ...output });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/git-space/ai-review/chat
+   * Follow-up chat with the AI reviewer about a previous review.
+   */
+  app.post(
+    '/api/v1/forge/git-space/ai-review/chat',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { review_id, message } = request.body as { review_id: string; message: string };
+      if (!review_id || !message) {
+        return reply.status(400).send({ error: 'review_id and message are required' });
+      }
+
+      const row = await queryOne<{ input: string; output: string | null }>(
+        `SELECT input, output FROM forge_executions WHERE id = $1`,
+        [review_id],
+      );
+      if (!row) return reply.status(404).send({ error: 'Review not found' });
+
+      const Anthropic = (await import('@anthropic-ai/sdk')).default;
+      const client = new Anthropic();
+
+      const input = typeof row.input === 'string' ? JSON.parse(row.input) : row.input;
+      const output = row.output
+        ? typeof row.output === 'string' ? JSON.parse(row.output) : row.output
+        : {};
+
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2048,
+        system: `You are a code reviewer. You previously reviewed a diff from branch "${input.branch}" and provided this assessment:\n${JSON.stringify(output, null, 2)}`,
+        messages: [{ role: 'user', content: message }],
+      });
+
+      const text = response.content[0]?.type === 'text' ? response.content[0].text : '';
+      return reply.send({ response: text });
+    },
+  );
+}
+
+// ── Helper: run the AI code review via Anthropic SDK ───────────────────
+
+async function runCodeReview(executionId: string, branch: string, diff: string): Promise<void> {
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
+  const client = new Anthropic();
+
+  const prompt = `Review this git diff from branch "${branch}". Analyze for:
+1. Bugs or logic errors
+2. Security vulnerabilities
+3. Performance issues
+4. Code style / best practices
+
+Respond in JSON format:
+{
+  "summary": "Brief overall assessment",
+  "approved": true/false,
+  "issues": [{"severity": "critical|high|medium|low", "file": "path", "line": number, "message": "description"}],
+  "suggestions": [{"file": "path", "message": "suggestion"}]
+}
+
+Diff:
+${diff.substring(0, 80000)}`;
+
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 4096,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const text = response.content[0]?.type === 'text' ? response.content[0].text : '';
+
+  let result: Record<string, unknown>;
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    result = jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: text, approved: true, issues: [], suggestions: [] };
+  } catch {
+    result = { summary: text, approved: true, issues: [], suggestions: [] };
+  }
+
+  await query(
+    `UPDATE forge_executions SET status = 'completed', output = $1, completed_at = NOW() WHERE id = $2`,
+    [JSON.stringify(result), executionId],
   );
 }

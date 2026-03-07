@@ -248,16 +248,32 @@ function ModelStep({
     { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'google' },
   ];
 
+  const selectedModel = MODELS.find(m => m.id === config.model);
+  const selectedProvider = selectedModel ? providers.find(p => p.name === selectedModel.provider) : null;
+  const providerUnhealthy = selectedProvider && selectedProvider.status !== 'healthy';
+
   return (
     <div className="builder-form">
       <label className="builder-field">
         <span>Model</span>
-        <select value={config.model} onChange={e => onChange({ model: e.target.value })}>
-          {MODELS.map(m => (
-            <option key={m.id} value={m.id}>{m.label} ({m.provider})</option>
-          ))}
+        <select value={config.model} onChange={e => {
+          const m = MODELS.find(x => x.id === e.target.value);
+          onChange({ model: e.target.value, provider: m?.provider || config.provider });
+        }}>
+          {MODELS.map(m => {
+            const p = providers.find(x => x.name === m.provider);
+            const ok = p?.status === 'healthy';
+            return (
+              <option key={m.id} value={m.id}>{m.label} ({m.provider}{ok ? '' : ' - not configured'})</option>
+            );
+          })}
         </select>
       </label>
+      {providerUnhealthy && (
+        <div className="builder-provider-warning">
+          Provider "{selectedProvider.name}" is not configured. This agent won't be able to run until you add an API key in Settings &gt; Providers.
+        </div>
+      )}
       <div className="builder-provider-status">
         <span className="builder-label">Provider Status:</span>
         {providers.map(p => (

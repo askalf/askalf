@@ -205,6 +205,16 @@
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
 }
 
+.builder-provider-warning {
+  padding: 8px 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 6px;
+  color: #f59e0b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* ── Provider Status ── */
 
 .builder-provider-status {

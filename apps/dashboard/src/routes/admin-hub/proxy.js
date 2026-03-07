@@ -175,7 +175,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
   fastify.post('/api/v1/admin/git-space/ai-review', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForgeAdmin('/git-space/ai-review', { method: 'POST', body: request.body });
+    const res = await callForge('/git-space/ai-review', { method: 'POST', body: request.body, timeout: 120000 });
     if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'AI review unavailable', message: res.message });
     return res;
   });
@@ -184,7 +184,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const { id } = request.params;
-    const res = await callForgeAdmin(`/git-space/review-result/${encodeURIComponent(id)}`);
+    const res = await callForge(`/git-space/review-result/${encodeURIComponent(id)}`);
     if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Review result unavailable', message: res.message });
     return res;
   });
@@ -192,7 +192,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
   fastify.post('/api/v1/admin/git-space/ai-review/chat', async (request, reply) => {
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
-    const res = await callForgeAdmin('/git-space/ai-review/chat', { method: 'POST', body: request.body });
+    const res = await callForge('/git-space/ai-review/chat', { method: 'POST', body: request.body, timeout: 60000 });
     if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'AI review chat unavailable', message: res.message });
     return reply.send(res);
   });
@@ -246,6 +246,28 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const { id } = request.params;
     const res = await callForge(`/workflows/${encodeURIComponent(id)}/run`, { method: 'POST', body: request.body || {} });
     if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Workflow run failed', message: res.message });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/workflows/:id/runs', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const { limit, offset } = request.query;
+    const params = new URLSearchParams();
+    if (limit) params.set('limit', limit);
+    if (offset) params.set('offset', offset);
+    const res = await callForge(`/workflows/${encodeURIComponent(id)}/runs?${params.toString()}`);
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Workflow runs unavailable', message: res.message });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/workflow-runs/:id', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { id } = request.params;
+    const res = await callForge(`/workflow-runs/${encodeURIComponent(id)}`);
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Run not found', message: res.message });
     return res;
   });
 

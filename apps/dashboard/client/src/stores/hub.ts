@@ -25,6 +25,7 @@ import {
   type CoordinationSession,
   type CoordinationStats,
   type Workflow,
+  type WorkflowRun,
   type CostSummary,
   type DailyCost,
   type AgentCost,
@@ -217,6 +218,8 @@ interface HubState {
   setSelectedWorkflow: (w: Workflow | null) => void;
   showCreateWorkflow: boolean;
   setShowCreateWorkflow: (v: boolean) => void;
+  workflowRuns: WorkflowRun[];
+  workflowRunsTotal: number;
 
   // Costs
   costSummary: CostSummary | null;
@@ -313,6 +316,7 @@ interface HubState {
 
   // Workflow actions
   fetchWorkflows: () => Promise<void>;
+  fetchWorkflowRuns: (workflowId: string) => Promise<void>;
   createWorkflow: (body: { name: string; description?: string }) => Promise<boolean>;
   updateWorkflow: (id: string, body: { name?: string; description?: string; definition?: { nodes: unknown[]; edges: unknown[] }; status?: string }) => Promise<boolean>;
   runWorkflow: (id: string, input?: Record<string, unknown>) => Promise<boolean>;
@@ -542,9 +546,11 @@ export const useHubStore = create<HubState>((set, get) => ({
   // Workflows
   workflows: [],
   selectedWorkflow: null,
-  setSelectedWorkflow: (w) => set({ selectedWorkflow: w }),
+  setSelectedWorkflow: (w) => set({ selectedWorkflow: w, workflowRuns: [], workflowRunsTotal: 0 }),
   showCreateWorkflow: false,
   setShowCreateWorkflow: (v) => set({ showCreateWorkflow: v }),
+  workflowRuns: [],
+  workflowRunsTotal: 0,
 
   // Costs
   costSummary: null,
@@ -968,6 +974,15 @@ export const useHubStore = create<HubState>((set, get) => ({
       console.error('Failed to fetch workflows:', err);
     } finally {
       set((s) => ({ loading: { ...s.loading, workflows: false } }));
+    }
+  },
+
+  fetchWorkflowRuns: async (workflowId: string) => {
+    try {
+      const data = await hubApi.workflows.runs(workflowId);
+      set({ workflowRuns: data.runs || [], workflowRunsTotal: data.total || 0 });
+    } catch (err) {
+      console.error('Failed to fetch workflow runs:', err);
     }
   },
 

@@ -1003,6 +1003,14 @@ export const hubApi = {
 
     run: (id: string, input?: Record<string, unknown>) =>
       apiFetch<{ run: WorkflowRun }>(`/api/v1/admin/workflows/${id}/run`, { method: 'POST', body: JSON.stringify({ input: input || {} }) }),
+
+    runs: (workflowId: string, params: { limit?: number; offset?: number } = {}) =>
+      apiFetch<{ runs: WorkflowRun[]; total: number }>(
+        `/api/v1/admin/workflows/${workflowId}/runs?${buildParams({ limit: params.limit || 20, offset: params.offset })}`
+      ),
+
+    getRun: (runId: string) =>
+      apiFetch<{ run: WorkflowRun }>(`/api/v1/admin/workflow-runs/${runId}`),
   },
 
   // Phase 6: Prompt Revisions
