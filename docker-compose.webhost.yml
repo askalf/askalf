@@ -166,6 +166,7 @@ services:
     labels:
       - "autoheal-webhost=true"
     environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET_KEY}
       SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:
       redis:
@@ -185,6 +186,9 @@ services:
     networks:
       - webhost-net
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=32m
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -192,7 +196,6 @@ services:
     cap_add:
       - SETGID
       - SETUID
-      - DAC_OVERRIDE
     deploy:
       resources:
         limits:
