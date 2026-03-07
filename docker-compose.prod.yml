@@ -179,6 +179,8 @@ services:
       context: .
       dockerfile: apps/mcp-tools/Dockerfile
     container_name: askalf-mcp-tools
+    ports:
+      - "127.0.0.1:3010:3010"
     environment:
       NODE_ENV: production
       PORT: 3010
