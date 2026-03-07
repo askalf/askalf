@@ -35,6 +35,7 @@ import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';
 import { TOOLS as INFRA_TOOLS, handleTool as handleInfraTool } from './infra.js';
 import { TOOLS as AGENT_TOOLS, handleTool as handleAgentTool } from './agent-tools.js';
 import { TOOLS as FORGE_TOOLS, handleTool as handleForgeTool } from './forge-tools.js';
+import { handleExtract, handleContext } from './memory-api.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
@@ -169,6 +170,31 @@ app.get('/health', (_req, res) => {
 app.get('/metrics', (_req, res) => {
   res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
   res.send(getPrometheusMetrics());
+});
+
+// ============================================
+// Memory API — REST endpoints for hooks/scripts
+// ============================================
+
+app.post('/api/memory/extract', async (req, res) => {
+  try {
+    const result = await handleExtract(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Memory extract error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/context', async (req, res) => {
+  try {
+    const project = (req.query['project'] as string) ?? '';
+    const result = await handleContext(project);
+    res.json(result);
+  } catch (err) {
+    log(`Memory context error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
 });
 
 const transports = new Map<string, SSEServerTransport>();
