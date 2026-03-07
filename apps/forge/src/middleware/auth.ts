@@ -108,11 +108,6 @@ export async function authMiddleware(request: FastifyRequest, _reply: FastifyRep
   request.userId = await getAdminUserId();
 }
 
-export async function optionalAuth(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
-  if (await tryApiKeyAuth(request)) return;
-  request.userId = await getAdminUserId();
-}
-
 export async function requireAdmin(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
   if (request.userId) return;
   request.userId = await getAdminUserId();
