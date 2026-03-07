@@ -139,7 +139,7 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8888 2>&1 | grep -q '400\\|200\\|503' || exit 1"]
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
       interval: 30s
       timeout: 10s
       retries: 5
