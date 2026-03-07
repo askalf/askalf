@@ -26,7 +26,7 @@ const MAX_RESIZE_ROWS = 200;
 // OAuth config (matches forge worker.ts)
 const CLAUDE_HOME = process.env['CLAUDE_SESSION_HOME'] || '/home/substrate/.claude-session';
 const CLAUDE_DIR = `${CLAUDE_HOME}/.claude`;
-const CREDENTIALS_MOUNT = '/home/substrate/claude-credentials.json';
+const CREDENTIALS_MOUNT = '/tmp/claude-credentials/.credentials.json';
 const CREDENTIALS_PATH = `${CLAUDE_DIR}/.credentials.json`;
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
@@ -67,9 +67,10 @@ class CircularBuffer {
   }
 }
 
-/** Atomic file write: write to temp then rename */
+/** Atomic file write: write to temp in same dir then rename */
 async function atomicWriteFile(filePath, data) {
-  const tempPath = join(tmpdir(), `.cred-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`);
+  const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+  const tempPath = join(dir, `.cred-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`);
   await writeFile(tempPath, data);
   await rename(tempPath, filePath);
 }

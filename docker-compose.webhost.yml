@@ -1,24 +1,24 @@
-# AskAlf Static Sites — public-facing nginx + cloudflared
-# Serves: amnesia.tax (search engine), askalf.org (landing page)
-# Run alongside docker-compose.selfhosted.yml for local dev
+# Webhost Stack — public-facing web hosting
+# Serves: amnesia.tax, askalf.org, and any other public domains
+# Completely isolated from selfhosted and prod stacks
 
-name: askalf-static
+name: webhost
 
 services:
   # ===========================================
-  # STATIC NGINX — serves public sites only
+  # NGINX — multi-site reverse proxy
   # ===========================================
   nginx:
     image: nginx:1.28.2-alpine@sha256:15e96e59aa3b0aada3a121296e3bce117721f42d88f5f64217ef4b18f458c6ab
-    container_name: askalf-nginx
+    container_name: webhost-nginx
     labels:
-      - "autoheal=true"
+      - "autoheal-webhost=true"
     command: ["/bin/sh", "-c", "[ -L /var/log/nginx/access.log ] && rm /var/log/nginx/access.log; [ -L /var/log/nginx/error.log ] && rm /var/log/nginx/error.log; touch /var/log/nginx/access.log /var/log/nginx/error.log; nginx -g 'daemon off;'"]
     expose:
       - "80"
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infrastructure/nginx/conf.d/static-only.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./infrastructure/nginx/conf.d/webhost.conf:/etc/nginx/conf.d/default.conf:ro
       - ./infrastructure/nginx/static:/usr/share/nginx/static:ro
       - nginx_cache:/var/cache/nginx
       - nginx_logs:/var/log/nginx
@@ -32,7 +32,7 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - askalf-static-net
+      - webhost-net
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -46,6 +46,7 @@ services:
       - NET_BIND_SERVICE
       - SETUID
       - SETGID
+      - CHOWN
     deploy:
       resources:
         limits:
@@ -56,9 +57,9 @@ services:
   # ===========================================
   cloudflared:
     image: cloudflare/cloudflared:2026.2.0@sha256:404528c1cd63c3eb882c257ae524919e4376115e6fe57befca8d603656a91a4c
-    container_name: askalf-cloudflared
+    container_name: webhost-cloudflared
     labels:
-      - "autoheal=true"
+      - "autoheal-webhost=true"
     command: tunnel --metrics localhost:2000 --protocol quic run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       nginx:
@@ -70,7 +71,7 @@ services:
       retries: 3
       start_period: 15s
     networks:
-      - askalf-static-net
+      - webhost-net
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -83,12 +84,12 @@ services:
           memory: 192M
 
   # ===========================================
-  # SEARXNG — search backend for amnesia.tax
+  # REDIS — dedicated to webhost searxng only
   # ===========================================
   redis:
     image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
-    container_name: askalf-static-redis
-    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 64mb --maxmemory-policy allkeys-lru
+    container_name: webhost-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 64mb --maxmemory-policy allkeys-lru --save ""
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
       interval: 10s
@@ -96,26 +97,39 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - askalf-static-net
+      - webhost-net
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /data:mode=755,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
     deploy:
       resources:
         limits:
           memory: 96M
 
+  # ===========================================
+  # SEARXNG — search backend for amnesia.tax
+  # ===========================================
   searxng:
     image: searxng/searxng@sha256:1a143665b6445079d1cd5b6facdf599d22ac9c29698dd2e7d15eb9b5f5a854cc
-    container_name: askalf-searxng
+    container_name: webhost-searxng
     labels:
-      - "autoheal=true"
+      - "autoheal-webhost=true"
     environment:
       SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:
       redis:
         condition: service_healthy
     volumes:
-      - ./infrastructure/searxng/settings.yml:/etc/searxng/settings.yml:ro
-      - ./infrastructure/searxng/limiter.toml:/etc/searxng/limiter.toml:ro
+      - ./infrastructure/searxng/webhost-settings.yml:/etc/searxng/settings.yml:ro
+      - ./infrastructure/searxng/webhost-limiter.toml:/etc/searxng/limiter.toml:ro
       - searxng_cache:/var/cache/searxng
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/healthz || exit 1"]
@@ -124,7 +138,7 @@ services:
       retries: 3
       start_period: 20s
     networks:
-      - askalf-static-net
+      - webhost-net
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -140,13 +154,13 @@ services:
           memory: 384M
 
   # ===========================================
-  # AUTOHEAL — restart unhealthy containers
+  # AUTOHEAL — webhost containers ONLY
   # ===========================================
   autoheal:
     image: willfarrell/autoheal@sha256:eeb45dc8997520bedc6b53c65c4a605a6ded3ea2be960e6c194fb9d8e3f10d4d
-    container_name: askalf-autoheal
+    container_name: webhost-autoheal
     environment:
-      AUTOHEAL_CONTAINER_LABEL: autoheal
+      AUTOHEAL_CONTAINER_LABEL: autoheal-webhost
       AUTOHEAL_INTERVAL: 30
       AUTOHEAL_START_PERIOD: 60
       AUTOHEAL_DEFAULT_STOP_TIMEOUT: 10
@@ -167,16 +181,10 @@ services:
 
 volumes:
   nginx_cache:
-    name: substrate_prod_nginx_cache
-    external: true
   nginx_logs:
-    name: substrate_prod_nginx_logs
-    external: true
   searxng_cache:
-    name: substrate_prod_searxng_cache
-    external: true
 
 networks:
-  askalf-static-net:
-    name: askalf-static-net
+  webhost-net:
+    name: webhost-net
     driver: bridge

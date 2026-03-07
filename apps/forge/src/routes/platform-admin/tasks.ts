@@ -6,7 +6,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query, queryOne } from '../../database.js';
 import { substrateQuery } from '../../database.js';
 import { authMiddleware } from '../../middleware/auth.js';
-import { requireAdmin } from '../../middleware/session-auth.js';
+import { requireAdmin } from '../../middleware/auth.js';
 import { mapAgentType, paginationResponse } from './utils.js';
 
 export async function registerTaskRoutes(app: FastifyInstance): Promise<void> {

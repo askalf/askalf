@@ -1,14 +1,36 @@
-// SUBSTRATE v1: API Key Management
-// API key creation, validation, and revocation
+// API Key management — minimal surface for dashboard server.js
 
 import { ulid } from 'ulid';
-import { query, queryOne } from '@askalf/database';
-import { generateApiKey, hashTokenPbkdf2, verifyTokenHash } from './password.js';
-import type { ApiKey, SafeApiKey, ApiKeyScope } from './types.js';
+import { query } from '@askalf/database';
+import { pbkdf2Sync, randomBytes } from 'node:crypto';
 
-/**
- * Convert a database row to an ApiKey object
- */
+// PBKDF2 configuration for token hashing
+const PBKDF2_ITERATIONS = 100000;
+const PBKDF2_DIGEST = 'sha256';
+const PBKDF2_SALT_LENGTH = 16;
+
+export type ApiKeyScope = 'read' | 'write' | 'execute' | 'admin';
+
+export interface SafeApiKey {
+  id: string;
+  tenant_id: string;
+  user_id: string | null;
+  key_prefix: string;
+  name: string;
+  description: string | null;
+  scopes: ApiKeyScope[];
+  last_used_at: Date | null;
+  usage_count: number;
+  status: 'active' | 'revoked' | 'expired';
+  expires_at: Date | null;
+  revoked_at: Date | null;
+  created_at: Date;
+}
+
+interface ApiKey extends SafeApiKey {
+  key_hash: string;
+}
+
 function rowToApiKey(row: Record<string, unknown>): ApiKey {
   return {
     id: row['id'] as string,
@@ -30,12 +52,32 @@ function rowToApiKey(row: Record<string, unknown>): ApiKey {
   };
 }
 
-/**
- * Convert an ApiKey to a SafeApiKey (without hash)
- */
-export function toSafeApiKey(apiKey: ApiKey): SafeApiKey {
+function toSafeApiKey(apiKey: ApiKey): SafeApiKey {
   const { key_hash, ...safe } = apiKey;
   return safe;
+}
+
+function generateSecureToken(length: number = 32): string {
+  const chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => chars[byte % chars.length]).join('');
+}
+
+function generateApiKey(
+  environment: 'live' | 'test' = 'live'
+): { key: string; prefix: string } {
+  const randomPart = generateSecureToken(32);
+  const key = `sk_${environment}_${randomPart}`;
+  const prefix = key.slice(0, 12);
+  return { key, prefix };
+}
+
+async function hashTokenPbkdf2(token: string): Promise<string> {
+  const salt = randomBytes(PBKDF2_SALT_LENGTH);
+  const hash = pbkdf2Sync(token, salt, PBKDF2_ITERATIONS, 32, PBKDF2_DIGEST);
+  return `${salt.toString('hex')}.${hash.toString('hex')}`;
 }
 
 /**
@@ -84,59 +126,6 @@ export async function createApiKey(
 }
 
 /**
- * Validate an API key
- * Returns the API key record if valid, null otherwise
- */
-export async function validateApiKey(key: string): Promise<ApiKey | null> {
-  // Fetch all active, non-expired API keys (we'll verify the hash in memory)
-  const sql = `
-    SELECT * FROM api_keys
-    WHERE status = 'active'
-      AND (expires_at IS NULL OR expires_at > NOW())
-  `;
-
-  const rows = await query<Record<string, unknown>>(sql, []);
-
-  // Find matching key by verifying hash
-  for (const row of rows) {
-    const storedHash = row['key_hash'] as string;
-    if (await verifyTokenHash(key, storedHash)) {
-      // Update usage stats
-      await query(
-        `
-        UPDATE api_keys
-        SET last_used_at = NOW(), usage_count = usage_count + 1
-        WHERE id = $1
-      `,
-        [row['id']]
-      );
-
-      return rowToApiKey(row);
-    }
-  }
-
-  return null;
-}
-
-/**
- * Get an API key by ID
- */
-export async function getApiKeyById(id: string): Promise<ApiKey | null> {
-  const sql = 'SELECT * FROM api_keys WHERE id = $1';
-  const row = await queryOne<Record<string, unknown>>(sql, [id]);
-  return row ? rowToApiKey(row) : null;
-}
-
-/**
- * Get an API key by prefix (for identification)
- */
-export async function getApiKeyByPrefix(prefix: string): Promise<ApiKey | null> {
-  const sql = 'SELECT * FROM api_keys WHERE key_prefix = $1';
-  const row = await queryOne<Record<string, unknown>>(sql, [prefix]);
-  return row ? rowToApiKey(row) : null;
-}
-
-/**
  * Revoke an API key
  */
 export async function revokeApiKey(id: string): Promise<boolean> {
@@ -152,83 +141,12 @@ export async function revokeApiKey(id: string): Promise<boolean> {
 }
 
 /**
- * Revoke all API keys for a tenant
- */
-export async function revokeAllTenantApiKeys(tenantId: string): Promise<number> {
-  const sql = `
-    UPDATE api_keys
-    SET status = 'revoked', revoked_at = NOW()
-    WHERE tenant_id = $1 AND status = 'active'
-    RETURNING id
-  `;
-
-  const rows = await query<{ id: string }>(sql, [tenantId]);
-  return rows.length;
-}
-
-/**
- * Revoke all API keys for a user
- */
-export async function revokeAllUserApiKeys(userId: string): Promise<number> {
-  const sql = `
-    UPDATE api_keys
-    SET status = 'revoked', revoked_at = NOW()
-    WHERE user_id = $1 AND status = 'active'
-    RETURNING id
-  `;
-
-  const rows = await query<{ id: string }>(sql, [userId]);
-  return rows.length;
-}
-
-/**
- * List API keys for a tenant
- */
-export async function listApiKeysByTenant(
-  tenantId: string,
-  options?: {
-    status?: ApiKey['status'];
-    userId?: string;
-    limit?: number;
-    offset?: number;
-  }
-): Promise<SafeApiKey[]> {
-  const conditions = ['tenant_id = $1'];
-  const params: unknown[] = [tenantId];
-  let paramIndex = 2;
-
-  if (options?.status) {
-    conditions.push(`status = $${paramIndex}`);
-    params.push(options.status);
-    paramIndex++;
-  }
-
-  if (options?.userId) {
-    conditions.push(`user_id = $${paramIndex}`);
-    params.push(options.userId);
-    paramIndex++;
-  }
-
-  const sql = `
-    SELECT * FROM api_keys
-    WHERE ${conditions.join(' AND ')}
-    ORDER BY created_at DESC
-    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-  `;
-
-  params.push(options?.limit ?? 50, options?.offset ?? 0);
-
-  const rows = await query<Record<string, unknown>>(sql, params);
-  return rows.map((row) => toSafeApiKey(rowToApiKey(row)));
-}
-
-/**
  * List API keys for a user
  */
 export async function listApiKeysByUser(
   userId: string,
   options?: {
-    status?: ApiKey['status'];
+    status?: 'active' | 'revoked' | 'expired';
     limit?: number;
     offset?: number;
   }
@@ -254,108 +172,4 @@ export async function listApiKeysByUser(
 
   const rows = await query<Record<string, unknown>>(sql, params);
   return rows.map((row) => toSafeApiKey(rowToApiKey(row)));
-}
-
-/**
- * Count API keys for a tenant
- */
-export async function countApiKeysByTenant(
-  tenantId: string,
-  status?: ApiKey['status']
-): Promise<number> {
-  let sql = 'SELECT COUNT(*) as count FROM api_keys WHERE tenant_id = $1';
-  const params: unknown[] = [tenantId];
-
-  if (status) {
-    sql += ' AND status = $2';
-    params.push(status);
-  }
-
-  const row = await queryOne<{ count: string }>(sql, params);
-  return parseInt(row?.count ?? '0', 10);
-}
-
-/**
- * Update API key name/description
- */
-export async function updateApiKey(
-  id: string,
-  updates: { name?: string; description?: string }
-): Promise<SafeApiKey | null> {
-  const setClause: string[] = [];
-  const params: unknown[] = [];
-  let paramIndex = 1;
-
-  if (updates.name !== undefined) {
-    setClause.push(`name = $${paramIndex}`);
-    params.push(updates.name);
-    paramIndex++;
-  }
-
-  if (updates.description !== undefined) {
-    setClause.push(`description = $${paramIndex}`);
-    params.push(updates.description);
-    paramIndex++;
-  }
-
-  if (setClause.length === 0) {
-    const apiKey = await getApiKeyById(id);
-    return apiKey ? toSafeApiKey(apiKey) : null;
-  }
-
-  params.push(id);
-
-  const sql = `
-    UPDATE api_keys
-    SET ${setClause.join(', ')}
-    WHERE id = $${paramIndex}
-    RETURNING *
-  `;
-
-  const rows = await query<Record<string, unknown>>(sql, params);
-  return rows[0] ? toSafeApiKey(rowToApiKey(rows[0])) : null;
-}
-
-/**
- * Check if an API key has a specific scope
- */
-export function hasScope(apiKey: ApiKey | SafeApiKey, scope: ApiKeyScope): boolean {
-  return apiKey.scopes.includes(scope);
-}
-
-/**
- * Check if an API key has all specified scopes
- */
-export function hasAllScopes(
-  apiKey: ApiKey | SafeApiKey,
-  scopes: ApiKeyScope[]
-): boolean {
-  return scopes.every((scope) => apiKey.scopes.includes(scope));
-}
-
-/**
- * Check if an API key has any of the specified scopes
- */
-export function hasAnyScope(
-  apiKey: ApiKey | SafeApiKey,
-  scopes: ApiKeyScope[]
-): boolean {
-  return scopes.some((scope) => apiKey.scopes.includes(scope));
-}
-
-/**
- * Clean up expired API keys (run periodically)
- */
-export async function cleanupExpiredApiKeys(): Promise<number> {
-  const sql = `
-    UPDATE api_keys
-    SET status = 'revoked', revoked_at = NOW()
-    WHERE status = 'active'
-      AND expires_at IS NOT NULL
-      AND expires_at < NOW()
-    RETURNING id
-  `;
-
-  const rows = await query<{ id: string }>(sql);
-  return rows.length;
 }

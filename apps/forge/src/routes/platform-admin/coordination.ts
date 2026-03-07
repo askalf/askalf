@@ -6,7 +6,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../../database.js';
 import { authMiddleware } from '../../middleware/auth.js';
-import { requireAdmin } from '../../middleware/session-auth.js';
+import { requireAdmin } from '../../middleware/auth.js';
 
 export async function registerCoordinationRoutes(app: FastifyInstance): Promise<void> {
 

@@ -6,7 +6,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { query } from '../../database.js';
 import { authMiddleware } from '../../middleware/auth.js';
-import { requireAdmin } from '../../middleware/session-auth.js';
+import { requireAdmin } from '../../middleware/auth.js';
 
 // CLI events have metadata->>'runtime_mode' = 'cli'. Everything else is API.
 const IS_CLI = `metadata->>'runtime_mode' = 'cli'`;

@@ -5,7 +5,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { authMiddleware } from '../../middleware/auth.js';
-import { requireAdmin } from '../../middleware/session-auth.js';
+import { requireAdmin } from '../../middleware/auth.js';
 import { reviewStore, reviewStoreSet, REVIEW_SYSTEM_PROMPT, runCliQuery, persistReview, loadReviewFromDb } from './utils.js';
 
 export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> {

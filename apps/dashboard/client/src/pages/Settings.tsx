@@ -364,6 +364,8 @@ function SecurityTab() {
   const [error, setError] = useState('');
   const [pwSuccess, setPwSuccess] = useState(false);
 
+
+
   const handleChangePassword = async () => {
     setError('');
     setPwSuccess(false);
@@ -490,40 +492,8 @@ function SecurityTab() {
           {isSaving ? 'Updating...' : 'Update Password'}
         </button>
 
-        <div className="settings-mfa-section">
-          <h3>Multi-Factor Authentication</h3>
-          <div className="settings-mfa-options">
-            <div className="settings-mfa-option">
-              <div className="settings-mfa-info">
-                <span className="settings-mfa-name">Authenticator App (TOTP)</span>
-                <span className="settings-mfa-desc">Use an app like Google Authenticator or Authy</span>
-              </div>
-              <span className="settings-coming-soon-badge">Coming Soon</span>
-            </div>
-            <div className="settings-mfa-option">
-              <div className="settings-mfa-info">
-                <span className="settings-mfa-name">Passkey / WebAuthn</span>
-                <span className="settings-mfa-desc">Sign in with fingerprint, face, or hardware key</span>
-              </div>
-              <span className="settings-coming-soon-badge">Coming Soon</span>
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div className="settings-danger-zone">
-        <h3>Danger Zone</h3>
-        <p>
-          During the beta, account deletion is handled by our team to ensure data integrity.
-          {' '}To request account deletion, contact{' '}
-          <a href="mailto:support@askalf.org?subject=Account%20Deletion%20Request" style={{ color: 'var(--crystal)' }}>
-            support@askalf.org
-          </a>
-        </p>
-        <button className="settings-danger-btn" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>
-          Delete Account
-        </button>
-      </div>
 
     </div>
   );
@@ -785,6 +755,7 @@ interface Integration {
 interface AvailableProvider {
   provider: string;
   configured: boolean;
+  type?: 'oauth' | 'api_key';
 }
 
 interface ProviderDef {
@@ -844,6 +815,32 @@ const PROVIDER_LABELS: Record<string, string> = Object.fromEntries(ALL_PROVIDERS
 
 const PROVIDER_ICONS: Record<string, JSX.Element> = Object.fromEntries(ALL_PROVIDERS.map(p => [p.id, p.icon]));
 
+const API_KEY_FIELDS: Record<string, { key: string; label: string; placeholder?: string; sensitive?: boolean }[]> = {
+  aws: [{ key: 'access_key_id', label: 'Access Key ID' }, { key: 'secret_access_key', label: 'Secret Access Key', sensitive: true }, { key: 'region', label: 'Region', placeholder: 'us-east-1' }],
+  gcp: [{ key: 'service_account_json', label: 'Service Account JSON', sensitive: true }, { key: 'project_id', label: 'Project ID' }],
+  azure: [{ key: 'tenant_id', label: 'Tenant ID' }, { key: 'client_id', label: 'Client ID' }, { key: 'client_secret', label: 'Client Secret', sensitive: true }, { key: 'subscription_id', label: 'Subscription ID' }],
+  digitalocean: [{ key: 'api_token', label: 'API Token', sensitive: true }],
+  vercel: [{ key: 'api_token', label: 'API Token', sensitive: true }, { key: 'team_id', label: 'Team ID (optional)' }],
+  netlify: [{ key: 'api_token', label: 'Personal Access Token', sensitive: true }],
+  railway: [{ key: 'api_token', label: 'API Token', sensitive: true }],
+  flyio: [{ key: 'api_token', label: 'API Token', sensitive: true }, { key: 'org_slug', label: 'Org Slug' }],
+  jira: [{ key: 'domain', label: 'Domain', placeholder: 'mycompany.atlassian.net' }, { key: 'email', label: 'Email' }, { key: 'api_token', label: 'API Token', sensitive: true }],
+  linear: [{ key: 'api_key', label: 'API Key', sensitive: true }],
+  notion: [{ key: 'api_key', label: 'Integration Token', sensitive: true }],
+  asana: [{ key: 'api_token', label: 'Personal Access Token', sensitive: true }],
+  datadog: [{ key: 'api_key', label: 'API Key', sensitive: true }, { key: 'app_key', label: 'Application Key', sensitive: true }, { key: 'site', label: 'Site', placeholder: 'datadoghq.com' }],
+  sentry: [{ key: 'auth_token', label: 'Auth Token', sensitive: true }, { key: 'org_slug', label: 'Org Slug' }],
+  pagerduty: [{ key: 'api_key', label: 'API Key', sensitive: true }],
+  grafana: [{ key: 'url', label: 'Grafana URL', placeholder: 'https://grafana.example.com' }, { key: 'api_key', label: 'API Key', sensitive: true }],
+  cloudflare: [{ key: 'api_token', label: 'API Token', sensitive: true }, { key: 'account_id', label: 'Account ID' }],
+  s3: [{ key: 'access_key_id', label: 'Access Key ID' }, { key: 'secret_access_key', label: 'Secret Access Key', sensitive: true }, { key: 'region', label: 'Region' }, { key: 'bucket', label: 'Bucket' }],
+  supabase: [{ key: 'url', label: 'Project URL', placeholder: 'https://xxx.supabase.co' }, { key: 'anon_key', label: 'Anon Key' }, { key: 'service_role_key', label: 'Service Role Key', sensitive: true }],
+};
+
+function getApiKeyFields(providerId: string) {
+  return API_KEY_FIELDS[providerId] ?? [{ key: 'api_key', label: 'API Key', sensitive: true }];
+}
+
 function IntegrationsTab() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [available, setAvailable] = useState<AvailableProvider[]>([]);
@@ -852,6 +849,9 @@ function IntegrationsTab() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [expandedRepos, setExpandedRepos] = useState<string | null>(null);
   const [repos, setRepos] = useState<Array<{ id: string; repo_full_name: string; is_private: boolean; language: string | null }>>([]);
+  const [expandedApiKey, setExpandedApiKey] = useState<string | null>(null);
+  const [apiKeyForms, setApiKeyForms] = useState<Record<string, Record<string, string>>>({});
+  const [apiKeySaving, setApiKeySaving] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
@@ -949,6 +949,38 @@ function IntegrationsTab() {
 
   const connectedProviders = new Set(integrations.map((i) => i.provider));
   const availableSet = new Set(available.filter(p => p.configured).map(p => p.provider));
+  const oauthProviders = new Set(['github', 'gitlab', 'bitbucket']);
+
+  const handleApiKeyConnect = async (providerId: string) => {
+    const config = apiKeyForms[providerId];
+    if (!config || Object.values(config).every(v => !v)) return;
+
+    setApiKeySaving(providerId);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/integrations/connect/${providerId}/apikey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ config }),
+      });
+      const data = await res.json() as { id?: string; testResult?: { success: boolean; message: string } };
+      if (res.ok) {
+        setMessage({ type: 'success', text: data.testResult?.message ?? `Connected to ${providerId}` });
+        setExpandedApiKey(null);
+        fetchData();
+      } else {
+        setMessage({ type: 'error', text: (data as { error?: string }).error ?? 'Connection failed' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Network error' });
+    } finally {
+      setApiKeySaving(null);
+    }
+  };
+
+  const updateApiKeyForm = (providerId: string, key: string, value: string) => {
+    setApiKeyForms(prev => ({ ...prev, [providerId]: { ...(prev[providerId] ?? {}), [key]: value } }));
+  };
 
   if (loading) {
     return (
@@ -1058,30 +1090,66 @@ function IntegrationsTab() {
               {providers.map((p) => {
                 const isConnected = connectedProviders.has(p.id);
                 const isAvailable = availableSet.has(p.id);
+                const isOAuth = oauthProviders.has(p.id);
+                const isExpanded = expandedApiKey === p.id;
                 return (
                   <div
                     key={p.id}
-                    className={`settings-intg-provider-card${isConnected ? ' connected' : ''}${!isAvailable && !isConnected ? ' upcoming' : ''}`}
+                    className={`settings-intg-provider-card${isConnected ? ' connected' : ''}`}
+                    style={{ cursor: !isConnected && !isOAuth ? 'pointer' : undefined }}
+                    onClick={() => {
+                      if (!isConnected && !isOAuth) setExpandedApiKey(isExpanded ? null : p.id);
+                    }}
                   >
-                    <div className="settings-intg-provider-icon">{p.icon}</div>
-                    <div className="settings-intg-provider-body">
-                      <div className="settings-intg-provider-name">{p.name}</div>
-                      <div className="settings-intg-provider-desc">{p.description}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div className="settings-intg-provider-icon">{p.icon}</div>
+                      <div className="settings-intg-provider-body">
+                        <div className="settings-intg-provider-name">{p.name}</div>
+                        <div className="settings-intg-provider-desc">{p.description}</div>
+                      </div>
+                      <div className="settings-intg-provider-action">
+                        {isConnected ? (
+                          <span className="settings-intg-badge connected">Connected</span>
+                        ) : isOAuth && isAvailable ? (
+                          <a
+                            href={`${API_BASE}/api/v1/integrations/connect/${p.id}`}
+                            className="settings-intg-connect-btn"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Connect
+                          </a>
+                        ) : (
+                          <span className="settings-intg-badge upcoming">Configure</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="settings-intg-provider-action">
-                      {isConnected ? (
-                        <span className="settings-intg-badge connected">Connected</span>
-                      ) : isAvailable ? (
-                        <a
-                          href={`${API_BASE}/api/v1/integrations/connect/${p.id}`}
-                          className="settings-intg-connect-btn"
-                        >
-                          Connect
-                        </a>
-                      ) : (
-                        <span className="settings-intg-badge upcoming">Coming Soon</span>
-                      )}
-                    </div>
+                    {isExpanded && !isConnected && (
+                      <div onClick={(e) => e.stopPropagation()} className="settings-channel-form" style={{ marginTop: '0.75rem' }}>
+                        <div className="settings-channel-fields">
+                          {getApiKeyFields(p.id).map(f => (
+                            <div key={f.key} className="settings-channel-field">
+                              <label>{f.label}</label>
+                              <input
+                                type={f.sensitive ? 'password' : 'text'}
+                                placeholder={f.placeholder ?? ''}
+                                value={apiKeyForms[p.id]?.[f.key] ?? ''}
+                                onChange={(e) => updateApiKeyForm(p.id, f.key, e.target.value)}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <button
+                            className="settings-btn-sm"
+                            onClick={() => handleApiKeyConnect(p.id)}
+                            disabled={apiKeySaving === p.id}
+                          >
+                            {apiKeySaving === p.id ? 'Connecting...' : 'Connect'}
+                          </button>
+                          <button className="settings-btn-sm" onClick={() => setExpandedApiKey(null)}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1396,7 +1464,11 @@ const CHANNEL_DEFS: ChannelDef[] = [
     icon: '\u{1F4BC}',
     category: 'messaging',
     description: 'Agents inside your Teams workspace.',
-    fields: [],
+    fields: [
+      { key: 'app_id', label: 'App ID', placeholder: 'From Azure Bot registration' },
+      { key: 'app_password', label: 'App Password', placeholder: 'Bot Framework secret', sensitive: true },
+      { key: 'tenant_id', label: 'Azure Tenant ID', placeholder: 'Your Azure AD tenant ID' },
+    ],
   },
 
   // Developer & Automation
@@ -1425,7 +1497,10 @@ const CHANNEL_DEFS: ChannelDef[] = [
     icon: '\u{1F517}',
     category: 'developer',
     description: 'Trigger agents from any Zapier workflow.',
-    fields: [],
+    fields: [
+      { key: 'webhook_url', label: 'Zapier Webhook URL', placeholder: 'https://hooks.zapier.com/hooks/catch/...' },
+      { key: 'api_key', label: 'API Key', placeholder: 'For authenticating Zapier requests', sensitive: true },
+    ],
   },
   {
     type: 'n8n',
@@ -1433,7 +1508,10 @@ const CHANNEL_DEFS: ChannelDef[] = [
     icon: '\u{2699}\uFE0F',
     category: 'developer',
     description: 'Self-hosted workflow automation.',
-    fields: [],
+    fields: [
+      { key: 'webhook_url', label: 'n8n Webhook URL', placeholder: 'https://your-n8n.com/webhook/...' },
+      { key: 'api_key', label: 'API Key', placeholder: 'For authenticating n8n requests', sensitive: true },
+    ],
   },
   {
     type: 'make',
@@ -1441,7 +1519,10 @@ const CHANNEL_DEFS: ChannelDef[] = [
     icon: '\u{1F504}',
     category: 'developer',
     description: 'Visual automation scenarios.',
-    fields: [],
+    fields: [
+      { key: 'webhook_url', label: 'Make Webhook URL', placeholder: 'https://hook.make.com/...' },
+      { key: 'api_key', label: 'API Key', placeholder: 'For authenticating Make requests', sensitive: true },
+    ],
   },
 
   // Email & SMS
@@ -1451,7 +1532,13 @@ const CHANNEL_DEFS: ChannelDef[] = [
     icon: '\u{1F4E7}',
     category: 'email',
     description: 'Agents respond to inbound emails.',
-    fields: [],
+    fields: [
+      { key: 'inbound_address', label: 'Inbound Address', placeholder: 'agent@yourdomain.com' },
+      { key: 'smtp_host', label: 'SMTP Host', placeholder: 'smtp.gmail.com' },
+      { key: 'smtp_port', label: 'SMTP Port', placeholder: '587' },
+      { key: 'smtp_user', label: 'SMTP User', placeholder: 'your@email.com' },
+      { key: 'smtp_pass', label: 'SMTP Password', placeholder: 'App password', sensitive: true },
+    ],
   },
   {
     type: 'twilio',
@@ -1459,7 +1546,11 @@ const CHANNEL_DEFS: ChannelDef[] = [
     icon: '\u{1F4DE}',
     category: 'email',
     description: 'Agent conversations over SMS.',
-    fields: [],
+    fields: [
+      { key: 'account_sid', label: 'Account SID', placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' },
+      { key: 'auth_token', label: 'Auth Token', placeholder: 'Your Twilio auth token', sensitive: true },
+      { key: 'phone_number', label: 'Phone Number', placeholder: '+1234567890' },
+    ],
   },
   {
     type: 'sendgrid',
@@ -1467,7 +1558,11 @@ const CHANNEL_DEFS: ChannelDef[] = [
     icon: '\u{2709}\uFE0F',
     category: 'email',
     description: 'Transactional email delivery for agents.',
-    fields: [],
+    fields: [
+      { key: 'api_key', label: 'API Key', placeholder: 'SG.xxxxxxxxxxxxxxxx', sensitive: true },
+      { key: 'from_email', label: 'From Email', placeholder: 'agent@yourdomain.com' },
+      { key: 'from_name', label: 'From Name', placeholder: 'AskAlf Agent' },
+    ],
   },
 
   // Voice & Video
@@ -1477,7 +1572,12 @@ const CHANNEL_DEFS: ChannelDef[] = [
     icon: '\u{1F4DE}',
     category: 'voice',
     description: 'Voice calls with AI agent responses.',
-    fields: [],
+    fields: [
+      { key: 'account_sid', label: 'Account SID', placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' },
+      { key: 'auth_token', label: 'Auth Token', placeholder: 'Your Twilio auth token', sensitive: true },
+      { key: 'phone_number', label: 'Phone Number', placeholder: '+1234567890' },
+      { key: 'twiml_app_sid', label: 'TwiML App SID', placeholder: 'APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' },
+    ],
   },
   {
     type: 'zoom',
@@ -1485,7 +1585,12 @@ const CHANNEL_DEFS: ChannelDef[] = [
     icon: '\u{1F3A5}',
     category: 'voice',
     description: 'Agent assistants in Zoom meetings.',
-    fields: [],
+    fields: [
+      { key: 'client_id', label: 'Client ID', placeholder: 'From Zoom Marketplace app' },
+      { key: 'client_secret', label: 'Client Secret', placeholder: 'OAuth client secret', sensitive: true },
+      { key: 'bot_jid', label: 'Bot JID', placeholder: 'v1xxxxxxxxxxxxxx@xmpp.zoom.us' },
+      { key: 'verification_token', label: 'Verification Token', placeholder: 'Webhook verification token', sensitive: true },
+    ],
   },
 ];
 
@@ -1581,7 +1686,7 @@ function ChannelsTab() {
   };
 
   // Channels with fields are "wired" (configurable now)
-  const wiredChannels = new Set(['slack', 'discord', 'telegram', 'whatsapp', 'webhooks']);
+  const wiredChannels = new Set(['slack', 'discord', 'telegram', 'whatsapp', 'webhooks', 'teams', 'zapier', 'n8n', 'make', 'email', 'twilio', 'sendgrid', 'twilio_voice', 'zoom']);
   const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
 
   return (
@@ -1626,8 +1731,6 @@ function ChannelsTab() {
                           <span className="settings-intg-badge connected">Connected</span>
                         ) : ch.type === 'api' ? (
                           <span className="settings-intg-badge connected">Built-in</span>
-                        ) : !isWired ? (
-                          <span className="settings-intg-badge upcoming">Coming Soon</span>
                         ) : (
                           <span className="settings-intg-badge upcoming">Configure</span>
                         )}
@@ -1718,22 +1821,22 @@ const DEVICE_TYPES: DeviceTypeDef[] = [
   // Compute
   { id: 'cli', name: 'CLI Agent', description: 'Shell access, file system, git ops', category: 'compute', icon: '\u{1F4BB}', available: true },
   { id: 'docker', name: 'Docker Host', description: 'Container management, builds, deploys', category: 'compute', icon: '\u{1F433}', available: true },
-  { id: 'ssh', name: 'SSH Remote', description: 'Remote server access via SSH tunnel', category: 'compute', icon: '\u{1F510}', available: false },
-  { id: 'k8s', name: 'Kubernetes', description: 'Cluster management, pod orchestration', category: 'compute', icon: '\u{2699}\uFE0F', available: false },
+  { id: 'ssh', name: 'SSH Remote', description: 'Remote server access via SSH tunnel', category: 'compute', icon: '\u{1F510}', available: true },
+  { id: 'k8s', name: 'Kubernetes', description: 'Cluster management, pod orchestration', category: 'compute', icon: '\u{2699}\uFE0F', available: true },
 
   // Browser & Desktop
-  { id: 'browser', name: 'Browser Bridge', description: 'Web automation, screenshots, DOM', category: 'browser', icon: '\u{1F310}', available: false },
-  { id: 'desktop', name: 'Desktop Control', description: 'Mouse, keyboard, screen capture', category: 'browser', icon: '\u{1F5A5}\uFE0F', available: false },
-  { id: 'vscode', name: 'VS Code', description: 'Editor integration, workspace access', category: 'browser', icon: '\u{1F4DD}', available: false },
+  { id: 'browser', name: 'Browser Bridge', description: 'Web automation, screenshots, DOM', category: 'browser', icon: '\u{1F310}', available: true },
+  { id: 'desktop', name: 'Desktop Control', description: 'Mouse, keyboard, screen capture', category: 'browser', icon: '\u{1F5A5}\uFE0F', available: true },
+  { id: 'vscode', name: 'VS Code', description: 'Editor integration, workspace access', category: 'browser', icon: '\u{1F4DD}', available: true },
 
   // Mobile
-  { id: 'android', name: 'Android', description: 'ADB bridge, app automation', category: 'mobile', icon: '\u{1F4F1}', available: false },
-  { id: 'ios', name: 'iOS', description: 'Simulator/device testing, shortcuts', category: 'mobile', icon: '\u{1F34E}', available: false },
+  { id: 'android', name: 'Android', description: 'ADB bridge, app automation', category: 'mobile', icon: '\u{1F4F1}', available: true },
+  { id: 'ios', name: 'iOS', description: 'Simulator/device testing, shortcuts', category: 'mobile', icon: '\u{1F34E}', available: true },
 
   // IoT & Edge
-  { id: 'rpi', name: 'Raspberry Pi', description: 'GPIO, sensors, edge compute', category: 'iot', icon: '\u{1F353}', available: false },
-  { id: 'arduino', name: 'Arduino / ESP32', description: 'Microcontroller programming', category: 'iot', icon: '\u{1F4A1}', available: false },
-  { id: 'homeassistant', name: 'Home Assistant', description: 'Smart home automation', category: 'iot', icon: '\u{1F3E0}', available: false },
+  { id: 'rpi', name: 'Raspberry Pi', description: 'GPIO, sensors, edge compute', category: 'iot', icon: '\u{1F353}', available: true },
+  { id: 'arduino', name: 'Arduino / ESP32', description: 'Microcontroller programming', category: 'iot', icon: '\u{1F4A1}', available: true },
+  { id: 'homeassistant', name: 'Home Assistant', description: 'Smart home automation', category: 'iot', icon: '\u{1F3E0}', available: true },
 ];
 
 function DevicesTab() {
@@ -1893,11 +1996,7 @@ function DevicesTab() {
                     <div className="settings-intg-provider-desc">{dt.description}</div>
                   </div>
                   <div className="settings-intg-provider-action">
-                    {dt.available ? (
-                      <span className="settings-intg-badge connected">Available</span>
-                    ) : (
-                      <span className="settings-intg-badge upcoming">Coming Soon</span>
-                    )}
+                    <span className="settings-intg-badge connected">Available</span>
                   </div>
                 </div>
               ))}

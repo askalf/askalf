@@ -7,7 +7,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { query, queryOne } from '../../database.js';
 import { authMiddleware } from '../../middleware/auth.js';
-import { requireAdmin } from '../../middleware/session-auth.js';
+import { requireAdmin } from '../../middleware/auth.js';
 
 interface AgentCostRow {
   agent_id: string;

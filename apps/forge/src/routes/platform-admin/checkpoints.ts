@@ -7,7 +7,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query, queryOne } from '../../database.js';
 import { respondToCheckpoint, type CheckpointRow } from '../../orchestration/checkpoint.js';
 import { authMiddleware } from '../../middleware/auth.js';
-import { requireAdmin } from '../../middleware/session-auth.js';
+import { requireAdmin } from '../../middleware/auth.js';
 import { ListCheckpointsQuery, RespondCheckpointBody, IdParam } from '../schemas.js';
 
 export async function registerCheckpointRoutes(app: FastifyInstance): Promise<void> {

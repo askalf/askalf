@@ -1,14 +1,14 @@
 # AskAlf Self-Hosted — docker compose up
 # See .env.example for configuration options
 
-name: askalf
+name: askalf-selfhosted
 
 services:
   # ===========================================
   # DATABASE LAYER
   # ===========================================
   postgres:
-    image: pgvector/pgvector:0.8.1-pg17-bookworm
+    image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
     container_name: askalf-postgres
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -17,9 +17,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: askalf
       POSTGRES_INITDB_ARGS: "--data-checksums"
+    shm_size: 192m
     volumes:
       - askalf_postgres:/var/lib/postgresql/data
       - ./packages/database/src/migrations:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U substrate -d askalf"]
       interval: 10s
@@ -29,19 +32,37 @@ services:
     networks:
       - askalf-net
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 768M
+        reservations:
+          memory: 256M
 
   redis:
-    image: redis:8.4-alpine
-    container_name: askalf-dev-redis
-    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 128mb --maxmemory-policy allkeys-lru
+    image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
+    container_name: askalf-redis
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - askalf_redis:/data
+      - ./infrastructure/redis/redis-selfhosted.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
       interval: 10s
@@ -51,10 +72,24 @@ services:
     networks:
       - askalf-net
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     deploy:
       resources:
         limits:
-          memory: 192M
+          memory: 256M
+        reservations:
+          memory: 64M
 
   # ===========================================
   # APPLICATION LAYER
@@ -64,6 +99,8 @@ services:
       context: .
       dockerfile: apps/forge/Dockerfile
     container_name: askalf-forge
+    labels:
+      - "autoheal-askalf=true"
     ports:
       - "${FORGE_PORT:-3005}:3005"
     environment:
@@ -100,6 +137,7 @@ services:
     volumes:
       - .:/workspace
       - claude_credentials:/tmp/claude-credentials
+      - ${CLAUDE_CREDENTIALS_FILE:-${USERPROFILE}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
     group_add:
       - "0"
     depends_on:
@@ -125,10 +163,17 @@ services:
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           memory: 2048M
+        reservations:
+          memory: 384M
 
   dashboard:
     build:
@@ -137,6 +182,8 @@ services:
       args:
         SELFHOSTED: "true"
     container_name: askalf-dashboard
+    labels:
+      - "autoheal-askalf=true"
     ports:
       - "${DASHBOARD_PORT:-3001}:3001"
     environment:
@@ -149,8 +196,14 @@ services:
       FORGE_URL: http://forge:3005
       FORGE_API_KEY: ${FORGE_API_KEY:-}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      WORKSPACE_DIR: /workspace
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       - .:/workspace:rw
+      - claude_credentials:/tmp/claude-credentials
+      - ${CLAUDE_CREDENTIALS_FILE:-${USERPROFILE}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
+      - dashboard_claude_home:/home/substrate/.claude-session
+      - dashboard_codex_home:/home/substrate/.codex-session
     depends_on:
       postgres:
         condition: service_healthy
@@ -171,18 +224,30 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - SYS_PTRACE
+    read_only: true
     tmpfs:
-      - /tmp:mode=1777,size=128m
+      - /tmp:mode=1777,size=512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1536M
+        reservations:
+          memory: 256M
 
   mcp-tools:
     build:
       context: .
       dockerfile: apps/mcp-tools/Dockerfile
     container_name: askalf-mcp-tools
+    labels:
+      - "autoheal-askalf=true"
     environment:
       NODE_ENV: production
       PORT: 3010
@@ -221,16 +286,23 @@ services:
     read_only: true
     tmpfs:
       - /tmp:mode=1777,size=64m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           memory: 384M
+        reservations:
+          memory: 96M
 
   # ===========================================
   # INFRASTRUCTURE
   # ===========================================
   docker-proxy:
-    image: tecnativa/docker-socket-proxy:latest
+    image: tecnativa/docker-socket-proxy:latest@sha256:1f3a6f303320723d199d2316a3e82b2e2685d86c275d5e3deeaf182573b47476
     container_name: askalf-docker-proxy
     environment:
       CONTAINERS: 1
@@ -249,6 +321,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
     deploy:
       resources:
         limits:
@@ -256,7 +333,7 @@ services:
 
   searxng:
     image: searxng/searxng@sha256:1a143665b6445079d1cd5b6facdf599d22ac9c29698dd2e7d15eb9b5f5a854cc
-    container_name: askalf-dev-searxng
+    container_name: askalf-searxng
     environment:
       SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:
@@ -275,10 +352,51 @@ services:
     networks:
       - askalf-net
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           memory: 384M
+        reservations:
+          memory: 128M
+
+  # ===========================================
+  # AUTOHEAL — askalf-selfhosted containers ONLY
+  # ===========================================
+  autoheal:
+    image: willfarrell/autoheal@sha256:eeb45dc8997520bedc6b53c65c4a605a6ded3ea2be960e6c194fb9d8e3f10d4d
+    container_name: askalf-autoheal
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal-askalf
+      AUTOHEAL_INTERVAL: 30
+      AUTOHEAL_START_PERIOD: 60
+      AUTOHEAL_DEFAULT_STOP_TIMEOUT: 10
+      AUTOHEAL_ONLY_MONITOR_RUNNING: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    network_mode: none
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 32M
 
 volumes:
   askalf_postgres:
@@ -287,6 +405,8 @@ volumes:
   askalf_redis:
   searxng_cache:
   claude_credentials:
+  dashboard_claude_home:
+  dashboard_codex_home:
 
 networks:
   askalf-net:

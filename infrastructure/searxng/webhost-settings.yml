@@ -1,0 +1,235 @@
+# SearXNG Settings — Public search backend for amnesia.tax
+# Docs: https://docs.searxng.org/admin/settings/
+
+use_default_settings:
+  engines:
+    remove:
+      - ahmia
+      - torch
+      - radio browser
+      - reuters
+
+general:
+  instance_name: "amnesia.tax"
+  debug: false
+  donation_url: false
+  contact_url: false
+  privacypolicy_url: false
+
+search:
+  safe_search: 0
+  autocomplete: "google"
+  default_lang: "en"
+  formats:
+    - html
+    - json
+
+server:
+  bind_address: "0.0.0.0"
+  port: 8080
+  secret_key: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2"
+  limiter: true
+  image_proxy: true
+  base_url: "https://amnesia.tax"
+  real_ip:
+    x_for: 1
+    ipv4_prefix: 32
+    ipv6_prefix: 48
+  method: "GET"
+
+ui:
+  static_use_hash: true
+  default_theme: simple
+  results_on_new_tab: true
+  infinite_scroll: true
+  query_in_title: true
+
+valkey:
+  url: false  # Overridden by SEARXNG_VALKEY_URL env var
+
+outgoing:
+  request_timeout: 12.0
+  max_request_timeout: 20.0
+  useragent_suffix: ""
+  pool_connections: 100
+  pool_maxsize: 20
+  enable_http2: true
+
+engines:
+  # === Web Search ===
+  - name: brave
+    disabled: false
+    weight: 1.5
+    timeout: 12.0
+
+  - name: bing
+    disabled: false
+    timeout: 12.0
+
+  - name: duckduckgo
+    disabled: false
+    timeout: 12.0
+    # DDG may CAPTCHA block — SearXNG auto-suspends on CAPTCHA, then retries
+
+  - name: startpage
+    disabled: false
+    timeout: 12.0
+
+  - name: qwant
+    disabled: false
+    timeout: 12.0
+
+  - name: wikipedia
+    disabled: false
+
+  - name: github
+    disabled: false
+
+  - name: currency
+    disabled: false
+
+  - name: dictzone
+    disabled: false
+
+  - name: lingva
+    disabled: false
+
+  # === Image Search ===
+  - name: bing images
+    disabled: false
+    timeout: 15.0
+
+  - name: brave.images
+    disabled: false
+    timeout: 15.0
+
+  - name: duckduckgo images
+    disabled: false
+    timeout: 15.0
+
+  - name: qwant images
+    disabled: false
+    timeout: 15.0
+
+  - name: unsplash
+    disabled: false
+    timeout: 15.0
+
+  - name: pexels
+    disabled: false
+    timeout: 15.0
+
+  - name: deviantart
+    disabled: false
+    timeout: 15.0
+
+  - name: flickr
+    disabled: false
+    timeout: 15.0
+
+  # === Video Search ===
+  - name: bing videos
+    disabled: false
+    timeout: 12.0
+
+  - name: brave.videos
+    disabled: false
+    timeout: 12.0
+
+  - name: duckduckgo videos
+    disabled: false
+    timeout: 12.0
+
+  - name: piped
+    disabled: false
+    timeout: 12.0
+
+  # === News Search ===
+  - name: bing news
+    disabled: false
+    timeout: 12.0
+
+  - name: brave.news
+    disabled: false
+    timeout: 12.0
+
+  - name: duckduckgo news
+    disabled: false
+    timeout: 12.0
+
+  - name: wikinews
+    disabled: false
+
+  # === IT / Dev ===
+  - name: stackoverflow
+    disabled: false
+    timeout: 10.0
+
+  - name: npm
+    disabled: false
+
+  - name: pypi
+    disabled: false
+
+  - name: docker hub
+    disabled: false
+
+  - name: crates.io
+    disabled: false
+
+  # === Maps ===
+  - name: openstreetmap
+    disabled: false
+
+  # === Music ===
+  - name: bandcamp
+    disabled: false
+
+  - name: mixcloud
+    disabled: false
+
+  # === Science / Academic ===
+  - name: arxiv
+    disabled: false
+
+  - name: crossref
+    disabled: false
+
+  - name: semantic scholar
+    disabled: false
+
+  - name: pubmed
+    disabled: false
+
+  # === Files ===
+  - name: 1337x
+    disabled: false
+    timeout: 10.0
+
+  - name: nyaa
+    disabled: false
+
+  - name: piratebay
+    disabled: false
+
+  # === Disabled — blocked from server IPs ===
+  - name: google
+    disabled: true
+
+  - name: google news
+    disabled: true
+
+  - name: google images
+    disabled: true
+
+  - name: google videos
+    disabled: true
+
+  - name: google scholar
+    disabled: true
+
+  - name: startpage images
+    disabled: true
+
+  - name: mojeek
+    disabled: true

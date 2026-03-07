@@ -50,7 +50,7 @@ export default function TopBar({ wsConnected, agentCount, todayCost, budgetLimit
     } catch {
       // ignore
     }
-    window.location.href = '/login';
+    window.location.href = '/command-center';
   };
 
   const healthColor = wsConnected ? '#22c55e' : '#ef4444';

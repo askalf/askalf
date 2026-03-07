@@ -88,11 +88,10 @@ function SystemProviderCard({
   };
 
   const isLocal = provider.type === 'ollama' || provider.type === 'lmstudio';
-  const comingSoon = !provider.is_enabled && (provider.config as Record<string, unknown>)?.coming_soon;
 
   return (
     <div className={`fo-panel prov-card ${isExpanded ? 'expanded' : ''}`}>
-      <div className="prov-header" onClick={onToggleExpand} style={!provider.is_enabled && !comingSoon ? { opacity: 0.55 } : undefined}>
+      <div className="prov-header" onClick={onToggleExpand} style={!provider.is_enabled ? { opacity: 0.55 } : undefined}>
         <div className="prov-name-row">
           <span className={`fobs-health-dot ${provider.is_enabled ? healthDot(provider.health_status) : 'fobs-health-dot--unknown'}`} />
           <strong className="prov-name">{provider.name}</strong>
@@ -100,14 +99,8 @@ function SystemProviderCard({
         </div>
         <div className="prov-header-right">
           <span className={`prov-auth-badge ${AUTH_SOURCE_CLASSES[provider.auth_source]}`}>{AUTH_SOURCE_LABELS[provider.auth_source]}</span>
-          {comingSoon ? (
-            <span className="prov-coming-soon">Coming Soon</span>
-          ) : (
-            <>
-              <StatusBadge status={provider.is_enabled ? 'active' : 'paused'} />
-              {provider.is_enabled && <span className="fobs-provider-check">Checked {relativeTime(provider.last_health_check)}</span>}
-            </>
-          )}
+          <StatusBadge status={provider.is_enabled ? 'active' : 'paused'} />
+          {provider.is_enabled && <span className="fobs-provider-check">Checked {relativeTime(provider.last_health_check)}</span>}
         </div>
       </div>
 
@@ -121,7 +114,7 @@ function SystemProviderCard({
               <span className="prov-key-none">{isLocal ? 'Not needed (local)' : provider.auth_source === 'oauth' ? 'Using OAuth' : 'Not set'}</span>
             )}
           </div>
-          {!isLocal && !comingSoon && (
+          {!isLocal && (
             <div className="prov-key-actions">
               {editingKey ? (
                 <div className="prov-key-edit">
@@ -148,13 +141,11 @@ function SystemProviderCard({
           </div>
         )}
 
-        {!comingSoon && (
-          <div className="prov-toggle-row">
-            <button className={`prov-toggle-btn ${provider.is_enabled ? 'prov-toggle--on' : 'prov-toggle--off'}`} onClick={handleToggleEnabled}>
-              {provider.is_enabled ? 'Enabled' : 'Disabled'}
-            </button>
-          </div>
-        )}
+        <div className="prov-toggle-row">
+          <button className={`prov-toggle-btn ${provider.is_enabled ? 'prov-toggle--on' : 'prov-toggle--off'}`} onClick={handleToggleEnabled}>
+            {provider.is_enabled ? 'Enabled' : 'Disabled'}
+          </button>
+        </div>
       </div>
 
       {isExpanded && (

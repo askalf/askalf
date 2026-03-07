@@ -7,7 +7,7 @@ import { ulid } from 'ulid';
 import { queryOne } from '../../database.js';
 import { substrateQuery, substrateQueryOne } from '../../database.js';
 import { authMiddleware } from '../../middleware/auth.js';
-import { requireAdmin } from '../../middleware/session-auth.js';
+import { requireAdmin } from '../../middleware/auth.js';
 import { paginationResponse, encodeCursor, decodeCursor } from './utils.js';
 
 export async function registerTicketRoutes(app: FastifyInstance): Promise<void> {
