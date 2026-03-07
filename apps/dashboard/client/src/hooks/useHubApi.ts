@@ -633,7 +633,7 @@ export interface Workflow {
   description: string | null;
   definition: { nodes: WorkflowNode[]; edges: WorkflowEdge[] };
   version: number;
-  status: 'draft' | 'active' | 'archived';
+  status: 'draft' | 'active' | 'paused' | 'archived';
   is_public: boolean;
   metadata: Record<string, unknown>;
   created_at: string;
@@ -644,7 +644,7 @@ export interface WorkflowRun {
   id: string;
   workflow_id: string;
   owner_id: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
   input: Record<string, unknown>;
   output: Record<string, unknown> | null;
   node_states: Record<string, unknown>;
@@ -682,7 +682,12 @@ export const hubApi = {
     detail: (id: string) =>
       apiFetch<AgentDetail>(`/api/v1/admin/agents/${id}`),
 
-    create: (body: { name: string; type: string; description: string; system_prompt: string }) =>
+    create: (body: {
+      name: string; type: string; description: string; system_prompt?: string;
+      systemPrompt?: string; modelId?: string; autonomyLevel?: number;
+      enabledTools?: string[]; maxIterations?: number; maxCostPerExecution?: number;
+      metadata?: Record<string, unknown>;
+    }) =>
       apiFetch<{ agent: Agent }>('/api/v1/admin/agents', { method: 'POST', body: JSON.stringify(body) }),
 
     optimizePrompt: (body: { prompt: string; name?: string; type?: string; description?: string }) =>
@@ -904,7 +909,7 @@ export const hubApi = {
         '/api/v1/admin/knowledge/agents'
       ),
     neighborhood: (nodeId: string) =>
-      apiFetch<{ node: KnowledgeNode; edges: KnowledgeEdge[]; neighbors: KnowledgeNode[] }>(
+      apiFetch<{ nodes: KnowledgeNode[]; edges: KnowledgeEdge[] }>(
         `/api/v1/admin/knowledge/nodes/${nodeId}/neighborhood`
       ),
     node: (nodeId: string) =>

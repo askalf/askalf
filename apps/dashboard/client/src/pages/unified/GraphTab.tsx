@@ -39,7 +39,7 @@ export default function GraphTab() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(null);
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
-  const [stats, setStats] = useState<{ total_nodes: number; total_edges: number; top_entities: { entity_type: string; count: number }[] } | null>(null);
+  const [stats, setStats] = useState<{ totalNodes: number; totalEdges: number; topEntities: { entity_type: string; count: number }[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<GraphData['nodes'][0] | null>(null);
   const [, setNeighbors] = useState<KnowledgeNode[]>([]);
@@ -129,7 +129,7 @@ export default function GraphTab() {
     setSelectedNode(node);
     try {
       const res = await hubApi.knowledgeGraph.neighborhood(node.id);
-      setNeighbors(res.neighbors || []);
+      setNeighbors(res.nodes || []);
       setNeighborEdges(res.edges || []);
     } catch {
       setNeighbors([]);
@@ -247,8 +247,8 @@ export default function GraphTab() {
         </div>
         {stats && (
           <div className="graph-stats-row">
-            <span className="graph-stat">{stats.total_nodes} nodes</span>
-            <span className="graph-stat">{stats.total_edges} edges</span>
+            <span className="graph-stat">{stats.totalNodes} nodes</span>
+            <span className="graph-stat">{stats.totalEdges} edges</span>
             {highlightNodes.size > 0 && <span className="graph-stat highlight">{highlightNodes.size} matched</span>}
           </div>
         )}
