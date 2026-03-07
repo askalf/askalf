@@ -19,7 +19,9 @@ interface UseMasterSessionReturn {
 }
 
 const RECONNECT_BASE_MS = 1000;
-const RECONNECT_MAX_MS = 15000;
+const RECONNECT_MAX_MS = 30000;
+const MAX_RECONNECT_ATTEMPTS = 50;
+const HEARTBEAT_INTERVAL_MS = 25000;
 
 export function useMasterSession(): UseMasterSessionReturn {
   const [connected, setConnected] = useState(false);
@@ -27,11 +29,27 @@ export function useMasterSession(): UseMasterSessionReturn {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onData = useRef<((data: string) => void) | null>(null);
   const onHistory = useRef<((history: string[]) => void) | null>(null);
+  const closingRef = useRef(false);
+
+  const clearHeartbeat = useCallback(() => {
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
+    }
+  }, []);
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (closingRef.current) return;
+
+    if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
+      console.warn('[MasterSession] Max reconnection attempts reached');
+      setStatus(s => s ? { ...s, status: 'failed' } : { status: 'failed', pid: null, restartCount: 0, bufferSize: 0 });
+      return;
+    }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
@@ -40,6 +58,14 @@ export function useMasterSession(): UseMasterSessionReturn {
     ws.onopen = () => {
       setConnected(true);
       reconnectAttemptRef.current = 0;
+
+      // Start heartbeat
+      clearHeartbeat();
+      heartbeatRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          try { ws.send(JSON.stringify({ type: 'ping' })); } catch { /* ignore */ }
+        }
+      }, HEARTBEAT_INTERVAL_MS);
     };
 
     ws.onmessage = (e) => {
@@ -55,52 +81,71 @@ export function useMasterSession(): UseMasterSessionReturn {
           case 'status':
             setStatus(msg.data);
             break;
+          case 'pong':
+            break;
         }
       } catch {
-        // ignore
+        // ignore malformed messages
       }
     };
 
     ws.onclose = () => {
       setConnected(false);
       wsRef.current = null;
-      const delay = Math.min(
-        RECONNECT_BASE_MS * Math.pow(2, reconnectAttemptRef.current),
-        RECONNECT_MAX_MS
-      );
+      clearHeartbeat();
+
+      if (closingRef.current) return;
+
+      // Exponential backoff with jitter
+      const base = RECONNECT_BASE_MS * Math.pow(2, reconnectAttemptRef.current);
+      const jitter = Math.random() * 1000;
+      const delay = Math.min(base + jitter, RECONNECT_MAX_MS);
       reconnectAttemptRef.current++;
       reconnectTimerRef.current = setTimeout(connect, delay);
     };
 
     ws.onerror = () => {
-      ws.close();
+      // onclose will fire after this — avoid double reconnect
     };
 
     wsRef.current = ws;
-  }, []);
+  }, [clearHeartbeat]);
 
   useEffect(() => {
+    closingRef.current = false;
     connect();
     return () => {
+      closingRef.current = true;
+      clearHeartbeat();
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       wsRef.current?.close();
     };
-  }, [connect]);
+  }, [connect, clearHeartbeat]);
 
   const send = useCallback((text: string) => {
-    wsRef.current?.send(JSON.stringify({ type: 'input', data: text }));
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'input', data: text }));
+    }
   }, []);
 
   const sendSignal = useCallback((signal: string) => {
-    wsRef.current?.send(JSON.stringify({ type: 'signal', signal }));
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'signal', signal }));
+    }
   }, []);
 
   const resize = useCallback((cols: number, rows: number) => {
-    wsRef.current?.send(JSON.stringify({ type: 'resize', cols, rows }));
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'resize', cols, rows }));
+    }
   }, []);
 
   const restart = useCallback(() => {
-    wsRef.current?.send(JSON.stringify({ type: 'restart' }));
+    // Reset reconnect counter on manual restart
+    reconnectAttemptRef.current = 0;
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'restart' }));
+    }
   }, []);
 
   return { connected, status, send, sendSignal, resize, restart, onData, onHistory };

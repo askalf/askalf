@@ -16,31 +16,31 @@ NC='\033[0m'
 declare -A CONTAINERS=(
   [dashboard]="askalf-dashboard"
   [forge]="askalf-forge"
-  [api]="askalf-api"
+  [mcp-tools]="askalf-mcp-tools"
 )
 
 declare -A SOURCE_PATHS=(
   [dashboard]="apps/dashboard/src"
   [forge]="apps/forge/src"
-  [api]="apps/api/src"
+  [mcp-tools]="apps/mcp-tools/src"
 )
 
 declare -A CONTAINER_PATHS=(
   [dashboard]="/app/src"
   [forge]="/app/dist"
-  [api]="/app/dist"
+  [mcp-tools]="/app/dist"
 )
 
 # Key files to check per service (these are the most commonly edited)
 declare -A KEY_FILES=(
-  [dashboard]="routes/admin-hub.js"
-  [forge]="runtime/worker.js index.js routes/memory.js routes/executions.js"
-  [api]="routes/chat.js services/chat-tools.js"
+  [dashboard]="server.js"
+  [forge]="index.js"
+  [mcp-tools]="index.js"
 )
 
 SERVICES=("$@")
 if [ ${#SERVICES[@]} -eq 0 ]; then
-  SERVICES=("dashboard" "forge")
+  SERVICES=("dashboard" "forge" "mcp-tools")
 fi
 
 DRIFT_FOUND=0

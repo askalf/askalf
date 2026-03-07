@@ -13,19 +13,16 @@ const APP_SERVICES = [
   { id: 'dashboard',     label: 'Dashboard',     container: 'askalf-dashboard',     mem: '512M',  port: 3001 },
   { id: 'forge',         label: 'Forge',          container: 'askalf-forge',          mem: '2048M', port: 3005 },
   { id: 'mcp-tools',     label: 'MCP Tools',      container: 'askalf-mcp-tools',      mem: '384M',  port: 3010 },
-  { id: 'admin-console', label: 'Admin Console',  container: 'askalf-admin-console',  mem: '512M',  port: 3002 },
   { id: 'nginx',         label: 'Nginx',           container: 'askalf-nginx',           mem: '128M',  port: 80 },
 ];
 
 const INFRA_SERVICES = [
   { id: 'postgres',      label: 'PostgreSQL',     container: 'askalf-postgres',       port: 5432 },
   { id: 'redis',         label: 'Redis',           container: 'askalf-redis',           port: 6379 },
-  { id: 'pgbouncer',     label: 'PgBouncer',      container: 'askalf-pgbouncer',       port: 5432 },
   { id: 'cloudflared',   label: 'Cloudflare',     container: 'askalf-cloudflared' },
   { id: 'docker-proxy',  label: 'Docker Proxy',   container: 'askalf-docker-proxy',    port: 2375 },
   { id: 'searxng',       label: 'SearXNG',        container: 'askalf-searxng',         port: 8080 },
   { id: 'autoheal',      label: 'Autoheal',       container: 'askalf-autoheal' },
-  { id: 'backup',        label: 'Backup',          container: 'askalf-backup' },
 ];
 
 const ALL_SERVICE_IDS = [...APP_SERVICES, ...INFRA_SERVICES].map(s => s.id);
