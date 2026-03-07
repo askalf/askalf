@@ -1,5 +1,5 @@
 # Agent Forge API Server
-FROM node:22-alpine AS builder
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS builder
 
 # Install pnpm (pinned version)
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
@@ -37,7 +37,7 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
     rm -rf /app/deploy/node_modules/.cache 2>/dev/null || true
 
 # Production stage
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
 
 # Install git for git_ops tool + procps for pgrep (process tree kill) + bash for Claude CLI shell
 RUN apk add --no-cache git procps bash
