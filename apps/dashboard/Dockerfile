@@ -1,6 +1,6 @@
 # AskAlf Dashboard - Optimized production build
 # Base image pinned to SHA-256 digest for reproducible builds
-FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS builder
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS builder
 
 # Install build dependencies for native modules
 RUN apk add --no-cache python3 make g++ linux-headers
@@ -71,7 +71,7 @@ RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
     cp -f /app/apps/dashboard/client/public/*.png /app/deploy/public/app/ 2>/dev/null || true
 
 # Claude Code CLI stage - install in isolation, extract only the binary
-FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS claude-installer
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS claude-installer
 
 RUN apk add --no-cache bash curl python3 make g++ && \
     npm install -g @anthropic-ai/claude-code && \
@@ -81,13 +81,13 @@ RUN apk add --no-cache bash curl python3 make g++ && \
     test -f /root/.local/bin/claude
 
 # Codex CLI stage - install with platform-specific native binary
-FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS codex-installer
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS codex-installer
 
 RUN npm install -g @openai/codex && \
     codex --version
 
 # Production stage - minimal Alpine
-FROM node:22-alpine@sha256:e4bf2a82ad0a4037d28035ae71529873c069b13eb0455466ae0bc13363826e34 AS runner
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
 
 # Runtime deps only: bash (node-pty), git (claude/codex), curl (healthchecks)
 RUN apk add --no-cache bash git curl
