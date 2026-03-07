@@ -89,6 +89,8 @@ services:
   redis:
     image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
     container_name: webhost-redis
+    labels:
+      - "autoheal-webhost=true"
     command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 64mb --maxmemory-policy allkeys-lru --save ""
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
@@ -126,16 +128,17 @@ services:
       VPN_SERVICE_PROVIDER: protonvpn
       VPN_TYPE: wireguard
       WIREGUARD_PRIVATE_KEY: ${PROTON_WIREGUARD_PRIVATE_KEY}
-      SERVER_COUNTRIES: ${PROTON_SERVER_COUNTRIES:-Netherlands}
+      SERVER_COUNTRIES: ${PROTON_SERVER_COUNTRIES:-Switzerland}
       HTTPPROXY: "on"
       HTTPPROXY_LISTENING_ADDRESS: ":8888"
-      HTTPPROXY_LOG: "on"
       HTTPPROXY_STEALTH: "on"
       BLOCK_MALICIOUS: "on"
       DOT: "on"
       DOT_PROVIDERS: cloudflare
     cap_add:
       - NET_ADMIN
+    cap_drop:
+      - ALL
     devices:
       - /dev/net/tun:/dev/net/tun
     healthcheck:
@@ -147,6 +150,8 @@ services:
     networks:
       - webhost-net
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
