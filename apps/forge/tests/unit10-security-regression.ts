@@ -279,8 +279,8 @@ async function runUnitTests(): Promise<void> {
     const allowedOrigins = [
       'https://askalf.org',
       'https://www.askalf.org',
-      'https://integration.tax',
-      'https://www.integration.tax',
+      'https://amnesia.tax',
+      'https://www.amnesia.tax',
       'http://localhost:3005',
       'http://localhost:5173',
       'http://localhost:5174',

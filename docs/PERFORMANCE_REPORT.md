@@ -61,19 +61,10 @@ CREATE INDEX idx_exec_tenant_created ON shard_executions(tenant_id, created_at D
 
 ---
 
-## Connection Pooling
-
-### pgbouncer Status
-- Configured with transaction pooling
-- Protects PostgreSQL from connection storms
-- Essential for consumer-scale traffic
-
----
-
 ## Resource Usage
 
 ### Estimated Bottlenecks
-1. **Database** - Main bottleneck at scale (solved with pgbouncer)
+1. **Database** - Main bottleneck at scale (direct postgres, pg.Pool handles pooling)
 2. **Redis** - Session storage, event bus (low risk)
 3. **API CPU** - LLM response processing (offloaded to providers)
 

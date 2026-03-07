@@ -38,7 +38,7 @@ function getTools(agent: Agent): string[] {
 // ── Stats Cards ──
 
 function FleetStats({ agents }: { agents: Agent[] }) {
-  const active = agents.filter(a => a.status === 'active' || a.status === 'running').length;
+  const active = agents.filter(a => a.status === 'running').length;
   const idle = agents.filter(a => a.status === 'idle').length;
   const errors = agents.filter(a => a.status === 'error').length;
   const tasksDone = agents.reduce((sum, a) => sum + a.tasks_completed, 0);

@@ -13,12 +13,8 @@ Cloudflare Tunnel (cloudflared)
     ▼
 nginx (reverse proxy, rate limiting)
     │
-    ├── askalf.org     → website (port 8080)
-    ├── api.askalf.org → api (port 3000)
-    └── app.askalf.org → dashboard (port 3001)
-                              │
-                              ▼
-                         pgbouncer
+    ├── amnesia.tax    → dashboard (port 3001)
+    └── /api/*         → forge (port 3005)
                               │
                               ▼
                          PostgreSQL + Redis
@@ -30,14 +26,13 @@ nginx (reverse proxy, rate limiting)
 |-----------|-------------|------|
 | postgres | PostgreSQL 17 + pgvector | 5432 |
 | redis | Redis cache/queue | 6379 |
-| api | Fastify REST API | 3000 |
-| worker | Background job processor | - |
-| website | Public marketing site | 8080 |
-| dashboard | User/Admin dashboards | 3001 |
+| dashboard | Unified frontend + API | 3001 |
+| forge | Agent orchestration engine | 3005 |
+| mcp-tools | MCP tool server (24 tools) | 3010 |
 | nginx | Reverse proxy | 80 |
-| pgbouncer | Connection pooler | 6432 |
 | cloudflared | Cloudflare tunnel | - |
-| backup | Automated DB backups | - |
+| searxng | Self-hosted web search | 8080 |
+| docker-proxy | Docker socket proxy | 2375 |
 | autoheal | Container recovery | - |
 
 ## Setup Instructions
@@ -197,11 +192,8 @@ docker inspect --format='{{.State.Health.Status}}' substrate-prod-<container>
 ### Database connection issues
 
 ```bash
-# Test direct connection
-docker exec -it substrate-prod-postgres psql -U substrate -c "SELECT 1"
-
-# Test via pgbouncer
-docker exec -it substrate-prod-pgbouncer psql -h localhost -p 6432 -U substrate -c "SELECT 1"
+# Test database connection
+docker exec -it askalf-postgres psql -U substrate -d askalf -c "SELECT 1"
 ```
 
 ### Cloudflared tunnel not working
