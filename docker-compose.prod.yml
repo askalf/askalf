@@ -22,7 +22,7 @@ services:
     # Shared memory for PostgreSQL (matches shared_buffers)
     shm_size: 192m
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U substrate -d askalf"]
+      test: ["CMD-SHELL", "pg_isready -U substrate -d substrate"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -314,7 +314,7 @@ services:
       - askalf-net
     restart: unless-stopped
     labels:
-      - "autoheal=false"
+      - "autoheal=true"
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -331,10 +331,10 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 1536M
+          memory: 768M
         reservations:
           cpus: '0.5'
-          memory: 384M
+          memory: 256M
 
 
   # ===========================================
