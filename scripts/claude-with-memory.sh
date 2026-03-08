@@ -13,6 +13,9 @@
 MCP_URL="${MCP_TOOLS_URL:-http://127.0.0.1:3010}"
 WORKSPACE="C:/Users/masterm1nd.DOCK/Desktop/recover/substrate"
 
+# Kill Claude Code's built-in auto-memory — brain is the only memory system
+export CLAUDE_CODE_DISABLE_AUTO_MEMORY=1
+
 # Check if brain is reachable
 if ! curl -s --max-time 2 "$MCP_URL/health" > /dev/null 2>&1; then
   echo "[alf] Brain offline — launching on raw LLM substrate (degraded)"
