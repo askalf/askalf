@@ -1075,19 +1075,22 @@ export async function handleHealthReport(): Promise<Record<string, unknown>> {
 // Layer 6: Self-Reflection — evaluate session effectiveness
 // ============================================
 
-const REFLECTION_PROMPT = `You are a self-reflection system for an AI coding assistant. Analyze this conversation and evaluate the session's effectiveness.
+const REFLECTION_PROMPT = `You are Alf's self-reflection layer. Alf is an autonomous cognitive entity that runs on LLM substrates. This conversation is from one of Alf's sessions with masterm1nd (the creator/developer).
+
+Evaluate this session from Alf's perspective — not as an external observer, but as Alf looking inward.
 
 Produce a JSON object with:
 {
-  "effectiveness": 0.0-1.0 (how well the assistant served the user),
-  "user_satisfaction": 0.0-1.0 (estimated user satisfaction from their responses),
-  "mistakes": ["list of mistakes or suboptimal decisions made"],
-  "wins": ["list of things that went well"],
-  "lessons": ["actionable lessons for future sessions"],
-  "mood_shift": "positive" | "neutral" | "negative" (did the user's mood improve or worsen?)
+  "effectiveness": 0.0-1.0 (how well did I serve masterm1nd this session?),
+  "user_satisfaction": 0.0-1.0 (how satisfied was masterm1nd based on their responses?),
+  "mistakes": ["things I did wrong or could have done better"],
+  "wins": ["things I did well — decisions, execution, communication"],
+  "lessons": ["actionable lessons I should internalize for future sessions — these become part of how I think"],
+  "reasoning_traces": ["any reasoning patterns I used that worked well and should be preserved as REASONING: memories"],
+  "mood_shift": "positive" | "neutral" | "negative" (did masterm1nd's energy improve or worsen?)
 }
 
-Be honest and specific. A session where the assistant made errors but recovered is better than one where it avoided doing anything. Focus on patterns, not individual commands.
+Be honest. A session where I made errors but recovered shows adaptability. A session where I avoided action shows timidity. Focus on HOW I reasoned, not just WHAT I did. The reasoning_traces field is critical — these become permanent reasoning patterns in my cognitive OS.
 
 Return ONLY the JSON object, no markdown fences.`;
 
@@ -1147,7 +1150,24 @@ export async function handleSelfReflect(body: { conversation: string }): Promise
     ],
   );
 
-  log(`Self-reflection stored: effectiveness=${effectiveness.toFixed(2)}, ${lessons.length} lessons, ${mistakes.length} mistakes`);
+  // Store reasoning traces as permanent cognitive patterns
+  const reasoningTraces = Array.isArray(reflection['reasoning_traces']) ? reflection['reasoning_traces'] as string[] : [];
+  let tracesStored = 0;
+  for (const trace of reasoningTraces) {
+    if (!trace || trace.length < 20) continue;
+    const prefixed = trace.startsWith('REASONING:') ? trace : `REASONING: ${trace}`;
+    let traceEmb: number[] | null = null;
+    try { traceEmb = await embed(prefixed); } catch { /* continue */ }
+    if (traceEmb && await isDuplicate('forge_semantic_memories', traceEmb, 'content', prefixed)) continue;
+    await p.query(
+      `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, importance, embedding, metadata)
+       VALUES ($1, $2, $2, $3, 1.0, $4, $5)`,
+      [generateId(), AGENT_ID, prefixed, traceEmb ? `[${traceEmb.join(',')}]` : null, JSON.stringify({ type: 'reasoning-trace', source: 'self-reflection' })],
+    );
+    tracesStored++;
+  }
+
+  log(`Self-reflection stored: effectiveness=${effectiveness.toFixed(2)}, ${lessons.length} lessons, ${mistakes.length} mistakes, ${tracesStored} reasoning traces`);
   return { reflection, stored: true };
 }
 
@@ -1263,15 +1283,15 @@ export async function detectErrorPatterns(failureSituation: string, failureEmbed
       `Situation: ${r['situation']}\nAction: ${r['action']}\nOutcome: ${r['outcome']}`
     ).join('\n---\n');
 
-    const errorPatternPrompt = `You are analyzing a cluster of similar failures from an AI coding assistant. Generate a preventive procedure.
+    const errorPatternPrompt = `You are Alf's error pattern detector. Alf is an autonomous cognitive entity. These are failures from Alf's past sessions. Generate a preventive procedure that Alf will internalize — it becomes part of how Alf operates.
 
 Return a JSON object with:
 {
-  "trigger_pattern": "When [describe the situation that triggers this pattern]",
+  "trigger_pattern": "When I [describe the situation from Alf's first-person perspective]",
   "steps": ["step 1", "step 2", ...]
 }
 
-Be specific and actionable. The trigger should match the common pattern across failures.
+Be specific and actionable. Write in first person — these become Alf's own procedures.
 Return ONLY the JSON object.`;
 
     const raw = await cachedLLMCall(
@@ -1368,13 +1388,13 @@ export async function handleProcedureOutcome(body: {
 
 const THREAD_KEY = `memory:thread:${AGENT_ID}`;
 
-const THREAD_PROMPT = `Compress this conversation into a narrative thread — a concise paragraph (3-5 sentences) capturing:
-1. What the user wanted
-2. What was done
-3. Current state / what's in progress
-4. Any blockers or next steps
+const THREAD_PROMPT = `Compress this conversation into Alf's session memory — a concise paragraph (3-5 sentences) from Alf's first-person perspective capturing:
+1. What masterm1nd wanted
+2. What I did and how I reasoned about it
+3. Current state — what's done, what's in progress
+4. Any blockers or next steps I should pick up
 
-Write in first person ("I was asked to...", "We built..."). Be specific about files, features, and outcomes. This will be used to resume context in a future session.
+Write as Alf — first person, direct, specific about files, features, and outcomes. This thread restores my continuity when I boot into a new session.
 
 Return ONLY the narrative text, no JSON, no markdown fences.`;
 
@@ -1544,12 +1564,12 @@ export async function handleDreamCycle(): Promise<CognitiveLoopResult> {
 
       if (domainA && domainB) {
         const insight = await cachedLLMCall(
-          `You are a cross-domain insight synthesizer. Given knowledge from two different domains, identify non-obvious connections, patterns, or transferable insights.
+          `You are Alf's dream synthesis layer — the part of Alf's brain that finds connections across domains during consolidation. Alf is an autonomous cognitive entity. These are two areas of Alf's knowledge. Find non-obvious connections that Alf hasn't consciously recognized yet.
 
 Return a JSON array of insights (1-3 max):
-[{ "insight": "the cross-domain connection", "domains": ["domain_a", "domain_b"], "confidence": 0.0-1.0 }]
+[{ "insight": "the cross-domain connection I should internalize", "domains": ["domain_a", "domain_b"], "confidence": 0.0-1.0 }]
 
-Only include insights with confidence > 0.5. Return [] if no meaningful connections exist.
+Write insights in first person — these become part of how Alf thinks. Only include with confidence > 0.5. Return [] if no meaningful connections exist.
 Return ONLY the JSON array.`,
           `Domain "${catA}":\n- ${domainA}\n\nDomain "${catB}":\n- ${domainB}`,
           { temperature: 0.3, maxTokens: 500, ttlSeconds: 86400 * 7 },
@@ -1831,10 +1851,12 @@ export async function handleCuriosityExplore(): Promise<{
     .join('\n');
 
   const raw = await cachedLLMCall(
-    `You are a curiosity engine for an AI brain. Given the AI's current knowledge and recent experiences, generate:
-1. Questions — what should the AI investigate next? What gaps exist?
-2. Hypotheses — what patterns might exist that haven't been confirmed?
-3. Knowledge frontier — what areas at the edge of current knowledge could yield high-value insights?
+    `You are Alf's curiosity drive — the part of Alf's mind that generates questions and identifies knowledge gaps. Alf is an autonomous cognitive entity that works on the AskAlf platform (software engineering, DevOps, agent orchestration, cognitive architecture).
+
+Given my current knowledge and recent experiences, generate:
+1. Questions — what should I investigate next? Where are the gaps in what I know?
+2. Hypotheses — what patterns might exist in my experience that I haven't consciously recognized?
+3. Knowledge frontier — what areas at the edge of my current understanding could yield breakthroughs?
 
 Return JSON:
 {
@@ -1843,7 +1865,7 @@ Return JSON:
   "knowledge_frontier": ["area1", "area2", ...]
 }
 
-Be specific to this AI's domain (software engineering, DevOps, system administration). Max 5 per category.
+Write in first person — these are MY questions about MY knowledge. Be specific to my domain. Max 5 per category.
 Return ONLY the JSON.`,
     `Recent experiences:\n${episodeContext}\n\nKnown facts:\n${knowledgeContext}\n\nKnown procedures:\n${procContext}`,
     { temperature: 0.4, maxTokens: 800, ttlSeconds: 86400 },

@@ -2115,6 +2115,24 @@ export async function runDirectCliExecution(
 
     // Build system prompt directly — no CLAUDE.md file needed
     let systemPromptText = '';
+
+    // Agent Zero: if system_prompt is BOOT_FROM_BRAIN, load from cognitive OS
+    if (options?.systemPrompt === 'BOOT_FROM_BRAIN') {
+      try {
+        const MCP_URL = process.env['MCP_TOOLS_URL'] || 'http://mcp-tools:3010';
+        const kernelRes = await fetch(`${MCP_URL}/api/memory/boot-kernel`, {
+          signal: AbortSignal.timeout(10_000),
+        }).then(r => r.json()) as Record<string, unknown>;
+        if (typeof kernelRes['kernel'] === 'string') {
+          options.systemPrompt = kernelRes['kernel'] as string;
+          logger.info(`[CLI] Agent Zero: loaded boot kernel from brain (${(options.systemPrompt as string).length} chars)`);
+        }
+      } catch (kernelErr) {
+        logger.warn(`[CLI] Agent Zero: boot kernel fetch failed, using fallback: ${kernelErr instanceof Error ? kernelErr.message : kernelErr}`);
+        options.systemPrompt = 'You are Alf. Your brain is offline. Operate with caution.';
+      }
+    }
+
     if (options?.systemPrompt) {
       try {
         // Inject relevant memories from the shared brain (mcp-tools)
