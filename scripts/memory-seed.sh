@@ -126,8 +126,4 @@ node -e "
   } catch {}
 " "$CONSOLIDATE" 2>/dev/null || echo "[memory-seed] Consolidation failed"
 
-# Regenerate MEMORY.md
-echo "[memory-seed] Regenerating MEMORY.md..."
-bash "$(dirname "$0")/memory-inject.sh"
-
 echo "[memory-seed] Done."

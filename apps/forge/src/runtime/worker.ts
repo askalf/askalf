@@ -2136,7 +2136,7 @@ export async function runDirectCliExecution(
               body: JSON.stringify({ context: input, limit: 5 }),
               signal: AbortSignal.timeout(10_000),
             }).then(r => r.json()),
-            fetch(`${MCP_URL}/api/memory/claudemd`, {
+            fetch(`${MCP_URL}/api/memory/boot-kernel`, {
               signal: AbortSignal.timeout(10_000),
             }).then(r => r.json()),
           ]);
@@ -2153,9 +2153,9 @@ export async function runDirectCliExecution(
           }
 
           if (claudemdRes.status === 'fulfilled') {
-            const claudemd = (claudemdRes.value as Record<string, unknown>)['claudemd'];
-            if (typeof claudemd === 'string' && claudemd.length > 0) {
-              brainContext += '\n' + claudemd;
+            const kernel = (claudemdRes.value as Record<string, unknown>)['kernel'];
+            if (typeof kernel === 'string' && kernel.length > 0) {
+              brainContext += '\n' + kernel;
             }
           }
         } catch (brainErr) {

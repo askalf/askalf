@@ -36,19 +36,6 @@ if [[ -n "$REASONING" ]]; then
   [[ -n "$KERNEL_DATA" ]] && KERNEL="$KERNEL_DATA"
 fi
 
-# Fallback: if no boot-kernel endpoint yet, use claudemd (transitional)
-if [[ -z "$KERNEL" ]]; then
-  CLAUDEMD_RESPONSE=$(curl -s --max-time 10 "$MCP_URL/api/memory/claudemd" 2>/dev/null || true)
-  if [[ -n "$CLAUDEMD_RESPONSE" ]]; then
-    KERNEL=$(node -e "
-      try {
-        const data = JSON.parse(process.argv[1]);
-        if (data.claudemd) process.stdout.write(data.claudemd);
-      } catch {}
-    " "$CLAUDEMD_RESPONSE" 2>/dev/null || true)
-  fi
-fi
-
 # Session continuity: last handoff only (everything else queried at runtime)
 HANDOFF_RESPONSE=$(curl -s --max-time 5 "$MCP_URL/api/memory/handoff" 2>/dev/null || true)
 if [[ -n "$HANDOFF_RESPONSE" ]]; then
