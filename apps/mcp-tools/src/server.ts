@@ -35,7 +35,7 @@ import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';
 import { TOOLS as INFRA_TOOLS, handleTool as handleInfraTool } from './infra.js';
 import { TOOLS as AGENT_TOOLS, handleTool as handleAgentTool } from './agent-tools.js';
 import { TOOLS as FORGE_TOOLS, handleTool as handleForgeTool } from './forge-tools.js';
-import { handleExtract, handleSeed, handleConsolidate, handleStats, handleRelevant, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity, handleCuriosityAct, handleProactiveCheck, handleActiveGoals } from './memory-api.js';
+import { handleExtract, handleSeed, handleConsolidate, handleStats, handleRelevant, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity, handleCuriosityAct, handleProactiveCheck, handleActiveGoals, handleMetacognition, handleTemporalPrediction, handleSkillSynthesis, handleRecursiveImprovement, handleEntropyMonitor, handleCounterfactualReasoning, handleGoalGeneration, handleCognitiveCompiler, handleSpreadingActivation, handleActivationState, handleEmotionalProcess, getEmotionalModulation, handleUserModelUpdate, handleGetUserModel, handlePredictiveCoding, handleSalienceCheck, handleDefaultModeNetwork } from './memory-api.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
@@ -431,6 +431,190 @@ app.get('/api/memory/proactive', async (_req, res) => {
     res.json(result);
   } catch (err) {
     log(`Proactive check error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 15: Metacognition — thinking about thinking
+app.post('/api/memory/metacognition', async (_req, res) => {
+  try {
+    const result = await handleMetacognition();
+    res.json(result);
+  } catch (err) {
+    log(`Metacognition error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 16: Temporal Prediction — anticipatory context loading
+app.post('/api/memory/temporal-predict', async (_req, res) => {
+  try {
+    const result = await handleTemporalPrediction();
+    res.json(result);
+  } catch (err) {
+    log(`Temporal prediction error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 17: Emergent Skill Synthesis — autonomous tool combination
+app.post('/api/memory/skill-synthesis', async (_req, res) => {
+  try {
+    const result = await handleSkillSynthesis();
+    res.json(result);
+  } catch (err) {
+    log(`Skill synthesis error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 18: Recursive Self-Improvement — meta-metacognition
+app.post('/api/memory/recursive-improve', async (_req, res) => {
+  try {
+    const result = await handleRecursiveImprovement();
+    res.json(result);
+  } catch (err) {
+    log(`Recursive improvement error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 19: Cognitive Entropy Monitor — thought diversity regulation
+app.post('/api/memory/entropy', async (_req, res) => {
+  try {
+    const result = await handleEntropyMonitor();
+    res.json(result);
+  } catch (err) {
+    log(`Entropy monitor error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 20: Counterfactual Reasoning — shadow timeline learning
+app.post('/api/memory/counterfactual', async (_req, res) => {
+  try {
+    const result = await handleCounterfactualReasoning();
+    res.json(result);
+  } catch (err) {
+    log(`Counterfactual reasoning error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 21: Emergent Goal Generation — autonomous purpose discovery
+app.post('/api/memory/goal-generation', async (_req, res) => {
+  try {
+    const result = await handleGoalGeneration();
+    res.json(result);
+  } catch (err) {
+    log(`Goal generation error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Spreading Activation Network — associative memory substrate
+app.post('/api/memory/activate', async (req, res) => {
+  try {
+    const result = await handleSpreadingActivation(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Spreading activation error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/activation-state', (_req, res) => {
+  try {
+    const result = handleActivationState();
+    res.json(result);
+  } catch (err) {
+    log(`Activation state error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Emotional Substrate — affective computing core
+app.post('/api/memory/emotion', async (req, res) => {
+  try {
+    const result = await handleEmotionalProcess(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Emotional process error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/emotion', (_req, res) => {
+  try {
+    const modulation = getEmotionalModulation();
+    res.json(modulation);
+  } catch (err) {
+    log(`Emotional state error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Theory of Mind — User Model
+app.post('/api/memory/user-model', async (_req, res) => {
+  try {
+    const result = await handleUserModelUpdate();
+    res.json(result);
+  } catch (err) {
+    log(`User model update error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/user-model', async (_req, res) => {
+  try {
+    const result = await handleGetUserModel();
+    res.json(result);
+  } catch (err) {
+    log(`User model get error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Predictive Coding Engine
+app.post('/api/memory/predictive-coding', async (_req, res) => {
+  try {
+    const result = await handlePredictiveCoding();
+    res.json(result);
+  } catch (err) {
+    log(`Predictive coding error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Salience Network — pre-attentive filtering
+app.post('/api/memory/salience', async (req, res) => {
+  try {
+    const result = await handleSalienceCheck(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Salience check error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Default Mode Network — background spontaneous processing
+app.post('/api/memory/dmn', async (_req, res) => {
+  try {
+    const result = await handleDefaultModeNetwork();
+    res.json(result);
+  } catch (err) {
+    log(`DMN error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 22: Cognitive Architecture Compiler — the meta-layer
+app.post('/api/memory/cognitive-compile', async (_req, res) => {
+  try {
+    const result = await handleCognitiveCompiler();
+    res.json(result);
+  } catch (err) {
+    log(`Cognitive compiler error: ${err}`);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
   }
 });

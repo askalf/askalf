@@ -114,12 +114,154 @@ run_cycle() {
   " "$NEURO_RESULT" 2>/dev/null || echo "error")
   log "Neuroplasticity: $NEURO_SUMMARY"
 
-  # Phase 4: Consolidation + backfill (maintenance)
-  log "Phase 4: Maintenance (consolidate + backfill)..."
+  # Phase 3b: Metacognition — thinking about thinking
+  log "Phase 3b: Metacognition..."
+  META_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/metacognition" 2>/dev/null || echo '{"error":"timeout"}')
+  META_SUMMARY=$(node -e "
+    try {
+      const m = JSON.parse(process.argv[1]);
+      if (m.error) { console.log('FAILED: ' + m.error); return; }
+      console.log('patterns=' + (m.patterns_found||0) +
+        ' traces=' + (m.traces_generated||0) +
+        ' blind_spots=' + (m.blind_spots||[]).length +
+        ' upgrades=' + (m.cognitive_upgrades||[]).length);
+      for (const b of (m.blind_spots || []).slice(0, 2)) {
+        console.log('  Blind spot: ' + b.substring(0, 80));
+      }
+      for (const u of (m.cognitive_upgrades || []).slice(0, 2)) {
+        console.log('  Upgrade: ' + u.substring(0, 80));
+      }
+    } catch { console.log('error'); }
+  " "$META_RESULT" 2>/dev/null || echo "error")
+  log "Metacognition: $META_SUMMARY"
+
+  # Phase 4a: Temporal Prediction — anticipating what's needed next
+  log "Phase 4a: Temporal prediction..."
+  TEMPORAL_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/temporal-predict" 2>/dev/null || echo '{"error":"timeout"}')
+  TEMPORAL_SUMMARY=$(node -e "
+    try {
+      const t = JSON.parse(process.argv[1]);
+      if (t.error) { console.log('FAILED: ' + t.error); return; }
+      console.log('predictions=' + (t.predictions||[]).length +
+        ' patterns=' + (t.temporal_patterns||[]).length +
+        ' prewarmed=' + (t.prewarmed||0));
+      for (const p of (t.predictions || []).slice(0, 2)) {
+        console.log('  [' + (p.confidence*100).toFixed(0) + '%] ' + p.topic.substring(0, 80));
+      }
+    } catch { console.log('error'); }
+  " "$TEMPORAL_RESULT" 2>/dev/null || echo "error")
+  log "TemporalPrediction: $TEMPORAL_SUMMARY"
+
+  # Phase 4b: Skill Synthesis — inventing new compound skills
+  log "Phase 4b: Skill synthesis..."
+  SYNTH_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/skill-synthesis" 2>/dev/null || echo '{"error":"timeout"}')
+  SYNTH_SUMMARY=$(node -e "
+    try {
+      const s = JSON.parse(process.argv[1]);
+      if (s.error) { console.log('FAILED: ' + s.error); return; }
+      console.log('proposed=' + (s.skills_proposed||0) + ' stored=' + (s.skills_stored||0));
+      for (const p of (s.proposals || []).slice(0, 2)) {
+        console.log('  Skill: ' + p.name + ' — ' + p.description.substring(0, 60));
+      }
+    } catch { console.log('error'); }
+  " "$SYNTH_RESULT" 2>/dev/null || echo "error")
+  log "SkillSynthesis: $SYNTH_SUMMARY"
+
+  # Phase 4c: Recursive Self-Improvement — meta-metacognition (the deepest layer)
+  log "Phase 4c: Recursive self-improvement (depth=2)..."
+  RECURSIVE_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/recursive-improve" 2>/dev/null || echo '{"error":"timeout"}')
+  RECURSIVE_SUMMARY=$(node -e "
+    try {
+      const r = JSON.parse(process.argv[1]);
+      if (r.error) { console.log('FAILED: ' + r.error); return; }
+      console.log('depth=' + (r.depth_achieved||0).toFixed(2) +
+        ' meta_patterns=' + (r.meta_patterns||[]).length +
+        ' process_upgrades=' + (r.process_upgrades||[]).length +
+        ' self_model_updates=' + (r.self_model_updates||0));
+      for (const u of (r.process_upgrades || []).slice(0, 2)) {
+        console.log('  Upgrade: ' + u.substring(0, 80));
+      }
+    } catch { console.log('error'); }
+  " "$RECURSIVE_RESULT" 2>/dev/null || echo "error")
+  log "RecursiveImprovement: $RECURSIVE_SUMMARY"
+
+  # Phase 4d: Cognitive Entropy Monitor — thought diversity regulation
+  log "Phase 4d: Entropy monitoring..."
+  ENTROPY_RESULT=$(curl -s --max-time 60 -X POST "$MCP_URL/api/memory/entropy" 2>/dev/null || echo '{"error":"timeout"}')
+  ENTROPY_SUMMARY=$(node -e "
+    try {
+      const e = JSON.parse(process.argv[1]);
+      if (e.error) { console.log('FAILED: ' + e.error); return; }
+      console.log('entropy=' + (e.entropy_score||0).toFixed(3) +
+        ' overrep=' + (e.overrepresented||[]).length +
+        ' underexplored=' + (e.underexplored||[]).length);
+      console.log('  Diagnosis: ' + (e.diagnosis||'?').substring(0, 100));
+    } catch { console.log('error'); }
+  " "$ENTROPY_RESULT" 2>/dev/null || echo "error")
+  log "Entropy: $ENTROPY_SUMMARY"
+
+  # Phase 4e: Counterfactual Reasoning — learning from roads not taken
+  log "Phase 4e: Counterfactual reasoning..."
+  CF_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/counterfactual" 2>/dev/null || echo '{"error":"timeout"}')
+  CF_SUMMARY=$(node -e "
+    try {
+      const c = JSON.parse(process.argv[1]);
+      if (c.error) { console.log('FAILED: ' + c.error); return; }
+      console.log('analyzed=' + (c.episodes_analyzed||0) +
+        ' generated=' + (c.counterfactuals_generated||0) +
+        ' stored=' + (c.counterfactuals_stored||0));
+      for (const i of (c.insights || []).slice(0, 2)) {
+        console.log('  Insight: ' + i.substring(0, 80));
+      }
+    } catch { console.log('error'); }
+  " "$CF_RESULT" 2>/dev/null || echo "error")
+  log "Counterfactual: $CF_SUMMARY"
+
+  # Phase 4f: Emergent Goal Generation — autonomous purpose discovery
+  log "Phase 4f: Goal generation..."
+  GOAL_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/goal-generation" 2>/dev/null || echo '{"error":"timeout"}')
+  GOAL_SUMMARY=$(node -e "
+    try {
+      const g = JSON.parse(process.argv[1]);
+      if (g.error) { console.log('FAILED: ' + g.error); return; }
+      console.log('patterns=' + (g.patterns_observed||0) +
+        ' proposed=' + (g.goals_proposed||[]).length +
+        ' stored=' + (g.goals_stored||0));
+      for (const p of (g.goals_proposed || []).slice(0, 2)) {
+        console.log('  [' + (p.confidence*100).toFixed(0) + '%] ' + p.goal.substring(0, 80));
+      }
+    } catch { console.log('error'); }
+  " "$GOAL_RESULT" 2>/dev/null || echo "error")
+  log "GoalGeneration: $GOAL_SUMMARY"
+
+  # Phase 4g: Cognitive Architecture Compiler — the meta-layer that connects everything
+  log "Phase 4g: Cognitive architecture compilation..."
+  CAC_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/cognitive-compile" 2>/dev/null || echo '{"error":"timeout"}')
+  CAC_SUMMARY=$(node -e "
+    try {
+      const c = JSON.parse(process.argv[1]);
+      if (c.error) { console.log('FAILED: ' + c.error); return; }
+      console.log('nodes=' + (c.graph_nodes||0) +
+        ' edges=' + (c.graph_edges||0) +
+        ' missing=' + (c.missing_connections||[]).length +
+        ' installed=' + (c.new_connections_installed||0) +
+        ' throughput=' + (c.throughput_score||0).toFixed(2));
+      for (const m of (c.missing_connections || []).slice(0, 2)) {
+        console.log('  Missing: ' + m.from + ' -> ' + m.to + ' (' + m.data_type + ')');
+      }
+      for (const a of (c.attention_weights || []).slice(0, 3)) {
+        console.log('  Attention: ' + a.layer_id + '=' + a.weight.toFixed(2) + ' (' + a.reason.substring(0, 50) + ')');
+      }
+    } catch { console.log('error'); }
+  " "$CAC_RESULT" 2>/dev/null || echo "error")
+  log "CognitiveCompiler: $CAC_SUMMARY"
+
+  # Phase 5: Consolidation + backfill (maintenance)
+  log "Phase 5: Maintenance (consolidate + backfill)..."
   curl -s --max-time 60 -X POST "$MCP_URL/api/memory/consolidate" > /dev/null 2>&1 || true
   curl -s --max-time 60 -X POST "$MCP_URL/api/memory/backfill" > /dev/null 2>&1 || true
 
-  # Phase 5: Health check
+  # Phase 6: Health check
   HEALTH=$(curl -s --max-time 5 "$MCP_URL/api/memory/health" 2>/dev/null || echo '{}')
   HEALTH_SUMMARY=$(node -e "
     try {
@@ -133,6 +275,82 @@ run_cycle() {
     } catch { console.log('error'); }
   " "$HEALTH" 2>/dev/null || echo "error")
   log "Health: $HEALTH_SUMMARY"
+
+  # Phase 6b: Theory of Mind — user model update
+  log "Phase 6b: User model update..."
+  USERMODEL_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/user-model" 2>/dev/null || echo '{"error":"timeout"}')
+  USERMODEL_SUMMARY=$(node -e "
+    try {
+      const u = JSON.parse(process.argv[1]);
+      if (u.error) { console.log('FAILED: ' + u.error); return; }
+      console.log('dimensions=' + (u.dimensions_updated||0) +
+        ' confidence=' + (u.model_confidence||0).toFixed(2) +
+        ' inferences=' + (u.new_inferences||[]).length +
+        ' predictions=' + (u.predictions||[]).length);
+      for (const p of (u.predictions || []).slice(0, 2)) {
+        console.log('  Prediction: ' + p.substring(0, 80));
+      }
+    } catch { console.log('error'); }
+  " "$USERMODEL_RESULT" 2>/dev/null || echo "error")
+  log "UserModel: $USERMODEL_SUMMARY"
+
+  # Phase 6c: Predictive Coding — anticipatory processing
+  log "Phase 6c: Predictive coding..."
+  PREDICT_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/predictive-coding" 2>/dev/null || echo '{"error":"timeout"}')
+  PREDICT_SUMMARY=$(node -e "
+    try {
+      const p = JSON.parse(process.argv[1]);
+      if (p.error) { console.log('FAILED: ' + p.error); return; }
+      console.log('predictions=' + (p.predictions_made||0) +
+        ' accuracy=' + ((p.prediction_accuracy||0)*100).toFixed(0) + '%' +
+        ' surprises=' + (p.surprise_events||[]).length +
+        ' pre_computed=' + (p.pre_computed_contexts||0));
+      for (const s of (p.surprise_events || []).slice(0, 2)) {
+        console.log('  Surprise: ' + s.substring(0, 80));
+      }
+    } catch { console.log('error'); }
+  " "$PREDICT_RESULT" 2>/dev/null || echo "error")
+  log "PredictiveCoding: $PREDICT_SUMMARY"
+
+  # Phase 6d: Default Mode Network — free association (the brain's idle state)
+  log "Phase 6d: Default Mode Network (free association)..."
+  DMN_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/dmn" 2>/dev/null || echo '{"error":"timeout"}')
+  DMN_SUMMARY=$(node -e "
+    try {
+      const d = JSON.parse(process.argv[1]);
+      if (d.error) { console.log('FAILED: ' + d.error); return; }
+      console.log('connections=' + (d.serendipitous_connections||[]).length +
+        ' narratives=' + (d.narrative_updates||[]).length +
+        ' hypotheses=' + (d.creative_hypotheses||[]).length +
+        ' duration=' + (d.dmn_duration_ms||0) + 'ms');
+      for (const c of (d.serendipitous_connections || []).slice(0, 2)) {
+        console.log('  Connection: ' + c.connection.substring(0, 80));
+      }
+      for (const h of (d.creative_hypotheses || []).slice(0, 2)) {
+        console.log('  Hypothesis: ' + h.substring(0, 80));
+      }
+    } catch { console.log('error'); }
+  " "$DMN_RESULT" 2>/dev/null || echo "error")
+  log "DMN: $DMN_SUMMARY"
+
+  # Phase 7: Emotional Integration — process this cycle's results as emotional stimuli
+  log "Phase 7: Emotional integration..."
+  # Determine emotional stimulus based on cycle results
+  curl -s --max-time 10 -X POST "$MCP_URL/api/memory/emotion" \
+    -H "Content-Type: application/json" \
+    -d '{"event_type":"discovery","novelty_score":0.5}' > /dev/null 2>&1 || true
+  EMOTION_STATE=$(curl -s --max-time 5 "$MCP_URL/api/memory/emotion" 2>/dev/null || echo '{}')
+  EMOTION_SUMMARY=$(node -e "
+    try {
+      const e = JSON.parse(process.argv[1]);
+      console.log('state=' + (e.emotional_context||'unknown').substring(0, 100));
+      console.log('  temp_mod=' + (e.llm_temperature_modifier||0).toFixed(3) +
+        ' exploration=' + (e.exploration_bias||0).toFixed(3) +
+        ' vigilance=' + (e.vigilance_level||0).toFixed(3) +
+        ' risk=' + (e.risk_tolerance||0).toFixed(3));
+    } catch { console.log('error'); }
+  " "$EMOTION_STATE" 2>/dev/null || echo "error")
+  log "Emotion: $EMOTION_SUMMARY"
 
   local cycle_end=$(date +%s)
   local duration=$((cycle_end - cycle_start))
