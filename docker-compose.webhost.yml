@@ -72,7 +72,7 @@ services:
       start_period: 15s
     networks:
       - webhost-net
-    restart: unless-stopped
+    restart: always
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -149,7 +149,9 @@ services:
       start_period: 30s
     networks:
       - webhost-net
-    restart: unless-stopped
+    restart: always
+    tmpfs:
+      - /tmp:mode=1777,size=16m
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -212,7 +214,7 @@ services:
       AUTOHEAL_INTERVAL: 30
       AUTOHEAL_START_PERIOD: 60
       AUTOHEAL_DEFAULT_STOP_TIMEOUT: 10
-      AUTOHEAL_ONLY_MONITOR_RUNNING: "true"
+      AUTOHEAL_ONLY_MONITOR_RUNNING: "false"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     network_mode: none
