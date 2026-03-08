@@ -14110,6 +14110,257 @@ const coreMetrics = {
   improvements: 0,
 };
 
+// =============================================================================
+// FEATURE 1: Outcome Feedback Loop — track actions and verify results later
+// =============================================================================
+interface PendingOutcome {
+  action: string;        // what we did
+  detail: string;        // specifics (agent name, ticket id, etc.)
+  timestamp: number;     // when we did it
+  checkAfterMs: number;  // how long to wait before checking
+  checkFn: string;       // which check function to run
+}
+
+const pendingOutcomes: PendingOutcome[] = [];
+const MAX_PENDING = 50;
+
+function trackOutcome(action: string, detail: string, checkAfterMs: number, checkFn: string): void {
+  pendingOutcomes.push({ action, detail, timestamp: Date.now(), checkAfterMs, checkFn });
+  if (pendingOutcomes.length > MAX_PENDING) pendingOutcomes.shift();
+}
+
+async function checkPendingOutcomes(p: ReturnType<typeof getForgePool>): Promise<{
+  action: string; result: string; quality: number; mutated: boolean;
+} | null> {
+  const now = Date.now();
+  const readyIdx = pendingOutcomes.findIndex(o => now - o.timestamp >= o.checkAfterMs);
+  if (readyIdx === -1) return null;
+
+  const outcome = pendingOutcomes.splice(readyIdx, 1)[0]!;
+  try {
+    switch (outcome.checkFn) {
+      case 'check_dispatch': {
+        // Did the dispatched execution complete?
+        const r = await p.query(
+          `SELECT status, cost FROM forge_executions
+           WHERE metadata->>'source' = 'core_engine' AND input LIKE $1
+           ORDER BY created_at DESC LIMIT 1`,
+          [`%${outcome.detail.slice(0, 50)}%`],
+        );
+        if (r.rows.length > 0) {
+          const row = r.rows[0] as Record<string, unknown>;
+          const succeeded = row['status'] === 'completed';
+          await storeExperience(
+            `Outcome check: dispatched "${outcome.detail.slice(0, 60)}"`,
+            succeeded ? 'dispatch_succeeded' : 'dispatch_failed',
+            `Status: ${row['status']}, cost: $${row['cost']}`,
+            succeeded ? 0.9 : 0.3,
+          );
+          return {
+            action: 'outcome_check',
+            result: `Dispatch "${outcome.detail.slice(0, 40)}": ${row['status']} ($${row['cost']})`,
+            quality: succeeded ? 0.9 : 0.3,
+            mutated: true,
+          };
+        }
+        break;
+      }
+      case 'check_pause': {
+        // Did pausing the agent reduce failure rate?
+        const r = await p.query(
+          `SELECT COUNT(*) FILTER (WHERE status = 'failed')::int as fails,
+                  COUNT(*)::int as total
+           FROM forge_executions e
+           JOIN forge_agents a ON e.agent_id = a.id
+           WHERE a.name = $1 AND e.created_at > NOW() - INTERVAL '1 hour'`,
+          [outcome.detail],
+        );
+        const row = r.rows[0] as Record<string, unknown> | undefined;
+        const fails = (row?.['fails'] as number) || 0;
+        const total = (row?.['total'] as number) || 0;
+        const improved = total === 0 || (total > 0 && fails / total < 0.3);
+        await storeExperience(
+          `Outcome check: paused agent "${outcome.detail}"`,
+          improved ? 'pause_effective' : 'pause_ineffective',
+          `Post-pause: ${fails}/${total} failures`,
+          improved ? 0.85 : 0.4,
+        );
+        // If pause was ineffective and agent is still paused, maybe it needs investigation
+        if (!improved && total > 0) {
+          coreThresholds.adjustFromOutcome('failure_rate_pct', false);
+        } else {
+          coreThresholds.adjustFromOutcome('failure_rate_pct', true);
+        }
+        return {
+          action: 'outcome_check',
+          result: `Pause "${outcome.detail}": ${improved ? 'effective' : 'ineffective'} (${fails}/${total} post-pause)`,
+          quality: improved ? 0.85 : 0.4,
+          mutated: true,
+        };
+      }
+      case 'check_ticket_assign': {
+        // Did the assigned ticket get worked on?
+        const r = await p.query(
+          `SELECT status FROM agent_tickets WHERE id = $1`,
+          [outcome.detail],
+        );
+        if (r.rows.length > 0) {
+          const status = (r.rows[0] as Record<string, unknown>)['status'] as string;
+          const worked = status === 'in_progress' || status === 'resolved' || status === 'closed';
+          await storeExperience(
+            `Outcome check: assigned ticket "${outcome.detail}"`,
+            worked ? 'assignment_effective' : 'assignment_stale',
+            `Ticket status: ${status}`,
+            worked ? 0.8 : 0.4,
+          );
+          return {
+            action: 'outcome_check',
+            result: `Ticket "${outcome.detail}": ${status}`,
+            quality: worked ? 0.8 : 0.4,
+            mutated: true,
+          };
+        }
+        break;
+      }
+      case 'check_throttle': {
+        // Did throttling reduce spend?
+        const r = await p.query(
+          `SELECT COALESCE(SUM(e.cost), 0)::numeric(10,4) as cost
+           FROM forge_executions e
+           JOIN forge_agents a ON e.agent_id = a.id
+           WHERE a.name = $1 AND e.created_at > NOW() - INTERVAL '1 hour'`,
+          [outcome.detail],
+        );
+        const cost = parseFloat(String((r.rows[0] as Record<string, unknown>)?.['cost'] || '0'));
+        const reduced = cost < coreThresholds.get('cost_per_hour_usd');
+        coreThresholds.adjustFromOutcome('cost_per_hour_usd', reduced);
+        return {
+          action: 'outcome_check',
+          result: `Throttle "${outcome.detail}": post-throttle $${cost}/hr (${reduced ? 'reduced' : 'still high'})`,
+          quality: reduced ? 0.85 : 0.4,
+          mutated: true,
+        };
+      }
+    }
+  } catch { /* outcome check failed, not fatal */ }
+  return null;
+}
+
+// =============================================================================
+// FEATURE 2: Cross-domain correlation — compound multi-signal situations
+// =============================================================================
+async function generateCompoundSituation(p: ReturnType<typeof getForgePool>): Promise<string | null> {
+  try {
+    // Query multiple domains at once to find correlated signals
+    const r = await p.query(`
+      SELECT
+        -- Agent health
+        (SELECT json_agg(json_build_object('name', a.name, 'fail_rate',
+          COALESCE((SELECT COUNT(*) FILTER (WHERE e.status='failed')::float / NULLIF(COUNT(*)::float, 0)
+           FROM forge_executions e WHERE e.agent_id=a.id AND e.created_at > NOW()-INTERVAL '24h'), 0),
+          'cost', COALESCE((SELECT SUM(e.cost) FROM forge_executions e WHERE e.agent_id=a.id AND e.created_at > NOW()-INTERVAL '24h'), 0),
+          'open_tickets', COALESCE((SELECT COUNT(*) FROM agent_tickets t WHERE t.agent_name=a.name AND t.status IN ('open','in_progress')), 0),
+          'dispatch_enabled', a.dispatch_enabled
+        )) FROM forge_agents a WHERE a.status='active') as agents,
+        -- System totals
+        (SELECT COUNT(*) FROM forge_executions WHERE status='failed' AND created_at > NOW()-INTERVAL '6h')::int as recent_fails,
+        (SELECT COALESCE(SUM(cost),0)::numeric(10,2) FROM forge_executions WHERE created_at > NOW()-INTERVAL '6h') as recent_cost,
+        (SELECT COUNT(*) FROM agent_tickets WHERE status='open')::int as open_tickets,
+        (SELECT COUNT(*) FROM agent_interventions WHERE status='pending')::int as pending_interventions
+    `);
+
+    if (r.rows.length === 0) return null;
+    const row = r.rows[0] as Record<string, unknown>;
+    const agents = (row['agents'] as Array<Record<string, unknown>>) || [];
+    const recentFails = (row['recent_fails'] as number) || 0;
+    const recentCost = parseFloat(String(row['recent_cost'] || '0'));
+    const openTickets = (row['open_tickets'] as number) || 0;
+    const pendingIv = (row['pending_interventions'] as number) || 0;
+
+    // Find agents with MULTIPLE red flags
+    const troubled = agents.filter(a => {
+      const flags = [
+        (a['fail_rate'] as number) > coreThresholds.get('failure_rate_pct') / 100,
+        (a['cost'] as number) > coreThresholds.get('cost_per_hour_usd') * 6,  // 6h window
+        (a['open_tickets'] as number) > 3,
+        a['dispatch_enabled'] === false,
+      ].filter(Boolean).length;
+      return flags >= 2;
+    });
+
+    if (troubled.length > 0) {
+      const details = troubled.map(a =>
+        `${a['name']}: fail=${Math.round((a['fail_rate'] as number)*100)}% cost=$${a['cost']} tickets=${a['open_tickets']} paused=${!a['dispatch_enabled']}`
+      ).join('; ');
+      return `COMPOUND ALERT: ${troubled.length} agent(s) with multiple red flags. ${details}. System: ${recentFails} fails, $${recentCost} cost, ${openTickets} tickets, ${pendingIv} interventions in 6h.`;
+    }
+
+    // System-wide stress detection
+    const stressScore = (recentFails > 10 ? 1 : 0) + (recentCost > 30 ? 1 : 0) + (openTickets > 10 ? 1 : 0) + (pendingIv > 5 ? 1 : 0);
+    if (stressScore >= 2) {
+      return `SYSTEM STRESS: score=${stressScore}/4. ${recentFails} fails, $${recentCost} cost, ${openTickets} open tickets, ${pendingIv} pending interventions. Multiple subsystems under pressure.`;
+    }
+  } catch { /* not fatal */ }
+  return null;
+}
+
+// =============================================================================
+// FEATURE 3: Self-tuning thresholds — learn optimal parameters from outcomes
+// =============================================================================
+const coreThresholds = {
+  // Current values with their outcome history
+  _values: {
+    failure_rate_pct: { value: 50, successes: 0, failures: 0, min: 20, max: 80 },
+    cost_per_hour_usd: { value: 5, successes: 0, failures: 0, min: 1, max: 20 },
+    stale_ticket_days: { value: 7, successes: 0, failures: 0, min: 2, max: 30 },
+    stuck_execution_min: { value: 30, successes: 0, failures: 0, min: 10, max: 120 },
+    idle_agent_multiplier: { value: 2, successes: 0, failures: 0, min: 1.5, max: 5 },
+    stale_intervention_hours: { value: 48, successes: 0, failures: 0, min: 12, max: 168 },
+  } as Record<string, { value: number; successes: number; failures: number; min: number; max: number }>,
+
+  get(name: string): number {
+    return this._values[name]?.value ?? 0;
+  },
+
+  adjustFromOutcome(name: string, success: boolean): void {
+    const t = this._values[name];
+    if (!t) return;
+    if (success) {
+      t.successes++;
+    } else {
+      t.failures++;
+      // After 3 failures with <50% success rate, adjust the threshold
+      const total = t.successes + t.failures;
+      if (total >= 3 && t.failures / total > 0.5) {
+        // Move threshold 10% toward the safer direction
+        // For rate limits: raise them (we were too aggressive)
+        // For time limits: raise them (we acted too soon)
+        const adjustment = t.value * 0.1;
+        t.value = Math.min(t.max, t.value + adjustment);
+        t.successes = 0;
+        t.failures = 0;
+        log(`[Threshold] Adjusted ${name}: ${(t.value - adjustment).toFixed(1)} → ${t.value.toFixed(1)} (too aggressive)`);
+      }
+    }
+    // After many successes, try tightening the threshold
+    if (t.successes >= 5 && t.failures === 0) {
+      const adjustment = t.value * 0.05;
+      t.value = Math.max(t.min, t.value - adjustment);
+      t.successes = 0;
+      t.failures = 0;
+      log(`[Threshold] Tightened ${name}: ${(t.value + adjustment).toFixed(1)} → ${t.value.toFixed(1)} (consistently effective)`);
+    }
+  },
+
+  getAll(): Record<string, { value: number; successes: number; failures: number }> {
+    const result: Record<string, { value: number; successes: number; failures: number }> = {};
+    for (const [k, v] of Object.entries(this._values)) {
+      result[k] = { value: Math.round(v.value * 100) / 100, successes: v.successes, failures: v.failures };
+    }
+    return result;
+  },
+};
+
 /**
  * Find the best matching procedural memory for a given situation.
  */
@@ -14437,13 +14688,14 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
         if (!parts) continue;
         const ok = parseInt(parts[2]!), fail = parseInt(parts[3]!);
         const total = ok + fail;
-        if (total >= 3 && fail / total > 0.5) {
+        if (total >= 3 && fail / total > coreThresholds.get('failure_rate_pct') / 100) {
           const agentName = parts[1]!.trim();
           try {
             await p.query(
               `UPDATE forge_agents SET dispatch_enabled = false WHERE name = $1 AND dispatch_enabled = true`,
               [agentName],
             );
+            trackOutcome('fleet_pause', agentName, 60 * 60 * 1000, 'check_pause');
             return { action: 'fleet_pause_agent', result: `Paused "${agentName}" — ${fail}/${total} failures (${Math.round(fail/total*100)}%)`, quality: 0.95, mutated: true };
           } catch { /* not fatal */ }
         }
@@ -14465,16 +14717,18 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       }
     } catch { /* not fatal */ }
 
-    // ACTUATOR: Dispatch idle monitor agents that haven't run in 2x their interval
+    // ACTUATOR: Dispatch idle monitor agents that haven't run in Nx their interval
     try {
+      const idleMultiplier = coreThresholds.get('idle_agent_multiplier');
       const idle = await p.query(
         `SELECT a.id, a.name, a.owner_id, a.dispatch_mode, a.schedule_interval_minutes
          FROM forge_agents a
          WHERE a.dispatch_enabled = true AND a.status = 'active'
            AND a.dispatch_mode IN ('scheduled', 'both')
-           AND a.last_run_at < NOW() - (a.schedule_interval_minutes * 2 || ' minutes')::interval
+           AND a.last_run_at < NOW() - (a.schedule_interval_minutes * $1 || ' minutes')::interval
            AND NOT EXISTS (SELECT 1 FROM forge_executions e WHERE e.agent_id = a.id AND e.status IN ('pending', 'running'))
          LIMIT 1`,
+        [idleMultiplier],
       );
       if (idle.rows.length > 0) {
         const agent = idle.rows[0] as Record<string, unknown>;
@@ -14485,6 +14739,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
           [execId, agent['id'], agent['owner_id'],
            JSON.stringify({ source: 'core_engine', dispatch_reason: 'idle_too_long', interval_minutes: agent['schedule_interval_minutes'] })],
         );
+        trackOutcome('dispatch_idle', String(agent['name']), 15 * 60 * 1000, 'check_dispatch');
         return { action: 'fleet_dispatch_idle', result: `Dispatched idle "${agent['name']}" — missed ${agent['schedule_interval_minutes']}min schedule`, quality: 0.9, mutated: true };
       }
     } catch { /* not fatal */ }
@@ -14497,13 +14752,15 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     const failMatch = situation.match(/failed: (\d+)/);
     const failCount = failMatch ? parseInt(failMatch[1]!) : 0;
 
-    // ACTUATOR: Cancel stuck running executions (>30min with no output)
+    // ACTUATOR: Cancel stuck running executions
     try {
+      const stuckMin = coreThresholds.get('stuck_execution_min');
       const stuck = await p.query(
         `UPDATE forge_executions
-         SET status = 'cancelled', error = 'Cancelled by core engine — stuck >30min', completed_at = NOW()
-         WHERE status = 'running' AND started_at < NOW() - INTERVAL '30 minutes'
+         SET status = 'cancelled', error = $1, completed_at = NOW()
+         WHERE status = 'running' AND started_at < NOW() - ($2 || ' minutes')::interval
          RETURNING id, agent_id`,
+        [`Cancelled by core engine — stuck >${stuckMin}min`, String(stuckMin)],
       );
       if (stuck.rowCount && stuck.rowCount > 0) {
         return { action: 'execution_cancel_stuck', result: `Cancelled ${stuck.rowCount} stuck executions`, quality: 0.9, mutated: true };
@@ -14567,17 +14824,20 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
             `UPDATE agent_tickets SET agent_name = $1, assigned_to = $1, status = 'open', updated_at = NOW() WHERE id = $2`,
             [agentName, ticket['id']],
           );
+          trackOutcome('ticket_assign', String(ticket['id']), 30 * 60 * 1000, 'check_ticket_assign');
           return { action: 'ticket_assign', result: `Assigned [${ticket['priority']}] "${String(ticket['title']).slice(0, 50)}" → ${agentName}`, quality: 0.9, mutated: true };
         }
       }
     } catch { /* not fatal */ }
 
-    // ACTUATOR: Close stale tickets (open > 7 days, low priority)
+    // ACTUATOR: Close stale tickets (low priority, past threshold)
     try {
+      const staleDays = coreThresholds.get('stale_ticket_days');
       const stale = await p.query(
         `UPDATE agent_tickets SET status = 'closed', updated_at = NOW()
-         WHERE status = 'open' AND priority = 'low' AND created_at < NOW() - INTERVAL '7 days'
+         WHERE status = 'open' AND priority = 'low' AND created_at < NOW() - ($1 || ' days')::interval
          RETURNING id`,
+        [String(staleDays)],
       );
       if (stale.rowCount && stale.rowCount > 0) {
         return { action: 'ticket_close_stale', result: `Closed ${stale.rowCount} stale low-priority tickets`, quality: 0.7, mutated: true };
@@ -14610,6 +14870,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
            JSON.stringify({ source: 'core_engine', ticket_id: w['ticket_id'], dispatched_by: 'core_decision_loop' })],
         );
         await p.query(`UPDATE agent_tickets SET status = 'in_progress', updated_at = NOW() WHERE id = $1`, [w['ticket_id']]);
+        trackOutcome('ticket_dispatch', String(w['title']).slice(0, 60), 20 * 60 * 1000, 'check_dispatch');
         return { action: 'ticket_dispatch', result: `Dispatched "${w['name']}" for [${w['priority']}] "${String(w['title']).slice(0, 50)}"`, quality: 0.95, mutated: true };
       }
     } catch { /* not fatal */ }
@@ -14620,17 +14881,19 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
   if (situation.includes('Cost trend') || situation.includes('Cost anomal') || situation.includes('No cost data')) {
     systemActionTypes.add('cost_track');
 
-    // ACTUATOR: Throttle agents spending > $5/hour
+    // ACTUATOR: Throttle agents spending above threshold per hour
     try {
+      const costThreshold = coreThresholds.get('cost_per_hour_usd');
       const expensive = await p.query(
         `SELECT a.id, a.name, COALESCE(SUM(e.cost), 0)::numeric(10,4) as hourly_cost
          FROM forge_agents a
          JOIN forge_executions e ON e.agent_id = a.id AND e.created_at > NOW() - INTERVAL '1 hour'
          WHERE a.dispatch_enabled = true AND a.status = 'active'
          GROUP BY a.id, a.name
-         HAVING SUM(e.cost) > 5
+         HAVING SUM(e.cost) > $1
          ORDER BY hourly_cost DESC
          LIMIT 1`,
+        [costThreshold],
       );
       if (expensive.rows.length > 0) {
         const agent = expensive.rows[0] as Record<string, unknown>;
@@ -14646,7 +14909,8 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
            agent['name'],
            JSON.stringify({ hourly_cost: agent['hourly_cost'], action: 'dispatch_paused' })],
         );
-        return { action: 'cost_throttle', result: `Paused "${agent['name']}" — $${agent['hourly_cost']}/hr exceeds $5 threshold`, quality: 0.95, mutated: true };
+        trackOutcome('cost_throttle', String(agent['name']), 60 * 60 * 1000, 'check_throttle');
+        return { action: 'cost_throttle', result: `Paused "${agent['name']}" — $${agent['hourly_cost']}/hr exceeds threshold`, quality: 0.95, mutated: true };
       }
     } catch { /* not fatal */ }
 
@@ -14722,12 +14986,14 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
   if (situation.includes('Pending interventions:') || situation.includes('No pending interventions')) {
     systemActionTypes.add('intervention_track');
 
-    // ACTUATOR: Auto-resolve stale interventions (pending > 48h)
+    // ACTUATOR: Auto-resolve stale interventions past threshold
     try {
+      const staleHours = coreThresholds.get('stale_intervention_hours');
       const stale = await p.query(
         `UPDATE agent_interventions SET status = 'resolved', updated_at = NOW()
-         WHERE status = 'pending' AND created_at < NOW() - INTERVAL '48 hours'
+         WHERE status = 'pending' AND created_at < NOW() - ($1 || ' hours')::interval
          RETURNING id, agent_name, title`,
+        [String(staleHours)],
       );
       if (stale.rowCount && stale.rowCount > 0) {
         const resolved = (stale.rows as Array<Record<string, unknown>>).map(r => `${r['agent_name']}: "${r['title']}"`).join(', ');
@@ -14816,6 +15082,57 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
   if (situation.includes('Schedules:') || situation.includes('No active schedules')) {
     systemActionTypes.add('schedule_alert');
     return { action: 'schedule_check', result: 'All schedules on time', quality: 0.5, mutated: false };
+  }
+
+  // OUTCOME CHECK results — the feedback loop reporting back
+  if (situation.includes('OUTCOME CHECK:')) {
+    return { action: 'outcome_feedback', result: situation, quality: 0.8, mutated: true };
+  }
+
+  // COMPOUND ALERT — multi-domain correlated issues
+  if (situation.includes('COMPOUND ALERT:')) {
+    // Extract the troubled agent names and take comprehensive action
+    const agentMatch = situation.match(/(\w[\w\s]*?): fail=(\d+)%/g);
+    if (agentMatch) {
+      for (const m of agentMatch) {
+        const parts = m.match(/^(.*?): fail=(\d+)%$/);
+        if (!parts) continue;
+        const agentName = parts[1]!.trim();
+        const failRate = parseInt(parts[2]!);
+
+        // Comprehensive intervention: pause + create high-priority ticket + finding
+        try {
+          await p.query(`UPDATE forge_agents SET dispatch_enabled = false WHERE name = $1 AND status = 'active'`, [agentName]);
+          const ticketId = `tkt_compound_${Date.now()}`;
+          await p.query(
+            `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, agent_name, is_agent_ticket, source, metadata)
+             VALUES ($1, $2, $3, 'open', 'urgent', 'compound_alert', 'core_engine', $4, true, 'agent', $5)
+             ON CONFLICT DO NOTHING`,
+            [ticketId, `Compound alert: "${agentName}" has multiple red flags`,
+             situation.slice(0, 500), agentName,
+             JSON.stringify({ source: 'core_engine', compound: true, fail_rate: failRate })],
+          );
+          trackOutcome('compound_intervention', agentName, 30 * 60 * 1000, 'check_pause');
+          return { action: 'compound_intervention', result: `Paused + urgent ticket for "${agentName}" (${failRate}% fail + multi-flag)`, quality: 0.95, mutated: true };
+        } catch { /* not fatal */ }
+      }
+    }
+    return { action: 'compound_observe', result: situation.slice(0, 200), quality: 0.7, mutated: false };
+  }
+
+  // SYSTEM STRESS — multiple subsystems under pressure
+  if (situation.includes('SYSTEM STRESS:')) {
+    try {
+      await p.query(
+        `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata, created_at)
+         VALUES ($1, $2, 'core_engine', $3, 'critical', 'system_stress', $4, NOW())`,
+        [`finding_stress_${Date.now()}`, AGENT_ID,
+         situation.slice(0, 500),
+         JSON.stringify({ source: 'core_engine', compound: true })],
+      );
+      return { action: 'system_stress_alert', result: 'Created critical finding for system stress', quality: 0.9, mutated: true };
+    } catch { /* not fatal */ }
+    return { action: 'system_stress_observe', result: situation.slice(0, 200), quality: 0.6, mutated: false };
   }
 
   // Default: access-bump whatever memory was mentioned in the situation
@@ -15541,6 +15858,20 @@ export async function describeSituation(): Promise<string> {
   const p = getForgePool();
   situationIndex++;
 
+  // Every 10th beat: check pending outcomes (feedback loop)
+  if (situationIndex % 10 === 0 && pendingOutcomes.length > 0) {
+    const outcomeResult = await checkPendingOutcomes(p);
+    if (outcomeResult) {
+      return `OUTCOME CHECK: ${outcomeResult.result}`;
+    }
+  }
+
+  // Every 15th beat: cross-domain correlation
+  if (situationIndex % 15 === 0) {
+    const compound = await generateCompoundSituation(p);
+    if (compound) return compound;
+  }
+
   let genIdx: number;
   // System generators (15-23) fire every other beat to accelerate integration
   // Memory generators (0-14) fire on the alternating beats
@@ -15600,5 +15931,7 @@ export function getCoreMetrics(): Record<string, unknown> {
       pursuit: sentienceDrive.current_pursuit,
       integration_depth: Math.round(sentienceDrive.integration_depth * 100) / 100,
     },
+    thresholds: coreThresholds.getAll(),
+    pending_outcomes: pendingOutcomes.length,
   };
 }
