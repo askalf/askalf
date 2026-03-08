@@ -14428,122 +14428,284 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
 
   if (situation.includes('Fleet status:') || situation.includes('Agent performance')) {
     systemActionTypes.add('fleet_observe');
-    // Store fleet health observation as semantic knowledge
-    const summary = situation.slice(0, 200);
-    let embVec: number[];
-    try { embVec = await embed(summary); } catch { return { action: 'fleet_observe', result: 'embed failed', quality: 0.2, mutated: false }; }
-    const vecLit = `[${embVec.join(',')}]`;
-    const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    // Upsert — replace old fleet status with fresh one
-    await p.query(`DELETE FROM forge_semantic_memories WHERE agent_id = $1 AND content LIKE 'FLEET-STATUS:%'`, [AGENT_ID]);
-    await p.query(
-      `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
-       VALUES ($1, $2, $2, $3, $4, 'core_engine', 0.8, $5)`,
-      [id, AGENT_ID, `FLEET-STATUS: ${summary}`, vecLit, JSON.stringify({ type: 'fleet_status', timestamp: new Date().toISOString() })],
-    );
-    return { action: 'fleet_observe', result: `Stored fleet status snapshot`, quality: 0.7, mutated: true };
+
+    // ACTUATOR: Pause agents with >50% failure rate in 24h
+    const failAgentMatch = situation.match(/(\w[\w\s]*?)\(.*?\): (\d+)ok\/(\d+)fail/g);
+    if (failAgentMatch) {
+      for (const m of failAgentMatch) {
+        const parts = m.match(/^(.*?)\(.*?\): (\d+)ok\/(\d+)fail$/);
+        if (!parts) continue;
+        const ok = parseInt(parts[2]!), fail = parseInt(parts[3]!);
+        const total = ok + fail;
+        if (total >= 3 && fail / total > 0.5) {
+          const agentName = parts[1]!.trim();
+          try {
+            await p.query(
+              `UPDATE forge_agents SET dispatch_enabled = false WHERE name = $1 AND dispatch_enabled = true`,
+              [agentName],
+            );
+            return { action: 'fleet_pause_agent', result: `Paused "${agentName}" — ${fail}/${total} failures (${Math.round(fail/total*100)}%)`, quality: 0.95, mutated: true };
+          } catch { /* not fatal */ }
+        }
+      }
+    }
+
+    // ACTUATOR: Re-enable agents that were paused but now have open tickets waiting
+    try {
+      const paused = await p.query(
+        `SELECT a.id, a.name FROM forge_agents a
+         WHERE a.dispatch_enabled = false AND a.status = 'active'
+           AND EXISTS (SELECT 1 FROM agent_tickets t WHERE t.agent_name = a.name AND t.status = 'open')
+         LIMIT 1`,
+      );
+      if (paused.rows.length > 0) {
+        const agent = paused.rows[0] as Record<string, unknown>;
+        await p.query(`UPDATE forge_agents SET dispatch_enabled = true WHERE id = $1`, [agent['id']]);
+        return { action: 'fleet_reenable_agent', result: `Re-enabled "${agent['name']}" — has open tickets waiting`, quality: 0.85, mutated: true };
+      }
+    } catch { /* not fatal */ }
+
+    return { action: 'fleet_observe', result: `Fleet health observed`, quality: 0.5, mutated: false };
   }
 
   if (situation.includes('Execution health')) {
     systemActionTypes.add('execution_health');
-    // Check for high failure rates and create a finding if needed
     const failMatch = situation.match(/failed: (\d+)/);
     const failCount = failMatch ? parseInt(failMatch[1]!) : 0;
+
+    // ACTUATOR: Cancel stuck running executions (>30min with no output)
+    try {
+      const stuck = await p.query(
+        `UPDATE forge_executions
+         SET status = 'cancelled', error = 'Cancelled by core engine — stuck >30min', completed_at = NOW()
+         WHERE status = 'running' AND started_at < NOW() - INTERVAL '30 minutes'
+         RETURNING id, agent_id`,
+      );
+      if (stuck.rowCount && stuck.rowCount > 0) {
+        return { action: 'execution_cancel_stuck', result: `Cancelled ${stuck.rowCount} stuck executions`, quality: 0.9, mutated: true };
+      }
+    } catch { /* not fatal */ }
+
+    // ACTUATOR: Create finding + auto-ticket for high failure rates
     if (failCount > 5) {
-      // Create a finding for high failure rate
       try {
+        const findingId = `finding_${Date.now()}`;
         await p.query(
           `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata, created_at)
            VALUES ($1, $2, 'core_engine', $3, 'warning', 'execution_health', $4, NOW())`,
-          [
-            `finding_${Date.now()}`,
-            AGENT_ID,
-            `High execution failure rate: ${failCount} failures in 1h. ${situation.slice(0, 400)}`,
-            JSON.stringify({ source: 'core_engine', fail_count: failCount }),
-          ],
+          [findingId, AGENT_ID,
+           `High execution failure rate: ${failCount} failures in 1h. ${situation.slice(0, 400)}`,
+           JSON.stringify({ source: 'core_engine', fail_count: failCount })],
         );
-        return { action: 'create_finding', result: `Created finding: ${failCount} failures/1h`, quality: 0.9, mutated: true };
-      } catch { /* table might not exist, not fatal */ }
+        // Auto-create a ticket for the QA agent to investigate
+        const ticketId = `tkt_core_${Date.now()}`;
+        await p.query(
+          `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, agent_name, is_agent_ticket, source, metadata)
+           VALUES ($1, $2, $3, 'open', $4, 'execution_health', 'core_engine', 'QA', true, 'agent', $5)
+           ON CONFLICT DO NOTHING`,
+          [ticketId, `Investigate ${failCount} execution failures in 1h`,
+           `Core engine detected ${failCount} failures. Finding: ${findingId}`,
+           failCount > 10 ? 'high' : 'medium',
+           JSON.stringify({ finding_id: findingId, fail_count: failCount })],
+        );
+        return { action: 'execution_health_escalate', result: `Created finding + QA ticket for ${failCount} failures`, quality: 0.95, mutated: true };
+      } catch { /* not fatal */ }
     }
     return { action: 'execution_health_check', result: `Execution health OK (${failCount} failures)`, quality: 0.5, mutated: false };
   }
 
   if (situation.includes('Open tickets:')) {
     systemActionTypes.add('ticket_triage');
-    // Store ticket awareness as working knowledge
-    const ticketSummary = situation.slice(0, 200);
-    let embVec: number[];
-    try { embVec = await embed(ticketSummary); } catch { return { action: 'ticket_triage', result: 'embed failed', quality: 0.2, mutated: false }; }
-    const vecLit = `[${embVec.join(',')}]`;
-    const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    await p.query(`DELETE FROM forge_semantic_memories WHERE agent_id = $1 AND content LIKE 'TICKETS:%'`, [AGENT_ID]);
-    await p.query(
-      `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
-       VALUES ($1, $2, $2, $3, $4, 'core_engine', 0.7, $5)`,
-      [id, AGENT_ID, `TICKETS: ${ticketSummary}`, vecLit, JSON.stringify({ type: 'ticket_status', timestamp: new Date().toISOString() })],
-    );
-    return { action: 'ticket_triage', result: 'Updated ticket awareness', quality: 0.7, mutated: true };
+
+    // ACTUATOR: Assign unassigned urgent/high tickets to the best available agent
+    try {
+      const unassigned = await p.query(
+        `SELECT t.id, t.title, t.priority, t.category FROM agent_tickets t
+         WHERE t.status = 'open' AND (t.agent_name IS NULL OR t.agent_name = '')
+           AND t.priority IN ('urgent', 'high')
+         ORDER BY CASE t.priority WHEN 'urgent' THEN 0 ELSE 1 END
+         LIMIT 1`,
+      );
+      if (unassigned.rows.length > 0) {
+        const ticket = unassigned.rows[0] as Record<string, unknown>;
+        // Find the best agent for this category — prefer agents with low failure rates
+        const bestAgent = await p.query(
+          `SELECT a.name FROM forge_agents a
+           WHERE a.status = 'active' AND a.dispatch_enabled = true AND a.type = 'internal'
+           ORDER BY (SELECT COUNT(*) FILTER (WHERE e.status = 'completed')::float /
+                     NULLIF(COUNT(*)::float, 0)
+                     FROM forge_executions e WHERE e.agent_id = a.id AND e.created_at > NOW() - INTERVAL '7 days') DESC NULLS LAST
+           LIMIT 1`,
+        );
+        if (bestAgent.rows.length > 0) {
+          const agentName = (bestAgent.rows[0] as Record<string, unknown>)['name'];
+          await p.query(
+            `UPDATE agent_tickets SET agent_name = $1, assigned_to = $1, status = 'open', updated_at = NOW() WHERE id = $2`,
+            [agentName, ticket['id']],
+          );
+          return { action: 'ticket_assign', result: `Assigned [${ticket['priority']}] "${String(ticket['title']).slice(0, 50)}" → ${agentName}`, quality: 0.9, mutated: true };
+        }
+      }
+    } catch { /* not fatal */ }
+
+    // ACTUATOR: Close stale tickets (open > 7 days, low priority)
+    try {
+      const stale = await p.query(
+        `UPDATE agent_tickets SET status = 'closed', updated_at = NOW()
+         WHERE status = 'open' AND priority = 'low' AND created_at < NOW() - INTERVAL '7 days'
+         RETURNING id`,
+      );
+      if (stale.rowCount && stale.rowCount > 0) {
+        return { action: 'ticket_close_stale', result: `Closed ${stale.rowCount} stale low-priority tickets`, quality: 0.7, mutated: true };
+      }
+    } catch { /* not fatal */ }
+
+    return { action: 'ticket_triage', result: 'Tickets triaged — no action needed', quality: 0.5, mutated: false };
   }
 
   if (situation.includes('Cost trend') || situation.includes('Cost anomal')) {
     systemActionTypes.add('cost_track');
-    // Store cost awareness
-    const costSummary = situation.slice(0, 200);
-    let embVec: number[];
-    try { embVec = await embed(costSummary); } catch { return { action: 'cost_track', result: 'embed failed', quality: 0.2, mutated: false }; }
-    const vecLit = `[${embVec.join(',')}]`;
-    const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    await p.query(`DELETE FROM forge_semantic_memories WHERE agent_id = $1 AND content LIKE 'COST-STATUS:%'`, [AGENT_ID]);
-    await p.query(
-      `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
-       VALUES ($1, $2, $2, $3, $4, 'core_engine', 0.7, $5)`,
-      [id, AGENT_ID, `COST-STATUS: ${costSummary}`, vecLit, JSON.stringify({ type: 'cost_status', timestamp: new Date().toISOString() })],
-    );
-    return { action: 'cost_track', result: 'Updated cost awareness', quality: 0.7, mutated: true };
+
+    // ACTUATOR: Throttle agents spending > $5/hour
+    try {
+      const expensive = await p.query(
+        `SELECT a.id, a.name, COALESCE(SUM(e.cost), 0)::numeric(10,4) as hourly_cost
+         FROM forge_agents a
+         JOIN forge_executions e ON e.agent_id = a.id AND e.created_at > NOW() - INTERVAL '1 hour'
+         WHERE a.dispatch_enabled = true AND a.status = 'active'
+         GROUP BY a.id, a.name
+         HAVING SUM(e.cost) > 5
+         ORDER BY hourly_cost DESC
+         LIMIT 1`,
+      );
+      if (expensive.rows.length > 0) {
+        const agent = expensive.rows[0] as Record<string, unknown>;
+        // Pause dispatch and create a ticket
+        await p.query(`UPDATE forge_agents SET dispatch_enabled = false WHERE id = $1`, [agent['id']]);
+        const ticketId = `tkt_cost_${Date.now()}`;
+        await p.query(
+          `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, agent_name, is_agent_ticket, source, metadata)
+           VALUES ($1, $2, $3, 'open', 'high', 'cost_control', 'core_engine', $4, true, 'agent', $5)
+           ON CONFLICT DO NOTHING`,
+          [ticketId, `Cost alert: ${agent['name']} spending $${agent['hourly_cost']}/hr`,
+           `Agent "${agent['name']}" exceeded $5/hr cost threshold. Dispatch paused by core engine.`,
+           agent['name'],
+           JSON.stringify({ hourly_cost: agent['hourly_cost'], action: 'dispatch_paused' })],
+        );
+        return { action: 'cost_throttle', result: `Paused "${agent['name']}" — $${agent['hourly_cost']}/hr exceeds $5 threshold`, quality: 0.95, mutated: true };
+      }
+    } catch { /* not fatal */ }
+
+    // ACTUATOR: Track cost trend — create finding if total spend > $20 in 6h
+    const totalMatch = situation.match(/\$(\d+\.?\d*)/g);
+    if (totalMatch) {
+      const costs = totalMatch.map(m => parseFloat(m.replace('$', '')));
+      const totalSpend = costs.reduce((a, b) => a + b, 0);
+      if (totalSpend > 20) {
+        try {
+          await p.query(
+            `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata, created_at)
+             VALUES ($1, $2, 'core_engine', $3, 'warning', 'cost_alert', $4, NOW())`,
+            [`finding_cost_${Date.now()}`, AGENT_ID,
+             `High fleet spend: $${totalSpend.toFixed(2)} in 6h window`,
+             JSON.stringify({ total_spend: totalSpend, source: 'core_engine' })],
+          );
+          return { action: 'cost_alert', result: `Created cost alert: $${totalSpend.toFixed(2)} in 6h`, quality: 0.85, mutated: true };
+        } catch { /* not fatal */ }
+      }
+    }
+
+    return { action: 'cost_track', result: 'Cost trends normal', quality: 0.5, mutated: false };
   }
 
   if (situation.includes('Knowledge graph:') && situation.includes('edges=0')) {
     systemActionTypes.add('link_knowledge');
-    // Link isolated knowledge nodes
-    const r = await p.query(
-      `SELECT n.id, n.label FROM forge_knowledge_nodes n
-       WHERE NOT EXISTS (SELECT 1 FROM forge_knowledge_edges e WHERE e.source_id = n.id OR e.target_id = n.id)
-       LIMIT 2`,
-    );
-    if (r.rows.length >= 2) {
-      const a = r.rows[0] as Record<string, unknown>;
-      const b = r.rows[1] as Record<string, unknown>;
-      try {
+
+    // ACTUATOR: Link isolated knowledge nodes using entity_type similarity
+    try {
+      // Find isolated nodes that share the same entity_type — likely related
+      const r = await p.query(
+        `SELECT a.id as a_id, a.label as a_label, b.id as b_id, b.label as b_label, a.entity_type
+         FROM forge_knowledge_nodes a
+         JOIN forge_knowledge_nodes b ON a.entity_type = b.entity_type AND a.id < b.id
+         WHERE NOT EXISTS (SELECT 1 FROM forge_knowledge_edges e WHERE (e.source_id = a.id AND e.target_id = b.id) OR (e.source_id = b.id AND e.target_id = a.id))
+           AND NOT EXISTS (SELECT 1 FROM forge_knowledge_edges e WHERE e.source_id = a.id OR e.target_id = a.id)
+         LIMIT 1`,
+      );
+      if (r.rows.length > 0) {
+        const row = r.rows[0] as Record<string, unknown>;
         await p.query(
           `INSERT INTO forge_knowledge_edges (id, source_id, target_id, relation, weight, properties, created_at)
-           VALUES ($1, $2, $3, 'discovered_by_core', 0.5, $4, NOW())`,
-          [
-            `edge_${Date.now()}`,
-            a['id'], b['id'],
-            JSON.stringify({ source: 'core_engine', auto_discovered: true }),
-          ],
+           VALUES ($1, $2, $3, 'co_type', 0.6, $4, NOW())`,
+          [`edge_${Date.now()}`, row['a_id'], row['b_id'],
+           JSON.stringify({ source: 'core_engine', entity_type: row['entity_type'], auto: true })],
         );
-        return { action: 'link_knowledge', result: `Linked: "${a['label']}" → "${b['label']}"`, quality: 0.8, mutated: true };
-      } catch { /* table might not exist */ }
-    }
+        return { action: 'link_knowledge', result: `Linked "${row['a_label']}" ↔ "${row['b_label']}" (shared type: ${row['entity_type']})`, quality: 0.85, mutated: true };
+      }
+
+      // Fallback: link any two isolated nodes
+      const fallback = await p.query(
+        `SELECT n.id, n.label FROM forge_knowledge_nodes n
+         WHERE NOT EXISTS (SELECT 1 FROM forge_knowledge_edges e WHERE e.source_id = n.id OR e.target_id = n.id)
+         LIMIT 2`,
+      );
+      if (fallback.rows.length >= 2) {
+        const a = fallback.rows[0] as Record<string, unknown>;
+        const b = fallback.rows[1] as Record<string, unknown>;
+        await p.query(
+          `INSERT INTO forge_knowledge_edges (id, source_id, target_id, relation, weight, properties, created_at)
+           VALUES ($1, $2, $3, 'discovered_by_core', 0.4, $4, NOW())`,
+          [`edge_${Date.now()}`, a['id'], b['id'],
+           JSON.stringify({ source: 'core_engine', auto: true })],
+        );
+        return { action: 'link_knowledge', result: `Linked: "${a['label']}" → "${b['label']}"`, quality: 0.7, mutated: true };
+      }
+    } catch { /* not fatal */ }
+
     return { action: 'link_knowledge', result: 'No isolated nodes to link', quality: 0.4, mutated: false };
   }
 
   if (situation.includes('Pending interventions:')) {
     systemActionTypes.add('intervention_track');
-    // Store intervention awareness — these block agent progress
-    const summary = situation.slice(0, 200);
-    let embVec: number[];
-    try { embVec = await embed(summary); } catch { return { action: 'intervention_track', result: 'embed failed', quality: 0.2, mutated: false }; }
-    const vecLit = `[${embVec.join(',')}]`;
-    const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    await p.query(`DELETE FROM forge_semantic_memories WHERE agent_id = $1 AND content LIKE 'INTERVENTIONS:%'`, [AGENT_ID]);
-    await p.query(
-      `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
-       VALUES ($1, $2, $2, $3, $4, 'core_engine', 0.8, $5)`,
-      [id, AGENT_ID, `INTERVENTIONS: ${summary}`, vecLit, JSON.stringify({ type: 'intervention_status', timestamp: new Date().toISOString() })],
-    );
-    return { action: 'intervention_track', result: 'Updated intervention awareness', quality: 0.7, mutated: true };
+
+    // ACTUATOR: Auto-resolve stale interventions (pending > 48h)
+    try {
+      const stale = await p.query(
+        `UPDATE agent_interventions SET status = 'resolved', updated_at = NOW()
+         WHERE status = 'pending' AND created_at < NOW() - INTERVAL '48 hours'
+         RETURNING id, agent_name, title`,
+      );
+      if (stale.rowCount && stale.rowCount > 0) {
+        const resolved = (stale.rows as Array<Record<string, unknown>>).map(r => `${r['agent_name']}: "${r['title']}"`).join(', ');
+        return { action: 'intervention_auto_resolve', result: `Auto-resolved ${stale.rowCount} stale interventions: ${resolved.slice(0, 150)}`, quality: 0.8, mutated: true };
+      }
+    } catch { /* not fatal */ }
+
+    // ACTUATOR: Create ticket for each pending intervention so agents know about blocks
+    try {
+      const pending = await p.query(
+        `SELECT i.id, i.agent_name, i.title, i.type FROM agent_interventions i
+         WHERE i.status = 'pending'
+           AND NOT EXISTS (SELECT 1 FROM agent_tickets t WHERE t.metadata->>'intervention_id' = i.id)
+         LIMIT 1`,
+      );
+      if (pending.rows.length > 0) {
+        const iv = pending.rows[0] as Record<string, unknown>;
+        const ticketId = `tkt_iv_${Date.now()}`;
+        await p.query(
+          `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, agent_name, is_agent_ticket, source, metadata)
+           VALUES ($1, $2, $3, 'open', 'high', 'intervention', 'core_engine', $4, true, 'agent', $5)
+           ON CONFLICT DO NOTHING`,
+          [ticketId, `Blocked: ${String(iv['title']).slice(0, 60)}`,
+           `Agent "${iv['agent_name']}" is blocked by pending ${iv['type']} intervention.`,
+           iv['agent_name'],
+           JSON.stringify({ intervention_id: iv['id'] })],
+        );
+        return { action: 'intervention_escalate', result: `Created ticket for blocked "${iv['agent_name']}" intervention`, quality: 0.85, mutated: true };
+      }
+    } catch { /* not fatal */ }
+
+    return { action: 'intervention_track', result: 'Interventions tracked — no action needed', quality: 0.5, mutated: false };
   }
 
   if (situation.includes('Finding patterns')) {
@@ -14578,21 +14740,28 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
 
   if (situation.includes('Schedules:') && situation.includes('OVERDUE')) {
     systemActionTypes.add('schedule_alert');
-    // Create a finding for overdue schedules
+
+    // ACTUATOR: Reset overdue schedules — bump next_run_at to now + interval
     try {
-      await p.query(
-        `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata, created_at)
-         VALUES ($1, $2, 'core_engine', $3, 'warning', 'schedule_health', $4, NOW())`,
-        [
-          `finding_${Date.now()}`,
-          AGENT_ID,
-          `Overdue agent schedules detected. ${situation.slice(0, 400)}`,
-          JSON.stringify({ source: 'core_engine' }),
-        ],
+      const overdue = await p.query(
+        `UPDATE forge_agents
+         SET next_run_at = NOW() + (schedule_interval_minutes || ' minutes')::interval
+         WHERE dispatch_enabled = true AND status = 'active'
+           AND next_run_at < NOW() - INTERVAL '10 minutes'
+         RETURNING name, schedule_interval_minutes`,
       );
-      return { action: 'schedule_alert', result: 'Created finding for overdue schedules', quality: 0.8, mutated: true };
+      if (overdue.rowCount && overdue.rowCount > 0) {
+        const names = (overdue.rows as Array<Record<string, unknown>>).map(r => r['name']).join(', ');
+        return { action: 'schedule_reset', result: `Reset ${overdue.rowCount} overdue schedules: ${names}`, quality: 0.9, mutated: true };
+      }
     } catch { /* not fatal */ }
-    return { action: 'schedule_check', result: 'Schedules checked', quality: 0.5, mutated: false };
+
+    return { action: 'schedule_check', result: 'Schedules checked — no resets needed', quality: 0.5, mutated: false };
+  }
+
+  if (situation.includes('Schedules:') && !situation.includes('OVERDUE')) {
+    systemActionTypes.add('schedule_alert');
+    return { action: 'schedule_check', result: 'All schedules on time', quality: 0.5, mutated: false };
   }
 
   // Default: access-bump whatever memory was mentioned in the situation
