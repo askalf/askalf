@@ -7,6 +7,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { orchestrateFromNL, getOrchestrationStatus } from '../orchestration/nl-orchestrator.js';
 
 interface ConversationRow {
   id: string;
@@ -290,6 +291,71 @@ export async function conversationRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return { message: 'Conversation archived', conversation: result[0] };
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/conversations/orchestrate - NL orchestration (direct)
+   * Accepts a plain English instruction, decomposes into tasks, matches agents, dispatches.
+   */
+  app.post(
+    '/api/v1/forge/conversations/orchestrate',
+    {
+      schema: {
+        tags: ['Conversations'],
+        summary: 'Orchestrate agents from natural language',
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const body = (request.body ?? {}) as {
+        instruction?: string;
+        conversationId?: string;
+        maxAgents?: number;
+      };
+
+      if (!body.instruction || body.instruction.trim().length === 0) {
+        return reply.status(400).send({
+          error: 'Bad Request',
+          message: 'Instruction is required',
+        });
+      }
+
+      try {
+        const result = await orchestrateFromNL({
+          instruction: body.instruction.trim(),
+          ownerId: userId,
+          sessionId: body.conversationId,
+          maxAgents: body.maxAgents ?? 5,
+        });
+
+        return result;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        return reply.status(500).send({
+          error: 'Orchestration Error',
+          message: `Failed to orchestrate: ${msg}`,
+        });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/conversations/orchestrate/:sessionId - Get orchestration status
+   */
+  app.get(
+    '/api/v1/forge/conversations/orchestrate/:sessionId',
+    {
+      schema: {
+        tags: ['Conversations'],
+        summary: 'Get orchestration session status',
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, _reply: FastifyReply) => {
+      const { sessionId } = request.params as { sessionId: string };
+      return getOrchestrationStatus(sessionId);
     },
   );
 }
