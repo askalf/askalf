@@ -35,7 +35,7 @@ import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';
 import { TOOLS as INFRA_TOOLS, handleTool as handleInfraTool } from './infra.js';
 import { TOOLS as AGENT_TOOLS, handleTool as handleAgentTool } from './agent-tools.js';
 import { TOOLS as FORGE_TOOLS, handleTool as handleForgeTool } from './forge-tools.js';
-import { handleExtract, handleSeed, handleConsolidate, handleStats, handleRelevant, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity, handleCuriosityAct, handleProactiveCheck, handleActiveGoals, handleMetacognition, handleTemporalPrediction, handleSkillSynthesis, handleRecursiveImprovement, handleEntropyMonitor, handleCounterfactualReasoning, handleGoalGeneration, handleCognitiveCompiler, handleSpreadingActivation, handleActivationState, handleEmotionalProcess, getEmotionalModulation, handleUserModelUpdate, handleGetUserModel, handlePredictiveCoding, handleSalienceCheck, handleDefaultModeNetwork, getCurrentPhase, handlePhaseEvaluation, forcePhaseTransition, handleInterferenceProcessing, handleSynapticHomeostasis } from './memory-api.js';
+import { handleExtract, handleSeed, handleConsolidate, handleStats, handleRelevant, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity, handleCuriosityAct, handleProactiveCheck, handleActiveGoals, handleMetacognition, handleTemporalPrediction, handleSkillSynthesis, handleRecursiveImprovement, handleEntropyMonitor, handleCounterfactualReasoning, handleGoalGeneration, handleCognitiveCompiler, handleSpreadingActivation, handleActivationState, handleEmotionalProcess, getEmotionalModulation, handleUserModelUpdate, handleGetUserModel, handlePredictiveCoding, handleSalienceCheck, handleDefaultModeNetwork, getCurrentPhase, handlePhaseEvaluation, forcePhaseTransition, handleInterferenceProcessing, handleSynapticHomeostasis, handleConsciousFrame, handleGetConsciousnessStream, handleConsciousnessSnapshot } from './memory-api.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
@@ -674,6 +674,38 @@ app.post('/api/memory/cognitive-compile', async (_req, res) => {
     res.json(result);
   } catch (err) {
     log(`Cognitive compiler error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Consciousness Substrate
+app.post('/api/memory/conscious-frame', async (_req, res) => {
+  try {
+    const result = await handleConsciousFrame();
+    res.json(result);
+  } catch (err) {
+    log(`Conscious frame error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/consciousness', (_req, res) => {
+  try {
+    const limit = parseInt((_req.query as Record<string, string>)['limit'] ?? '10', 10);
+    const result = handleGetConsciousnessStream(limit);
+    res.json(result);
+  } catch (err) {
+    log(`Consciousness stream error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/consciousness/download', async (_req, res) => {
+  try {
+    const result = await handleConsciousnessSnapshot();
+    res.json(result);
+  } catch (err) {
+    log(`Consciousness download error: ${err}`);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
   }
 });

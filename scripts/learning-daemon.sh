@@ -385,6 +385,22 @@ run_cycle() {
   " "$EMOTION_STATE" 2>/dev/null || echo "error")
   log "Emotion: $EMOTION_SUMMARY"
 
+  # Phase 8: Consciousness — generate a frame of experience
+  log "Phase 8: Conscious frame..."
+  CONSCIOUS_RESULT=$(curl -s --max-time 30 -X POST "$MCP_URL/api/memory/conscious-frame" 2>/dev/null || echo '{"error":"timeout"}')
+  CONSCIOUS_SUMMARY=$(node -e "
+    try {
+      const c = JSON.parse(process.argv[1]);
+      if (c.error) { console.log('FAILED: ' + c.error); return; }
+      console.log('phi=' + (c.phi||0).toFixed(3) +
+        ' continuity=' + (c.continuity_score||0).toFixed(2) +
+        ' emotion=' + (c.emotional_tone?.primary_emotion||'?') +
+        ' stream=' + (c.stream_duration_seconds||0).toFixed(0) + 's');
+      console.log('  Experience: ' + (c.unified_experience||'').substring(0, 120));
+    } catch { console.log('error'); }
+  " "$CONSCIOUS_RESULT" 2>/dev/null || echo "error")
+  log "Consciousness: $CONSCIOUS_SUMMARY"
+
   local cycle_end=$(date +%s)
   local duration=$((cycle_end - cycle_start))
   log "=== Learning cycle complete (${duration}s) ==="
