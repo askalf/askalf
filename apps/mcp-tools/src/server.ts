@@ -35,7 +35,7 @@ import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';
 import { TOOLS as INFRA_TOOLS, handleTool as handleInfraTool } from './infra.js';
 import { TOOLS as AGENT_TOOLS, handleTool as handleAgentTool } from './agent-tools.js';
 import { TOOLS as FORGE_TOOLS, handleTool as handleForgeTool } from './forge-tools.js';
-import { handleExtract, handleContext, handleSeed, handleConsolidate, handleStats } from './memory-api.js';
+import { handleExtract, handleContext, handleSeed, handleConsolidate, handleStats, handleRelevant, handleGenerateClaudeMd, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity } from './memory-api.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
@@ -172,6 +172,11 @@ app.get('/metrics', (_req, res) => {
   res.send(getPrometheusMetrics());
 });
 
+// Cache efficiency stats
+app.get('/api/memory/cache', (_req, res) => {
+  res.json(getCacheStats());
+});
+
 // ============================================
 // Memory API — REST endpoints for hooks/scripts
 // ============================================
@@ -223,6 +228,208 @@ app.get('/api/memory/stats', async (_req, res) => {
     res.json(result);
   } catch (err) {
     log(`Memory stats error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 2: Context-aware memory retrieval
+app.post('/api/memory/relevant', async (req, res) => {
+  try {
+    const result = await handleRelevant(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Memory relevant error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 5: Dynamic CLAUDE.md generation
+app.get('/api/memory/claudemd', async (_req, res) => {
+  try {
+    const result = await handleGenerateClaudeMd();
+    res.json(result);
+  } catch (err) {
+    log(`CLAUDE.md generation error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Boot kernel — minimal cognitive OS for session start (no .md dependency)
+app.get('/api/memory/boot-kernel', async (_req, res) => {
+  try {
+    const result = await handleBootKernel();
+    res.json(result);
+  } catch (err) {
+    log(`Boot kernel error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Session handoff — store/retrieve shift change notes
+app.post('/api/memory/handoff', async (req, res) => {
+  try {
+    const result = await handleHandoffStore(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Handoff store error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/handoff', async (_req, res) => {
+  try {
+    const result = await handleHandoffRetrieve();
+    res.json(result);
+  } catch (err) {
+    log(`Handoff retrieve error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Embedding backfill — generate embeddings for unembedded memories
+app.post('/api/memory/backfill', async (_req, res) => {
+  try {
+    const result = await handleBackfill();
+    res.json(result);
+  } catch (err) {
+    log(`Backfill error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// PostToolUse learning — store tool outcomes as episodic memory
+app.post('/api/memory/tool-outcome', async (req, res) => {
+  try {
+    const result = await handleToolOutcome(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Tool outcome error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Self-monitoring — memory system health report
+app.get('/api/memory/health', async (_req, res) => {
+  try {
+    const result = await handleHealthReport();
+    res.json(result);
+  } catch (err) {
+    log(`Health report error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 6: Self-reflection — evaluate session effectiveness
+app.post('/api/memory/reflect', async (req, res) => {
+  try {
+    const result = await handleSelfReflect(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Self-reflection error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 7: Working memory — live session state
+app.post('/api/memory/working', async (req, res) => {
+  try {
+    const result = await handleWorkingSet(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Working memory set error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/working', async (_req, res) => {
+  try {
+    const result = await handleWorkingGet();
+    res.json(result);
+  } catch (err) {
+    log(`Working memory get error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.delete('/api/memory/working', async (_req, res) => {
+  try {
+    const result = await handleWorkingClear();
+    res.json(result);
+  } catch (err) {
+    log(`Working memory clear error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 9: Procedural reinforcement — track procedure outcomes
+app.post('/api/memory/procedure-outcome', async (req, res) => {
+  try {
+    const result = await handleProcedureOutcome(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Procedure outcome error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 10: Conversation thread — compressed session narrative
+app.post('/api/memory/thread', async (req, res) => {
+  try {
+    const result = await handleThreadStore(req.body);
+    res.json(result);
+  } catch (err) {
+    log(`Thread store error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/thread', async (_req, res) => {
+  try {
+    const result = await handleThreadGet();
+    res.json(result);
+  } catch (err) {
+    log(`Thread get error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 11: Autonomous Cognitive Loop
+app.post('/api/memory/dream', async (_req, res) => {
+  try {
+    const result = await handleDreamCycle();
+    res.json(result);
+  } catch (err) {
+    log(`Dream cycle error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/curiosity', async (_req, res) => {
+  try {
+    const result = await handleCuriosityExplore();
+    res.json(result);
+  } catch (err) {
+    log(`Curiosity explore error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.get('/api/memory/knowledge-map', async (_req, res) => {
+  try {
+    const result = await handleKnowledgeMap();
+    res.json(result);
+  } catch (err) {
+    log(`Knowledge map error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.post('/api/memory/neuroplasticity', async (_req, res) => {
+  try {
+    const result = await handleNeuroplasticity();
+    res.json(result);
+  } catch (err) {
+    log(`Neuroplasticity error: ${err}`);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
   }
 });

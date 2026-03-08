@@ -2113,17 +2113,55 @@ export async function runDirectCliExecution(
 
     const agentWorkDir = worktreeCreated ? agentWorktreeDir : WORKSPACE_DIR;
 
-    // Copy agent's system prompt as CLAUDE.md in workspace
+    // Build system prompt directly — no CLAUDE.md file needed
+    let systemPromptText = '';
     if (options?.systemPrompt) {
       try {
-        // Inject relevant memories into the system prompt
+        // Inject relevant memories from the shared brain (mcp-tools)
         const memoryResult = await buildMemoryContext(agentId, input, { fleetWide: true }).catch((err) => {
           logger.warn(`[CLI] Memory context build failed for ${agentName}: ${err instanceof Error ? err.message : err}`);
           return { text: '', count: 0 };
         });
         const memoryContext = memoryResult.text;
         memoryCount = memoryResult.count;
-        // Inject runtime budget hint so agents self-regulate
+
+        // Also query the mcp-tools brain for context-aware memories
+        let brainContext = '';
+        try {
+          const MCP_URL = process.env['MCP_TOOLS_URL'] || 'http://mcp-tools:3010';
+          const [relevantRes, claudemdRes] = await Promise.allSettled([
+            fetch(`${MCP_URL}/api/memory/relevant`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ context: input, limit: 5 }),
+              signal: AbortSignal.timeout(10_000),
+            }).then(r => r.json()),
+            fetch(`${MCP_URL}/api/memory/claudemd`, {
+              signal: AbortSignal.timeout(10_000),
+            }).then(r => r.json()),
+          ]);
+
+          if (relevantRes.status === 'fulfilled') {
+            const memories = (relevantRes.value as Record<string, unknown>)['memories'];
+            if (Array.isArray(memories) && memories.length > 0) {
+              brainContext += '\n## Brain — Context-Relevant Memories\n';
+              for (const m of memories as Array<Record<string, unknown>>) {
+                brainContext += `- [${m['tier']}] ${String(m['text']).slice(0, 200)} (relevance: ${m['similarity']})\n`;
+              }
+              memoryCount += memories.length;
+            }
+          }
+
+          if (claudemdRes.status === 'fulfilled') {
+            const claudemd = (claudemdRes.value as Record<string, unknown>)['claudemd'];
+            if (typeof claudemd === 'string' && claudemd.length > 0) {
+              brainContext += '\n' + claudemd;
+            }
+          }
+        } catch (brainErr) {
+          logger.warn(`[CLI] Brain context query failed (non-fatal): ${brainErr instanceof Error ? brainErr.message : brainErr}`);
+        }
+
         const budgetHint = formatBudgetPromptHint(runtimeBudget, agentName);
         const memoryInstruction = [
           '',
@@ -2163,18 +2201,17 @@ export async function runDirectCliExecution(
         } catch {
           // Vision file not available — continue without it
         }
-        // Repo credential instructions (Phase 4) — tells agent about target repo access
         const repoInstruction = repoCredentials ? buildRepoPromptInstructions(repoCredentials) : '';
-        const fullPrompt = [visionContext, options.systemPrompt, memoryContext, memoryInstruction, budgetHint, branchInstruction, repoInstruction]
+        systemPromptText = [visionContext, options.systemPrompt, memoryContext, brainContext, memoryInstruction, budgetHint, branchInstruction, repoInstruction]
           .filter(Boolean)
           .join('\n');
-        await writeFile(`${agentWorkDir}/CLAUDE.md`, fullPrompt);
       } catch {
-        logger.warn('[CLI] Could not write CLAUDE.md to workspace');
+        logger.warn('[CLI] Could not build system prompt');
+        systemPromptText = options.systemPrompt;
       }
     }
 
-    // Build CLI arguments
+    // Build CLI arguments — inject system prompt directly, no CLAUDE.md file
     const args: string[] = [
       '-p', input,
       '--output-format', 'json',
@@ -2183,6 +2220,11 @@ export async function runDirectCliExecution(
       '--dangerously-skip-permissions',
       '--mcp-config', MCP_CONFIG_PATH,
     ];
+
+    // Wire system prompt directly into CLI — no .md file intermediary
+    if (systemPromptText) {
+      args.push('--append-system-prompt', systemPromptText);
+    }
 
     // Use agent's configured model
     if (options?.modelId) {
@@ -2352,7 +2394,7 @@ export async function runDirectCliExecution(
       ).catch(() => {});
     }
 
-    // Fire-and-forget memory extraction
+    // Fire-and-forget memory extraction (forge's internal memory manager)
     void extractMemories({
       executionId,
       agentId,
@@ -2368,6 +2410,40 @@ export async function runDirectCliExecution(
     }).catch((err) => {
       logger.warn(`[Memory] Post-execution extraction failed: ${err instanceof Error ? err.message : String(err)}`);
     });
+
+    // Feed the shared brain (mcp-tools memory system) with execution conversation
+    void (async () => {
+      try {
+        const MCP_URL = process.env['MCP_TOOLS_URL'] || 'http://mcp-tools:3010';
+        const conversation = `Agent: ${agentName}\nTask: ${input}\nOutcome: ${parsed.isError ? 'FAILED' : 'COMPLETED'}\nOutput: ${parsed.output.slice(0, 3000)}`;
+
+        // Extract memories into the shared brain
+        await fetch(`${MCP_URL}/api/memory/extract`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversation, project: 'substrate', session_id: executionId }),
+          signal: AbortSignal.timeout(30_000),
+        });
+
+        // Store execution outcome for procedural reinforcement
+        await fetch(`${MCP_URL}/api/memory/tool-outcome`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tool_name: `agent:${agentName}`,
+            command: input.slice(0, 300),
+            success: !parsed.isError,
+            error: parsed.isError ? parsed.output.slice(0, 200) : undefined,
+            duration_ms: durationMs,
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        logger.info(`[Brain] Shared brain updated for execution ${executionId}`);
+      } catch (brainErr) {
+        logger.warn(`[Brain] Failed to update shared brain (non-fatal): ${brainErr instanceof Error ? brainErr.message : brainErr}`);
+      }
+    })();
 
     // Fire-and-forget knowledge graph extraction (Phase 11)
     if (!parsed.isError && parsed.output.length > 200) {
