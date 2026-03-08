@@ -174,18 +174,23 @@ export class TriggerEngine {
     const parts = cron.trim().split(/\s+/);
     if (parts.length !== 5) return false;
 
-    const [minSpec, hourSpec, _dom, _month, _dow] = parts;
+    const [minSpec, hourSpec, domSpec, monthSpec, dowSpec] = parts;
     const minute = now.getMinutes();
     const hour = now.getHours();
+    const dom = now.getDate();
+    const month = now.getMonth() + 1; // 1-12
+    const dow = now.getDay(); // 0=Sun, 6=Sat
     const second = now.getSeconds();
 
     // Only evaluate at the start of matching minutes (first 30s window)
     if (second >= 30) return false;
 
-    // Check minute field
+    // Check all 5 fields
     if (!this.fieldMatches(minSpec!, minute)) return false;
-    // Check hour field
     if (!this.fieldMatches(hourSpec!, hour)) return false;
+    if (!this.fieldMatches(domSpec!, dom)) return false;
+    if (!this.fieldMatches(monthSpec!, month)) return false;
+    if (!this.fieldMatches(dowSpec!, dow)) return false;
 
     return true;
   }
@@ -199,14 +204,36 @@ export class TriggerEngine {
       return value % parseInt(stepMatch[1]!, 10) === 0;
     }
 
+    // Comma-separated values (may contain ranges)
+    if (spec.includes(',')) {
+      return spec.split(',').some((part) => this.singleFieldMatches(part.trim(), value));
+    }
+
+    return this.singleFieldMatches(spec, value);
+  }
+
+  private singleFieldMatches(spec: string, value: number): boolean {
+    // Range: N-M
+    const rangeMatch = spec.match(/^(\d+)-(\d+)$/);
+    if (rangeMatch) {
+      const low = parseInt(rangeMatch[1]!, 10);
+      const high = parseInt(rangeMatch[2]!, 10);
+      return value >= low && value <= high;
+    }
+
+    // Range with step: N-M/S
+    const rangeStepMatch = spec.match(/^(\d+)-(\d+)\/(\d+)$/);
+    if (rangeStepMatch) {
+      const low = parseInt(rangeStepMatch[1]!, 10);
+      const high = parseInt(rangeStepMatch[2]!, 10);
+      const step = parseInt(rangeStepMatch[3]!, 10);
+      if (value < low || value > high) return false;
+      return (value - low) % step === 0;
+    }
+
     // Exact value
     const num = parseInt(spec, 10);
     if (!isNaN(num)) return value === num;
-
-    // Comma-separated values
-    if (spec.includes(',')) {
-      return spec.split(',').some((v) => parseInt(v, 10) === value);
-    }
 
     return false;
   }
