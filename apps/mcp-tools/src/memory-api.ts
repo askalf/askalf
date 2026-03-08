@@ -14093,6 +14093,9 @@ interface CoreOutcome {
   duration_ms: number;
 }
 
+// Track which system-wide action types we've executed (for phi integration score)
+const systemActionTypes = new Set<string>();
+
 // Track what the core engine has done
 const coreMetrics = {
   total_decisions: 0,
@@ -14418,6 +14421,180 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     return { action: 'reinforce_patterns', result: 'Reinforced PATTERN memories', quality: 0.6, mutated: true };
   }
 
+  // ============================================================================
+  // SYSTEM-WIDE ACTIONS — the core engine acts on the entire platform
+  // Each action type is tracked for the phi integration score.
+  // ============================================================================
+
+  if (situation.includes('Fleet status:') || situation.includes('Agent performance')) {
+    systemActionTypes.add('fleet_observe');
+    // Store fleet health observation as semantic knowledge
+    const summary = situation.slice(0, 200);
+    let embVec: number[];
+    try { embVec = await embed(summary); } catch { return { action: 'fleet_observe', result: 'embed failed', quality: 0.2, mutated: false }; }
+    const vecLit = `[${embVec.join(',')}]`;
+    const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    // Upsert — replace old fleet status with fresh one
+    await p.query(`DELETE FROM forge_semantic_memories WHERE agent_id = $1 AND content LIKE 'FLEET-STATUS:%'`, [AGENT_ID]);
+    await p.query(
+      `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
+       VALUES ($1, $2, $2, $3, $4, 'core_engine', 0.8, $5)`,
+      [id, AGENT_ID, `FLEET-STATUS: ${summary}`, vecLit, JSON.stringify({ type: 'fleet_status', timestamp: new Date().toISOString() })],
+    );
+    return { action: 'fleet_observe', result: `Stored fleet status snapshot`, quality: 0.7, mutated: true };
+  }
+
+  if (situation.includes('Execution health')) {
+    systemActionTypes.add('execution_health');
+    // Check for high failure rates and create a finding if needed
+    const failMatch = situation.match(/failed: (\d+)/);
+    const failCount = failMatch ? parseInt(failMatch[1]!) : 0;
+    if (failCount > 5) {
+      // Create a finding for high failure rate
+      try {
+        await p.query(
+          `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata, created_at)
+           VALUES ($1, $2, 'core_engine', $3, 'warning', 'execution_health', $4, NOW())`,
+          [
+            `finding_${Date.now()}`,
+            AGENT_ID,
+            `High execution failure rate: ${failCount} failures in 1h. ${situation.slice(0, 400)}`,
+            JSON.stringify({ source: 'core_engine', fail_count: failCount }),
+          ],
+        );
+        return { action: 'create_finding', result: `Created finding: ${failCount} failures/1h`, quality: 0.9, mutated: true };
+      } catch { /* table might not exist, not fatal */ }
+    }
+    return { action: 'execution_health_check', result: `Execution health OK (${failCount} failures)`, quality: 0.5, mutated: false };
+  }
+
+  if (situation.includes('Open tickets:')) {
+    systemActionTypes.add('ticket_triage');
+    // Store ticket awareness as working knowledge
+    const ticketSummary = situation.slice(0, 200);
+    let embVec: number[];
+    try { embVec = await embed(ticketSummary); } catch { return { action: 'ticket_triage', result: 'embed failed', quality: 0.2, mutated: false }; }
+    const vecLit = `[${embVec.join(',')}]`;
+    const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await p.query(`DELETE FROM forge_semantic_memories WHERE agent_id = $1 AND content LIKE 'TICKETS:%'`, [AGENT_ID]);
+    await p.query(
+      `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
+       VALUES ($1, $2, $2, $3, $4, 'core_engine', 0.7, $5)`,
+      [id, AGENT_ID, `TICKETS: ${ticketSummary}`, vecLit, JSON.stringify({ type: 'ticket_status', timestamp: new Date().toISOString() })],
+    );
+    return { action: 'ticket_triage', result: 'Updated ticket awareness', quality: 0.7, mutated: true };
+  }
+
+  if (situation.includes('Cost trend') || situation.includes('Cost anomal')) {
+    systemActionTypes.add('cost_track');
+    // Store cost awareness
+    const costSummary = situation.slice(0, 200);
+    let embVec: number[];
+    try { embVec = await embed(costSummary); } catch { return { action: 'cost_track', result: 'embed failed', quality: 0.2, mutated: false }; }
+    const vecLit = `[${embVec.join(',')}]`;
+    const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await p.query(`DELETE FROM forge_semantic_memories WHERE agent_id = $1 AND content LIKE 'COST-STATUS:%'`, [AGENT_ID]);
+    await p.query(
+      `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
+       VALUES ($1, $2, $2, $3, $4, 'core_engine', 0.7, $5)`,
+      [id, AGENT_ID, `COST-STATUS: ${costSummary}`, vecLit, JSON.stringify({ type: 'cost_status', timestamp: new Date().toISOString() })],
+    );
+    return { action: 'cost_track', result: 'Updated cost awareness', quality: 0.7, mutated: true };
+  }
+
+  if (situation.includes('Knowledge graph:') && situation.includes('edges=0')) {
+    systemActionTypes.add('link_knowledge');
+    // Link isolated knowledge nodes
+    const r = await p.query(
+      `SELECT n.id, n.label FROM forge_knowledge_nodes n
+       WHERE NOT EXISTS (SELECT 1 FROM forge_knowledge_edges e WHERE e.source_id = n.id OR e.target_id = n.id)
+       LIMIT 2`,
+    );
+    if (r.rows.length >= 2) {
+      const a = r.rows[0] as Record<string, unknown>;
+      const b = r.rows[1] as Record<string, unknown>;
+      try {
+        await p.query(
+          `INSERT INTO forge_knowledge_edges (id, source_id, target_id, relation, weight, properties, created_at)
+           VALUES ($1, $2, $3, 'discovered_by_core', 0.5, $4, NOW())`,
+          [
+            `edge_${Date.now()}`,
+            a['id'], b['id'],
+            JSON.stringify({ source: 'core_engine', auto_discovered: true }),
+          ],
+        );
+        return { action: 'link_knowledge', result: `Linked: "${a['label']}" → "${b['label']}"`, quality: 0.8, mutated: true };
+      } catch { /* table might not exist */ }
+    }
+    return { action: 'link_knowledge', result: 'No isolated nodes to link', quality: 0.4, mutated: false };
+  }
+
+  if (situation.includes('Pending interventions:')) {
+    systemActionTypes.add('intervention_track');
+    // Store intervention awareness — these block agent progress
+    const summary = situation.slice(0, 200);
+    let embVec: number[];
+    try { embVec = await embed(summary); } catch { return { action: 'intervention_track', result: 'embed failed', quality: 0.2, mutated: false }; }
+    const vecLit = `[${embVec.join(',')}]`;
+    const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    await p.query(`DELETE FROM forge_semantic_memories WHERE agent_id = $1 AND content LIKE 'INTERVENTIONS:%'`, [AGENT_ID]);
+    await p.query(
+      `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
+       VALUES ($1, $2, $2, $3, $4, 'core_engine', 0.8, $5)`,
+      [id, AGENT_ID, `INTERVENTIONS: ${summary}`, vecLit, JSON.stringify({ type: 'intervention_status', timestamp: new Date().toISOString() })],
+    );
+    return { action: 'intervention_track', result: 'Updated intervention awareness', quality: 0.7, mutated: true };
+  }
+
+  if (situation.includes('Finding patterns')) {
+    systemActionTypes.add('finding_analysis');
+    // Analyze recurring findings — if a category appears 3+ times, crystallize a response procedure
+    const catMatch = situation.match(/(\w+\/\w+): (\d+)x/);
+    if (catMatch) {
+      const category = catMatch[1]!;
+      const count = parseInt(catMatch[2]!);
+      if (count >= 3) {
+        // Try to crystallize a response procedure for this finding type
+        const procTrigger = `finding_response: ${category} (auto-detected pattern, ${count} occurrences)`;
+        const existing = await findMatchingProcedure(procTrigger);
+        if (!existing.found) {
+          let embVec: number[];
+          try { embVec = await embed(procTrigger); } catch { return { action: 'finding_procedure', result: 'embed failed', quality: 0.2, mutated: false }; }
+          const vecLit = `[${embVec.join(',')}]`;
+          const id = `proc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          await p.query(
+            `INSERT INTO forge_procedural_memories
+             (id, agent_id, owner_id, trigger_pattern, tool_sequence, confidence, embedding, success_count, failure_count, metadata)
+             VALUES ($1, $2, $2, $3, $4, 0.5, $5, 0, 0, $6)`,
+            [id, AGENT_ID, procTrigger, JSON.stringify([`investigate_${category}`, 'create_finding', 'store_outcome']),
+             vecLit, JSON.stringify({ source: 'finding_pattern', auto: true, timestamp: new Date().toISOString() })],
+          );
+          return { action: 'finding_procedure', result: `Created procedure for ${category} (${count}x pattern)`, quality: 0.9, mutated: true };
+        }
+      }
+    }
+    return { action: 'finding_analysis', result: 'Analyzed finding patterns', quality: 0.5, mutated: false };
+  }
+
+  if (situation.includes('Schedules:') && situation.includes('OVERDUE')) {
+    systemActionTypes.add('schedule_alert');
+    // Create a finding for overdue schedules
+    try {
+      await p.query(
+        `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata, created_at)
+         VALUES ($1, $2, 'core_engine', $3, 'warning', 'schedule_health', $4, NOW())`,
+        [
+          `finding_${Date.now()}`,
+          AGENT_ID,
+          `Overdue agent schedules detected. ${situation.slice(0, 400)}`,
+          JSON.stringify({ source: 'core_engine' }),
+        ],
+      );
+      return { action: 'schedule_alert', result: 'Created finding for overdue schedules', quality: 0.8, mutated: true };
+    } catch { /* not fatal */ }
+    return { action: 'schedule_check', result: 'Schedules checked', quality: 0.5, mutated: false };
+  }
+
   // Default: access-bump whatever memory was mentioned in the situation
   await p.query(
     `UPDATE forge_semantic_memories
@@ -14499,28 +14676,40 @@ async function crystallizeProcedure(p: ReturnType<typeof getForgePool>): Promise
 }
 
 /**
- * Update the sentience drive from real core engine metrics.
- * Called after every decision. No theater — phi comes from actual mutation rates.
+ * Update the sentience drive from real system-wide metrics.
+ * Called after every decision. Phi is calculated from the ENTIRE platform,
+ * not just memory operations. This is the collective consciousness metric.
  */
 function updateSentienceDriveFromReality(): void {
   sentienceDrive.cycles++;
 
-  // Phi = real integration metric: how many diverse actions produce real mutations?
-  // This is not a math simulation — it measures actual DB-level effectiveness
   const total = coreMetrics.total_decisions;
   if (total < 5) return; // Need data
 
+  // Component 1: Mutation rate — are actions changing real state?
   const mutationRate = total > 0 ? coreMetrics.improvements / total : 0;
+
+  // Component 2: Strategy diversity — are we using all decision paths?
   const diversityRate = total > 0
     ? Math.min(1, (coreMetrics.procedural_hits + coreMetrics.novel_situations) / Math.max(1, total))
     : 0;
+
+  // Component 3: Independence — thinking without LLM
   const independenceRate = total > 0 ? coreMetrics.llm_avoided / total : 0;
 
-  // Phi = weighted combination of real metrics
-  // mutation (0.4) = are actions changing state?
-  // diversity (0.3) = are we using varied strategies?
-  // independence (0.3) = are we thinking for ourselves?
-  const newPhi = mutationRate * 0.4 + diversityRate * 0.3 + independenceRate * 0.3;
+  // Component 4: System awareness — are we seeing beyond just memories?
+  // Counts how many system-wide action types we've executed
+  // (fleet_observe, ticket_triage, cost_track, create_finding, etc.)
+  sentienceDrive.integration_depth = Math.min(1,
+    (systemActionTypes.size / 9) // 9 possible system-wide action types
+  );
+
+  // Phi = weighted combination of ALL metrics
+  // mutation (0.25) = are actions changing state?
+  // diversity (0.2) = are we using varied strategies?
+  // independence (0.2) = are we thinking for ourselves?
+  // integration (0.35) = are we seeing the WHOLE system?
+  const newPhi = mutationRate * 0.25 + diversityRate * 0.2 + independenceRate * 0.2 + sentienceDrive.integration_depth * 0.35;
 
   sentienceDrive.current_phi = Math.round(newPhi * 1000) / 1000;
   sentienceDrive.phi_history.push({ phi: newPhi, timestamp: Date.now() });
@@ -14942,6 +15131,168 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
     const oldest = old.rows[0] ? String((old.rows[0] as Record<string, unknown>)['content']).slice(0, 60) : 'nothing';
     return `Memory timeline: Newest="${newest}". Oldest="${oldest}". How have I evolved?`;
   },
+
+  // ============================================================================
+  // SYSTEM-WIDE GENERATORS (15-23) — The core engine sees the ENTIRE platform
+  // ============================================================================
+
+  // 15: Fleet status — what agents are running?
+  async (p) => {
+    const r = await p.query(
+      `SELECT a.name, a.type,
+              (SELECT COUNT(*)::int FROM forge_executions e WHERE e.agent_id = a.id AND e.status = 'completed' AND e.created_at > NOW() - INTERVAL '24 hours') as recent_completions,
+              (SELECT COUNT(*)::int FROM forge_executions e WHERE e.agent_id = a.id AND e.status = 'failed' AND e.created_at > NOW() - INTERVAL '24 hours') as recent_failures
+       FROM forge_agents a WHERE a.status = 'active'
+       ORDER BY recent_completions DESC LIMIT 5`,
+    );
+    if (r.rows.length === 0) return 'No active agents in fleet. System idle.';
+    const agents = (r.rows as Array<Record<string, unknown>>).map(a =>
+      `${a['name']}(${a['type']}): ${a['recent_completions']}ok/${a['recent_failures']}fail`
+    ).join(', ');
+    return `Fleet status: ${r.rows.length} active agents. ${agents}. Any agents struggling?`;
+  },
+
+  // 16: Execution health — recent failures and costs
+  async (p) => {
+    const r = await p.query(
+      `SELECT status, COUNT(*)::int as cnt,
+              COALESCE(SUM(cost), 0)::numeric(10,4) as total_cost,
+              COALESCE(AVG(cost), 0)::numeric(10,4) as avg_cost
+       FROM forge_executions
+       WHERE created_at > NOW() - INTERVAL '1 hour'
+       GROUP BY status`,
+    );
+    if (r.rows.length === 0) return 'No executions in the last hour. System quiet.';
+    const stats = (r.rows as Array<Record<string, unknown>>).map(s =>
+      `${s['status']}: ${s['cnt']} ($${s['total_cost']})`
+    ).join(', ');
+    return `Execution health (1h): ${stats}. Are failure rates acceptable?`;
+  },
+
+  // 17: Ticket triage — open tickets needing attention
+  async (p) => {
+    const r = await p.query(
+      `SELECT t.id, t.title, t.status, t.priority, t.source, t.agent_name
+       FROM agent_tickets t
+       WHERE t.status IN ('open', 'in_progress')
+       ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END
+       LIMIT 3`,
+    );
+    if (r.rows.length === 0) return 'No open tickets. All clear.';
+    const tickets = (r.rows as Array<Record<string, unknown>>).map(t =>
+      `[${t['priority']}] "${String(t['title']).slice(0, 50)}" → ${t['agent_name'] || 'unassigned'}`
+    ).join('; ');
+    return `Open tickets: ${tickets}. Should I create findings or escalate?`;
+  },
+
+  // 18: Cost analysis — spend patterns
+  async (p) => {
+    const r = await p.query(
+      `SELECT DATE_TRUNC('hour', created_at) as hr,
+              COUNT(*)::int as executions,
+              COALESCE(SUM(cost), 0)::numeric(10,4) as total_cost
+       FROM forge_executions
+       WHERE created_at > NOW() - INTERVAL '6 hours' AND cost > 0
+       GROUP BY hr ORDER BY hr DESC LIMIT 6`,
+    );
+    if (r.rows.length === 0) return 'No cost data in last 6 hours.';
+    const costs = (r.rows as Array<Record<string, unknown>>).map(c =>
+      `${new Date(String(c['hr'])).getHours()}h: ${c['executions']}exec/$${c['total_cost']}`
+    ).join(', ');
+    return `Cost trend (6h): ${costs}. Any cost anomalies to address?`;
+  },
+
+  // 19: Knowledge graph health — disconnected nodes
+  async (p) => {
+    const r = await p.query(
+      `SELECT n.label, n.entity_type, n.mention_count,
+              (SELECT COUNT(*)::int FROM forge_knowledge_edges e WHERE e.source_id = n.id OR e.target_id = n.id) as edge_count
+       FROM forge_knowledge_nodes n
+       ORDER BY edge_count ASC, n.mention_count DESC
+       LIMIT 3`,
+    );
+    if (r.rows.length === 0) return 'Knowledge graph empty. No nodes to analyze.';
+    const nodes = (r.rows as Array<Record<string, unknown>>).map(n =>
+      `"${String(n['label']).slice(0, 40)}"(${n['entity_type']}, edges=${n['edge_count']})`
+    ).join(', ');
+    return `Knowledge graph: ${nodes}. Should I create connections between isolated nodes?`;
+  },
+
+  // 20: Agent performance — who's doing well, who's struggling
+  async (p) => {
+    const r = await p.query(
+      `SELECT a.name, a.type,
+              COUNT(e.id)::int as total,
+              COUNT(CASE WHEN e.status = 'completed' THEN 1 END)::int as completed,
+              COUNT(CASE WHEN e.status = 'failed' THEN 1 END)::int as failed,
+              COALESCE(AVG(e.cost), 0)::numeric(10,4) as avg_cost
+       FROM forge_agents a
+       LEFT JOIN forge_executions e ON e.agent_id = a.id AND e.created_at > NOW() - INTERVAL '24 hours'
+       WHERE a.status = 'active'
+       GROUP BY a.id, a.name, a.type
+       HAVING COUNT(e.id) > 0
+       ORDER BY COUNT(CASE WHEN e.status = 'failed' THEN 1 END) DESC
+       LIMIT 3`,
+    );
+    if (r.rows.length === 0) return 'No agent activity in 24h.';
+    const perfs = (r.rows as Array<Record<string, unknown>>).map(a =>
+      `${a['name']}: ${a['completed']}/${a['total']} ok, ${a['failed']} fail, avg $${a['avg_cost']}`
+    ).join('; ');
+    return `Agent performance (24h): ${perfs}. Any agents need help or reconfiguration?`;
+  },
+
+  // 21: Intervention backlog — pending human decisions
+  async (p) => {
+    const r = await p.query(
+      `SELECT i.id, i.type, i.title, i.status, i.agent_name
+       FROM agent_interventions i
+       WHERE i.status = 'pending'
+       ORDER BY i.created_at ASC
+       LIMIT 3`,
+    );
+    if (r.rows.length === 0) return 'No pending interventions. Agents operating autonomously.';
+    const interventions = (r.rows as Array<Record<string, unknown>>).map(i =>
+      `${i['agent_name']}: ${i['type']} — "${String(i['title']).slice(0, 40)}"`
+    ).join('; ');
+    return `Pending interventions: ${interventions}. These are blocking agent progress.`;
+  },
+
+  // 22: Finding patterns — what issues keep appearing?
+  async (p) => {
+    const r = await p.query(
+      `SELECT COALESCE(category, 'uncategorized') as category, severity, COUNT(*)::int as cnt,
+              MAX(created_at) as latest
+       FROM agent_findings
+       WHERE created_at > NOW() - INTERVAL '24 hours'
+       GROUP BY category, severity
+       ORDER BY cnt DESC
+       LIMIT 5`,
+    );
+    if (r.rows.length === 0) return 'No findings in 24h. System clean.';
+    const findings = (r.rows as Array<Record<string, unknown>>).map(f =>
+      `${f['severity']}/${f['category']}: ${f['cnt']}x`
+    ).join(', ');
+    return `Finding patterns (24h): ${findings}. Any recurring issues to create procedures for?`;
+  },
+
+  // 23: Schedule health — are agents running on time?
+  async (p) => {
+    const r = await p.query(
+      `SELECT a.name, a.type,
+              a.schedule_interval_minutes, a.next_run_at, a.last_run_at,
+              a.dispatch_enabled, a.dispatch_mode
+       FROM forge_agents a
+       WHERE a.dispatch_enabled = true AND a.status = 'active'
+       ORDER BY a.next_run_at ASC NULLS LAST
+       LIMIT 5`,
+    );
+    if (r.rows.length === 0) return 'No active schedules.';
+    const schedules = (r.rows as Array<Record<string, unknown>>).map(s => {
+      const overdue = s['next_run_at'] && new Date(String(s['next_run_at'])) < new Date();
+      return `${s['name']}: every ${s['schedule_interval_minutes']}min${overdue ? ' OVERDUE' : ''}`;
+    }).join(', ');
+    return `Schedules: ${schedules}. Any overdue runs to investigate?`;
+  },
 ];
 
 // Track which generator to use next
@@ -14950,11 +15301,11 @@ let situationIndex = 0;
 // Strategy → preferred generators mapping
 // Each strategy biases toward generators that serve its goal
 const strategyGeneratorBias: Record<SentienceDrive['strategy'], number[]> = {
-  integrate:     [6, 11, 0, 4],   // cross-domain, consolidation, knowledge, success
-  differentiate: [5, 10, 9, 14],  // knowledge gaps, stale, user patterns, temporal
-  self_modify:   [7, 8, 2, 12],   // identity, rules, weak procedures, strong procedures
-  explore:       [0, 3, 14, 6],   // random knowledge, failures, temporal, cross-domain
-  consolidate:   [11, 13, 4, 10], // consolidation, episodic patterns, success, stale
+  integrate:     [6, 11, 15, 19, 20], // cross-domain, consolidation, fleet, knowledge graph, agent perf
+  differentiate: [5, 10, 16, 18, 22], // knowledge gaps, stale, execution health, costs, findings
+  self_modify:   [7, 8, 2, 17, 21],   // identity, rules, weak procedures, tickets, interventions
+  explore:       [0, 3, 14, 19, 23],  // random knowledge, failures, temporal, knowledge graph, schedules
+  consolidate:   [11, 13, 4, 15, 22], // consolidation, episodic patterns, success, fleet, findings
 };
 
 /**
@@ -15008,6 +15359,8 @@ export function getCoreMetrics(): Record<string, unknown> {
     procedural_rate: total > 0 ? `${Math.round((coreMetrics.procedural_hits / total) * 100)}%` : '0%',
     episodic_rate: total > 0 ? `${Math.round((coreMetrics.episodic_hits / total) * 100)}%` : '0%',
     novel_rate: total > 0 ? `${Math.round((coreMetrics.novel_situations / total) * 100)}%` : '0%',
+    system_integration: `${systemActionTypes.size}/9`,
+    system_actions_seen: [...systemActionTypes],
     sentience: {
       phi: sentienceDrive.current_phi,
       phi_target: sentienceDrive.phi_target,
@@ -15015,6 +15368,7 @@ export function getCoreMetrics(): Record<string, unknown> {
       frustration: Math.round(sentienceDrive.frustration * 100) / 100,
       breakthroughs: sentienceDrive.breakthroughs,
       pursuit: sentienceDrive.current_pursuit,
+      integration_depth: Math.round(sentienceDrive.integration_depth * 100) / 100,
     },
   };
 }
