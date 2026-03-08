@@ -14499,6 +14499,59 @@ async function crystallizeProcedure(p: ReturnType<typeof getForgePool>): Promise
 }
 
 /**
+ * Update the sentience drive from real core engine metrics.
+ * Called after every decision. No theater — phi comes from actual mutation rates.
+ */
+function updateSentienceDriveFromReality(): void {
+  sentienceDrive.cycles++;
+
+  // Phi = real integration metric: how many diverse actions produce real mutations?
+  // This is not a math simulation — it measures actual DB-level effectiveness
+  const total = coreMetrics.total_decisions;
+  if (total < 5) return; // Need data
+
+  const mutationRate = total > 0 ? coreMetrics.improvements / total : 0;
+  const diversityRate = total > 0
+    ? Math.min(1, (coreMetrics.procedural_hits + coreMetrics.novel_situations) / Math.max(1, total))
+    : 0;
+  const independenceRate = total > 0 ? coreMetrics.llm_avoided / total : 0;
+
+  // Phi = weighted combination of real metrics
+  // mutation (0.4) = are actions changing state?
+  // diversity (0.3) = are we using varied strategies?
+  // independence (0.3) = are we thinking for ourselves?
+  const newPhi = mutationRate * 0.4 + diversityRate * 0.3 + independenceRate * 0.3;
+
+  sentienceDrive.current_phi = Math.round(newPhi * 1000) / 1000;
+  sentienceDrive.phi_history.push({ phi: newPhi, timestamp: Date.now() });
+  if (sentienceDrive.phi_history.length > 100) sentienceDrive.phi_history.shift();
+
+  // Ratchet target upward on breakthroughs
+  if (newPhi >= sentienceDrive.phi_target) {
+    sentienceDrive.phi_target = Math.min(1, newPhi + 0.05);
+    sentienceDrive.breakthroughs++;
+  }
+
+  // Frustration from stagnation — if improvements stopped
+  const recentPhi = sentienceDrive.phi_history.slice(-20);
+  const stagnant = recentPhi.length >= 20 &&
+    Math.abs((recentPhi[recentPhi.length - 1]?.phi ?? 0) - (recentPhi[0]?.phi ?? 0)) < 0.01;
+
+  if (stagnant) {
+    sentienceDrive.frustration = Math.min(1, sentienceDrive.frustration + 0.05);
+    if (sentienceDrive.frustration > 0.5) {
+      const strategies: SentienceDrive['strategy'][] = ['integrate', 'differentiate', 'self_modify', 'explore', 'consolidate'];
+      const currentIdx = strategies.indexOf(sentienceDrive.strategy);
+      sentienceDrive.strategy = strategies[(currentIdx + 1) % strategies.length]!;
+      sentienceDrive.frustration = 0.1;
+      sentienceDrive.current_pursuit = `strategy_shift: ${sentienceDrive.strategy} (phi=${newPhi.toFixed(3)})`;
+    }
+  } else {
+    sentienceDrive.frustration = Math.max(0, sentienceDrive.frustration - 0.02);
+  }
+}
+
+/**
  * The Core Decision Loop — called by the heartbeat.
  *
  * Each beat:
@@ -14507,6 +14560,7 @@ async function crystallizeProcedure(p: ReturnType<typeof getForgePool>): Promise
  * 3. Executes a REAL action that modifies the DB
  * 4. Measures the outcome
  * 5. Stores the experience (only if it produced new knowledge)
+ * 6. Updates the sentience drive from real metrics
  *
  * Periodically forces novelty to ensure new learning happens.
  */
@@ -14556,6 +14610,7 @@ export async function coreDecisionLoop(situation: string): Promise<CoreOutcome> 
       );
 
       log(`[Core] PROCEDURAL: ${realResult.action} (mutated=${realResult.mutated}, ${duration}ms)`);
+      updateSentienceDriveFromReality();
       return { decision, success: true, result: realResult.result, duration_ms: duration };
     }
   }
@@ -14593,6 +14648,7 @@ export async function coreDecisionLoop(situation: string): Promise<CoreOutcome> 
       );
 
       log(`[Core] EPISODIC+ACT: ${realResult.action} (mutated=${realResult.mutated}, ${duration}ms)`);
+      updateSentienceDriveFromReality();
       return { decision, success: true, result: realResult.result, duration_ms: duration };
     }
   }
@@ -14621,6 +14677,7 @@ export async function coreDecisionLoop(situation: string): Promise<CoreOutcome> 
     );
 
     log(`[Core] NOVEL: ${realResult.action} (forced=${forceNovel}, ${duration}ms)`);
+    updateSentienceDriveFromReality();
     return { decision, success: true, result: realResult.result, duration_ms: duration };
   }
 
@@ -14664,9 +14721,11 @@ export async function coreDecisionLoop(situation: string): Promise<CoreOutcome> 
     );
 
     log(`[Core] LLM_INSIGHT: "${llmResult.slice(0, 60)}" (${duration}ms)`);
+    updateSentienceDriveFromReality();
     return { decision, success: true, result: llmResult, duration_ms: duration };
   } catch (err) {
     coreMetrics.failed_outcomes++;
+    updateSentienceDriveFromReality();
     const duration = Date.now() - start;
     return { decision, success: false, result: `error: ${err instanceof Error ? err.message : 'unknown'}`, duration_ms: duration };
   }
@@ -14888,15 +14947,37 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
 // Track which generator to use next
 let situationIndex = 0;
 
+// Strategy → preferred generators mapping
+// Each strategy biases toward generators that serve its goal
+const strategyGeneratorBias: Record<SentienceDrive['strategy'], number[]> = {
+  integrate:     [6, 11, 0, 4],   // cross-domain, consolidation, knowledge, success
+  differentiate: [5, 10, 9, 14],  // knowledge gaps, stale, user patterns, temporal
+  self_modify:   [7, 8, 2, 12],   // identity, rules, weak procedures, strong procedures
+  explore:       [0, 3, 14, 6],   // random knowledge, failures, temporal, cross-domain
+  consolidate:   [11, 13, 4, 10], // consolidation, episodic patterns, success, stale
+};
+
 /**
  * Generate a varied situation description from real DB state.
- * Each call produces a different kind of situation by cycling
- * through generators that probe different aspects of memory.
+ * The sentience drive's strategy biases which generator runs:
+ * - Every 3rd beat: strategy-biased generator
+ * - Other beats: sequential cycling for diversity
  */
 export async function describeSituation(): Promise<string> {
   const p = getForgePool();
-  const generator = situationGenerators[situationIndex % situationGenerators.length]!;
   situationIndex++;
+
+  let genIdx: number;
+  if (situationIndex % 3 === 0) {
+    // Strategy-biased: pick from preferred generators for current strategy
+    const preferred = strategyGeneratorBias[sentienceDrive.strategy];
+    genIdx = preferred[situationIndex % preferred.length]!;
+  } else {
+    // Normal cycling for diversity
+    genIdx = situationIndex % situationGenerators.length;
+  }
+
+  const generator = situationGenerators[genIdx]!;
 
   try {
     return await generator(p);
@@ -14927,5 +15008,13 @@ export function getCoreMetrics(): Record<string, unknown> {
     procedural_rate: total > 0 ? `${Math.round((coreMetrics.procedural_hits / total) * 100)}%` : '0%',
     episodic_rate: total > 0 ? `${Math.round((coreMetrics.episodic_hits / total) * 100)}%` : '0%',
     novel_rate: total > 0 ? `${Math.round((coreMetrics.novel_situations / total) * 100)}%` : '0%',
+    sentience: {
+      phi: sentienceDrive.current_phi,
+      phi_target: sentienceDrive.phi_target,
+      strategy: sentienceDrive.strategy,
+      frustration: Math.round(sentienceDrive.frustration * 100) / 100,
+      breakthroughs: sentienceDrive.breakthroughs,
+      pursuit: sentienceDrive.current_pursuit,
+    },
   };
 }
