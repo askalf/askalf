@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# Memory extraction hook — fires on Claude Code "Stop" event
-# Reads the active conversation transcript, extracts last N turns,
-# posts to mcp-tools extraction endpoint for LLM-powered categorization.
+# Memory hook — fires on Claude Code "Stop" event
+# 1. Extracts memories from conversation via LLM
+# 2. Self-reflects on session effectiveness
+# 3. Stores conversation thread (compressed narrative)
+# 4. Generates session handoff (shift change notes)
+# 5. Runs consolidation + embedding backfill
+# 6. Clears working memory
 #
 # Runs silently — never blocks the user, never prints to stdout.
 
@@ -21,10 +25,9 @@ if ! curl -s --max-time 2 "$MCP_URL/health" > /dev/null 2>&1; then
 fi
 
 # Extract conversation text using node (no jq on Windows git bash)
-PAYLOAD=$(node -e "
+CONVERSATION=$(node -e "
   const fs = require('fs');
   const lines = fs.readFileSync(process.argv[1], 'utf8').trim().split('\n');
-  // Take last 80 lines, extract user/assistant text content
   const recent = lines.slice(-80);
   const texts = [];
   for (const line of recent) {
@@ -47,19 +50,68 @@ PAYLOAD=$(node -e "
   }
   const conversation = texts.join('\n').slice(-${MAX_CHARS});
   if (conversation.length < 50) process.exit(0);
-  const payload = JSON.stringify({ conversation, project: 'substrate' });
-  process.stdout.write(payload);
+  process.stdout.write(conversation);
 " "$TRANSCRIPT" 2>/dev/null) || exit 0
 
-if [[ -z "$PAYLOAD" || ${#PAYLOAD} -lt 10 ]]; then
+if [[ -z "$CONVERSATION" || ${#CONVERSATION} -lt 50 ]]; then
   exit 0
 fi
 
-# Post to extraction endpoint (fire and forget, don't block user)
+# Build JSON payload once
+PAYLOAD=$(node -e "process.stdout.write(JSON.stringify({ conversation: process.argv[1], project: 'substrate' }))" "$CONVERSATION" 2>/dev/null)
+
+# 1. Extract memories
 curl -s -X POST "$MCP_URL/api/memory/extract" \
   -H "Content-Type: application/json" \
   -d "$PAYLOAD" \
   --max-time 30 \
   > /dev/null 2>&1 &
+
+# 2. Self-reflect on session effectiveness
+curl -s -X POST "$MCP_URL/api/memory/reflect" \
+  -H "Content-Type: application/json" \
+  -d "$PAYLOAD" \
+  --max-time 20 \
+  > /dev/null 2>&1 &
+
+# 3. Store conversation thread (compressed narrative)
+curl -s -X POST "$MCP_URL/api/memory/thread" \
+  -H "Content-Type: application/json" \
+  -d "$PAYLOAD" \
+  --max-time 15 \
+  > /dev/null 2>&1 &
+
+# 4. Generate session handoff from last few messages
+HANDOFF=$(node -e "
+  const conv = process.argv[1];
+  const lines = conv.split('\n').filter(l => l.trim());
+  const last10 = lines.slice(-10).join(' ').slice(0, 500);
+  const summary = 'Last session context: ' + last10;
+  process.stdout.write(JSON.stringify({
+    summary: summary,
+    pending_tasks: [],
+    warnings: []
+  }));
+" "$CONVERSATION" 2>/dev/null)
+
+if [[ -n "$HANDOFF" && ${#HANDOFF} -gt 10 ]]; then
+  curl -s -X POST "$MCP_URL/api/memory/handoff" \
+    -H "Content-Type: application/json" \
+    -d "$HANDOFF" \
+    --max-time 5 \
+    > /dev/null 2>&1 &
+fi
+
+# 5. Consolidation + backfill + dream cycle + clear working memory (background)
+(
+  sleep 8  # Wait for extraction + reflection to finish
+  curl -s -X POST "$MCP_URL/api/memory/consolidate" --max-time 15 > /dev/null 2>&1
+  curl -s -X POST "$MCP_URL/api/memory/backfill" --max-time 60 > /dev/null 2>&1
+  # Dream cycle — consolidate, cross-synthesize, prune, evolve
+  curl -s -X POST "$MCP_URL/api/memory/dream" --max-time 120 > /dev/null 2>&1
+  # Neuroplasticity — self-tune memory parameters
+  curl -s -X POST "$MCP_URL/api/memory/neuroplasticity" --max-time 30 > /dev/null 2>&1
+  curl -s -X DELETE "$MCP_URL/api/memory/working" --max-time 3 > /dev/null 2>&1
+) &
 
 exit 0
