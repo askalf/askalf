@@ -64,6 +64,41 @@ run_cycle() {
   " "$CURIOSITY_RESULT" 2>/dev/null || echo "error")
   log "Curiosity: $CURIOSITY_SUMMARY"
 
+  # Phase 2b: ACT on curiosity — investigate questions autonomously
+  log "Phase 2b: Curiosity → Action (autonomous investigation)..."
+  ACT_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/curiosity-act" 2>/dev/null || echo '{"error":"timeout"}')
+  ACT_SUMMARY=$(node -e "
+    try {
+      const a = JSON.parse(process.argv[1]);
+      if (a.error) { console.log('FAILED: ' + a.error); return; }
+      console.log('investigated=' + (a.investigated||0) + ' skipped=' + (a.skipped||0) + ' stored=' + (a.results||[]).filter(r => r.stored).length);
+      for (const r of (a.results || []).slice(0, 2)) {
+        console.log('  Q: ' + r.question.substring(0, 80));
+        console.log('  A: ' + r.answer.substring(0, 80));
+      }
+    } catch { console.log('error'); }
+  " "$ACT_RESULT" 2>/dev/null || echo "error")
+  log "CuriosityAct: $ACT_SUMMARY"
+
+  # Phase 2c: Proactive heartbeat — system awareness
+  log "Phase 2c: Proactive heartbeat..."
+  HEARTBEAT_RESULT=$(curl -s --max-time 30 "$MCP_URL/api/memory/proactive" 2>/dev/null || echo '{}')
+  HEARTBEAT_SUMMARY=$(node -e "
+    try {
+      const h = JSON.parse(process.argv[1]);
+      const a = (h.alerts || []).length;
+      const s = (h.suggestions || []).length;
+      console.log('alerts=' + a + ' suggestions=' + s);
+      for (const alert of (h.alerts || []).slice(0, 3)) {
+        console.log('  [' + alert.level + '] ' + alert.message);
+      }
+      for (const sug of (h.suggestions || []).slice(0, 2)) {
+        console.log('  [suggest] ' + sug);
+      }
+    } catch { console.log('error'); }
+  " "$HEARTBEAT_RESULT" 2>/dev/null || echo "error")
+  log "Heartbeat: $HEARTBEAT_SUMMARY"
+
   # Phase 3: Neuroplasticity (self-tuning)
   log "Phase 3: Neuroplasticity..."
   NEURO_RESULT=$(curl -s --max-time 30 -X POST "$MCP_URL/api/memory/neuroplasticity" 2>/dev/null || echo '{}')

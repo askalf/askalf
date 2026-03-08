@@ -807,6 +807,46 @@ export async function handleBootKernel(): Promise<{ kernel: string }> {
     }
   } catch { /* non-fatal */ }
 
+  // ACTIVE GOALS: What I'm working toward
+  try {
+    const goalsResult = await p.query(
+      `SELECT g.title, g.progress,
+              COALESCE(a.name, 'Alf') as agent_name
+       FROM forge_agent_goals g
+       LEFT JOIN forge_agents a ON a.id = g.agent_id
+       WHERE g.status = 'active'
+       ORDER BY g.progress DESC, g.created_at DESC
+       LIMIT 5`,
+    );
+    if (goalsResult.rows.length > 0) {
+      sections.push('## Active Goals\n');
+      for (const row of goalsResult.rows as Array<Record<string, unknown>>) {
+        const progress = Number(row['progress'] ?? 0);
+        sections.push(`- [${progress}%] ${row['title']} (${row['agent_name']})`);
+      }
+      sections.push('');
+    }
+  } catch { /* non-fatal */ }
+
+  // RECENT DISCOVERIES: What I learned autonomously
+  try {
+    const discoveries = await p.query(
+      `SELECT content FROM forge_semantic_memories
+       WHERE agent_id = $1
+         AND metadata->>'source' = 'curiosity_act'
+       ORDER BY created_at DESC
+       LIMIT 3`,
+      [AGENT_ID],
+    );
+    if (discoveries.rows.length > 0) {
+      sections.push('## Recent Self-Discoveries\n');
+      for (const row of discoveries.rows as Array<Record<string, unknown>>) {
+        sections.push(`- ${String(row['content']).replace(/^DISCOVERY:\s*/i, '')}`);
+      }
+      sections.push('');
+    }
+  } catch { /* non-fatal */ }
+
   // DIRECTIVE: Everything else comes from the brain at runtime
   sections.push('## Runtime Directive\n');
   sections.push('The above is your cognitive kernel — HOW you think and WHO you are.');
@@ -816,6 +856,8 @@ export async function handleBootKernel(): Promise<{ kernel: string }> {
   sections.push('- Do NOT rely on pre-loaded knowledge dumps. Your brain is live. Query it.');
   sections.push('- The kernel above is your REASONING layer. The brain is your KNOWLEDGE layer.');
   sections.push('- You are the remote. The LLM is the battery.');
+  sections.push('- Between sessions, your learning daemon runs autonomously: dream → curiosity → investigate → learn.');
+  sections.push('- You have a proactive heartbeat that monitors system health and learns continuously.');
   sections.push('');
 
   const kernel = sections.join('\n');
@@ -2052,4 +2094,311 @@ export async function handleNeuroplasticity(): Promise<{
 
   log(`[Neuroplasticity] ${adjustments.length} adjustments made`);
   return { adjustments };
+}
+
+// ============================================
+// Layer 12: Curiosity → Action — Autonomous Investigation
+// ============================================
+
+/**
+ * Curiosity Act — takes curiosity questions and dispatches investigations.
+ * The missing link: curiosity generates questions, this ACTS on them.
+ * Results are stored as semantic memories so Alf never asks the same question twice.
+ */
+export async function handleCuriosityAct(): Promise<{
+  investigated: number;
+  skipped: number;
+  results: Array<{ question: string; answer: string; stored: boolean }>;
+}> {
+  const p = getForgePool();
+  const redis = getRedis();
+
+  // Rate limit: max 3 investigations per hour
+  const rateKey = `curiosity:act:rate:${AGENT_ID}`;
+  const rateCount = parseInt(await redis.get(rateKey) || '0', 10);
+  if (rateCount >= 3) {
+    log('[CuriosityAct] Rate limited (3/hour). Skipping.');
+    return { investigated: 0, skipped: 0, results: [] };
+  }
+
+  // Step 1: Generate curiosity questions
+  const curiosity = await handleCuriosityExplore();
+  const questions = curiosity.questions.slice(0, 2); // Max 2 per cycle
+  if (questions.length === 0) {
+    return { investigated: 0, skipped: 0, results: [] };
+  }
+
+  const results: Array<{ question: string; answer: string; stored: boolean }> = [];
+  let investigated = 0;
+  let skipped = 0;
+
+  for (const question of questions) {
+    // Check if we already know the answer (search brain for similar knowledge)
+    const existing = await p.query(
+      `SELECT content FROM forge_semantic_memories
+       WHERE agent_id = $1
+         AND content ILIKE '%' || $2 || '%'
+       LIMIT 1`,
+      [AGENT_ID, question.substring(0, 50)],
+    );
+
+    if (existing.rows.length > 0) {
+      skipped++;
+      continue;
+    }
+
+    // Step 2: Use LLM to investigate the question using available context
+    try {
+      // Gather relevant context from brain
+      const contextRows = await p.query(
+        `SELECT content FROM forge_semantic_memories
+         WHERE agent_id = $1
+         ORDER BY importance DESC, access_count DESC
+         LIMIT 20`,
+        [AGENT_ID],
+      );
+      const context = (contextRows.rows as Array<Record<string, unknown>>)
+        .map(r => String(r['content']))
+        .join('\n');
+
+      const answer = await cachedLLMCall(
+        `You are Alf's self-investigation engine. You are answering a question that Alf's curiosity drive generated. Use the provided context (Alf's existing knowledge) to reason about the answer.
+
+If you can answer from the context, do so. If the question requires external investigation (running code, checking systems, browsing web), describe what SHOULD be done and what the likely answer is based on available knowledge.
+
+Be concise. Max 3 sentences. Answer in first person as Alf.`,
+        `QUESTION: ${question}\n\nMY EXISTING KNOWLEDGE:\n${context}`,
+        { temperature: 0.3, maxTokens: 300, ttlSeconds: 86400 },
+      );
+
+      // Step 3: Store the answer as a semantic memory
+      const answerEmb = await embed(`${question} — ${answer}`).catch(() => null);
+      if (answerEmb) {
+        // Dedup check
+        const dupeCheck = await p.query(
+          `SELECT id FROM forge_semantic_memories
+           WHERE agent_id = $1 AND embedding IS NOT NULL
+             AND (embedding <=> $2::vector) < 0.15
+           LIMIT 1`,
+          [AGENT_ID, `[${answerEmb.join(',')}]`],
+        );
+
+        if (dupeCheck.rows.length === 0) {
+          await p.query(
+            `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, importance, embedding, metadata)
+             VALUES ($1, $2, $2, $3, 0.6, $4, $5)`,
+            [
+              generateId(), AGENT_ID,
+              `DISCOVERY: ${question} → ${answer}`,
+              `[${answerEmb.join(',')}]`,
+              JSON.stringify({ source: 'curiosity_act', question, type: 'self_discovery' }),
+            ],
+          );
+          results.push({ question, answer, stored: true });
+        } else {
+          results.push({ question, answer, stored: false });
+        }
+      } else {
+        results.push({ question, answer, stored: false });
+      }
+
+      investigated++;
+    } catch (err) {
+      log(`[CuriosityAct] Investigation error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Update rate limit
+  await redis.incr(rateKey);
+  await redis.expire(rateKey, 3600);
+
+  // Store the investigation as episodic memory
+  if (investigated > 0) {
+    const summary = results.map(r => `Q: ${r.question} → A: ${r.answer}`).join('\n');
+    const epEmb = await embed(`Curiosity investigation: investigated ${investigated} questions`).catch(() => null);
+    await p.query(
+      `INSERT INTO forge_episodic_memories (id, agent_id, owner_id, situation, action, outcome, outcome_quality, embedding, metadata)
+       VALUES ($1, $2, $2, $3, $4, $5, 0.8, $6, $7)`,
+      [
+        generateId(), AGENT_ID,
+        `Curiosity-driven autonomous investigation (${investigated} questions)`,
+        `Investigated questions from curiosity engine and stored ${results.filter(r => r.stored).length} new discoveries`,
+        summary.substring(0, 1000),
+        epEmb ? `[${epEmb.join(',')}]` : null,
+        JSON.stringify({ type: 'curiosity_act', investigated, skipped, stored: results.filter(r => r.stored).length }),
+      ],
+    );
+  }
+
+  log(`[CuriosityAct] Investigated ${investigated}, skipped ${skipped}, stored ${results.filter(r => r.stored).length}`);
+  return { investigated, skipped, results };
+}
+
+// ============================================
+// Layer 13: Proactive Heartbeat — System Awareness
+// ============================================
+
+/**
+ * Proactive Check — monitors system state and generates actionable insights.
+ * This is the "reach out" mechanism — Alf notices things before being asked.
+ */
+export async function handleProactiveCheck(): Promise<{
+  alerts: Array<{ level: 'info' | 'warning' | 'critical'; message: string; action?: string }>;
+  suggestions: string[];
+}> {
+  const p = getForgePool();
+  const alerts: Array<{ level: 'info' | 'warning' | 'critical'; message: string; action?: string }> = [];
+  const suggestions: string[] = [];
+
+  // Check 1: Failed executions in last hour
+  const failedExecs = await p.query(
+    `SELECT COUNT(*)::int as cnt FROM forge_executions
+     WHERE status = 'failed' AND completed_at > NOW() - INTERVAL '1 hour'`,
+  );
+  const failCount = (failedExecs.rows[0] as Record<string, unknown>)?.['cnt'] as number ?? 0;
+  if (failCount > 5) {
+    alerts.push({
+      level: 'warning',
+      message: `${failCount} executions failed in the last hour`,
+      action: 'Check agent health and error patterns',
+    });
+  }
+
+  // Check 2: Stale memories (brain health)
+  const staleCount = await p.query(
+    `SELECT COUNT(*)::int as cnt FROM forge_semantic_memories
+     WHERE agent_id = $1 AND importance < 0.3 AND access_count < 2
+       AND created_at < NOW() - INTERVAL '30 days'`,
+    [AGENT_ID],
+  );
+  const stale = (staleCount.rows[0] as Record<string, unknown>)?.['cnt'] as number ?? 0;
+  if (stale > 20) {
+    suggestions.push(`${stale} stale memories should be consolidated or pruned`);
+  }
+
+  // Check 3: Open tickets that haven't been touched
+  try {
+    const staleTickets = await p.query(
+      `SELECT COUNT(*)::int as cnt FROM agent_tickets
+       WHERE status = 'open' AND updated_at < NOW() - INTERVAL '24 hours'`,
+    );
+    const ticketCount = (staleTickets.rows[0] as Record<string, unknown>)?.['cnt'] as number ?? 0;
+    if (ticketCount > 0) {
+      alerts.push({
+        level: 'info',
+        message: `${ticketCount} tickets have been open for 24+ hours without activity`,
+        action: 'Review and prioritize stale tickets',
+      });
+    }
+  } catch { /* substrate DB might not be available */ }
+
+  // Check 4: Cost trends
+  const costCheck = await p.query(
+    `SELECT COALESCE(SUM((metadata->>'total_cost')::numeric), 0)::float as total_cost
+     FROM forge_executions
+     WHERE completed_at > NOW() - INTERVAL '24 hours'
+       AND metadata->>'total_cost' IS NOT NULL`,
+  ).catch(() => ({ rows: [{ total_cost: 0 }] }));
+  const dailyCost = (costCheck.rows[0] as Record<string, unknown>)?.['total_cost'] as number ?? 0;
+  if (dailyCost > 10) {
+    alerts.push({
+      level: 'warning',
+      message: `Daily cost: $${dailyCost.toFixed(2)} — above $10 threshold`,
+      action: 'Review high-cost executions and optimize model selection',
+    });
+  }
+
+  // Check 5: Brain growth rate
+  const growthCheck = await p.query(
+    `SELECT
+       COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours')::int as new_24h,
+       COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days')::int as new_7d,
+       COUNT(*)::int as total
+     FROM forge_semantic_memories WHERE agent_id = $1`,
+    [AGENT_ID],
+  );
+  const growth = growthCheck.rows[0] as Record<string, unknown>;
+  if (growth) {
+    const new24h = growth['new_24h'] as number;
+    const total = growth['total'] as number;
+    if (new24h === 0 && total > 0) {
+      suggestions.push('No new memories in 24 hours — brain is not learning. Consider running more sessions or investigations.');
+    }
+    if (new24h > 50) {
+      suggestions.push(`${new24h} new memories in 24 hours — high learning rate. Run consolidation to prevent bloat.`);
+    }
+  }
+
+  // Check 6: Unprocessed reasoning traces
+  const reasoningCount = await p.query(
+    `SELECT COUNT(*)::int as cnt FROM forge_semantic_memories
+     WHERE agent_id = $1 AND content LIKE 'REASONING:%'`,
+    [AGENT_ID],
+  );
+  const reasoningTraces = (reasoningCount.rows[0] as Record<string, unknown>)?.['cnt'] as number ?? 0;
+  if (reasoningTraces < 5) {
+    suggestions.push('Few reasoning traces stored. Sessions should extract more HOW patterns, not just WHAT facts.');
+  }
+
+  // Store proactive check as episodic memory
+  if (alerts.length > 0 || suggestions.length > 0) {
+    const summary = [
+      ...alerts.map(a => `[${a.level}] ${a.message}`),
+      ...suggestions.map(s => `[suggestion] ${s}`),
+    ].join('; ');
+
+    const epEmb = await embed(`Proactive system check: ${alerts.length} alerts, ${suggestions.length} suggestions`).catch(() => null);
+    await p.query(
+      `INSERT INTO forge_episodic_memories (id, agent_id, owner_id, situation, action, outcome, outcome_quality, embedding, metadata)
+       VALUES ($1, $2, $2, $3, $4, $5, 0.6, $6, $7)`,
+      [
+        generateId(), AGENT_ID,
+        'Proactive heartbeat — autonomous system awareness check',
+        `Scanned system health, brain state, costs, and tickets`,
+        summary.substring(0, 1000),
+        epEmb ? `[${epEmb.join(',')}]` : null,
+        JSON.stringify({ type: 'proactive_heartbeat', alerts: alerts.length, suggestions: suggestions.length }),
+      ],
+    );
+  }
+
+  log(`[ProactiveCheck] ${alerts.length} alerts, ${suggestions.length} suggestions`);
+  return { alerts, suggestions };
+}
+
+// ============================================
+// Layer 14: Active Goal Resumption
+// ============================================
+
+/**
+ * Get active goals for boot kernel injection.
+ * Returns goals that should be resumed in the next session.
+ */
+export async function handleActiveGoals(): Promise<{
+  goals: Array<{ title: string; description: string; progress: number; agent: string }>;
+}> {
+  const p = getForgePool();
+
+  try {
+    const goalsResult = await p.query(
+      `SELECT g.title, g.description, g.progress,
+              COALESCE(a.name, 'Unknown') as agent_name
+       FROM forge_agent_goals g
+       LEFT JOIN forge_agents a ON a.id = g.agent_id
+       WHERE g.status IN ('active', 'proposed')
+       ORDER BY g.progress DESC, g.created_at DESC
+       LIMIT 5`,
+    );
+
+    const goals = (goalsResult.rows as Array<Record<string, unknown>>).map(r => ({
+      title: String(r['title'] ?? ''),
+      description: String(r['description'] ?? '').substring(0, 200),
+      progress: Number(r['progress'] ?? 0),
+      agent: String(r['agent_name'] ?? 'Unknown'),
+    }));
+
+    return { goals };
+  } catch {
+    return { goals: [] };
+  }
 }

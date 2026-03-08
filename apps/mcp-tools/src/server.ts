@@ -35,7 +35,7 @@ import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';
 import { TOOLS as INFRA_TOOLS, handleTool as handleInfraTool } from './infra.js';
 import { TOOLS as AGENT_TOOLS, handleTool as handleAgentTool } from './agent-tools.js';
 import { TOOLS as FORGE_TOOLS, handleTool as handleForgeTool } from './forge-tools.js';
-import { handleExtract, handleSeed, handleConsolidate, handleStats, handleRelevant, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity } from './memory-api.js';
+import { handleExtract, handleSeed, handleConsolidate, handleStats, handleRelevant, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity, handleCuriosityAct, handleProactiveCheck, handleActiveGoals } from './memory-api.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
@@ -409,6 +409,39 @@ app.post('/api/memory/neuroplasticity', async (_req, res) => {
     res.json(result);
   } catch (err) {
     log(`Neuroplasticity error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 12: Curiosity → Action — autonomous investigation
+app.post('/api/memory/curiosity-act', async (_req, res) => {
+  try {
+    const result = await handleCuriosityAct();
+    res.json(result);
+  } catch (err) {
+    log(`Curiosity act error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 13: Proactive heartbeat — system awareness
+app.get('/api/memory/proactive', async (_req, res) => {
+  try {
+    const result = await handleProactiveCheck();
+    res.json(result);
+  } catch (err) {
+    log(`Proactive check error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Layer 14: Active goal resumption
+app.get('/api/memory/goals', async (_req, res) => {
+  try {
+    const result = await handleActiveGoals();
+    res.json(result);
+  } catch (err) {
+    log(`Active goals error: ${err}`);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
   }
 });
