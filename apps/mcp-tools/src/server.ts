@@ -35,7 +35,7 @@ import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';
 import { TOOLS as INFRA_TOOLS, handleTool as handleInfraTool } from './infra.js';
 import { TOOLS as AGENT_TOOLS, handleTool as handleAgentTool } from './agent-tools.js';
 import { TOOLS as FORGE_TOOLS, handleTool as handleForgeTool } from './forge-tools.js';
-import { handleExtract, handleContext, handleSeed, handleConsolidate, handleStats, handleRelevant, handleGenerateClaudeMd, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity } from './memory-api.js';
+import { handleExtract, handleSeed, handleConsolidate, handleStats, handleRelevant, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity } from './memory-api.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
@@ -191,17 +191,6 @@ app.post('/api/memory/extract', async (req, res) => {
   }
 });
 
-app.get('/api/memory/context', async (req, res) => {
-  try {
-    const project = (req.query['project'] as string) ?? '';
-    const result = await handleContext(project);
-    res.json(result);
-  } catch (err) {
-    log(`Memory context error: ${err}`);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
-  }
-});
-
 app.post('/api/memory/seed', async (req, res) => {
   try {
     const result = await handleSeed(req.body);
@@ -243,18 +232,8 @@ app.post('/api/memory/relevant', async (req, res) => {
   }
 });
 
-// Layer 5: Dynamic CLAUDE.md generation
-app.get('/api/memory/claudemd', async (_req, res) => {
-  try {
-    const result = await handleGenerateClaudeMd();
-    res.json(result);
-  } catch (err) {
-    log(`CLAUDE.md generation error: ${err}`);
-    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
-  }
-});
+// Boot kernel — cognitive OS for session start (brain-native, no .md)
 
-// Boot kernel — minimal cognitive OS for session start (no .md dependency)
 app.get('/api/memory/boot-kernel', async (_req, res) => {
   try {
     const result = await handleBootKernel();
