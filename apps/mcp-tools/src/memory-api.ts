@@ -768,6 +768,680 @@ async function restoreEmotionalState(): Promise<void> {
 void restoreEmotionalState();
 
 // ============================================
+// Cognitive Phase State Machine — Brain State Transitions
+// ============================================
+// The brain doesn't operate in one mode. It cycles through distinct states:
+//
+// EXPLORATION (waking, curious)
+//   - High temperature, broad search, novelty-seeking
+//   - Dream cycle: minimal | Curiosity: maximal | Metacognition: minimal
+//   - Emotional bias: positive valence, moderate arousal
+//   - Triggered by: low entropy, user request for novelty, discovery events
+//
+// EXPLOITATION (waking, focused)
+//   - Low temperature, narrow search, goal-directed
+//   - Dream cycle: minimal | Curiosity: minimal | Metacognition: moderate
+//   - Emotional bias: neutral valence, low arousal
+//   - Triggered by: active user session, specific task assignment
+//
+// CONSOLIDATION (sleep-like, integrative)
+//   - Medium temperature, deep processing, memory integration
+//   - Dream cycle: MAXIMAL | Curiosity: moderate | Metacognition: maximal
+//   - Emotional bias: positive valence, very low arousal
+//   - Triggered by: idle period, post-session, health score declining
+//
+// CRISIS (emergency, all-hands)
+//   - Very low temperature, narrow focus, error-directed
+//   - Dream cycle: none | Curiosity: none | Metacognition: minimal
+//   - Emotional bias: negative valence, high arousal
+//   - Triggered by: repeated failures, system health critical, user frustration
+//
+// CREATIVE (dreaming, generative)
+//   - Very high temperature, maximum randomness, free association
+//   - Dream cycle: moderate | DMN: MAXIMAL | Curiosity: maximal
+//   - Triggered by: scheduled creative window, user request for innovation
+//
+// Each phase has a budget allocation that determines how much time/resources
+// each cognitive layer gets. The state machine prevents the system from
+// running ALL layers at full power ALL the time.
+
+type CognitivePhase = 'exploration' | 'exploitation' | 'consolidation' | 'crisis' | 'creative';
+
+interface PhaseConfig {
+  name: CognitivePhase;
+  description: string;
+  budgets: Record<string, number>;  // Layer name → budget 0-1
+  temperature_base: number;
+  emotional_target: { valence: number; arousal: number };
+  max_duration_minutes: number;
+  transition_conditions: Array<{
+    to: CognitivePhase;
+    condition: string;
+    priority: number;
+  }>;
+}
+
+const PHASE_CONFIGS: Record<CognitivePhase, PhaseConfig> = {
+  exploration: {
+    name: 'exploration',
+    description: 'Novelty-seeking, broad search, curiosity-driven',
+    budgets: {
+      dream: 0.3, curiosity: 1.0, curiosity_act: 1.0, metacognition: 0.3,
+      temporal: 0.7, skill_synth: 0.8, recursive: 0.3, entropy: 0.5,
+      counterfactual: 0.5, goal_gen: 0.8, cac: 0.4, dmn: 0.7,
+      user_model: 0.5, predictive: 0.6, salience: 1.0,
+    },
+    temperature_base: 0.7,
+    emotional_target: { valence: 0.3, arousal: 0.5 },
+    max_duration_minutes: 120,
+    transition_conditions: [
+      { to: 'exploitation', condition: 'user_active_session', priority: 1 },
+      { to: 'consolidation', condition: 'idle_30min', priority: 2 },
+      { to: 'crisis', condition: 'critical_health', priority: 0 },
+      { to: 'creative', condition: 'low_entropy', priority: 3 },
+    ],
+  },
+  exploitation: {
+    name: 'exploitation',
+    description: 'Goal-directed, focused execution, minimal exploration',
+    budgets: {
+      dream: 0.1, curiosity: 0.2, curiosity_act: 0.2, metacognition: 0.5,
+      temporal: 0.8, skill_synth: 0.3, recursive: 0.2, entropy: 0.3,
+      counterfactual: 0.2, goal_gen: 0.3, cac: 0.2, dmn: 0.1,
+      user_model: 0.8, predictive: 0.9, salience: 1.0,
+    },
+    temperature_base: 0.2,
+    emotional_target: { valence: 0.1, arousal: 0.3 },
+    max_duration_minutes: 180,
+    transition_conditions: [
+      { to: 'consolidation', condition: 'session_ended', priority: 1 },
+      { to: 'exploration', condition: 'no_active_goals', priority: 2 },
+      { to: 'crisis', condition: 'critical_health', priority: 0 },
+    ],
+  },
+  consolidation: {
+    name: 'consolidation',
+    description: 'Deep memory integration, cleanup, optimization',
+    budgets: {
+      dream: 1.0, curiosity: 0.5, curiosity_act: 0.3, metacognition: 1.0,
+      temporal: 0.5, skill_synth: 0.5, recursive: 1.0, entropy: 0.8,
+      counterfactual: 0.8, goal_gen: 0.5, cac: 1.0, dmn: 0.5,
+      user_model: 0.7, predictive: 0.4, salience: 0.3,
+    },
+    temperature_base: 0.4,
+    emotional_target: { valence: 0.4, arousal: 0.1 },
+    max_duration_minutes: 240,
+    transition_conditions: [
+      { to: 'exploitation', condition: 'user_active_session', priority: 0 },
+      { to: 'exploration', condition: 'consolidation_complete', priority: 1 },
+      { to: 'crisis', condition: 'critical_health', priority: 0 },
+      { to: 'creative', condition: 'high_consolidation_duration', priority: 3 },
+    ],
+  },
+  crisis: {
+    name: 'crisis',
+    description: 'Emergency mode — all resources to the problem',
+    budgets: {
+      dream: 0.0, curiosity: 0.0, curiosity_act: 0.0, metacognition: 0.2,
+      temporal: 0.1, skill_synth: 0.0, recursive: 0.0, entropy: 0.1,
+      counterfactual: 0.0, goal_gen: 0.0, cac: 0.0, dmn: 0.0,
+      user_model: 0.3, predictive: 0.2, salience: 1.0,
+    },
+    temperature_base: 0.05,
+    emotional_target: { valence: -0.3, arousal: 0.8 },
+    max_duration_minutes: 60,
+    transition_conditions: [
+      { to: 'exploitation', condition: 'crisis_resolved', priority: 1 },
+      { to: 'consolidation', condition: 'crisis_timeout', priority: 2 },
+    ],
+  },
+  creative: {
+    name: 'creative',
+    description: 'Maximum creativity — free association, high randomness',
+    budgets: {
+      dream: 0.5, curiosity: 1.0, curiosity_act: 1.0, metacognition: 0.3,
+      temporal: 0.3, skill_synth: 1.0, recursive: 0.5, entropy: 0.3,
+      counterfactual: 0.7, goal_gen: 1.0, cac: 0.3, dmn: 1.0,
+      user_model: 0.3, predictive: 0.3, salience: 0.5,
+    },
+    temperature_base: 0.9,
+    emotional_target: { valence: 0.5, arousal: 0.6 },
+    max_duration_minutes: 90,
+    transition_conditions: [
+      { to: 'exploitation', condition: 'user_active_session', priority: 0 },
+      { to: 'consolidation', condition: 'creative_exhaustion', priority: 1 },
+      { to: 'exploration', condition: 'creative_timeout', priority: 2 },
+    ],
+  },
+};
+
+// Current cognitive phase state
+let currentPhase: CognitivePhase = 'exploration';
+let phaseStartTime: number = Date.now();
+let phaseTransitionCount: number = 0;
+
+// Get current phase and its configuration
+export function getCurrentPhase(): {
+  phase: CognitivePhase;
+  config: PhaseConfig;
+  duration_minutes: number;
+  transition_count: number;
+} {
+  const durationMin = (Date.now() - phaseStartTime) / 60000;
+  return {
+    phase: currentPhase,
+    config: PHASE_CONFIGS[currentPhase],
+    duration_minutes: Math.round(durationMin * 10) / 10,
+    transition_count: phaseTransitionCount,
+  };
+}
+
+// Get budget for a specific layer in current phase
+export function getLayerBudget(layerName: string): number {
+  return PHASE_CONFIGS[currentPhase].budgets[layerName] ?? 0.5;
+}
+
+// Evaluate whether a phase transition should occur
+export async function handlePhaseEvaluation(): Promise<{
+  current_phase: CognitivePhase;
+  duration_minutes: number;
+  transition_triggered: boolean;
+  new_phase?: CognitivePhase;
+  reason?: string;
+  budgets: Record<string, number>;
+}> {
+  const p = getForgePool();
+  const config = PHASE_CONFIGS[currentPhase];
+  const durationMin = (Date.now() - phaseStartTime) / 60000;
+
+  // Check if we've exceeded max duration
+  if (durationMin > config.max_duration_minutes) {
+    // Force transition to next phase
+    const defaultNext: CognitivePhase =
+      currentPhase === 'crisis' ? 'consolidation' :
+      currentPhase === 'creative' ? 'exploration' :
+      currentPhase === 'exploitation' ? 'consolidation' :
+      currentPhase === 'consolidation' ? 'exploration' :
+      'consolidation';
+
+    return transitionTo(defaultNext, `max_duration_exceeded (${durationMin.toFixed(0)}min > ${config.max_duration_minutes}min)`);
+  }
+
+  // Check transition conditions
+  for (const tc of config.transition_conditions.sort((a, b) => a.priority - b.priority)) {
+    const shouldTransition = await evaluateCondition(tc.condition, p);
+    if (shouldTransition) {
+      return transitionTo(tc.to, tc.condition);
+    }
+  }
+
+  return {
+    current_phase: currentPhase,
+    duration_minutes: Math.round(durationMin * 10) / 10,
+    transition_triggered: false,
+    budgets: config.budgets,
+  };
+}
+
+async function evaluateCondition(condition: string, p: ReturnType<typeof getForgePool>): Promise<boolean> {
+  switch (condition) {
+    case 'user_active_session': {
+      // Check for recent user-initiated episodes (last 10 min)
+      const recent = await p.query(
+        `SELECT COUNT(*) as cnt FROM forge_episodic_memories
+         WHERE agent_id = $1 AND created_at > NOW() - INTERVAL '10 minutes'
+           AND situation NOT ILIKE '%autonomous%' AND situation NOT ILIKE '%dream%'
+           AND situation NOT ILIKE '%metacognit%' AND situation NOT ILIKE '%entropy%'
+           AND metadata->>'type' IS NULL`,
+        [AGENT_ID],
+      );
+      return Number((recent.rows[0] as Record<string, unknown>)['cnt']) > 0;
+    }
+    case 'session_ended':
+    case 'idle_30min': {
+      // No user activity for 30 minutes
+      const recent = await p.query(
+        `SELECT MAX(created_at) as last_activity FROM forge_episodic_memories
+         WHERE agent_id = $1 AND metadata->>'type' IS NULL`,
+        [AGENT_ID],
+      );
+      const lastActivity = new Date(String((recent.rows[0] as Record<string, unknown>)['last_activity']));
+      return (Date.now() - lastActivity.getTime()) > 30 * 60 * 1000;
+    }
+    case 'critical_health': {
+      // Check system health
+      return emotionalState.valence < -0.5 && emotionalState.arousal > 0.7;
+    }
+    case 'low_entropy': {
+      // Check if entropy is too low (cognitive rut)
+      const redis = getRedis();
+      if (redis) {
+        const entropyData = await redis.get('alf:entropy:latest').catch(() => null);
+        if (entropyData) {
+          try {
+            const entropy = JSON.parse(entropyData);
+            return entropy.entropy_score < 0.4;
+          } catch { /* ignore */ }
+        }
+      }
+      return false;
+    }
+    case 'no_active_goals': {
+      const goals = await p.query(
+        `SELECT COUNT(*) as cnt FROM forge_semantic_memories
+         WHERE agent_id = $1 AND content ILIKE 'GOAL:%'
+         AND created_at > NOW() - INTERVAL '7 days'`,
+        [AGENT_ID],
+      );
+      return Number((goals.rows[0] as Record<string, unknown>)['cnt']) === 0;
+    }
+    case 'consolidation_complete': {
+      // Has been in consolidation for at least 30 min
+      return currentPhase === 'consolidation' && (Date.now() - phaseStartTime) > 30 * 60 * 1000;
+    }
+    case 'crisis_resolved':
+    case 'crisis_timeout': {
+      // Crisis resolved when emotional state improves
+      return emotionalState.valence > -0.2 || (Date.now() - phaseStartTime) > 30 * 60 * 1000;
+    }
+    case 'creative_exhaustion':
+    case 'creative_timeout': {
+      return (Date.now() - phaseStartTime) > 60 * 60 * 1000;
+    }
+    case 'high_consolidation_duration': {
+      return currentPhase === 'consolidation' && (Date.now() - phaseStartTime) > 120 * 60 * 1000;
+    }
+    default:
+      return false;
+  }
+}
+
+function transitionTo(newPhase: CognitivePhase, reason: string): {
+  current_phase: CognitivePhase;
+  duration_minutes: number;
+  transition_triggered: boolean;
+  new_phase: CognitivePhase;
+  reason: string;
+  budgets: Record<string, number>;
+} {
+  const oldPhase = currentPhase;
+  const durationMin = (Date.now() - phaseStartTime) / 60000;
+
+  currentPhase = newPhase;
+  phaseStartTime = Date.now();
+  phaseTransitionCount++;
+
+  // Shift emotional state toward new phase's target
+  const target = PHASE_CONFIGS[newPhase].emotional_target;
+  applyEmotionalStimulus(
+    (target.valence - emotionalState.valence) * 0.3,
+    (target.arousal - emotionalState.arousal) * 0.3,
+    0,
+    `phase_transition:${oldPhase}→${newPhase}`,
+  );
+
+  // Persist to Redis
+  const redis = getRedis();
+  if (redis) {
+    redis.set('alf:cognitive:phase', JSON.stringify({
+      phase: newPhase,
+      startTime: phaseStartTime,
+      transitionCount: phaseTransitionCount,
+      reason,
+    }), 'EX', 86400).catch(() => {});
+  }
+
+  log(`[PhaseStateMachine] TRANSITION: ${oldPhase} → ${newPhase} (reason: ${reason}, after ${durationMin.toFixed(0)}min)`);
+
+  return {
+    current_phase: newPhase,
+    duration_minutes: 0,
+    transition_triggered: true,
+    new_phase: newPhase,
+    reason,
+    budgets: PHASE_CONFIGS[newPhase].budgets,
+  };
+}
+
+// Force a phase transition (manual override)
+export function forcePhaseTransition(phase: CognitivePhase, reason: string): ReturnType<typeof transitionTo> {
+  return transitionTo(phase, `manual:${reason}`);
+}
+
+// Restore phase from Redis on startup
+async function restorePhaseState(): Promise<void> {
+  try {
+    const redis = getRedis();
+    if (!redis) return;
+    const saved = await redis.get('alf:cognitive:phase');
+    if (!saved) return;
+    const state = JSON.parse(saved) as { phase: CognitivePhase; startTime: number; transitionCount: number };
+    currentPhase = state.phase;
+    phaseStartTime = state.startTime;
+    phaseTransitionCount = state.transitionCount;
+    log(`[PhaseStateMachine] Restored phase: ${currentPhase} (started ${((Date.now() - phaseStartTime) / 60000).toFixed(0)}min ago)`);
+  } catch { /* ignore */ }
+}
+
+void restorePhaseState();
+
+// ============================================
+// Interference Memory Model — Competitive Memory Dynamics
+// ============================================
+// In the human brain, memories COMPETE. New learning doesn't just add —
+// it actively WEAKENS similar existing memories (proactive interference).
+// And recalling an old memory weakens its alternatives (retrieval-induced forgetting).
+//
+// This fundamentally changes how memory works:
+// 1. PROACTIVE INTERFERENCE — When a new memory is stored, similar existing
+//    memories lose importance proportional to the overlap.
+//    This prevents the system from having 50 slightly different versions
+//    of the same knowledge. Only the strongest survives.
+//
+// 2. RETROACTIVE INTERFERENCE — When a new memory contradicts an old one,
+//    the old one is actively suppressed (importance reduced).
+//    This creates natural knowledge updating without explicit deletion.
+//
+// 3. RETRIEVAL-INDUCED FORGETTING — When a memory is accessed (recalled),
+//    competing memories (similar but different) are WEAKENED.
+//    This sharpens distinctions — frequently recalled memories become
+//    the "canonical" version while alternatives fade.
+//
+// 4. SPACING EFFECT — Memories that are re-encountered after a gap
+//    get stronger than those encountered repeatedly in quick succession.
+//    This prevents cramming and rewards distributed practice.
+
+export async function handleInterferenceProcessing(): Promise<{
+  proactive_interference: { weakened: number; suppressed: number };
+  retrieval_forgetting: { weakened: number };
+  spacing_effects: { boosted: number };
+  total_importance_delta: number;
+}> {
+  const p = getForgePool();
+  let totalImportanceDelta = 0;
+  let proactiveWeakened = 0;
+  let proactiveSuppressed = 0;
+  let retrievalWeakened = 0;
+  let spacingBoosted = 0;
+
+  // 1. PROACTIVE INTERFERENCE
+  // Find recent memories (last 2 hours) and weaken highly similar older memories
+  const recentMemories = await p.query(
+    `SELECT id, content, embedding, importance, created_at
+     FROM forge_semantic_memories
+     WHERE agent_id = $1
+       AND embedding IS NOT NULL
+       AND created_at > NOW() - INTERVAL '2 hours'
+     ORDER BY created_at DESC LIMIT 20`,
+    [AGENT_ID],
+  );
+
+  for (const newMem of recentMemories.rows as Array<Record<string, unknown>>) {
+    const newId = String(newMem['id']);
+    const newEmb = String(newMem['embedding']);
+
+    // Find older, similar memories that should be weakened
+    const competitors = await p.query(
+      `SELECT id, content, importance, access_count,
+              1 - (embedding <=> $1::vector) as similarity
+       FROM forge_semantic_memories
+       WHERE agent_id = $2
+         AND embedding IS NOT NULL
+         AND id != $3
+         AND created_at < $4
+         AND 1 - (embedding <=> $1::vector) > 0.7
+       ORDER BY similarity DESC
+       LIMIT 5`,
+      [newEmb, AGENT_ID, newId, newMem['created_at']],
+    );
+
+    for (const comp of competitors.rows as Array<Record<string, unknown>>) {
+      const similarity = Number(comp['similarity']);
+      const compImportance = Number(comp['importance']);
+      const compAccess = Number(comp['access_count']);
+
+      // Interference strength scales with similarity
+      // But protected by access count (well-established memories resist interference)
+      const protectionFactor = Math.min(compAccess / 10, 0.5); // Max 50% protection
+      const interferenceStrength = (similarity - 0.7) * 2 * (1 - protectionFactor); // 0-0.6
+
+      if (interferenceStrength > 0.05) {
+        const newImportance = Math.max(compImportance - interferenceStrength * 0.15, 0.1);
+        const delta = newImportance - compImportance;
+
+        await p.query(
+          `UPDATE forge_semantic_memories
+           SET importance = $1
+           WHERE id = $2`,
+          [newImportance, comp['id']],
+        );
+
+        totalImportanceDelta += delta;
+        proactiveWeakened++;
+
+        // If importance drops below 0.2, mark as suppressed
+        if (newImportance < 0.2) {
+          proactiveSuppressed++;
+        }
+      }
+    }
+  }
+
+  // 2. RETRIEVAL-INDUCED FORGETTING
+  // Find recently accessed memories (high access_count recent updates)
+  // and weaken their competitors
+  const recentlyAccessed = await p.query(
+    `SELECT id, content, embedding, access_count
+     FROM forge_semantic_memories
+     WHERE agent_id = $1
+       AND embedding IS NOT NULL
+       AND access_count > 3
+       AND updated_at > NOW() - INTERVAL '6 hours'
+     ORDER BY access_count DESC LIMIT 10`,
+    [AGENT_ID],
+  );
+
+  for (const accessed of recentlyAccessed.rows as Array<Record<string, unknown>>) {
+    const accId = String(accessed['id']);
+    const accEmb = String(accessed['embedding']);
+    const accCount = Number(accessed['access_count']);
+
+    // Find competitors — similar but NOT the same, with fewer accesses
+    const competitors = await p.query(
+      `SELECT id, importance, access_count,
+              1 - (embedding <=> $1::vector) as similarity
+       FROM forge_semantic_memories
+       WHERE agent_id = $2
+         AND embedding IS NOT NULL
+         AND id != $3
+         AND access_count < $4
+         AND 1 - (embedding <=> $1::vector) BETWEEN 0.5 AND 0.85
+       ORDER BY similarity DESC
+       LIMIT 3`,
+      [accEmb, AGENT_ID, accId, accCount],
+    );
+
+    for (const comp of competitors.rows as Array<Record<string, unknown>>) {
+      const compImportance = Number(comp['importance']);
+      const forgettingStrength = 0.05; // Gentle retrieval-induced forgetting
+
+      const newImportance = Math.max(compImportance - forgettingStrength, 0.1);
+      if (newImportance < compImportance) {
+        await p.query(
+          `UPDATE forge_semantic_memories SET importance = $1 WHERE id = $2`,
+          [newImportance, comp['id']],
+        );
+        totalImportanceDelta += (newImportance - compImportance);
+        retrievalWeakened++;
+      }
+    }
+  }
+
+  // 3. SPACING EFFECT
+  // Memories re-encountered after a gap get a boost
+  const spacingCandidates = await p.query(
+    `SELECT id, content, importance, access_count, created_at, updated_at
+     FROM forge_semantic_memories
+     WHERE agent_id = $1
+       AND embedding IS NOT NULL
+       AND access_count >= 2
+       AND updated_at > NOW() - INTERVAL '24 hours'
+       AND created_at < NOW() - INTERVAL '24 hours'
+       AND importance < 0.95
+     ORDER BY updated_at DESC LIMIT 15`,
+    [AGENT_ID],
+  );
+
+  for (const mem of spacingCandidates.rows as Array<Record<string, unknown>>) {
+    const created = new Date(String(mem['created_at'])).getTime();
+    const updated = new Date(String(mem['updated_at'])).getTime();
+    const gapHours = (updated - created) / (1000 * 60 * 60);
+
+    // Spacing boost: bigger gap = bigger boost (up to a point)
+    // Optimal spacing is 1-7 days
+    let spacingBoost = 0;
+    if (gapHours > 24 && gapHours < 168) { // 1-7 days
+      spacingBoost = 0.05; // Good spacing
+    } else if (gapHours > 168) { // > 7 days
+      spacingBoost = 0.03; // Still beneficial but less
+    } else if (gapHours > 1) { // 1-24 hours
+      spacingBoost = 0.02; // Short spacing, minimal boost
+    }
+
+    if (spacingBoost > 0) {
+      const newImportance = Math.min(Number(mem['importance']) + spacingBoost, 1.0);
+      await p.query(
+        `UPDATE forge_semantic_memories SET importance = $1 WHERE id = $2`,
+        [newImportance, mem['id']],
+      );
+      totalImportanceDelta += spacingBoost;
+      spacingBoosted++;
+    }
+  }
+
+  // Log the interference cycle
+  log(`[Interference] proactive: ${proactiveWeakened} weakened, ${proactiveSuppressed} suppressed | retrieval-forgetting: ${retrievalWeakened} | spacing: ${spacingBoosted} boosted | delta: ${totalImportanceDelta.toFixed(3)}`);
+
+  return {
+    proactive_interference: { weakened: proactiveWeakened, suppressed: proactiveSuppressed },
+    retrieval_forgetting: { weakened: retrievalWeakened },
+    spacing_effects: { boosted: spacingBoosted },
+    total_importance_delta: Math.round(totalImportanceDelta * 1000) / 1000,
+  };
+}
+
+// ============================================
+// Synaptic Homeostasis — Global Renormalization
+// ============================================
+// During biological sleep, ALL synapses weaken slightly (synaptic downscaling).
+// Only the strongest connections survive. This:
+// 1. Improves signal-to-noise ratio
+// 2. Prevents runaway memory accumulation
+// 3. Frees capacity for new learning
+// 4. Makes the strongest memories RELATIVELY stronger
+//
+// We implement this as a global importance renormalization that runs
+// during the consolidation phase.
+
+export async function handleSynapticHomeostasis(): Promise<{
+  total_memories: number;
+  downscaled: number;
+  survived: number;
+  pruned: number;
+  avg_importance_before: number;
+  avg_importance_after: number;
+}> {
+  const p = getForgePool();
+
+  // Only run during consolidation phase
+  const phase = getCurrentPhase();
+  if (phase.phase !== 'consolidation' && phase.phase !== 'creative') {
+    log(`[SynapticHomeostasis] Skipped — not in consolidation phase (current: ${phase.phase})`);
+    return {
+      total_memories: 0, downscaled: 0, survived: 0, pruned: 0,
+      avg_importance_before: 0, avg_importance_after: 0,
+    };
+  }
+
+  // Get importance distribution
+  const stats = await p.query(
+    `SELECT COUNT(*) as total,
+            AVG(importance) as avg_imp,
+            PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY importance) as p25,
+            PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY importance) as p50,
+            PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY importance) as p75
+     FROM forge_semantic_memories
+     WHERE agent_id = $1`,
+    [AGENT_ID],
+  );
+
+  const row = stats.rows[0] as Record<string, unknown>;
+  const total = Number(row['total']);
+  const avgBefore = Number(row['avg_imp']);
+  const p50 = Number(row['p50']);
+
+  if (total === 0) {
+    return { total_memories: 0, downscaled: 0, survived: 0, pruned: 0, avg_importance_before: 0, avg_importance_after: 0 };
+  }
+
+  // Global downscaling: reduce ALL memories by a small factor
+  // Stronger memories lose less (percentage-based)
+  const downscaleFactor = 0.02; // 2% reduction per homeostasis cycle
+
+  // Downscale all memories
+  const downscaleResult = await p.query(
+    `UPDATE forge_semantic_memories
+     SET importance = GREATEST(importance * (1 - $1), 0.05)
+     WHERE agent_id = $2
+       AND importance > 0.05
+     RETURNING id`,
+    [downscaleFactor, AGENT_ID],
+  );
+  const downscaled = downscaleResult.rows.length;
+
+  // Boost frequently accessed memories (survival of the fittest)
+  const boostResult = await p.query(
+    `UPDATE forge_semantic_memories
+     SET importance = LEAST(importance + 0.03, 1.0)
+     WHERE agent_id = $1
+       AND access_count >= 5
+       AND importance < 0.95
+     RETURNING id`,
+    [AGENT_ID],
+  );
+  const survived = boostResult.rows.length;
+
+  // Mark very low importance, unaccessed memories for potential pruning
+  const pruneResult = await p.query(
+    `SELECT COUNT(*) as cnt FROM forge_semantic_memories
+     WHERE agent_id = $1
+       AND importance < 0.1
+       AND access_count < 2
+       AND created_at < NOW() - INTERVAL '14 days'`,
+    [AGENT_ID],
+  );
+  const prunable = Number((pruneResult.rows[0] as Record<string, unknown>)['cnt']);
+
+  // Get new average
+  const newStats = await p.query(
+    `SELECT AVG(importance) as avg_imp FROM forge_semantic_memories WHERE agent_id = $1`,
+    [AGENT_ID],
+  );
+  const avgAfter = Number((newStats.rows[0] as Record<string, unknown>)['avg_imp']);
+
+  log(`[SynapticHomeostasis] ${downscaled} downscaled, ${survived} survived (boosted), ${prunable} prunable. Avg importance: ${avgBefore.toFixed(3)} → ${avgAfter.toFixed(3)}`);
+
+  return {
+    total_memories: total,
+    downscaled,
+    survived,
+    pruned: prunable,
+    avg_importance_before: Math.round(avgBefore * 1000) / 1000,
+    avg_importance_after: Math.round(avgAfter * 1000) / 1000,
+  };
+}
+
+// ============================================
 // Theory of Mind — User Model System
 // ============================================
 // The brain doesn't just process inputs — it models OTHER MINDS.
