@@ -32,6 +32,20 @@ run_cycle() {
   local cycle_start=$(date +%s)
   log "=== Learning cycle starting ==="
 
+  # Phase 0: Cognitive Phase Evaluation — determine brain state and budgets
+  log "Phase 0: Cognitive phase evaluation..."
+  PHASE_RESULT=$(curl -s --max-time 30 -X POST "$MCP_URL/api/memory/phase/evaluate" 2>/dev/null || echo '{}')
+  PHASE_SUMMARY=$(node -e "
+    try {
+      const p = JSON.parse(process.argv[1]);
+      const phase = p.current_phase || p.new_phase || '?';
+      const dur = p.duration_minutes || 0;
+      const trans = p.transition_triggered ? 'TRANSITION: ' + (p.reason||'') : 'no transition';
+      console.log('phase=' + phase + ' duration=' + dur.toFixed(0) + 'min ' + trans);
+    } catch { console.log('error'); }
+  " "$PHASE_RESULT" 2>/dev/null || echo "error")
+  log "Phase: $PHASE_SUMMARY"
+
   # Phase 1: Dream cycle (consolidate, synthesize, prune, evolve)
   log "Phase 1: Dream cycle..."
   DREAM_RESULT=$(curl -s --max-time 120 -X POST "$MCP_URL/api/memory/dream" 2>/dev/null || echo '{"error":"timeout"}')
@@ -256,9 +270,28 @@ run_cycle() {
   " "$CAC_RESULT" 2>/dev/null || echo "error")
   log "CognitiveCompiler: $CAC_SUMMARY"
 
-  # Phase 5: Consolidation + backfill (maintenance)
-  log "Phase 5: Maintenance (consolidate + backfill)..."
+  # Phase 4h: Interference Memory — competitive memory dynamics
+  log "Phase 4h: Interference processing..."
+  INTERF_RESULT=$(curl -s --max-time 60 -X POST "$MCP_URL/api/memory/interference" 2>/dev/null || echo '{"error":"timeout"}')
+  INTERF_SUMMARY=$(node -e "
+    try {
+      const i = JSON.parse(process.argv[1]);
+      if (i.error) { console.log('FAILED: ' + i.error); return; }
+      const pi = i.proactive_interference || {};
+      const rf = i.retrieval_forgetting || {};
+      const se = i.spacing_effects || {};
+      console.log('proactive=' + (pi.weakened||0) + '/' + (pi.suppressed||0) +
+        ' retrieval=' + (rf.weakened||0) +
+        ' spacing=' + (se.boosted||0) +
+        ' delta=' + (i.total_importance_delta||0));
+    } catch { console.log('error'); }
+  " "$INTERF_RESULT" 2>/dev/null || echo "error")
+  log "Interference: $INTERF_SUMMARY"
+
+  # Phase 5: Consolidation + homeostasis + backfill (maintenance)
+  log "Phase 5: Maintenance (consolidation + homeostasis + backfill)..."
   curl -s --max-time 60 -X POST "$MCP_URL/api/memory/consolidate" > /dev/null 2>&1 || true
+  curl -s --max-time 60 -X POST "$MCP_URL/api/memory/homeostasis" > /dev/null 2>&1 || true
   curl -s --max-time 60 -X POST "$MCP_URL/api/memory/backfill" > /dev/null 2>&1 || true
 
   # Phase 6: Health check

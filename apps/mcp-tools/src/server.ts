@@ -35,7 +35,7 @@ import { TOOLS as DATA_TOOLS, handleTool as handleDataTool } from './data.js';
 import { TOOLS as INFRA_TOOLS, handleTool as handleInfraTool } from './infra.js';
 import { TOOLS as AGENT_TOOLS, handleTool as handleAgentTool } from './agent-tools.js';
 import { TOOLS as FORGE_TOOLS, handleTool as handleForgeTool } from './forge-tools.js';
-import { handleExtract, handleSeed, handleConsolidate, handleStats, handleRelevant, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity, handleCuriosityAct, handleProactiveCheck, handleActiveGoals, handleMetacognition, handleTemporalPrediction, handleSkillSynthesis, handleRecursiveImprovement, handleEntropyMonitor, handleCounterfactualReasoning, handleGoalGeneration, handleCognitiveCompiler, handleSpreadingActivation, handleActivationState, handleEmotionalProcess, getEmotionalModulation, handleUserModelUpdate, handleGetUserModel, handlePredictiveCoding, handleSalienceCheck, handleDefaultModeNetwork } from './memory-api.js';
+import { handleExtract, handleSeed, handleConsolidate, handleStats, handleRelevant, handleBootKernel, handleHandoffStore, handleHandoffRetrieve, handleBackfill, handleToolOutcome, handleHealthReport, handleSelfReflect, handleWorkingSet, handleWorkingGet, handleWorkingClear, handleProcedureOutcome, handleThreadStore, handleThreadGet, getCacheStats, handleDreamCycle, handleCuriosityExplore, handleKnowledgeMap, handleNeuroplasticity, handleCuriosityAct, handleProactiveCheck, handleActiveGoals, handleMetacognition, handleTemporalPrediction, handleSkillSynthesis, handleRecursiveImprovement, handleEntropyMonitor, handleCounterfactualReasoning, handleGoalGeneration, handleCognitiveCompiler, handleSpreadingActivation, handleActivationState, handleEmotionalProcess, getEmotionalModulation, handleUserModelUpdate, handleGetUserModel, handlePredictiveCoding, handleSalienceCheck, handleDefaultModeNetwork, getCurrentPhase, handlePhaseEvaluation, forcePhaseTransition, handleInterferenceProcessing, handleSynapticHomeostasis } from './memory-api.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
@@ -604,6 +604,65 @@ app.post('/api/memory/dmn', async (_req, res) => {
     res.json(result);
   } catch (err) {
     log(`DMN error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Cognitive Phase State Machine
+app.get('/api/memory/phase', (_req, res) => {
+  try {
+    const result = getCurrentPhase();
+    res.json(result);
+  } catch (err) {
+    log(`Phase get error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.post('/api/memory/phase/evaluate', async (_req, res) => {
+  try {
+    const result = await handlePhaseEvaluation();
+    res.json(result);
+  } catch (err) {
+    log(`Phase evaluation error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+app.post('/api/memory/phase/force', (req, res) => {
+  try {
+    const { phase, reason } = req.body as { phase: string; reason: string };
+    const validPhases = ['exploration', 'exploitation', 'consolidation', 'crisis', 'creative'];
+    if (!validPhases.includes(phase)) {
+      res.status(400).json({ error: `Invalid phase. Must be one of: ${validPhases.join(', ')}` });
+      return;
+    }
+    const result = forcePhaseTransition(phase as Parameters<typeof forcePhaseTransition>[0], reason ?? 'api');
+    res.json(result);
+  } catch (err) {
+    log(`Phase force error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Interference Memory Model — competitive memory dynamics
+app.post('/api/memory/interference', async (_req, res) => {
+  try {
+    const result = await handleInterferenceProcessing();
+    res.json(result);
+  } catch (err) {
+    log(`Interference processing error: ${err}`);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
+  }
+});
+
+// Synaptic Homeostasis — global renormalization
+app.post('/api/memory/homeostasis', async (_req, res) => {
+  try {
+    const result = await handleSynapticHomeostasis();
+    res.json(result);
+  } catch (err) {
+    log(`Synaptic homeostasis error: ${err}`);
     res.status(500).json({ error: err instanceof Error ? err.message : 'Unknown error' });
   }
 });
