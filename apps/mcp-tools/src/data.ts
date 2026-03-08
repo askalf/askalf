@@ -96,12 +96,21 @@ NOTE: Agent definitions (forge_agents) and executions are in the FORGE database,
   },
   {
     name: 'memory_search',
-    description: 'Search fleet cognitive memory (semantic, episodic, procedural tiers) for relevant knowledge.',
+    description: `Search your persistent cognitive memory across semantic (facts/decisions), episodic (past experiences), and procedural (learned patterns) tiers.
+
+USE THIS TOOL WHEN:
+- About to debug something you may have debugged before
+- About to deploy/build and want to recall the correct procedure
+- Working on a file/feature you've touched in past sessions
+- The user asks "do you remember..." or "last time we..."
+- You need project architecture knowledge not in CLAUDE.md
+
+Default agent_id is 'cli:local:master' (your own memories). Omit agent_id to search across ALL agents including fleet knowledge.`,
     inputSchema: {
       type: 'object' as const,
       properties: {
-        query: { type: 'string', description: 'Search query' },
-        agent_id: { type: 'string', description: 'Agent ID to scope the search' },
+        query: { type: 'string', description: 'Search query — describe what you need to remember' },
+        agent_id: { type: 'string', description: "Agent ID to scope search. Default: 'cli:local:master' (your memories). Omit for fleet-wide search." },
         memory_type: { type: 'string', enum: ['semantic', 'episodic', 'procedural', 'all'], description: 'Memory tier to search (default: all)' },
         limit: { type: 'number', description: 'Maximum results (default: 5)' },
       },
@@ -110,19 +119,27 @@ NOTE: Agent definitions (forge_agents) and executions are in the FORGE database,
   },
   {
     name: 'memory_store',
-    description: 'Store knowledge, experiences, or procedures in fleet cognitive memory.',
+    description: `Store knowledge in your persistent cognitive memory. Survives across sessions.
+
+USE THIS TOOL WHEN:
+- The user teaches you something important ("always do X", "never do Y")
+- You discover a non-obvious fix or pattern worth remembering
+- You complete a task with a reusable procedure
+- The user corrects your behavior (store as RULE: prefix with importance=1.0)
+
+For your own memories use agent_id='cli:local:master'. Prefix corrections with "RULE: " and identity facts with "IDENTITY: " for high-priority recall.`,
     inputSchema: {
       type: 'object' as const,
       properties: {
         type: { type: 'string', enum: ['semantic', 'episodic', 'procedural'], description: 'Memory tier to store in' },
-        agent_id: { type: 'string', description: 'Agent ID storing the memory' },
-        content: { type: 'string', description: 'Content to store. For episodic: the situation.' },
+        agent_id: { type: 'string', description: "Agent ID storing the memory (default: 'cli:local:master')" },
+        content: { type: 'string', description: 'Content to store. For episodic: the situation. Prefix with RULE: or IDENTITY: for high-priority recall.' },
         action: { type: 'string', description: 'For episodic: the action taken' },
         outcome: { type: 'string', description: 'For episodic: the outcome' },
         quality: { type: 'number', description: 'For episodic: quality 0-1 (1=success, 0=failure)' },
         trigger_pattern: { type: 'string', description: 'For procedural: trigger pattern' },
         tool_sequence: { type: 'array', description: 'For procedural: tool sequence array' },
-        importance: { type: 'number', description: 'For semantic: importance 0-1' },
+        importance: { type: 'number', description: 'For semantic: importance 0-1 (use 1.0 for rules and identity)' },
         source: { type: 'string', description: 'Source label' },
         metadata: { type: 'object', description: 'Additional metadata' },
       },
@@ -197,7 +214,7 @@ async function handleSubstrateDbQuery(args: Record<string, unknown>): Promise<st
 
 async function handleMemorySearch(args: Record<string, unknown>): Promise<string> {
   const queryText = args['query'] as string;
-  const agentId = (args['agent_id'] as string) ?? null;
+  const agentId = (args['agent_id'] as string) ?? 'cli:local:master';
   const memoryType = (args['memory_type'] as string) ?? 'all';
   const limit = (args['limit'] as number) ?? 5;
 
@@ -364,7 +381,7 @@ async function handleMemorySearchFallback(args: Record<string, unknown>): Promis
 async function handleMemoryStore(args: Record<string, unknown>): Promise<string> {
   const type = args['type'] as string;
   const content = args['content'] as string;
-  const agentId = (args['agent_id'] as string) ?? 'fleet:system';
+  const agentId = (args['agent_id'] as string) ?? 'cli:local:master';
 
   if (!content?.trim() && type !== 'procedural') {
     return JSON.stringify({ error: 'content is required' });

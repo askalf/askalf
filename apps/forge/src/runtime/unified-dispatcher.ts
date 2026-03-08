@@ -420,15 +420,38 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
       return;
     }
 
+    // Query the shared brain for relevant past experiences with this type of task
+    let enrichedInput = input;
+    try {
+      const MCP_URL = process.env['MCP_TOOLS_URL'] || 'http://mcp-tools:3010';
+      const res = await fetch(`${MCP_URL}/api/memory/relevant`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: `${agent.name}: ${input}`, limit: 3 }),
+        signal: AbortSignal.timeout(5_000),
+      });
+      const data = await res.json() as { memories?: Array<Record<string, unknown>> };
+      const relevant = (data.memories ?? []).filter((m) => Number(m['similarity'] ?? 0) > 0.5);
+      if (relevant.length > 0) {
+        const hints = relevant.map((m) =>
+          `[${m['tier']}] ${String(m['text']).slice(0, 150)}`
+        ).join('\n');
+        enrichedInput = `${input}\n\n[Brain — relevant past experience]:\n${hints}`;
+        console.log(`[Dispatcher] Enriched ${agent.name} input with ${relevant.length} brain memories`);
+      }
+    } catch {
+      // Brain query failed — dispatch without enrichment (non-fatal)
+    }
+
     const execId = ulid();
 
     await queryOne(
       `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
        VALUES ($1, $2, $3, $4, 'pending', $5, NOW()) RETURNING id`,
-      [execId, agent.id, ownerId, input, JSON.stringify(metadata)],
+      [execId, agent.id, ownerId, enrichedInput, JSON.stringify(metadata)],
     );
 
-    void runDirectCliExecution(execId, agent.id, input, ownerId, {
+    void runDirectCliExecution(execId, agent.id, enrichedInput, ownerId, {
       modelId: agent.model_id ?? undefined,
       systemPrompt: agent.system_prompt ?? undefined,
       maxBudgetUsd: agent.max_cost_per_execution ?? undefined,

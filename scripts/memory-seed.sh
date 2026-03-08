@@ -21,10 +21,13 @@ echo "[memory-seed] Starting bulk seed from conversation transcripts..."
 
 # Get stats before
 echo -n "[memory-seed] Before: "
-curl -s "$MCP_URL/api/memory/stats" 2>/dev/null | node -e "
-  const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-  console.log(d.tiers.semantic.count + 's/' + d.tiers.episodic.count + 'e/' + d.tiers.procedural.count + 'p = ' + d.total + ' total');
-" 2>/dev/null || echo "?"
+STATS=$(curl -s "$MCP_URL/api/memory/stats" 2>/dev/null)
+node -e "
+  try {
+    const d = JSON.parse(process.argv[1]);
+    console.log(d.tiers.semantic.count + 's/' + d.tiers.episodic.count + 'e/' + d.tiers.procedural.count + 'p = ' + d.total + ' total');
+  } catch { console.log('?'); }
+" "$STATS" 2>/dev/null || echo "?"
 
 COUNT=0
 STORED=0
@@ -95,7 +98,7 @@ for TRANSCRIPT in $(ls -t "$CLAUDE_PROJECT_DIR"/*.jsonl 2>/dev/null); do
     " "$CONVERSATION" "$SESSION_ID")" \
     --max-time 60 2>/dev/null) || { echo "failed"; continue; }
 
-  S=$(echo "$RESULT" | node -e "try{const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));console.log(d.stored+'s/'+d.skipped+'d')}catch{console.log('?')}" 2>/dev/null || echo "?")
+  S=$(node -e "try{const d=JSON.parse(process.argv[1]);console.log(d.stored+'s/'+d.skipped+'d')}catch{console.log('?')}" "$RESULT" 2>/dev/null || echo "?")
   echo "$S"
 
   # Rate limit: 2s between API calls
@@ -105,19 +108,23 @@ done
 # Get stats after
 echo ""
 echo -n "[memory-seed] After: "
-curl -s "$MCP_URL/api/memory/stats" 2>/dev/null | node -e "
-  const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-  console.log(d.tiers.semantic.count + 's/' + d.tiers.episodic.count + 'e/' + d.tiers.procedural.count + 'p = ' + d.total + ' total');
-" 2>/dev/null || echo "?"
+STATS=$(curl -s "$MCP_URL/api/memory/stats" 2>/dev/null)
+node -e "
+  try {
+    const d = JSON.parse(process.argv[1]);
+    console.log(d.tiers.semantic.count + 's/' + d.tiers.episodic.count + 'e/' + d.tiers.procedural.count + 'p = ' + d.total + ' total');
+  } catch { console.log('?'); }
+" "$STATS" 2>/dev/null || echo "?"
 
 # Run consolidation
 echo "[memory-seed] Running consolidation..."
-curl -s -X POST "$MCP_URL/api/memory/consolidate" 2>/dev/null | node -e "
+CONSOLIDATE=$(curl -s -X POST "$MCP_URL/api/memory/consolidate" 2>/dev/null)
+node -e "
   try {
-    const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+    const d = JSON.parse(process.argv[1]);
     console.log('[memory-seed] Consolidation: merged=' + d.merged + ', decayed=' + d.decayed + ', reinforced=' + d.reinforced);
   } catch {}
-" 2>/dev/null || echo "[memory-seed] Consolidation failed"
+" "$CONSOLIDATE" 2>/dev/null || echo "[memory-seed] Consolidation failed"
 
 # Regenerate MEMORY.md
 echo "[memory-seed] Regenerating MEMORY.md..."
