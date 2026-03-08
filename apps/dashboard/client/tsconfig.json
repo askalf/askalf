@@ -22,6 +22,6 @@
     }
   },
   "include": ["src"],
-  "exclude": ["src/pages/hub/ProposalReview.tsx"],
+  "exclude": [],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
