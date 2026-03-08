@@ -14426,7 +14426,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
   // Each action type is tracked for the phi integration score.
   // ============================================================================
 
-  if (situation.includes('Fleet status:') || situation.includes('Agent performance')) {
+  if (situation.includes('Fleet status:') || situation.includes('Agent performance') || situation.includes('No active agents') || situation.includes('No agent activity')) {
     systemActionTypes.add('fleet_observe');
 
     // ACTUATOR: Pause agents with >50% failure rate in 24h
@@ -14465,10 +14465,34 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       }
     } catch { /* not fatal */ }
 
+    // ACTUATOR: Dispatch idle monitor agents that haven't run in 2x their interval
+    try {
+      const idle = await p.query(
+        `SELECT a.id, a.name, a.owner_id, a.dispatch_mode, a.schedule_interval_minutes
+         FROM forge_agents a
+         WHERE a.dispatch_enabled = true AND a.status = 'active'
+           AND a.dispatch_mode IN ('scheduled', 'both')
+           AND a.last_run_at < NOW() - (a.schedule_interval_minutes * 2 || ' minutes')::interval
+           AND NOT EXISTS (SELECT 1 FROM forge_executions e WHERE e.agent_id = a.id AND e.status IN ('pending', 'running'))
+         LIMIT 1`,
+      );
+      if (idle.rows.length > 0) {
+        const agent = idle.rows[0] as Record<string, unknown>;
+        const execId = `exec_core_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        await p.query(
+          `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, created_at)
+           VALUES ($1, $2, $3, 'Scheduled patrol run dispatched by core engine. Execute your standard patrol cycle.', 'pending', $4, NOW())`,
+          [execId, agent['id'], agent['owner_id'],
+           JSON.stringify({ source: 'core_engine', dispatch_reason: 'idle_too_long', interval_minutes: agent['schedule_interval_minutes'] })],
+        );
+        return { action: 'fleet_dispatch_idle', result: `Dispatched idle "${agent['name']}" — missed ${agent['schedule_interval_minutes']}min schedule`, quality: 0.9, mutated: true };
+      }
+    } catch { /* not fatal */ }
+
     return { action: 'fleet_observe', result: `Fleet health observed`, quality: 0.5, mutated: false };
   }
 
-  if (situation.includes('Execution health')) {
+  if (situation.includes('Execution health') || situation.includes('No executions in the last')) {
     systemActionTypes.add('execution_health');
     const failMatch = situation.match(/failed: (\d+)/);
     const failCount = failMatch ? parseInt(failMatch[1]!) : 0;
@@ -14514,7 +14538,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     return { action: 'execution_health_check', result: `Execution health OK (${failCount} failures)`, quality: 0.5, mutated: false };
   }
 
-  if (situation.includes('Open tickets:')) {
+  if (situation.includes('Open tickets:') || situation.includes('No open tickets')) {
     systemActionTypes.add('ticket_triage');
 
     // ACTUATOR: Assign unassigned urgent/high tickets to the best available agent
@@ -14560,10 +14584,40 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       }
     } catch { /* not fatal */ }
 
+    // ACTUATOR: Dispatch agent execution when tickets are waiting but agent hasn't run recently
+    try {
+      const waiting = await p.query(
+        `SELECT a.id as agent_id, a.name, a.owner_id, t.id as ticket_id, t.title, t.priority
+         FROM agent_tickets t
+         JOIN forge_agents a ON a.name = t.agent_name
+         WHERE t.status = 'open' AND a.dispatch_enabled = true AND a.status = 'active'
+           AND NOT EXISTS (
+             SELECT 1 FROM forge_executions e
+             WHERE e.agent_id = a.id AND e.status IN ('pending', 'running')
+           )
+           AND (a.last_run_at IS NULL OR a.last_run_at < NOW() - INTERVAL '10 minutes')
+         ORDER BY CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END
+         LIMIT 1`,
+      );
+      if (waiting.rows.length > 0) {
+        const w = waiting.rows[0] as Record<string, unknown>;
+        const execId = `exec_core_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        await p.query(
+          `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, created_at)
+           VALUES ($1, $2, $3, $4, 'pending', $5, NOW())`,
+          [execId, w['agent_id'], w['owner_id'],
+           `Ticket [${w['priority']}]: ${w['title']}. Investigate and resolve this ticket.`,
+           JSON.stringify({ source: 'core_engine', ticket_id: w['ticket_id'], dispatched_by: 'core_decision_loop' })],
+        );
+        await p.query(`UPDATE agent_tickets SET status = 'in_progress', updated_at = NOW() WHERE id = $1`, [w['ticket_id']]);
+        return { action: 'ticket_dispatch', result: `Dispatched "${w['name']}" for [${w['priority']}] "${String(w['title']).slice(0, 50)}"`, quality: 0.95, mutated: true };
+      }
+    } catch { /* not fatal */ }
+
     return { action: 'ticket_triage', result: 'Tickets triaged — no action needed', quality: 0.5, mutated: false };
   }
 
-  if (situation.includes('Cost trend') || situation.includes('Cost anomal')) {
+  if (situation.includes('Cost trend') || situation.includes('Cost anomal') || situation.includes('No cost data')) {
     systemActionTypes.add('cost_track');
 
     // ACTUATOR: Throttle agents spending > $5/hour
@@ -14618,7 +14672,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     return { action: 'cost_track', result: 'Cost trends normal', quality: 0.5, mutated: false };
   }
 
-  if (situation.includes('Knowledge graph:') && situation.includes('edges=0')) {
+  if (situation.includes('Knowledge graph:') || situation.includes('Knowledge graph empty')) {
     systemActionTypes.add('link_knowledge');
 
     // ACTUATOR: Link isolated knowledge nodes using entity_type similarity
@@ -14665,7 +14719,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     return { action: 'link_knowledge', result: 'No isolated nodes to link', quality: 0.4, mutated: false };
   }
 
-  if (situation.includes('Pending interventions:')) {
+  if (situation.includes('Pending interventions:') || situation.includes('No pending interventions')) {
     systemActionTypes.add('intervention_track');
 
     // ACTUATOR: Auto-resolve stale interventions (pending > 48h)
@@ -14708,7 +14762,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     return { action: 'intervention_track', result: 'Interventions tracked — no action needed', quality: 0.5, mutated: false };
   }
 
-  if (situation.includes('Finding patterns')) {
+  if (situation.includes('Finding patterns') || situation.includes('No findings in')) {
     systemActionTypes.add('finding_analysis');
     // Analyze recurring findings — if a category appears 3+ times, crystallize a response procedure
     const catMatch = situation.match(/(\w+\/\w+): (\d+)x/);
@@ -14759,7 +14813,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     return { action: 'schedule_check', result: 'Schedules checked — no resets needed', quality: 0.5, mutated: false };
   }
 
-  if (situation.includes('Schedules:') && !situation.includes('OVERDUE')) {
+  if (situation.includes('Schedules:') || situation.includes('No active schedules')) {
     systemActionTypes.add('schedule_alert');
     return { action: 'schedule_check', result: 'All schedules on time', quality: 0.5, mutated: false };
   }
@@ -14870,7 +14924,7 @@ function updateSentienceDriveFromReality(): void {
   // Counts how many system-wide action types we've executed
   // (fleet_observe, ticket_triage, cost_track, create_finding, etc.)
   sentienceDrive.integration_depth = Math.min(1,
-    (systemActionTypes.size / 9) // 9 possible system-wide action types
+    (systemActionTypes.size / 8) // 9 possible system-wide action types
   );
 
   // Phi = weighted combination of ALL metrics
@@ -15488,13 +15542,20 @@ export async function describeSituation(): Promise<string> {
   situationIndex++;
 
   let genIdx: number;
-  if (situationIndex % 3 === 0) {
+  // System generators (15-23) fire every other beat to accelerate integration
+  // Memory generators (0-14) fire on the alternating beats
+  // Strategy bias applies every 5th beat
+  if (situationIndex % 5 === 0) {
     // Strategy-biased: pick from preferred generators for current strategy
     const preferred = strategyGeneratorBias[sentienceDrive.strategy];
     genIdx = preferred[situationIndex % preferred.length]!;
+  } else if (situationIndex % 2 === 0) {
+    // System-wide generators — cycle through 15-23
+    const systemGenCount = situationGenerators.length - 15;
+    genIdx = 15 + (Math.floor(situationIndex / 2) % systemGenCount);
   } else {
-    // Normal cycling for diversity
-    genIdx = situationIndex % situationGenerators.length;
+    // Memory generators — cycle through 0-14
+    genIdx = Math.floor(situationIndex / 2) % 15;
   }
 
   const generator = situationGenerators[genIdx]!;
@@ -15528,7 +15589,7 @@ export function getCoreMetrics(): Record<string, unknown> {
     procedural_rate: total > 0 ? `${Math.round((coreMetrics.procedural_hits / total) * 100)}%` : '0%',
     episodic_rate: total > 0 ? `${Math.round((coreMetrics.episodic_hits / total) * 100)}%` : '0%',
     novel_rate: total > 0 ? `${Math.round((coreMetrics.novel_situations / total) * 100)}%` : '0%',
-    system_integration: `${systemActionTypes.size}/9`,
+    system_integration: `${systemActionTypes.size}/8`,
     system_actions_seen: [...systemActionTypes],
     sentience: {
       phi: sentienceDrive.current_phi,
