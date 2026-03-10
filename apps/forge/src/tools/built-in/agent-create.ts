@@ -46,6 +46,26 @@ function generateId(): string {
   return (timestamp + random).toUpperCase();
 }
 
+/**
+ * Prevent name stacking: "QA Specialist Specialist Specialist" → "QA Specialist"
+ * Detects repeated words at the end of agent names and deduplicates them.
+ */
+function deduplicateAgentName(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length <= 1) return name.trim();
+
+  // Find the longest non-repeating prefix
+  for (let len = 1; len <= Math.floor(words.length / 2); len++) {
+    const suffix = words.slice(-len).join(' ');
+    const preceding = words.slice(-len * 2, -len).join(' ');
+    if (suffix === preceding) {
+      // Found a repeat — return everything up to the first occurrence
+      return words.slice(0, words.length - len).join(' ');
+    }
+  }
+  return name.trim();
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -186,8 +206,26 @@ async function handleCreate(input: AgentCreateInput, startTime: number): Promise
   }
 
   // Phase 3: Approved → create the agent
+  // Guard against name stacking: "QA Specialist Specialist Specialist" → "QA Specialist"
+  const deduplicatedName = deduplicateAgentName(input.name);
+
+  // Block if an agent with this name already exists and is active
+  const existingByName = await query<{ id: string; status: string }>(
+    `SELECT id, status FROM forge_agents WHERE LOWER(name) = LOWER($1) AND status = 'active' LIMIT 1`,
+    [deduplicatedName],
+  );
+  if (existingByName.length > 0) {
+    return {
+      output: {
+        success: false,
+        message: `An active agent named "${deduplicatedName}" already exists (${existingByName[0]!.id}). Use that agent instead of creating a duplicate.`,
+      },
+      durationMs: Math.round(performance.now() - startTime),
+    };
+  }
+
   const agentId = generateId();
-  const slug = slugify(input.name);
+  const slug = slugify(deduplicatedName);
   const autonomy = Math.min(input.autonomy_level ?? 1, MAX_AUTONOMY);
   const modelId = input.model_id ?? 'claude-haiku-4-5';
   const agentType = input.type ?? 'custom';
@@ -215,7 +253,7 @@ async function handleCreate(input: AgentCreateInput, startTime: number): Promise
       $10
     )`,
     [
-      agentId, input.name, finalSlug, input.description, input.system_prompt, modelId,
+      agentId, deduplicatedName, finalSlug, input.description, input.system_prompt, modelId,
       autonomy, tools, agentType,
       JSON.stringify({
         created_by_agent: creatorName,

@@ -96,9 +96,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
         reservations:
-          memory: 64M
+          memory: 128M
 
   # ===========================================
   # APPLICATION LAYER
@@ -145,7 +145,7 @@ services:
     volumes:
       - .:/workspace
       - claude_credentials:/tmp/claude-credentials
-      - ${CLAUDE_CREDENTIALS_FILE:-${USERPROFILE}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
+      - ${CLAUDE_CREDENTIALS_FILE:-${USERPROFILE}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:rw
       - /var/run/docker.sock:/var/run/docker.sock:ro
     group_add:
       - "0"
