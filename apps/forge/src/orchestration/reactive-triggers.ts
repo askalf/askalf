@@ -210,6 +210,24 @@ async function handleExecutionCompletedInner(event: ExecutionEvent): Promise<voi
 
     const target = candidates[0]!;
 
+    // Dedup: skip if target agent already has an open ticket for this capability
+    // or from this same source execution — prevents compound alert feedback loops
+    const existingTicket = await query<{ id: string }>(
+      `SELECT id FROM agent_tickets
+       WHERE status IN ('open', 'in_progress')
+         AND assigned_to = $1
+         AND (category = $2
+              OR metadata->>'source_execution_id' = $3)
+       LIMIT 1`,
+      [target.agent_name, signal.capability, event.executionId],
+    );
+    if (existingTicket.length > 0) {
+      console.log(
+        `[ReactiveTrigger] Skipping — ${target.agent_name} already has open ticket ${existingTicket[0]!.id} for ${signal.capability}`,
+      );
+      continue;
+    }
+
     // Create ticket
     const ticketId = ulid();
     const title = `[Reactive] ${event.agentName} flagged ${signal.capability} implications`;
