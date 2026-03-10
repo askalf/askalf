@@ -129,12 +129,15 @@ export async function findingOps(input: FindingOpsInput): Promise<ToolResult> {
         // Auto-create ticket only for critical findings (warnings are logged but don't create tickets)
         let ticketId: string | null = null;
         if (severity === 'critical') {
-          // Dedup: skip if an open/in_progress ticket already exists with similar category from same agent
+          // Dedup: skip if an open/in_progress ticket already exists with same category
+          // from ANY agent (not just the creator) — prevents compound alert loops
+          // where multiple agents create tickets for the same root cause
           const existing = await p.query(
             `SELECT id FROM agent_tickets
              WHERE status IN ('open', 'in_progress')
                AND category = $1
-               AND created_by = $2
+               AND (created_by = $2 OR assigned_to = $2
+                    OR created_at > NOW() - INTERVAL '30 minutes')
              LIMIT 1`,
             [category, input.agent_name],
           );
