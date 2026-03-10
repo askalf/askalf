@@ -1489,12 +1489,12 @@ async function setupCliEnvironment(): Promise<void> {
 
   // Copy OAuth credentials if available
   try {
-    await access('/tmp/claude-credentials.json');
-    await copyFile('/tmp/claude-credentials.json', `${CLAUDE_DIR}/.credentials.json`);
+    await access('/tmp/claude-credentials/.credentials.json');
+    await copyFile('/tmp/claude-credentials/.credentials.json', `${CLAUDE_DIR}/.credentials.json`);
     await chmod(`${CLAUDE_DIR}/.credentials.json`, 0o600);
     logger.info('[CLI] OAuth credentials installed (mode 600)');
   } catch {
-    logger.warn('[CLI] No OAuth credentials found at /tmp/claude-credentials.json');
+    logger.warn('[CLI] No OAuth credentials found at /tmp/claude-credentials/.credentials.json');
   }
 
   // Write settings.json — auto-accept all permissions
@@ -1610,7 +1610,7 @@ const TOKEN_REFRESH_BUFFER_MS = 60 * 60 * 1000; // Refresh 1 hour before expiry
  */
 async function refreshCredentials(): Promise<void> {
   const credsPath = `${CLAUDE_DIR}/.credentials.json`;
-  const mountPath = '/tmp/claude-credentials.json';
+  const mountPath = '/tmp/claude-credentials/.credentials.json';
 
   try {
     // Step 1: Copy fresher token from mount if available
@@ -1983,6 +1983,13 @@ export async function runDirectCliExecution(
   // One-time CLI environment setup (must run before validation to create dirs)
   await setupCliEnvironment();
 
+  // Refresh OAuth credentials before each execution to prevent "Not logged in" failures
+  try {
+    await refreshCredentials();
+  } catch (refreshErr) {
+    logger.warn(`[CLI] Pre-execution credential refresh failed for ${executionId}: ${refreshErr instanceof Error ? refreshErr.message : String(refreshErr)}`);
+  }
+
   // Pre-execution validation — fail fast before acquiring resources
   validateCliPrerequisites(executionId, agentId, input);
 
@@ -2328,7 +2335,7 @@ export async function runDirectCliExecution(
         model: agentModelId,
         inputTokens: parsed.inputTokens,
         outputTokens: parsed.outputTokens,
-        cost: 0, // CLI runs use OAuth subscription — no actual cost
+        cost: parsed.costUsd, // Track estimated cost even for OAuth — needed for fleet budgeting
         metadata: { turns: parsed.numTurns, durationMs, memory_count: memoryCount, runtime_mode: 'cli', estimated_cost: parsed.costUsd },
       }).catch(() => {
         // trackCost logs full details on final failure — nothing more to do here

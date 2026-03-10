@@ -193,6 +193,9 @@ export class UnifiedDispatcher {
         return;
       }
 
+      // Pick up orphaned pending executions (e.g. from core engine direct INSERTs)
+      await this.processOrphanedPending(inFlightMap);
+
       // Build fleet awareness context
       const fleetContext = await this.buildFleetContext();
 
@@ -206,6 +209,65 @@ export class UnifiedDispatcher {
       console.error('[Dispatcher] Tick error:', err);
     } finally {
       this.tickRunning = false;
+    }
+  }
+
+  // ============================================
+  // Orphaned Pending Executions (core engine direct INSERTs)
+  // ============================================
+
+  private async processOrphanedPending(inFlightMap: Map<string, number>): Promise<void> {
+    try {
+      // Find pending executions that were inserted directly (e.g. by core engine)
+      // but never picked up by runDirectCliExecution. These have status='pending'
+      // and started_at IS NULL (dispatcher sets started_at=NOW() on dispatch).
+      const orphans = await query<{
+        id: string; agent_id: string; owner_id: string; input: string;
+        agent_name: string; model_id: string | null; system_prompt: string | null;
+        max_cost_per_execution: number | null; max_iterations: number | null;
+        schedule_interval_minutes: number | null;
+      }>(
+        `SELECT e.id, e.agent_id, e.owner_id, e.input,
+                a.name as agent_name, a.model_id, a.system_prompt,
+                a.max_cost_per_execution, a.max_iterations, a.schedule_interval_minutes
+         FROM forge_executions e
+         JOIN forge_agents a ON a.id = e.agent_id
+         WHERE e.status = 'pending' AND e.started_at IS NULL
+           AND e.created_at > NOW() - INTERVAL '1 hour'
+           AND a.status = 'active'
+         ORDER BY e.created_at ASC
+         LIMIT 3`,
+      );
+
+      if (orphans.length === 0) return;
+
+      const totalInFlight = [...inFlightMap.values()].reduce((a, b) => a + b, 0);
+
+      for (const orphan of orphans) {
+        if (totalInFlight + 1 > MAX_CONCURRENT_TOTAL) break;
+
+        const agentInFlight = inFlightMap.get(orphan.agent_id) ?? 0;
+        if (agentInFlight >= MAX_CONCURRENT_PER_AGENT) continue;
+
+        // Mark as started so we don't pick it up again
+        await query(`UPDATE forge_executions SET started_at = NOW() WHERE id = $1`, [orphan.id]);
+
+        console.log(`[Dispatcher] Picking up orphaned execution ${orphan.id} for ${orphan.agent_name}`);
+
+        void runDirectCliExecution(orphan.id, orphan.agent_id, orphan.input, orphan.owner_id, {
+          modelId: orphan.model_id ?? undefined,
+          systemPrompt: orphan.system_prompt ?? undefined,
+          maxBudgetUsd: orphan.max_cost_per_execution != null ? String(orphan.max_cost_per_execution) : undefined,
+          maxTurns: orphan.max_iterations ?? undefined,
+          scheduleIntervalMinutes: orphan.schedule_interval_minutes ?? undefined,
+        }).catch((err) => {
+          console.error(`[Dispatcher] Orphaned execution failed for ${orphan.agent_name}:`, err);
+        });
+
+        inFlightMap.set(orphan.agent_id, agentInFlight + 1);
+      }
+    } catch (err) {
+      console.warn(`[Dispatcher] Orphan pickup error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
