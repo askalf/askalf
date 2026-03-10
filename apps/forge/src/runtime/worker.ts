@@ -1658,6 +1658,10 @@ async function refreshCredentials(): Promise<void> {
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       logger.error(`[CLI] OAuth token refresh failed: ${res.status} ${errText.slice(0, 200)}`);
+      // Throw on auth failures so callers know the token is dead
+      if (res.status === 401 || res.status === 403) {
+        throw new Error(`OAuth refresh token rejected (${res.status}): ${errText.slice(0, 200)}`);
+      }
       return;
     }
 
@@ -1987,7 +1991,18 @@ export async function runDirectCliExecution(
   try {
     await refreshCredentials();
   } catch (refreshErr) {
-    logger.warn(`[CLI] Pre-execution credential refresh failed for ${executionId}: ${refreshErr instanceof Error ? refreshErr.message : String(refreshErr)}`);
+    const msg = refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
+    // If the refresh token itself is rejected, abort — don't waste an execution
+    if (/refresh token rejected|OAuth refresh/i.test(msg)) {
+      logger.error(`[CLI] OAuth token is dead — aborting execution ${executionId}: ${msg}`);
+      throw new ExecutionError(
+        `OAuth token expired and refresh failed: ${msg}`,
+        'PROVIDER_ERROR',
+        false,
+        { executionId, refreshError: msg },
+      );
+    }
+    logger.warn(`[CLI] Pre-execution credential refresh failed for ${executionId}: ${msg}`);
   }
 
   // Pre-execution validation — fail fast before acquiring resources
