@@ -608,7 +608,7 @@ async function runAutonomyLoop(): Promise<void> {
           const ratio = (hourCost / hourlyBaseCost).toFixed(1);
           await substrateQuery(
             `INSERT INTO agent_tickets (id, title, description, status, priority, category, assigned_to, is_agent_ticket, source, metadata)
-             VALUES ($1, $2, $3, 'open', $4, 'cost-spike', 'Backend Dev', true, 'autonomy-loop', $5)
+             VALUES ($1, $2, $3, 'open', $4, 'cost-spike', 'Backend Dev', true, 'system', $5)
              ON CONFLICT DO NOTHING`,
             [
               ticketId,
