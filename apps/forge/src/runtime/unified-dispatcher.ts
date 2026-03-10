@@ -56,6 +56,8 @@ const MAX_CONCURRENT_PER_AGENT = 3;
 const MAX_CONCURRENT_TOTAL = 8;
 const STAGGER_DELAY_MS = 1_000;
 const MONITOR_AGENTS = ['QA', 'Watchdog', 'Infra'];
+const AUTH_FAILURE_THRESHOLD = 3; // consecutive auth failures before skipping dispatch
+const AUTH_COOLDOWN_MS = 30 * 60 * 1000; // 30 min cooldown after auth failures
 
 // ============================================
 // Singleton
@@ -327,6 +329,28 @@ Investigate and take appropriate action based on your system prompt.${fleetConte
 
       // Check if due
       if (agent.next_run_at && new Date(agent.next_run_at) > now) continue;
+
+      // Auth failure circuit breaker: skip if last N executions all failed with auth errors
+      const recentFailures = await query<{ error: string; completed_at: string }>(
+        `SELECT error, completed_at::text FROM forge_executions
+         WHERE agent_id = $1 AND status = 'failed'
+         ORDER BY completed_at DESC LIMIT $2`,
+        [agent.id, AUTH_FAILURE_THRESHOLD],
+      ).catch(() => [] as { error: string; completed_at: string }[]);
+
+      if (recentFailures.length >= AUTH_FAILURE_THRESHOLD) {
+        const allAuth = recentFailures.every(f =>
+          f.error && /auth|401|unauthorized|token.*expir|OAuth/i.test(f.error),
+        );
+        if (allAuth) {
+          const lastFailure = new Date(recentFailures[0]!.completed_at).getTime();
+          if (Date.now() - lastFailure < AUTH_COOLDOWN_MS) {
+            console.log(`[Dispatcher] Skipping ${agent.name} — ${AUTH_FAILURE_THRESHOLD} consecutive auth failures, cooldown until ${new Date(lastFailure + AUTH_COOLDOWN_MS).toISOString()}`);
+            await this.advanceSchedule(agent);
+            continue;
+          }
+        }
+      }
 
       const inFlight = (inFlightMap.get(agent.id) ?? 0) + (queuedThisTick.get(agent.id) ?? 0);
       const isMonitor = MONITOR_AGENTS.includes(agent.name);

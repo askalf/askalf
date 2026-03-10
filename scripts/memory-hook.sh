@@ -66,6 +66,7 @@ curl -s -X POST "$MCP_URL/api/memory/extract" \
   -d "$PAYLOAD" \
   --max-time 30 \
   > /dev/null 2>&1 &
+PID_EXTRACT=$!
 
 # 2. Self-reflect on session effectiveness
 curl -s -X POST "$MCP_URL/api/memory/reflect" \
@@ -73,6 +74,7 @@ curl -s -X POST "$MCP_URL/api/memory/reflect" \
   -d "$PAYLOAD" \
   --max-time 20 \
   > /dev/null 2>&1 &
+PID_REFLECT=$!
 
 # 3. Store conversation thread (compressed narrative)
 curl -s -X POST "$MCP_URL/api/memory/thread" \
@@ -102,15 +104,22 @@ if [[ -n "$HANDOFF" && ${#HANDOFF} -gt 10 ]]; then
     > /dev/null 2>&1 &
 fi
 
-# 5. Consolidation + backfill + dream cycle + clear working memory (background)
+# 5. Consolidation chain (background) — waits for extract+reflect, then runs the chain
 (
-  sleep 8  # Wait for extraction + reflection to finish
+  # Wait for extraction and reflection to actually finish (replaces sleep 8)
+  wait $PID_EXTRACT 2>/dev/null
+  wait $PID_REFLECT 2>/dev/null
+
+  # Consolidate, then backfill (sequential — backfill needs consolidated data)
   curl -s -X POST "$MCP_URL/api/memory/consolidate" --max-time 15 > /dev/null 2>&1
   curl -s -X POST "$MCP_URL/api/memory/backfill" --max-time 60 > /dev/null 2>&1
-  # Dream cycle — consolidate, cross-synthesize, prune, evolve
-  curl -s -X POST "$MCP_URL/api/memory/dream" --max-time 120 > /dev/null 2>&1
-  # Neuroplasticity — self-tune memory parameters
-  curl -s -X POST "$MCP_URL/api/memory/neuroplasticity" --max-time 30 > /dev/null 2>&1
+
+  # Dream + neuroplasticity are independent — run in parallel
+  curl -s -X POST "$MCP_URL/api/memory/dream" --max-time 120 > /dev/null 2>&1 &
+  curl -s -X POST "$MCP_URL/api/memory/neuroplasticity" --max-time 30 > /dev/null 2>&1 &
+  wait
+
+  # Clear working memory after everything completes
   curl -s -X DELETE "$MCP_URL/api/memory/working" --max-time 3 > /dev/null 2>&1
 ) &
 
