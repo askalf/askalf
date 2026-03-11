@@ -1,7 +1,7 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
-import CookieConsent from './components/CookieConsent';
+
 import WsToastBridge from './components/WsToastBridge';
 
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
@@ -64,7 +64,6 @@ export default function App() {
     </Routes>
     </Suspense>
     <WsToastBridge />
-    <CookieConsent />
     </ErrorBoundary>
   );
 }

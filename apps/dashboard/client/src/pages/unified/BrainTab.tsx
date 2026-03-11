@@ -57,7 +57,7 @@ function BrainAnalytics() {
       const entries: LeaderboardEntry[] = (Array.isArray(lbData) ? lbData : lbData.agents ?? [])
         .map((a: Record<string, unknown>) => ({
           agentId: (a.agentId ?? a.agent_id ?? a.id ?? 'unknown') as string,
-          name: (a.name ?? a.agentId ?? a.agent_id ?? 'unknown') as string,
+          name: (a.agentName ?? a.name ?? a.agentId ?? a.agent_id ?? 'unknown') as string,
           memoryCount: (a.memoryCount ?? a.memory_count ?? 0) as number,
         }))
         .sort((a: LeaderboardEntry, b: LeaderboardEntry) => b.memoryCount - a.memoryCount)
@@ -193,34 +193,25 @@ export default function BrainTab() {
   const [subTab, setSubTab] = useState<SubTab>('memory');
 
   return (
-    <div className="brain-container">
-      <div className="brain-sub-tabs" role="tablist" aria-label="Brain sections">
-        <button
-          role="tab"
-          aria-selected={subTab === 'memory'}
-          className={`brain-sub-tab ${subTab === 'memory' ? 'active' : ''}`}
-          onClick={() => setSubTab('memory')}
-        >
-          Memory
-        </button>
-        <button
-          role="tab"
-          aria-selected={subTab === 'knowledge'}
-          className={`brain-sub-tab ${subTab === 'knowledge' ? 'active' : ''}`}
-          onClick={() => setSubTab('knowledge')}
-        >
-          Knowledge
-        </button>
-        <button
-          role="tab"
-          aria-selected={subTab === 'analytics'}
-          className={`brain-sub-tab ${subTab === 'analytics' ? 'active' : ''}`}
-          onClick={() => setSubTab('analytics')}
-        >
-          Analytics
-        </button>
+    <div className="ud-composite-tab brain-container">
+      <div className="ud-sub-tabs" role="tablist" aria-label="Brain sections">
+        {([
+          { key: 'memory' as SubTab, label: 'Memory' },
+          { key: 'knowledge' as SubTab, label: 'Knowledge' },
+          { key: 'analytics' as SubTab, label: 'Analytics' },
+        ]).map(t => (
+          <button
+            key={t.key}
+            role="tab"
+            aria-selected={subTab === t.key}
+            className={`ud-sub-tab ${subTab === t.key ? 'active' : ''}`}
+            onClick={() => setSubTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
-      <div className="brain-content">
+      <div className="ud-sub-content brain-content">
         <Suspense fallback={<div className="brain-loading">Loading...</div>}>
           {subTab === 'memory' && <MemoryBrowserTab />}
           {subTab === 'knowledge' && <KnowledgeTab />}
