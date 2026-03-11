@@ -50,6 +50,8 @@ interface ParsedIntent {
   repoId?: string;
   repoFullName?: string;
   repoProvider?: string;
+  projectPath?: string;
+  projectName?: string;
 }
 
 const INTENT_SYSTEM_PROMPT = `You are the intent parser for AskAlf (askalf.org) — a self-hosted AI agent orchestration platform. Your job is to parse natural language requests into structured agent configurations.
@@ -387,6 +389,11 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
           }
         }
 
+        // Resolve workspace project context if selected
+        const projectContext = body.intent.projectPath
+          ? { projectPath: body.intent.projectPath, projectName: body.intent.projectName }
+          : undefined;
+
         const result = await dispatchOrchestrationPlan({
           subtasks: body.intent.subtasks,
           ownerId: userId,
@@ -394,6 +401,7 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
           originalInstruction: body.intent.summary,
           pattern: body.intent.executionMode as 'pipeline' | 'fan-out' | 'consensus',
           repoContext,
+          projectContext,
         });
 
         return {

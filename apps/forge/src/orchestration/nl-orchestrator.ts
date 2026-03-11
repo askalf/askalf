@@ -162,6 +162,10 @@ export interface OrchestrationPlanRequest {
     cloneUrl?: string;
     defaultBranch?: string;
   };
+  projectContext?: {
+    projectPath: string;
+    projectName?: string;
+  };
 }
 
 /**
@@ -221,6 +225,7 @@ export async function dispatchOrchestrationPlan(
           conversationId: request.conversationId,
           originalInstruction: request.originalInstruction.substring(0, 500),
           ...(request.repoContext ? { repoContext: request.repoContext } : {}),
+          ...(request.projectContext ? { projectContext: request.projectContext } : {}),
         }),
       ],
     );
@@ -236,8 +241,12 @@ export async function dispatchOrchestrationPlan(
       );
       const cfg = agentRow[0];
 
-      // Prepend repo context to the task description if available
+      // Prepend project/repo context to the task description if available
       let taskInput = task.description;
+      if (request.projectContext) {
+        const pc = request.projectContext;
+        taskInput = `WORKSPACE PROJECT: ${pc.projectName ?? pc.projectPath} (${pc.projectPath})\n\n` + taskInput;
+      }
       if (request.repoContext) {
         const rc = request.repoContext;
         const repoPrefix = `TARGET REPOSITORY: ${rc.repoFullName} (${rc.repoProvider})` +

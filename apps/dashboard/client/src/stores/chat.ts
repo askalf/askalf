@@ -345,11 +345,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         // Auto-run the agent
         try {
+          const intentAny = intent as ParsedIntent & { projectPath?: string; projectName?: string };
           const execResult = await chatFetch<{ execution: { id: string } }>(
             `/api/v1/admin/chat/agents/${result.agent.id}/run`,
             {
               method: 'POST',
-              body: JSON.stringify({ prompt: intent.summary }),
+              body: JSON.stringify({
+                prompt: intent.summary,
+                metadata: {
+                  ...(intentAny.projectPath ? { projectPath: intentAny.projectPath, projectName: intentAny.projectName } : {}),
+                },
+              }),
             },
           );
           await get().addAssistantMessage(

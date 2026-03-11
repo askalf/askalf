@@ -7,37 +7,7 @@
   min-height: 0;
 }
 
-/* ── Sub-tabs ── */
-
-.brain-sub-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  flex-shrink: 0;
-}
-
-.brain-sub-tab {
-  background: none;
-  border: none;
-  color: var(--text-secondary, #a1a1aa);
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-family: inherit;
-  transition: background 0.15s, color 0.15s;
-}
-
-.brain-sub-tab:hover {
-  background: var(--elevated, #1a1a22);
-  color: var(--text, #f4f4f5);
-}
-
-.brain-sub-tab.active {
-  background: var(--elevated, #1a1a22);
-  color: var(--text, #f4f4f5);
-}
+/* Sub-tabs now use shared .ud-sub-tabs / .ud-sub-tab from UnifiedDashboard.css */
 
 /* ── Content area ── */
 
@@ -244,20 +214,6 @@
 
 /* ── Light theme ── */
 
-[data-theme="light"] .brain-sub-tab {
-  color: #71717a;
-}
-
-[data-theme="light"] .brain-sub-tab:hover {
-  background: #f4f4f5;
-  color: #18181b;
-}
-
-[data-theme="light"] .brain-sub-tab.active {
-  background: #f4f4f5;
-  color: #18181b;
-}
-
 [data-theme="light"] .brain-card {
   background: #ffffff;
   border-color: #e4e4e7;
@@ -315,6 +271,3 @@
   background: #e4e4e7;
 }
 
-[data-theme="light"] .brain-sub-tabs {
-  border-bottom-color: #e4e4e7;
-}
