@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import './BrainTab.css';
 
 const MemoryBrowserTab = lazy(() => import('./MemoryBrowserTab'));
-const KnowledgeTab = lazy(() => import('./KnowledgeTab'));
+const GraphTab = lazy(() => import('./GraphTab'));
 
 // ── Types ──
 
-type SubTab = 'memory' | 'knowledge' | 'analytics';
+type SubTab = 'memory' | 'graph' | 'analytics';
 
 interface FleetStats {
   total: number;
@@ -197,7 +197,7 @@ export default function BrainTab() {
       <div className="ud-sub-tabs" role="tablist" aria-label="Brain sections">
         {([
           { key: 'memory' as SubTab, label: 'Memory' },
-          { key: 'knowledge' as SubTab, label: 'Knowledge' },
+          { key: 'graph' as SubTab, label: 'Graph' },
           { key: 'analytics' as SubTab, label: 'Analytics' },
         ]).map(t => (
           <button
@@ -214,7 +214,7 @@ export default function BrainTab() {
       <div className="ud-sub-content brain-content">
         <Suspense fallback={<div className="brain-loading">Loading...</div>}>
           {subTab === 'memory' && <MemoryBrowserTab />}
-          {subTab === 'knowledge' && <KnowledgeTab />}
+          {subTab === 'graph' && <GraphTab />}
           {subTab === 'analytics' && <BrainAnalytics />}
         </Suspense>
       </div>

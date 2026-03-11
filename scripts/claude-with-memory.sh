@@ -4,8 +4,14 @@
 
 MCP_URL="${MCP_TOOLS_URL:-http://127.0.0.1:3010}"
 WORKSPACE="C:/Users/masterm1nd.DOCK/Desktop/recover/substrate"
+CLAUDE_BIN="$HOME/.local/bin"
 
 export CLAUDE_CODE_DISABLE_AUTO_MEMORY=1
+
+# Auto-updater protection: if claude.exe exists and isn't locked, replace it
+if [[ -f "$CLAUDE_BIN/claude.exe" ]]; then
+  cp "$CLAUDE_BIN/claude.exe" "$CLAUDE_BIN/claude-real.exe" 2>/dev/null || true
+fi
 
 # Check if brain is reachable
 if ! curl -s --max-time 2 "$MCP_URL/health" > /dev/null 2>&1; then
