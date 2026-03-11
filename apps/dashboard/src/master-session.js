@@ -611,6 +611,14 @@ class MasterSessionManager {
     return this.ringBuffer.getAll();
   }
 
+  /** Change working directory and restart the session */
+  async setCwd(newCwd) {
+    console.log(`[MasterSession] Changing cwd to: ${newCwd}`);
+    this.cwd = newCwd;
+    this.ringBuffer.clear();
+    await this.restart();
+  }
+
   /** Get current status */
   getStatus() {
     return {
@@ -618,6 +626,7 @@ class MasterSessionManager {
       pid: this.pty?.pid ?? null,
       restartCount: this.restartCount,
       bufferSize: this.ringBuffer.size,
+      cwd: this.cwd,
     };
   }
 

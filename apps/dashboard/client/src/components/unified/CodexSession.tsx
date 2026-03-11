@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useCodexSession } from '../../hooks/useCodexSession';
+import type { ProjectInfo } from './MasterSession';
 import '@xterm/xterm/css/xterm.css';
 
 // Dynamic imports for xterm (loaded client-side only)
@@ -7,14 +8,21 @@ let Terminal: typeof import('@xterm/xterm').Terminal | null = null;
 let FitAddon: typeof import('@xterm/addon-fit').FitAddon | null = null;
 let WebLinksAddon: typeof import('@xterm/addon-web-links').WebLinksAddon | null = null;
 
-export default function CodexSession() {
+export default function CodexSession({ projects, onSetCwd }: { projects?: ProjectInfo[]; onSetCwd?: (cwd: string) => void }) {
   const termRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<InstanceType<typeof import('@xterm/xterm').Terminal> | null>(null);
   const fitAddonRef = useRef<InstanceType<typeof import('@xterm/addon-fit').FitAddon> | null>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const { connected, status, send, sendSignal, resize, restart, onData, onHistory } = useCodexSession();
+  const { connected, status, send, sendSignal, resize, restart, setCwd, onData, onHistory } = useCodexSession();
+  const [cwdOpen, setCwdOpen] = useState(false);
+
+  const handleProjectSelect = useCallback((path: string) => {
+    setCwd(path);
+    onSetCwd?.(path);
+    setCwdOpen(false);
+  }, [setCwd, onSetCwd]);
 
   const debouncedResize = useCallback((cols: number, rows: number) => {
     if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
@@ -157,6 +165,31 @@ export default function CodexSession() {
           <span>{statusLabel}</span>
           {status?.pid && <span className="ud-master-pid">PID {status.pid}</span>}
         </div>
+        {projects && projects.length > 0 && (
+          <div className="ud-master-project-picker" style={{ position: 'relative' }}>
+            <button
+              className="ud-btn-sm ud-project-btn"
+              onClick={() => setCwdOpen(o => !o)}
+              title={status?.cwd || 'Select project'}
+            >
+              {status?.cwd ? status.cwd.split('/').pop() : 'Project'} ▾
+            </button>
+            {cwdOpen && (
+              <div className="ud-project-dropdown">
+                {projects.map(p => (
+                  <button
+                    key={p.path}
+                    className={`ud-project-item ${status?.cwd === p.path ? 'active' : ''}`}
+                    onClick={() => handleProjectSelect(p.path)}
+                  >
+                    <span className="ud-project-name">{p.name}</span>
+                    <span className="ud-project-type">{p.branch || p.type}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div className="ud-master-actions">
           <button
             className="ud-btn-sm"

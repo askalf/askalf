@@ -541,6 +541,77 @@
   color: #e4e4e7;
 }
 
+.ud-master-project-picker {
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.ud-project-btn {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ud-project-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  min-width: 240px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: #18181b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  margin-top: 4px;
+}
+
+.ud-project-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  gap: 8px;
+}
+
+.ud-project-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e4e4e7;
+}
+
+.ud-project-item.active {
+  background: rgba(167, 139, 250, 0.15);
+  color: #c4b5fd;
+}
+
+.ud-project-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ud-project-type {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #52525b;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .ud-master-terminal {
   flex: 1;
   min-height: 0;
@@ -742,6 +813,21 @@
 .ud-sub-tab.active {
   color: #e4e4e7;
   background: rgba(255, 255, 255, 0.06);
+}
+
+/* ---- Composite tabs ---- */
+
+.ud-composite-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.ud-sub-content {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
 }
 
 /* ---- Responsive ---- */

@@ -173,7 +173,7 @@ export async function getFleetLeaderboard(): Promise<Array<{
             COALESCE(SUM(e.cost), 0)::text AS total_cost
      FROM forge_agents a
      LEFT JOIN forge_executions e ON e.agent_id = a.id AND e.status IN ('completed', 'failed')
-     WHERE a.is_decommissioned IS NOT TRUE
+     WHERE a.is_decommissioned IS NOT TRUE AND a.status != 'archived'
      GROUP BY a.id, a.name, a.tasks_completed, a.tasks_failed
      ORDER BY a.tasks_completed DESC`,
   );

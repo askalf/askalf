@@ -440,6 +440,11 @@ fastify.get('/ws/master', { websocket: true }, async (socket, req) => {
         case 'restart':
           masterSession.restart();
           break;
+        case 'setCwd':
+          if (parsed.cwd && typeof parsed.cwd === 'string') {
+            masterSession.setCwd(parsed.cwd);
+          }
+          break;
         case 'ping':
           if (socket.readyState === 1) {
             try { socket.send(JSON.stringify({ type: 'pong' })); } catch { /* ignore */ }
@@ -524,6 +529,11 @@ fastify.get('/ws/codex', { websocket: true }, async (socket, req) => {
         case 'restart':
           codexSession.restart();
           break;
+        case 'setCwd':
+          if (parsed.cwd && typeof parsed.cwd === 'string') {
+            codexSession.setCwd(parsed.cwd);
+          }
+          break;
         case 'ping':
           if (socket.readyState === 1) {
             try { socket.send(JSON.stringify({ type: 'pong' })); } catch { /* ignore */ }
@@ -551,6 +561,81 @@ fastify.get('/ws/codex', { websocket: true }, async (socket, req) => {
 
 fastify.get('/api/v1/admin/codex-session/status', async (request, reply) => {
   return codexSession.getStatus();
+});
+
+// ===========================================
+// PROJECTS - List directories and worktrees in workspace
+// ===========================================
+
+import { readdir, stat } from 'fs/promises';
+import { execSync } from 'child_process';
+
+fastify.get('/api/v1/admin/projects', async (request, reply) => {
+  const workspaceDir = process.env['WORKSPACE_DIR'] || '/workspace';
+  const projects = [];
+
+  // Add workspace root
+  projects.push({ path: workspaceDir, name: 'workspace (root)', type: 'root' });
+
+  // List top-level subdirectories that look like projects (have package.json, go.mod, Cargo.toml, etc.)
+  try {
+    const entries = await readdir(workspaceDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+      const fullPath = `${workspaceDir}/${entry.name}`;
+      // Check for project markers
+      const markers = ['package.json', 'go.mod', 'Cargo.toml', 'pyproject.toml', 'pom.xml', 'Makefile', 'Dockerfile'];
+      for (const marker of markers) {
+        try {
+          await stat(`${fullPath}/${marker}`);
+          projects.push({ path: fullPath, name: entry.name, type: 'directory' });
+          break;
+        } catch { /* not a project dir */ }
+      }
+    }
+
+    // Also check apps/ subdirectory (monorepo pattern)
+    try {
+      const appsEntries = await readdir(`${workspaceDir}/apps`, { withFileTypes: true });
+      for (const entry of appsEntries) {
+        if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+        const fullPath = `${workspaceDir}/apps/${entry.name}`;
+        projects.push({ path: fullPath, name: `apps/${entry.name}`, type: 'app' });
+      }
+    } catch { /* no apps/ dir */ }
+
+    // Also check packages/ subdirectory
+    try {
+      const pkgEntries = await readdir(`${workspaceDir}/packages`, { withFileTypes: true });
+      for (const entry of pkgEntries) {
+        if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+        const fullPath = `${workspaceDir}/packages/${entry.name}`;
+        projects.push({ path: fullPath, name: `packages/${entry.name}`, type: 'package' });
+      }
+    } catch { /* no packages/ dir */ }
+  } catch (err) {
+    console.warn('[Projects] Failed to list workspace:', err.message);
+  }
+
+  // List git worktrees
+  try {
+    const output = execSync('git worktree list --porcelain', { cwd: workspaceDir, timeout: 5000 }).toString();
+    const worktrees = output.split('\n\n').filter(Boolean);
+    for (const wt of worktrees) {
+      const lines = wt.trim().split('\n');
+      const pathLine = lines.find(l => l.startsWith('worktree '));
+      const branchLine = lines.find(l => l.startsWith('branch '));
+      if (pathLine && branchLine) {
+        const wtPath = pathLine.replace('worktree ', '');
+        const branch = branchLine.replace('branch refs/heads/', '');
+        // Skip the main worktree (already listed as root)
+        if (wtPath === workspaceDir) continue;
+        projects.push({ path: wtPath, name: `worktree: ${branch}`, type: 'worktree', branch });
+      }
+    }
+  } catch { /* git worktree not available */ }
+
+  return { projects };
 });
 
 // Periodic broadcast (every 30 seconds - reduced from 5s to prevent database overload)

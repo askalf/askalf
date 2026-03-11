@@ -1,0 +1,671 @@
+/* LiveFeedTab.css — Real-time event feed (design-system aligned) */
+
+/* ── Tab Container ── */
+.livefeed-tab {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: forge-fade-in 0.3s ease-out;
+}
+
+/* ── Header ── */
+.livefeed-header {
+  padding: var(--space-lg, 1.5rem) var(--space-lg, 1.5rem) var(--space-md, 1rem);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.livefeed-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 0.5rem);
+}
+
+.livefeed-icon {
+  font-size: 1.4rem;
+  color: var(--crystal, #7c3aed);
+}
+
+.livefeed-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text, #f4f4f5);
+}
+
+.livefeed-subtitle {
+  margin: var(--space-xs, 0.25rem) 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  letter-spacing: 0.02em;
+}
+
+/* Live indicator badge */
+.livefeed-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--status-healthy, #10b981);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 10px;
+  padding: 2px 8px;
+  margin-left: var(--space-sm, 0.5rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.livefeed-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-healthy, #10b981);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: livefeed-pulse 2s ease-in-out infinite;
+}
+
+@keyframes livefeed-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
+  50% { opacity: 0.4; box-shadow: 0 0 2px rgba(16, 185, 129, 0.2); }
+}
+
+/* ── Stats Grid ── */
+.livefeed-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md, 1rem);
+  padding: var(--space-md, 1rem) var(--space-lg, 1.5rem);
+  flex-shrink: 0;
+}
+
+.livefeed-stat-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  padding: var(--space-md, 1rem);
+  text-align: center;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.livefeed-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.livefeed-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.livefeed-stat--total {
+  color: var(--crystal, #7c3aed);
+}
+
+.livefeed-stat--active {
+  color: #3b82f6;
+}
+
+.livefeed-stat--rate {
+  color: var(--status-healthy, #10b981);
+}
+
+.livefeed-stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  margin-top: var(--space-xs, 0.25rem);
+}
+
+.livefeed-stat-pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+  animation: livefeed-stat-throb 1.5s ease-in-out infinite;
+}
+
+@keyframes livefeed-stat-throb {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ── Filter Bar ── */
+.livefeed-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md, 1rem);
+  padding: var(--space-sm, 0.5rem) var(--space-lg, 1.5rem);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.livefeed-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 0.5rem);
+  flex-wrap: wrap;
+}
+
+.livefeed-search {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text, #f4f4f5);
+  font-size: 12px;
+  width: 180px;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.livefeed-search:focus {
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+.livefeed-search::placeholder {
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+}
+
+.livefeed-type-filters {
+  display: inline-flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.livefeed-type-btn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.livefeed-type-btn:hover:not(.active) {
+  color: var(--text, #e4e4e7);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.livefeed-type-btn.active.all {
+  background: var(--crystal, #7c3aed);
+  color: var(--void, #0a0a0b);
+}
+
+.livefeed-type-btn.active.started {
+  background: #3b82f6;
+  color: var(--void, #0a0a0b);
+}
+
+.livefeed-type-btn.active.completed {
+  background: var(--status-healthy, #10b981);
+  color: var(--void, #0a0a0b);
+}
+
+.livefeed-type-btn.active.failed {
+  background: var(--danger, #ef4444);
+  color: #fff;
+}
+
+.livefeed-type-btn.active.progress {
+  background: #eab308;
+  color: var(--void, #0a0a0b);
+}
+
+.livefeed-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md, 1rem);
+}
+
+.livefeed-event-count {
+  font-size: 11px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  white-space: nowrap;
+}
+
+.livefeed-autoscroll-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.livefeed-autoscroll-toggle input[type="checkbox"] {
+  accent-color: var(--crystal, #7c3aed);
+  cursor: pointer;
+}
+
+/* ── Feed Container ── */
+.livefeed-feed {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-sm, 0.5rem) var(--space-lg, 1.5rem) var(--space-lg, 1.5rem);
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.2) transparent;
+}
+
+.livefeed-feed::-webkit-scrollbar { width: 6px; }
+.livefeed-feed::-webkit-scrollbar-track { background: transparent; }
+.livefeed-feed::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.2); border-radius: 3px; }
+.livefeed-feed::-webkit-scrollbar-thumb:hover { background: rgba(124, 58, 237, 0.4); }
+
+/* ── Event Row ── */
+.livefeed-event {
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  animation: livefeed-event-in 0.25s ease-out both;
+}
+
+.livefeed-event:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.livefeed-event:focus-visible {
+  outline: 2px solid var(--crystal, #7c3aed);
+  outline-offset: -2px;
+}
+
+.livefeed-event.expanded {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Color-coded left border by type */
+.livefeed-event.completed { border-left: 3px solid var(--status-healthy, #10b981); }
+.livefeed-event.failed    { border-left: 3px solid var(--danger, #ef4444); }
+.livefeed-event.started   { border-left: 3px solid #3b82f6; }
+.livefeed-event.progress  { border-left: 3px solid #eab308; }
+.livefeed-event.default   { border-left: 3px solid rgba(255, 255, 255, 0.15); }
+
+@keyframes livefeed-event-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.livefeed-event-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm, 0.5rem);
+  padding: 8px 12px;
+  min-height: 36px;
+}
+
+.livefeed-event-time {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  flex-shrink: 0;
+  min-width: 72px;
+}
+
+.livefeed-event-agent {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #f4f4f5);
+  flex-shrink: 0;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.livefeed-event-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.livefeed-event-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Type chip colors */
+.livefeed-event-type.completed {
+  background: rgba(16, 185, 129, 0.1);
+  color: #4ade80;
+}
+.livefeed-event-type.completed .livefeed-event-dot {
+  background: var(--status-healthy, #10b981);
+}
+
+.livefeed-event-type.failed {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+.livefeed-event-type.failed .livefeed-event-dot {
+  background: var(--danger, #ef4444);
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+.livefeed-event-type.started {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+}
+.livefeed-event-type.started .livefeed-event-dot {
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
+  animation: livefeed-pulse 2s ease-in-out infinite;
+}
+
+.livefeed-event-type.progress {
+  background: rgba(234, 179, 8, 0.1);
+  color: #facc15;
+}
+.livefeed-event-type.progress .livefeed-event-dot {
+  background: #eab308;
+}
+
+.livefeed-event-type.default {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary, #a1a1aa);
+}
+.livefeed-event-type.default .livefeed-event-dot {
+  background: var(--text-secondary, #a1a1aa);
+}
+
+.livefeed-event-summary {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-secondary, #a1a1aa);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.livefeed-event-chevron {
+  font-size: 9px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.livefeed-event:hover .livefeed-event-chevron {
+  color: var(--text, #f4f4f5);
+}
+
+/* ── Expanded Detail ── */
+.livefeed-event-detail {
+  padding: 0 12px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  margin-top: 0;
+  animation: livefeed-detail-in 0.2s ease-out;
+}
+
+@keyframes livefeed-detail-in {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: 600px; }
+}
+
+.livefeed-event-meta {
+  display: flex;
+  gap: var(--space-md, 1rem);
+  padding: 10px 0 8px;
+  flex-wrap: wrap;
+}
+
+.livefeed-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.livefeed-meta-key {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+}
+
+.livefeed-meta-val {
+  font-size: 12px;
+  color: var(--text, #f4f4f5);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.livefeed-event-payload {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text, #e4e4e7);
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 58, 237, 0.2) transparent;
+}
+
+.livefeed-event-payload::-webkit-scrollbar { width: 5px; height: 5px; }
+.livefeed-event-payload::-webkit-scrollbar-track { background: transparent; }
+.livefeed-event-payload::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.2); border-radius: 3px; }
+
+/* ── Empty State ── */
+.livefeed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 64px 24px;
+  gap: var(--space-sm, 0.5rem);
+}
+
+.livefeed-empty-icon {
+  font-size: 2.5rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.15));
+  margin-bottom: var(--space-sm, 0.5rem);
+}
+
+.livefeed-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary, #a1a1aa);
+}
+
+.livefeed-empty-desc {
+  font-size: 13px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* ── Light Theme Overrides ── */
+[data-theme="light"] .livefeed-tab {
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .livefeed-header {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .livefeed-title {
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .livefeed-subtitle {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="light"] .livefeed-stat-card {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .livefeed-search {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .livefeed-search::placeholder {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] .livefeed-type-filters {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .livefeed-type-btn {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .livefeed-type-btn:hover:not(.active) {
+  color: #1a1a2e;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .livefeed-filter-bar {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .livefeed-event-count,
+[data-theme="light"] .livefeed-autoscroll-toggle {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="light"] .livefeed-event {
+  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .livefeed-event:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .livefeed-event-time {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .livefeed-event-agent {
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .livefeed-event-summary {
+  color: rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="light"] .livefeed-event-chevron {
+  color: rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="light"] .livefeed-event-detail {
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .livefeed-meta-key {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .livefeed-meta-val {
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .livefeed-event-payload {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .livefeed-empty-icon {
+  color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .livefeed-empty-title {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] .livefeed-empty-desc {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .livefeed-stat-label {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .livefeed-filter-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .livefeed-event-agent {
+    max-width: 100px;
+  }
+
+  .livefeed-event-summary {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .livefeed-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .livefeed-filters {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .livefeed-search {
+    width: 100%;
+  }
+
+  .livefeed-header {
+    padding: var(--space-md, 1rem);
+  }
+
+  .livefeed-feed {
+    padding: var(--space-sm, 0.5rem);
+  }
+}

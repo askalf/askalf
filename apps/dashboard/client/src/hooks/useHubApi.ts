@@ -1207,6 +1207,36 @@ export const hubApi = {
         `/api/v1/admin/deployment-logs${limit ? `?limit=${limit}` : ''}`,
       ),
   },
+
+  // OAuth Credentials Health
+  credentials: {
+    health: () =>
+      apiFetch<{ status: 'healthy' | 'expiring' | 'expired' | 'unknown'; expiresAt: number | null; expiresIn: string | null }>(
+        '/api/v1/forge/credentials/health',
+      ),
+    refresh: () =>
+      apiFetch<{ refreshed: boolean; expiresAt: number | null; error?: string }>(
+        '/api/v1/forge/credentials/refresh',
+        { method: 'POST', body: JSON.stringify({}) },
+      ),
+  },
+
+  // Natural Language Task Dispatch
+  dispatch: {
+    send: (input: string) =>
+      apiFetch<{ ticketId: string; assignedTo: string; title: string }>(
+        '/api/v1/forge/dispatch',
+        { method: 'POST', body: JSON.stringify({ input }) },
+      ),
+  },
+
+  // Fleet Analytics (heatmap)
+  fleetAnalytics: {
+    heatmap: (days?: number) =>
+      apiFetch<{ heatmap: Array<{ agent: string; day: string; hour: number; count: number; failures: number }>; agents: string[] }>(
+        `/api/v1/forge/fleet/analytics?${buildParams({ days: days || 14 })}`,
+      ),
+  },
 };
 
 export interface DeploymentLog {
