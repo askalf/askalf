@@ -45,24 +45,36 @@ interface LeaderboardEntry {
   agentName?: string;
   successRate: number;
   totalCost: number;
-  lastRun: string | null;
+  tasksCompleted?: number;
+  tasksFailed?: number;
 }
 
 interface ExecutionEntry {
   id: string;
-  agentName?: string;
-  agentId?: string;
+  agent_name?: string;
+  agent_id?: string;
   status: 'completed' | 'failed' | 'running' | string;
-  duration?: number;
+  duration_ms?: number | null;
   cost?: number;
-  startedAt: string;
+  started_at: string;
+}
+
+interface CostBucket {
+  totalCost: number;
+  inputTokens: number;
+  outputTokens: number;
+  eventCount: number;
+}
+
+interface DailyCostEntry {
+  date: string;
+  totalCost: number;
+  eventCount: number;
 }
 
 interface CostData {
-  todayTotal?: number;
-  weekTotal?: number;
-  topAgents?: { name: string; cost: number }[];
-  daily?: { date: string; total: number }[];
+  summary: { total: CostBucket; api: CostBucket; cli: CostBucket };
+  dailyCosts: DailyCostEntry[];
 }
 
 // ── Helpers ──
@@ -286,7 +298,7 @@ function Leaderboard({
                 <th>Agent</th>
                 <th>Success</th>
                 <th>Cost</th>
-                <th>Last Run</th>
+                <th>Tasks</th>
               </tr>
             </thead>
             <tbody>
@@ -308,8 +320,8 @@ function Leaderboard({
                       {e.successRate.toFixed(1)}%
                     </td>
                     <td className="overview-lb-cost">{formatCost(e.totalCost)}</td>
-                    <td className="overview-lb-time">
-                      {e.lastRun ? timeAgo(e.lastRun) : 'never'}
+                    <td className="overview-lb-tasks">
+                      {(e.tasksCompleted ?? 0) + (e.tasksFailed ?? 0)}
                     </td>
                   </tr>
                 );
@@ -352,7 +364,7 @@ function RecentExecutions({
         <span className="overview-section-title">Recent Executions</span>
         <button
           className="overview-panel-link"
-          onClick={() => onNavigate?.('monitor')}
+          onClick={() => onNavigate?.('ops')}
           type="button"
         >
           History &rarr;
@@ -368,11 +380,11 @@ function RecentExecutions({
               {statusIcon(ex.status)}
             </span>
             <span className="overview-exec-agent">
-              {ex.agentName || ex.agentId || 'Unknown'}
+              {ex.agent_name || ex.agent_id || 'Unknown'}
             </span>
-            <span className="overview-exec-dur">{formatDuration(ex.duration)}</span>
+            <span className="overview-exec-dur">{formatDuration(ex.duration_ms ?? undefined)}</span>
             <span className="overview-exec-cost">{formatCost(ex.cost)}</span>
-            <span className="overview-exec-time">{timeAgo(ex.startedAt)}</span>
+            <span className="overview-exec-time">{timeAgo(ex.started_at)}</span>
           </div>
         ))}
       </div>
@@ -381,10 +393,14 @@ function RecentExecutions({
 }
 
 function CostSnapshot({ costData }: { costData: CostData | null }) {
+  const daily = costData?.dailyCosts ?? [];
+  const today = daily.length > 0 ? daily[daily.length - 1]?.totalCost ?? 0 : 0;
+  const weekTotal = daily.reduce((sum, d) => sum + d.totalCost, 0);
+
   const maxDaily = useMemo(() => {
-    if (!costData?.daily?.length) return 1;
-    return Math.max(...costData.daily.map((d) => d.total), 1);
-  }, [costData]);
+    if (!daily.length) return 1;
+    return Math.max(...daily.map((d) => d.totalCost), 1);
+  }, [daily]);
 
   return (
     <div className="overview-panel overview-cost-snapshot">
@@ -399,36 +415,39 @@ function CostSnapshot({ costData }: { costData: CostData | null }) {
             <div className="overview-cost-totals">
               <div className="overview-cost-total-item">
                 <span className="overview-cost-amount">
-                  {formatCost(costData.todayTotal)}
+                  {formatCost(today)}
                 </span>
                 <span className="overview-cost-period">Today</span>
               </div>
               <div className="overview-cost-total-item">
                 <span className="overview-cost-amount">
-                  {formatCost(costData.weekTotal)}
+                  {formatCost(weekTotal)}
                 </span>
                 <span className="overview-cost-period">7-Day</span>
               </div>
             </div>
-            {costData.topAgents && costData.topAgents.length > 0 && (
-              <div className="overview-cost-top">
-                <div className="overview-cost-top-label">Top by cost</div>
-                {costData.topAgents.slice(0, 3).map((a) => (
-                  <div key={a.name} className="overview-cost-top-row">
-                    <span className="overview-cost-top-name">{a.name}</span>
-                    <span className="overview-cost-top-val">{formatCost(a.cost)}</span>
-                  </div>
-                ))}
+            <div className="overview-cost-totals" style={{ marginTop: '8px' }}>
+              <div className="overview-cost-total-item">
+                <span className="overview-cost-amount" style={{ fontSize: '14px' }}>
+                  {formatCost(costData.summary.api.totalCost)}
+                </span>
+                <span className="overview-cost-period">API</span>
               </div>
-            )}
-            {costData.daily && costData.daily.length > 0 && (
+              <div className="overview-cost-total-item">
+                <span className="overview-cost-amount" style={{ fontSize: '14px' }}>
+                  {formatCost(costData.summary.cli.totalCost)}
+                </span>
+                <span className="overview-cost-period">CLI</span>
+              </div>
+            </div>
+            {daily.length > 0 && (
               <div className="overview-cost-chart">
-                {costData.daily.slice(-7).map((d) => (
+                {daily.slice(-7).map((d) => (
                   <div key={d.date} className="overview-cost-bar-col">
                     <div
                       className="overview-cost-bar"
-                      style={{ height: `${(d.total / maxDaily) * 100}%` }}
-                      title={`${d.date}: ${formatCost(d.total)}`}
+                      style={{ height: `${(d.totalCost / maxDaily) * 100}%` }}
+                      title={`${d.date}: ${formatCost(d.totalCost)}`}
                     />
                     <span className="overview-cost-bar-label">
                       {d.date.slice(-5)}
@@ -460,14 +479,14 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
       apiFetch<MetricsData>('/api/v1/admin/reports/metrics'),
       apiFetch<FleetStatsData>('/api/v1/forge/fleet/stats'),
       apiFetch<LeaderboardEntry[]>('/api/v1/admin/fleet/leaderboard'),
-      apiFetch<ExecutionEntry[]>('/api/v1/admin/executions/timeline?hours=24'),
+      apiFetch<{ executions: ExecutionEntry[] }>('/api/v1/admin/executions/timeline?hours=24'),
       apiFetch<CostData>('/api/v1/admin/costs?days=7'),
     ]);
     if (h) setHealth(h);
     if (m) setMetrics(m);
     if (fs) setFleetStats(fs);
     if (lb) setLeaderboard(lb);
-    if (ex) setExecutions(Array.isArray(ex) ? ex.slice(0, 10) : []);
+    if (ex) setExecutions(Array.isArray(ex.executions) ? ex.executions.slice(0, 10) : []);
     if (c) setCostData(c);
   }, []);
 
@@ -497,19 +516,19 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
           label="Executions (24h)"
           value={execToday}
           color="violet"
-          onClick={() => onNavigate?.('monitor')}
+          onClick={() => onNavigate?.('ops')}
         />
         <StatCard
           label="Open Tickets"
           value={openTickets}
           color={openTickets > 0 ? 'amber' : ''}
-          onClick={() => onNavigate?.('operations')}
+          onClick={() => onNavigate?.('ops')}
         />
         <StatCard
           label="Memory"
           value={memoryCount}
           color="crystal"
-          onClick={() => onNavigate?.('memory')}
+          onClick={() => onNavigate?.('brain')}
         />
       </div>
 

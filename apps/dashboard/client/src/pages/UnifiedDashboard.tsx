@@ -28,12 +28,12 @@ const Settings = lazy(() => import('./Settings'));
 type TabKey = 'command' | 'code' | 'overview' | 'fleet' | 'ops' | 'brain' | 'live' | 'settings';
 
 const TABS: { key: TabKey; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
   { key: 'command', label: 'Command' },
   { key: 'code', label: 'Code' },
-  { key: 'overview', label: 'Overview' },
-  { key: 'live', label: 'Live' },
   { key: 'fleet', label: 'Fleet' },
   { key: 'ops', label: 'Ops' },
+  { key: 'live', label: 'Live' },
   { key: 'brain', label: 'Brain' },
   { key: 'settings', label: 'Settings' },
 ];
@@ -44,7 +44,7 @@ export default function UnifiedDashboard() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
 
-  const initialTab = (tab && TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'command';
+  const initialTab = (tab && TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'overview';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
   const [helpOpen, setHelpOpen] = useState(false);
   const { connected, events: wsEvents } = useWebSocket();
