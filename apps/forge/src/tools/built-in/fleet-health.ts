@@ -150,10 +150,11 @@ async function handleExecutionStats(startTime: number): Promise<ToolResult> {
      FROM forge_executions
      WHERE started_at > NOW() - INTERVAL '1 hour'`,
   );
-  const baseline = await query<{ total: string; failed: string; total_cost: string }>(
+  const baseline = await query<{ total: string; failed: string; total_cost: string; active_hours: string }>(
     `SELECT COUNT(*)::text AS total,
             COUNT(*) FILTER (WHERE status = 'failed')::text AS failed,
-            COALESCE(SUM(cost), 0)::text AS total_cost
+            COALESCE(SUM(cost), 0)::text AS total_cost,
+            GREATEST(1, COUNT(DISTINCT DATE_TRUNC('hour', started_at)))::text AS active_hours
      FROM forge_executions
      WHERE started_at BETWEEN NOW() - INTERVAL '24 hours' AND NOW() - INTERVAL '1 hour'`,
   );
@@ -166,11 +167,13 @@ async function handleExecutionStats(startTime: number): Promise<ToolResult> {
   const baseTotal = parseInt(baseline[0]?.total ?? '0', 10) || 0;
   const baseFailed = parseInt(baseline[0]?.failed ?? '0', 10) || 0;
   const baseCost = parseFloat(baseline[0]?.total_cost ?? '0') || 0;
-  const baseHours = 23;
+  const activeBaseHours = parseInt(baseline[0]?.active_hours ?? '1', 10) || 1;
 
   const hourFailRate = hourTotal > 0 ? hourFailed / hourTotal : 0;
   const baseFailRate = baseTotal > 0 ? baseFailed / baseTotal : 0;
-  const hourlyBaseCost = baseHours > 0 ? baseCost / baseHours : 0;
+  // Use active-hours-only average with a minimum floor to avoid false spikes
+  // from low-activity baselines. Floor = $0.50/hr (minimum expected fleet cost).
+  const hourlyBaseCost = Math.max(baseCost / activeBaseHours, 0.50);
 
   if (hourTotal >= 3 && hourFailRate > baseFailRate * 2 && hourFailRate > 0.3) {
     anomalies.push({
@@ -179,11 +182,11 @@ async function handleExecutionStats(startTime: number): Promise<ToolResult> {
       severity: hourFailRate > 0.6 ? 'critical' : 'warning',
     });
   }
-  if (hourlyBaseCost > 0.01 && hourCost > hourlyBaseCost * 3) {
+  if (hourCost > hourlyBaseCost * 5) {
     anomalies.push({
       type: 'cost_spike',
       message: `Hourly cost $${hourCost.toFixed(2)} vs baseline $${hourlyBaseCost.toFixed(2)}/hr`,
-      severity: hourCost > hourlyBaseCost * 5 ? 'critical' : 'warning',
+      severity: hourCost > hourlyBaseCost * 10 ? 'critical' : 'warning',
     });
   }
 
