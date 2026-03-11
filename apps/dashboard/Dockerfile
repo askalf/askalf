@@ -83,7 +83,8 @@ RUN apk add --no-cache bash curl python3 make g++ && \
 # Codex CLI stage - install with platform-specific native binary
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS codex-installer
 
-RUN npm install -g @openai/codex && \
+RUN npm cache clean --force && \
+    npm install -g @openai/codex && \
     codex --version
 
 # Production stage - minimal Alpine
