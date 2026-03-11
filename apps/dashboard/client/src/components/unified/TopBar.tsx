@@ -21,6 +21,8 @@ interface AuthUser {
 export default function TopBar({ wsConnected, agentCount, todayCost, budgetLimit, onNavigate }: TopBarProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [oauthStatus, setOauthStatus] = useState<'healthy' | 'expiring' | 'expired' | 'unknown'>('unknown');
+  const [oauthRefreshing, setOauthRefreshing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useThemeStore();
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -33,6 +35,32 @@ export default function TopBar({ wsConnected, agentCount, todayCost, budgetLimit
       .then(data => { if (data?.user) setUser(data.user); })
       .catch(() => {});
   }, []);
+
+  // Check OAuth token health
+  useEffect(() => {
+    const checkOAuth = () => {
+      fetch('/api/v1/forge/credentials/health', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.status) setOauthStatus(data.status); })
+        .catch(() => {});
+    };
+    checkOAuth();
+    const timer = setInterval(checkOAuth, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleOAuthRefresh = async () => {
+    setOauthRefreshing(true);
+    try {
+      const res = await fetch('/api/v1/forge/credentials/refresh', { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (data?.refreshed) setOauthStatus('healthy');
+    } catch { /* ignore */ }
+    setOauthRefreshing(false);
+  };
+
+  const oauthColor = oauthStatus === 'healthy' ? '#22c55e' : oauthStatus === 'expiring' ? '#f59e0b' : oauthStatus === 'expired' ? '#ef4444' : '#6b7280';
+  const oauthLabel = oauthStatus === 'healthy' ? 'Token OK' : oauthStatus === 'expiring' ? 'Token Expiring' : oauthStatus === 'expired' ? 'Token Expired' : 'Token ?';
 
   // Close menu on outside click
   useEffect(() => {
@@ -74,6 +102,16 @@ export default function TopBar({ wsConnected, agentCount, todayCost, budgetLimit
         <span className="ud-topbar-divider" />
         <span className={`ud-topbar-stat${budgetLimit && todayCost / budgetLimit > 0.8 ? todayCost / budgetLimit >= 1 ? ' ud-topbar-cost-over' : ' ud-topbar-cost-warn' : ''}`}>
           ${todayCost.toFixed(2)}{budgetLimit ? ` / $${budgetLimit.toFixed(0)}` : ''} today
+        </span>
+        <span className="ud-topbar-divider" />
+        <span
+          className="ud-topbar-stat"
+          style={{ cursor: oauthStatus !== 'healthy' ? 'pointer' : 'default' }}
+          onClick={oauthStatus !== 'healthy' ? handleOAuthRefresh : undefined}
+          title={oauthStatus !== 'healthy' ? 'Click to refresh token' : 'OAuth token is healthy'}
+        >
+          <span className="ud-health-dot" style={{ background: oauthColor, marginRight: 4 }} aria-hidden="true" />
+          {oauthRefreshing ? 'Refreshing...' : oauthLabel}
         </span>
       </div>
       <div className="ud-topbar-right">

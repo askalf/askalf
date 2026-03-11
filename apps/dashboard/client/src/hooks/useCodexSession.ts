@@ -5,6 +5,7 @@ interface CodexSessionStatus {
   pid: number | null;
   restartCount: number;
   bufferSize: number;
+  cwd?: string;
 }
 
 interface UseCodexSessionReturn {
@@ -14,6 +15,7 @@ interface UseCodexSessionReturn {
   sendSignal: (signal: string) => void;
   resize: (cols: number, rows: number) => void;
   restart: () => void;
+  setCwd: (cwd: string) => void;
   onData: React.MutableRefObject<((data: string) => void) | null>;
   onHistory: React.MutableRefObject<((history: string[]) => void) | null>;
 }
@@ -145,5 +147,12 @@ export function useCodexSession(): UseCodexSessionReturn {
     }
   }, []);
 
-  return { connected, status, send, sendSignal, resize, restart, onData, onHistory };
+  const setCwd = useCallback((cwd: string) => {
+    reconnectAttemptRef.current = 0;
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'setCwd', cwd }));
+    }
+  }, []);
+
+  return { connected, status, send, sendSignal, resize, restart, setCwd, onData, onHistory };
 }

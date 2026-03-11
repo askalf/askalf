@@ -44,8 +44,8 @@ export default function App() {
         <Route path="/command-center" element={<UnifiedDashboard />} />
         <Route path="/command-center/:tab" element={<UnifiedDashboard />} />
         <Route path="/agents" element={<Navigate to="/command-center" replace />} />
-        <Route path="/repos" element={<Navigate to="/command-center/deploy" replace />} />
-        <Route path="/git-space" element={<Navigate to="/command-center/deploy" replace />} />
+        <Route path="/repos" element={<Navigate to="/command-center/ops" replace />} />
+        <Route path="/git-space" element={<Navigate to="/command-center/ops" replace />} />
         <Route path="/settings" element={<Navigate to="/command-center/settings" replace />} />
         <Route path="/settings/:tab" element={<Navigate to="/command-center/settings" replace />} />
       </Route>

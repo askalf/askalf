@@ -74,7 +74,8 @@ export interface Template {
 const getApiBase = () => {
   const host = window.location.hostname;
   if (host.includes('askalf.org') || host.includes('amnesia.tax')) return '';
-  return 'http://localhost:3001';
+  if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3001';
+  return '';
 };
 
 const API_BASE = getApiBase();

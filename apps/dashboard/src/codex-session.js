@@ -9,7 +9,7 @@
  */
 
 import pty from 'node-pty';
-import { mkdir, access, writeFile } from 'fs/promises';
+import { mkdir, access, writeFile, copyFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -104,8 +104,10 @@ class CodexSessionManager {
     const shell = 'codex';
     const args = ['--full-auto'];
 
-    // Fetch dynamic platform context from forge and write instructions file
-    const instructionsPath = join(CODEX_HOME, 'codex-instructions.md');
+    // Codex reads instructions from $HOME/.codex/instructions.md automatically
+    const codexConfigDir = join(CODEX_HOME, '.codex');
+    await mkdir(codexConfigDir, { recursive: true });
+    const instructionsPath = join(codexConfigDir, 'instructions.md');
     try {
       const forgeUrl = process.env['FORGE_INTERNAL_URL'] || 'http://forge:3005';
       const internalSecret = process.env['INTERNAL_API_SECRET'] ?? '';
@@ -123,8 +125,7 @@ class CodexSessionManager {
         const { markdown } = await res.json();
         if (markdown) {
           await writeFile(instructionsPath, markdown);
-          args.push('--instructions', instructionsPath);
-          console.log('[CodexSession] Dynamic instructions written from platform context');
+          console.log('[CodexSession] Dynamic instructions written to', instructionsPath);
         }
       } else {
         console.warn(`[CodexSession] Context fetch failed: HTTP ${res.status}`);
@@ -133,14 +134,16 @@ class CodexSessionManager {
       console.warn('[CodexSession] Could not fetch platform context:', err.message);
     }
 
-    // Fall back to static instructions file if dynamic fetch failed
-    if (!args.includes('--instructions')) {
+    // Fall back to static instructions file if dynamic fetch didn't write
+    try {
+      await access(instructionsPath);
+    } catch {
       const __dirname = dirname(fileURLToPath(import.meta.url));
       const staticPath = join(__dirname, '..', 'codex-instructions.md');
       try {
         await access(staticPath);
-        args.push('--instructions', staticPath);
-        console.log('[CodexSession] Using static instructions fallback');
+        await copyFile(staticPath, instructionsPath);
+        console.log('[CodexSession] Copied static instructions fallback');
       } catch {
         // No instructions file — continue without
       }
@@ -273,6 +276,14 @@ class CodexSessionManager {
     return this.ringBuffer.getAll();
   }
 
+  /** Change working directory and restart the session */
+  async setCwd(newCwd) {
+    console.log(`[CodexSession] Changing cwd to: ${newCwd}`);
+    this.cwd = newCwd;
+    this.ringBuffer.clear();
+    await this.restart();
+  }
+
   /** Get current status */
   getStatus() {
     return {
@@ -280,6 +291,7 @@ class CodexSessionManager {
       pid: this.pty?.pid ?? null,
       restartCount: this.restartCount,
       bufferSize: this.ringBuffer.size,
+      cwd: this.cwd,
     };
   }
 

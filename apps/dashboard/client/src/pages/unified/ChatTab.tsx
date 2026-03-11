@@ -41,6 +41,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
         '`/keys` — AI provider key status',
         '`/whoami` — Current user info',
         '`/settings [tab]` — Open settings',
+        '`/dispatch <task>` — Route a task to the right agent',
         '`/connect` — Import Anthropic OAuth token',
         '`/clear` — Clear conversation',
         '',
@@ -144,6 +145,21 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
         '',
         'Or add an API key: `/settings ai-keys`',
       ].join('\n') };
+
+    case 'dispatch':
+    case 'task':
+    case 'do': {
+      if (!args) return { text: '**Usage:** `/dispatch <description>`\nExample: `/dispatch fix the broken import in forge admin route`' };
+      const dispatchRes = await fetch(`${getApiBase()}/api/v1/forge/dispatch`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: args }),
+      });
+      if (!dispatchRes.ok) throw new Error(await dispatchRes.text().catch(() => 'Dispatch failed'));
+      const result = await dispatchRes.json() as { ticketId: string; assignedTo: string; title: string };
+      return { text: `**Task dispatched**\nTicket: \`${result.ticketId}\`\nAssigned to: **${result.assignedTo}**\nTitle: ${result.title}` };
+    }
 
     case 'clear':
       return null; // handled specially by caller
@@ -329,6 +345,13 @@ const MODEL_OPTIONS = [
   'gemini-2.0-flash',
 ];
 
+interface WorkspaceProject {
+  path: string;
+  name: string;
+  type: string;
+  branch?: string;
+}
+
 function IntentPreview({
   intent,
   onConfirm,
@@ -340,6 +363,7 @@ function IntentPreview({
 }) {
   const [configuring, setConfiguring] = useState(false);
   const [selectedRepoId, setSelectedRepoId] = useState('');
+  const [selectedProjectPath, setSelectedProjectPath] = useState('');
   const [instructions, setInstructions] = useState('');
   const [model, setModel] = useState(intent.agentConfig.model);
   const [maxCost, setMaxCost] = useState(intent.agentConfig.maxCostPerExecution);
@@ -352,27 +376,29 @@ function IntentPreview({
   const [reposLoading, setReposLoading] = useState(false);
   const [hasIntegrations, setHasIntegrations] = useState<boolean | null>(null);
 
+  // Workspace project picker state
+  const [wsProjects, setWsProjects] = useState<WorkspaceProject[]>([]);
+
   const isMultiAgent = intent.executionMode !== 'single' && intent.subtasks?.length;
   const patternInfo = PATTERN_LABELS[intent.executionMode] ?? PATTERN_LABELS['single']!;
 
-  // Fetch repos when configuring opens
+  // Fetch repos + workspace projects when configuring opens
   useEffect(() => {
     if (!configuring) return;
     let cancelled = false;
     setReposLoading(true);
-    integrationApi.repos()
-      .then(data => {
-        if (cancelled) return;
-        setRepos(data.repos);
-        setHasIntegrations(data.repos.length > 0);
-        setReposLoading(false);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setRepos([]);
-        setHasIntegrations(false);
-        setReposLoading(false);
-      });
+    Promise.all([
+      integrationApi.repos().catch(() => ({ repos: [] as UserRepo[] })),
+      fetch(`${getApiBase()}/api/v1/admin/projects`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : { projects: [] })
+        .catch(() => ({ projects: [] })),
+    ]).then(([repoData, projData]) => {
+      if (cancelled) return;
+      setRepos(repoData.repos);
+      setHasIntegrations(repoData.repos.length > 0);
+      setWsProjects(projData.projects ?? []);
+      setReposLoading(false);
+    });
     return () => { cancelled = true; };
   }, [configuring]);
 
@@ -389,9 +415,15 @@ function IntentPreview({
 
   const selectedRepo = repos.find(r => r.id === selectedRepoId) ?? null;
 
+  const selectedProject = wsProjects.find(p => p.path === selectedProjectPath) ?? null;
+
   const handleLaunch = () => {
     const modified = structuredClone(intent);
     const prefix: string[] = [];
+    if (selectedProject) {
+      prefix.push(`WORKSPACE PROJECT: ${selectedProject.name} (${selectedProject.path})`);
+      if (selectedProject.branch) prefix.push(`BRANCH: ${selectedProject.branch}`);
+    }
     if (selectedRepo) {
       prefix.push(`TARGET REPOSITORY: ${selectedRepo.repo_full_name} (${selectedRepo.provider})`);
       if (selectedRepo.clone_url) prefix.push(`CLONE URL: ${selectedRepo.clone_url}`);
@@ -404,6 +436,12 @@ function IntentPreview({
     modified.agentConfig.model = model;
     modified.agentConfig.maxCostPerExecution = maxCost;
     modified.estimatedCost = maxCost;
+
+    // Attach project context for backend
+    if (selectedProject) {
+      (modified as ParsedIntent & { projectPath?: string; projectName?: string }).projectPath = selectedProject.path;
+      (modified as ParsedIntent & { projectName?: string }).projectName = selectedProject.name;
+    }
 
     // Attach repo context for backend
     if (selectedRepo) {
@@ -458,7 +496,26 @@ function IntentPreview({
 
       {configuring && (
         <div className="chat-intent-configure">
-          {/* Repo picker — always visible in configure mode */}
+          {/* Workspace project picker */}
+          {wsProjects.length > 0 && (
+            <div className="chat-intent-field">
+              <label>Workspace project</label>
+              <select
+                value={selectedProjectPath}
+                onChange={e => setSelectedProjectPath(e.target.value)}
+                className="chat-intent-repo-select"
+              >
+                <option value="">Default workspace</option>
+                {wsProjects.map(p => (
+                  <option key={p.path} value={p.path}>
+                    {p.name} ({p.branch || p.type})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* External repo picker */}
           <div className="chat-intent-field">
             <label>Target repository</label>
             {reposLoading ? (
