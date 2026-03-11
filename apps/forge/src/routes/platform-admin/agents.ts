@@ -227,7 +227,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
 
       const execId = ulid();
       await query(
-        `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, metadata, created_at) VALUES ($1, $2, $3, 'pending', $4, $5, NOW())`,
+        `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, metadata, started_at) VALUES ($1, $2, $3, 'pending', $4, $5, NOW())`,
         [execId, agentId, request.userId || 'admin', input, JSON.stringify(body['metadata'] || {})]
       );
       void runDirectCliExecution(execId, agentId, input, request.userId || 'admin');
@@ -283,7 +283,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       for (const exec of executions) {
         const execId = ulid();
         await query(
-          `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, metadata, created_at) VALUES ($1, $2, $3, 'pending', $4, $5, NOW())`,
+          `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, metadata, started_at) VALUES ($1, $2, $3, 'pending', $4, $5, NOW())`,
           [execId, exec.agentId, userId, exec.input, JSON.stringify(exec.metadata || {})]
         );
         void runDirectCliExecution(execId, exec.agentId, exec.input, userId);
@@ -332,7 +332,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       const prompt = (body['prompt'] as string) || ((typeof body['input'] === 'object' ? (body['input'] as Record<string, unknown>)?.['prompt'] : body['input']) as string) || 'Execute default task';
       const execId = ulid();
       await query(
-        `INSERT INTO forge_executions (id, agent_id, status, input, created_at) VALUES ($1, $2, 'pending', $3, NOW())`,
+        `INSERT INTO forge_executions (id, agent_id, status, input, started_at) VALUES ($1, $2, 'pending', $3, NOW())`,
         [execId, id, prompt]
       );
       void runDirectCliExecution(execId, id, prompt, request.userId || 'admin');
@@ -454,7 +454,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         try {
           const execId = ulid();
           await query(
-            `INSERT INTO forge_executions (id, agent_id, status, input, created_at) VALUES ($1, $2, 'pending', 'Scheduled batch execution', NOW())`,
+            `INSERT INTO forge_executions (id, agent_id, status, input, started_at) VALUES ($1, $2, 'pending', 'Scheduled batch execution', NOW())`,
             [execId, agent.id]
           );
           void runDirectCliExecution(execId, agent.id, 'Scheduled batch execution', request.userId || 'admin');
@@ -481,7 +481,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
       const execId = ulid();
       const input = (body['input'] as string) || 'Process task';
       await query(
-        `INSERT INTO forge_executions (id, agent_id, status, input, created_at) VALUES ($1, $2, 'pending', $3, NOW())`,
+        `INSERT INTO forge_executions (id, agent_id, status, input, started_at) VALUES ($1, $2, 'pending', $3, NOW())`,
         [execId, id, input]
       );
       void runDirectCliExecution(execId, id, input, request.userId || 'admin');
