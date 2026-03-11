@@ -153,6 +153,7 @@ class CodexSessionManager {
       ...process.env,
       HOME: CODEX_HOME,
       OPENAI_API_KEY: apiKey,
+      CODEX_DISABLE_AUTO_UPDATE: '1',
       TERM: 'xterm-256color',
       // Expose SearXNG URL so Codex can curl it for web searches
       SEARXNG_URL: process.env['SEARXNG_URL'] || 'http://searxng:8080',
