@@ -49,7 +49,7 @@ export default function UnifiedDashboard() {
   const [helpOpen, setHelpOpen] = useState(false);
   const { connected, events: wsEvents } = useWebSocket();
 
-  const { fetchAgents, fetchTickets, fetchCosts, fetchCoordinationSessions, fetchCoordinationStats, fetchRibbonData, fetchInterventions } = useHubStore();
+  const { fetchAgents, fetchTickets, fetchCosts, fetchCoordinationSessions, fetchCoordinationStats, fetchInterventions } = useHubStore();
 
   const setActiveTab = useCallback((key: TabKey) => {
     setActiveTabState(key);
@@ -107,10 +107,10 @@ export default function UnifiedDashboard() {
   const handleRefresh = useCallback(() => {
     switch (activeTab) {
       case 'fleet': fetchAgents(); fetchCoordinationSessions(); fetchCoordinationStats(); break;
-      case 'ops': fetchTickets(); fetchInterventions(); fetchRibbonData(); fetchCosts(); fetchAgents(); break;
+      case 'ops': fetchTickets(); fetchInterventions(); fetchCosts(); fetchAgents(); break;
       default: break;
     }
-  }, [activeTab, fetchAgents, fetchTickets, fetchCosts, fetchCoordinationSessions, fetchCoordinationStats, fetchRibbonData, fetchInterventions]);
+  }, [activeTab, fetchAgents, fetchTickets, fetchCosts, fetchCoordinationSessions, fetchCoordinationStats, fetchInterventions]);
 
   const handleToggleHelp = useCallback(() => setHelpOpen(h => !h), []);
 
