@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import TabBar from '../../components/TabBar';
 import './BrainTab.css';
 
 const MemoryBrowserTab = lazy(() => import('./MemoryBrowserTab'));
@@ -197,23 +198,17 @@ export default function BrainTab() {
 
   return (
     <div className="ud-composite-tab brain-container">
-      <div className="ud-sub-tabs" role="tablist" aria-label="Brain sections">
-        {([
-          { key: 'memory' as SubTab, label: 'Memory' },
-          { key: 'graph' as SubTab, label: 'Graph' },
-          { key: 'analytics' as SubTab, label: 'Analytics' },
-        ]).map(t => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={subTab === t.key}
-            className={`ud-sub-tab ${subTab === t.key ? 'active' : ''}`}
-            onClick={() => setSubTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={[
+          { key: 'memory', label: 'Memory' },
+          { key: 'graph', label: 'Graph' },
+          { key: 'analytics', label: 'Analytics' },
+        ]}
+        active={subTab}
+        onChange={(k) => setSubTab(k as SubTab)}
+        className="ud-sub-tabs"
+        ariaLabel="Brain sections"
+      />
       <div className="ud-sub-content brain-content">
         <Suspense fallback={<div className="brain-loading">Loading...</div>}>
           {subTab === 'memory' && <MemoryBrowserTab />}

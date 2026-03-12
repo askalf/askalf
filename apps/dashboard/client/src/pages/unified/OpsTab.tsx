@@ -1,5 +1,6 @@
 import { useState, lazy, Suspense } from 'react';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import TabBar from '../../components/TabBar';
 import type { ForgeEvent } from '../../constants/status';
 
 const OperationsTab = lazy(() => import('./OperationsTab'));
@@ -19,25 +20,19 @@ export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
 
   return (
     <div className="ud-composite-tab">
-      <div className="ud-sub-tabs" role="tablist" aria-label="Ops sub-navigation">
-        {([
-          { key: 'tickets' as SubTab, label: 'Tickets' },
-          { key: 'monitor' as SubTab, label: 'Monitor' },
-          { key: 'orchestrator' as SubTab, label: 'Orchestrator' },
-          { key: 'workflows' as SubTab, label: 'Workflows' },
-          { key: 'deploy' as SubTab, label: 'Deploy' },
-        ]).map(t => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={sub === t.key}
-            className={`ud-sub-tab ${sub === t.key ? 'active' : ''}`}
-            onClick={() => setSub(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={[
+          { key: 'tickets', label: 'Tickets' },
+          { key: 'monitor', label: 'Monitor' },
+          { key: 'orchestrator', label: 'Orchestrator' },
+          { key: 'workflows', label: 'Workflows' },
+          { key: 'deploy', label: 'Deploy' },
+        ]}
+        active={sub}
+        onChange={(k) => setSub(k as SubTab)}
+        className="ud-sub-tabs"
+        ariaLabel="Ops sub-navigation"
+      />
       <div className="ud-sub-content">
         <ErrorBoundary inline>
           <Suspense fallback={<div className="ud-loading">Loading...</div>}>
