@@ -6,7 +6,8 @@
  * and result ingestion.
  *
  * Protocol: JSON messages over WebSocket.
- * Auth: API key passed as query param `token` on initial connection.
+ * Auth: API key passed via Authorization header (preferred) or Sec-WebSocket-Protocol header.
+ *       Legacy query param `token` is supported but deprecated (logs a warning).
  *
  * Architecture:
  *   User's Machine (agent daemon) --WSS--> Forge (this endpoint)
@@ -124,14 +125,51 @@ export function cancelDeviceTask(deviceId: string, executionId: string): boolean
 // WebSocket Route Registration
 // ============================================
 
+/**
+ * Extract the API token from the WebSocket upgrade request.
+ *
+ * Priority order:
+ *   1. Authorization: Bearer <token>   — preferred for CLI/server clients
+ *   2. Sec-WebSocket-Protocol: <token> — browser-compatible fallback
+ *   3. ?token=<token> query param      — DEPRECATED, logs a warning
+ */
+function extractToken(request: FastifyRequest): { token: string | null; deprecated: boolean } {
+  // 1. Authorization header
+  const authHeader = request.headers['authorization'];
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7).trim();
+    if (token) return { token, deprecated: false };
+  }
+
+  // 2. Sec-WebSocket-Protocol header (value must be a valid subprotocol string, so
+  //    the client sends the raw key as the protocol value, e.g. "askalf-agent-bridge, <token>")
+  const protocolHeader = request.headers['sec-websocket-protocol'];
+  if (protocolHeader) {
+    // Support both bare token and "askalf-agent-bridge, <token>" format
+    const parts = protocolHeader.split(',').map((p) => p.trim());
+    const tokenPart = parts.find((p) => p !== 'askalf-agent-bridge');
+    if (tokenPart) return { token: tokenPart, deprecated: false };
+  }
+
+  // 3. Query param — deprecated
+  const queryToken = (request.query as Record<string, string>)['token'];
+  if (queryToken) return { token: queryToken, deprecated: true };
+
+  return { token: null, deprecated: false };
+}
+
 export async function registerAgentBridge(app: FastifyInstance): Promise<void> {
   app.get('/ws/agent-bridge', { websocket: true }, async (socket: WebSocket, request: FastifyRequest) => {
-    const token = (request.query as Record<string, string>)['token'];
+    const { token, deprecated } = extractToken(request);
 
     if (!token) {
-      sendMessage(socket, 'device:error', { code: 'AUTH_REQUIRED', message: 'Missing token query parameter' });
+      sendMessage(socket, 'device:error', { code: 'AUTH_REQUIRED', message: 'Missing auth token. Use Authorization: Bearer <token> header.' });
       socket.close(4001, 'Missing token');
       return;
+    }
+
+    if (deprecated) {
+      console.warn('[AgentBridge] DEPRECATED: token passed as query parameter. Use Authorization: Bearer <token> header instead. Query param auth will be removed after 2026-06-12.');
     }
 
     // Validate API key (inline — avoids @askalf/auth dependency)
