@@ -12,12 +12,6 @@ import {
   type TaskDetail,
   type Ticket,
   type TicketNote,
-  type SystemMetrics,
-  type AgentActivity,
-  type AgentSchedule,
-  type RecentFinding,
-  type ReportFeedItem,
-  type SchedulerStatus,
   type ContentFeedItem,
   type FleetMemoryStats,
   type FleetMemoryItem,
@@ -39,24 +33,9 @@ import {
   type DocumentDetail,
 } from '../hooks/useHubApi';
 
-export type HubTab =
-  | 'overview' | 'fleet' | 'executions' | 'scheduler' | 'coordination'
-  | 'interventions' | 'checkpoints' | 'tickets' | 'content' | 'memory' | 'threads'
-  | 'costs' | 'providers' | 'guardrails' | 'audit'
-  | 'workflows' | 'push'
-  | 'prompt-lab' | 'nl-orchestrate' | 'agent-chat' | 'goals'
-  | 'cost-optimizer' | 'knowledge' | 'health' | 'evolution'
-  | 'events' | 'leaderboard' | 'metabolic' | 'timeline' | 'performance'
-  | 'deployments' | 'documents'
-  | 'master';
-
 export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural';
 
 interface HubState {
-  // UI
-  activeTab: HubTab;
-  setActiveTab: (tab: HubTab) => void;
-
   // Agents
   agents: Agent[];
   showDecommissioned: boolean;
@@ -102,50 +81,6 @@ interface HubState {
   setTicketFilter: (f: 'all' | 'open' | 'resolved' | 'critical') => void;
   setTicketSource: (s: 'all' | 'human' | 'agent') => void;
   setTicketSearch: (s: string) => void;
-
-  // Reports
-  metrics: SystemMetrics | null;
-  activity: AgentActivity[];
-  findings: RecentFinding[];
-  findingsPagination: Pagination | null;
-  findingPage: number;
-  findingSeverityFilter: string;
-  findingSearch: string;
-  findingAgentFilter: string;
-  selectedFinding: RecentFinding | null;
-  setFindingPage: (p: number) => void;
-  setFindingSeverityFilter: (s: string) => void;
-  setFindingSearch: (s: string) => void;
-  setFindingAgentFilter: (s: string) => void;
-  setSelectedFinding: (f: RecentFinding | null) => void;
-
-  // Feed (unified reports)
-  feedItems: ReportFeedItem[];
-  feedPagination: Pagination | null;
-  feedPage: number;
-  feedAgentFilter: string;
-  feedCategoryFilter: string;
-  feedDateFrom: string;
-  feedDateTo: string;
-  feedAgents: string[];
-  feedCategories: string[];
-  selectedFeedItem: ReportFeedItem | null;
-  feedSearch: string;
-  feedSeverityFilter: string;
-  feedTypeFilter: string;
-  setFeedPage: (p: number) => void;
-  setFeedAgentFilter: (s: string) => void;
-  setFeedCategoryFilter: (s: string) => void;
-  setFeedDateFrom: (s: string) => void;
-  setFeedDateTo: (s: string) => void;
-  setFeedSearch: (s: string) => void;
-  setFeedSeverityFilter: (s: string) => void;
-  setFeedTypeFilter: (s: string) => void;
-  setSelectedFeedItem: (item: ReportFeedItem | null) => void;
-
-  // Scheduler
-  schedules: AgentSchedule[];
-  schedulerStatus: SchedulerStatus | null;
 
   // Content Feed (unified: executions + findings + resolutions)
   contentItems: ContentFeedItem[];
@@ -295,14 +230,6 @@ interface HubState {
   fetchTaskStats: () => Promise<void>;
   fetchTaskDetail: (id: string) => Promise<void>;
   fetchTickets: () => Promise<void>;
-  fetchMetrics: () => Promise<void>;
-  fetchActivity: () => Promise<void>;
-  fetchFindings: () => Promise<void>;
-  fetchFeed: () => Promise<void>;
-  fetchFeedAgents: () => Promise<void>;
-  fetchFeedCategories: () => Promise<void>;
-  fetchSchedules: () => Promise<void>;
-  fetchSchedulerStatus: () => Promise<void>;
   fetchContentFeed: () => Promise<void>;
   fetchContentAgents: () => Promise<void>;
   fetchContentCategories: () => Promise<void>;
@@ -377,17 +304,9 @@ interface HubState {
   toggleScheduler: (action: 'start' | 'stop') => Promise<void>;
   updateSchedule: (agentId: string, scheduleType: string, intervalMinutes?: number, executionMode?: string) => Promise<void>;
   updateAgentModel: (agentId: string, modelId: string) => Promise<void>;
-
-  // Ribbon data (lightweight)
-  ribbonData: { running: number; pendingInterventions: number; openTickets: number };
-  fetchRibbonData: () => Promise<void>;
 }
 
 export const useHubStore = create<HubState>((set, get) => ({
-  // UI
-  activeTab: 'overview',
-  setActiveTab: (tab) => set({ activeTab: tab }),
-
   // Agents
   agents: [],
   showDecommissioned: false,
@@ -433,50 +352,6 @@ export const useHubStore = create<HubState>((set, get) => ({
   setTicketFilter: (f) => set({ ticketFilter: f, ticketPage: 1 }),
   setTicketSource: (s) => set({ ticketSource: s, ticketPage: 1 }),
   setTicketSearch: (s) => set({ ticketSearch: s }),
-
-  // Reports
-  metrics: null,
-  activity: [],
-  findings: [],
-  findingsPagination: null,
-  findingPage: 1,
-  findingSeverityFilter: '',
-  findingSearch: '',
-  findingAgentFilter: '',
-  selectedFinding: null,
-  setFindingPage: (p) => set({ findingPage: p }),
-  setFindingSeverityFilter: (s) => set({ findingSeverityFilter: s, findingPage: 1 }),
-  setFindingSearch: (s) => set({ findingSearch: s }),
-  setFindingAgentFilter: (s) => set({ findingAgentFilter: s, findingPage: 1 }),
-  setSelectedFinding: (f) => set({ selectedFinding: f }),
-
-  // Feed (unified reports)
-  feedItems: [],
-  feedPagination: null,
-  feedPage: 1,
-  feedAgentFilter: '',
-  feedCategoryFilter: '',
-  feedDateFrom: '',
-  feedDateTo: '',
-  feedSearch: '',
-  feedSeverityFilter: '',
-  feedTypeFilter: '',
-  feedAgents: [],
-  feedCategories: [],
-  selectedFeedItem: null,
-  setFeedPage: (p) => set({ feedPage: p }),
-  setFeedAgentFilter: (s) => set({ feedAgentFilter: s, feedPage: 1 }),
-  setFeedCategoryFilter: (s) => set({ feedCategoryFilter: s, feedPage: 1 }),
-  setFeedDateFrom: (s) => set({ feedDateFrom: s, feedPage: 1 }),
-  setFeedDateTo: (s) => set({ feedDateTo: s, feedPage: 1 }),
-  setFeedSearch: (s) => set({ feedSearch: s, feedPage: 1 }),
-  setFeedSeverityFilter: (s) => set({ feedSeverityFilter: s, feedPage: 1 }),
-  setFeedTypeFilter: (s) => set({ feedTypeFilter: s, feedPage: 1 }),
-  setSelectedFeedItem: (item) => set({ selectedFeedItem: item }),
-
-  // Scheduler
-  schedules: [],
-  schedulerStatus: null,
 
   // Content Feed (unified)
   contentItems: [],
@@ -615,9 +490,6 @@ export const useHubStore = create<HubState>((set, get) => ({
   // Loading
   loading: {},
 
-  // Ribbon data
-  ribbonData: { running: 0, pendingInterventions: 0, openTickets: 0 },
-
   // ============================
   // Data fetching actions
   // ============================
@@ -707,97 +579,6 @@ export const useHubStore = create<HubState>((set, get) => ({
       console.error('Failed to fetch tickets:', err);
     } finally {
       if (isInitial) set((s) => ({ loading: { ...s.loading, tickets: false } }));
-    }
-  },
-
-  fetchMetrics: async () => {
-    try {
-      const metrics = await hubApi.reports.metrics();
-      set({ metrics });
-    } catch (err) {
-      console.error('Failed to fetch metrics:', err);
-    }
-  },
-
-  fetchActivity: async () => {
-    try {
-      const data = await hubApi.reports.activity();
-      set({ activity: data.activity || [] });
-    } catch (err) {
-      console.error('Failed to fetch activity:', err);
-    }
-  },
-
-  fetchFindings: async () => {
-    try {
-      const { findingPage, findingSeverityFilter, findingSearch, findingAgentFilter } = get();
-      const data = await hubApi.reports.findings({
-        page: findingPage,
-        severity: findingSeverityFilter || undefined,
-        search: findingSearch || undefined,
-        agent_name: findingAgentFilter || undefined,
-      });
-      set({ findings: data.findings || [], findingsPagination: data.pagination || null });
-    } catch (err) {
-      console.error('Failed to fetch findings:', err);
-    }
-  },
-
-  fetchFeed: async () => {
-    set((s) => ({ loading: { ...s.loading, feed: true } }));
-    try {
-      const { feedPage, feedAgentFilter, feedCategoryFilter, feedDateFrom, feedDateTo, feedSearch, feedSeverityFilter, feedTypeFilter } = get();
-      const data = await hubApi.reports.feed({
-        page: feedPage,
-        agent: feedAgentFilter || undefined,
-        category: feedCategoryFilter || undefined,
-        dateFrom: feedDateFrom || undefined,
-        dateTo: feedDateTo || undefined,
-        search: feedSearch || undefined,
-        severity: feedSeverityFilter || undefined,
-        type: feedTypeFilter || undefined,
-      });
-      set({ feedItems: data.items || [], feedPagination: data.pagination || null });
-    } catch (err) {
-      console.error('Failed to fetch feed:', err);
-    } finally {
-      set((s) => ({ loading: { ...s.loading, feed: false } }));
-    }
-  },
-
-  fetchFeedAgents: async () => {
-    try {
-      const data = await hubApi.reports.feedAgents();
-      set({ feedAgents: data.agents || [] });
-    } catch (err) {
-      console.error('Failed to fetch feed agents:', err);
-    }
-  },
-
-  fetchFeedCategories: async () => {
-    try {
-      const data = await hubApi.reports.feedCategories();
-      set({ feedCategories: data.categories || [] });
-    } catch (err) {
-      console.error('Failed to fetch feed categories:', err);
-    }
-  },
-
-  fetchSchedules: async () => {
-    try {
-      const data = await hubApi.reports.schedules();
-      set({ schedules: data.schedules || [] });
-    } catch (err) {
-      console.error('Failed to fetch schedules:', err);
-    }
-  },
-
-  fetchSchedulerStatus: async () => {
-    try {
-      const status = await hubApi.reports.scheduler();
-      set({ schedulerStatus: status });
-    } catch (err) {
-      console.error('Failed to fetch scheduler status:', err);
     }
   },
 
@@ -1229,22 +1010,6 @@ export const useHubStore = create<HubState>((set, get) => ({
     }
   },
 
-  fetchRibbonData: async () => {
-    try {
-      const stats = await hubApi.orchestration.stats();
-      set({
-        ribbonData: {
-          running: stats.agents.running,
-          pendingInterventions: stats.pendingInterventions,
-          openTickets: 0, // filled from metrics if available
-        },
-        stats,
-      });
-    } catch {
-      // Ribbon fetch is non-critical
-    }
-  },
-
   // ============================
   // Agent actions
   // ============================
@@ -1441,7 +1206,7 @@ export const useHubStore = create<HubState>((set, get) => ({
         interval_minutes: intervalMinutes,
         execution_mode: executionMode,
       });
-      await get().fetchSchedules();
+      await get().fetchAgents();
     } catch (err) {
       console.error('Failed to update schedule:', err);
     }
@@ -1450,7 +1215,7 @@ export const useHubStore = create<HubState>((set, get) => ({
   updateAgentModel: async (agentId, modelId) => {
     try {
       await hubApi.agents.updateModel(agentId, modelId);
-      await get().fetchSchedules();
+      await get().fetchAgents();
     } catch (err) {
       console.error('Failed to update agent model:', err);
     }
