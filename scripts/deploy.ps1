@@ -95,6 +95,20 @@ Write-Host ""
 if ($allHealthy) {
     $totalTime = [math]::Round(((Get-Date) - $startTime).TotalSeconds)
     Write-Host "DEPLOY SUCCESS: $serviceList (${totalTime}s total)" -ForegroundColor Green
+
+    # Record deployment in history
+    $historyFile = Join-Path (Split-Path $PSScriptRoot -Parent) ".deployment-history"
+    $gitSha = git rev-parse HEAD
+    $timestamp = Get-Date -Format "u"
+    $timestamp = $timestamp -replace "Z$", "Z"  # Ensure Z suffix
+    $serviceString = $services -join ","
+
+    if (-not (Test-Path $historyFile)) {
+        "# Deployment history (format: TIMESTAMP|SERVICE1,SERVICE2|GIT_SHA|STATUS)" | Set-Content $historyFile
+    }
+    "$timestamp|$serviceString|$gitSha|success" | Add-Content $historyFile
+    Write-Host "Deployment recorded in history" -ForegroundColor Gray
+
     exit 0
 } else {
     Write-Host "DEPLOY WARNING: Some services not running" -ForegroundColor Yellow
