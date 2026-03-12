@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useThemeStore } from '../../stores/theme';
+import NotificationCenter from '../NotificationCenter';
 
 interface TopBarProps {
   wsConnected: boolean;
@@ -115,6 +116,7 @@ export default function TopBar({ wsConnected, agentCount, todayCost, budgetLimit
         </span>
       </div>
       <div className="ud-topbar-right">
+        <NotificationCenter />
         <button
           className="ud-topbar-icon-btn"
           onClick={toggleTheme}
