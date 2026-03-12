@@ -987,7 +987,6 @@ export const useHubStore = create<HubState>((set, get) => ({
   toggleScheduler: async (action) => {
     try {
       await hubApi.reports.toggleScheduler(action);
-      await get().fetchSchedulerStatus();
     } catch (err) {
       console.error('Failed to toggle scheduler:', err);
     }
