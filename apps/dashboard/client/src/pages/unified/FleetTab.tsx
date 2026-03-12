@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { usePolling } from '../../hooks/usePolling';
 import { hubApi } from '../../hooks/useHubApi';
 import { useToast } from '../../components/Toast';
+import TabBar from '../../components/TabBar';
 import type {
   Agent,
   AgentDetail,
@@ -195,19 +196,7 @@ function AgentDetailPanel({
         <button className="fleet-detail-close" onClick={onClose} aria-label={`Close ${agent.name} details`}>&times;</button>
       </div>
 
-      <div className="fleet-detail-tabs" role="tablist" aria-label={`${agent.name} sections`}>
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={tab === t.key}
-            className={`fleet-detail-tab ${tab === t.key ? 'active' : ''}`}
-            onClick={() => onTabChange(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <TabBar tabs={tabs} active={tab} onChange={(k) => onTabChange(k as DetailTab)} className="fleet-detail-tabs" tabClassName="fleet-detail-tab" ariaLabel={`${agent.name} sections`} />
 
       <div className="fleet-detail-body">
         {tab === 'overview' && (

@@ -1,6 +1,7 @@
 import { useState, useCallback, lazy, Suspense, useMemo } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import TabBar from '../../components/TabBar';
 import './OperationsTab.css';
 
 const InterventionGateway = lazy(() => import('../hub/InterventionGateway'));
@@ -68,19 +69,7 @@ export default function OperationsTab() {
       </div>
 
       <div className="ops-content">
-        <div className="ops-sub-tabs" role="tablist" aria-label="Operations sections">
-          {SUB_TABS.map((t) => (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={sub === t.key}
-              className={`ops-sub-tab ${sub === t.key ? 'active' : ''}`}
-              onClick={() => setSub(t.key)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <TabBar tabs={SUB_TABS} active={sub} onChange={(k) => setSub(k as Sub)} className="ops-sub-tabs" tabClassName="ops-sub-tab" ariaLabel="Operations sections" />
         <div className="ops-panel">
           <Suspense fallback={<div className="ud-loading">Loading...</div>}>
             {sub === 'tickets' && <Tickets />}
