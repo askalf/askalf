@@ -1549,7 +1549,8 @@ function acquireCliSlot(priority: string = 'normal'): Promise<void> {
       // Remove from queue if still waiting
       const idx = cliQueue.findIndex((e) => e.callback === callback);
       if (idx >= 0) cliQueue.splice(idx, 1);
-      reject(new Error(`CLI slot timeout: waited ${CLI_SLOT_TIMEOUT_MS / 1000}s, all ${cfg.maxCliConcurrency} slots occupied`));
+      const queueLen = cliQueue.length;
+      reject(new Error(`CLI slot timeout: waited 600s (queued for execution but all ${cfg.maxCliConcurrency} slots remained occupied; ${queueLen} other executions still waiting). This usually indicates resource contention — consider staggering agent schedules or increasing MAX_CLI_CONCURRENCY.`));
     }, CLI_SLOT_TIMEOUT_MS);
 
     const callback = () => {
@@ -1572,10 +1573,14 @@ function acquireCliSlot(priority: string = 'normal'): Promise<void> {
 /** Release a CLI execution slot, dispatching the highest-priority waiter next. */
 function releaseCliSlot(): void {
   cliConcurrent--;
+  const cfg = config ?? loadConfig();
   if (cliQueue.length > 0) {
     // Queue is sorted highest-priority first; shift() picks the highest
     const next = cliQueue.shift()!;
+    logger.info(`[CLI] Slot released — dispatching next waiter (${cliConcurrent + 1}/${cfg.maxCliConcurrency} slots occupied, ${cliQueue.length} remaining in queue)`);
     next.callback();
+  } else {
+    logger.debug(`[CLI] Slot released (${cliConcurrent}/${cfg.maxCliConcurrency} slots occupied)`);
   }
 }
 
@@ -1823,6 +1828,7 @@ function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
   outputTokens: number;
   numTurns: number;
   isError: boolean;
+  diagnostics?: string;
 } {
   let output = stdout;
   let costUsd = 0;
@@ -1830,6 +1836,7 @@ function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
   let outputTokens = 0;
   let numTurns = 0;
   let isError = false;
+  let diagnostics: string | undefined;
 
   try {
     let jsonStr = stdout;
@@ -1877,10 +1884,20 @@ function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
   } catch {
     logger.error(`[CLI] JSON parse failed for stdout (first 200): ${stdout.substring(0, 200)}`);
     if (stderr) logger.error(`[CLI] stderr (first 500): ${stderr.substring(0, 500)}`);
-    if (exitCode !== 0) isError = true;
+    if (exitCode !== 0) {
+      isError = true;
+      // Provide diagnostic info when JSON parsing fails
+      if (stdout.length === 0) {
+        diagnostics = `CLI process produced no output (exit code: ${exitCode})`;
+      } else if (stderr) {
+        diagnostics = `CLI process error: ${stderr.substring(0, 200)}`;
+      } else {
+        diagnostics = `CLI process failed with non-JSON output (exit code: ${exitCode}), stdout (first 100): ${stdout.substring(0, 100)}`;
+      }
+    }
   }
 
-  return { output, costUsd, inputTokens, outputTokens, numTurns, isError };
+  return { output, costUsd, inputTokens, outputTokens, numTurns, isError, diagnostics };
 }
 
 /** Cached result of CLI availability check */
@@ -2310,6 +2327,10 @@ export async function runDirectCliExecution(
     );
 
     // Update execution record
+    const errorMsg = parsed.isError
+      ? (parsed.diagnostics || result.stderr || 'CLI execution failed with no diagnostic info')
+      : null;
+
     await query(
       `UPDATE forge_executions
        SET status = $1,
@@ -2327,7 +2348,7 @@ export async function runDirectCliExecution(
       [
         parsed.isError ? 'failed' : 'completed',
         parsed.output,
-        parsed.isError ? (result.stderr || 'CLI execution failed') : null,
+        errorMsg,
         parsed.costUsd,
         parsed.inputTokens,
         parsed.outputTokens,
