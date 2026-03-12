@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from 'react';
+import TabBar from '../../components/TabBar';
 
 const CostDashboard = lazy(() => import('../forge/CostDashboard'));
 const ExecutionHistory = lazy(() => import('../hub/ExecutionHistory'));
@@ -23,13 +24,13 @@ export default function MonitorTab() {
 
   return (
     <div>
-      <div className="ud-sub-tabs" role="tablist" aria-label="Monitor sections">
-        {(['costs', 'executions', 'timeline', 'providers', 'guardrails', 'audit'] as Sub[]).map((s) => (
-          <button key={s} role="tab" aria-selected={sub === s} className={`ud-sub-tab ${sub === s ? 'active' : ''}`} onClick={() => setSub(s)}>
-            {labels[s]}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={(['costs', 'executions', 'timeline', 'providers', 'guardrails', 'audit'] as Sub[]).map(s => ({ key: s, label: labels[s] }))}
+        active={sub}
+        onChange={(k) => setSub(k as Sub)}
+        className="ud-sub-tabs"
+        ariaLabel="Monitor sections"
+      />
       <Suspense fallback={<div className="ud-loading">Loading...</div>}>
         {sub === 'costs' && <CostDashboard />}
         {sub === 'executions' && <ExecutionHistory />}
