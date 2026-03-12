@@ -55,7 +55,7 @@ export function loadConfig(): ForgeConfig {
     maxTokensPerTurn: parseInt(process.env['MAX_TOKENS_PER_TURN'] ?? '8192', 10),
     defaultMaxCostPerExecution: parseFloat(process.env['DEFAULT_MAX_COST_PER_EXECUTION'] ?? '1.00'),
     // CLI execution
-    maxCliConcurrency: parseInt(process.env['MAX_CLI_CONCURRENCY'] ?? '2', 10),
+    maxCliConcurrency: parseInt(process.env['MAX_CLI_CONCURRENCY'] ?? '6', 10),
     cliTimeout: parseInt(process.env['CLI_TIMEOUT'] ?? '900000', 10),
     cliMaxTurns: parseInt(process.env['CLI_MAX_TURNS'] ?? '15', 10),
     cliBudgetUsd: process.env['CLI_BUDGET_USD'] ?? '0.50',
