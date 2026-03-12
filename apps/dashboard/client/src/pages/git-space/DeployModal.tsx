@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useGitSpaceStore } from '../../stores/git-space';
+import { formatDurationBetween } from '../../utils/format';
 
 // ============================================
 // Service definitions + groups
@@ -49,15 +50,6 @@ interface DeployModalProps {
 }
 
 type Tab = 'deploy' | 'schedule' | 'history';
-
-function formatDuration(start: string | null, end: string | null): string {
-  if (!start) return '-';
-  const s = new Date(start).getTime();
-  const e = end ? new Date(end).getTime() : Date.now();
-  const sec = Math.round((e - s) / 1000);
-  if (sec < 60) return `${sec}s`;
-  return `${Math.floor(sec / 60)}m ${sec % 60}s`;
-}
 
 function statusColor(status: string): string {
   if (status === 'completed') return 'cr-dtask--ok';
@@ -438,7 +430,7 @@ export default function DeployModal({ onClose }: DeployModalProps) {
                       <span className="cr-dtask-services">{task.services.join(', ')}</span>
                     </div>
                     <div className="cr-dtask-meta">
-                      <span>{formatDuration(task.started_at, task.completed_at)}</span>
+                      <span>{formatDurationBetween(task.started_at, task.completed_at)}</span>
                       <span>{new Date(task.created_at).toLocaleDateString()}</span>
                     </div>
                   </button>

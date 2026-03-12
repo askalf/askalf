@@ -2,20 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { useAuthStore } from '../../stores/auth';
 import { usePolling } from '../../hooks/usePolling';
+import { relativeTime } from '../../utils/format';
 import type { Provider, AuthSource } from '../../hooks/useHubApi';
 import StatusBadge from '../hub/shared/StatusBadge';
 import './forge-observe.css';
-
-const relativeTime = (iso: string | null) => {
-  if (!iso) return 'Never';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-};
 
 const AUTH_SOURCE_LABELS: Record<AuthSource, string> = {
   db: 'API Key (saved)',

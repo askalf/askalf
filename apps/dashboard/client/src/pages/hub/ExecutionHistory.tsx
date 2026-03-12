@@ -1,62 +1,12 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import { formatCost, formatDurationBetween, formatDurationSeconds, formatTokens, formatDate, formatDateFull, relativeTime } from '../../utils/format';
 import StatusBadge from './shared/StatusBadge';
 import PaginationBar from './shared/PaginationBar';
 import FilterBar from './shared/FilterBar';
 import { ExecutionLogViewer } from './ExecutionLogViewer';
 import '../forge/forge-observe.css';
-
-const formatDate = (iso: string | null) => {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
-
-const formatDateFull = (iso: string | null) => {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-};
-
-const formatRelative = (iso: string | null) => {
-  if (!iso) return '-';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-};
-
-const formatDuration = (start: string | null, end: string | null) => {
-  if (!start || !end) return '-';
-  const seconds = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
-};
-
-const formatDurationSeconds = (seconds: number | null | undefined) => {
-  if (!seconds) return '-';
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
-};
-
-const formatCost = (cost: number | undefined) => {
-  if (cost === undefined || cost === null) return '-';
-  return `$${cost.toFixed(4)}`;
-};
-
-const formatTokens = (tokens: number | undefined) => {
-  if (!tokens) return '-';
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
-  if (tokens >= 1000) return `${(tokens / 1000).toFixed(1)}k`;
-  return String(tokens);
-};
 
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text).catch(() => { /* ignore */ });
@@ -371,7 +321,7 @@ export default function ExecutionHistory() {
                     onClick={() => setSelectedTask(task)}
                     style={{ borderLeft: `3px solid ${statusColor}` }}>
                     <td className="al-time-cell">
-                      <span className="al-time-rel">{formatRelative(task.started_at || task.created_at)}</span>
+                      <span className="al-time-rel">{relativeTime(task.started_at || task.created_at)}</span>
                       <span className="al-time-abs">{formatDate(task.started_at || task.created_at)}</span>
                     </td>
                     <td>
@@ -382,7 +332,7 @@ export default function ExecutionHistory() {
                     </td>
                     <td><StatusBadge status={task.status} /></td>
                     <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                      {task.duration_seconds ? formatDurationSeconds(task.duration_seconds) : formatDuration(task.started_at, task.completed_at)}
+                      {task.duration_seconds ? formatDurationSeconds(task.duration_seconds) : formatDurationBetween(task.started_at, task.completed_at)}
                     </td>
                     <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{formatCost(task.cost)}</td>
                     <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatTokens(task.tokens_used)}</td>
@@ -453,7 +403,7 @@ export default function ExecutionHistory() {
                   <span className="stat-val">
                     {detailTask.duration_seconds
                       ? formatDurationSeconds(detailTask.duration_seconds)
-                      : formatDuration(detailTask.started_at, detailTask.completed_at)}
+                      : formatDurationBetween(detailTask.started_at, detailTask.completed_at)}
                   </span>
                   <span className="stat-lbl">Duration</span>
                 </div>

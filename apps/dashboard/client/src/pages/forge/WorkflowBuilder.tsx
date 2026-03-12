@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import { relativeTime } from '../../utils/format';
 import type { Workflow, WorkflowNode, WorkflowEdge } from '../../hooks/useHubApi';
 import Modal from '../hub/shared/Modal';
 import StatusBadge from '../hub/shared/StatusBadge';
@@ -194,16 +195,6 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 
 const TEMPLATE_CATEGORIES = [...new Set(WORKFLOW_TEMPLATES.map(t => t.category))];
 
-const relativeTime = (iso: string | null) => {
-  if (!iso) return 'Never';
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-};
 
 /* ─── Node Config Summary (inline preview) ─── */
 function nodeConfigSummary(node: WorkflowNode): string {
