@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-
-interface ForgeEvent {
-  category: string;
-  type: string;
-  data?: unknown;
-  receivedAt: number;
-  [key: string]: unknown;
-}
+import type { ForgeEvent } from '../constants/status';
 
 interface UseWebSocketReturn {
   connected: boolean;

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
+import { relativeTime } from '../utils/format';
 import './Settings.css';
 
 type SettingsTab = 'profile' | 'appearance' | 'security' | 'ai-keys' | 'costs' | 'integrations' | 'channels' | 'devices';
@@ -1914,16 +1915,6 @@ function DevicesTab() {
     }
   };
 
-  const formatTime = (iso: string | null) => {
-    if (!iso) return 'Never';
-    const d = new Date(iso);
-    const now = Date.now();
-    const diffMs = now - d.getTime();
-    if (diffMs < 60_000) return 'Just now';
-    if (diffMs < 3600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
-    if (diffMs < 86400_000) return `${Math.floor(diffMs / 3600_000)}h ago`;
-    return d.toLocaleDateString();
-  };
 
   if (loading) {
     return (
@@ -1976,7 +1967,7 @@ function DevicesTab() {
                 <div className="settings-intg-provider-body">
                   <div className="settings-intg-provider-name">{device.device_name}</div>
                   <div className="settings-intg-provider-desc">
-                    {device.os}{device.hostname ? ` \u00B7 ${device.hostname}` : ''} \u00B7 {formatTime(device.last_seen_at)}
+                    {device.os}{device.hostname ? ` \u00B7 ${device.hostname}` : ''} \u00B7 {relativeTime(device.last_seen_at)}
                   </div>
                 </div>
                 <div className="settings-provider-actions">

@@ -304,3 +304,107 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---- Top Connected Panel ---- */
+.graph-top-panel {
+  position: absolute;
+  top: 64px;
+  left: 8px;
+  z-index: 10;
+  width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: rgba(20, 20, 25, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.graph-top-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.graph-top-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 0.75rem;
+  color: var(--text, #fff);
+}
+
+.graph-top-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.graph-top-rank {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.graph-top-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-top-count {
+  font-size: 0.65rem;
+  color: var(--crystal-lighter, #a78bfa);
+  flex-shrink: 0;
+}
+
+/* ---- Stat Button ---- */
+.graph-stat-btn {
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.graph-stat-btn:hover,
+.graph-stat-btn.active {
+  color: var(--crystal-lighter, #a78bfa);
+  background: rgba(124, 58, 237, 0.15);
+}
+
+/* ---- Agent Tags ---- */
+.graph-detail-agents {
+  margin-bottom: 10px;
+}
+
+.graph-detail-agents h4 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 6px;
+}
+
+.graph-detail-agent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.graph-agent-tag {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  color: var(--crystal-lighter, #a78bfa);
+}

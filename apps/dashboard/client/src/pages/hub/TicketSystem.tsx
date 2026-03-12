@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import { formatDate } from '../../utils/format';
 import StatusBadge from './shared/StatusBadge';
 import PaginationBar from './shared/PaginationBar';
 import FilterBar from './shared/FilterBar';
@@ -13,11 +14,6 @@ const PRIORITY_COLORS: Record<string, string> = {
   medium: '#f59e0b',
   high: '#ef4444',
   urgent: '#dc2626',
-};
-
-const formatDate = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
 export default function TicketSystem() {
