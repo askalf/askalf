@@ -56,6 +56,19 @@ async function createAlertTicket(alert: Alert): Promise<void> {
     );
     if (existing.length > 0) return;
 
+    // Cross-system dedup: if this is a cost alert, also check for autonomy loop cost-spike tickets
+    // to prevent both systems creating tickets for the same underlying event
+    if (alert.metric === 'hourly_cost') {
+      const costSpikeTicket = await substrateQuery<{ id: string }>(
+        `SELECT id FROM agent_tickets
+         WHERE category = 'cost-spike'
+           AND (status IN ('open', 'in_progress') OR created_at > NOW() - INTERVAL '2 hours')
+         LIMIT 1`,
+        [],
+      );
+      if (costSpikeTicket.length > 0) return;
+    }
+
     const id = `MON-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
     const assignedTo = ALERT_ASSIGNMENT[alert.metric] || 'Infra';
     const priority = alert.severity === 'critical' ? 'urgent' : 'high';
@@ -149,7 +162,8 @@ export async function runHealthCheck(): Promise<HealthReport> {
   }
 
   // 3. Cost burn rate (last hour)
-  // Baseline with 16 agents is $7-10/hr. Warn at $10 (high-normal), fail at $15 (over budget).
+  // With 11 agents on 45-min cycles, normal operational cost is $3-8/hr.
+  // Concurrent dispatch bursts can briefly hit $10-15. Only alert on sustained excess.
   const costResult = await query<{ total_cost: string }>(
     `SELECT COALESCE(SUM(cost), 0)::text AS total_cost
      FROM forge_executions
@@ -159,18 +173,18 @@ export async function runHealthCheck(): Promise<HealthReport> {
 
   checks.push({
     name: 'hourly_cost',
-    status: hourlyCost > 15.0 ? 'fail' : hourlyCost > 10.0 ? 'warn' : 'pass',
+    status: hourlyCost > 25.0 ? 'fail' : hourlyCost > 15.0 ? 'warn' : 'pass',
     value: `$${hourlyCost.toFixed(2)}`,
-    threshold: '$10.00/$15.00',
+    threshold: '$15.00/$25.00',
   });
 
-  if (hourlyCost > 15.0) {
+  if (hourlyCost > 25.0) {
     alerts.push({
       severity: 'critical',
-      message: `High hourly cost: $${hourlyCost.toFixed(2)} in last hour (exceeds $15 budget)`,
+      message: `High hourly cost: $${hourlyCost.toFixed(2)} in last hour (exceeds $25 budget)`,
       metric: 'hourly_cost',
       value: hourlyCost,
-      threshold: 15.0,
+      threshold: 25.0,
     });
   }
 

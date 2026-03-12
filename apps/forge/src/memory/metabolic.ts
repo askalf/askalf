@@ -531,10 +531,11 @@ async function runAutonomyLoop(): Promise<void> {
        FROM forge_executions
        WHERE started_at > NOW() - INTERVAL '1 hour'`,
     );
-    const baseline = await query<{ total: string; failed: string; total_cost: string }>(
+    const baseline = await query<{ total: string; failed: string; total_cost: string; active_hours: string }>(
       `SELECT COUNT(*)::text AS total,
               COUNT(*) FILTER (WHERE status = 'failed' ${excludeOps})::text AS failed,
-              COALESCE(SUM(cost), 0)::text AS total_cost
+              COALESCE(SUM(cost), 0)::text AS total_cost,
+              GREATEST(1, COUNT(DISTINCT DATE_TRUNC('hour', started_at)))::text AS active_hours
        FROM forge_executions
        WHERE started_at BETWEEN NOW() - INTERVAL '24 hours' AND NOW() - INTERVAL '1 hour'`,
     );
@@ -545,11 +546,13 @@ async function runAutonomyLoop(): Promise<void> {
     const baseTotal = parseInt(baseline[0]?.total ?? '0', 10);
     const baseFailed = parseInt(baseline[0]?.failed ?? '0', 10);
     const baseCost = parseFloat(baseline[0]?.total_cost ?? '0');
-    const baseHours = 23;
+    const activeBaseHours = parseInt(baseline[0]?.active_hours ?? '1', 10) || 1;
 
     const hourFailRate = hourTotal > 0 ? hourFailed / hourTotal : 0;
     const baseFailRate = baseTotal > 0 ? baseFailed / baseTotal : 0;
-    const hourlyBaseCost = baseHours > 0 ? baseCost / baseHours : 0;
+    // Use active-hours baseline with $3/hr floor to prevent quiet-period false positives.
+    // With 11 agents on 45-min cycles, normal operational cost is $3-8/hr.
+    const hourlyBaseCost = Math.max(baseCost / activeBaseHours, 3.0);
 
     // Failure rate spike: >2x baseline AND >30% absolute AND >=3 executions
     if (hourTotal >= 3 && hourFailRate > baseFailRate * 2 && hourFailRate > 0.3) {
@@ -579,10 +582,11 @@ async function runAutonomyLoop(): Promise<void> {
       }
     }
 
-    // Cost spike: >3x baseline hourly cost
-    if (hourlyBaseCost > 0.01 && hourCost > hourlyBaseCost * 3) {
+    // Cost spike: >5x baseline AND above $15 absolute (prevents noise from normal fleet ops).
+    // Previous thresholds (3x/5x with no floor) caused 700+ false positive tickets.
+    if (hourCost > 15.0 && hourCost > hourlyBaseCost * 5) {
       anomaliesDetected++;
-      const severity = hourCost > hourlyBaseCost * 5 ? 'critical' : 'warning';
+      const severity = hourCost > hourlyBaseCost * 8 || hourCost > 25.0 ? 'critical' : 'warning';
       const findingId = `ANOMALY-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
       await substrateQuery(
         `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata)
@@ -597,10 +601,10 @@ async function runAutonomyLoop(): Promise<void> {
       );
       console.log(`[Autonomy] Anomaly: cost spike $${hourCost.toFixed(2)} vs $${hourlyBaseCost.toFixed(2)}/hr (${severity})`);
 
-      // Auto-heal: create urgent ticket so humans can investigate (deduplicated per hour)
+      // Auto-heal: create ticket for investigation (deduplicated: skip if ANY open cost-spike ticket exists or one was created in last 4h)
       try {
         const existingTicket = await substrateQuery<{ id: string }>(
-          `SELECT id FROM agent_tickets WHERE category = 'cost-spike' AND created_at > NOW() - INTERVAL '1 hour' AND status != 'resolved' LIMIT 1`,
+          `SELECT id FROM agent_tickets WHERE category = 'cost-spike' AND (status IN ('open', 'in_progress') OR created_at > NOW() - INTERVAL '4 hours') LIMIT 1`,
           [],
         );
         if (existingTicket.length === 0) {

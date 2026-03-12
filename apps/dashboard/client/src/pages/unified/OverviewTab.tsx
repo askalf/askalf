@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { usePolling } from '../../hooks/usePolling';
 import './OverviewTab.css';
 
@@ -30,6 +30,7 @@ interface HealthData {
   status?: 'HEALTHY' | 'DEGRADED' | 'DOWN';
   overall?: 'healthy' | 'degraded' | 'critical';
   checks: HealthCheck[];
+  uptime?: number;
 }
 
 interface MetricsData {
@@ -39,6 +40,7 @@ interface MetricsData {
 
 interface FleetStatsData {
   total?: number;
+  tiers?: { semantic?: number; episodic?: number; procedural?: number };
 }
 
 interface LeaderboardEntry {
@@ -113,6 +115,17 @@ function formatCost(c?: number): string {
   return `$${c.toFixed(2)}`;
 }
 
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return String(n);
+}
+
+function formatMemoryCount(n: number): string {
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 function summarizeEvent(event: ForgeEvent): string {
   const agent = event.agentName || event.agentId || 'System';
   const cat = event.category || 'event';
@@ -125,23 +138,13 @@ function summarizeEvent(event: ForgeEvent): string {
   return `${agent} -- ${cat} ${verb}`;
 }
 
-function eventTypeIcon(type: string): string {
-  switch (type) {
-    case 'completed': return '\u2713';
-    case 'failed': return '\u2717';
-    case 'started': return '\u25B6';
-    case 'progress': return '\u25CF';
-    default: return '\u25CB';
-  }
-}
-
 function eventTypeClass(type: string): string {
   switch (type) {
-    case 'completed': return 'overview-evt-completed';
-    case 'failed': return 'overview-evt-failed';
-    case 'started': return 'overview-evt-started';
-    case 'progress': return 'overview-evt-progress';
-    default: return 'overview-evt-default';
+    case 'completed': return 'mc-evt-ok';
+    case 'failed': return 'mc-evt-fail';
+    case 'started': return 'mc-evt-start';
+    case 'progress': return 'mc-evt-prog';
+    default: return 'mc-evt-default';
   }
 }
 
@@ -155,7 +158,96 @@ async function apiFetch<T>(url: string): Promise<T | null> {
   }
 }
 
-// ── Sub-components ──
+// ── Clock ──
+
+function useClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+// ── Heartbeat Visualizer ──
+
+function HeartbeatLine() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId: number;
+    let offset = 0;
+
+    const draw = () => {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Draw heartbeat line
+      ctx.beginPath();
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#10b981';
+      ctx.shadowBlur = 4;
+
+      const cycleWidth = 120;
+      for (let x = 0; x < w + cycleWidth; x++) {
+        const xPos = (x + offset) % cycleWidth;
+        let y = h / 2;
+
+        // Heartbeat spike pattern
+        if (xPos > 30 && xPos < 35) {
+          y = h / 2 - 8;
+        } else if (xPos > 35 && xPos < 40) {
+          y = h / 2 + 14;
+        } else if (xPos > 40 && xPos < 48) {
+          y = h / 2 - 18;
+        } else if (xPos > 48 && xPos < 53) {
+          y = h / 2 + 6;
+        } else if (xPos > 53 && xPos < 58) {
+          y = h / 2 - 4;
+        }
+
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      offset = (offset - 0.8 + cycleWidth) % cycleWidth;
+      animId = requestAnimationFrame(draw);
+    };
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+    };
+
+    resize();
+    draw();
+
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      ro.disconnect();
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="mc-heartbeat-canvas" />;
+}
+
+// ── System Status Banner ──
 
 const PILL_LABELS: Record<string, string> = {
   execution_failure_rate: 'Failures',
@@ -166,7 +258,13 @@ const PILL_LABELS: Record<string, string> = {
   pending_interventions: 'Pending',
 };
 
-function HealthBar({ health }: { health: HealthData | null }) {
+function SystemBanner({
+  health,
+  clock,
+}: {
+  health: HealthData | null;
+  clock: Date;
+}) {
   const raw = health?.status?.toLowerCase() ?? health?.overall ?? null;
   const statusClass = !raw
     ? 'unknown'
@@ -178,98 +276,146 @@ function HealthBar({ health }: { health: HealthData | null }) {
 
   const statusLabel = raw?.toUpperCase() ?? 'LOADING';
 
+  const timeStr = clock.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
   return (
-    <div className="overview-health-bar">
-      <div className={`overview-health-status ${statusClass}`}>
-        <span className="overview-health-dot" />
-        <span className="overview-health-label">{statusLabel}</span>
+    <div className="mc-banner">
+      <div className="mc-banner-left">
+        <div className={`mc-status-badge ${statusClass}`}>
+          <span className="mc-status-dot" />
+          <span className="mc-status-label">{statusLabel}</span>
+        </div>
+        <div className="mc-heartbeat-wrap">
+          <HeartbeatLine />
+        </div>
       </div>
-      <div className="overview-health-checks">
+
+      <div className="mc-banner-checks">
         {health?.checks?.map((c) => (
           <span
             key={c.name}
-            className={`overview-health-pill ${c.status}`}
+            className={`mc-check-pill ${c.status}`}
             title={c.message || `${c.name}: ${c.value}`}
           >
-            <span className="overview-pill-name">{PILL_LABELS[c.name] ?? c.name}</span>
-            <span className="overview-pill-value">{c.value ?? c.status}</span>
+            <span className="mc-pill-name">{PILL_LABELS[c.name] ?? c.name}</span>
+            <span className="mc-pill-val">{c.value ?? c.status}</span>
           </span>
-        )) ?? (
-          <span className="overview-health-pill unknown">
-            <span className="overview-pill-name">Loading</span>
-          </span>
-        )}
+        ))}
+      </div>
+
+      <div className="mc-banner-right">
+        <span className="mc-clock">{timeStr}</span>
       </div>
     </div>
   );
 }
 
-function StatCard({
+// ── Stat Tile ──
+
+function StatTile({
   label,
   value,
   sub,
-  color,
+  accent,
+  glyph,
   onClick,
 }: {
   label: string;
   value: string | number;
   sub?: string;
-  color?: string;
+  accent?: string;
+  glyph?: string;
   onClick?: () => void;
 }) {
   return (
-    <button
-      className="overview-stat-card"
-      onClick={onClick}
-      type="button"
-      aria-label={`Navigate to ${label}`}
-    >
-      <div className={`overview-stat-value ${color ?? ''}`}>{value}</div>
-      <div className="overview-stat-label">{label}</div>
-      {sub && <div className="overview-stat-sub">{sub}</div>}
+    <button className="mc-tile" onClick={onClick} type="button">
+      {glyph && <span className="mc-tile-glyph">{glyph}</span>}
+      <span className={`mc-tile-value ${accent ?? ''}`}>{value}</span>
+      <span className="mc-tile-label">{label}</span>
+      {sub && <span className="mc-tile-sub">{sub}</span>}
     </button>
   );
 }
 
-function LiveStream({
+// ── Agent Ring Chart (CSS-only) ──
+
+function AgentRing({
+  running,
+  total,
+  onClick,
+}: {
+  running: number;
+  total: number;
+  onClick?: () => void;
+}) {
+  const pct = total > 0 ? (running / total) * 100 : 0;
+
+  return (
+    <button className="mc-ring-wrap" onClick={onClick} type="button">
+      <svg className="mc-ring-svg" viewBox="0 0 36 36">
+        <circle
+          className="mc-ring-bg"
+          cx="18" cy="18" r="15.9"
+          fill="none"
+          strokeWidth="2.5"
+        />
+        <circle
+          className="mc-ring-fg"
+          cx="18" cy="18" r="15.9"
+          fill="none"
+          strokeWidth="2.5"
+          strokeDasharray={`${pct} ${100 - pct}`}
+          strokeDashoffset="25"
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="mc-ring-center">
+        <span className="mc-ring-num">{running}</span>
+        <span className="mc-ring-label">/{total}</span>
+      </div>
+    </button>
+  );
+}
+
+// ── Live Feed ──
+
+function LiveFeed({
   events,
   onNavigate,
 }: {
   events: ForgeEvent[];
   onNavigate?: (tab: string) => void;
 }) {
-  const recent = useMemo(() => events.slice(-15).reverse(), [events]);
+  const recent = useMemo(() => events.slice(-20).reverse(), [events]);
+  const listRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className="overview-panel overview-live-stream">
-      <div className="overview-panel-header">
-        <span className="overview-section-title">Live Event Stream</span>
-        <button
-          className="overview-panel-link"
-          onClick={() => onNavigate?.('live')}
-          type="button"
-        >
-          View All &rarr;
+    <div className="mc-panel mc-feed">
+      <div className="mc-panel-hdr">
+        <span className="mc-panel-title">
+          <span className="mc-live-dot" />
+          Live Feed
+        </span>
+        <button className="mc-panel-link" onClick={() => onNavigate?.('live')} type="button">
+          Full Stream &rarr;
         </button>
       </div>
-      <div className="overview-panel-body overview-stream-list">
+      <div className="mc-panel-body mc-feed-list" ref={listRef}>
         {recent.length === 0 && (
-          <div className="overview-empty">No events yet</div>
+          <div className="mc-empty">Waiting for events...</div>
         )}
         {recent.map((ev, i) => (
           <div
             key={`${ev.receivedAt}-${i}`}
-            className="overview-stream-row"
-            onClick={() => onNavigate?.('live')}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === 'Enter' && onNavigate?.('live')}
+            className={`mc-feed-row ${i === 0 ? 'mc-feed-new' : ''}`}
           >
-            <span className="overview-stream-time">{formatTime(ev.receivedAt)}</span>
-            <span className={`overview-stream-dot ${eventTypeClass(ev.type)}`} />
-            <span className={`overview-stream-icon ${eventTypeClass(ev.type)}`}>
-              {eventTypeIcon(ev.type)}
-            </span>
-            <span className="overview-stream-msg" title={summarizeEvent(ev)}>
+            <span className={`mc-feed-dot ${eventTypeClass(ev.type)}`} />
+            <span className="mc-feed-time">{formatTime(ev.receivedAt)}</span>
+            <span className="mc-feed-msg" title={summarizeEvent(ev)}>
               {summarizeEvent(ev)}
             </span>
           </div>
@@ -279,6 +425,8 @@ function LiveStream({
   );
 }
 
+// ── Leaderboard ──
+
 function Leaderboard({
   entries,
   onNavigate,
@@ -287,27 +435,21 @@ function Leaderboard({
   onNavigate?: (tab: string) => void;
 }) {
   return (
-    <div className="overview-panel overview-leaderboard">
-      <div className="overview-panel-header">
-        <span className="overview-section-title">Fleet Leaderboard</span>
-        <button
-          className="overview-panel-link"
-          onClick={() => onNavigate?.('fleet')}
-          type="button"
-        >
+    <div className="mc-panel mc-leaderboard">
+      <div className="mc-panel-hdr">
+        <span className="mc-panel-title">Fleet Leaderboard</span>
+        <button className="mc-panel-link" onClick={() => onNavigate?.('fleet')} type="button">
           Fleet &rarr;
         </button>
       </div>
-      <div className="overview-panel-body">
-        {entries.length === 0 && (
-          <div className="overview-empty">No data</div>
-        )}
+      <div className="mc-panel-body">
+        {entries.length === 0 && <div className="mc-empty">No data</div>}
         {entries.length > 0 && (
-          <table className="overview-lb-table">
+          <table className="mc-lb-table">
             <thead>
               <tr>
                 <th>Agent</th>
-                <th>Success</th>
+                <th>Rate</th>
                 <th>Cost</th>
                 <th>Tasks</th>
               </tr>
@@ -324,14 +466,12 @@ function Leaderboard({
                     tabIndex={0}
                     onKeyDown={(ev) => ev.key === 'Enter' && onNavigate?.('fleet')}
                   >
-                    <td className="overview-lb-agent">
-                      {e.agentName || e.agentId}
+                    <td className="mc-lb-agent">{e.agentName || e.agentId}</td>
+                    <td className={`mc-lb-rate ${rateClass}`}>
+                      {e.successRate.toFixed(0)}%
                     </td>
-                    <td className={`overview-lb-rate ${rateClass}`}>
-                      {e.successRate.toFixed(1)}%
-                    </td>
-                    <td className="overview-lb-cost">{formatCost(e.totalCost)}</td>
-                    <td className="overview-lb-tasks">
+                    <td className="mc-lb-cost">{formatCost(e.totalCost)}</td>
+                    <td className="mc-lb-tasks">
                       {(e.tasksCompleted ?? 0) + (e.tasksFailed ?? 0)}
                     </td>
                   </tr>
@@ -344,6 +484,8 @@ function Leaderboard({
     </div>
   );
 }
+
+// ── Recent Executions ──
 
 function RecentExecutions({
   executions,
@@ -370,32 +512,28 @@ function RecentExecutions({
   };
 
   return (
-    <div className="overview-panel overview-executions">
-      <div className="overview-panel-header">
-        <span className="overview-section-title">Recent Executions</span>
-        <button
-          className="overview-panel-link"
-          onClick={() => onNavigate?.('ops')}
-          type="button"
-        >
+    <div className="mc-panel mc-executions">
+      <div className="mc-panel-hdr">
+        <span className="mc-panel-title">Recent Executions</span>
+        <button className="mc-panel-link" onClick={() => onNavigate?.('ops')} type="button">
           History &rarr;
         </button>
       </div>
-      <div className="overview-panel-body overview-exec-list">
+      <div className="mc-panel-body mc-exec-list">
         {executions.length === 0 && (
-          <div className="overview-empty">No recent executions</div>
+          <div className="mc-empty">No recent executions</div>
         )}
         {executions.map((ex) => (
-          <div key={ex.id} className="overview-exec-row">
-            <span className={`overview-exec-status ${statusClass(ex.status)}`}>
+          <div key={ex.id} className="mc-exec-row">
+            <span className={`mc-exec-badge ${statusClass(ex.status)}`}>
               {statusIcon(ex.status)}
             </span>
-            <span className="overview-exec-agent">
+            <span className="mc-exec-agent">
               {ex.agent_name || ex.agent_id || 'Unknown'}
             </span>
-            <span className="overview-exec-dur">{formatDuration(ex.duration_ms ?? undefined)}</span>
-            <span className="overview-exec-cost">{formatCost(ex.cost)}</span>
-            <span className="overview-exec-time">{timeAgo(ex.started_at)}</span>
+            <span className="mc-exec-dur">{formatDuration(ex.duration_ms ?? undefined)}</span>
+            <span className="mc-exec-cost">{formatCost(ex.cost)}</span>
+            <span className="mc-exec-time">{timeAgo(ex.started_at)}</span>
           </div>
         ))}
       </div>
@@ -403,96 +541,136 @@ function RecentExecutions({
   );
 }
 
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return String(n);
-}
+// ── Cost Command Panel ──
 
-function CostSnapshot({ costData }: { costData: CostData | null }) {
+function CostPanel({ costData }: { costData: CostData | null }) {
   const daily = costData?.dailyCosts ?? [];
-  // API returns daily costs in DESC order — first entry is today
   const todayStr = new Date().toISOString().split('T')[0];
   const todayEntry = daily.find((d) => d.date === todayStr);
   const today = todayEntry?.totalCost ?? (daily.length > 0 ? daily[0]?.totalCost ?? 0 : 0);
   const weekTotal = daily.reduce((sum, d) => sum + d.totalCost, 0);
 
-  // Token totals from summary
   const totalTokens = costData
     ? (costData.summary.total.totalInputTokens ?? 0) + (costData.summary.total.totalOutputTokens ?? 0)
     : 0;
 
-  // Display in chronological order (reverse DESC)
   const chronoDaily = useMemo(() => [...daily].reverse(), [daily]);
   const maxDaily = useMemo(() => {
     if (!chronoDaily.length) return 1;
-    return Math.max(...chronoDaily.map((d) => d.totalCost), 1);
+    return Math.max(...chronoDaily.map((d) => d.totalCost), 0.01);
   }, [chronoDaily]);
 
   return (
-    <div className="overview-panel overview-cost-snapshot">
-      <div className="overview-panel-header">
-        <span className="overview-section-title">Cost Snapshot</span>
+    <div className="mc-panel mc-cost">
+      <div className="mc-panel-hdr">
+        <span className="mc-panel-title">Cost Telemetry</span>
       </div>
-      <div className="overview-panel-body">
+      <div className="mc-panel-body">
         {!costData ? (
-          <div className="overview-empty">Loading costs...</div>
+          <div className="mc-empty">Loading costs...</div>
         ) : (
           <>
-            <div className="overview-cost-totals">
-              <div className="overview-cost-total-item">
-                <span className="overview-cost-amount">
-                  {formatCost(today)}
-                </span>
-                <span className="overview-cost-period">Today</span>
+            <div className="mc-cost-kpis">
+              <div className="mc-cost-kpi">
+                <span className="mc-cost-num">{formatCost(today)}</span>
+                <span className="mc-cost-lbl">Today</span>
               </div>
-              <div className="overview-cost-total-item">
-                <span className="overview-cost-amount">
-                  {formatCost(weekTotal)}
-                </span>
-                <span className="overview-cost-period">7-Day</span>
+              <div className="mc-cost-kpi">
+                <span className="mc-cost-num">{formatCost(weekTotal)}</span>
+                <span className="mc-cost-lbl">7-Day</span>
               </div>
-              <div className="overview-cost-total-item">
-                <span className="overview-cost-amount">
-                  {formatTokens(totalTokens)}
-                </span>
-                <span className="overview-cost-period">Tokens</span>
+              <div className="mc-cost-kpi">
+                <span className="mc-cost-num">{formatTokens(totalTokens)}</span>
+                <span className="mc-cost-lbl">Tokens</span>
               </div>
-            </div>
-            <div className="overview-cost-totals" style={{ marginTop: '8px' }}>
-              <div className="overview-cost-total-item">
-                <span className="overview-cost-amount" style={{ fontSize: '14px' }}>
-                  {formatCost(costData.summary.api.totalCost)}
-                </span>
-                <span className="overview-cost-period">API</span>
+              <div className="mc-cost-kpi">
+                <span className="mc-cost-num sm">{formatCost(costData.summary.api.totalCost)}</span>
+                <span className="mc-cost-lbl">API</span>
               </div>
-              <div className="overview-cost-total-item">
-                <span className="overview-cost-amount" style={{ fontSize: '14px' }}>
-                  {formatCost(costData.summary.cli.totalCost)}
-                </span>
-                <span className="overview-cost-period">CLI</span>
+              <div className="mc-cost-kpi">
+                <span className="mc-cost-num sm">{formatCost(costData.summary.cli.totalCost)}</span>
+                <span className="mc-cost-lbl">CLI</span>
               </div>
             </div>
             {chronoDaily.length > 0 && (
-              <div className="overview-cost-chart">
-                {chronoDaily.slice(-7).map((d) => (
-                  <div key={d.date} className="overview-cost-bar-col">
-                    <div
-                      className="overview-cost-bar"
-                      style={{ height: `${(d.totalCost / maxDaily) * 100}%` }}
-                      title={`${d.date}: ${formatCost(d.totalCost)}`}
-                    />
-                    <span className="overview-cost-bar-label">
-                      {d.date.slice(-5)}
-                    </span>
-                  </div>
-                ))}
+              <div className="mc-cost-chart">
+                {chronoDaily.slice(-7).map((d) => {
+                  const barPct = (d.totalCost / maxDaily) * 100;
+                  const isToday = d.date === todayStr;
+                  return (
+                    <div key={d.date} className={`mc-cost-col ${isToday ? 'today' : ''}`}>
+                      <div className="mc-cost-bar-track">
+                        <div
+                          className="mc-cost-bar"
+                          style={{ height: `${Math.max(barPct, 2)}%` }}
+                          title={`${d.date}: ${formatCost(d.totalCost)}`}
+                        />
+                      </div>
+                      <span className="mc-cost-day">{d.date.slice(-5)}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+// ── Memory Tier Bar ──
+
+function MemoryBar({
+  fleetStats,
+  onClick,
+}: {
+  fleetStats: FleetStatsData | null;
+  onClick?: () => void;
+}) {
+  const tiers = fleetStats?.tiers;
+  const sem = tiers?.semantic ?? 0;
+  const epi = tiers?.episodic ?? 0;
+  const proc = tiers?.procedural ?? 0;
+  const total = sem + epi + proc;
+
+  if (!total) return null;
+
+  const semPct = (sem / total) * 100;
+  const epiPct = (epi / total) * 100;
+  const procPct = (proc / total) * 100;
+
+  return (
+    <button className="mc-memory-bar-wrap" onClick={onClick} type="button">
+      <div className="mc-memory-bar">
+        {semPct > 0 && (
+          <div
+            className="mc-mem-seg mc-mem-semantic"
+            style={{ width: `${semPct}%` }}
+            title={`Semantic: ${sem.toLocaleString()}`}
+          />
+        )}
+        {epiPct > 0 && (
+          <div
+            className="mc-mem-seg mc-mem-episodic"
+            style={{ width: `${epiPct}%` }}
+            title={`Episodic: ${epi.toLocaleString()}`}
+          />
+        )}
+        {procPct > 0 && (
+          <div
+            className="mc-mem-seg mc-mem-procedural"
+            style={{ width: `${procPct}%` }}
+            title={`Procedural: ${proc.toLocaleString()}`}
+          />
+        )}
+      </div>
+      <div className="mc-memory-legend">
+        <span className="mc-mem-leg"><span className="mc-mem-dot mc-mem-semantic" /> SEM</span>
+        <span className="mc-mem-leg"><span className="mc-mem-dot mc-mem-episodic" /> EPI</span>
+        <span className="mc-mem-leg"><span className="mc-mem-dot mc-mem-procedural" /> PROC</span>
+      </div>
+    </button>
   );
 }
 
@@ -505,6 +683,7 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [executions, setExecutions] = useState<ExecutionEntry[]>([]);
   const [costData, setCostData] = useState<CostData | null>(null);
+  const clock = useClock();
 
   const fetchAll = useCallback(async () => {
     const [h, m, fs, lb, ex, c] = await Promise.all([
@@ -519,7 +698,7 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
     if (m) setMetrics(m);
     if (fs) setFleetStats(fs);
     if (lb) setLeaderboard(lb);
-    if (ex) setExecutions(Array.isArray(ex.executions) ? ex.executions.slice(0, 10) : []);
+    if (ex) setExecutions(Array.isArray(ex.executions) ? ex.executions.slice(0, 12) : []);
     if (c) setCostData(c);
   }, []);
 
@@ -531,50 +710,63 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
   const openTickets = metrics?.tickets?.open ?? 0;
   const memoryCount = fleetStats?.total ?? 0;
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayCost = costData?.dailyCosts?.find((d) => d.date === todayStr)?.totalCost
+    ?? (costData?.dailyCosts?.[0]?.totalCost ?? 0);
+
   return (
-    <div className="overview-tab">
-      {/* Row 1: Health Bar */}
-      <HealthBar health={health} />
+    <div className="mc-root">
+      {/* Row 1: System Banner */}
+      <SystemBanner health={health} clock={clock} />
 
-      {/* Row 2: Stat Cards */}
-      <div className="overview-stats-row">
-        <StatCard
-          label="Active Agents"
-          value={activeAgents}
-          sub={`${totalAgents} total`}
-          color="green"
-          onClick={() => onNavigate?.('fleet')}
-        />
-        <StatCard
-          label="Executions (24h)"
-          value={execToday}
-          color="violet"
-          onClick={() => onNavigate?.('ops')}
-        />
-        <StatCard
-          label="Open Tickets"
-          value={openTickets}
-          color={openTickets > 0 ? 'amber' : ''}
-          onClick={() => onNavigate?.('ops')}
-        />
-        <StatCard
-          label="Memory"
-          value={memoryCount}
-          color="crystal"
-          onClick={() => onNavigate?.('brain')}
-        />
+      {/* Row 2: Command Tiles + Agent Ring */}
+      <div className="mc-command-row">
+        <AgentRing running={activeAgents} total={totalAgents} onClick={() => onNavigate?.('fleet')} />
+        <div className="mc-tiles">
+          <StatTile
+            label="Active"
+            value={activeAgents}
+            sub={`of ${totalAgents}`}
+            accent="green"
+            onClick={() => onNavigate?.('fleet')}
+          />
+          <StatTile
+            label="Executions"
+            value={execToday}
+            sub="24h"
+            accent="violet"
+            onClick={() => onNavigate?.('ops')}
+          />
+          <StatTile
+            label="Tickets"
+            value={openTickets}
+            accent={openTickets > 0 ? 'amber' : ''}
+            onClick={() => onNavigate?.('ops')}
+          />
+          <StatTile
+            label="Memories"
+            value={formatMemoryCount(memoryCount)}
+            accent="cyan"
+            onClick={() => onNavigate?.('brain')}
+          />
+          <StatTile
+            label="Cost Today"
+            value={formatCost(todayCost)}
+            accent="rose"
+            onClick={() => onNavigate?.('ops')}
+          />
+        </div>
+        <MemoryBar fleetStats={fleetStats} onClick={() => onNavigate?.('brain')} />
       </div>
 
-      {/* Row 3: Live Stream + Leaderboard */}
-      <div className="overview-two-col">
-        <LiveStream events={wsEvents} onNavigate={onNavigate} />
-        <Leaderboard entries={leaderboard} onNavigate={onNavigate} />
-      </div>
-
-      {/* Row 4: Executions + Cost */}
-      <div className="overview-two-col">
-        <RecentExecutions executions={executions} onNavigate={onNavigate} />
-        <CostSnapshot costData={costData} />
+      {/* Row 3: Main Grid — Feed | Executions + Leaderboard | Cost */}
+      <div className="mc-grid-main">
+        <LiveFeed events={wsEvents} onNavigate={onNavigate} />
+        <div className="mc-grid-center">
+          <RecentExecutions executions={executions} onNavigate={onNavigate} />
+          <Leaderboard entries={leaderboard} onNavigate={onNavigate} />
+        </div>
+        <CostPanel costData={costData} />
       </div>
     </div>
   );
