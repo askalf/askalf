@@ -32,6 +32,7 @@ interface DispatchableAgent {
   is_internal: boolean;
   type: string | null;
   execution_timeout_minutes: number | null;
+  cost_budget_daily: string | null;
 }
 
 interface QueuedWork {
@@ -176,7 +177,7 @@ export class UnifiedDispatcher {
       const agents = await query<DispatchableAgent>(
         `SELECT id, name, status, model_id, system_prompt, max_cost_per_execution, max_iterations,
                 schedule_interval_minutes, next_run_at, dispatch_enabled, dispatch_mode, is_internal, type,
-                execution_timeout_minutes
+                execution_timeout_minutes, cost_budget_daily
          FROM forge_agents
          WHERE status = 'active' AND dispatch_enabled = true AND is_internal = true
          ORDER BY next_run_at ASC NULLS LAST`,
@@ -361,6 +362,15 @@ Investigate and take appropriate action based on your system prompt.${fleetConte
         }
       }
 
+      // Daily cost budget check — auto-pause if exceeded
+      const budgetOverage = await this.checkDailyBudget(agent);
+      if (budgetOverage) {
+        await this.autoPauseBudget(agent);
+        console.log(`[Dispatcher] ${agent.name} spent $${budgetOverage.spent.toFixed(4)} of $${budgetOverage.budget.toFixed(4)} daily budget — skipping`);
+        await this.advanceSchedule(agent);
+        continue;
+      }
+
       const inFlight = (inFlightMap.get(agent.id) ?? 0) + (queuedThisTick.get(agent.id) ?? 0);
       const isMonitor = MONITOR_AGENTS.includes(agent.name);
 
@@ -497,6 +507,40 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
   // ============================================
   // Helpers
   // ============================================
+
+  /**
+   * Check if an agent has exceeded its daily cost budget.
+   * Returns the spent amount if over budget, null if within budget or no budget set.
+   */
+  private async checkDailyBudget(agent: DispatchableAgent): Promise<{ spent: number; budget: number } | null> {
+    if (!agent.cost_budget_daily) return null;
+    const budget = parseFloat(agent.cost_budget_daily);
+    if (isNaN(budget) || budget <= 0) return null;
+
+    const row = await queryOne<{ total_cost: string }>(
+      `SELECT COALESCE(SUM(cost), 0)::text AS total_cost
+       FROM forge_cost_events
+       WHERE agent_id = $1 AND created_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC')`,
+      [agent.id],
+    ).catch(() => null);
+
+    const spent = parseFloat(row?.total_cost ?? '0') || 0;
+    if (spent >= budget) {
+      return { spent, budget };
+    }
+    return null;
+  }
+
+  /**
+   * Auto-pause an agent that exceeded its daily cost budget.
+   */
+  private async autoPauseBudget(agent: DispatchableAgent): Promise<void> {
+    await query(
+      `UPDATE forge_agents SET dispatch_enabled = false, budget_paused_at = NOW(), updated_at = NOW() WHERE id = $1`,
+      [agent.id],
+    );
+    console.log(`[Dispatcher] AUTO-PAUSED ${agent.name} — daily cost budget exceeded`);
+  }
 
   private async dispatchExecution(
     agent: DispatchableAgent,
