@@ -10,6 +10,9 @@ dist/
 build/
 *.tsbuildinfo
 
+# Vite build output (rebuilt in Docker, never serve from git)
+apps/dashboard/public/app/
+
 # Environment (NEVER commit secrets)
 .env
 .env.local
@@ -53,6 +56,9 @@ apps/mcp/claude_desktop_config.json
 
 # Backups (too large for git)
 backups/
+
+# Archive (dead weight)
+archive/
 
 # Claude Code temp files
 tmpclaude-*
