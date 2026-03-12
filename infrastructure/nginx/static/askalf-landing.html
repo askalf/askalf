@@ -3,26 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AskAlf — AI Agents That Think, Remember, and Evolve. Your Servers.</title>
-  <meta name="description" content="11 AI agents with cognitive memory, autonomous heartbeat, and a mission control dashboard. Self-hosted. Bring your own keys. No vendor lock-in.">
-  <meta property="og:title" content="AskAlf — The Self-Evolving AI Fleet">
-  <meta property="og:description" content="11 agents. 17,000+ memories. Autonomous heartbeat. Mission Control dashboard. Self-hosted on your infrastructure.">
+  <title>AskAlf — Build Your Own AI Agent Platform. Self-Hosted.</title>
+  <meta name="description" content="The open-source framework for building autonomous AI agent platforms. Agent builder, cognitive memory, orchestration, 14 channels, BYOK. Deploy your own fleet in 5 minutes.">
+  <meta property="og:title" content="AskAlf — Build Your Own AI Agent Platform">
+  <meta property="og:description" content="Don't rent agents. Build the factory. Open-source AI agent platform with cognitive memory, orchestration, and Mission Control dashboard. Self-hosted.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://askalf.org">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
       --green: #06d6a0;
-      --green-dim: rgba(6,214,160,0.1);
+      --green-dim: rgba(6,214,160,0.08);
       --green-glow: rgba(6,214,160,0.25);
+      --green-bright: #34edc1;
       --purple: #7c3aed;
       --purple-light: #a78bfa;
-      --purple-dim: rgba(124,58,237,0.1);
+      --purple-dim: rgba(124,58,237,0.08);
+      --purple-glow: rgba(124,58,237,0.3);
       --cyan: #22d3ee;
+      --cyan-dim: rgba(34,211,238,0.08);
       --amber: #fbbf24;
       --rose: #fb7185;
       --red: #f87171;
@@ -32,780 +35,1568 @@
       --lime: #4ade80;
       --violet: #8b5cf6;
       --sky: #38bdf8;
-      --void: #050507;
-      --surface: #0c0c10;
-      --elevated: #131318;
-      --panel: rgba(12,12,16,0.7);
+      --void: #030305;
+      --surface: #0a0a0e;
+      --elevated: #111116;
+      --panel: rgba(10,10,14,0.75);
       --text: #f0f0f2;
-      --text-2: rgba(240,240,242,0.7);
-      --text-3: rgba(240,240,242,0.45);
-      --text-4: rgba(240,240,242,0.25);
-      --border: rgba(255,255,255,0.06);
-      --border-h: rgba(255,255,255,0.12);
-      --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-xl: 24px; --r-full: 9999px;
-      --font: 'Outfit', -apple-system, sans-serif;
-      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --text-dim: rgba(240,240,242,0.55);
+      --text-muted: rgba(240,240,242,0.35);
+      --border: rgba(240,240,242,0.06);
+      --border-bright: rgba(240,240,242,0.12);
+      --glass: rgba(255,255,255,0.03);
+      --glass-bright: rgba(255,255,255,0.06);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --radius-xs: 6px;
     }
 
-    @keyframes fade-up { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes pulse { 0%,100% { opacity:0.3; } 50% { opacity:1; } }
-    @keyframes glow { 0%,100% { opacity:0.2; } 50% { opacity:0.5; } }
-    @keyframes feed-scroll { 0% { transform:translateY(0); } 100% { transform:translateY(-50%); } }
-    @keyframes cursor-blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
-    @keyframes gradient-shift { 0% { background-position:0% 50%; } 50% { background-position:100% 50%; } 100% { background-position:0% 50%; } }
-    @keyframes genesis-pulse { 0%,100% { box-shadow:0 0 20px rgba(6,214,160,0.05), 0 0 60px rgba(124,58,237,0.03); } 50% { box-shadow:0 0 40px rgba(6,214,160,0.12), 0 0 80px rgba(124,58,237,0.08); } }
-    @keyframes heartbeat { 0%,100% { transform:scale(1); opacity:0.6; } 15% { transform:scale(1.15); opacity:1; } 30% { transform:scale(1); opacity:0.6; } 45% { transform:scale(1.1); opacity:0.9; } 60% { transform:scale(1); opacity:0.6; } }
-
-    .reveal { opacity:0; transform:translateY(32px); transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1); }
-    .reveal.vis { opacity:1; transform:translateY(0); }
-
-    body { min-height:100vh; background:var(--void); color:var(--text); font-family:var(--font); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
-
-    .atmosphere { position:fixed; inset:0; z-index:0; pointer-events:none; }
-    .atmosphere::before { content:''; position:absolute; top:-20%; left:-10%; width:70%; height:70%; background:radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 60%); animation:glow 8s ease-in-out infinite; }
-    .atmosphere::after { content:''; position:absolute; bottom:-10%; right:-10%; width:60%; height:60%; background:radial-gradient(ellipse, rgba(6,214,160,0.05) 0%, transparent 60%); animation:glow 10s ease-in-out infinite 3s; }
-    .dot-grid { position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.025; background-image:radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px); background-size:32px 32px; }
-
-    .container { max-width:1200px; margin:0 auto; padding:0 2rem; position:relative; z-index:1; }
-    .section { padding:7rem 0; }
-
-    /* Nav */
-    nav { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 2rem; max-width:1200px; margin:0 auto; position:relative; z-index:10; }
-    .logo { font-family:var(--mono); font-weight:800; font-size:1.25rem; letter-spacing:-0.03em; text-decoration:none; color:var(--text); }
-    .nav-links { display:flex; align-items:center; gap:1.5rem; }
-    .nav-link { color:var(--text-3); text-decoration:none; font-size:0.8125rem; font-weight:500; transition:color 0.15s; }
-    .nav-link:hover { color:var(--text); }
-    .nav-cta { padding:0.5rem 1.25rem; background:var(--purple); color:#fff; font-size:0.8125rem; font-weight:600; border-radius:var(--r-sm); text-decoration:none; transition:all 0.2s; border:none; }
-    .nav-cta:hover { background:#6d28d9; box-shadow:0 4px 20px rgba(124,58,237,0.35); }
-
-    /* Hero */
-    .hero { min-height:92vh; display:flex; align-items:center; padding:4rem 2rem; max-width:1200px; margin:0 auto; position:relative; z-index:1; }
-    .hero-grid { display:grid; grid-template-columns:1.1fr 0.9fr; gap:4rem; align-items:center; width:100%; }
-    .hero-content { animation:fade-up 1s cubic-bezier(0.16,1,0.3,1) forwards; }
-    .hero-eyebrow { display:inline-flex; align-items:center; gap:0.5rem; padding:0.3rem 0.875rem; margin-bottom:1.75rem; background:rgba(6,214,160,0.06); border:1px solid rgba(6,214,160,0.15); border-radius:var(--r-full); font-family:var(--mono); font-size:0.625rem; font-weight:700; color:var(--green); text-transform:uppercase; letter-spacing:0.1em; }
-    .hero-eyebrow::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s ease-in-out infinite; }
-    .hero h1 { font-size:4.25rem; font-weight:800; line-height:1.05; letter-spacing:-0.045em; margin-bottom:1.75rem; }
-    .hero h1 .gradient { background:linear-gradient(135deg, var(--purple-light), var(--green), var(--cyan)); background-size:300% 300%; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation:gradient-shift 6s ease infinite; }
-    .hero-sub { font-size:1.125rem; color:var(--text-2); line-height:1.7; max-width:520px; margin-bottom:2.5rem; font-weight:400; }
-    .hero-sub strong { color:var(--text); font-weight:600; }
-    .hero-actions { display:flex; align-items:center; gap:0.875rem; }
-    .btn-primary { display:inline-flex; align-items:center; gap:0.5rem; padding:0.875rem 2rem; background:var(--purple); color:#fff; font-size:0.9375rem; font-weight:600; font-family:var(--font); border-radius:var(--r-md); text-decoration:none; border:none; cursor:pointer; transition:all 0.3s cubic-bezier(0.16,1,0.3,1); }
-    .btn-primary:hover { background:#6d28d9; transform:translateY(-2px); box-shadow:0 8px 32px rgba(124,58,237,0.4); }
-    .btn-secondary { display:inline-flex; align-items:center; gap:0.5rem; padding:0.875rem 2rem; background:transparent; color:var(--text-2); font-size:0.9375rem; font-weight:500; font-family:var(--font); border:1px solid var(--border); border-radius:var(--r-md); text-decoration:none; cursor:pointer; transition:all 0.3s cubic-bezier(0.16,1,0.3,1); }
-    .btn-secondary:hover { color:var(--text); border-color:var(--border-h); background:rgba(255,255,255,0.03); }
-
-    .hero-stats { display:flex; gap:2.5rem; margin-top:3rem; padding-top:2rem; border-top:1px solid var(--border); }
-    .hero-stat-num { font-family:var(--mono); font-size:1.75rem; font-weight:800; letter-spacing:-0.03em; line-height:1; }
-    .hero-stat-label { font-size:0.6875rem; color:var(--text-4); font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-top:0.375rem; }
-
-    /* Feed */
-    .feed-panel { animation:fade-up 1s 0.2s cubic-bezier(0.16,1,0.3,1) both; border-radius:var(--r-xl); border:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); overflow:hidden; box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 32px 80px rgba(0,0,0,0.5), 0 0 60px rgba(124,58,237,0.04); }
-    .feed-bar { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.015); }
-    .feed-title { font-family:var(--mono); font-size:0.625rem; font-weight:700; color:var(--text-4); text-transform:uppercase; letter-spacing:0.1em; }
-    .feed-live { display:flex; align-items:center; gap:0.375rem; font-family:var(--mono); font-size:0.625rem; font-weight:600; color:var(--green); }
-    .feed-live::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s ease-in-out infinite; }
-    .feed-viewport { max-height:380px; overflow:hidden; position:relative; }
-    .feed-viewport::after { content:''; position:absolute; bottom:0; left:0; right:0; height:48px; z-index:1; background:linear-gradient(to bottom, transparent, rgba(5,5,7,0.9)); pointer-events:none; }
-    .feed-track { animation:feed-scroll 32s linear infinite; }
-    .feed-track:hover { animation-play-state:paused; }
-    .feed-item { display:grid; grid-template-columns:auto 1fr auto; gap:0.75rem; align-items:center; padding:0.625rem 1.25rem; }
-    .feed-badge { width:30px; height:30px; border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; font-size:0.5625rem; font-weight:700; font-family:var(--mono); flex-shrink:0; }
-    .feed-body { min-width:0; }
-    .feed-action { font-size:0.75rem; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .feed-meta { font-size:0.625rem; color:var(--text-4); margin-top:2px; display:flex; align-items:center; gap:0.4rem; }
-    .feed-tag { padding:0.1rem 0.4rem; background:rgba(255,255,255,0.04); border-radius:var(--r-full); font-family:var(--mono); font-size:0.5625rem; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:0.04em; }
-    .feed-cost { font-family:var(--mono); font-size:0.625rem; font-weight:600; color:var(--green); white-space:nowrap; }
-
-    .fb-res { background:rgba(56,189,248,0.1); color:var(--sky); border:1px solid rgba(56,189,248,0.2); }
-    .fb-sec { background:rgba(248,113,113,0.1); color:var(--red); border:1px solid rgba(248,113,113,0.2); }
-    .fb-dev { background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
-    .fb-wrt { background:rgba(167,139,250,0.1); color:var(--purple-light); border:1px solid rgba(167,139,250,0.2); }
-    .fb-wtc { background:rgba(251,146,60,0.1); color:var(--orange); border:1px solid rgba(251,146,60,0.2); }
-    .fb-anl { background:rgba(34,211,238,0.1); color:var(--cyan); border:1px solid rgba(34,211,238,0.2); }
-    .fb-be { background:rgba(45,212,191,0.1); color:var(--teal); border:1px solid rgba(45,212,191,0.2); }
-    .fb-fe { background:rgba(96,165,250,0.1); color:var(--blue); border:1px solid rgba(96,165,250,0.2); }
-    .fb-inf { background:rgba(251,191,36,0.1); color:var(--amber); border:1px solid rgba(251,191,36,0.2); }
-    .fb-qa { background:rgba(192,132,252,0.1); color:#c084fc; border:1px solid rgba(192,132,252,0.2); }
-    .fb-sys { background:rgba(139,92,246,0.1); color:var(--violet); border:1px solid rgba(139,92,246,0.2); }
-
-    /* Divider & Section headers */
-    .divider { max-width:1200px; margin:0 auto; border:none; border-top:1px solid var(--border); }
-    .sh-label { font-family:var(--mono); font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:var(--purple-light); margin-bottom:0.75rem; }
-    .sh-title { font-size:2.75rem; font-weight:700; letter-spacing:-0.035em; line-height:1.1; margin-bottom:1rem; }
-    .sh-sub { font-size:1.0625rem; color:var(--text-3); line-height:1.65; max-width:600px; }
-
-    /* ========== DASHBOARD MOCKUP ========== */
-    .dash-mockup { max-width:960px; margin:0 auto; border-radius:var(--r-xl); border:1px solid var(--border); background:var(--panel); backdrop-filter:blur(20px); overflow:hidden; box-shadow:0 32px 80px rgba(0,0,0,0.5), 0 0 60px rgba(124,58,237,0.04); }
-    .dash-topbar { display:flex; align-items:center; gap:0.5rem; padding:0.6rem 1rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.015); }
-    .dash-dot { width:8px; height:8px; border-radius:50%; }
-    .dash-dot-r { background:#ff5f57; }
-    .dash-dot-y { background:#febc2e; }
-    .dash-dot-g { background:#28c840; }
-    .dash-url { margin-left:0.75rem; font-family:var(--mono); font-size:0.625rem; color:var(--text-4); }
-    .dash-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); overflow-x:auto; }
-    .dash-tab { padding:0.625rem 1.25rem; font-family:var(--mono); font-size:0.625rem; font-weight:600; color:var(--text-4); text-transform:uppercase; letter-spacing:0.06em; border-bottom:2px solid transparent; transition:all 0.2s; cursor:default; white-space:nowrap; }
-    .dash-tab.active { color:var(--green); border-bottom-color:var(--green); background:rgba(6,214,160,0.04); }
-    .dash-body { padding:1.5rem; min-height:280px; display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-    .dash-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:1rem; }
-    .dash-card-title { font-family:var(--mono); font-size:0.5625rem; font-weight:700; color:var(--text-4); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.75rem; }
-    .dash-metric { font-family:var(--mono); font-size:1.5rem; font-weight:800; letter-spacing:-0.03em; }
-    .dash-metric-sub { font-size:0.6875rem; color:var(--text-4); margin-top:0.25rem; }
-    .dash-card-full { grid-column:1/-1; }
-    .dash-bar-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; }
-    .dash-bar-label { font-family:var(--mono); font-size:0.625rem; color:var(--text-3); width:70px; }
-    .dash-bar-track { flex:1; height:6px; background:rgba(255,255,255,0.04); border-radius:3px; overflow:hidden; }
-    .dash-bar-fill { height:100%; border-radius:3px; }
-    .dash-bar-val { font-family:var(--mono); font-size:0.625rem; color:var(--text-4); width:45px; text-align:right; }
-
-    /* Tab descriptions */
-    .tab-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; max-width:960px; margin:2rem auto 0; }
-    .tab-card { padding:1rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); transition:all 0.3s; }
-    .tab-card:hover { border-color:var(--border-h); transform:translateY(-2px); }
-    .tab-card-name { font-family:var(--mono); font-size:0.75rem; font-weight:700; margin-bottom:0.375rem; }
-    .tab-card-desc { font-size:0.6875rem; color:var(--text-3); line-height:1.5; }
-
-    /* ========== FLEET ROSTER ========== */
-    .division { margin-bottom:1.75rem; }
-    .div-header { display:flex; align-items:baseline; gap:0.75rem; margin-bottom:0.875rem; padding-left:0.25rem; }
-    .div-name { font-family:var(--mono); font-size:0.6875rem; font-weight:800; text-transform:uppercase; letter-spacing:0.14em; }
-    .div-sep { color:var(--text-4); font-size:0.75rem; }
-    .div-desc { font-size:0.75rem; color:var(--text-4); font-weight:500; }
-    .div-agents { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; }
-    .div-agents-5 { grid-template-columns:repeat(5, 1fr); }
-    .agent-card { padding:1.25rem 1rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); transition:all 0.35s cubic-bezier(0.16,1,0.3,1); position:relative; overflow:hidden; }
-    .agent-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; transform:scaleX(0); transform-origin:left; transition:transform 0.4s cubic-bezier(0.16,1,0.3,1); }
-    .agent-card:hover { transform:translateY(-4px); border-color:var(--border-h); }
-    .agent-card:hover::after { transform:scaleX(1); }
-    .agent-dot { width:10px; height:10px; border-radius:50%; margin-bottom:0.75rem; }
-    .agent-name { font-size:0.9375rem; font-weight:700; margin-bottom:0.25rem; }
-    .agent-role { font-family:var(--mono); font-size:0.5625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.5rem; }
-    .agent-desc { font-size:0.75rem; color:var(--text-3); line-height:1.5; }
-    .agent-unique { position:absolute; top:0.75rem; right:0.75rem; font-family:var(--mono); font-size:0.5rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; padding:0.15rem 0.4rem; border-radius:var(--r-full); background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
-
-    /* ========== BRAIN / MEMORY ========== */
-    .brain-section { padding:7rem 0; position:relative; overflow:hidden; }
-    .brain-section::before { content:''; position:absolute; top:50%; left:50%; width:1000px; height:1000px; transform:translate(-50%,-50%); background:radial-gradient(ellipse, rgba(6,214,160,0.06) 0%, rgba(124,58,237,0.04) 30%, transparent 55%); pointer-events:none; }
-    .brain-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; max-width:960px; margin:0 auto; }
-    .brain-panel { background:var(--panel); border:1px solid var(--border); border-radius:var(--r-xl); overflow:hidden; backdrop-filter:blur(16px); animation:genesis-pulse 4s ease-in-out infinite; }
-    .brain-bar { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.015); }
-    .brain-bar-title { font-family:var(--mono); font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; }
-    .brain-bar-badge { font-family:var(--mono); font-size:0.5rem; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; padding:0.15rem 0.5rem; border-radius:var(--r-full); background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
-    .brain-body { padding:1.5rem; }
-    .mem-entry { margin-bottom:1.25rem; padding-bottom:1.25rem; border-bottom:1px solid var(--border); }
-    .mem-entry:last-child { margin-bottom:0; padding-bottom:0; border-bottom:none; }
-    .mem-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem; }
-    .mem-label { font-family:var(--mono); font-size:0.75rem; font-weight:700; }
-    .mem-metric { font-family:var(--mono); font-size:0.6875rem; font-weight:700; }
-    .mem-bar-track { height:4px; background:rgba(255,255,255,0.05); border-radius:2px; margin-bottom:0.375rem; overflow:hidden; }
-    .mem-bar-fill { height:100%; border-radius:2px; }
-    .mem-detail { font-family:var(--mono); font-size:0.625rem; color:var(--text-4); line-height:1.6; }
-    .mem-detail em { font-style:normal; color:var(--green); }
-    .mem-process { margin-bottom:1rem; }
-    .mem-process:last-child { margin-bottom:0; }
-    .mem-process-name { font-family:var(--mono); font-size:0.6875rem; font-weight:700; color:var(--text-2); margin-bottom:0.25rem; }
-    .mem-process-desc { font-family:var(--mono); font-size:0.625rem; color:var(--text-4); line-height:1.6; }
-
-    .brain-loop { max-width:960px; margin:2rem auto 0; display:grid; grid-template-columns:repeat(3, 1fr); gap:1px; background:var(--border); border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--border); }
-    .loop-card { padding:1.5rem; background:var(--void); text-align:center; transition:all 0.3s; position:relative; }
-    .loop-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; transform:scaleX(0); transform-origin:left; transition:transform 0.4s cubic-bezier(0.16,1,0.3,1); }
-    .loop-card:hover { background:rgba(6,214,160,0.02); }
-    .loop-card:hover::before { transform:scaleX(1); }
-    .loop-card:nth-child(1)::before { background:var(--violet); }
-    .loop-card:nth-child(2)::before { background:var(--rose); }
-    .loop-card:nth-child(3)::before { background:var(--green); }
-    .loop-icon { font-size:1.5rem; margin-bottom:0.75rem; }
-    .loop-name { font-family:var(--mono); font-size:0.875rem; font-weight:700; margin-bottom:0.25rem; }
-    .loop-desc { font-size:0.75rem; color:var(--text-3); line-height:1.5; }
-
-    /* ========== ORCHESTRATION ========== */
-    .orch-panel { max-width:960px; margin:0 auto; border-radius:var(--r-xl); border:1px solid var(--border); background:var(--panel); backdrop-filter:blur(16px); overflow:hidden; }
-    .orch-bar { display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1.25rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.015); }
-    .orch-bar-title { font-family:var(--mono); font-size:0.625rem; font-weight:700; color:var(--text-4); text-transform:uppercase; letter-spacing:0.1em; }
-    .orch-bar-status { font-family:var(--mono); font-size:0.625rem; font-weight:700; color:var(--green); }
-    .orch-body { padding:2rem 1.5rem; }
-    .orch-prompt { display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; background:rgba(255,255,255,0.03); border-radius:var(--r-md); margin-bottom:1.5rem; }
-    .orch-chevron { font-family:var(--mono); font-size:0.875rem; font-weight:800; color:var(--green); }
-    .orch-prompt-text { font-size:0.875rem; color:var(--text-2); font-style:italic; }
-    .orch-cursor { width:2px; height:14px; background:var(--green); animation:cursor-blink 1s step-end infinite; }
-    .orch-flow { display:flex; flex-direction:column; align-items:center; gap:0.5rem; }
-    .orch-node { font-family:var(--mono); font-size:0.6875rem; font-weight:700; padding:0.5rem 1.25rem; border-radius:var(--r-full); text-align:center; }
-    .orch-node-source { background:var(--purple-dim); color:var(--purple-light); border:1px solid rgba(124,58,237,0.3); }
-    .orch-node-result { background:var(--green-dim); color:var(--green); border:1px solid rgba(6,214,160,0.3); max-width:540px; font-size:0.625rem; line-height:1.5; }
-    .orch-line { width:1px; height:16px; background:var(--border-h); }
-    .orch-label { font-family:var(--mono); font-size:0.5625rem; font-weight:600; color:var(--text-4); text-transform:uppercase; letter-spacing:0.1em; }
-    .orch-agents { display:flex; flex-wrap:wrap; justify-content:center; gap:0.5rem; padding:0.5rem 0; }
-    .orch-agent { display:flex; align-items:center; gap:0.375rem; padding:0.375rem 0.625rem; background:rgba(255,255,255,0.015); border:1px solid var(--border); border-radius:var(--r-full); transition:all 0.2s; }
-    .orch-agent:hover { background:rgba(255,255,255,0.04); border-color:var(--border-h); }
-    .orch-agent-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
-    .orch-agent-info { min-width:0; }
-    .orch-agent-name { font-family:var(--mono); font-size:0.625rem; font-weight:700; color:var(--text); }
-    .orch-agent-task { font-size:0.5625rem; color:var(--text-4); }
-    .orch-patterns { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; max-width:960px; margin:1.5rem auto 0; }
-    .orch-pat { padding:1.25rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); text-align:center; transition:all 0.3s; }
-    .orch-pat:hover { border-color:var(--border-h); }
-    .orch-pat-icon { font-size:1.25rem; margin-bottom:0.5rem; }
-    .orch-pat h4 { font-family:var(--mono); font-size:0.8125rem; font-weight:700; margin-bottom:0.25rem; }
-    .orch-pat p { font-size:0.6875rem; color:var(--text-3); line-height:1.5; }
-
-    /* ========== INTEGRATIONS ========== */
-    .int-section { padding:7rem 0; }
-    .int-stats { display:flex; align-items:center; justify-content:center; gap:1.25rem; margin-top:1.25rem; }
-    .int-stat { text-align:center; }
-    .int-stat-n { font-family:var(--mono); font-size:1.5rem; font-weight:800; display:block; letter-spacing:-0.03em; }
-    .int-stat-l { font-size:0.6875rem; color:var(--text-4); font-weight:500; display:block; margin-top:0.125rem; }
-    .int-sep { color:var(--text-4); font-weight:300; font-size:1.25rem; }
-
-    .int-row { margin-bottom:0; }
-    .int-row-label { font-family:var(--mono); font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-3); margin-bottom:1rem; }
-    .int-cluster { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
-    .int-cluster-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.5rem; }
-    .int-sub { font-family:var(--mono); font-size:0.5625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.625rem; }
-    .int-tiles { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
-    .int-tiles-2 { grid-template-columns:1fr 1fr; }
-    .int-tile { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.625rem; border-radius:var(--r-md); border:1px solid var(--border); transition:all 0.25s; cursor:default; }
-    .int-tile:hover { transform:translateY(-2px); border-color:var(--border-h); }
-    .int-icon { width:24px; height:24px; border-radius:var(--r-sm); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:0.5625rem; font-weight:800; flex-shrink:0; }
-    .int-name { font-size:0.6875rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .int-divider { height:1px; background:var(--border); margin:1.5rem 0; }
-
-    .t-green .int-icon { background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
-    .t-purple .int-icon { background:rgba(167,139,250,0.1); color:var(--purple-light); border:1px solid rgba(167,139,250,0.2); }
-    .t-cyan .int-icon { background:rgba(34,211,238,0.1); color:var(--cyan); border:1px solid rgba(34,211,238,0.2); }
-    .t-amber .int-icon { background:rgba(251,191,36,0.1); color:var(--amber); border:1px solid rgba(251,191,36,0.2); }
-    .t-rose .int-icon { background:rgba(251,113,133,0.1); color:var(--rose); border:1px solid rgba(251,113,133,0.2); }
-    .t-red .int-icon { background:rgba(248,113,113,0.1); color:var(--red); border:1px solid rgba(248,113,113,0.2); }
-    .t-blue .int-icon { background:rgba(96,165,250,0.1); color:var(--blue); border:1px solid rgba(96,165,250,0.2); }
-    .t-silver .int-icon { background:rgba(203,213,225,0.06); color:#cbd5e1; border:1px solid rgba(203,213,225,0.15); }
-
-    /* ========== FEATURES GRID ========== */
-    .feat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-    .feat-card { padding:1.75rem 1.5rem; background:var(--void); border:1px solid var(--border); border-radius:var(--r-lg); transition:all 0.35s; position:relative; overflow:hidden; }
-    .feat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; transform:scaleX(0); transform-origin:left; transition:transform 0.4s cubic-bezier(0.16,1,0.3,1); background:linear-gradient(90deg,var(--purple),var(--green)); }
-    .feat-card:hover { background:rgba(6,214,160,0.02); }
-    .feat-card:hover::before { transform:scaleX(1); }
-    .feat-card .feat-icon { font-size:1.25rem; margin-bottom:0.75rem; display:block; }
-    .feat-card h3 { font-size:1rem; font-weight:700; margin-bottom:0.375rem; }
-    .feat-card p { font-size:0.8125rem; color:var(--text-3); line-height:1.6; }
-
-    /* ========== TERMINAL ========== */
-    .terminal { max-width:720px; margin:0 auto; border-radius:var(--r-xl); border:1px solid var(--border); background:var(--panel); backdrop-filter:blur(16px); overflow:hidden; }
-    .terminal-bar { display:flex; align-items:center; justify-content:space-between; padding:0.625rem 1rem; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.015); }
-    .terminal-path { font-family:var(--mono); font-size:0.625rem; color:var(--text-3); }
-    .terminal-bar-right { font-family:var(--mono); font-size:0.5625rem; color:var(--text-4); }
-    .terminal pre { padding:1.25rem; font-family:var(--mono); font-size:0.6875rem; line-height:1.8; color:var(--text-2); overflow-x:auto; }
-    .terminal .c { color:var(--text-4); }
-    .terminal .g { color:var(--green); }
-    .terminal .p { color:var(--purple-light); }
-
-    /* ========== FINAL CTA ========== */
-    .final-cta { text-align:center; }
-    .final-headline { font-size:2.75rem; font-weight:800; letter-spacing:-0.04em; line-height:1.1; margin-bottom:1.5rem; }
-    .final-sub { font-size:1.0625rem; color:var(--text-3); max-width:640px; margin:0 auto 2.5rem; line-height:1.65; }
-    .final-actions { display:flex; justify-content:center; gap:0.875rem; }
-
-    /* ========== FOOTER ========== */
-    footer { padding:2.5rem 0; border-top:1px solid var(--border); }
-    .footer-inner { max-width:1200px; margin:0 auto; padding:0 2rem; display:flex; align-items:center; justify-content:space-between; }
-    .footer-copy { font-size:0.75rem; color:var(--text-4); }
-    .footer-links { display:flex; gap:1.25rem; }
-    .footer-link { font-size:0.75rem; color:var(--text-3); text-decoration:none; transition:color 0.15s; }
-    .footer-link:hover { color:var(--text); }
-
-    /* ========== RESPONSIVE ========== */
-    @media (max-width:900px) {
-      .hero-grid { grid-template-columns:1fr; }
-      .hero h1 { font-size:2.75rem; }
-      .hero-stats { gap:1.5rem; flex-wrap:wrap; }
-      .div-agents, .div-agents-5 { grid-template-columns:1fr 1fr; }
-      .brain-grid { grid-template-columns:1fr; }
-      .tab-grid { grid-template-columns:1fr 1fr; }
-      .orch-patterns { grid-template-columns:1fr 1fr; }
-      .feat-grid { grid-template-columns:1fr; }
-      .int-cluster, .int-cluster-3 { grid-template-columns:1fr; }
-      .dash-body { grid-template-columns:1fr; }
-      .footer-inner { flex-direction:column; gap:1rem; text-align:center; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--void);
+      color: var(--text);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
     }
-    @media (max-width:600px) {
-      .hero h1 { font-size:2rem; }
-      .sh-title { font-size:1.375rem; }
-      .final-headline { font-size:1.375rem; }
-      .div-agents, .div-agents-5 { grid-template-columns:1fr; }
-      .tab-grid { grid-template-columns:1fr; }
-      .orch-patterns { grid-template-columns:1fr; }
-      .int-tiles { grid-template-columns:1fr 1fr !important; }
-      .orch-agents { gap:0.25rem; }
-      .orch-agent { padding:0.25rem 0.375rem; }
-      .feed-action { font-size:0.5625rem; }
-      .feed-badge { width:22px; height:22px; font-size:0.4375rem; }
-      .terminal pre { font-size:0.5rem; }
-      .nav-links { gap:0.75rem; }
+    code, .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ─── Global Canvas ─── */
+    #bg-canvas {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
     }
-    @media (hover:none) {
-      .agent-card:hover { transform:none; }
-      .int-tile:hover { transform:none; }
-      .feat-card:hover { background:var(--void); }
-      .feat-card:hover::before { transform:scaleX(0); }
-      .loop-card:hover { background:var(--void); }
-      .loop-card:hover::before { transform:scaleX(0); }
-      .tab-card:hover { transform:none; }
+
+    /* ─── Scroll reveal ─── */
+    .reveal {
+      opacity: 0; transform: translateY(40px);
+      transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1);
     }
-    @supports (padding: env(safe-area-inset-bottom)) {
-      footer { padding-bottom:calc(2.5rem + env(safe-area-inset-bottom)); }
-      nav { padding-left:calc(1.25rem + env(safe-area-inset-left)); padding-right:calc(1.25rem + env(safe-area-inset-right)); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+    .reveal-delay-5 { transition-delay: 0.5s; }
+
+    /* ─── Navigation ─── */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 16px 40px; display: flex; align-items: center; justify-content: space-between;
+      background: rgba(3,3,5,0.7); backdrop-filter: blur(20px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+      transition: all 0.3s ease;
     }
-    @media (prefers-reduced-motion:reduce) {
-      .reveal { transition:none; opacity:1; transform:none; }
-      .feed-track { animation:none; }
-      .hero-content, .feed-panel { animation:none; opacity:1; }
-      .atmosphere::before, .atmosphere::after { animation:none; }
-      .hero h1 .gradient { animation:none; }
-      .brain-panel { animation:none; }
+    .nav.scrolled { padding: 12px 40px; background: rgba(3,3,5,0.92); }
+    .nav-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .nav-logo {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--green), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 16px; color: var(--void);
+    }
+    .nav-name { font-weight: 700; font-size: 18px; color: var(--text); letter-spacing: -0.02em; }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a {
+      color: var(--text-dim); text-decoration: none; font-size: 14px; font-weight: 500;
+      transition: color 0.2s; letter-spacing: 0.02em;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--green); color: var(--void); padding: 8px 20px;
+      border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none;
+      transition: all 0.2s; border: none; cursor: pointer;
+    }
+    .nav-cta:hover { background: var(--green-bright); transform: translateY(-1px); box-shadow: 0 4px 20px var(--green-glow); }
+
+    /* ─── Section ─── */
+    section { position: relative; z-index: 1; }
+    .section-inner { max-width: 1280px; margin: 0 auto; padding: 0 40px; }
+    .section-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.15em; text-transform: uppercase; color: var(--green);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+    }
+    .section-label::before {
+      content: ''; width: 24px; height: 1px; background: var(--green); opacity: 0.5;
+    }
+    .section-title {
+      font-size: clamp(32px, 5vw, 56px); font-weight: 800;
+      letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 20px;
+    }
+    .section-subtitle {
+      font-size: 18px; color: var(--text-dim); max-width: 640px; line-height: 1.7;
+    }
+
+    /* ─── HERO ─── */
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 140px 40px 80px; position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 1000px; height: 1000px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(6,214,160,0.08) 0%, rgba(124,58,237,0.04) 40%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 100px;
+      background: var(--glass); border: 1px solid var(--border-bright);
+      font-size: 13px; color: var(--text-dim); margin-bottom: 32px;
+      animation: fadeInUp 1s cubic-bezier(0.16,1,0.3,1) 0.2s both;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--green-glow); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 6px transparent; }
+    }
+    .hero h1 {
+      font-size: clamp(40px, 7vw, 88px); font-weight: 900;
+      letter-spacing: -0.04em; line-height: 1.05; max-width: 900px;
+      animation: fadeInUp 1s cubic-bezier(0.16,1,0.3,1) 0.4s both;
+    }
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, var(--green), var(--cyan), var(--purple-light));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 20px); color: var(--text-dim);
+      max-width: 600px; margin: 24px auto 0; line-height: 1.7;
+      animation: fadeInUp 1s cubic-bezier(0.16,1,0.3,1) 0.6s both;
+    }
+    .hero-actions {
+      display: flex; gap: 16px; margin-top: 40px; align-items: center;
+      animation: fadeInUp 1s cubic-bezier(0.16,1,0.3,1) 0.8s both;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;
+      background: var(--green); color: var(--void); text-decoration: none;
+      border: none; cursor: pointer; transition: all 0.25s;
+    }
+    .btn-primary:hover { background: var(--green-bright); transform: translateY(-2px); box-shadow: 0 8px 32px var(--green-glow); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;
+      background: var(--glass-bright); color: var(--text); text-decoration: none;
+      border: 1px solid var(--border-bright); cursor: pointer; transition: all 0.25s;
+    }
+    .btn-secondary:hover { background: var(--glass); border-color: var(--text-muted); transform: translateY(-2px); }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Hero live feed */
+    .hero-feed {
+      margin-top: 64px; width: 100%; max-width: 720px;
+      animation: fadeInUp 1s cubic-bezier(0.16,1,0.3,1) 1s both;
+    }
+    .hero-feed-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .hero-feed-header {
+      padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .hero-feed-header .live-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    .hero-feed-lines {
+      padding: 16px; display: flex; flex-direction: column; gap: 6px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.6;
+      height: 220px; overflow: hidden;
+    }
+    .feed-line {
+      display: flex; gap: 12px; opacity: 0;
+      animation: feedLineIn 0.5s ease forwards;
+    }
+    .feed-line .feed-time { color: var(--text-muted); min-width: 52px; }
+    .feed-line .feed-agent { min-width: 100px; font-weight: 600; }
+    .feed-line .feed-msg { color: var(--text-dim); }
+    .feed-line:nth-child(1) { animation-delay: 1.2s; }
+    .feed-line:nth-child(2) { animation-delay: 1.6s; }
+    .feed-line:nth-child(3) { animation-delay: 2.0s; }
+    .feed-line:nth-child(4) { animation-delay: 2.4s; }
+    .feed-line:nth-child(5) { animation-delay: 2.8s; }
+    .feed-line:nth-child(6) { animation-delay: 3.2s; }
+    .feed-line:nth-child(7) { animation-delay: 3.6s; }
+    .feed-line:nth-child(8) { animation-delay: 4.0s; }
+    @keyframes feedLineIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Hero stats strip */
+    .hero-stats {
+      display: flex; gap: 48px; margin-top: 48px; text-align: center;
+      animation: fadeInUp 1s cubic-bezier(0.16,1,0.3,1) 1.2s both;
+    }
+    .hero-stat-value {
+      font-size: 28px; font-weight: 800; letter-spacing: -0.02em;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .hero-stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ─── MISSION CONTROL ─── */
+    .mission { padding: 160px 0; }
+    .mission-tabs {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin-top: 48px;
+    }
+    .mission-tab {
+      padding: 20px; border-radius: var(--radius-sm);
+      background: var(--glass); border: 1px solid var(--border);
+      cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden;
+    }
+    .mission-tab::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--green-dim), transparent);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .mission-tab:hover::before, .mission-tab.active::before { opacity: 1; }
+    .mission-tab:hover, .mission-tab.active {
+      border-color: rgba(6,214,160,0.2);
+      transform: translateY(-2px);
+    }
+    .mission-tab-icon { font-size: 20px; margin-bottom: 10px; position: relative; z-index: 1; }
+    .mission-tab-name {
+      font-weight: 600; font-size: 14px; position: relative; z-index: 1;
+    }
+    .mission-tab-desc {
+      font-size: 12px; color: var(--text-muted); margin-top: 4px;
+      position: relative; z-index: 1; line-height: 1.5;
+    }
+
+    .mission-preview {
+      margin-top: 32px; border-radius: var(--radius);
+      background: var(--surface); border: 1px solid var(--border);
+      overflow: hidden; position: relative; min-height: 400px;
+    }
+    .mission-preview-bar {
+      padding: 12px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted);
+    }
+    .mission-preview-dots { display: none; }
+    .mission-preview-body { padding: 32px; }
+    .mission-preview-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    }
+    .mission-card {
+      padding: 20px; border-radius: var(--radius-sm);
+      background: var(--glass); border: 1px solid var(--border);
+      transition: all 0.3s;
+    }
+    .mission-card:hover {
+      border-color: var(--border-bright); background: var(--glass-bright);
+    }
+    .mission-card-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+    .mission-card-value {
+      font-size: 24px; font-weight: 800; margin-top: 8px;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: -0.02em;
+    }
+    .mission-card-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ─── THE FLEET ─── */
+    .fleet { padding: 160px 0; }
+    .fleet-group-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-muted); margin: 40px 0 20px; display: flex;
+      align-items: center; gap: 12px;
+    }
+    .fleet-group-label::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+    .fleet-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    }
+    .fleet-card {
+      padding: 24px; border-radius: var(--radius);
+      background: var(--glass); border: 1px solid var(--border);
+      transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
+      position: relative; overflow: hidden;
+    }
+    .fleet-card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--card-accent, var(--green)), transparent);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .fleet-card:hover { border-color: var(--border-bright); transform: translateY(-4px); }
+    .fleet-card:hover::after { opacity: 1; }
+    .fleet-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .fleet-card-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; background: var(--card-accent-dim, var(--green-dim));
+      border: 1px solid var(--card-accent-border, rgba(6,214,160,0.15));
+    }
+    .fleet-card-name { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+    .fleet-card-role { font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; }
+    .fleet-card-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+    .fleet-card-skills {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;
+    }
+    .fleet-card-skill {
+      padding: 3px 10px; border-radius: 100px; font-size: 11px;
+      font-family: 'JetBrains Mono', monospace; font-weight: 500;
+      background: var(--glass-bright); border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    /* ─── THE BRAIN ─── */
+    .brain { padding: 160px 0; position: relative; }
+    .brain::before {
+      content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 800px; height: 800px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(124,58,237,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .brain-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 48px; align-items: start; }
+    .brain-tiers { display: flex; flex-direction: column; gap: 16px; }
+    .brain-tier {
+      padding: 24px; border-radius: var(--radius);
+      background: var(--glass); border: 1px solid var(--border);
+      transition: all 0.3s;
+    }
+    .brain-tier:hover { border-color: var(--border-bright); }
+    .brain-tier-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .brain-tier-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .brain-tier-name { font-weight: 700; font-size: 15px; }
+    .brain-tier-count {
+      margin-left: auto; font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; font-weight: 600; color: var(--purple-light);
+    }
+    .brain-tier-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+
+    .brain-vis {
+      position: relative; height: 440px;
+      border-radius: var(--radius); background: var(--surface);
+      border: 1px solid var(--border); overflow: hidden;
+    }
+    .brain-vis canvas { width: 100%; height: 100%; }
+    .brain-vis-label {
+      position: absolute; bottom: 16px; left: 16px; right: 16px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--text-muted); text-align: center;
+    }
+
+    .brain-processes {
+      margin-top: 32px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    }
+    .brain-process {
+      padding: 16px; border-radius: var(--radius-sm);
+      background: var(--glass); border: 1px solid var(--border);
+      text-align: center; transition: all 0.3s;
+    }
+    .brain-process:hover { border-color: var(--border-bright); transform: translateY(-2px); }
+    .brain-process-icon { font-size: 20px; margin-bottom: 8px; }
+    .brain-process-name { font-size: 12px; font-weight: 600; }
+    .brain-process-desc { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+
+    /* ─── ORCHESTRATION ─── */
+    .orchestration { padding: 160px 0; }
+    .orch-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+      margin-top: 48px;
+    }
+    .orch-card {
+      padding: 28px; border-radius: var(--radius);
+      background: var(--glass); border: 1px solid var(--border);
+      transition: all 0.35s; position: relative; overflow: hidden;
+    }
+    .orch-card:hover { border-color: var(--border-bright); transform: translateY(-4px); }
+    .orch-card-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 16px;
+      background: var(--glass-bright); border: 1px solid var(--border);
+    }
+    .orch-card-name { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; margin-bottom: 8px; }
+    .orch-card-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+    .orch-card-visual {
+      margin-top: 20px; padding: 16px; border-radius: var(--radius-xs);
+      background: var(--surface); border: 1px solid var(--border);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--text-muted); line-height: 1.8;
+    }
+
+    /* ─── INTEGRATIONS ─── */
+    .integrations { padding: 160px 0; }
+    .integrations-layout {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px;
+      margin-top: 48px;
+    }
+    .integ-group { }
+    .integ-group-title {
+      font-weight: 700; font-size: 16px; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .integ-group-title .integ-icon { font-size: 18px; }
+    .integ-list { display: flex; flex-direction: column; gap: 8px; }
+    .integ-item {
+      padding: 12px 16px; border-radius: var(--radius-xs);
+      background: var(--glass); border: 1px solid var(--border);
+      font-size: 13px; display: flex; align-items: center; gap: 10px;
+      transition: all 0.2s;
+    }
+    .integ-item:hover { border-color: var(--border-bright); background: var(--glass-bright); }
+    .integ-item-badge {
+      padding: 2px 8px; border-radius: 4px; font-size: 10px;
+      font-family: 'JetBrains Mono', monospace; font-weight: 600;
+      background: var(--green-dim); color: var(--green); margin-left: auto;
+    }
+
+    /* ─── PLATFORM FEATURES ─── */
+    .platform { padding: 160px 0; }
+    .platform-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+      margin-top: 48px;
+    }
+    .platform-card {
+      padding: 32px; border-radius: var(--radius);
+      background: var(--glass); border: 1px solid var(--border);
+      transition: all 0.3s; display: flex; gap: 20px;
+    }
+    .platform-card:hover { border-color: var(--border-bright); transform: translateY(-2px); }
+    .platform-card-icon {
+      width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; background: var(--glass-bright); border: 1px solid var(--border);
+    }
+    .platform-card-name { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+    .platform-card-desc { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+
+    /* ─── QUICKSTART ─── */
+    .quickstart { padding: 160px 0; }
+    .quickstart-box {
+      margin-top: 48px; border-radius: var(--radius);
+      background: var(--surface); border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .quickstart-header {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px;
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted);
+    }
+    .quickstart-header-dots { display: none; }
+    .quickstart-code {
+      padding: 28px; font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; line-height: 2; overflow-x: auto;
+    }
+    .quickstart-code .comment { color: var(--text-muted); }
+    .quickstart-code .cmd { color: var(--green); }
+    .quickstart-code .flag { color: var(--purple-light); }
+    .quickstart-code .url { color: var(--cyan); }
+    .quickstart-steps {
+      margin-top: 32px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    }
+    .quickstart-step {
+      padding: 24px; border-radius: var(--radius);
+      background: var(--glass); border: 1px solid var(--border);
+      text-align: center;
+    }
+    .quickstart-step-num {
+      font-family: 'JetBrains Mono', monospace; font-size: 28px;
+      font-weight: 800; color: var(--green); margin-bottom: 8px;
+    }
+    .quickstart-step-title { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+    .quickstart-step-desc { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+    /* ─── FINAL CTA ─── */
+    .cta {
+      padding: 160px 0 120px; text-align: center; position: relative;
+    }
+    .cta::before {
+      content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 1200px; height: 600px;
+      background: radial-gradient(ellipse, rgba(6,214,160,0.06) 0%, rgba(124,58,237,0.03) 40%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta h2 {
+      font-size: clamp(32px, 5vw, 64px); font-weight: 900;
+      letter-spacing: -0.03em; line-height: 1.1; max-width: 700px; margin: 0 auto 20px;
+    }
+    .cta-sub {
+      font-size: 18px; color: var(--text-dim); margin-bottom: 40px; max-width: 480px; margin-left: auto; margin-right: auto;
+    }
+    .cta-actions { display: flex; gap: 16px; justify-content: center; }
+
+    /* ─── FOOTER ─── */
+    .footer {
+      padding: 40px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 13px; color: var(--text-muted); position: relative; z-index: 1;
+    }
+    .footer a { color: var(--text-dim); text-decoration: none; transition: color 0.2s; }
+    .footer a:hover { color: var(--text); }
+    .footer-links { display: flex; gap: 24px; }
+
+    /* ─── HEARTBEAT STRIP ─── */
+    .heartbeat-strip {
+      width: 100%; overflow: hidden; padding: 48px 0;
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      position: relative; z-index: 1;
+    }
+    .heartbeat-inner {
+      display: flex; gap: 64px; animation: scroll-left 30s linear infinite;
+      white-space: nowrap;
+    }
+    .heartbeat-item {
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      color: var(--text-muted); display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0;
+    }
+    .heartbeat-item .hb-dot {
+      width: 4px; height: 4px; border-radius: 50%;
+    }
+    @keyframes scroll-left {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 1024px) {
+      .mission-tabs { grid-template-columns: repeat(4, 1fr); }
+      .fleet-grid { grid-template-columns: repeat(2, 1fr); }
+      .orch-grid { grid-template-columns: repeat(2, 1fr); }
+      .brain-layout { grid-template-columns: 1fr; }
+      .brain-vis { height: 300px; }
+    }
+    @media (max-width: 768px) {
+      .section-inner { padding: 0 20px; }
+      .nav { padding: 12px 20px; }
+      .nav-links { display: none; }
+      .hero { padding: 120px 20px 60px; }
+      .hero-actions { flex-direction: column; }
+      .hero-stats { flex-wrap: wrap; gap: 24px; }
+      .mission-tabs { grid-template-columns: repeat(2, 1fr); }
+      .mission-preview-grid { grid-template-columns: 1fr; }
+      .fleet-grid { grid-template-columns: 1fr; }
+      .orch-grid { grid-template-columns: 1fr; }
+      .integrations-layout { grid-template-columns: 1fr; }
+      .platform-grid { grid-template-columns: 1fr; }
+      .quickstart-steps { grid-template-columns: 1fr; }
+      .brain-processes { grid-template-columns: repeat(2, 1fr); }
+      .cta-actions { flex-direction: column; align-items: center; }
+    }
+
+    /* ─── Floating particles ─── */
+    .particle {
+      position: fixed; pointer-events: none; z-index: 0;
+      border-radius: 50%; opacity: 0.15;
+      animation: float-particle 20s ease-in-out infinite;
+    }
+    @keyframes float-particle {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(30px, -40px); }
+      50% { transform: translate(-20px, -80px); }
+      75% { transform: translate(40px, -30px); }
     }
   </style>
 </head>
 <body>
 
-<div class="atmosphere" aria-hidden="true"></div>
-<div class="dot-grid" aria-hidden="true"></div>
+  <!-- Floating ambient particles -->
+  <div class="particle" style="width:300px;height:300px;background:radial-gradient(circle,rgba(6,214,160,0.08),transparent);top:20%;left:10%;animation-delay:-5s;"></div>
+  <div class="particle" style="width:400px;height:400px;background:radial-gradient(circle,rgba(124,58,237,0.06),transparent);top:50%;right:5%;animation-delay:-12s;"></div>
+  <div class="particle" style="width:250px;height:250px;background:radial-gradient(circle,rgba(34,211,238,0.05),transparent);top:70%;left:40%;animation-delay:-8s;"></div>
 
-<nav>
-  <a href="/" class="logo">askalf</a>
-  <div class="nav-links">
-    <a href="#dashboard" class="nav-link">Dashboard</a>
-    <a href="#fleet" class="nav-link">Fleet</a>
-    <a href="#brain" class="nav-link">Brain</a>
-    <a href="#orchestration" class="nav-link">Orchestration</a>
-    <a href="#integrations" class="nav-link">Integrations</a>
-    <a href="https://askalf.org/app" class="nav-cta">Launch App</a>
-  </div>
-</nav>
+  <!-- Navigation -->
+  <nav class="nav" id="nav">
+    <a href="#" class="nav-brand">
+      <div class="nav-logo">A</div>
+      <span class="nav-name">AskAlf</span>
+    </a>
+    <div class="nav-links">
+      <a href="#what-you-get">Framework</a>
+      <a href="#fleet">Fleet</a>
+      <a href="#brain">Memory</a>
+      <a href="#orchestration">Orchestration</a>
+      <a href="#integrations">Integrations</a>
+      <a href="#quickstart">Deploy</a>
+      <a href="https://github.com/AskAlf" class="nav-cta">Get Started</a>
+    </div>
+  </nav>
 
-<!-- ==================== HERO ==================== -->
-<section class="hero">
-  <div class="hero-grid">
-    <div class="hero-content">
-      <div class="hero-eyebrow">Self-Hosted &middot; BYOK &middot; Open Source</div>
-      <h1>Agents that<br><span class="gradient">think, remember,<br>and evolve.</span></h1>
-      <p class="hero-sub">11 AI agents with <strong>cognitive memory</strong>, an <strong>autonomous heartbeat</strong>, and a full <strong>mission control dashboard</strong>. They build features, fix bugs, patrol your infrastructure, and get smarter every session. <strong>Your servers. Your keys. Your data.</strong></p>
-      <div class="hero-actions">
-        <a href="https://askalf.org/app" class="btn-primary">Open Dashboard</a>
-        <a href="#quickstart" class="btn-secondary">Self-Host</a>
-      </div>
-      <div class="hero-stats">
-        <div><div class="hero-stat-num" style="color:var(--green)">11</div><div class="hero-stat-label">Agents</div></div>
-        <div><div class="hero-stat-num" style="color:var(--purple-light)">17K+</div><div class="hero-stat-label">Memories</div></div>
-        <div><div class="hero-stat-num" style="color:var(--cyan)">24</div><div class="hero-stat-label">MCP Tools</div></div>
-        <div><div class="hero-stat-num" style="color:var(--amber)">28</div><div class="hero-stat-label">Skills</div></div>
-      </div>
+  <!-- ═══════════════════════ HERO ═══════════════════════ -->
+  <section class="hero">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      <span>Open-source AI agent platform framework</span>
+    </div>
+    <h1>Build your own <span class="gradient-text">AI agent platform</span></h1>
+    <p class="hero-sub">
+      The open-source framework for creating autonomous AI agent fleets with cognitive memory,
+      multi-agent orchestration, and a full Mission Control dashboard.
+      Your infrastructure. Your keys. Your agents. Your rules.
+    </p>
+    <div class="hero-actions">
+      <a href="#quickstart" class="btn-primary">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Deploy in 5 Minutes
+      </a>
+      <a href="#what-you-get" class="btn-secondary">
+        See What You Get
+      </a>
     </div>
 
-    <div class="feed-panel">
-      <div class="feed-bar">
-        <span class="feed-title">Live Fleet Activity</span>
-        <span class="feed-live">11 agents</span>
-      </div>
-      <div class="feed-viewport">
-        <div class="feed-track">
-          <div class="feed-item"><div class="feed-badge fb-be">BE</div><div class="feed-body"><div class="feed-action">Fixed double-dispatch bug in admin routes &mdash; added started_at to INSERTs</div><div class="feed-meta"><span class="feed-tag">ticket</span>2s ago</div></div><div class="feed-cost">$0.80</div></div>
-          <div class="feed-item"><div class="feed-badge fb-qa">QA</div><div class="feed-body"><div class="feed-action">Patrol complete: 0% failure rate, 0 stuck executions, fleet healthy</div><div class="feed-meta"><span class="feed-tag">patrol</span>5s ago</div></div><div class="feed-cost">$0.49</div></div>
-          <div class="feed-item"><div class="feed-badge fb-sec">SEC</div><div class="feed-body"><div class="feed-action">Security scan: scanned 847 deps, 0 critical CVEs found</div><div class="feed-meta"><span class="feed-tag">scheduled</span>9s ago</div></div><div class="feed-cost">$0.27</div></div>
-          <div class="feed-item"><div class="feed-badge fb-inf">INF</div><div class="feed-body"><div class="feed-action">Infra patrol: all containers healthy, disk 61%, memory nominal</div><div class="feed-meta"><span class="feed-tag">patrol</span>14s ago</div></div><div class="feed-cost">$0.31</div></div>
-          <div class="feed-item"><div class="feed-badge fb-fe">FE</div><div class="feed-body"><div class="feed-action">Fixed broken CSS imports, verified all component references resolve</div><div class="feed-meta"><span class="feed-tag">ticket</span>18s ago</div></div><div class="feed-cost">$0.45</div></div>
-          <div class="feed-item"><div class="feed-badge fb-dev">DEV</div><div class="feed-body"><div class="feed-action">Implemented OAuth2 PKCE flow &mdash; 847 lines across 6 files</div><div class="feed-meta"><span class="feed-tag">task</span>23s ago</div></div><div class="feed-cost">$0.62</div></div>
-          <div class="feed-item"><div class="feed-badge fb-res">RES</div><div class="feed-body"><div class="feed-action">Competitor analysis: crawled 23 pages, generated positioning report</div><div class="feed-meta"><span class="feed-tag">research</span>28s ago</div></div><div class="feed-cost">$0.18</div></div>
-          <div class="feed-item"><div class="feed-badge fb-wtc">WTC</div><div class="feed-body"><div class="feed-action">Cost spike detected &mdash; investigated, confirmed transient burst, resolved</div><div class="feed-meta"><span class="feed-tag">alert</span>31s ago</div></div><div class="feed-cost">$0.35</div></div>
-          <div class="feed-item"><div class="feed-badge fb-wrt">WRT</div><div class="feed-body"><div class="feed-action">Generated release notes from 12 merged commits, published to docs</div><div class="feed-meta"><span class="feed-tag">content</span>36s ago</div></div><div class="feed-cost">$0.14</div></div>
-          <div class="feed-item"><div class="feed-badge fb-anl">ANL</div><div class="feed-body"><div class="feed-action">Profiled API endpoints: identified 3 N+1 queries, suggested indexes</div><div class="feed-meta"><span class="feed-tag">analysis</span>41s ago</div></div><div class="feed-cost">$0.22</div></div>
-          <div class="feed-item"><div class="feed-badge fb-sys">SYS</div><div class="feed-body"><div class="feed-action">Memory consolidation: merged 47 similar facts, backfilled embeddings</div><div class="feed-meta"><span class="feed-tag">brain</span>46s ago</div></div><div class="feed-cost">$0.08</div></div>
-          <!-- duplicate for seamless loop -->
-          <div class="feed-item"><div class="feed-badge fb-be">BE</div><div class="feed-body"><div class="feed-action">Fixed double-dispatch bug in admin routes &mdash; added started_at to INSERTs</div><div class="feed-meta"><span class="feed-tag">ticket</span>2s ago</div></div><div class="feed-cost">$0.80</div></div>
-          <div class="feed-item"><div class="feed-badge fb-qa">QA</div><div class="feed-body"><div class="feed-action">Patrol complete: 0% failure rate, 0 stuck executions, fleet healthy</div><div class="feed-meta"><span class="feed-tag">patrol</span>5s ago</div></div><div class="feed-cost">$0.49</div></div>
-          <div class="feed-item"><div class="feed-badge fb-sec">SEC</div><div class="feed-body"><div class="feed-action">Security scan: scanned 847 deps, 0 critical CVEs found</div><div class="feed-meta"><span class="feed-tag">scheduled</span>9s ago</div></div><div class="feed-cost">$0.27</div></div>
-          <div class="feed-item"><div class="feed-badge fb-inf">INF</div><div class="feed-body"><div class="feed-action">Infra patrol: all containers healthy, disk 61%, memory nominal</div><div class="feed-meta"><span class="feed-tag">patrol</span>14s ago</div></div><div class="feed-cost">$0.31</div></div>
-          <div class="feed-item"><div class="feed-badge fb-fe">FE</div><div class="feed-body"><div class="feed-action">Fixed broken CSS imports, verified all component references resolve</div><div class="feed-meta"><span class="feed-tag">ticket</span>18s ago</div></div><div class="feed-cost">$0.45</div></div>
-          <div class="feed-item"><div class="feed-badge fb-dev">DEV</div><div class="feed-body"><div class="feed-action">Implemented OAuth2 PKCE flow &mdash; 847 lines across 6 files</div><div class="feed-meta"><span class="feed-tag">task</span>23s ago</div></div><div class="feed-cost">$0.62</div></div>
+    <div class="hero-feed">
+      <div class="hero-feed-box">
+        <div class="hero-feed-header">
+          <span class="live-dot"></span>
+          <span>live feed — askalf.org production fleet (built with AskAlf)</span>
         </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<hr class="divider">
-
-<!-- ==================== MISSION CONTROL ==================== -->
-<section id="dashboard" class="section reveal">
-  <div class="container">
-    <div style="text-align:center;margin-bottom:3.5rem">
-      <p class="sh-label">Mission Control</p>
-      <h2 class="sh-title">Not a chatbot. A <em style="font-style:normal;background:linear-gradient(135deg,var(--green),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">command center.</em></h2>
-      <p class="sh-sub" style="margin:0 auto">Eight tabs of full fleet visibility. Manage agents, monitor costs, browse memories, build workflows, review code, and deploy &mdash; all from one dashboard.</p>
-    </div>
-
-    <div class="dash-mockup">
-      <div class="dash-topbar">
-        <div class="dash-dot dash-dot-r"></div>
-        <div class="dash-dot dash-dot-y"></div>
-        <div class="dash-dot dash-dot-g"></div>
-        <span class="dash-url">askalf.org/app</span>
-      </div>
-      <div class="dash-tabs">
-        <div class="dash-tab active">Overview</div>
-        <div class="dash-tab">Command</div>
-        <div class="dash-tab">Code</div>
-        <div class="dash-tab">Fleet Hub</div>
-        <div class="dash-tab">Ops</div>
-        <div class="dash-tab">Live</div>
-        <div class="dash-tab">Brain</div>
-        <div class="dash-tab">Settings</div>
-      </div>
-      <div class="dash-body">
-        <div class="dash-card">
-          <div class="dash-card-title">System Health</div>
-          <div class="dash-metric" style="color:var(--green)">HEALTHY</div>
-          <div class="dash-metric-sub">All 7 checks passing</div>
-        </div>
-        <div class="dash-card">
-          <div class="dash-card-title">Cost Today</div>
-          <div class="dash-metric" style="color:var(--text)">$1.41</div>
-          <div class="dash-metric-sub">7-day total: $22.65</div>
-        </div>
-        <div class="dash-card">
-          <div class="dash-card-title">Active Agents</div>
-          <div class="dash-metric" style="color:var(--purple-light)">11</div>
-          <div class="dash-metric-sub">3 running &middot; 8 idle</div>
-        </div>
-        <div class="dash-card">
-          <div class="dash-card-title">Memories</div>
-          <div class="dash-metric" style="color:var(--cyan)">17,350</div>
-          <div class="dash-metric-sub">+124 in last 24h</div>
-        </div>
-        <div class="dash-card dash-card-full">
-          <div class="dash-card-title">Agent Leaderboard</div>
-          <div class="dash-bar-row"><div class="dash-bar-label">Backend Dev</div><div class="dash-bar-track"><div class="dash-bar-fill" style="width:72%;background:var(--teal)"></div></div><div class="dash-bar-val" style="color:var(--teal)">$12.37</div></div>
-          <div class="dash-bar-row"><div class="dash-bar-label">QA</div><div class="dash-bar-track"><div class="dash-bar-fill" style="width:38%;background:#c084fc"></div></div><div class="dash-bar-val" style="color:#c084fc">$3.95</div></div>
-          <div class="dash-bar-row"><div class="dash-bar-label">Infra</div><div class="dash-bar-track"><div class="dash-bar-fill" style="width:22%;background:var(--amber)"></div></div><div class="dash-bar-val" style="color:var(--amber)">$2.31</div></div>
-          <div class="dash-bar-row"><div class="dash-bar-label">Security</div><div class="dash-bar-track"><div class="dash-bar-fill" style="width:16%;background:var(--red)"></div></div><div class="dash-bar-val" style="color:var(--red)">$1.65</div></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="tab-grid">
-      <div class="tab-card"><div class="tab-card-name" style="color:var(--green)">Overview</div><div class="tab-card-desc">Health status, cost snapshot, leaderboard, live execution feed</div></div>
-      <div class="tab-card"><div class="tab-card-name" style="color:var(--purple-light)">Command</div><div class="tab-card-desc">Natural language chat with slash commands, auto-dispatch to agents</div></div>
-      <div class="tab-card"><div class="tab-card-name" style="color:var(--cyan)">Code</div><div class="tab-card-desc">Integrated Claude Code + OpenAI Codex terminals in the browser</div></div>
-      <div class="tab-card"><div class="tab-card-name" style="color:var(--amber)">Fleet Hub</div><div class="tab-card-desc">Agent management, Builder wizard, 28 skill templates</div></div>
-      <div class="tab-card"><div class="tab-card-name" style="color:var(--orange)">Ops</div><div class="tab-card-desc">Tickets, monitoring, orchestrator, workflow builder, git deploy</div></div>
-      <div class="tab-card"><div class="tab-card-name" style="color:var(--rose)">Live</div><div class="tab-card-desc">Real-time WebSocket event stream with agent and type filtering</div></div>
-      <div class="tab-card"><div class="tab-card-name" style="color:var(--teal)">Brain</div><div class="tab-card-desc">Memory browser, knowledge graph visualization, analytics</div></div>
-      <div class="tab-card"><div class="tab-card-name" style="color:var(--blue)">Settings</div><div class="tab-card-desc">BYOK, cost controls, 14 channels, integrations, devices</div></div>
-    </div>
-  </div>
-</section>
-
-<hr class="divider">
-
-<!-- ==================== AGENT FLEET ==================== -->
-<section id="fleet" class="section reveal">
-  <div class="container">
-    <div style="text-align:center;margin-bottom:4rem">
-      <p class="sh-label">The Fleet</p>
-      <h2 class="sh-title">6 specialists. 5 builders. <em style="font-style:normal;background:linear-gradient(135deg,var(--green),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">1 system.</em></h2>
-      <p class="sh-sub" style="margin:0 auto">User-facing agents handle your tasks. The internal fleet builds the platform itself &mdash; fixing bugs, shipping features, and patrolling infrastructure autonomously.</p>
-    </div>
-
-    <!-- USER-FACING -->
-    <div class="division">
-      <div class="div-header"><span class="div-name" style="color:var(--green)">Specialists</span><span class="div-sep">&middot;</span><span class="div-desc">Your agents &mdash; dispatch via Command tab or API</span></div>
-      <div class="div-agents">
-        <div class="agent-card"><div class="agent-dot" style="background:var(--sky);box-shadow:0 0 12px rgba(56,189,248,0.4)"></div><div class="agent-name">Researcher</div><div class="agent-role" style="color:var(--sky)">discover</div><div class="agent-desc">Web search, competitive intelligence, market analysis, SEO auditing, trend detection.</div></div>
-        <div class="agent-card"><div class="agent-dot" style="background:var(--red);box-shadow:0 0 12px rgba(248,113,113,0.4)"></div><div class="agent-name">Sentinel</div><div class="agent-role" style="color:var(--red)">protect</div><div class="agent-desc">Security scanning, dependency audit, vulnerability detection, supply chain analysis.</div></div>
-        <div class="agent-card"><div class="agent-dot" style="background:var(--green);box-shadow:0 0 12px rgba(6,214,160,0.4)"></div><div class="agent-name">Developer</div><div class="agent-role" style="color:var(--green)">build</div><div class="agent-desc">Full-stack code generation, testing, code review, refactoring, feature implementation.</div></div>
-        <div class="agent-card"><div class="agent-dot" style="background:var(--purple-light);box-shadow:0 0 12px rgba(167,139,250,0.4)"></div><div class="agent-name">Writer</div><div class="agent-role" style="color:var(--purple-light)">compose</div><div class="agent-desc">Content creation, documentation, release notes, technical writing, knowledge base.</div></div>
-        <div class="agent-card"><div class="agent-dot" style="background:var(--orange);box-shadow:0 0 12px rgba(251,146,60,0.4)"></div><div class="agent-name">Watchdog</div><div class="agent-role" style="color:var(--orange)">monitor</div><div class="agent-desc">System monitoring, incident response, health checks, anomaly detection, alerting.</div></div>
-        <div class="agent-card"><div class="agent-dot" style="background:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,0.4)"></div><div class="agent-name">Analyst</div><div class="agent-role" style="color:var(--cyan)">measure</div><div class="agent-desc">Data analysis, performance profiling, cost optimization, forecasting, metrics interpretation.</div></div>
-      </div>
-    </div>
-
-    <!-- INTERNAL FLEET -->
-    <div class="division">
-      <div class="div-header">
-        <span class="div-name" style="background:linear-gradient(135deg,var(--teal),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Internal Fleet</span>
-        <span class="div-sep">&middot;</span>
-        <span class="div-desc">Autonomous &mdash; they build the system itself</span>
-        <span class="agent-unique" style="margin-left:auto">Self-Building</span>
-      </div>
-      <div class="div-agents div-agents-5">
-        <div class="agent-card" style="border-color:rgba(45,212,191,0.15)"><div class="agent-dot" style="background:var(--teal);box-shadow:0 0 12px rgba(45,212,191,0.4)"></div><div class="agent-name">Backend Dev</div><div class="agent-role" style="color:var(--teal)">server</div><div class="agent-desc">API routes, database, server-side logic.</div></div>
-        <div class="agent-card" style="border-color:rgba(96,165,250,0.15)"><div class="agent-dot" style="background:var(--blue);box-shadow:0 0 12px rgba(96,165,250,0.4)"></div><div class="agent-name">Frontend Dev</div><div class="agent-role" style="color:var(--blue)">ui</div><div class="agent-desc">React components, CSS, client-side code.</div></div>
-        <div class="agent-card" style="border-color:rgba(251,191,36,0.15)"><div class="agent-dot" style="background:var(--amber);box-shadow:0 0 12px rgba(251,191,36,0.4)"></div><div class="agent-name">Infra</div><div class="agent-role" style="color:var(--amber)">ops</div><div class="agent-desc">Docker, deployments, scripts, DevOps.</div></div>
-        <div class="agent-card" style="border-color:rgba(192,132,252,0.15)"><div class="agent-dot" style="background:#c084fc;box-shadow:0 0 12px rgba(192,132,252,0.4)"></div><div class="agent-name">QA</div><div class="agent-role" style="color:#c084fc">verify</div><div class="agent-desc">Testing, code quality, patrol checks.</div></div>
-        <div class="agent-card" style="border-color:rgba(248,113,113,0.15)"><div class="agent-dot" style="background:var(--red);box-shadow:0 0 12px rgba(248,113,113,0.4)"></div><div class="agent-name">Security</div><div class="agent-role" style="color:var(--red)">scan</div><div class="agent-desc">Vulnerability scanning, access control.</div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<hr class="divider">
-
-<!-- ==================== THE BRAIN ==================== -->
-<section id="brain" class="brain-section reveal">
-  <div class="container">
-    <div style="text-align:center;margin-bottom:3.5rem">
-      <p class="sh-label" style="color:var(--green)">The Brain</p>
-      <h2 class="sh-title">Not stateless. <em style="font-style:normal;background:linear-gradient(135deg,var(--green),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Cognitive.</em></h2>
-      <p class="sh-sub" style="margin:0 auto">10-layer memory system with 17,000+ memories across semantic facts, episodic experiences, and procedural patterns. Every session makes the fleet smarter.</p>
-    </div>
-
-    <div class="brain-grid">
-      <!-- Memory Tiers -->
-      <div class="brain-panel">
-        <div class="brain-bar"><span class="brain-bar-title" style="color:var(--purple-light)">Memory Tiers</span><span class="brain-bar-badge">17,350</span></div>
-        <div class="brain-body">
-          <div class="mem-entry">
-            <div class="mem-header"><span class="mem-label" style="color:var(--violet)">Semantic</span><span class="mem-metric" style="color:var(--violet)">2,293</span></div>
-            <div class="mem-bar-track"><div class="mem-bar-fill" style="width:13%;background:var(--violet)"></div></div>
-            <div class="mem-detail">Permanent facts &middot; <em>"The Forge API uses Authorization header, not X-API-Key"</em></div>
+        <div class="hero-feed-lines" id="liveFeed">
+          <div class="feed-line">
+            <span class="feed-time" style="color:var(--text-muted)">03:14</span>
+            <span class="feed-agent" style="color:var(--green)">QA</span>
+            <span class="feed-msg">patrol complete — 0 failures, fleet healthy</span>
           </div>
-          <div class="mem-entry">
-            <div class="mem-header"><span class="mem-label" style="color:var(--green)">Episodic</span><span class="mem-metric" style="color:var(--green)">14,926</span></div>
-            <div class="mem-bar-track"><div class="mem-bar-fill" style="width:86%;background:var(--green)"></div></div>
-            <div class="mem-detail">Experiences with outcomes &middot; <em>"Analyzed cost spike &rarr; false positive, resolved"</em></div>
+          <div class="feed-line">
+            <span class="feed-time" style="color:var(--text-muted)">03:15</span>
+            <span class="feed-agent" style="color:var(--purple-light)">Backend Dev</span>
+            <span class="feed-msg">resolved tkt_cost_spike — false positive, $0.41/hr</span>
           </div>
-          <div class="mem-entry">
-            <div class="mem-header"><span class="mem-label" style="color:var(--cyan)">Procedural</span><span class="mem-metric" style="color:var(--cyan)">131</span></div>
-            <div class="mem-bar-track"><div class="mem-bar-fill" style="width:1%;background:var(--cyan)"></div></div>
-            <div class="mem-detail">Learned patterns &middot; <em>"When testing WebSocket endpoints in Docker..."</em></div>
+          <div class="feed-line">
+            <span class="feed-time" style="color:var(--text-muted)">03:16</span>
+            <span class="feed-agent" style="color:var(--cyan)">Infra</span>
+            <span class="feed-msg">containers nominal — 7/7 healthy, 214MB memory</span>
           </div>
-        </div>
-      </div>
-
-      <!-- Cognitive Processes -->
-      <div class="brain-panel">
-        <div class="brain-bar"><span class="brain-bar-title" style="color:var(--green)">Cognitive Processes</span><span class="brain-bar-badge">Always On</span></div>
-        <div class="brain-body">
-          <div class="mem-process">
-            <div class="mem-process-name" style="color:var(--violet)">Consolidation</div>
-            <div class="mem-process-desc">Merges similar memories, removes redundancy, strengthens connections</div>
+          <div class="feed-line">
+            <span class="feed-time" style="color:var(--text-muted)">03:17</span>
+            <span class="feed-agent" style="color:var(--amber)">Security</span>
+            <span class="feed-msg">dependency scan clean — 0 CVEs, 342 packages</span>
           </div>
-          <div class="mem-process">
-            <div class="mem-process-name" style="color:var(--green)">Dream Cycles</div>
-            <div class="mem-process-desc">Offline processing &mdash; finds cross-links between unrelated memories</div>
+          <div class="feed-line">
+            <span class="feed-time" style="color:var(--text-muted)">03:18</span>
+            <span class="feed-agent" style="color:var(--rose)">Frontend Dev</span>
+            <span class="feed-msg">committed knowledge graph visualization — 844826c</span>
           </div>
-          <div class="mem-process">
-            <div class="mem-process-name" style="color:var(--cyan)">Neuroplasticity</div>
-            <div class="mem-process-desc">Strengthens frequently-used pathways, decays unused memories</div>
+          <div class="feed-line">
+            <span class="feed-time" style="color:var(--text-muted)">03:19</span>
+            <span class="feed-agent" style="color:var(--teal)">Writer</span>
+            <span class="feed-msg">generated release notes for v2.4.1</span>
           </div>
-          <div class="mem-process">
-            <div class="mem-process-name" style="color:var(--amber)">Self-Reflection</div>
-            <div class="mem-process-desc">Every session ends with effectiveness analysis &mdash; what worked, what didn&rsquo;t</div>
+          <div class="feed-line">
+            <span class="feed-time" style="color:var(--text-muted)">03:20</span>
+            <span class="feed-agent" style="color:var(--blue)">Watchdog</span>
+            <span class="feed-msg">heartbeat cycle 1,847 — all vitals nominal</span>
           </div>
-          <div class="mem-process">
-            <div class="mem-process-name" style="color:var(--rose)">Session Handoff</div>
-            <div class="mem-process-desc">Shift-change notes between sessions &mdash; no context lost, ever</div>
-          </div>
-          <div class="mem-process">
-            <div class="mem-process-name" style="color:var(--purple-light)">Knowledge Graph</div>
-            <div class="mem-process-desc">Entity relationships visualized &mdash; browse how concepts connect</div>
+          <div class="feed-line">
+            <span class="feed-time" style="color:var(--text-muted)">03:21</span>
+            <span class="feed-agent" style="color:var(--violet)">Researcher</span>
+            <span class="feed-msg">competitive intel scan — 3 new entries indexed</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- The Heartbeat -->
-    <div class="brain-loop">
-      <div class="loop-card">
-        <div class="loop-icon" style="color:var(--violet)">&#x25C9;</div>
-        <div class="loop-name" style="color:var(--violet)">Autonomous Heartbeat</div>
-        <div class="loop-desc">Not cron-driven. The system thinks continuously at 12 BPM &mdash; checking DB, making decisions, taking action, learning.</div>
+    <div class="hero-stats">
+      <div>
+        <div class="hero-stat-value" style="color:var(--green)">45+</div>
+        <div class="hero-stat-label">Skill Templates</div>
       </div>
-      <div class="loop-card">
-        <div class="loop-icon" style="color:var(--rose)">&#x2692;</div>
-        <div class="loop-name" style="color:var(--rose)">Learn from Every Beat</div>
-        <div class="loop-desc">Each heartbeat is a real decision. LLM calls avoided when procedures exist. Independence grows over time.</div>
+      <div>
+        <div class="hero-stat-value" style="color:var(--purple-light)">10-Layer</div>
+        <div class="hero-stat-label">Cognitive Memory</div>
       </div>
-      <div class="loop-card">
-        <div class="loop-icon" style="color:var(--green)">&#x21BB;</div>
-        <div class="loop-name" style="color:var(--green)">Session Memory</div>
-        <div class="loop-desc">On every session end: extract memories, self-reflect, consolidate, dream, handoff. Nothing is forgotten.</div>
+      <div>
+        <div class="hero-stat-value" style="color:var(--cyan)">4</div>
+        <div class="hero-stat-label">AI Providers</div>
       </div>
+      <div>
+        <div class="hero-stat-value" style="color:var(--amber)">14</div>
+        <div class="hero-stat-label">Channels</div>
+      </div>
+      <div>
+        <div class="hero-stat-value" style="color:var(--rose)">60+</div>
+        <div class="hero-stat-label">MCP Tools</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Scrolling marquee strip -->
+  <div class="heartbeat-strip">
+    <div class="heartbeat-inner">
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--green)"></span> Docker Compose</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--purple-light)"></span> Postgres 17 + pgvector</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--cyan)"></span> Redis</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--amber)"></span> Claude / GPT / Grok / DeepSeek</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--rose)"></span> SearXNG Search</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--green)"></span> WebSocket Live Streaming</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--blue)"></span> OAuth + JWT Auth</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--teal)"></span> 45+ Skill Templates</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--violet)"></span> Knowledge Graph</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--orange)"></span> DAG Workflow Builder</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--lime)"></span> 6 Guardrail Types</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--sky)"></span> BYOK — No Vendor Lock-in</span>
+      <!-- duplicate for seamless loop -->
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--green)"></span> Docker Compose</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--purple-light)"></span> Postgres 17 + pgvector</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--cyan)"></span> Redis</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--amber)"></span> Claude / GPT / Grok / DeepSeek</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--rose)"></span> SearXNG Search</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--green)"></span> WebSocket Live Streaming</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--blue)"></span> OAuth + JWT Auth</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--teal)"></span> 45+ Skill Templates</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--violet)"></span> Knowledge Graph</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--orange)"></span> DAG Workflow Builder</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--lime)"></span> 6 Guardrail Types</span>
+      <span class="heartbeat-item"><span class="hb-dot" style="background:var(--sky)"></span> BYOK — No Vendor Lock-in</span>
     </div>
   </div>
-</section>
 
-<hr class="divider">
+  <!-- ═══════════════════════ WHAT YOU GET ═══════════════════════ -->
+  <section class="platform" id="what-you-get" style="padding-top:120px;">
+    <div class="section-inner">
+      <div class="reveal">
+        <div class="section-label">The Framework</div>
+        <div class="section-title">Not another chatbot.<br>An entire <span style="color:var(--green)">platform factory</span>.</div>
+        <p class="section-subtitle">
+          Other tools give you agents on their servers. AskAlf gives you the machinery to build, deploy, and evolve
+          your own agent platform — with your brand, your data, your infrastructure. Build the next OpenClaw. Or something entirely new.
+        </p>
+      </div>
 
-<!-- ==================== ORCHESTRATION ==================== -->
-<section id="orchestration" class="section reveal">
-  <div class="container">
-    <div style="text-align:center;margin-bottom:3rem">
-      <p class="sh-label">Orchestration</p>
-      <h2 class="sh-title">One prompt. Multiple agents. One result.</h2>
-      <p class="sh-sub" style="margin:0 auto">Describe what you need in natural language. The orchestrator decomposes it, matches agents by capability, and coordinates execution.</p>
-    </div>
-    <div class="orch-panel">
-      <div class="orch-bar"><span class="orch-bar-title">Orchestration Pipeline</span><span class="orch-bar-status">Executing</span></div>
-      <div class="orch-body">
-        <div class="orch-prompt">
-          <span class="orch-chevron">&gt;</span>
-          <span class="orch-prompt-text">"Audit our codebase for security issues and fix what you find"</span>
-          <span class="orch-cursor"></span>
-        </div>
-        <div class="orch-flow">
-          <div class="orch-node orch-node-source">Coordinator</div>
-          <div class="orch-line"></div>
-          <div class="orch-label">fan-out &mdash; 4 agents matched by capability</div>
-          <div class="orch-line"></div>
-          <div class="orch-agents">
-            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--red);box-shadow:0 0 8px rgba(248,113,113,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Sentinel</div><div class="orch-agent-task">scanning deps</div></div></div>
-            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--red);box-shadow:0 0 8px rgba(248,113,113,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Security</div><div class="orch-agent-task">code audit</div></div></div>
-            <div class="orch-agent"><div class="orch-agent-dot" style="background:var(--teal);box-shadow:0 0 8px rgba(45,212,191,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">Backend Dev</div><div class="orch-agent-task">fixing routes</div></div></div>
-            <div class="orch-agent"><div class="orch-agent-dot" style="background:#c084fc;box-shadow:0 0 8px rgba(192,132,252,0.5)"></div><div class="orch-agent-info"><div class="orch-agent-name">QA</div><div class="orch-agent-task">verify fixes</div></div></div>
+      <div class="platform-grid reveal reveal-delay-1">
+        <div class="platform-card">
+          <div class="platform-card-icon">&#128296;</div>
+          <div>
+            <div class="platform-card-name">Agent Builder Wizard</div>
+            <div class="platform-card-desc">Create custom agents in 6 steps. Choose from 45+ skill templates or define your own. Set capabilities, tools, guardrails, and personality — no code required.</div>
           </div>
-          <div class="orch-line"></div>
-          <div class="orch-label">converge &mdash; results merged</div>
-          <div class="orch-line"></div>
-          <div class="orch-node orch-node-result">Audit complete &mdash; 2 vulnerabilities patched, 847 deps scanned, all tests passing &mdash; $1.84</div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#129504;</div>
+          <div>
+            <div class="platform-card-name">Cognitive Memory System</div>
+            <div class="platform-card-desc">10-layer brain with semantic, episodic, and procedural memory. Your agents remember, learn from past mistakes, and get smarter every execution.</div>
+          </div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#128260;</div>
+          <div>
+            <div class="platform-card-name">Multi-Agent Orchestration</div>
+            <div class="platform-card-desc">Pipeline, fan-out, consensus, and DAG workflow patterns. Natural language task decomposition with auto-agent matching by capability.</div>
+          </div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#127760;</div>
+          <div>
+            <div class="platform-card-name">14 Channel Integrations</div>
+            <div class="platform-card-desc">Slack, Discord, Telegram, WhatsApp, Teams, Zoom, Email, SMS, Voice, and more. Your agents meet users wherever they already are.</div>
+          </div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#128272;</div>
+          <div>
+            <div class="platform-card-name">BYOK — Any AI Provider</div>
+            <div class="platform-card-desc">Claude, GPT, Grok, DeepSeek, or any OpenAI-compatible endpoint. Swap models per-agent. No vendor lock-in. Your keys, your costs.</div>
+          </div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#10084;</div>
+          <div>
+            <div class="platform-card-name">Autonomous Heartbeat</div>
+            <div class="platform-card-desc">Not cron-driven — a continuous 12 BPM resting cycle. Your fleet thinks, patrols, and self-heals even when no one is asking. True autonomy.</div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="orch-patterns">
-      <div class="orch-pat"><div class="orch-pat-icon">&#x2192;</div><h4>Single</h4><p>One agent handles the full task end-to-end.</p></div>
-      <div class="orch-pat"><div class="orch-pat-icon">&#x2192;&#x2192;&#x2192;</div><h4>Pipeline</h4><p>Chain agents. Output of one feeds the next.</p></div>
-      <div class="orch-pat"><div class="orch-pat-icon">&#x21C9;</div><h4>Fan-Out</h4><p>Split across agents working in parallel.</p></div>
-      <div class="orch-pat"><div class="orch-pat-icon">&#x2261;</div><h4>Consensus</h4><p>Multiple agents review. Majority agreement.</p></div>
-    </div>
-  </div>
-</section>
+  </section>
 
-<hr class="divider">
+  <!-- ═══════════════════════ MISSION CONTROL ═══════════════════════ -->
+  <section class="mission" id="mission-control">
+    <div class="section-inner">
+      <div class="reveal">
+        <div class="section-label">Mission Control</div>
+        <div class="section-title">Your command center.<br>Included out of the box.</div>
+        <p class="section-subtitle">
+          A full-featured dashboard with 8 tabs — from natural language commands to real-time fleet monitoring, cost analytics, and cognitive memory exploration. Ships with every deployment.
+        </p>
+      </div>
 
-<!-- ==================== INTEGRATIONS ==================== -->
-<section id="integrations" class="int-section reveal">
-  <div class="container">
-    <div style="text-align:center;margin-bottom:3.5rem">
-      <p class="sh-label">Ecosystem</p>
-      <h2 class="sh-title">Bring your own <em style="font-style:normal;background:linear-gradient(135deg,var(--green),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">everything</em></h2>
-      <div class="int-stats">
-        <div class="int-stat"><span class="int-stat-n" style="color:var(--green)">4+</span><span class="int-stat-l">AI Providers</span></div>
-        <span class="int-sep">/</span>
-        <div class="int-stat"><span class="int-stat-n" style="color:var(--purple-light)">14</span><span class="int-stat-l">Channels</span></div>
-        <span class="int-sep">/</span>
-        <div class="int-stat"><span class="int-stat-n" style="color:var(--cyan)">24</span><span class="int-stat-l">MCP Tools</span></div>
+      <div class="mission-tabs reveal reveal-delay-1">
+        <div class="mission-tab active" data-tab="overview">
+          <div class="mission-tab-icon">&#9673;</div>
+          <div class="mission-tab-name">Overview</div>
+          <div class="mission-tab-desc">Health, costs, agent leaderboard, live execution feed</div>
+        </div>
+        <div class="mission-tab" data-tab="command">
+          <div class="mission-tab-icon">&#9654;</div>
+          <div class="mission-tab-name">Command</div>
+          <div class="mission-tab-desc">Natural language chat with slash commands, auto-dispatch</div>
+        </div>
+        <div class="mission-tab" data-tab="code">
+          <div class="mission-tab-icon">&#60;/&#62;</div>
+          <div class="mission-tab-name">Code</div>
+          <div class="mission-tab-desc">Claude Code + OpenAI Codex integrated terminals</div>
+        </div>
+        <div class="mission-tab" data-tab="fleet">
+          <div class="mission-tab-icon">&#9733;</div>
+          <div class="mission-tab-name">Fleet Hub</div>
+          <div class="mission-tab-desc">Agent builder wizard, 45+ skill templates, management</div>
+        </div>
+        <div class="mission-tab" data-tab="ops">
+          <div class="mission-tab-icon">&#9881;</div>
+          <div class="mission-tab-name">Ops</div>
+          <div class="mission-tab-desc">Tickets, monitoring, orchestrator, workflow DAG, deploy</div>
+        </div>
+        <div class="mission-tab" data-tab="live">
+          <div class="mission-tab-icon">&#9889;</div>
+          <div class="mission-tab-name">Live</div>
+          <div class="mission-tab-desc">Real-time WebSocket event stream with filtering</div>
+        </div>
+        <div class="mission-tab" data-tab="brain">
+          <div class="mission-tab-icon">&#10022;</div>
+          <div class="mission-tab-name">Brain</div>
+          <div class="mission-tab-desc">Memory browser, knowledge graph, analytics</div>
+        </div>
+        <div class="mission-tab" data-tab="settings">
+          <div class="mission-tab-icon">&#9881;</div>
+          <div class="mission-tab-name">Settings</div>
+          <div class="mission-tab-desc">BYOK, cost controls, 14 channels, security</div>
+        </div>
+      </div>
+
+      <div class="mission-preview reveal reveal-delay-2">
+        <div class="mission-preview-bar">
+          <div class="mission-preview-dots"><span></span><span></span><span></span></div>
+          <span>mission-control://overview</span>
+        </div>
+        <div class="mission-preview-body">
+          <div class="mission-preview-grid">
+            <div class="mission-card">
+              <div class="mission-card-label">Fleet Status</div>
+              <div class="mission-card-value" style="color:var(--green)">5 Running</div>
+              <div class="mission-card-meta">11 agents total · 0 failures</div>
+            </div>
+            <div class="mission-card">
+              <div class="mission-card-label">Today's Cost</div>
+              <div class="mission-card-value" style="color:var(--purple-light)">$0.41</div>
+              <div class="mission-card-meta">API $0.12 + CLI ~$0.29 est.</div>
+            </div>
+            <div class="mission-card">
+              <div class="mission-card-label">Memory</div>
+              <div class="mission-card-value" style="color:var(--cyan)">17,350</div>
+              <div class="mission-card-meta">semantic + episodic + procedural</div>
+            </div>
+            <div class="mission-card">
+              <div class="mission-card-label">Heartbeat</div>
+              <div class="mission-card-value" style="color:var(--green)">12 BPM</div>
+              <div class="mission-card-meta">continuous autonomous cycle</div>
+            </div>
+            <div class="mission-card">
+              <div class="mission-card-label">Executions (24h)</div>
+              <div class="mission-card-value">47</div>
+              <div class="mission-card-meta">18 Backend Dev · 7 QA · 22 other</div>
+            </div>
+            <div class="mission-card">
+              <div class="mission-card-label">Tickets</div>
+              <div class="mission-card-value">25 Open</div>
+              <div class="mission-card-meta">15 foundation · 10 moat-deepening</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+  </section>
 
-    <div class="int-row">
-      <div class="int-row-label">AI Providers &mdash; BYOK, model agnostic</div>
-      <div class="int-cluster">
-        <div><div class="int-sub" style="color:var(--purple-light)">Native adapters</div><div class="int-tiles" style="grid-template-columns:1fr 1fr"><div class="int-tile t-purple"><div class="int-icon">A</div><span class="int-name">Anthropic</span></div><div class="int-tile t-purple"><div class="int-icon">O</div><span class="int-name">OpenAI</span></div><div class="int-tile t-purple"><div class="int-icon">X</div><span class="int-name">xAI / Grok</span></div><div class="int-tile t-purple"><div class="int-icon">DS</div><span class="int-name">DeepSeek</span></div></div></div>
-        <div><div class="int-sub" style="color:#cbd5e1">OpenAI-compatible</div><div class="int-tiles int-tiles-2"><div class="int-tile t-silver"><div class="int-icon">MI</div><span class="int-name">Mistral</span></div><div class="int-tile t-silver"><div class="int-icon">GQ</div><span class="int-name">Groq</span></div><div class="int-tile t-silver"><div class="int-icon">PX</div><span class="int-name">Perplexity</span></div><div class="int-tile t-silver"><div class="int-icon">+</div><span class="int-name">Any endpoint</span></div></div></div>
+  <!-- ═══════════════════════ THE FLEET ═══════════════════════ -->
+  <section class="fleet" id="fleet">
+    <div class="section-inner">
+      <div class="reveal">
+        <div class="section-label">Proof It Works</div>
+        <div class="section-title">We built AskAlf<br><span style="color:var(--green)">with AskAlf</span>.</div>
+        <p class="section-subtitle">
+          11 agents run in production right now. 6 user-facing agents you command. 5 internal agents that autonomously build, test, and maintain the platform itself. The framework eats its own dogfood.
+        </p>
+      </div>
+
+      <div class="fleet-group-label reveal">User-Facing Agents — 6</div>
+      <div class="fleet-grid reveal">
+        <div class="fleet-card" style="--card-accent:var(--violet);--card-accent-dim:rgba(139,92,246,0.1);--card-accent-border:rgba(139,92,246,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#128269;</div>
+            <div>
+              <div class="fleet-card-name">Researcher</div>
+              <div class="fleet-card-role">Intelligence</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Web search, competitive intelligence, market analysis. Scrapes, synthesizes, and delivers structured reports.</div>
+          <div class="fleet-card-skills">
+            <span class="fleet-card-skill">web-search</span>
+            <span class="fleet-card-skill">competitive-intel</span>
+            <span class="fleet-card-skill">synthesis</span>
+          </div>
+        </div>
+        <div class="fleet-card" style="--card-accent:var(--red);--card-accent-dim:rgba(248,113,113,0.1);--card-accent-border:rgba(248,113,113,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#128737;</div>
+            <div>
+              <div class="fleet-card-name">Sentinel</div>
+              <div class="fleet-card-role">Security</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Continuous security scanning, dependency audits, CVE monitoring. Hardens the system proactively.</div>
+          <div class="fleet-card-skills">
+            <span class="fleet-card-skill">security-scan</span>
+            <span class="fleet-card-skill">dep-audit</span>
+            <span class="fleet-card-skill">cve-monitor</span>
+          </div>
+        </div>
+        <div class="fleet-card" style="--card-accent:var(--green);--card-accent-dim:var(--green-dim);--card-accent-border:rgba(6,214,160,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#128187;</div>
+            <div>
+              <div class="fleet-card-name">Developer</div>
+              <div class="fleet-card-role">Full-Stack</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Full-stack code generation, testing, debugging. Ships features end-to-end across the entire substrate monorepo.</div>
+          <div class="fleet-card-skills">
+            <span class="fleet-card-skill">code-gen</span>
+            <span class="fleet-card-skill">testing</span>
+            <span class="fleet-card-skill">debugging</span>
+          </div>
+        </div>
+        <div class="fleet-card" style="--card-accent:var(--teal);--card-accent-dim:rgba(45,212,191,0.1);--card-accent-border:rgba(45,212,191,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#9998;</div>
+            <div>
+              <div class="fleet-card-name">Writer</div>
+              <div class="fleet-card-role">Content</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Documentation, release notes, content generation. Writes in your brand voice with context from memory.</div>
+          <div class="fleet-card-skills">
+            <span class="fleet-card-skill">docs</span>
+            <span class="fleet-card-skill">release-notes</span>
+            <span class="fleet-card-skill">content</span>
+          </div>
+        </div>
+        <div class="fleet-card" style="--card-accent:var(--amber);--card-accent-dim:rgba(251,191,36,0.1);--card-accent-border:rgba(251,191,36,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#128065;</div>
+            <div>
+              <div class="fleet-card-name">Watchdog</div>
+              <div class="fleet-card-role">Monitoring</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">System monitoring, incident response, anomaly detection. The always-on sentinel that pages you when things break.</div>
+          <div class="fleet-card-skills">
+            <span class="fleet-card-skill">monitoring</span>
+            <span class="fleet-card-skill">alerting</span>
+            <span class="fleet-card-skill">incident-response</span>
+          </div>
+        </div>
+        <div class="fleet-card" style="--card-accent:var(--sky);--card-accent-dim:rgba(56,189,248,0.1);--card-accent-border:rgba(56,189,248,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#128202;</div>
+            <div>
+              <div class="fleet-card-name">Analyst</div>
+              <div class="fleet-card-role">Data</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Data analysis, performance profiling, cost optimization. Turns raw metrics into actionable insights.</div>
+          <div class="fleet-card-skills">
+            <span class="fleet-card-skill">analytics</span>
+            <span class="fleet-card-skill">profiling</span>
+            <span class="fleet-card-skill">cost-ops</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fleet-group-label reveal">Internal Fleet — 5 Autonomous</div>
+      <div class="fleet-grid reveal">
+        <div class="fleet-card" style="--card-accent:var(--purple-light);--card-accent-dim:var(--purple-dim);--card-accent-border:rgba(167,139,250,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#9881;</div>
+            <div>
+              <div class="fleet-card-name">Backend Dev</div>
+              <div class="fleet-card-role">Autonomous</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Claims tickets, writes code, commits, and resolves — without human intervention. The system's workhorse.</div>
+        </div>
+        <div class="fleet-card" style="--card-accent:var(--rose);--card-accent-dim:rgba(251,113,133,0.1);--card-accent-border:rgba(251,113,133,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#127912;</div>
+            <div>
+              <div class="fleet-card-name">Frontend Dev</div>
+              <div class="fleet-card-role">Autonomous</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Builds and maintains dashboard UI. Handles CSS, TypeScript, and component architecture autonomously.</div>
+        </div>
+        <div class="fleet-card" style="--card-accent:var(--cyan);--card-accent-dim:var(--cyan-dim);--card-accent-border:rgba(34,211,238,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#9729;</div>
+            <div>
+              <div class="fleet-card-name">Infra</div>
+              <div class="fleet-card-role">Autonomous</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Container health patrols, infrastructure monitoring, deployment pipeline management.</div>
+        </div>
+        <div class="fleet-card" style="--card-accent:var(--lime);--card-accent-dim:rgba(74,222,128,0.1);--card-accent-border:rgba(74,222,128,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#10004;</div>
+            <div>
+              <div class="fleet-card-name">QA</div>
+              <div class="fleet-card-role">Autonomous</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Patrols fleet health, investigates alerts, validates fixes. Runs compound alert analysis automatically.</div>
+        </div>
+        <div class="fleet-card" style="--card-accent:var(--orange);--card-accent-dim:rgba(251,146,60,0.1);--card-accent-border:rgba(251,146,60,0.15);">
+          <div class="fleet-card-head">
+            <div class="fleet-card-icon">&#128274;</div>
+            <div>
+              <div class="fleet-card-name">Security</div>
+              <div class="fleet-card-role">Autonomous</div>
+            </div>
+          </div>
+          <div class="fleet-card-desc">Autonomous vulnerability scanning, auth hardening, and security policy enforcement.</div>
+        </div>
       </div>
     </div>
-    <div class="int-divider"></div>
+  </section>
 
-    <div class="int-row">
-      <div class="int-row-label">Source Control &amp; Integrations</div>
-      <div class="int-cluster">
-        <div><div class="int-sub" style="color:var(--green)">Version control (OAuth + PAT)</div><div class="int-tiles" style="grid-template-columns:1fr 1fr 1fr"><div class="int-tile t-green"><div class="int-icon">GH</div><span class="int-name">GitHub</span></div><div class="int-tile t-green"><div class="int-icon">GL</div><span class="int-name">GitLab</span></div><div class="int-tile t-green"><div class="int-icon">BB</div><span class="int-name">Bitbucket</span></div></div></div>
-        <div><div class="int-sub" style="color:var(--amber)">Services</div><div class="int-tiles int-tiles-2"><div class="int-tile t-amber"><div class="int-icon">JR</div><span class="int-name">Jira</span></div><div class="int-tile t-amber"><div class="int-icon">DD</div><span class="int-name">Datadog</span></div><div class="int-tile t-amber"><div class="int-icon">GR</div><span class="int-name">Grafana</span></div><div class="int-tile t-amber"><div class="int-icon">SB</div><span class="int-name">Supabase</span></div></div></div>
+  <!-- ═══════════════════════ THE BRAIN ═══════════════════════ -->
+  <section class="brain" id="brain">
+    <div class="section-inner">
+      <div class="reveal">
+        <div class="section-label">The Brain</div>
+        <div class="section-title">Every platform you build<br>gets a <span style="color:var(--purple-light)">brain</span>.</div>
+        <p class="section-subtitle">
+          A 10-layer cognitive memory system included in every deployment. Your agents don't start from zero — they accumulate
+          knowledge across semantic facts, episodic experiences, and procedural patterns. This is the moat no chatbot can replicate.
+        </p>
+      </div>
+
+      <div class="brain-layout reveal reveal-delay-1">
+        <div class="brain-tiers">
+          <div class="brain-tier">
+            <div class="brain-tier-head">
+              <div class="brain-tier-icon" style="background:var(--purple-dim);border:1px solid rgba(124,58,237,0.2);">&#10022;</div>
+              <div class="brain-tier-name">Semantic Memory</div>
+              <div class="brain-tier-count">2,293</div>
+            </div>
+            <div class="brain-tier-desc">
+              Facts, rules, patterns, and learned insights. Cross-linked with similarity scoring.
+              "The Forge API uses Authorization header, not X-API-Key."
+            </div>
+          </div>
+          <div class="brain-tier">
+            <div class="brain-tier-head">
+              <div class="brain-tier-icon" style="background:var(--cyan-dim);border:1px solid rgba(34,211,238,0.2);">&#128340;</div>
+              <div class="brain-tier-name">Episodic Memory</div>
+              <div class="brain-tier-count">14,926</div>
+            </div>
+            <div class="brain-tier-desc">
+              Every agent execution, every ticket resolution, every patrol. Temporal experiences that build institutional knowledge.
+            </div>
+          </div>
+          <div class="brain-tier">
+            <div class="brain-tier-head">
+              <div class="brain-tier-icon" style="background:var(--green-dim);border:1px solid rgba(6,214,160,0.2);">&#9881;</div>
+              <div class="brain-tier-name">Procedural Memory</div>
+              <div class="brain-tier-count">131</div>
+            </div>
+            <div class="brain-tier-desc">
+              Learned procedures and workflows. "When testing WebSocket endpoints in Docker, pipe via stdin." Confidence-weighted, reinforced by success.
+            </div>
+          </div>
+        </div>
+
+        <div class="brain-vis">
+          <canvas id="brainCanvas"></canvas>
+          <div class="brain-vis-label">knowledge graph — entity relationships visualized in real-time</div>
+        </div>
+      </div>
+
+      <div class="brain-processes reveal reveal-delay-2">
+        <div class="brain-process">
+          <div class="brain-process-icon">&#128299;</div>
+          <div class="brain-process-name">Consolidation</div>
+          <div class="brain-process-desc">Merges redundant memories, strengthens important ones</div>
+        </div>
+        <div class="brain-process">
+          <div class="brain-process-icon">&#128171;</div>
+          <div class="brain-process-name">Dream Cycles</div>
+          <div class="brain-process-desc">Finds connections across memories during idle time</div>
+        </div>
+        <div class="brain-process">
+          <div class="brain-process-icon">&#129504;</div>
+          <div class="brain-process-name">Neuroplasticity</div>
+          <div class="brain-process-desc">Importance scoring adapts based on usage patterns</div>
+        </div>
+        <div class="brain-process">
+          <div class="brain-process-icon">&#128161;</div>
+          <div class="brain-process-name">Self-Reflection</div>
+          <div class="brain-process-desc">Generates insights from behavioral patterns and outcomes</div>
+        </div>
+        <div class="brain-process">
+          <div class="brain-process-icon">&#128279;</div>
+          <div class="brain-process-name">Embedding Backfill</div>
+          <div class="brain-process-desc">pgvector embeddings for semantic similarity search</div>
+        </div>
+        <div class="brain-process">
+          <div class="brain-process-icon">&#128260;</div>
+          <div class="brain-process-name">Session Handoff</div>
+          <div class="brain-process-desc">Context transfer between instances without loss</div>
+        </div>
+        <div class="brain-process">
+          <div class="brain-process-icon">&#127760;</div>
+          <div class="brain-process-name">Working Memory</div>
+          <div class="brain-process-desc">Short-term context injection into active sessions</div>
+        </div>
+        <div class="brain-process">
+          <div class="brain-process-icon">&#128200;</div>
+          <div class="brain-process-name">Analytics</div>
+          <div class="brain-process-desc">Memory growth trends, category breakdowns, health metrics</div>
+        </div>
       </div>
     </div>
-    <div class="int-divider"></div>
+  </section>
 
-    <div class="int-row">
-      <div class="int-row-label">Channels &mdash; 14 ways to reach your agents</div>
-      <div class="int-cluster-3">
-        <div><div class="int-sub" style="color:var(--cyan)">Messaging</div><div class="int-tiles int-tiles-2"><div class="int-tile t-cyan"><div class="int-icon">#</div><span class="int-name">Slack</span></div><div class="int-tile t-cyan"><div class="int-icon">&#x25C6;</div><span class="int-name">Discord</span></div><div class="int-tile t-cyan"><div class="int-icon">&#x25B7;</div><span class="int-name">Telegram</span></div><div class="int-tile t-cyan"><div class="int-icon">&#x25CB;</div><span class="int-name">WhatsApp</span></div><div class="int-tile t-cyan"><div class="int-icon">MS</div><span class="int-name">Teams</span></div><div class="int-tile t-cyan"><div class="int-icon">ZM</div><span class="int-name">Zoom</span></div></div></div>
-        <div><div class="int-sub" style="color:var(--amber)">Automation</div><div class="int-tiles int-tiles-2"><div class="int-tile t-amber"><div class="int-icon">&#x21AF;</div><span class="int-name">Webhooks</span></div><div class="int-tile t-amber"><div class="int-icon">&#x26A1;</div><span class="int-name">Zapier</span></div><div class="int-tile t-amber"><div class="int-icon">n8</div><span class="int-name">n8n</span></div><div class="int-tile t-amber"><div class="int-icon">&#x2699;</div><span class="int-name">Make</span></div></div></div>
-        <div><div class="int-sub" style="color:var(--rose)">Outreach</div><div class="int-tiles int-tiles-2"><div class="int-tile t-rose"><div class="int-icon">@</div><span class="int-name">Email</span></div><div class="int-tile t-rose"><div class="int-icon">SM</div><span class="int-name">Twilio SMS</span></div><div class="int-tile t-rose"><div class="int-icon">&#x260E;</div><span class="int-name">Voice</span></div><div class="int-tile t-rose"><div class="int-icon">SG</div><span class="int-name">SendGrid</span></div></div></div>
+  <!-- ═══════════════════════ ORCHESTRATION ═══════════════════════ -->
+  <section class="orchestration" id="orchestration">
+    <div class="section-inner">
+      <div class="reveal">
+        <div class="section-label">Orchestration</div>
+        <div class="section-title">Your agents work<br>together, not alone.</div>
+        <p class="section-subtitle">
+          4 built-in orchestration patterns plus a visual DAG workflow builder. Natural language task decomposition
+          with automatic agent matching. Build complex multi-agent workflows without writing orchestration code.
+        </p>
+      </div>
+
+      <div class="orch-grid reveal reveal-delay-1">
+        <div class="orch-card">
+          <div class="orch-card-icon" style="color:var(--green)">&#9654;</div>
+          <div class="orch-card-name">Single</div>
+          <div class="orch-card-desc">One agent, one task. Direct execution with full context from the brain.</div>
+          <div class="orch-card-visual">
+            <span style="color:var(--green)">&#9632;</span> task &rarr; <span style="color:var(--green)">agent</span> &rarr; result
+          </div>
+        </div>
+        <div class="orch-card">
+          <div class="orch-card-icon" style="color:var(--cyan)">&#8594;</div>
+          <div class="orch-card-name">Pipeline</div>
+          <div class="orch-card-desc">Sequential chain. Each agent's output feeds the next. Research &rarr; Code &rarr; QA.</div>
+          <div class="orch-card-visual">
+            <span style="color:var(--violet)">A</span> &rarr; <span style="color:var(--green)">B</span> &rarr; <span style="color:var(--cyan)">C</span> &rarr; result
+          </div>
+        </div>
+        <div class="orch-card">
+          <div class="orch-card-icon" style="color:var(--purple-light)">&#8644;</div>
+          <div class="orch-card-name">Fan-Out</div>
+          <div class="orch-card-desc">Parallel execution. Same task, multiple agents simultaneously. Results merged.</div>
+          <div class="orch-card-visual">
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &#8599; <span style="color:var(--green)">A</span> &#8600;<br>
+            task &#8594; <span style="color:var(--cyan)">B</span> &#8594; merge<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &#8600; <span style="color:var(--violet)">C</span> &#8599;
+          </div>
+        </div>
+        <div class="orch-card">
+          <div class="orch-card-icon" style="color:var(--amber)">&#9878;</div>
+          <div class="orch-card-name">Consensus</div>
+          <div class="orch-card-desc">Multiple agents vote on the best approach. Majority wins. For critical decisions.</div>
+          <div class="orch-card-visual">
+            <span style="color:var(--green)">A</span>:&#10004; <span style="color:var(--cyan)">B</span>:&#10004; <span style="color:var(--violet)">C</span>:&#10008; &rarr; <span style="color:var(--green)">pass (2/3)</span>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<hr class="divider">
+  <!-- ═══════════════════════ INTEGRATIONS ═══════════════════════ -->
+  <section class="integrations" id="integrations">
+    <div class="section-inner">
+      <div class="reveal">
+        <div class="section-label">Integrations</div>
+        <div class="section-title">Plugs into<br>everything you use.</div>
+        <p class="section-subtitle">
+          4 AI providers. 14 communication channels. Source control. Monitoring.
+          All configurable from the dashboard with BYOK.
+        </p>
+      </div>
 
-<!-- ==================== PLATFORM FEATURES ==================== -->
-<section class="section reveal">
-  <div class="container">
-    <div style="text-align:center;margin-bottom:3.5rem">
-      <p class="sh-label">Platform</p>
-      <h2 class="sh-title">Production-ready out of the box</h2>
-      <p class="sh-sub" style="margin:0 auto">Everything you need to run an autonomous AI fleet. Cost control, guardrails, observability, and cognitive memory &mdash; self-hosted means you own everything.</p>
+      <div class="integrations-layout reveal reveal-delay-1">
+        <div class="integ-group">
+          <div class="integ-group-title">
+            <span class="integ-icon">&#129302;</span> AI Providers
+          </div>
+          <div class="integ-list">
+            <div class="integ-item">
+              Anthropic (Claude)
+              <span class="integ-item-badge">BYOK</span>
+            </div>
+            <div class="integ-item">
+              OpenAI (GPT)
+              <span class="integ-item-badge">BYOK</span>
+            </div>
+            <div class="integ-item">
+              xAI (Grok)
+              <span class="integ-item-badge">BYOK</span>
+            </div>
+            <div class="integ-item">
+              DeepSeek
+              <span class="integ-item-badge">BYOK</span>
+            </div>
+            <div class="integ-item">
+              Any OpenAI-compatible endpoint
+              <span class="integ-item-badge" style="background:var(--purple-dim);color:var(--purple-light)">Custom</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="integ-group">
+          <div class="integ-group-title">
+            <span class="integ-icon">&#128172;</span> Channels (14)
+          </div>
+          <div class="integ-list">
+            <div class="integ-item">Slack</div>
+            <div class="integ-item">Discord</div>
+            <div class="integ-item">Telegram</div>
+            <div class="integ-item">WhatsApp</div>
+            <div class="integ-item">Microsoft Teams</div>
+            <div class="integ-item">Zoom</div>
+            <div class="integ-item">Email</div>
+            <div class="integ-item">Twilio SMS / Voice</div>
+            <div class="integ-item">SendGrid</div>
+            <div class="integ-item">Webhooks · Zapier · n8n · Make</div>
+          </div>
+        </div>
+
+        <div class="integ-group">
+          <div class="integ-group-title">
+            <span class="integ-icon">&#128736;</span> DevOps & Monitoring
+          </div>
+          <div class="integ-list">
+            <div class="integ-item">
+              GitHub / GitLab / Bitbucket
+              <span class="integ-item-badge">OAuth+PAT</span>
+            </div>
+            <div class="integ-item">Jira</div>
+            <div class="integ-item">Datadog</div>
+            <div class="integ-item">Grafana</div>
+            <div class="integ-item">Supabase</div>
+            <div class="integ-item">
+              60+ MCP Tools
+              <span class="integ-item-badge" style="background:var(--cyan-dim);color:var(--cyan)">Built-in</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="feat-grid">
-      <div class="feat-card"><div class="feat-icon">$</div><h3>Cost Control</h3><p>Per-agent budgets, daily/monthly limits, real-time tracking. See exactly what every agent costs per execution.</p></div>
-      <div class="feat-card"><div class="feat-icon">&#x229B;</div><h3>6 Guardrail Types</h3><p>Content filtering, cost limits, rate limits, tool restrictions, output filters, custom rules. You stay in control.</p></div>
-      <div class="feat-card"><div class="feat-icon">&#x2692;</div><h3>24 MCP Tools</h3><p>Database queries, Docker management, web search, code analysis, security scanning, memory ops, deployment. All built in.</p></div>
-      <div class="feat-card"><div class="feat-icon">&#x25C9;</div><h3>Full Observability</h3><p>Execution traces, cost metrics, audit log, agent timeline, provider health. See exactly what every agent does and why.</p></div>
-      <div class="feat-card"><div class="feat-icon">&#x21C4;</div><h3>BYOK</h3><p>Bring your own API keys. Anthropic, OpenAI, xAI, DeepSeek, or any OpenAI-compatible endpoint. Switch per-agent.</p></div>
-      <div class="feat-card"><div class="feat-icon">&#x2726;</div><h3>DAG Workflows</h3><p>Visual workflow builder with node-based DAG execution. Chain agents into complex multi-step pipelines with shared context.</p></div>
+  </section>
+
+  <!-- ═══════════════════════ PLATFORM FEATURES ═══════════════════════ -->
+  <section class="platform" id="platform">
+    <div class="section-inner">
+      <div class="reveal">
+        <div class="section-label">Production-Ready</div>
+        <div class="section-title">Ship with confidence.<br>Scale without fear.</div>
+        <p class="section-subtitle">
+          Enterprise-grade guardrails, cost controls, and full observability — included in every deployment.
+          Your platform ships production-ready on day one.
+        </p>
+      </div>
+
+      <div class="platform-grid reveal reveal-delay-1">
+        <div class="platform-card">
+          <div class="platform-card-icon">&#128176;</div>
+          <div>
+            <div class="platform-card-name">Cost Controls</div>
+            <div class="platform-card-desc">Per-agent daily budgets with auto-pause. Per-execution limits. API vs CLI cost splitting. Real-time cost dashboard with 30-day trends.</div>
+          </div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#128737;</div>
+          <div>
+            <div class="platform-card-name">6 Guardrail Types</div>
+            <div class="platform-card-desc">Content filter, cost limit, rate limit, tool restriction, output filter, and custom guardrails. Stack them per-agent or fleet-wide.</div>
+          </div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#128065;</div>
+          <div>
+            <div class="platform-card-name">Full Observability</div>
+            <div class="platform-card-desc">Execution timelines, provider health dashboards, audit logs. Every agent action is traced, timestamped, and searchable.</div>
+          </div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#128272;</div>
+          <div>
+            <div class="platform-card-name">Self-Hosted & BYOK</div>
+            <div class="platform-card-desc">Docker Compose on your infrastructure. Bring your own API keys. Your data never leaves your servers. Zero vendor lock-in.</div>
+          </div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#10084;</div>
+          <div>
+            <div class="platform-card-name">Autonomous Heartbeat</div>
+            <div class="platform-card-desc">Not cron-driven — a continuous 12 BPM resting cycle. The system thinks, patrols, and self-heals even when no one is asking.</div>
+          </div>
+        </div>
+        <div class="platform-card">
+          <div class="platform-card-icon">&#128260;</div>
+          <div>
+            <div class="platform-card-name">Real-Time WebSocket</div>
+            <div class="platform-card-desc">Live event streaming to the dashboard. Agent actions, ticket updates, memory writes — visible in real-time with filtering.</div>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<hr class="divider">
+  <!-- ═══════════════════════ QUICKSTART ═══════════════════════ -->
+  <section class="quickstart" id="quickstart">
+    <div class="section-inner">
+      <div class="reveal">
+        <div class="section-label">Deploy</div>
+        <div class="section-title">Five minutes to<br>your own AI platform.</div>
+        <p class="section-subtitle">
+          7 containers. One command. Postgres 17 + pgvector, Redis, Forge engine, Mission Control dashboard, MCP-Tools, SearXNG, and Autoheal — all orchestrated by Docker Compose. Start building agents immediately.
+        </p>
+      </div>
 
-<!-- ==================== QUICK START ==================== -->
-<section id="quickstart" class="section reveal">
-  <div class="container">
-    <div style="text-align:center;margin-bottom:3.5rem">
-      <p class="sh-label">Quick Start</p>
-      <h2 class="sh-title">Running in under 2 minutes</h2>
+      <div class="quickstart-box reveal reveal-delay-1">
+        <div class="quickstart-header">
+          <div class="quickstart-header-dots"><span></span><span></span><span></span></div>
+          <span>terminal</span>
+        </div>
+        <div class="quickstart-code">
+          <span class="comment"># Clone the substrate monorepo</span><br>
+          <span class="cmd">git clone</span> <span class="url">https://github.com/AskAlf.git</span><br>
+          <span class="cmd">cd</span> substrate<br>
+          <br>
+          <span class="comment"># Configure your API keys</span><br>
+          <span class="cmd">cp</span> .env.example .env<br>
+          <span class="cmd">nano</span> .env <span class="comment"># Add your Anthropic / OpenAI / xAI keys</span><br>
+          <br>
+          <span class="comment"># Launch the fleet</span><br>
+          <span class="cmd">docker compose up</span> <span class="flag">-d</span><br>
+          <br>
+          <span class="comment"># Open Mission Control</span><br>
+          <span class="comment"># &rarr; http://localhost:3000/command-center</span>
+        </div>
+      </div>
+
+      <div class="quickstart-steps reveal reveal-delay-2">
+        <div class="quickstart-step">
+          <div class="quickstart-step-num">01</div>
+          <div class="quickstart-step-title">Clone & Configure</div>
+          <div class="quickstart-step-desc">Clone the repo. Add your API keys to .env. That's the only config.</div>
+        </div>
+        <div class="quickstart-step">
+          <div class="quickstart-step-num">02</div>
+          <div class="quickstart-step-title">Docker Compose Up</div>
+          <div class="quickstart-step-desc">7 containers spin up. Postgres migrates automatically. Agents initialize.</div>
+        </div>
+        <div class="quickstart-step">
+          <div class="quickstart-step-num">03</div>
+          <div class="quickstart-step-title">Command Your Fleet</div>
+          <div class="quickstart-step-desc">Open Mission Control. Talk to your agents. Watch them think and remember.</div>
+        </div>
+      </div>
     </div>
-    <div class="terminal">
-      <div class="terminal-bar"><span class="terminal-path">~/askalf</span><span class="terminal-bar-right">bash</span></div>
-      <pre><span class="c"># Clone, configure, run</span>
-<span class="g">$</span> git clone https://github.com/SprayberryLabs/askalf.git && cd askalf
-<span class="g">$</span> cp .env.example .env     <span class="c"># add your Anthropic or OpenAI key</span>
-<span class="g">$</span> docker compose -f docker-compose.selfhosted.yml up -d
+  </section>
 
-<span class="g">&#10003;</span> postgres     <span class="c">ready   1.2s  (PostgreSQL 17 + pgvector)</span>
-<span class="g">&#10003;</span> redis        <span class="c">ready   0.8s</span>
-<span class="g">&#10003;</span> forge        <span class="c">ready   3.1s  (11 agents, 28 skills)</span>
-<span class="g">&#10003;</span> dashboard    <span class="c">ready   2.4s  &#x2192; http://localhost:3001</span>
-<span class="g">&#10003;</span> mcp-tools    <span class="c">ready   1.9s  (24 tools, heartbeat active)</span>
-<span class="g">&#10003;</span> searxng      <span class="c">ready   4.2s  (private web search)</span>
-<span class="g">&#10003;</span> nginx        <span class="c">ready   0.5s</span>
-
-<span class="p">Fleet online.</span> <span class="c">7 containers. 11 agents. 17K+ memories. Heartbeat active.</span></pre>
+  <!-- ═══════════════════════ FINAL CTA ═══════════════════════ -->
+  <section class="cta">
+    <div class="section-inner reveal">
+      <h2>Stop renting agents.<br><span style="color:var(--green)">Build the factory.</span></h2>
+      <p class="cta-sub">
+        Other platforms give you their agents on their servers.
+        AskAlf gives you the tools to build your own. Self-hosted. Open-source. Forever yours.
+      </p>
+      <div class="cta-actions">
+        <a href="#quickstart" class="btn-primary">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Deploy Now
+        </a>
+        <a href="https://github.com/AskAlf" class="btn-secondary">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<hr class="divider">
-
-<!-- ==================== FINAL CTA ==================== -->
-<section class="section final-cta reveal">
-  <div class="container">
-    <h2 class="final-headline">AI that <span style="background:linear-gradient(135deg,var(--green),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">remembers.</span></h2>
-    <p class="final-sub">11 agents. 17,000+ memories. Autonomous heartbeat. Mission Control dashboard. 14 channels. 24 tools. BYOK. Self-hosted. No vendor lock-in. No data leaving your network.</p>
-    <div class="final-actions">
-      <a href="https://askalf.org/app" class="btn-primary">Open Dashboard</a>
-      <a href="#quickstart" class="btn-secondary">Self-Host</a>
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div class="footer-inner">
-    <span class="footer-copy">&copy; 2026 AskAlf by SprayberryLabs.</span>
+  <!-- Footer -->
+  <footer class="footer">
+    <span>&copy; 2026 AskAlf. Self-hosted AI agent platform.</span>
     <div class="footer-links">
-      <a href="https://askalf.org/app/privacy" class="footer-link">Privacy</a>
-      <a href="https://askalf.org/app/terms" class="footer-link">Terms</a>
-      <a href="https://github.com/SprayberryLabs" class="footer-link">GitHub</a>
-      <a href="https://x.com/ask_alf" class="footer-link" target="_blank" rel="noopener noreferrer">X / Twitter</a>
+      <a href="https://github.com/AskAlf">GitHub</a>
+      <a href="https://github.com/AskAlf/wiki">Docs</a>
+      <a href="https://discord.gg/askalf">Discord</a>
     </div>
-  </div>
-</footer>
+  </footer>
 
-<script>
-(function(){
-  var o = new IntersectionObserver(function(entries){
-    entries.forEach(function(e){ if(e.isIntersecting) e.target.classList.add('vis'); });
-  }, { threshold:0.1, rootMargin:'0px 0px -40px 0px' });
-  document.querySelectorAll('.reveal').forEach(function(el){ o.observe(el); });
-})();
-</script>
+  <!-- ═══════════════════════ SCRIPTS ═══════════════════════ -->
+  <script>
+    // ─── Scroll reveal ───
+    const revealEls = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    revealEls.forEach(el => observer.observe(el));
+
+    // ─── Nav scroll effect ───
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 50);
+    });
+
+    // ─── Brain canvas — knowledge graph visualization ───
+    (function() {
+      const canvas = document.getElementById('brainCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w, h, nodes = [], edges = [];
+      const COLORS = ['#06d6a0', '#7c3aed', '#22d3ee', '#a78bfa', '#fb7185', '#fbbf24', '#60a5fa'];
+      const NODE_COUNT = 60;
+
+      function resize() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        w = canvas.width = rect.width * window.devicePixelRatio;
+        h = canvas.height = rect.height * window.devicePixelRatio;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      }
+
+      function init() {
+        resize();
+        const rw = w / window.devicePixelRatio;
+        const rh = h / window.devicePixelRatio;
+        nodes = [];
+        for (let i = 0; i < NODE_COUNT; i++) {
+          nodes.push({
+            x: Math.random() * rw,
+            y: Math.random() * rh,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: (Math.random() - 0.5) * 0.3,
+            r: 2 + Math.random() * 3,
+            color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          });
+        }
+        edges = [];
+        for (let i = 0; i < nodes.length; i++) {
+          const conns = 1 + Math.floor(Math.random() * 2);
+          for (let c = 0; c < conns; c++) {
+            const j = Math.floor(Math.random() * nodes.length);
+            if (j !== i) edges.push([i, j]);
+          }
+        }
+      }
+
+      function draw() {
+        const rw = w / window.devicePixelRatio;
+        const rh = h / window.devicePixelRatio;
+        ctx.clearRect(0, 0, rw, rh);
+
+        // edges
+        for (const [i, j] of edges) {
+          const a = nodes[i], b = nodes[j];
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 200) continue;
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = `rgba(240,240,242,${0.04 * (1 - dist / 200)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+
+        // nodes
+        for (const n of nodes) {
+          n.x += n.vx; n.y += n.vy;
+          if (n.x < 0 || n.x > rw) n.vx *= -1;
+          if (n.y < 0 || n.y > rh) n.vy *= -1;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+          ctx.fillStyle = n.color;
+          ctx.globalAlpha = 0.6;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          // glow
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r + 4, 0, Math.PI * 2);
+          const g = ctx.createRadialGradient(n.x, n.y, n.r, n.x, n.y, n.r + 4);
+          g.addColorStop(0, n.color.replace(')', ',0.15)').replace('rgb', 'rgba'));
+          g.addColorStop(1, 'transparent');
+          ctx.fillStyle = g;
+          ctx.fill();
+        }
+
+        requestAnimationFrame(draw);
+      }
+
+      init();
+      draw();
+      window.addEventListener('resize', () => { resize(); });
+    })();
+
+    // ─── Live feed cycling ───
+    (function() {
+      const feedLines = [
+        { time: '03:22', agent: 'Backend Dev', color: '#a78bfa', msg: 'claimed tkt_rate_limit_v2 — starting implementation' },
+        { time: '03:23', agent: 'QA', color: '#06d6a0', msg: 'execution audit — 47/47 clean, 0 orphans' },
+        { time: '03:24', agent: 'Infra', color: '#22d3ee', msg: 'nginx cache hit rate 94.2% — optimal' },
+        { time: '03:25', agent: 'Frontend Dev', color: '#fb7185', msg: 'GraphTab.tsx — knowledge graph hover tooltips added' },
+        { time: '03:26', agent: 'Watchdog', color: '#60a5fa', msg: 'memory consolidation cycle — merged 12 redundant entries' },
+        { time: '03:27', agent: 'Security', color: '#fb923c', msg: 'auth flow hardened — SHA-256 legacy verification enabled' },
+        { time: '03:28', agent: 'Researcher', color: '#8b5cf6', msg: 'indexed 847 new data points from web crawl' },
+        { time: '03:29', agent: 'Backend Dev', color: '#a78bfa', msg: 'committed rate-limit middleware — per-API-key enforcement' },
+        { time: '03:30', agent: 'Analyst', color: '#38bdf8', msg: 'cost trend: $0.41/day avg this week — 23% below budget' },
+        { time: '03:31', agent: 'Writer', color: '#2dd4bf', msg: 'changelog entry drafted for cost-split display update' },
+        { time: '03:32', agent: 'QA', color: '#06d6a0', msg: 'compound alert resolved — false positive confirmed' },
+        { time: '03:33', agent: 'Infra', color: '#22d3ee', msg: 'backup verified — pg_dump 142MB compressed, S3 synced' },
+      ];
+      const feed = document.getElementById('liveFeed');
+      if (!feed) return;
+      let idx = 0;
+
+      function addLine() {
+        const line = feedLines[idx % feedLines.length];
+        idx++;
+        const el = document.createElement('div');
+        el.className = 'feed-line';
+        el.style.animation = 'feedLineIn 0.4s ease forwards';
+        el.innerHTML = `<span class="feed-time" style="color:var(--text-muted)">${line.time}</span><span class="feed-agent" style="color:${line.color}">${line.agent}</span><span class="feed-msg">${line.msg}</span>`;
+        feed.appendChild(el);
+        // Remove old lines if too many
+        while (feed.children.length > 8) {
+          feed.removeChild(feed.firstChild);
+        }
+      }
+
+      // Start cycling after initial animation
+      setTimeout(() => {
+        setInterval(addLine, 3000);
+      }, 5000);
+    })();
+  </script>
 </body>
 </html>
