@@ -4,8 +4,7 @@
  * Runs as a periodic cycle inside Forge (no separate container).
  */
 
-import { query } from '../database.js';
-import { substrateQuery } from '../database.js';
+import { query, substrateQuery } from '../database.js';
 import { getEventBus } from './event-bus.js';
 
 export interface HealthReport {
@@ -31,6 +30,83 @@ interface Alert {
 }
 
 let lastReport: HealthReport | null = null;
+
+/** Tracks last notification time per alert metric for debouncing (15 min) */
+const lastNotificationSent = new Map<string, number>();
+const NOTIFICATION_DEBOUNCE_MS = 15 * 60 * 1000;
+
+interface ChannelConfig {
+  id: string;
+  channel_type: string;
+  name: string;
+  config: Record<string, string>;
+}
+
+async function fetchActiveChannels(): Promise<ChannelConfig[]> {
+  try {
+    return await substrateQuery<ChannelConfig>(
+      `SELECT id, channel_type, name, config FROM channel_configs WHERE is_active = true`,
+    );
+  } catch {
+    return [];
+  }
+}
+
+async function sendToChannel(channel: ChannelConfig, alert: Alert): Promise<void> {
+  const webhookUrl = channel.config.webhook_url;
+  if (!webhookUrl) return;
+
+  const emoji = alert.severity === 'critical' ? '🚨' : '⚠️';
+  const text = `${emoji} *[AskAlf Monitor] ${alert.severity.toUpperCase()}*\n${alert.message}\nMetric: \`${alert.metric}\` | Value: \`${alert.value}\` | Threshold: \`${alert.threshold}\``;
+
+  let body: string;
+  if (channel.channel_type === 'discord') {
+    body = JSON.stringify({ content: text.replace(/\*/g, '**') });
+  } else {
+    // slack (default)
+    body = JSON.stringify({ text });
+  }
+
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  });
+
+  if (!response.ok) {
+    console.warn(`[Monitor] Notification failed for channel ${channel.name} (${channel.channel_type}): HTTP ${response.status}`);
+  } else {
+    console.log(`[Monitor] Notified ${channel.channel_type} channel "${channel.name}" for alert: ${alert.metric}`);
+  }
+}
+
+/**
+ * Send external notifications for critical alerts.
+ * Debounced: max 1 alert per metric per 15 minutes.
+ */
+async function sendExternalAlerts(alerts: Alert[]): Promise<void> {
+  const criticalAlerts = alerts.filter((a) => a.severity === 'critical');
+  if (criticalAlerts.length === 0) return;
+
+  const now = Date.now();
+  const dueAlerts = criticalAlerts.filter((a) => {
+    const last = lastNotificationSent.get(a.metric) ?? 0;
+    return now - last >= NOTIFICATION_DEBOUNCE_MS;
+  });
+  if (dueAlerts.length === 0) return;
+
+  const channels = await fetchActiveChannels();
+  if (channels.length === 0) return;
+
+  for (const alert of dueAlerts) {
+    lastNotificationSent.set(alert.metric, now);
+    for (const channel of channels) {
+      void sendToChannel(channel, alert).catch((err) =>
+        console.warn(`[Monitor] sendToChannel error:`, err instanceof Error ? err.message : err),
+      );
+    }
+  }
+}
 
 /** Map alert metrics to the agent responsible for handling them */
 const ALERT_ASSIGNMENT: Record<string, string> = {
@@ -231,7 +307,7 @@ export async function runHealthCheck(): Promise<HealthReport> {
 
   lastReport = report;
 
-  // Emit alerts via event bus + auto-create tickets
+  // Emit alerts via event bus + auto-create tickets + external notifications
   if (alerts.length > 0) {
     const eventBus = getEventBus();
     for (const alert of alerts) {
@@ -244,6 +320,11 @@ export async function runHealthCheck(): Promise<HealthReport> {
       // Level 4: Auto-create tickets for alerts so agents can pick them up
       void createAlertTicket(alert).catch(() => {});
     }
+
+    // Send external notifications (Slack/Discord) for critical alerts with debounce
+    void sendExternalAlerts(alerts).catch((err) =>
+      console.warn('[Monitor] External alert notification failed:', err instanceof Error ? err.message : err),
+    );
   }
 
   return report;
