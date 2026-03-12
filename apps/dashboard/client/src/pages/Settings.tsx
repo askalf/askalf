@@ -593,6 +593,10 @@ function AIKeysTab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
+      if (!res.ok) {
+        setMessage({ type: 'error', text: `Verification request failed: ${res.status}` });
+        return;
+      }
       const data = await res.json() as { status: string; error?: string };
       if (data.status === 'valid') {
         setMessage({ type: 'success', text: `${providerType} key verified` });
@@ -1238,8 +1242,6 @@ function CostControlsTab() {
   };
 
   const handleClear = async () => {
-    setDailyLimit('');
-    setMonthlyLimit('');
     setSaving(true);
     setMessage(null);
     try {
@@ -1250,9 +1252,15 @@ function CostControlsTab() {
         body: JSON.stringify({ budgetLimitDaily: null, budgetLimitMonthly: null }),
       });
       if (res.ok) {
+        setDailyLimit('');
+        setMonthlyLimit('');
         setMessage({ type: 'success', text: 'Budget limits removed' });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to clear budget limits' });
       }
-    } catch { /* ignore */ }
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to clear budget limits' });
+    }
     setSaving(false);
   };
 
@@ -1658,6 +1666,10 @@ function ChannelsTab() {
         credentials: 'include',
         body: JSON.stringify({}),
       });
+      if (!res.ok) {
+        setChMsg({ type: 'error', channel: channelType, text: `Test request failed: ${res.status}` });
+        return;
+      }
       const data = await res.json() as { success?: boolean; message?: string; error?: string };
       setChMsg({ type: data.success ? 'success' : 'error', channel: channelType, text: data.message ?? data.error ?? (data.success ? 'Test passed' : 'Test failed') });
     } catch (err) {
@@ -1671,14 +1683,20 @@ function ChannelsTab() {
     const configId = configs[channelType]?.id;
     if (!configId) return;
     try {
-      await fetch(`${API_BASE}/api/v1/forge/channels/configs/${configId}`, {
+      const res = await fetch(`${API_BASE}/api/v1/forge/channels/configs/${configId}`, {
         method: 'DELETE',
         headers: {},
         credentials: 'include',
       });
-      setConfigs(prev => { const next = { ...prev }; delete next[channelType]; return next; });
-      setChMsg({ type: 'success', channel: channelType, text: 'Disconnected' });
-    } catch { /* ignore */ }
+      if (res.ok) {
+        setConfigs(prev => { const next = { ...prev }; delete next[channelType]; return next; });
+        setChMsg({ type: 'success', channel: channelType, text: 'Disconnected' });
+      } else {
+        setChMsg({ type: 'error', channel: channelType, text: `Disconnect failed: ${res.status}` });
+      }
+    } catch {
+      setChMsg({ type: 'error', channel: channelType, text: 'Disconnect failed' });
+    }
   };
 
   const updateForm = (channelType: string, key: string, value: string) => {

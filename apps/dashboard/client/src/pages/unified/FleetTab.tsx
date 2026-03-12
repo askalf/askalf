@@ -403,11 +403,12 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   useEffect(() => {
     if (wsEvents.length === 0) return;
     const latest = wsEvents[0];
-    if (latest?.category === 'agent' && latest.agentId) {
+    const VALID_STATUSES = new Set(['idle', 'running', 'error', 'disabled', 'paused', 'scheduled']);
+    if (latest?.category === 'agent' && latest.agentId && typeof latest.status === 'string' && VALID_STATUSES.has(latest.status)) {
       setAgents((prev) =>
         prev.map((a) =>
           a.id === latest.agentId
-            ? { ...a, status: (latest.status as Agent['status']) || a.status }
+            ? { ...a, status: latest.status as Agent['status'] }
             : a
         )
       );
