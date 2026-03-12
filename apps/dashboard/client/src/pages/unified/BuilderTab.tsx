@@ -23,9 +23,8 @@ interface AgentConfig {
   autonomyLevel: number;
   maxIterations: number;
   maxCostPerExecution: number;
-  scheduleType: 'none' | 'interval' | 'cron';
+  scheduleType: 'none' | 'interval';
   scheduleInterval: string;
-  scheduleCron: string;
 }
 
 const STEPS: { key: BuilderStep; label: string }[] = [
@@ -57,7 +56,6 @@ const DEFAULT_CONFIG: AgentConfig = {
   maxCostPerExecution: 1.0,
   scheduleType: 'none',
   scheduleInterval: '6h',
-  scheduleCron: '',
 };
 
 // ── Sub-components ──
@@ -300,7 +298,6 @@ function ScheduleStep({
         <select value={config.scheduleType} onChange={e => onChange({ scheduleType: e.target.value as AgentConfig['scheduleType'] })}>
           <option value="none">One-shot (manual trigger)</option>
           <option value="interval">Recurring interval</option>
-          <option value="cron">Cron expression</option>
         </select>
       </label>
       {config.scheduleType === 'interval' && (
@@ -314,17 +311,6 @@ function ScheduleStep({
             <option value="12h">Every 12 hours</option>
             <option value="24h">Every 24 hours</option>
           </select>
-        </label>
-      )}
-      {config.scheduleType === 'cron' && (
-        <label className="builder-field">
-          <span>Cron Expression</span>
-          <input
-            type="text"
-            value={config.scheduleCron}
-            onChange={e => onChange({ scheduleCron: e.target.value })}
-            placeholder="0 */6 * * *"
-          />
         </label>
       )}
       <label className="builder-field">
@@ -385,9 +371,7 @@ function ReviewStep({
             <strong>Schedule:</strong>{' '}
             {config.scheduleType === 'none'
               ? 'Manual'
-              : config.scheduleType === 'interval'
-              ? `Every ${config.scheduleInterval}`
-              : config.scheduleCron}
+              : `Every ${config.scheduleInterval}`}
           </div>
         </div>
         {config.systemPrompt && (
@@ -458,6 +442,17 @@ export default function BuilderTab({
         maxIterations: (agentConfig['maxIterations'] as number) ?? prev.maxIterations,
         maxCostPerExecution: (agentConfig['maxCostPerExecution'] as number) ?? prev.maxCostPerExecution,
       }));
+      // Apply schedule config from template
+      const schedCfg = (tmpl['schedule_config'] ?? {}) as Record<string, unknown>;
+      if (schedCfg['interval_minutes']) {
+        const mins = schedCfg['interval_minutes'] as number;
+        const inverseMap: Record<number, string> = { 30: '30m', 60: '1h', 180: '3h', 360: '6h', 720: '12h', 1440: '24h' };
+        setConfig(prev => ({
+          ...prev,
+          scheduleType: 'interval',
+          scheduleInterval: inverseMap[mins] ?? '6h',
+        }));
+      }
       setStep('configure');
     }
   }, [prefilledTemplate]);
@@ -499,9 +494,7 @@ export default function BuilderTab({
         const intervalMap: Record<string, number> = {
           '30m': 30, '1h': 60, '3h': 180, '6h': 360, '12h': 720, '24h': 1440,
         };
-        const intervalMinutes = config.scheduleType === 'interval'
-          ? intervalMap[config.scheduleInterval] ?? 360
-          : 360; // cron fallback — default 6h
+        const intervalMinutes = intervalMap[config.scheduleInterval] ?? 360;
         try {
           await hubApi.agents.setSchedule(agent.id, {
             schedule_type: 'scheduled',
