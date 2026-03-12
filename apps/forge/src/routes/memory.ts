@@ -305,6 +305,28 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
       const episodic = parseInt(epiCount?.count ?? '0', 10);
       const procedural = parseInt(procCount?.count ?? '0', 10);
 
+      // Per-agent budget usage
+      const budgetAgents = await query<{
+        id: string; name: string; cost_budget_daily: string; budget_paused_at: string | null; spent_today: string;
+      }>(
+        `SELECT a.id, a.name, a.cost_budget_daily::text, a.budget_paused_at::text,
+                COALESCE((SELECT SUM(c.cost) FROM forge_cost_events c
+                  WHERE c.agent_id = a.id AND c.created_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC')), 0)::text AS spent_today
+         FROM forge_agents a
+         WHERE a.cost_budget_daily IS NOT NULL AND a.status = 'active'
+         ORDER BY a.name`,
+      ).catch(() => [] as Array<{ id: string; name: string; cost_budget_daily: string; budget_paused_at: string | null; spent_today: string }>);
+
+      const agentBudgets = budgetAgents.map(a => ({
+        agentId: a.id,
+        agentName: a.name,
+        budgetDaily: parseFloat(a.cost_budget_daily),
+        spentToday: parseFloat(a.spent_today) || 0,
+        remainingToday: Math.max(0, parseFloat(a.cost_budget_daily) - (parseFloat(a.spent_today) || 0)),
+        paused: a.budget_paused_at !== null,
+        pausedAt: a.budget_paused_at,
+      }));
+
       return reply.send({
         tiers: { semantic, episodic, procedural },
         total: semantic + episodic + procedural,
@@ -314,6 +336,7 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
           procedural: parseInt(proc24?.count ?? '0', 10),
         },
         recalls24h: 0,
+        agentBudgets,
       });
     },
   );

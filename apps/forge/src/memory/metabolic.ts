@@ -78,6 +78,7 @@ let feedbackTimer: ReturnType<typeof setInterval> | null = null;
 let promptRewriteTimer: ReturnType<typeof setInterval> | null = null;
 let autonomyLoopTimer: ReturnType<typeof setInterval> | null = null;
 let worktreeCleanupTimer: ReturnType<typeof setInterval> | null = null;
+let budgetResetTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Start all metabolic cycles on intervals.
@@ -140,7 +141,14 @@ export function startMetabolicCycles(): void {
     void runWorktreeCleanup().catch(logErr('worktree-cleanup'));
   }, 6 * 60 * 60 * 1000);
 
-  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), autonomy(15m), worktree-cleanup(6h)');
+  // Budget reset: every 1 hour — re-enables agents paused by daily cost budget
+  // Effective at midnight UTC when the new day begins (cost events reset by date)
+  initCycleStatus('budget-reset', 1);
+  budgetResetTimer = setInterval(() => {
+    void runBudgetResetCycle().catch(logErr('budget-reset'));
+  }, 60 * 60 * 1000);
+
+  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), autonomy(15m), worktree-cleanup(6h), budget-reset(1h)');
 }
 
 /**
@@ -154,6 +162,7 @@ export function stopMetabolicCycles(): void {
   if (promptRewriteTimer) clearInterval(promptRewriteTimer);
   if (autonomyLoopTimer) clearInterval(autonomyLoopTimer);
   if (worktreeCleanupTimer) clearInterval(worktreeCleanupTimer);
+  if (budgetResetTimer) clearInterval(budgetResetTimer);
   decayTimer = null;
   lessonsTimer = null;
   promoteTimer = null;
@@ -161,6 +170,51 @@ export function stopMetabolicCycles(): void {
   promptRewriteTimer = null;
   autonomyLoopTimer = null;
   worktreeCleanupTimer = null;
+  budgetResetTimer = null;
+}
+
+// --------------------------------------------------------------------------
+// Budget Reset Cycle — Re-enable budget-paused agents when daily spend is under budget
+// --------------------------------------------------------------------------
+
+async function runBudgetResetCycle(): Promise<void> {
+  const start = Date.now();
+
+  // Find agents that were paused due to budget overage
+  const pausedAgents = await query<{ id: string; name: string; cost_budget_daily: string }>(
+    `SELECT id, name, cost_budget_daily::text FROM forge_agents
+     WHERE budget_paused_at IS NOT NULL AND cost_budget_daily IS NOT NULL`,
+  );
+
+  if (pausedAgents.length === 0) {
+    recordCycleRun('budget-reset', Date.now() - start, { resumed: 0 });
+    return;
+  }
+
+  let resumed = 0;
+  for (const agent of pausedAgents) {
+    const budget = parseFloat(agent.cost_budget_daily);
+    // Check today's spend
+    const row = await queryOne<{ total_cost: string }>(
+      `SELECT COALESCE(SUM(cost), 0)::text AS total_cost
+       FROM forge_cost_events
+       WHERE agent_id = $1 AND created_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC')`,
+      [agent.id],
+    );
+    const spent = parseFloat(row?.total_cost ?? '0') || 0;
+
+    // If under budget now (new UTC day), re-enable
+    if (spent < budget) {
+      await query(
+        `UPDATE forge_agents SET dispatch_enabled = true, budget_paused_at = NULL, updated_at = NOW() WHERE id = $1`,
+        [agent.id],
+      );
+      console.log(`[Metabolic] Budget-resumed ${agent.name} — $${spent.toFixed(4)} < $${budget.toFixed(4)} daily budget`);
+      resumed++;
+    }
+  }
+
+  recordCycleRun('budget-reset', Date.now() - start, { resumed, checked: pausedAgents.length });
 }
 
 // --------------------------------------------------------------------------
