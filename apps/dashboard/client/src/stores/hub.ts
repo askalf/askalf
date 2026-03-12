@@ -13,9 +13,6 @@ import {
   type Ticket,
   type TicketNote,
   type ContentFeedItem,
-  type FleetMemoryStats,
-  type FleetMemoryItem,
-  type FleetRecallEvent,
   type CoordinationSession,
   type CoordinationStats,
   type Workflow,
@@ -29,11 +26,7 @@ import {
   type ProviderModel,
   type ProviderHealth,
   type UserProviderKey,
-  type DocumentItem,
-  type DocumentDetail,
 } from '../hooks/useHubApi';
-
-export type MemorySubView = 'timeline' | 'episodic' | 'semantic' | 'procedural';
 
 interface HubState {
   // Agents
@@ -105,47 +98,6 @@ interface HubState {
   setContentDateTo: (s: string) => void;
   setContentSearch: (s: string) => void;
   setSelectedContentItem: (item: ContentFeedItem | null) => void;
-
-  // Documents (completed execution outputs)
-  documents: DocumentItem[];
-  documentsPagination: Pagination | null;
-  documentsPage: number;
-  documentsAgentFilter: string;
-  documentsSearch: string;
-  documentsDateFrom: string;
-  documentsDateTo: string;
-  documentsAgents: string[];
-  selectedDocument: DocumentDetail | null;
-  setDocumentsPage: (p: number) => void;
-  setDocumentsAgentFilter: (s: string) => void;
-  setDocumentsSearch: (s: string) => void;
-  setDocumentsDateFrom: (s: string) => void;
-  setDocumentsDateTo: (s: string) => void;
-  setSelectedDocument: (doc: DocumentDetail | null) => void;
-
-  // Fleet Memory
-  memoryStats: FleetMemoryStats | null;
-  memorySearchResults: FleetMemoryItem[];
-  memoryRecentItems: FleetMemoryItem[];
-  memorySearchQuery: string;
-  memoryTierFilter: string;
-  memoryAgentFilter: string;
-  memorySubView: MemorySubView;
-  memorySourceFilter: string;
-  memoryDateFrom: string;
-  memoryDateTo: string;
-  memoryPage: number;
-  memoryPagination: { total: number; page: number; limit: number; totalPages: number } | null;
-  memoryRecalls: FleetRecallEvent[];
-  memoryRecallsPagination: { total: number; page: number; limit: number; totalPages: number } | null;
-  setMemorySearchQuery: (s: string) => void;
-  setMemoryTierFilter: (s: string) => void;
-  setMemoryAgentFilter: (s: string) => void;
-  setMemorySubView: (v: MemorySubView) => void;
-  setMemorySourceFilter: (s: string) => void;
-  setMemoryDateFrom: (s: string) => void;
-  setMemoryDateTo: (s: string) => void;
-  setMemoryPage: (p: number) => void;
 
   // Workflows
   workflows: Workflow[];
@@ -233,13 +185,6 @@ interface HubState {
   fetchContentFeed: () => Promise<void>;
   fetchContentAgents: () => Promise<void>;
   fetchContentCategories: () => Promise<void>;
-  fetchDocuments: () => Promise<void>;
-  fetchDocumentDetail: (id: string) => Promise<void>;
-  fetchDocumentsAgents: () => Promise<void>;
-  fetchMemoryStats: () => Promise<void>;
-  searchMemory: (q: string) => Promise<void>;
-  fetchMemoryRecent: () => Promise<void>;
-  fetchMemoryRecalls: () => Promise<void>;
 
   // Workflow actions
   fetchWorkflows: () => Promise<void>;
@@ -376,47 +321,6 @@ export const useHubStore = create<HubState>((set, get) => ({
   setContentDateTo: (s) => set({ contentDateTo: s, contentPage: 1 }),
   setContentSearch: (s) => set({ contentSearch: s, contentPage: 1 }),
   setSelectedContentItem: (item) => set({ selectedContentItem: item }),
-
-  // Documents
-  documents: [],
-  documentsPagination: null,
-  documentsPage: 1,
-  documentsAgentFilter: '',
-  documentsSearch: '',
-  documentsDateFrom: '',
-  documentsDateTo: '',
-  documentsAgents: [],
-  selectedDocument: null,
-  setDocumentsPage: (p) => set({ documentsPage: p }),
-  setDocumentsAgentFilter: (s) => set({ documentsAgentFilter: s, documentsPage: 1 }),
-  setDocumentsSearch: (s) => set({ documentsSearch: s, documentsPage: 1 }),
-  setDocumentsDateFrom: (s) => set({ documentsDateFrom: s, documentsPage: 1 }),
-  setDocumentsDateTo: (s) => set({ documentsDateTo: s, documentsPage: 1 }),
-  setSelectedDocument: (doc) => set({ selectedDocument: doc }),
-
-  // Fleet Memory
-  memoryStats: null,
-  memorySearchResults: [],
-  memoryRecentItems: [],
-  memorySearchQuery: '',
-  memoryTierFilter: '',
-  memoryAgentFilter: '',
-  memorySubView: 'timeline',
-  memorySourceFilter: '',
-  memoryDateFrom: '',
-  memoryDateTo: '',
-  memoryPage: 1,
-  memoryPagination: null,
-  memoryRecalls: [],
-  memoryRecallsPagination: null,
-  setMemorySearchQuery: (s) => set({ memorySearchQuery: s }),
-  setMemoryTierFilter: (s) => set({ memoryTierFilter: s }),
-  setMemoryAgentFilter: (s) => set({ memoryAgentFilter: s }),
-  setMemorySubView: (v) => set({ memorySubView: v, memoryPage: 1 }),
-  setMemorySourceFilter: (s) => set({ memorySourceFilter: s, memoryPage: 1 }),
-  setMemoryDateFrom: (s) => set({ memoryDateFrom: s, memoryPage: 1 }),
-  setMemoryDateTo: (s) => set({ memoryDateTo: s, memoryPage: 1 }),
-  setMemoryPage: (p) => set({ memoryPage: p }),
 
   // Workflows
   workflows: [],
@@ -632,116 +536,6 @@ export const useHubStore = create<HubState>((set, get) => ({
       set({ contentCategories: data.categories || [] });
     } catch (err) {
       console.error('Failed to fetch content categories:', err);
-    }
-  },
-
-  fetchDocuments: async () => {
-    set((s) => ({ loading: { ...s.loading, documents: true } }));
-    try {
-      const { documentsPage, documentsAgentFilter, documentsSearch, documentsDateFrom, documentsDateTo } = get();
-      const data = await hubApi.documents.list({
-        page: documentsPage,
-        agent: documentsAgentFilter || undefined,
-        search: documentsSearch || undefined,
-        dateFrom: documentsDateFrom || undefined,
-        dateTo: documentsDateTo || undefined,
-      });
-      set({ documents: data.documents || [], documentsPagination: data.pagination || null });
-    } catch (err) {
-      console.error('Failed to fetch documents:', err);
-    } finally {
-      set((s) => ({ loading: { ...s.loading, documents: false } }));
-    }
-  },
-
-  fetchDocumentDetail: async (id: string) => {
-    try {
-      const data = await hubApi.documents.detail(id);
-      set({ selectedDocument: data.document || null });
-    } catch (err) {
-      console.error('Failed to fetch document detail:', err);
-    }
-  },
-
-  fetchDocumentsAgents: async () => {
-    try {
-      const data = await hubApi.documents.agents();
-      set({ documentsAgents: data.agents || [] });
-    } catch (err) {
-      console.error('Failed to fetch documents agents:', err);
-    }
-  },
-
-  fetchMemoryStats: async () => {
-    try {
-      const stats = await hubApi.memory.stats();
-      set({ memoryStats: stats });
-    } catch (err) {
-      console.error('Failed to fetch memory stats:', err);
-    }
-  },
-
-  searchMemory: async (q: string) => {
-    if (!q.trim()) {
-      set({ memorySearchResults: [], memoryPagination: null });
-      return;
-    }
-    set((s) => ({ loading: { ...s.loading, memorySearch: true } }));
-    try {
-      const { memoryTierFilter, memoryAgentFilter, memorySourceFilter, memoryPage } = get();
-      const data = await hubApi.memory.search({
-        q,
-        tier: memoryTierFilter || undefined,
-        agent_id: memoryAgentFilter || undefined,
-        source_type: memorySourceFilter || undefined,
-        limit: 30,
-        page: memoryPage,
-      });
-      set({
-        memorySearchResults: data.memories || [],
-        memoryPagination: data.total != null ? { total: data.total, page: data.page, limit: data.limit, totalPages: data.totalPages } : null,
-      });
-    } catch (err) {
-      console.error('Failed to search memory:', err);
-    } finally {
-      set((s) => ({ loading: { ...s.loading, memorySearch: false } }));
-    }
-  },
-
-  fetchMemoryRecent: async () => {
-    set((s) => ({ loading: { ...s.loading, memoryRecent: true } }));
-    try {
-      const { memoryAgentFilter, memorySourceFilter, memoryTierFilter, memoryDateFrom, memoryDateTo, memoryPage } = get();
-      const data = await hubApi.memory.recent({
-        limit: 30,
-        page: memoryPage,
-        agent_id: memoryAgentFilter || undefined,
-        source_type: memorySourceFilter || undefined,
-        tier: memoryTierFilter || undefined,
-        dateFrom: memoryDateFrom || undefined,
-        dateTo: memoryDateTo || undefined,
-      });
-      set({
-        memoryRecentItems: data.memories || [],
-        memoryPagination: data.total != null ? { total: data.total, page: data.page, limit: data.limit, totalPages: data.totalPages } : null,
-      });
-    } catch (err) {
-      console.error('Failed to fetch recent memories:', err);
-    } finally {
-      set((s) => ({ loading: { ...s.loading, memoryRecent: false } }));
-    }
-  },
-
-  fetchMemoryRecalls: async () => {
-    try {
-      const { memoryPage } = get();
-      const data = await hubApi.memory.recalls({ limit: 30, page: memoryPage });
-      set({
-        memoryRecalls: data.recalls || [],
-        memoryRecallsPagination: data.total != null ? { total: data.total, page: data.page, limit: data.limit, totalPages: data.totalPages } : null,
-      });
-    } catch (err) {
-      console.error('Failed to fetch memory recalls:', err);
     }
   },
 
