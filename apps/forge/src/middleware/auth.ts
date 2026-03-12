@@ -6,6 +6,7 @@
 import { createHash, pbkdf2Sync } from 'node:crypto';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { query, queryOne, retryQuery } from '../database.js';
+import { cacheKeyRateLimit, rateLimitTokenHash } from './rate-limit.js';
 
 interface ApiKeyRow {
   id: string;
@@ -73,6 +74,10 @@ async function tryApiKeyAuth(request: FastifyRequest): Promise<boolean> {
       `UPDATE forge_api_keys SET last_used_at = NOW() WHERE id = $1`,
       [apiKey.id],
     ).catch(() => {});
+
+    // Cache per-key rate limit in Redis for the rate limiter
+    const tokenHash = rateLimitTokenHash(token);
+    void cacheKeyRateLimit(tokenHash, apiKey.rate_limit ?? 100).catch(() => {});
 
     const forwardedUserId = request.headers['x-user-id'];
     request.userId = (typeof forwardedUserId === 'string' && forwardedUserId) ? forwardedUserId : apiKey.owner_id;

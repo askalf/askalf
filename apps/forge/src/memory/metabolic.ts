@@ -5,7 +5,7 @@
  */
 
 import { exec } from 'child_process';
-import { query } from '../database.js';
+import { query, queryOne } from '../database.js';
 import { substrateQuery } from '../database.js';
 import { processUnprocessedFeedback, getAgentFeedbackStats } from '../learning/feedback-processor.js';
 import { proposeAllRevisions, applyPromptRevision, proposePromptRevision } from '../learning/prompt-rewriter.js';
