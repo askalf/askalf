@@ -2,8 +2,7 @@ import { create } from 'zustand';
 import {
   hubApi,
   type Agent,
-  type AgentLog,
-  type AgentTask,
+
   type Intervention,
   type OrchestrationStats,
   type Pagination,
@@ -34,9 +33,6 @@ interface HubState {
   showDecommissioned: boolean;
   setShowDecommissioned: (v: boolean) => void;
   selectedAgentId: string | null;
-  selectedAgent: Agent | null;
-  agentLogs: AgentLog[];
-  agentTasks: AgentTask[];
 
   // Orchestration
   stats: OrchestrationStats | null;
@@ -149,12 +145,6 @@ interface HubState {
   setShowStartTeam: (v: boolean) => void;
 
   // Modals
-  showCreateAgent: boolean;
-  setShowCreateAgent: (v: boolean) => void;
-  showRunAgent: string | null;
-  setShowRunAgent: (id: string | null) => void;
-  showAgentDetail: string | null;
-  setShowAgentDetail: (id: string | null) => void;
   showCreateTicket: boolean;
   setShowCreateTicket: (v: boolean) => void;
   showTicketDetail: Ticket | null;
@@ -164,10 +154,6 @@ interface HubState {
   selectedTask: Task | null;
   setSelectedTask: (t: Task | null) => void;
 
-  // Batch
-  batchRunning: boolean;
-  batchResult: { started: number; agents: string[] } | null;
-
   // Loading
   loading: Record<string, boolean>;
 
@@ -175,7 +161,7 @@ interface HubState {
   // Actions
   // ============================
   fetchAgents: () => Promise<void>;
-  fetchAgentDetail: (id: string) => Promise<void>;
+
   fetchOrchestration: () => Promise<void>;
   fetchInterventions: () => Promise<void>;
   fetchTasks: () => Promise<void>;
@@ -224,16 +210,6 @@ interface HubState {
   }) => Promise<boolean>;
   cancelCoordinationSession: (id: string) => Promise<void>;
 
-  // Agent actions
-  createAgent: (body: { name: string; type: string; description: string; system_prompt: string }) => Promise<boolean>;
-  runAgent: (id: string, prompt?: string) => Promise<boolean>;
-  stopAgent: (id: string) => Promise<void>;
-  decommissionAgent: (id: string) => Promise<void>;
-  recommissionAgent: (id: string) => Promise<void>;
-  deleteAgent: (id: string) => Promise<void>;
-  batchProcessAgents: () => Promise<void>;
-  batchPauseAgents: () => Promise<void>;
-  processAgent: (id: string) => Promise<void>;
 
   // Intervention actions
   respondToIntervention: (id: string, action: 'approve' | 'deny' | 'feedback') => Promise<void>;
@@ -245,10 +221,6 @@ interface HubState {
   fetchTicketNotes: (id: string) => Promise<void>;
   addTicketNote: (id: string, content: string) => Promise<boolean>;
 
-  // Scheduler actions
-  toggleScheduler: (action: 'start' | 'stop') => Promise<void>;
-  updateSchedule: (agentId: string, scheduleType: string, intervalMinutes?: number, executionMode?: string) => Promise<void>;
-  updateAgentModel: (agentId: string, modelId: string) => Promise<void>;
 }
 
 export const useHubStore = create<HubState>((set, get) => ({
@@ -257,9 +229,6 @@ export const useHubStore = create<HubState>((set, get) => ({
   showDecommissioned: false,
   setShowDecommissioned: (v) => set({ showDecommissioned: v }),
   selectedAgentId: null,
-  selectedAgent: null,
-  agentLogs: [],
-  agentTasks: [],
 
   // Orchestration
   stats: null,
@@ -372,12 +341,8 @@ export const useHubStore = create<HubState>((set, get) => ({
   setShowStartTeam: (v) => set({ showStartTeam: v }),
 
   // Modals
-  showCreateAgent: false,
-  setShowCreateAgent: (v) => set({ showCreateAgent: v }),
-  showRunAgent: null,
-  setShowRunAgent: (id) => set({ showRunAgent: id }),
-  showAgentDetail: null,
-  setShowAgentDetail: (id) => set({ showAgentDetail: id }),
+
+
   showCreateTicket: false,
   setShowCreateTicket: (v) => set({ showCreateTicket: v }),
   showTicketDetail: null,
@@ -386,10 +351,6 @@ export const useHubStore = create<HubState>((set, get) => ({
   ticketNotesLoading: false,
   selectedTask: null,
   setSelectedTask: (t) => set({ selectedTask: t }),
-
-  // Batch
-  batchRunning: false,
-  batchResult: null,
 
   // Loading
   loading: {},
@@ -407,15 +368,6 @@ export const useHubStore = create<HubState>((set, get) => ({
       console.error('Failed to fetch agents:', err);
     } finally {
       set((s) => ({ loading: { ...s.loading, agents: false } }));
-    }
-  },
-
-  fetchAgentDetail: async (id: string) => {
-    try {
-      const data = await hubApi.agents.detail(id);
-      set({ selectedAgent: data.agent, agentLogs: data.logs || [], agentTasks: data.tasks || [] });
-    } catch (err) {
-      console.error('Failed to fetch agent detail:', err);
     }
   },
 
@@ -805,105 +757,6 @@ export const useHubStore = create<HubState>((set, get) => ({
   },
 
   // ============================
-  // Agent actions
-  // ============================
-
-  createAgent: async (body) => {
-    try {
-      await hubApi.agents.create(body);
-      await get().fetchAgents();
-      return true;
-    } catch (err) {
-      console.error('Failed to create agent:', err);
-      return false;
-    }
-  },
-
-  runAgent: async (id, prompt) => {
-    try {
-      await hubApi.agents.run(id, prompt);
-      await get().fetchAgents();
-      return true;
-    } catch (err) {
-      console.error('Failed to run agent:', err);
-      return false;
-    }
-  },
-
-  stopAgent: async (id) => {
-    try {
-      await hubApi.agents.stop(id);
-      await get().fetchAgents();
-    } catch (err) {
-      console.error('Failed to stop agent:', err);
-    }
-  },
-
-  decommissionAgent: async (id) => {
-    try {
-      await hubApi.agents.decommission(id);
-      set({ showAgentDetail: null });
-      await get().fetchAgents();
-    } catch (err) {
-      console.error('Failed to decommission agent:', err);
-    }
-  },
-
-  recommissionAgent: async (id) => {
-    try {
-      await hubApi.agents.recommission(id);
-      await get().fetchAgents();
-    } catch (err) {
-      console.error('Failed to recommission agent:', err);
-    }
-  },
-
-  deleteAgent: async (id) => {
-    try {
-      await hubApi.agents.delete(id);
-      set({ showAgentDetail: null });
-      await get().fetchAgents();
-    } catch (err) {
-      console.error('Failed to delete agent:', err);
-    }
-  },
-
-  batchProcessAgents: async () => {
-    set({ batchRunning: true, batchResult: null });
-    try {
-      const result = await hubApi.agents.batchProcess();
-      set({ batchResult: result });
-      await get().fetchAgents();
-    } catch (err) {
-      console.error('Failed to batch process:', err);
-    } finally {
-      set({ batchRunning: false });
-    }
-  },
-
-  batchPauseAgents: async () => {
-    set({ batchRunning: true, batchResult: null });
-    try {
-      const result = await hubApi.agents.batchPause();
-      set({ batchResult: { started: result.paused ?? 0, agents: result.agents } });
-      await get().fetchAgents();
-    } catch (err) {
-      console.error('Failed to batch pause:', err);
-    } finally {
-      set({ batchRunning: false });
-    }
-  },
-
-  processAgent: async (id) => {
-    try {
-      await hubApi.agents.process(id);
-      await get().fetchAgents();
-    } catch (err) {
-      console.error('Failed to process agent:', err);
-    }
-  },
-
-  // ============================
   // Intervention actions
   // ============================
 
@@ -980,37 +833,4 @@ export const useHubStore = create<HubState>((set, get) => ({
     }
   },
 
-  // ============================
-  // Scheduler actions
-  // ============================
-
-  toggleScheduler: async (action) => {
-    try {
-      await hubApi.reports.toggleScheduler(action);
-    } catch (err) {
-      console.error('Failed to toggle scheduler:', err);
-    }
-  },
-
-  updateSchedule: async (agentId, scheduleType, intervalMinutes, executionMode) => {
-    try {
-      await hubApi.agents.setSchedule(agentId, {
-        schedule_type: scheduleType,
-        interval_minutes: intervalMinutes,
-        execution_mode: executionMode,
-      });
-      await get().fetchAgents();
-    } catch (err) {
-      console.error('Failed to update schedule:', err);
-    }
-  },
-
-  updateAgentModel: async (agentId, modelId) => {
-    try {
-      await hubApi.agents.updateModel(agentId, modelId);
-      await get().fetchAgents();
-    } catch (err) {
-      console.error('Failed to update agent model:', err);
-    }
-  },
 }));
