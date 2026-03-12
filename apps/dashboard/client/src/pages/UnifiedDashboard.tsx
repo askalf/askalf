@@ -65,6 +65,8 @@ export default function UnifiedDashboard() {
   // Aggregated counts for topbar
   const [agentCount, setAgentCount] = useState(0);
   const [todayCost, setTodayCost] = useState(0);
+  const [todayApiCost, setTodayApiCost] = useState(0);
+  const [todayCliCost, setTodayCliCost] = useState(0);
   const [budgetLimit, setBudgetLimit] = useState<number | undefined>(undefined);
 
   useEffect(() => {
@@ -72,10 +74,12 @@ export default function UnifiedDashboard() {
       try {
         const [agentsData, costsData] = await Promise.all([
           hubApi.agents.list(),
-          hubApi.costs.summary(),
+          hubApi.costs.summary({ days: 1 }),
         ]);
         setAgentCount(agentsData.agents.filter((a) => a.status === 'running').length);
         setTodayCost(costsData.summary?.total?.totalCost ?? 0);
+        setTodayApiCost(costsData.summary?.api?.totalCost ?? 0);
+        setTodayCliCost(costsData.summary?.cli?.totalCost ?? 0);
       } catch {
         // ignore
       }
@@ -203,6 +207,8 @@ export default function UnifiedDashboard() {
         wsConnected={connected}
         agentCount={agentCount}
         todayCost={todayCost}
+        todayApiCost={todayApiCost}
+        todayCliCost={todayCliCost}
         budgetLimit={budgetLimit}
         onNavigate={(tab) => setActiveTab(tab as TabKey)}
       />

@@ -6,6 +6,8 @@ interface TopBarProps {
   wsConnected: boolean;
   agentCount: number;
   todayCost: number;
+  todayApiCost: number;
+  todayCliCost: number;
   budgetLimit?: number;
   onNavigate?: (tab: string) => void;
 }
@@ -19,7 +21,7 @@ interface AuthUser {
   tenantName?: string | null;
 }
 
-export default function TopBar({ wsConnected, agentCount, todayCost, budgetLimit, onNavigate }: TopBarProps) {
+export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCost, todayCliCost, budgetLimit, onNavigate }: TopBarProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [oauthStatus, setOauthStatus] = useState<'healthy' | 'expiring' | 'expired' | 'unknown'>('unknown');
@@ -101,8 +103,14 @@ export default function TopBar({ wsConnected, agentCount, todayCost, budgetLimit
         <span className="ud-topbar-divider" />
         <span className="ud-topbar-stat">{agentCount} running</span>
         <span className="ud-topbar-divider" />
-        <span className={`ud-topbar-stat${budgetLimit && todayCost / budgetLimit > 0.8 ? todayCost / budgetLimit >= 1 ? ' ud-topbar-cost-over' : ' ud-topbar-cost-warn' : ''}`}>
-          ${todayCost.toFixed(2)}{budgetLimit ? ` / $${budgetLimit.toFixed(0)}` : ''} today
+        <span
+          className={`ud-topbar-stat${budgetLimit && todayCost / budgetLimit > 0.8 ? todayCost / budgetLimit >= 1 ? ' ud-topbar-cost-over' : ' ud-topbar-cost-warn' : ''}`}
+          title={`API: $${todayApiCost.toFixed(2)} billed\nOAuth: ~$${todayCliCost.toFixed(2)} est.`}
+        >
+          {todayApiCost > 0 && <><span style={{ color: 'var(--crystal-lighter, #a78bfa)' }}>${todayApiCost.toFixed(2)}</span><span style={{ opacity: 0.4, margin: '0 3px' }}>+</span></>}
+          <span style={{ opacity: todayApiCost > 0 ? 0.7 : 1 }}>~${todayCliCost.toFixed(2)}</span>
+          {budgetLimit ? <span style={{ opacity: 0.5 }}> / ${budgetLimit.toFixed(0)}</span> : null}
+          <span style={{ opacity: 0.5 }}> today</span>
         </span>
         <span className="ud-topbar-divider" />
         <span

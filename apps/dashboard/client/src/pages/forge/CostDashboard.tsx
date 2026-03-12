@@ -132,11 +132,8 @@ export default function CostDashboard() {
           </div>
           <div className="cost-split-card cost-split-cli">
             <div className="cost-split-label">CLI / OAuth (subscription)</div>
-            <div className="cost-split-value">$0.00</div>
-            <div className="cost-split-meta">{costSummary.cli.totalEvents} executions</div>
-            {(costSummary.cli as { estimatedCost?: number }).estimatedCost ? (
-              <div className="cost-split-est">~${((costSummary.cli as { estimatedCost?: number }).estimatedCost ?? 0).toFixed(2)} est. if billed</div>
-            ) : null}
+            <div className="cost-split-value">~${costSummary.cli.totalCost.toFixed(2)}</div>
+            <div className="cost-split-meta">{costSummary.cli.totalEvents} executions · est. token cost</div>
           </div>
         </div>
       )}
