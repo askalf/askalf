@@ -53,7 +53,7 @@ async function fetchActiveChannels(): Promise<ChannelConfig[]> {
 }
 
 async function sendToChannel(channel: ChannelConfig, alert: Alert): Promise<void> {
-  const webhookUrl = channel.config.webhook_url;
+  const webhookUrl = channel.config['webhook_url'];
   if (!webhookUrl) return;
 
   const emoji = alert.severity === 'critical' ? '🚨' : '⚠️';
