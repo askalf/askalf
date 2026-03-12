@@ -45,13 +45,16 @@ function BrainAnalytics() {
       const statsData = await statsRes.json();
       const lbData = await lbRes.json();
 
-      const s = statsData.stats ?? statsData;
+      // API returns { tiers: { semantic, episodic, procedural }, total, recent24h: { semantic, episodic, procedural } }
+      const tiers = statsData.tiers ?? statsData;
+      const r24 = statsData.recent24h ?? {};
+      const recent24hTotal = typeof r24 === 'number' ? r24 : ((r24.semantic ?? 0) + (r24.episodic ?? 0) + (r24.procedural ?? 0));
       setStats({
-        total: s.total ?? 0,
-        semantic: s.semantic ?? 0,
-        episodic: s.episodic ?? 0,
-        procedural: s.procedural ?? 0,
-        recent24h: s.recent24h ?? s.recentCount ?? 0,
+        total: statsData.total ?? 0,
+        semantic: tiers.semantic ?? 0,
+        episodic: tiers.episodic ?? 0,
+        procedural: tiers.procedural ?? 0,
+        recent24h: recent24hTotal,
       });
 
       const entries: LeaderboardEntry[] = (Array.isArray(lbData) ? lbData : lbData.agents ?? [])

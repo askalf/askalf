@@ -222,7 +222,13 @@ export default function MemoryBrowserTab() {
       const res = await fetch('/api/v1/forge/fleet/stats', { credentials: 'include' });
       if (!res.ok) throw new Error(`Stats request failed: ${res.status}`);
       const data = await res.json();
-      setStats(data.stats);
+      // API returns { tiers: { semantic, episodic, procedural }, total, recent24h }
+      setStats({
+        semantic: data.tiers?.semantic ?? data.semantic ?? 0,
+        episodic: data.tiers?.episodic ?? data.episodic ?? 0,
+        procedural: data.tiers?.procedural ?? data.procedural ?? 0,
+        total: data.total ?? 0,
+      });
     } catch (err) {
       console.error('Failed to fetch memory stats:', err);
     } finally {

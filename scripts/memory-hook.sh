@@ -24,13 +24,11 @@ if ! curl -s --max-time 2 "$MCP_URL/health" > /dev/null 2>&1; then
   exit 0
 fi
 
-# Extract conversation text using node (no jq on Windows git bash)
-CONVERSATION=$(node -e "
-  const fs = require('fs');
-  const lines = fs.readFileSync(process.argv[1], 'utf8').trim().split('\n');
-  const recent = lines.slice(-80);
+# Extract conversation text — use tail to avoid reading entire 90MB+ transcript
+CONVERSATION=$(tail -80 "$TRANSCRIPT" 2>/dev/null | node -e "
+  const lines = require('fs').readFileSync('/dev/stdin', 'utf8').trim().split('\n');
   const texts = [];
-  for (const line of recent) {
+  for (const line of lines) {
     try {
       const obj = JSON.parse(line);
       if (obj.type !== 'user' && obj.type !== 'assistant') continue;
@@ -51,7 +49,7 @@ CONVERSATION=$(node -e "
   const conversation = texts.join('\n').slice(-${MAX_CHARS});
   if (conversation.length < 50) process.exit(0);
   process.stdout.write(conversation);
-" "$TRANSCRIPT" 2>/dev/null) || exit 0
+" 2>/dev/null) || exit 0
 
 if [[ -z "$CONVERSATION" || ${#CONVERSATION} -lt 50 ]]; then
   exit 0
