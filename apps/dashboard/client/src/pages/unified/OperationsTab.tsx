@@ -1,6 +1,5 @@
-import { useState, useCallback, lazy, Suspense, useMemo } from 'react';
+import { useState, lazy, Suspense, useMemo } from 'react';
 import { useHubStore } from '../../stores/hub';
-import { usePolling } from '../../hooks/usePolling';
 import TabBar from '../../components/TabBar';
 import './OperationsTab.css';
 
@@ -22,19 +21,14 @@ export default function OperationsTab() {
   const tickets = useHubStore((s) => s.tickets);
   const interventions = useHubStore((s) => s.interventions);
   const contentPagination = useHubStore((s) => s.contentPagination);
-  const ribbonData = useHubStore((s) => s.ribbonData);
-  const fetchRibbonData = useHubStore((s) => s.fetchRibbonData);
-
-  const poll = useCallback(() => { fetchRibbonData(); }, [fetchRibbonData]);
-  usePolling(poll, 15000);
 
   const stats = useMemo(() => {
-    const openTickets = ribbonData.openTickets || tickets.filter((t) => t.status === 'open').length;
-    const pendingInterventions = ribbonData.pendingInterventions || interventions.length;
+    const openTickets = tickets.filter((t) => t.status === 'open').length;
+    const pendingInterventions = interventions.length;
     const contentTotal = contentPagination?.total ?? 0;
     const criticalTickets = tickets.filter((t) => t.priority === 'urgent').length;
     return { openTickets, pendingInterventions, contentTotal, criticalTickets };
-  }, [tickets, interventions, contentPagination, ribbonData]);
+  }, [tickets, interventions, contentPagination]);
 
   return (
     <div className="ops-tab">
