@@ -1,24 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import { formatDateFull, relativeTime } from '../../utils/format';
 import type { AuditEntry } from '../../hooks/useHubApi';
 import './forge-observe.css';
-
-const formatDate = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-};
-
-const formatRelative = (iso: string) => {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-};
 
 const ACTION_ICONS: Record<string, string> = {
   created: '+', updated: '~', deleted: '×', resolved: '✓',
@@ -90,8 +75,8 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
         onClick={() => hasDetails && setExpanded(!expanded)}
         style={{ borderLeft: `3px solid ${color}` }}>
         <td className="al-time-cell">
-          <span className="al-time-rel">{formatRelative(entry.created_at)}</span>
-          <span className="al-time-abs">{formatDate(entry.created_at)}</span>
+          <span className="al-time-rel">{relativeTime(entry.created_at)}</span>
+          <span className="al-time-abs">{formatDateFull(entry.created_at)}</span>
         </td>
         <td>
           <span className="al-action-pill" style={{ color, background: bg }}>

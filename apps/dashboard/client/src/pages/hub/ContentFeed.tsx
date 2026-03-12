@@ -1,30 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import { formatDate, formatDateFull, formatCost, formatTokens, formatDuration } from '../../utils/format';
 import type { ContentFeedItem } from '../../hooks/useHubApi';
 import StatusBadge from './shared/StatusBadge';
 import PaginationBar from './shared/PaginationBar';
 import Modal from './shared/Modal';
 import EmptyState from './shared/EmptyState';
-
-const formatDate = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
-
-const formatDateFull = (iso: string | null) => {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-};
-
-const formatCost = (cost: number) => cost > 0 ? `$${cost.toFixed(4)}` : '-';
-const formatTokens = (tokens: number) => tokens > 0 ? tokens.toLocaleString() : '-';
-const formatDuration = (ms: number) => {
-  if (ms <= 0) return '-';
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-};
 
 // ── Markdown renderer ──
 function renderMarkdown(text: string): React.ReactNode[] {

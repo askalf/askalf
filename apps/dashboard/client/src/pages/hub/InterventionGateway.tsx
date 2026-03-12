@@ -1,15 +1,10 @@
 import { useCallback } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import { formatDate } from '../../utils/format';
 import AgentIcon from './shared/AgentIcon';
 import PaginationBar from './shared/PaginationBar';
 import EmptyState from './shared/EmptyState';
-
-const formatDate = (iso: string | null) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
 
 export default function InterventionGateway() {
   const interventions = useHubStore((s) => s.interventions);

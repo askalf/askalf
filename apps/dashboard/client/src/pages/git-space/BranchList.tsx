@@ -1,17 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useGitSpaceStore, type ReviewStatus } from '../../stores/git-space';
-
-function timeAgo(dateStr: string | null): string {
-  if (!dateStr) return '';
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
+import { relativeTime } from '../../utils/format';
 
 const BADGE_CONFIG: Record<string, { label: string; className: string }> = {
   pending_review: { label: 'Needs Review', className: 'cr-badge--pending' },
@@ -159,7 +148,7 @@ export default function BranchList() {
             <div className="cr-branch-meta">
               <span>{branch.commits} commit{branch.commits !== 1 ? 's' : ''}</span>
               <span>{branch.files_changed} file{branch.files_changed !== 1 ? 's' : ''}</span>
-              {branch.last_date && <span>{timeAgo(branch.last_date)}</span>}
+              {branch.last_date && <span>{relativeTime(branch.last_date)}</span>}
             </div>
           </button>
         );

@@ -1,0 +1,1 @@
+import{r}from"./index-1jPPmtfx.js";function i(t,e,c=!0){const f=r.useRef(t);r.useEffect(()=>{f.current=t},[t]),r.useEffect(()=>{if(!c||e<=0)return;let o=!1,u=null;const s=async()=>{try{await f.current()}catch{}o||(u=setTimeout(s,e))};return s(),()=>{o=!0,u!==null&&clearTimeout(u)}},[e,c])}export{i as u};

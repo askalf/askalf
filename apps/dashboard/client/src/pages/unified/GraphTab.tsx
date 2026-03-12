@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { hubApi } from '../../hooks/useHubApi';
 import type { KnowledgeNode, KnowledgeEdge } from '../../hooks/useHubApi';
+import { relativeTime } from '../../utils/format';
 import './GraphTab.css';
 
 // ── Color map for entity types ──
@@ -29,9 +30,24 @@ const RELATION_COLORS: Record<string, string> = {
   produces: '#14b8a6',
 };
 
+interface GraphNode {
+  id: string; label: string; entity_type: string; mention_count: number;
+  description: string | null; agent_name?: string; last_mentioned?: string; val: number;
+  x?: number; y?: number;
+}
+
+interface GraphLink {
+  source: string | GraphNode; target: string | GraphNode;
+  relation: string; weight: number; id: string; created_at?: string;
+}
+
 interface GraphData {
-  nodes: { id: string; label: string; entity_type: string; mention_count: number; description: string | null; agent_name?: string; val: number }[];
-  links: { source: string; target: string; relation: string; weight: number; id: string }[];
+  nodes: GraphNode[];
+  links: GraphLink[];
+}
+
+interface TopNode {
+  label: string; entity_type: string; mention_count: number; id: string;
 }
 
 export default function GraphTab() {
@@ -41,8 +57,8 @@ export default function GraphTab() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
   const [stats, setStats] = useState<{ totalNodes: number; totalEdges: number; topEntities: { entity_type: string; count: number }[]; topRelations?: { relation: string; count: number }[] } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedNode, setSelectedNode] = useState<GraphData['nodes'][0] | null>(null);
-  const [, setNeighbors] = useState<KnowledgeNode[]>([]);
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [neighborNodes, setNeighborNodes] = useState<KnowledgeNode[]>([]);
   const [neighborEdges, setNeighborEdges] = useState<KnowledgeEdge[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
@@ -52,6 +68,10 @@ export default function GraphTab() {
   const [agents, setAgents] = useState<{ agent_id: string; agent_name: string; node_count: number }[]>([]);
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set());
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [topConnected, setTopConnected] = useState<TopNode[]>([]);
+  const [showTopPanel, setShowTopPanel] = useState(false);
+  const pulsePhaseRef = useRef(0);
+  const animFrameRef = useRef(0);
 
   // Resize observer
   useEffect(() => {
@@ -64,15 +84,26 @@ export default function GraphTab() {
     return () => obs.disconnect();
   }, []);
 
+  // Ambient pulse animation loop
+  useEffect(() => {
+    const tick = () => {
+      pulsePhaseRef.current = (Date.now() % 4000) / 4000; // 4s cycle
+      animFrameRef.current = requestAnimationFrame(tick);
+    };
+    animFrameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, []);
+
   // Load graph data
   const loadGraph = useCallback(async () => {
     setLoading(true);
     try {
-      const [graphRes, statsRes, typesRes, agentsRes] = await Promise.all([
+      const [graphRes, statsRes, typesRes, agentsRes, topRes] = await Promise.all([
         hubApi.knowledgeGraph.graph({ limit: 1000, type: typeFilter || undefined, agent_id: agentFilter || undefined }),
         hubApi.knowledgeGraph.stats(),
         hubApi.knowledgeGraph.entityTypes(),
         hubApi.knowledgeGraph.agents(),
+        hubApi.knowledgeGraph.topConnected(10),
       ]);
 
       const nodes = (graphRes.nodes || []).map((n: KnowledgeNode) => ({
@@ -82,6 +113,7 @@ export default function GraphTab() {
         mention_count: n.mention_count,
         description: n.description,
         agent_name: n.agent_name,
+        last_mentioned: n.last_mentioned,
         val: Math.max(2, Math.min(12, n.mention_count * 2)),
       }));
 
@@ -100,6 +132,9 @@ export default function GraphTab() {
       setStats(statsRes);
       setEntityTypes(typesRes.types || []);
       setAgents(agentsRes.agents || []);
+      setTopConnected((topRes.nodes || []).map((n: KnowledgeNode) => ({
+        label: n.label, entity_type: n.entity_type, mention_count: n.mention_count, id: n.id,
+      })));
     } catch (err) {
       console.error('Failed to load knowledge graph:', err);
     }
@@ -129,15 +164,25 @@ export default function GraphTab() {
     setSelectedNode(node);
     try {
       const res = await hubApi.knowledgeGraph.neighborhood(node.id);
-      setNeighbors(res.nodes || []);
+      setNeighborNodes(res.nodes || []);
       setNeighborEdges(res.edges || []);
     } catch {
-      setNeighbors([]);
+      setNeighborNodes([]);
       setNeighborEdges([]);
     }
   }, []);
 
-  // Node painting
+  // Unique agents that know about the selected node
+  const knownByAgents = useMemo(() => {
+    if (!selectedNode || neighborNodes.length === 0) return [];
+    const agentSet = new Map<string, string>();
+    for (const n of neighborNodes) {
+      if (n.agent_name && n.agent_id) agentSet.set(n.agent_id, n.agent_name);
+    }
+    return Array.from(agentSet.values());
+  }, [selectedNode, neighborNodes]);
+
+  // Node painting with ambient pulse
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
     const size = node.val || 4;
@@ -149,6 +194,25 @@ export default function GraphTab() {
     const x = node.x as number;
     const y = node.y as number;
 
+    // Ambient pulse glow — each node pulses at a slightly offset phase
+    const phase = pulsePhaseRef.current;
+    const nodePhase = ((node.id?.charCodeAt?.(0) || 0) % 17) / 17; // unique offset per node
+    const pulse = Math.sin((phase + nodePhase) * Math.PI * 2) * 0.5 + 0.5; // 0..1
+
+    // Glow aura for high-mention nodes (living brain effect)
+    if (!isDimmed && node.mention_count > 3) {
+      const glowRadius = size + 4 + pulse * 4;
+      const glowAlpha = 0.08 + pulse * 0.07;
+      const gradient = ctx.createRadialGradient(x, y, size * 0.5, x, y, glowRadius);
+      gradient.addColorStop(0, `${color}${Math.round(glowAlpha * 255).toString(16).padStart(2, '0')}`);
+      gradient.addColorStop(1, `${color}00`);
+      ctx.beginPath();
+      ctx.arc(x, y, glowRadius, 0, 2 * Math.PI);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+    }
+
+    // Main node circle
     ctx.beginPath();
     ctx.arc(x, y, size, 0, 2 * Math.PI);
     ctx.fillStyle = isDimmed ? `${color}40` : color;
@@ -250,6 +314,11 @@ export default function GraphTab() {
             <span className="graph-stat">{stats.totalNodes} nodes</span>
             <span className="graph-stat">{stats.totalEdges} edges</span>
             {highlightNodes.size > 0 && <span className="graph-stat highlight">{highlightNodes.size} matched</span>}
+            {topConnected.length > 0 && (
+              <button className={`graph-stat graph-stat-btn ${showTopPanel ? 'active' : ''}`} onClick={() => setShowTopPanel(!showTopPanel)}>
+                Top hubs
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -267,6 +336,24 @@ export default function GraphTab() {
           </button>
         ))}
       </div>
+
+      {/* Top connected panel */}
+      {showTopPanel && topConnected.length > 0 && (
+        <div className="graph-top-panel">
+          <h4 className="graph-top-title">Most Connected Nodes</h4>
+          {topConnected.map((n, i) => (
+            <div key={n.id} className="graph-top-item" onClick={() => {
+              const gn = graphData.nodes.find(x => x.id === n.id);
+              if (gn) handleNodeClick(gn);
+            }}>
+              <span className="graph-top-rank">#{i + 1}</span>
+              <span className="graph-legend-dot" style={{ background: TYPE_COLORS[n.entity_type] || '#6b7280' }} />
+              <span className="graph-top-label">{n.label}</span>
+              <span className="graph-top-count">{n.mention_count}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Graph canvas */}
       <div className="graph-canvas" ref={containerRef}>
@@ -294,8 +381,17 @@ export default function GraphTab() {
           {selectedNode.description && <p className="graph-detail-desc">{selectedNode.description}</p>}
           <div className="graph-detail-meta">
             <span>Mentions: {selectedNode.mention_count}</span>
-            {selectedNode.agent_name && <span>Agent: {selectedNode.agent_name}</span>}
+            {selectedNode.agent_name && <span>Source: {selectedNode.agent_name}</span>}
+            {selectedNode.last_mentioned && <span>Last seen: {relativeTime(selectedNode.last_mentioned)}</span>}
           </div>
+          {knownByAgents.length > 0 && (
+            <div className="graph-detail-agents">
+              <h4>Known by agents ({knownByAgents.length})</h4>
+              <div className="graph-detail-agent-list">
+                {knownByAgents.map(a => <span key={a} className="graph-agent-tag">{a}</span>)}
+              </div>
+            </div>
+          )}
           {neighborEdges.length > 0 && (
             <div className="graph-detail-edges">
               <h4>Connections ({neighborEdges.length})</h4>

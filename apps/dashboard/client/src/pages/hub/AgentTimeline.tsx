@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { hubApi, type TimelineExecution } from '../../hooks/useHubApi';
+import { formatDuration, formatCost, formatTimestamp } from '../../utils/format';
+import { STATUS_COLORS } from '../../constants/status';
 
 // ---- Types ----
 interface AgentRow {
@@ -11,34 +13,8 @@ interface AgentRow {
 type TimeRange = 2 | 6 | 12 | 24;
 
 // ---- Helpers ----
-const STATUS_COLORS: Record<string, string> = {
-  completed: 'var(--color-success, #22c55e)',
-  failed: 'var(--color-danger, #ef4444)',
-  timeout: '#f97316',
-  cancelled: '#6b7280',
-  running: '#3b82f6',
-  pending: '#6b7280',
-};
-
 function statusColor(status: string): string {
   return STATUS_COLORS[status] ?? '#6b7280';
-}
-
-function fmtDuration(ms: number | null): string {
-  if (!ms) return '—';
-  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
-  return `${Math.round(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
-}
-
-function fmtCost(cost: number): string {
-  if (cost === 0) return '$0';
-  if (cost < 0.01) return `$${cost.toFixed(4)}`;
-  return `$${cost.toFixed(3)}`;
-}
-
-function fmtTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 export default function AgentTimeline() {
@@ -232,7 +208,7 @@ export default function AgentTimeline() {
                   className={`atl-bar atl-bar--${exec.status}`}
                   style={barStyle(exec)}
                   onClick={e => handleBarClick(e, exec)}
-                  title={`${exec.status} · ${fmtDuration(exec.duration_ms)} · ${fmtCost(exec.cost)}`}
+                  title={`${exec.status} · ${formatDuration(exec.duration_ms)} · ${formatCost(exec.cost)}`}
                   role="button"
                   tabIndex={0}
                   aria-label={`${row.agentName} execution: ${exec.status}`}
@@ -258,12 +234,12 @@ export default function AgentTimeline() {
                 <span className="atl-tooltip-dot" style={{ background: statusColor(tooltip.exec.status) }} />
                 <strong>{tooltip.exec.status}</strong>
               </div>
-              <div className="atl-tooltip-row">Start: {fmtTime(tooltip.exec.started_at)}</div>
+              <div className="atl-tooltip-row">Start: {formatTimestamp(new Date(tooltip.exec.started_at).getTime())}</div>
               {tooltip.exec.completed_at && (
-                <div className="atl-tooltip-row">End: {fmtTime(tooltip.exec.completed_at)}</div>
+                <div className="atl-tooltip-row">End: {formatTimestamp(new Date(tooltip.exec.completed_at).getTime())}</div>
               )}
-              <div className="atl-tooltip-row">Duration: {fmtDuration(tooltip.exec.duration_ms)}</div>
-              <div className="atl-tooltip-row">Cost: {fmtCost(tooltip.exec.cost)}</div>
+              <div className="atl-tooltip-row">Duration: {formatDuration(tooltip.exec.duration_ms)}</div>
+              <div className="atl-tooltip-row">Cost: {formatCost(tooltip.exec.cost)}</div>
               {tooltip.exec.tokens > 0 && (
                 <div className="atl-tooltip-row">Tokens: {tooltip.exec.tokens.toLocaleString()}</div>
               )}
