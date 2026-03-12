@@ -45,7 +45,7 @@ export const TOOLS = [
   },
   {
     name: 'team_coordinate',
-    description: 'Create a multi-agent team to work on a complex task. Supports pipeline (sequential A→B→C), fan-out (parallel dispatch), and consensus (parallel analysis + synthesizer). Returns session ID to track progress.',
+    description: 'Create a multi-agent team to work on a complex task. Supports single (direct dispatch to one agent), pipeline (sequential A→B→C), fan-out (parallel dispatch), and consensus (parallel analysis + synthesizer). Returns session ID to track progress.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -54,8 +54,8 @@ export const TOOLS = [
         title: { type: 'string', description: 'Title of the coordination plan' },
         pattern: {
           type: 'string',
-          enum: ['pipeline', 'fan-out', 'consensus'],
-          description: 'Coordination pattern: pipeline (A→B→C), fan-out (parallel), consensus (parallel + synthesizer)',
+          enum: ['single', 'pipeline', 'fan-out', 'consensus'],
+          description: 'Coordination pattern: single (one agent, direct execution), pipeline (A→B→C), fan-out (parallel), consensus (parallel + synthesizer)',
         },
         tasks: {
           type: 'array',
@@ -282,8 +282,8 @@ async function handleTeamCoordinate(args: Record<string, unknown>): Promise<stri
   }> | undefined;
 
   if (!title) return JSON.stringify({ error: 'title is required' });
-  if (!['pipeline', 'fan-out', 'consensus'].includes(pattern)) {
-    return JSON.stringify({ error: 'pattern must be: pipeline, fan-out, or consensus' });
+  if (!['single', 'pipeline', 'fan-out', 'consensus'].includes(pattern)) {
+    return JSON.stringify({ error: 'pattern must be: single, pipeline, fan-out, or consensus' });
   }
   if (!tasks?.length) return JSON.stringify({ error: 'At least one task is required' });
 
