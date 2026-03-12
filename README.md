@@ -2,6 +2,9 @@
 
 **Self-hosted AI agent platform.** Deploy a fleet of AI agents that research, code, monitor, and automate — running on your own infrastructure.
 
+[![PR Checks](https://github.com/askalf/askalf/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/askalf/askalf/actions/workflows/pr-checks.yml)
+[![Main Branch Build](https://github.com/askalf/askalf/actions/workflows/main-branch.yml/badge.svg)](https://github.com/askalf/askalf/actions/workflows/main-branch.yml)
+
 ## Quick Start
 
 ```bash
