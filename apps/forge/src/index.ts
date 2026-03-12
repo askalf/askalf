@@ -78,6 +78,7 @@ import { initTriggerEngine, getTriggerEngine } from './runtime/trigger-engine.js
 import { Redis } from 'ioredis';
 import { ulid } from 'ulid';
 import { initRateLimit, rateLimitHook, closeRateLimitRedis } from './middleware/rate-limit.js';
+import { authMiddleware } from './middleware/auth.js';
 import { runSelfHostedSetup } from './selfhosted/setup.js';
 import { loadSkills } from './selfhosted/skills-loader.js';
 
@@ -135,7 +136,7 @@ await app.register(swagger, {
 });
 
 await app.register(swaggerUi, {
-  routePrefix: '/docs',
+  routePrefix: '/api/docs',
   uiConfig: { docExpansion: 'list', deepLinking: true },
 });
 
@@ -331,6 +332,22 @@ app.get('/api/v1/health/db', { logLevel: 'silent' }, async (_request, reply) => 
 app.get('/metrics', { logLevel: 'silent' }, async (_request, reply) => {
   reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
   return getPrometheusMetrics();
+});
+
+// ============================================
+// API DOCS — auth-gated OpenAPI endpoints
+// ============================================
+
+// Protect /api/docs UI and spec behind auth
+app.addHook('onRequest', async (request, reply) => {
+  if (!request.url.startsWith('/api/docs')) return;
+  await authMiddleware(request, reply);
+});
+
+// Explicit openapi.json export (canonical path for tooling/clients)
+app.get('/api/docs/openapi.json', { preHandler: [authMiddleware] }, async (_request, reply) => {
+  reply.header('Content-Type', 'application/json');
+  return app.swagger();
 });
 
 // ============================================
