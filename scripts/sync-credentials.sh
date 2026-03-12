@@ -12,6 +12,7 @@ TARGET="$(dirname "$0")/../.claude-credentials.json"
 while true; do
   if [ -f "$SOURCE" ]; then
     cp "$SOURCE" "$TARGET"
+    chmod 600 "$TARGET"
     EXPIRES=$(node -e "const c=JSON.parse(require('fs').readFileSync('$SOURCE','utf8'));console.log(Math.round((c.claudeAiOauth.expiresAt-Date.now())/60000))" 2>/dev/null)
     echo "[$(date '+%H:%M:%S')] Credentials synced (TTL: ${EXPIRES}min)"
   else
