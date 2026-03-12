@@ -504,6 +504,55 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
     }
   );
 
+  // Set/clear per-agent daily cost budget
+  app.patch(
+    '/api/v1/admin/agents/:id/budget',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as Record<string, unknown>;
+
+      const costBudgetDaily = body['cost_budget_daily'];
+
+      // Allow null to clear the budget
+      if (costBudgetDaily === null || costBudgetDaily === undefined) {
+        const result = await queryOne<{ id: string }>(
+          `UPDATE forge_agents SET cost_budget_daily = NULL, budget_paused_at = NULL, updated_at = NOW() WHERE id = $1 RETURNING id`,
+          [id],
+        );
+        if (!result) return reply.code(404).send({ error: 'Agent not found' });
+        return { success: true, cost_budget_daily: null };
+      }
+
+      const val = Number(costBudgetDaily);
+      if (isNaN(val) || val < 0) {
+        return reply.code(400).send({ error: 'cost_budget_daily must be a non-negative number or null' });
+      }
+
+      const result = await queryOne<{ id: string; cost_budget_daily: string }>(
+        `UPDATE forge_agents SET cost_budget_daily = $1, updated_at = NOW() WHERE id = $2 RETURNING id, cost_budget_daily`,
+        [val, id],
+      );
+      if (!result) return reply.code(404).send({ error: 'Agent not found' });
+      return { success: true, cost_budget_daily: parseFloat(result.cost_budget_daily) };
+    }
+  );
+
+  // Resume a budget-paused agent (re-enable dispatch)
+  app.post(
+    '/api/v1/admin/agents/:id/budget/resume',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const result = await queryOne<{ id: string }>(
+        `UPDATE forge_agents SET dispatch_enabled = true, budget_paused_at = NULL, updated_at = NOW() WHERE id = $1 RETURNING id`,
+        [id],
+      );
+      if (!result) return reply.code(404).send({ error: 'Agent not found' });
+      return { success: true };
+    }
+  );
+
   // Update agent settings (cost limit, max iterations, description)
   app.patch(
     '/api/v1/admin/agents/:id/settings',
