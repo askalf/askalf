@@ -27,7 +27,8 @@ interface HealthCheck {
 }
 
 interface HealthData {
-  status: 'HEALTHY' | 'DEGRADED' | 'DOWN';
+  status?: 'HEALTHY' | 'DEGRADED' | 'DOWN';
+  overall?: 'healthy' | 'degraded' | 'critical';
   checks: HealthCheck[];
 }
 
@@ -61,9 +62,9 @@ interface ExecutionEntry {
 
 interface CostBucket {
   totalCost: number;
-  inputTokens: number;
-  outputTokens: number;
-  eventCount: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalEvents: number;
 }
 
 interface DailyCostEntry {
@@ -73,7 +74,7 @@ interface DailyCostEntry {
 }
 
 interface CostData {
-  summary: { total: CostBucket; api: CostBucket; cli: CostBucket };
+  summary: { total: CostBucket; api: CostBucket; cli: CostBucket & { estimatedCost?: number } };
   dailyCosts: DailyCostEntry[];
 }
 
@@ -156,16 +157,26 @@ async function apiFetch<T>(url: string): Promise<T | null> {
 
 // ── Sub-components ──
 
+const PILL_LABELS: Record<string, string> = {
+  execution_failure_rate: 'Failures',
+  stuck_executions: 'Stuck',
+  hourly_cost: 'Cost/hr',
+  agents_in_error: 'Errors',
+  memory_activity: 'Memory',
+  pending_interventions: 'Pending',
+};
+
 function HealthBar({ health }: { health: HealthData | null }) {
-  const statusClass = !health
+  const raw = health?.status?.toLowerCase() ?? health?.overall ?? null;
+  const statusClass = !raw
     ? 'unknown'
-    : health.status === 'HEALTHY'
+    : raw === 'healthy'
       ? 'healthy'
-      : health.status === 'DEGRADED'
+      : raw === 'degraded'
         ? 'degraded'
         : 'down';
 
-  const statusLabel = health?.status ?? 'LOADING';
+  const statusLabel = raw?.toUpperCase() ?? 'LOADING';
 
   return (
     <div className="overview-health-bar">
@@ -180,7 +191,7 @@ function HealthBar({ health }: { health: HealthData | null }) {
             className={`overview-health-pill ${c.status}`}
             title={c.message || `${c.name}: ${c.value}`}
           >
-            <span className="overview-pill-name">{c.name}</span>
+            <span className="overview-pill-name">{PILL_LABELS[c.name] ?? c.name}</span>
             <span className="overview-pill-value">{c.value ?? c.status}</span>
           </span>
         )) ?? (
@@ -392,15 +403,31 @@ function RecentExecutions({
   );
 }
 
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return String(n);
+}
+
 function CostSnapshot({ costData }: { costData: CostData | null }) {
   const daily = costData?.dailyCosts ?? [];
-  const today = daily.length > 0 ? daily[daily.length - 1]?.totalCost ?? 0 : 0;
+  // API returns daily costs in DESC order — first entry is today
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayEntry = daily.find((d) => d.date === todayStr);
+  const today = todayEntry?.totalCost ?? (daily.length > 0 ? daily[0]?.totalCost ?? 0 : 0);
   const weekTotal = daily.reduce((sum, d) => sum + d.totalCost, 0);
 
+  // Token totals from summary
+  const totalTokens = costData
+    ? (costData.summary.total.totalInputTokens ?? 0) + (costData.summary.total.totalOutputTokens ?? 0)
+    : 0;
+
+  // Display in chronological order (reverse DESC)
+  const chronoDaily = useMemo(() => [...daily].reverse(), [daily]);
   const maxDaily = useMemo(() => {
-    if (!daily.length) return 1;
-    return Math.max(...daily.map((d) => d.totalCost), 1);
-  }, [daily]);
+    if (!chronoDaily.length) return 1;
+    return Math.max(...chronoDaily.map((d) => d.totalCost), 1);
+  }, [chronoDaily]);
 
   return (
     <div className="overview-panel overview-cost-snapshot">
@@ -425,6 +452,12 @@ function CostSnapshot({ costData }: { costData: CostData | null }) {
                 </span>
                 <span className="overview-cost-period">7-Day</span>
               </div>
+              <div className="overview-cost-total-item">
+                <span className="overview-cost-amount">
+                  {formatTokens(totalTokens)}
+                </span>
+                <span className="overview-cost-period">Tokens</span>
+              </div>
             </div>
             <div className="overview-cost-totals" style={{ marginTop: '8px' }}>
               <div className="overview-cost-total-item">
@@ -440,9 +473,9 @@ function CostSnapshot({ costData }: { costData: CostData | null }) {
                 <span className="overview-cost-period">CLI</span>
               </div>
             </div>
-            {daily.length > 0 && (
+            {chronoDaily.length > 0 && (
               <div className="overview-cost-chart">
-                {daily.slice(-7).map((d) => (
+                {chronoDaily.slice(-7).map((d) => (
                   <div key={d.date} className="overview-cost-bar-col">
                     <div
                       className="overview-cost-bar"
