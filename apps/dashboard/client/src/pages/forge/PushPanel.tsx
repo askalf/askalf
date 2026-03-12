@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGitSpaceStore } from '../../stores/git-space';
 import { usePolling } from '../../hooks/usePolling';
 import { useToast } from '../../components/Toast';
+import { formatDurationBetween, relativeTime } from '../../utils/format';
+import { statusStyle } from '../../constants/status';
+import type { ForgeEvent } from '../../constants/status';
 import BranchList from '../git-space/BranchList';
 import DiffPanel from '../git-space/DiffPanel';
 import ReviewChatPanel from '../git-space/ReviewChatPanel';
@@ -29,42 +32,13 @@ const ALL_SERVICE_IDS = [...APP_SERVICES, ...INFRA_SERVICES].map(s => s.id);
 
 type Tab = 'review' | 'services';
 
-function formatDuration(start: string | null, end: string | null): string {
-  if (!start) return '-';
-  const s = new Date(start).getTime();
-  const e = end ? new Date(end).getTime() : Date.now();
-  const sec = Math.round((e - s) / 1000);
-  if (sec < 60) return `${sec}s`;
-  return `${Math.floor(sec / 60)}m ${sec % 60}s`;
-}
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
-
-const STATUS_STYLES: Record<string, { color: string; bg: string; label: string }> = {
-  completed: { color: '#10b981', bg: 'rgba(16,185,129,0.12)', label: 'Completed' },
-  failed:    { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  label: 'Failed' },
-  running:   { color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', label: 'Running' },
-  scheduled: { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', label: 'Scheduled' },
-  cancelled: { color: '#6b7280', bg: 'rgba(107,114,128,0.12)',label: 'Cancelled' },
+const STATUS_LABELS: Record<string, string> = {
+  completed: 'Completed',
+  failed: 'Failed',
+  running: 'Running',
+  scheduled: 'Scheduled',
+  cancelled: 'Cancelled',
 };
-
-interface ForgeEvent {
-  category: string;
-  type: string;
-  receivedAt: number;
-  taskId?: string;
-  status?: string;
-  service?: string;
-  [key: string]: unknown;
-}
 
 export default function PushPanel({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }) {
   const { addToast } = useToast();
@@ -311,18 +285,19 @@ export default function PushPanel({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }
             ) : (
               <div className="dep-task-list">
                 {recentTasks.map(task => {
-                  const st = STATUS_STYLES[task.status] || STATUS_STYLES.cancelled;
+                  const st = statusStyle(task.status);
+                  const label = STATUS_LABELS[task.status] || 'Cancelled';
                   const isExpanded = expandedTask === task.id;
                   return (
                     <div key={task.id} className="dep-task-row">
                       <button className="dep-task-header" onClick={() => setExpandedTask(isExpanded ? null : task.id)}>
                         <div className="dep-task-left">
-                          <span className="dep-task-status" style={{ color: st.color, background: st.bg }}>{st.label}</span>
+                          <span className="dep-task-status" style={{ color: st.color, background: st.bg }}>{label}</span>
                           <span className="dep-task-action">{task.action}</span>
                           <span className="dep-task-services">{task.services.join(', ')}</span>
                         </div>
                         <div className="dep-task-right">
-                          <span className="dep-task-duration">{formatDuration(task.started_at, task.completed_at)}</span>
+                          <span className="dep-task-duration">{formatDurationBetween(task.started_at, task.completed_at)}</span>
                           <span className="dep-task-time">{relativeTime(task.created_at)}</span>
                           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
                             <path d="M4 6l4 4 4-4"/>

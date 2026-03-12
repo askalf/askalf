@@ -1,17 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import type { ForgeEvent } from '../../constants/status';
+import { formatTimestamp } from '../../utils/format';
 import './LiveFeedTab.css';
 
 // ── Types ──
-
-interface ForgeEvent {
-  category: string;
-  type: string;
-  data?: unknown;
-  receivedAt: number;
-  agentId?: string;
-  agentName?: string;
-  [key: string]: unknown;
-}
 
 interface LiveFeedTabProps {
   wsEvents: ForgeEvent[];
@@ -20,15 +12,6 @@ interface LiveFeedTabProps {
 type EventTypeFilter = 'all' | 'started' | 'completed' | 'failed' | 'progress';
 
 // ── Helpers ──
-
-function formatTimestamp(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
 
 function getEventTypeClass(type: string): string {
   switch (type) {

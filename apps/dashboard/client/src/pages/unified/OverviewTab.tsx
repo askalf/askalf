@@ -1,18 +1,10 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { usePolling } from '../../hooks/usePolling';
+import { formatCost, formatDuration, formatTokens, formatCount, relativeTime, todayDateStr } from '../../utils/format';
+import type { ForgeEvent } from '../../constants/status';
 import './OverviewTab.css';
 
 // ── Types ──
-
-interface ForgeEvent {
-  category: string;
-  type: string;
-  data?: unknown;
-  receivedAt: number;
-  agentId?: string;
-  agentName?: string;
-  [key: string]: unknown;
-}
 
 interface OverviewTabProps {
   wsEvents: ForgeEvent[];
@@ -90,41 +82,6 @@ function formatTime(ts: number): string {
   });
 }
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}
-
-function formatDuration(ms?: number): string {
-  if (ms == null) return '--';
-  if (ms < 1000) return `${ms}ms`;
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  return `${m}m ${s % 60}s`;
-}
-
-function formatCost(c?: number): string {
-  if (c == null) return '--';
-  return `$${c.toFixed(2)}`;
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return String(n);
-}
-
-function formatMemoryCount(n: number): string {
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 function summarizeEvent(event: ForgeEvent): string {
   const agent = event.agentName || event.agentId || 'System';
@@ -533,7 +490,7 @@ function RecentExecutions({
             </span>
             <span className="mc-exec-dur">{formatDuration(ex.duration_ms ?? undefined)}</span>
             <span className="mc-exec-cost">{formatCost(ex.cost)}</span>
-            <span className="mc-exec-time">{timeAgo(ex.started_at)}</span>
+            <span className="mc-exec-time">{relativeTime(ex.started_at)}</span>
           </div>
         ))}
       </div>
@@ -545,7 +502,7 @@ function RecentExecutions({
 
 function CostPanel({ costData }: { costData: CostData | null }) {
   const daily = costData?.dailyCosts ?? [];
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayDateStr();
   const todayEntry = daily.find((d) => d.date === todayStr);
   const today = todayEntry?.totalCost ?? (daily.length > 0 ? daily[0]?.totalCost ?? 0 : 0);
   const weekTotal = daily.reduce((sum, d) => sum + d.totalCost, 0);
@@ -710,7 +667,7 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
   const openTickets = metrics?.tickets?.open ?? 0;
   const memoryCount = fleetStats?.total ?? 0;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayDateStr();
   const todayCost = costData?.dailyCosts?.find((d) => d.date === todayStr)?.totalCost
     ?? (costData?.dailyCosts?.[0]?.totalCost ?? 0);
 
@@ -745,7 +702,7 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
           />
           <StatTile
             label="Memories"
-            value={formatMemoryCount(memoryCount)}
+            value={formatCount(memoryCount)}
             accent="cyan"
             onClick={() => onNavigate?.('brain')}
           />

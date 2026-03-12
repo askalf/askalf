@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useHubStore, type MemorySubView } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
+import { relativeTime } from '../../utils/format';
 import type { FleetMemoryItem, FleetRecallEvent } from '../../hooks/useHubApi';
 const TIER_LABELS: Record<string, { label: string; icon: string; color: string }> = {
   semantic: { label: 'Knowledge', icon: '\u{1F4A1}', color: 'var(--water)' },
@@ -21,17 +22,6 @@ const SUB_VIEWS: { key: MemorySubView; label: string; icon: string }[] = [
   { key: 'episodic', label: 'Experience', icon: '\u{1F4D6}' },
   { key: 'procedural', label: 'Patterns', icon: '\u{1F504}' },
 ];
-
-const relativeTime = (iso: string) => {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-};
 
 function TierBadge({ tier }: { tier: string }) {
   const info = TIER_LABELS[tier] || { label: tier, icon: '', color: 'var(--text-muted)' };

@@ -1,19 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { useToast } from '../../components/Toast';
+import type { ForgeEvent } from '../../constants/status';
 import FleetCoordination from '../hub/FleetCoordination';
 import '../hub/FleetCoordination.css';
 import './CoordinatorTab.css';
-
-interface ForgeEvent {
-  category: string;
-  type: string;
-  receivedAt: number;
-  event?: string;
-  sessionId?: string;
-  status?: string;
-  [key: string]: unknown;
-}
 
 export default function CoordinatorTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }) {
   const { addToast } = useToast();

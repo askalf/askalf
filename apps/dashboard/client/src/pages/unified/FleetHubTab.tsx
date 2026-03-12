@@ -1,8 +1,6 @@
 import { useState, useCallback, lazy, Suspense } from 'react';
 import ErrorBoundary from '../../components/ErrorBoundary';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ForgeEvent = { category: string; type: string; data?: any; receivedAt: number; [key: string]: unknown };
+import type { ForgeEvent } from '../../constants/status';
 
 const FleetTab = lazy(() => import('./FleetTab'));
 const BuilderTab = lazy(() => import('./BuilderTab'));

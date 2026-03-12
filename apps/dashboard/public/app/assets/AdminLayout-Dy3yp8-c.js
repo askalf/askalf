@@ -1,0 +1,1 @@
+import{j as a,O as i}from"./index-1jPPmtfx.js";function m(){return a.jsx("div",{className:"admin-layout admin-layout--full",children:a.jsx("main",{className:"admin-main admin-main--full",children:a.jsx(i,{})})})}export{m as default};
