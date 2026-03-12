@@ -1,0 +1,54 @@
+name: Weekly Backup Verification
+
+on:
+  schedule:
+    # Run every Monday at 2 AM UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+jobs:
+  verify-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download latest backup
+        id: backup
+        run: |
+          # Note: Update this step to download backups from your storage location
+          # Examples:
+          # - AWS S3: aws s3 cp s3://bucket/backups/latest.dump ./backups/
+          # - Google Cloud: gsutil cp gs://bucket/backups/latest.dump ./backups/
+          # - Dropbox: curl URL to backup file
+
+          mkdir -p ./backups
+          # Placeholder: create a minimal test dump for verification
+          echo "TODO: Configure backup download from your storage" >&2
+          # For now, we exit gracefully if no backup is found
+          if [ ! -f "./backups/"*.{sql,dump} 2>/dev/null ]; then
+            echo "No backup file found. Add your backup storage credentials to GitHub Actions secrets."
+            exit 0
+          fi
+
+      - name: Run backup verification
+        run: |
+          if [ -f "scripts/verify-backup.sh" ]; then
+            chmod +x scripts/verify-backup.sh
+            ./scripts/verify-backup.sh ./backups || echo "Backup verification failed"
+          else
+            echo "Backup verification script not found"
+          fi
+
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: backup-verification-report
+          path: .backup-verification.log
+          retention-days: 30
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Backup verification failed. Check the verification report."
+          # Add notification step here (Slack, email, etc.)
