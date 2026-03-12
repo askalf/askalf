@@ -671,6 +671,169 @@
   background: var(--border);
 }
 
+/* ---- Notification Center ---- */
+
+.ud-notification-center {
+  position: relative;
+}
+
+.ud-notification-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.ud-notification-btn:hover {
+  color: var(--text);
+  background: var(--border);
+}
+
+.ud-notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.ud-notification-dropdown {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  width: 320px;
+  max-height: 400px;
+  background: #141419;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ud-notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.ud-notification-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e4e4e7;
+}
+
+.ud-notification-clear {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: transparent;
+  color: #a78bfa;
+  cursor: pointer;
+  transition: all 0.1s;
+  font-family: inherit;
+}
+
+.ud-notification-clear:hover {
+  background: rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+.ud-notification-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.ud-notification-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  color: #52525b;
+  font-size: 12px;
+}
+
+.ud-notification-item {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.ud-notification-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ud-notification-item.ud-notification-unread {
+  background: rgba(167, 139, 250, 0.08);
+}
+
+.ud-notification-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.ud-notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ud-notification-item-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e4e4e7;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ud-notification-item-message {
+  font-size: 11px;
+  color: #a1a1aa;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.ud-notification-item-time {
+  font-size: 10px;
+  color: #52525b;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- Account Menu ---- */
 
 .ud-account-menu {
