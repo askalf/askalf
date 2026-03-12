@@ -1,13 +1,15 @@
 /**
- * Redis Sliding Window Rate Limiter
+ * Redis Sliding Window Rate Limiter — Per-API-Key Limits
  *
- * Limits:
- *   - Authenticated (Bearer token present): 60 req/min
+ * Limits resolved per API key from forge_api_keys.rate_limit column,
+ * cached in Redis with 5-min TTL. Defaults:
+ *   - Authenticated (no cached limit): 100 req/min
  *   - Unauthenticated: 20 req/min
  *
  * Bypasses:
  *   - Internal Docker network IPs (172.x, 10.x, 127.0.0.1)
  *   - API keys whose key_prefix matches a known internal service key
+ *   - X-Internal-Service header present (service-to-service calls)
  *
  * Response headers added on every non-bypassed request:
  *   X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
@@ -17,8 +19,9 @@ import { createHash } from 'node:crypto';
 import { Redis } from 'ioredis';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
-const AUTHED_LIMIT = 60;   // req/min for authenticated users
-const UNAUTHED_LIMIT = 20; // req/min for unauthenticated
+const DEFAULT_AUTHED_LIMIT = 100; // req/min for authenticated users (default)
+const UNAUTHED_LIMIT = 20;        // req/min for unauthenticated
+const TIER_CACHE_TTL = 300;        // 5 minutes in seconds
 const WINDOW_MS = 60_000;  // 1 minute sliding window
 
 /**
@@ -85,6 +88,26 @@ export async function closeRateLimitRedis(): Promise<void> {
   }
 }
 
+/**
+ * Cache a per-key rate limit in Redis. Called by auth middleware after
+ * successful API key authentication.
+ */
+export async function cacheKeyRateLimit(tokenHash: string, limit: number): Promise<void> {
+  if (!rateLimitRedis) return;
+  try {
+    await rateLimitRedis.setex(`rl:tc:${tokenHash}`, TIER_CACHE_TTL, String(limit));
+  } catch {
+    // Non-fatal — next request will use default limit
+  }
+}
+
+/**
+ * Hash a bearer token for rate-limit key use (24-char SHA256 prefix).
+ */
+export function rateLimitTokenHash(token: string): string {
+  return createHash('sha256').update(token).digest('hex').slice(0, 24);
+}
+
 function isInternalIp(ip: string): boolean {
   return (
     ip.startsWith('172.') ||
@@ -124,6 +147,9 @@ export async function rateLimitHook(
   // Bypass: internal Docker network (service-to-service calls)
   if (isInternalIp(ip)) return;
 
+  // Bypass: service-to-service calls with internal header
+  if (request.headers['x-internal-service']) return;
+
   const token = extractBearer(request);
 
   // Bypass: internal service API keys identified by key_prefix
@@ -131,14 +157,26 @@ export async function rateLimitHook(
 
   if (!rateLimitRedis) return; // Fail open if not initialized
 
-  // Authenticated = Bearer token present (token validity checked later by authMiddleware)
   const isAuthed = token !== null;
-  const limit = isAuthed ? AUTHED_LIMIT : UNAUTHED_LIMIT;
+  const tokenHash = isAuthed
+    ? createHash('sha256').update(token).digest('hex').slice(0, 24)
+    : null;
+
+  // Resolve per-key limit: check Redis cache, fall back to defaults
+  let limit = isAuthed ? DEFAULT_AUTHED_LIMIT : UNAUTHED_LIMIT;
+  if (isAuthed && tokenHash) {
+    try {
+      const cached = await rateLimitRedis.get(`rl:tc:${tokenHash}`);
+      if (cached !== null) {
+        limit = parseInt(cached, 10) || DEFAULT_AUTHED_LIMIT;
+      }
+    } catch {
+      // Cache miss — use default, non-fatal
+    }
+  }
 
   // Rate limit key: hash of token for authed (avoids storing raw tokens in Redis), IP for unauthed
-  const keyId = isAuthed
-    ? 'auth:' + createHash('sha256').update(token).digest('hex').slice(0, 24)
-    : 'ip:' + ip;
+  const keyId = isAuthed ? `auth:${tokenHash}` : `ip:${ip}`;
   const redisKey = `rl:${keyId}`;
 
   const now = Date.now();
