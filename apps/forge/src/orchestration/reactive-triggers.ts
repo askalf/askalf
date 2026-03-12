@@ -210,27 +210,27 @@ async function handleExecutionCompletedInner(event: ExecutionEvent): Promise<voi
 
     const target = candidates[0]!;
 
-    // Dedup: skip if target agent already has an open ticket for this capability
-    // or from this same source execution — prevents compound alert feedback loops
+    // Dedup: skip if target agent already has an open ticket for this exact source execution
+    // or an identical title created in the last 5 minutes — prevents batch double-fires
+    const title = `[Reactive] ${event.agentName} flagged ${signal.capability} implications`;
     const existingTicket = await query<{ id: string }>(
       `SELECT id FROM agent_tickets
        WHERE status IN ('open', 'in_progress')
          AND assigned_to = $1
-         AND (category = $2
-              OR metadata->>'source_execution_id' = $3)
+         AND (metadata->>'source_execution_id' = $2
+              OR (title = $3 AND created_at > NOW() - INTERVAL '5 minutes'))
        LIMIT 1`,
-      [target.agent_name, signal.capability, event.executionId],
+      [target.agent_name, event.executionId, title],
     );
     if (existingTicket.length > 0) {
       console.log(
-        `[ReactiveTrigger] Skipping — ${target.agent_name} already has open ticket ${existingTicket[0]!.id} for ${signal.capability}`,
+        `[ReactiveTrigger] Skipping — ${target.agent_name} already has open ticket ${existingTicket[0]!.id} (source_execution_id=${event.executionId})`,
       );
       continue;
     }
 
     // Create ticket
     const ticketId = ulid();
-    const title = `[Reactive] ${event.agentName} flagged ${signal.capability} implications`;
     const description =
       `**Auto-detected cross-domain signal** from ${event.agentName}'s execution.\n\n` +
       `**Signal keywords:** ${signal.keywords.join(', ')}\n` +
