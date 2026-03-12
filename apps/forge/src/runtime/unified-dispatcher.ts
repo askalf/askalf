@@ -10,7 +10,7 @@
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { substrateQuery } from '../database.js';
-import { runDirectCliExecution } from './worker.js';
+import { runDirectCliExecution, cancelCliExecution } from './worker.js';
 import { checkGuardrails } from '../observability/guardrails.js';
 
 // ============================================
@@ -31,6 +31,7 @@ interface DispatchableAgent {
   dispatch_mode: string;
   is_internal: boolean;
   type: string | null;
+  execution_timeout_minutes: number | null;
 }
 
 interface QueuedWork {
@@ -58,6 +59,7 @@ const STAGGER_DELAY_MS = 1_000;
 const MONITOR_AGENTS = ['QA', 'Watchdog', 'Infra'];
 const AUTH_FAILURE_THRESHOLD = 3; // consecutive auth failures before skipping dispatch
 const AUTH_COOLDOWN_MS = 30 * 60 * 1000; // 30 min cooldown after auth failures
+const DEFAULT_EXECUTION_TIMEOUT_MINUTES = 10;
 
 // ============================================
 // Singleton
@@ -154,6 +156,11 @@ export class UnifiedDispatcher {
     this.lastTickAt = new Date().toISOString();
 
     try {
+      // Enforce execution timeouts (every other tick = 60s effective)
+      if (this.tickCount % 2 === 0) {
+        await this.enforceExecutionTimeouts();
+      }
+
       // Process interventions (ported from scheduling.ts)
       await this.processInterventions();
 
@@ -168,7 +175,8 @@ export class UnifiedDispatcher {
       // Get all active internal agents with dispatch enabled
       const agents = await query<DispatchableAgent>(
         `SELECT id, name, status, model_id, system_prompt, max_cost_per_execution, max_iterations,
-                schedule_interval_minutes, next_run_at, dispatch_enabled, dispatch_mode, is_internal, type
+                schedule_interval_minutes, next_run_at, dispatch_enabled, dispatch_mode, is_internal, type,
+                execution_timeout_minutes
          FROM forge_agents
          WHERE status = 'active' AND dispatch_enabled = true AND is_internal = true
          ORDER BY next_run_at ASC NULLS LAST`,
@@ -293,7 +301,8 @@ export class UnifiedDispatcher {
 
       const agent = await queryOne<DispatchableAgent>(
         `SELECT id, name, status, model_id, system_prompt, max_cost_per_execution, max_iterations,
-                schedule_interval_minutes, next_run_at, dispatch_enabled, dispatch_mode, is_internal, type
+                schedule_interval_minutes, next_run_at, dispatch_enabled, dispatch_mode, is_internal, type,
+                execution_timeout_minutes
          FROM forge_agents WHERE id = $1 AND status = 'active'`,
         [item.agentId],
       );
@@ -593,6 +602,47 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
       }
     } catch (err) {
       console.error('[Dispatcher] Startup orphan sweep failed:', err);
+    }
+  }
+
+  // ============================================
+  // Execution Timeout Enforcement
+  // ============================================
+
+  private async enforceExecutionTimeouts(): Promise<void> {
+    try {
+      // Find running executions that have exceeded their agent's timeout (or default)
+      const timedOut = await query<{ id: string; agent_id: string; agent_name: string; timeout_minutes: number }>(
+        `SELECT e.id, e.agent_id, a.name as agent_name,
+                COALESCE(a.execution_timeout_minutes, $1)::int as timeout_minutes
+         FROM forge_executions e
+         JOIN forge_agents a ON a.id = e.agent_id
+         WHERE e.status = 'running'
+           AND e.started_at IS NOT NULL
+           AND e.started_at < NOW() - (COALESCE(a.execution_timeout_minutes, $1) || ' minutes')::INTERVAL`,
+        [DEFAULT_EXECUTION_TIMEOUT_MINUTES],
+      );
+
+      if (timedOut.length === 0) return;
+
+      console.log(`[Dispatcher] Timeout enforcement: ${timedOut.length} execution(s) exceeded timeout`);
+
+      for (const exec of timedOut) {
+        // Kill the process if it's running locally
+        const killed = cancelCliExecution(exec.id);
+
+        // Mark as failed in DB
+        await query(
+          `UPDATE forge_executions
+           SET status = 'failed', error = 'execution_timeout', completed_at = NOW()
+           WHERE id = $1 AND status = 'running'`,
+          [exec.id],
+        );
+
+        console.log(`[Dispatcher] Timed out execution ${exec.id} (${exec.agent_name}, >${exec.timeout_minutes}min)${killed ? ' — process killed' : ' — no local process found'}`);
+      }
+    } catch (err) {
+      console.warn(`[Dispatcher] Timeout enforcement error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
