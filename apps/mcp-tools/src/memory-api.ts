@@ -15331,11 +15331,14 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
 
     // ACTUATOR: Spawn a new specialist agent for overloaded ticket categories
     try {
-      // Find unassigned ticket categories with 3+ open tickets
+      // Find truly unassigned ticket categories with 3+ open tickets
+      // Must check BOTH agent_name AND assigned_to — tickets may use either field
       const overloaded = await p.query(
         `SELECT t.category, COUNT(*)::int as cnt
          FROM agent_tickets t
-         WHERE t.status = 'open' AND (t.agent_name IS NULL OR t.agent_name = '')
+         WHERE t.status = 'open'
+           AND (t.agent_name IS NULL OR t.agent_name = '')
+           AND (t.assigned_to IS NULL OR t.assigned_to = '')
          GROUP BY t.category
          HAVING COUNT(*) >= 3
          ORDER BY cnt DESC
@@ -15371,10 +15374,12 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
            '{ticket_ops,finding_ops,memory_search,memory_store,db_query,substrate_db_query,shell_exec,code_analysis}'],
         );
 
-        // Assign pending tickets to the new agent
+        // Assign only truly unassigned pending tickets to the new agent
         await p.query(
           `UPDATE agent_tickets SET agent_name = $1, assigned_to = $1, updated_at = NOW()
-           WHERE status = 'open' AND category = $2 AND (agent_name IS NULL OR agent_name = '')`,
+           WHERE status = 'open' AND category = $2
+             AND (agent_name IS NULL OR agent_name = '')
+             AND (assigned_to IS NULL OR assigned_to = '')`,
           [agentName, category],
         );
 
