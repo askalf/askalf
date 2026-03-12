@@ -7,6 +7,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { hubApi } from '../hooks/useHubApi';
 import { useHubStore } from '../stores/hub';
+import TabBar from '../components/TabBar';
 import './UnifiedDashboard.css';
 // Hub component CSS (previously imported by CommandCenter)
 import './hub/shared/hub-shared.css';
@@ -214,19 +215,7 @@ export default function UnifiedDashboard() {
       />
       <div className="ud-body ud-body-full">
         <div className="ud-main">
-          <div className="ud-tab-bar" role="tablist" aria-label="Dashboard navigation">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                role="tab"
-                aria-selected={activeTab === t.key}
-                className={`ud-tab ${activeTab === t.key ? 'active' : ''}`}
-                onClick={() => setActiveTab(t.key)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <TabBar tabs={TABS} active={activeTab} onChange={(k) => setActiveTab(k as TabKey)} className="ud-tab-bar" tabClassName="ud-tab" ariaLabel="Dashboard navigation" />
           <div className="ud-tab-content" role="tabpanel" aria-label={activeTab}>
             {tabContent()}
           </div>
