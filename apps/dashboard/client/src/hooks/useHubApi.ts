@@ -1188,14 +1188,14 @@ export const hubApi = {
   // Templates (Layer 2)
   templates: {
     list: () =>
-      apiFetch<{ templates: unknown[]; categories: Record<string, unknown[]>; total: number }>('/api/v1/admin/chat/templates'),
+      apiFetch<{ templates: unknown[]; categories: Record<string, unknown[]>; total: number }>('/api/v1/forge/templates'),
 
     detail: (id: string) =>
-      apiFetch('/api/v1/admin/chat/templates/' + id),
+      apiFetch('/api/v1/forge/templates/' + id),
 
     instantiate: (id: string, overrides?: Record<string, unknown>) =>
       apiFetch<{ agent: unknown; templateId: string; message: string }>(
-        `/api/v1/admin/chat/templates/${id}/instantiate`,
+        `/api/v1/forge/templates/${id}/instantiate`,
         { method: 'POST', body: JSON.stringify(overrides ?? {}) },
       ),
   },
