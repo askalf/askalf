@@ -7,6 +7,7 @@ interface ShortcutRow {
 }
 
 const SHORTCUTS: ShortcutRow[] = [
+  { keys: ['⌘K', 'Ctrl+K'], description: 'Open command palette' },
   { keys: ['1 – 9'], description: 'Switch to tab by position' },
   { keys: ['R'], description: 'Refresh current tab' },
   { keys: ['/'], description: 'Focus search in current tab' },

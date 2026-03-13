@@ -1,0 +1,262 @@
+/* ── Command Palette ─────────────────────────────────────────────────────── */
+
+.cp-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 10000;
+}
+
+.cp-panel {
+  background: rgba(14, 18, 30, 0.97);
+  border: 1px solid rgba(0, 255, 120, 0.18);
+  border-radius: 14px;
+  width: 640px;
+  max-width: 92vw;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 0 0 1px rgba(0, 255, 120, 0.06),
+    0 24px 80px rgba(0, 0, 0, 0.7),
+    0 0 40px rgba(0, 255, 120, 0.05);
+  overflow: hidden;
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+}
+
+/* ── Input row ── */
+.cp-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cp-icon {
+  font-size: 16px;
+  color: rgba(0, 255, 120, 0.7);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.cp-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 15px;
+  color: #e2e8f0;
+  caret-color: #00ff78;
+}
+
+.cp-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.cp-esc-hint {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+/* ── Results ── */
+.cp-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 255, 120, 0.2) transparent;
+}
+
+.cp-results::-webkit-scrollbar {
+  width: 4px;
+}
+.cp-results::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 120, 0.2);
+  border-radius: 2px;
+}
+
+.cp-empty {
+  padding: 24px 20px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ── Groups ── */
+.cp-group {
+  padding: 0 0 4px;
+}
+
+.cp-group-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.25);
+  padding: 8px 16px 4px;
+}
+
+/* ── Items ── */
+.cp-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+  font-family: inherit;
+}
+
+.cp-item:hover,
+.cp-item--selected {
+  background: rgba(0, 255, 120, 0.07);
+}
+
+.cp-item--selected {
+  border-left: 2px solid rgba(0, 255, 120, 0.6);
+  padding-left: 14px;
+}
+
+.cp-item-kind-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.2);
+}
+.cp-item-kind-dot[data-kind="tab"]    { background: #a5b4fc; }
+.cp-item-kind-dot[data-kind="agent"]  { background: #34d399; }
+.cp-item-kind-dot[data-kind="ticket"] { background: #fbbf24; }
+.cp-item-kind-dot[data-kind="action"] { background: #f472b6; }
+
+.cp-item-label {
+  font-size: 13px;
+  color: #e2e8f0;
+  font-weight: 500;
+  flex-shrink: 0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cp-item-detail {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Badges ── */
+.cp-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Agent status */
+.cp-badge--running  { background: rgba(52, 211, 153, 0.15); color: #34d399; border-color: rgba(52, 211, 153, 0.3); }
+.cp-badge--idle     { background: rgba(148, 163, 184, 0.1);  color: #94a3b8; border-color: rgba(148, 163, 184, 0.2); }
+.cp-badge--paused   { background: rgba(251, 191, 36, 0.12);  color: #fbbf24; border-color: rgba(251, 191, 36, 0.25); }
+.cp-badge--error    { background: rgba(248, 113, 113, 0.15); color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
+
+/* Ticket priority */
+.cp-badge--urgent   { background: rgba(248, 113, 113, 0.15); color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
+.cp-badge--high     { background: rgba(251, 146, 60, 0.15);  color: #fb923c; border-color: rgba(251, 146, 60, 0.3); }
+.cp-badge--medium   { background: rgba(251, 191, 36, 0.12);  color: #fbbf24; border-color: rgba(251, 191, 36, 0.25); }
+.cp-badge--low      { background: rgba(148, 163, 184, 0.1);  color: #94a3b8; border-color: rgba(148, 163, 184, 0.2); }
+
+/* ── Footer ── */
+.cp-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.cp-footer kbd {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: inherit;
+  font-size: 10px;
+  margin-right: 3px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── Light theme ── */
+[data-theme="light"] .cp-panel {
+  background: rgba(248, 250, 252, 0.98);
+  border-color: rgba(0, 180, 80, 0.25);
+  box-shadow:
+    0 0 0 1px rgba(0, 180, 80, 0.08),
+    0 24px 80px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .cp-input-row {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .cp-input {
+  color: #1e293b;
+}
+
+[data-theme="light"] .cp-input::placeholder {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] .cp-item-label {
+  color: #1e293b;
+}
+
+[data-theme="light"] .cp-item-detail {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="light"] .cp-item:hover,
+[data-theme="light"] .cp-item--selected {
+  background: rgba(0, 180, 80, 0.06);
+}
+
+[data-theme="light"] .cp-item--selected {
+  border-left-color: rgba(0, 180, 80, 0.6);
+}
+
+[data-theme="light"] .cp-group-title {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] .cp-footer {
+  border-top-color: rgba(0, 0, 0, 0.07);
+  color: rgba(0, 0, 0, 0.35);
+}
