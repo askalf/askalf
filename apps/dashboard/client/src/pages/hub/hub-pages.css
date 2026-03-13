@@ -2221,3 +2221,303 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
+
+/* ====================
+   EXECUTION TOOL CALL TIMELINE (.etl-)
+   ==================== */
+
+.etl-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 0.5rem);
+  animation: forge-fade-in 0.3s ease-out;
+}
+
+.etl-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Stats row */
+.etl-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.etl-stat strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Legend / type filter buttons */
+.etl-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.etl-legend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.etl-legend-btn:hover {
+  border-color: color-mix(in srgb, var(--btn-color) 40%, transparent);
+  background: color-mix(in srgb, var(--btn-color) 10%, transparent);
+  color: var(--text);
+}
+
+.etl-legend-btn--active {
+  border-color: color-mix(in srgb, var(--btn-color) 60%, transparent);
+  background: color-mix(in srgb, var(--btn-color) 15%, transparent);
+  color: var(--text);
+}
+
+.etl-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.etl-legend-count {
+  font-size: 0.65rem;
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+/* Main timeline track */
+.etl-track-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.etl-track {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 6px;
+  overflow-x: auto;
+  min-height: 36px;
+  align-items: center;
+}
+
+.etl-track::-webkit-scrollbar { height: 3px; }
+.etl-track::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.etl-bar {
+  flex-shrink: 0;
+  width: 12px;
+  height: 22px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.1s, transform 0.1s, box-shadow 0.1s;
+  padding: 0;
+}
+
+.etl-bar:hover {
+  opacity: 1;
+  transform: scaleY(1.15);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.2);
+  z-index: 2;
+}
+
+.etl-bar--selected {
+  opacity: 1;
+  transform: scaleY(1.2);
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 1px;
+  z-index: 3;
+}
+
+.etl-bar--dimmed {
+  opacity: 0.2;
+}
+
+.etl-track-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  padding: 0 6px;
+  opacity: 0.6;
+}
+
+/* Detail panel */
+.etl-detail {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  animation: forge-fade-in 0.2s ease-out;
+}
+
+.etl-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.etl-detail-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.etl-detail-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.etl-detail-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.etl-detail-close:hover { color: var(--text); }
+
+.etl-detail-block {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.etl-detail-block:last-child { border-bottom: none; }
+
+.etl-detail-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.etl-detail-pre {
+  margin: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 240px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.etl-detail-pre::-webkit-scrollbar { width: 4px; }
+.etl-detail-pre::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.etl-detail-empty {
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+/* Per-iteration grid */
+.etl-iter-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.etl-iter-grid::-webkit-scrollbar { width: 4px; }
+.etl-iter-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.etl-iter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.etl-iter-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  width: 36px;
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.etl-iter-bars {
+  display: flex;
+  gap: 1px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.etl-iter-bar {
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  border: none;
+  cursor: pointer;
+  opacity: 0.8;
+  padding: 0;
+  transition: opacity 0.1s, transform 0.1s;
+}
+
+.etl-iter-bar:hover {
+  opacity: 1;
+  transform: scaleY(1.2);
+}
+
+.etl-iter-bar--selected {
+  opacity: 1;
+  outline: 1px solid rgba(255,255,255,0.5);
+  outline-offset: 1px;
+}
+
+.etl-iter-bar--dimmed { opacity: 0.15; }
+
+.etl-iter-count {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
