@@ -7,6 +7,8 @@ import { ulid } from 'ulid';
 import { authMiddleware } from '../../middleware/auth.js';
 import { requireAdmin } from '../../middleware/auth.js';
 import { reviewStore, reviewStoreSet, REVIEW_SYSTEM_PROMPT, runCliQuery, persistReview, loadReviewFromDb } from './utils.js';
+import { query } from '../../database.js';
+import { getMetabolicStatus } from '../../memory/metabolic.js';
 
 export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> {
 
@@ -65,6 +67,93 @@ export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> 
     async (request: FastifyRequest, reply: FastifyReply) => {
       const res = await app.inject({ method: 'POST', url: '/api/v1/forge/fleet/store', headers: { authorization: request.headers.authorization || '', cookie: request.headers.cookie || '', 'content-type': 'application/json' }, payload: JSON.stringify(request.body) });
       reply.code(res.statusCode).send(res.json());
+    },
+  );
+
+  // ------------------------------------------
+  // BRAIN ACTIVITY — memory consolidation metrics
+  // ------------------------------------------
+
+  app.get(
+    '/api/v1/admin/memory/brain-activity',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      // 1. Metabolic cycle status
+      const cycles = getMetabolicStatus();
+
+      // 2. Memory counts per tier
+      const memoryCounts = await query<{ tier: string; count: string }>(
+        `SELECT 'procedural' AS tier, COUNT(*)::text AS count FROM forge_procedural_memories
+         UNION ALL SELECT 'semantic', COUNT(*)::text FROM forge_semantic_memories
+         UNION ALL SELECT 'episodic', COUNT(*)::text FROM forge_episodic_memories`,
+      );
+      const memory = Object.fromEntries(memoryCounts.map((r) => [r.tier, parseInt(r.count, 10)]));
+
+      // 3. Memories created/merged/pruned in last 24h
+      const [created24h] = await Promise.all([
+        query<{ tier: string; count: string }>(
+          `SELECT 'semantic' AS tier, COUNT(*)::text AS count FROM forge_semantic_memories WHERE created_at > NOW() - INTERVAL '24 hours'
+           UNION ALL SELECT 'episodic', COUNT(*)::text FROM forge_episodic_memories WHERE created_at > NOW() - INTERVAL '24 hours'
+           UNION ALL SELECT 'procedural', COUNT(*)::text FROM forge_procedural_memories WHERE created_at > NOW() - INTERVAL '24 hours'`,
+        ),
+      ]);
+      const createdLast24h = Object.fromEntries(created24h.map((r) => [r.tier, parseInt(r.count, 10)]));
+
+      // 4. Top 5 most-accessed memories (hot memories)
+      const hotMemories = await query<{
+        id: string; content: string; access_count: string; importance: string; agent_id: string;
+      }>(
+        `SELECT id, LEFT(content, 200) AS content, access_count::text, importance::text, agent_id
+         FROM forge_semantic_memories
+         ORDER BY access_count DESC NULLS LAST
+         LIMIT 5`,
+      );
+
+      // 5. Memory growth rate — new memories per hour over last 7 days
+      const growthTrend = await query<{ hour_bucket: string; count: string }>(
+        `SELECT date_trunc('hour', created_at)::text AS hour_bucket, COUNT(*)::text AS count
+         FROM (
+           SELECT created_at FROM forge_semantic_memories WHERE created_at > NOW() - INTERVAL '7 days'
+           UNION ALL SELECT created_at FROM forge_episodic_memories WHERE created_at > NOW() - INTERVAL '7 days'
+           UNION ALL SELECT created_at FROM forge_procedural_memories WHERE created_at > NOW() - INTERVAL '7 days'
+         ) AS all_memories
+         GROUP BY 1 ORDER BY 1`,
+      );
+
+      // 6. Cross-agent knowledge transfer count
+      const crossAgentRows = await query<{ shared_count: string }>(
+        `SELECT COUNT(*)::text AS shared_count
+         FROM forge_semantic_memories
+         WHERE metadata->>'shared_from' IS NOT NULL`,
+      );
+      const crossAgentTransfers = parseInt(crossAgentRows[0]?.shared_count || '0', 10);
+
+      return {
+        cycles: cycles.map((c) => ({
+          ...c,
+          status: !c.lastRun ? 'unknown' as const
+            : c.lastError ? 'failed' as const
+            : (Date.now() - new Date(c.lastRun).getTime()) > c.intervalHours * 3600_000 * 2
+              ? 'stale' as const
+              : 'healthy' as const,
+        })),
+        memory,
+        activity: {
+          created_last_24h: createdLast24h,
+          hot_memories: hotMemories.map((m) => ({
+            id: m.id,
+            content: m.content,
+            access_count: parseInt(m.access_count, 10),
+            importance: parseFloat(m.importance),
+            agent_id: m.agent_id,
+          })),
+          growth_trend: growthTrend.map((r) => ({
+            hour: r.hour_bucket,
+            count: parseInt(r.count, 10),
+          })),
+          cross_agent_transfers: crossAgentTransfers,
+        },
+      };
     },
   );
 

@@ -53,12 +53,12 @@ export function loadConfig(): ForgeConfig {
     nodeEnv: process.env['NODE_ENV'] ?? 'development',
     maxExecutionIterations: parseInt(process.env['MAX_EXECUTION_ITERATIONS'] ?? '25', 10),
     maxTokensPerTurn: parseInt(process.env['MAX_TOKENS_PER_TURN'] ?? '8192', 10),
-    defaultMaxCostPerExecution: parseFloat(process.env['DEFAULT_MAX_COST_PER_EXECUTION'] ?? '1.00'),
+    defaultMaxCostPerExecution: parseFloat(process.env['DEFAULT_MAX_COST_PER_EXECUTION'] ?? '2.00'),
     // CLI execution
     maxCliConcurrency: parseInt(process.env['MAX_CLI_CONCURRENCY'] ?? '6', 10),
     cliTimeout: parseInt(process.env['CLI_TIMEOUT'] ?? '900000', 10),
-    cliMaxTurns: parseInt(process.env['CLI_MAX_TURNS'] ?? '15', 10),
-    cliBudgetUsd: process.env['CLI_BUDGET_USD'] ?? '0.50',
+    cliMaxTurns: parseInt(process.env['CLI_MAX_TURNS'] ?? '30', 10),
+    cliBudgetUsd: process.env['CLI_BUDGET_USD'] ?? '2.00',
     substrateDatabaseUrl: process.env['SUBSTRATE_DATABASE_URL'] || databaseUrl,
     channelEncryptionKey: process.env['CHANNEL_ENCRYPTION_KEY'],
   };
