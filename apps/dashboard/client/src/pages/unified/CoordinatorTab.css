@@ -40,6 +40,35 @@
   letter-spacing: 0.02em;
 }
 
+.coordinator-view-toggle {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-lg) 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.coordinator-toggle-btn {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.coordinator-toggle-btn:hover {
+  color: var(--text);
+}
+
+.coordinator-toggle-btn.active {
+  color: var(--crystal, #7c3aed);
+  border-bottom-color: var(--crystal, #7c3aed);
+}
+
 .coordinator-content {
   flex: 1;
   overflow-y: auto;
