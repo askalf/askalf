@@ -528,6 +528,7 @@ function AIKeysTab() {
   const [keyInput, setKeyInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState<string | null>(null);
+  const [verifyResults, setVerifyResults] = useState<Record<string, 'success' | 'error'>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => { fetchKeys(); }, []);
@@ -596,17 +597,21 @@ function AIKeysTab() {
       });
       if (!res.ok) {
         setMessage({ type: 'error', text: `Verification request failed: ${res.status}` });
+        setVerifyResults(prev => ({ ...prev, [providerType]: 'error' }));
         return;
       }
       const data = await res.json() as { status: string; error?: string };
       if (data.status === 'valid') {
         setMessage({ type: 'success', text: `${providerType} key verified` });
+        setVerifyResults(prev => ({ ...prev, [providerType]: 'success' }));
         fetchKeys();
       } else {
         setMessage({ type: 'error', text: `Key invalid: ${data.error || 'verification failed'}` });
+        setVerifyResults(prev => ({ ...prev, [providerType]: 'error' }));
       }
     } catch {
       setMessage({ type: 'error', text: 'Verification failed' });
+      setVerifyResults(prev => ({ ...prev, [providerType]: 'error' }));
     } finally {
       setVerifying(null);
     }
@@ -717,6 +722,11 @@ function AIKeysTab() {
                       >
                         {verifying === provider.type ? 'Verifying...' : 'Verify'}
                       </button>
+                      {verifyResults[provider.type] && (
+                        <span className={`settings-test-result settings-test-result-${verifyResults[provider.type]}`}>
+                          {verifyResults[provider.type] === 'success' ? '✓' : '✗'}
+                        </span>
+                      )}
                       <button
                         className="settings-btn-sm settings-btn-danger"
                         onClick={() => handleDeleteKey(provider.type)}
@@ -852,6 +862,7 @@ function IntegrationsTab() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, 'success' | 'error'>>({});
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [expandedRepos, setExpandedRepos] = useState<string | null>(null);
   const [repos, setRepos] = useState<Array<{ id: string; repo_full_name: string; is_private: boolean; language: string | null }>>([]);
@@ -950,12 +961,15 @@ function IntegrationsTab() {
       const data = await res.json() as { success?: boolean; message?: string; error?: string };
       if (data.success) {
         setMessage({ type: 'success', text: `${PROVIDER_LABELS[provider] ?? provider}: Credentials verified` });
+        setTestResults(prev => ({ ...prev, [id]: 'success' }));
         fetchData();
       } else {
         setMessage({ type: 'error', text: data.message ?? data.error ?? 'Test failed' });
+        setTestResults(prev => ({ ...prev, [id]: 'error' }));
       }
     } catch {
       setMessage({ type: 'error', text: 'Network error testing integration' });
+      setTestResults(prev => ({ ...prev, [id]: 'error' }));
     } finally {
       setTesting(null);
     }
@@ -1078,6 +1092,11 @@ function IntegrationsTab() {
                   >
                     {testing === intg.id ? 'Testing...' : 'Test'}
                   </button>
+                  {testResults[intg.id] && (
+                    <span className={`settings-test-result settings-test-result-${testResults[intg.id]}`}>
+                      {testResults[intg.id] === 'success' ? '✓' : '✗'}
+                    </span>
+                  )}
                   <button
                     className="settings-btn-sm"
                     onClick={() => handleSync(intg.id)}
