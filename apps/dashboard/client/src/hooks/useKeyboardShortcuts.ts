@@ -9,6 +9,8 @@ interface KeyboardShortcutsOptions {
   onRefresh: () => void;
   onToggleHelp: () => void;
   helpOpen: boolean;
+  onTogglePalette?: () => void;
+  paletteOpen?: boolean;
 }
 
 /** Returns true if the event target is an editable element (skip shortcuts when typing). */
@@ -30,11 +32,24 @@ export function useKeyboardShortcuts({
   onRefresh,
   onToggleHelp,
   helpOpen,
+  onTogglePalette,
+  paletteOpen,
 }: KeyboardShortcutsOptions) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      // Always allow Escape (close help overlay)
+      // Cmd+K / Ctrl+K → toggle command palette (always, even while typing)
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        onTogglePalette?.();
+        return;
+      }
+
+      // Always allow Escape (close overlays)
       if (e.key === 'Escape') {
+        if (paletteOpen) {
+          // palette handles its own escape
+          return;
+        }
         if (helpOpen) {
           e.preventDefault();
           onToggleHelp();
@@ -84,7 +99,7 @@ export function useKeyboardShortcuts({
         }
       }
     },
-    [visibleKeys, activeTab, setActiveTab, onRefresh, onToggleHelp, helpOpen]
+    [visibleKeys, activeTab, setActiveTab, onRefresh, onToggleHelp, helpOpen, onTogglePalette, paletteOpen]
   );
 
   useEffect(() => {
