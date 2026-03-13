@@ -647,7 +647,7 @@ function registerBuiltInTools(reg: ToolRegistry): void {
           await runDirectCliExecution(childExecId, params.agentId, params.input, params.ownerId, {
             modelId: agentCfg.model_id,
             systemPrompt: agentCfg.system_prompt,
-            maxBudgetUsd: String(agentCfg.max_cost_per_execution ?? '0.50'),
+            maxBudgetUsd: String(agentCfg.max_cost_per_execution ?? '2.00'),
           });
 
           // Read back result
