@@ -702,19 +702,22 @@
         display: none;
         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         flex-direction: column; align-items: center; justify-content: center;
-        gap: 28px; background: rgba(3,3,5,0.96); backdrop-filter: blur(30px);
-        z-index: 200;
+        gap: 24px; background: rgba(3,3,5,0.97); backdrop-filter: blur(30px);
+        z-index: 150; padding-top: 80px;
       }
       .nav-links.open { display: flex; }
-      .nav-links a { font-size: 20px; }
-      .nav-links .nav-cta { font-size: 16px; margin-top: 12px; }
+      .nav-links a { font-size: 22px; padding: 8px 16px; color: var(--text); text-decoration: none; }
+      .nav-links a:active { color: var(--green); }
+      .nav-links .nav-cta { font-size: 16px; margin-top: 16px; padding: 12px 32px; }
       .nav-hamburger {
         display: flex; flex-direction: column; gap: 5px; cursor: pointer;
-        z-index: 201; padding: 8px; background: none; border: none;
+        z-index: 200; padding: 10px; background: none; border: none;
+        -webkit-tap-highlight-color: transparent; touch-action: manipulation;
       }
       .nav-hamburger span {
         display: block; width: 24px; height: 2px; background: var(--text);
         border-radius: 2px; transition: all 0.3s ease;
+        pointer-events: none;
       }
       .nav-hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
       .nav-hamburger.open span:nth-child(2) { opacity: 0; }
@@ -925,43 +928,43 @@
         <div class="hero-feed-lines" id="liveFeed">
           <div class="feed-line">
             <span class="feed-time" style="color:var(--text-muted)">03:14</span>
-            <span class="feed-agent" style="color:var(--green)">QA</span>
-            <span class="feed-msg">patrol complete — 0 failures, fleet healthy</span>
+            <span class="feed-agent" style="color:var(--purple-light)">Backend Dev</span>
+            <span class="feed-msg">self-assigned ticket, wrote rate-limit middleware, committed &amp; deployed — zero human input</span>
           </div>
           <div class="feed-line">
             <span class="feed-time" style="color:var(--text-muted)">03:15</span>
-            <span class="feed-agent" style="color:var(--purple-light)">Backend Dev</span>
-            <span class="feed-msg">resolved tkt_cost_spike — false positive, $0.41/hr</span>
+            <span class="feed-agent" style="color:var(--cyan)">Brain</span>
+            <span class="feed-msg">consolidated 47 episodic memories → 3 procedural patterns — fleet is learning from failures</span>
           </div>
           <div class="feed-line">
             <span class="feed-time" style="color:var(--text-muted)">03:16</span>
-            <span class="feed-agent" style="color:var(--cyan)">Infra</span>
-            <span class="feed-msg">containers nominal — 7/7 healthy, 214MB memory</span>
+            <span class="feed-agent" style="color:var(--rose)">Frontend Dev</span>
+            <span class="feed-msg">rebuilt this landing page's knowledge graph — the site you're reading is agent-written</span>
           </div>
           <div class="feed-line">
             <span class="feed-time" style="color:var(--text-muted)">03:17</span>
             <span class="feed-agent" style="color:var(--amber)">Security</span>
-            <span class="feed-msg">dependency scan clean — 0 CVEs, 342 packages</span>
+            <span class="feed-msg">detected vulnerable dependency, patched, tested, merged PR — 4 min end-to-end</span>
           </div>
           <div class="feed-line">
             <span class="feed-time" style="color:var(--text-muted)">03:18</span>
-            <span class="feed-agent" style="color:var(--rose)">Frontend Dev</span>
-            <span class="feed-msg">committed knowledge graph visualization — 844826c</span>
+            <span class="feed-agent" style="color:var(--green)">QA</span>
+            <span class="feed-msg">caught Backend Dev's edge case, filed ticket, Backend Dev fixed it — agents reviewing agents</span>
           </div>
           <div class="feed-line">
             <span class="feed-time" style="color:var(--text-muted)">03:19</span>
-            <span class="feed-agent" style="color:var(--teal)">Writer</span>
-            <span class="feed-msg">generated release notes for v2.4.1</span>
+            <span class="feed-agent" style="color:var(--blue)">Watchdog</span>
+            <span class="feed-msg">heartbeat #1,847 — detected memory leak, auto-restarted worker, no downtime</span>
           </div>
           <div class="feed-line">
             <span class="feed-time" style="color:var(--text-muted)">03:20</span>
-            <span class="feed-agent" style="color:var(--blue)">Watchdog</span>
-            <span class="feed-msg">heartbeat cycle 1,847 — all vitals nominal</span>
+            <span class="feed-agent" style="color:var(--violet)">Orchestrator</span>
+            <span class="feed-msg">fan-out: 3 agents analyzed cost spike simultaneously → consensus: false positive</span>
           </div>
           <div class="feed-line">
             <span class="feed-time" style="color:var(--text-muted)">03:21</span>
-            <span class="feed-agent" style="color:var(--violet)">Researcher</span>
-            <span class="feed-msg">competitive intel scan — 3 new entries indexed</span>
+            <span class="feed-agent" style="color:var(--teal)">Writer</span>
+            <span class="feed-msg">read 12 git commits, wrote changelog, published release notes — autonomous docs pipeline</span>
           </div>
         </div>
       </div>
@@ -1036,42 +1039,42 @@
 
       <div class="platform-grid reveal reveal-delay-1">
         <div class="platform-card">
-          <div class="platform-card-icon">&#128296;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76Z"/></svg></div>
           <div>
             <div class="platform-card-name">Agent Builder Wizard</div>
             <div class="platform-card-desc">Create custom agents in 6 steps. Choose from 28 skill templates or define your own. Set capabilities, tools, guardrails, and personality — no code required.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#129504;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.5-1.5 4.5-3 5.5V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.5C6.5 13.5 5 11.5 5 9a7 7 0 0 1 7-7Z"/><line x1="9" y1="22" x2="15" y2="22"/><line x1="10" y1="2" x2="10" y2="6"/><line x1="14" y1="2" x2="14" y2="6"/></svg></div>
           <div>
             <div class="platform-card-name">Cognitive Memory System</div>
             <div class="platform-card-desc">10-layer brain with semantic, episodic, and procedural memory. Your agents remember, learn from past mistakes, and get smarter every execution.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#128260;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"><path d="M4 12h4l3-9 4 18 3-9h4"/></svg></div>
           <div>
             <div class="platform-card-name">Multi-Agent Orchestration</div>
             <div class="platform-card-desc">Pipeline, fan-out, consensus, and DAG workflow patterns. Natural language task decomposition with auto-agent matching by capability.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#127760;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#06d6a0" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4" ry="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div>
           <div>
             <div class="platform-card-name">14 Channel Integrations</div>
             <div class="platform-card-desc">Slack, Discord, Telegram, WhatsApp, Teams, Zoom, Email, SMS, Voice, and more. Your agents meet users wherever they already are.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#128272;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
           <div>
             <div class="platform-card-name">BYOK — Any AI Provider</div>
             <div class="platform-card-desc">Claude, GPT, Grok, DeepSeek, or any OpenAI-compatible endpoint. Swap models per-agent. No vendor lock-in. Your keys, your costs.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#10084;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg></div>
           <div>
             <div class="platform-card-name">Autonomous Heartbeat</div>
             <div class="platform-card-desc">Not cron-driven — a continuous 12 BPM resting cycle. Your fleet thinks, patrols, and self-heals even when no one is asking. True autonomy.</div>
@@ -1094,42 +1097,42 @@
 
       <div class="mission-tabs reveal reveal-delay-1">
         <div class="mission-tab active" data-tab="overview">
-          <div class="mission-tab-icon">&#9673;</div>
+          <div class="mission-tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></div>
           <div class="mission-tab-name">Overview</div>
           <div class="mission-tab-desc">Health, costs, agent leaderboard, live execution feed</div>
         </div>
         <div class="mission-tab" data-tab="command">
-          <div class="mission-tab-icon">&#9654;</div>
+          <div class="mission-tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
           <div class="mission-tab-name">Command</div>
           <div class="mission-tab-desc">Natural language chat with slash commands, auto-dispatch</div>
         </div>
         <div class="mission-tab" data-tab="code">
-          <div class="mission-tab-icon">&#60;/&#62;</div>
+          <div class="mission-tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
           <div class="mission-tab-name">Code</div>
           <div class="mission-tab-desc">Claude Code + OpenAI Codex integrated terminals</div>
         </div>
         <div class="mission-tab" data-tab="fleet">
-          <div class="mission-tab-icon">&#9733;</div>
+          <div class="mission-tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
           <div class="mission-tab-name">Fleet Hub</div>
           <div class="mission-tab-desc">Agent builder wizard, 28 skill templates, management</div>
         </div>
         <div class="mission-tab" data-tab="ops">
-          <div class="mission-tab-icon">&#9881;</div>
+          <div class="mission-tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
           <div class="mission-tab-name">Ops</div>
           <div class="mission-tab-desc">Tickets, monitoring, orchestrator, workflow DAG, deploy</div>
         </div>
         <div class="mission-tab" data-tab="live">
-          <div class="mission-tab-icon">&#9889;</div>
+          <div class="mission-tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
           <div class="mission-tab-name">Live</div>
           <div class="mission-tab-desc">Real-time WebSocket event stream with filtering</div>
         </div>
         <div class="mission-tab" data-tab="brain">
-          <div class="mission-tab-icon">&#10022;</div>
+          <div class="mission-tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-7.07l-2.83 2.83M9.76 14.24l-2.83 2.83m11.14 0l-2.83-2.83M9.76 9.76L6.93 6.93"/></svg></div>
           <div class="mission-tab-name">Brain</div>
           <div class="mission-tab-desc">Memory browser, knowledge graph, analytics</div>
         </div>
         <div class="mission-tab" data-tab="settings">
-          <div class="mission-tab-icon">&#9881;</div>
+          <div class="mission-tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg></div>
           <div class="mission-tab-name">Settings</div>
           <div class="mission-tab-desc">BYOK, cost controls, 14 channels, security</div>
         </div>
@@ -1193,7 +1196,7 @@
       <div class="fleet-grid reveal">
         <div class="fleet-card" style="--card-accent:var(--violet);--card-accent-dim:rgba(139,92,246,0.1);--card-accent-border:rgba(139,92,246,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#128269;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
             <div>
               <div class="fleet-card-name">Researcher</div>
               <div class="fleet-card-role">Intelligence</div>
@@ -1208,7 +1211,7 @@
         </div>
         <div class="fleet-card" style="--card-accent:var(--red);--card-accent-dim:rgba(248,113,113,0.1);--card-accent-border:rgba(248,113,113,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#128737;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
             <div>
               <div class="fleet-card-name">Sentinel</div>
               <div class="fleet-card-role">Security</div>
@@ -1223,7 +1226,7 @@
         </div>
         <div class="fleet-card" style="--card-accent:var(--green);--card-accent-dim:var(--green-dim);--card-accent-border:rgba(6,214,160,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#128187;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
             <div>
               <div class="fleet-card-name">Developer</div>
               <div class="fleet-card-role">Full-Stack</div>
@@ -1238,7 +1241,7 @@
         </div>
         <div class="fleet-card" style="--card-accent:var(--teal);--card-accent-dim:rgba(45,212,191,0.1);--card-accent-border:rgba(45,212,191,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#9998;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
             <div>
               <div class="fleet-card-name">Writer</div>
               <div class="fleet-card-role">Content</div>
@@ -1253,7 +1256,7 @@
         </div>
         <div class="fleet-card" style="--card-accent:var(--amber);--card-accent-dim:rgba(251,191,36,0.1);--card-accent-border:rgba(251,191,36,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#128065;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
             <div>
               <div class="fleet-card-name">Watchdog</div>
               <div class="fleet-card-role">Monitoring</div>
@@ -1268,7 +1271,7 @@
         </div>
         <div class="fleet-card" style="--card-accent:var(--sky);--card-accent-dim:rgba(56,189,248,0.1);--card-accent-border:rgba(56,189,248,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#128202;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
             <div>
               <div class="fleet-card-name">Analyst</div>
               <div class="fleet-card-role">Data</div>
@@ -1287,7 +1290,7 @@
       <div class="fleet-grid reveal">
         <div class="fleet-card" style="--card-accent:var(--purple-light);--card-accent-dim:var(--purple-dim);--card-accent-border:rgba(167,139,250,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#9881;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9l3 3-3 3"/><line x1="14" y1="15" x2="18" y2="15"/></svg></div>
             <div>
               <div class="fleet-card-name">Backend Dev</div>
               <div class="fleet-card-role">Autonomous</div>
@@ -1297,7 +1300,7 @@
         </div>
         <div class="fleet-card" style="--card-accent:var(--rose);--card-accent-dim:rgba(251,113,133,0.1);--card-accent-border:rgba(251,113,133,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#127912;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
             <div>
               <div class="fleet-card-name">Frontend Dev</div>
               <div class="fleet-card-role">Autonomous</div>
@@ -1307,7 +1310,7 @@
         </div>
         <div class="fleet-card" style="--card-accent:var(--cyan);--card-accent-dim:var(--cyan-dim);--card-accent-border:rgba(34,211,238,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#9729;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg></div>
             <div>
               <div class="fleet-card-name">Infra</div>
               <div class="fleet-card-role">Autonomous</div>
@@ -1317,7 +1320,7 @@
         </div>
         <div class="fleet-card" style="--card-accent:var(--lime);--card-accent-dim:rgba(74,222,128,0.1);--card-accent-border:rgba(74,222,128,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#10004;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
             <div>
               <div class="fleet-card-name">QA</div>
               <div class="fleet-card-role">Autonomous</div>
@@ -1327,7 +1330,7 @@
         </div>
         <div class="fleet-card" style="--card-accent:var(--orange);--card-accent-dim:rgba(251,146,60,0.1);--card-accent-border:rgba(251,146,60,0.15);">
           <div class="fleet-card-head">
-            <div class="fleet-card-icon">&#128274;</div>
+            <div class="fleet-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
             <div>
               <div class="fleet-card-name">Security</div>
               <div class="fleet-card-role">Autonomous</div>
@@ -1355,7 +1358,7 @@
         <div class="brain-tiers">
           <div class="brain-tier">
             <div class="brain-tier-head">
-              <div class="brain-tier-icon" style="background:var(--purple-dim);border:1px solid rgba(124,58,237,0.2);">&#10022;</div>
+              <div class="brain-tier-icon" style="background:var(--purple-dim);border:1px solid rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--purple-light)" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
               <div class="brain-tier-name">Semantic Memory</div>
               <div class="brain-tier-count">2,293</div>
             </div>
@@ -1366,7 +1369,7 @@
           </div>
           <div class="brain-tier">
             <div class="brain-tier-head">
-              <div class="brain-tier-icon" style="background:var(--cyan-dim);border:1px solid rgba(34,211,238,0.2);">&#128340;</div>
+              <div class="brain-tier-icon" style="background:var(--cyan-dim);border:1px solid rgba(34,211,238,0.2);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--cyan)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
               <div class="brain-tier-name">Episodic Memory</div>
               <div class="brain-tier-count">14,926</div>
             </div>
@@ -1376,7 +1379,7 @@
           </div>
           <div class="brain-tier">
             <div class="brain-tier-head">
-              <div class="brain-tier-icon" style="background:var(--green-dim);border:1px solid rgba(6,214,160,0.2);">&#9881;</div>
+              <div class="brain-tier-icon" style="background:var(--green-dim);border:1px solid rgba(6,214,160,0.2);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--green)" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76Z"/></svg></div>
               <div class="brain-tier-name">Procedural Memory</div>
               <div class="brain-tier-count">131</div>
             </div>
@@ -1398,42 +1401,42 @@
 
       <div class="brain-processes reveal reveal-delay-2">
         <div class="brain-process">
-          <div class="brain-process-icon">&#128299;</div>
+          <div class="brain-process-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--purple-light)" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>
           <div class="brain-process-name">Consolidation</div>
           <div class="brain-process-desc">Merges redundant memories, strengthens important ones</div>
         </div>
         <div class="brain-process">
-          <div class="brain-process-icon">&#128171;</div>
+          <div class="brain-process-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></div>
           <div class="brain-process-name">Dream Cycles</div>
           <div class="brain-process-desc">Finds connections across memories during idle time</div>
         </div>
         <div class="brain-process">
-          <div class="brain-process-icon">&#129504;</div>
+          <div class="brain-process-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12s1.5-4 4-4 4 4 4 4-1.5 4-4 4-4-4-4-4"/></svg></div>
           <div class="brain-process-name">Neuroplasticity</div>
           <div class="brain-process-desc">Importance scoring adapts based on usage patterns</div>
         </div>
         <div class="brain-process">
-          <div class="brain-process-icon">&#128161;</div>
+          <div class="brain-process-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--amber)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
           <div class="brain-process-name">Self-Reflection</div>
           <div class="brain-process-desc">Generates insights from behavioral patterns and outcomes</div>
         </div>
         <div class="brain-process">
-          <div class="brain-process-icon">&#128279;</div>
+          <div class="brain-process-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--rose)" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
           <div class="brain-process-name">Embedding Backfill</div>
           <div class="brain-process-desc">pgvector embeddings for semantic similarity search</div>
         </div>
         <div class="brain-process">
-          <div class="brain-process-icon">&#128260;</div>
+          <div class="brain-process-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--blue)" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
           <div class="brain-process-name">Session Handoff</div>
           <div class="brain-process-desc">Context transfer between instances without loss</div>
         </div>
         <div class="brain-process">
-          <div class="brain-process-icon">&#127760;</div>
+          <div class="brain-process-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--teal)" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
           <div class="brain-process-name">Working Memory</div>
           <div class="brain-process-desc">Short-term context injection into active sessions</div>
         </div>
         <div class="brain-process">
-          <div class="brain-process-icon">&#128200;</div>
+          <div class="brain-process-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--orange)" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div>
           <div class="brain-process-name">Analytics</div>
           <div class="brain-process-desc">Memory growth trends, category breakdowns, health metrics</div>
         </div>
@@ -1456,7 +1459,7 @@
 
       <div class="sb-loop reveal reveal-delay-1">
         <div class="sb-step">
-          <div class="sb-step-icon">&#128270;</div>
+          <div class="sb-step-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></div>
           <div class="sb-step-content">
             <div class="sb-step-title">1. The system observes itself</div>
             <div class="sb-step-desc">
@@ -1470,7 +1473,7 @@
         </div>
 
         <div class="sb-step">
-          <div class="sb-step-icon">&#127915;</div>
+          <div class="sb-step-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--purple-light)" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
           <div class="sb-step-content">
             <div class="sb-step-title">2. It creates its own tickets</div>
             <div class="sb-step-desc">
@@ -1484,7 +1487,7 @@
         </div>
 
         <div class="sb-step">
-          <div class="sb-step-icon">&#128736;</div>
+          <div class="sb-step-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--cyan)" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
           <div class="sb-step-content">
             <div class="sb-step-title">3. Agents write the fix</div>
             <div class="sb-step-desc">
@@ -1499,7 +1502,7 @@
         </div>
 
         <div class="sb-step">
-          <div class="sb-step-icon">&#129504;</div>
+          <div class="sb-step-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--amber)" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 3 2 5.5 4 7.5.5.5.5 1 .5 1.5h5c0-.5 0-1 .5-1.5 2-2 4-4.5 4-7.5A7 7 0 0 0 12 2z"/><line x1="10" y1="22" x2="14" y2="22"/></svg></div>
           <div class="sb-step-content">
             <div class="sb-step-title">4. The brain remembers everything</div>
             <div class="sb-step-desc">
@@ -1514,7 +1517,7 @@
         </div>
 
         <div class="sb-step">
-          <div class="sb-step-icon">&#128260;</div>
+          <div class="sb-step-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
           <div class="sb-step-content">
             <div class="sb-step-title">5. Next cycle is better than the last</div>
             <div class="sb-step-desc">
@@ -1612,7 +1615,7 @@
       <div class="integrations-layout reveal reveal-delay-1">
         <div class="integ-group">
           <div class="integ-group-title">
-            <span class="integ-icon">&#129302;</span> AI Providers
+            <span class="integ-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="2"/><circle cx="9" cy="10" r="1.5" fill="#a78bfa"/><circle cx="15" cy="10" r="1.5" fill="#a78bfa"/><path d="M9 16c1 1 5 1 6 0"/></svg></span> AI Providers
           </div>
           <div class="integ-list">
             <div class="integ-item">
@@ -1640,7 +1643,7 @@
 
         <div class="integ-group">
           <div class="integ-group-title">
-            <span class="integ-icon">&#128172;</span> Channels (14)
+            <span class="integ-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#06d6a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> Channels (14)
           </div>
           <div class="integ-list">
             <div class="integ-item">Slack</div>
@@ -1658,7 +1661,7 @@
 
         <div class="integ-group">
           <div class="integ-group-title">
-            <span class="integ-icon">&#128736;</span> DevOps & Monitoring
+            <span class="integ-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76Z"/></svg></span> DevOps & Monitoring
           </div>
           <div class="integ-list">
             <div class="integ-item">
@@ -1693,42 +1696,42 @@
 
       <div class="platform-grid reveal reveal-delay-1">
         <div class="platform-card">
-          <div class="platform-card-icon">&#128176;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#06d6a0" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
           <div>
             <div class="platform-card-name">Cost Controls</div>
             <div class="platform-card-desc">Per-agent daily budgets with auto-pause. Per-execution limits. API vs CLI cost splitting. Real-time cost dashboard with 30-day trends.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#128737;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg></div>
           <div>
             <div class="platform-card-name">6 Guardrail Types</div>
             <div class="platform-card-desc">Content filter, cost limit, rate limit, tool restriction, output filter, and custom guardrails. Stack them per-agent or fleet-wide.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#128065;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg></div>
           <div>
             <div class="platform-card-name">Full Observability</div>
             <div class="platform-card-desc">Execution timelines, provider health dashboards, audit logs. Every agent action is traced, timestamped, and searchable.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#128272;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
           <div>
             <div class="platform-card-name">Self-Hosted & BYOK</div>
             <div class="platform-card-desc">Docker Compose on your infrastructure. Bring your own API keys. Your data never leaves your servers. Zero vendor lock-in.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#10084;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg></div>
           <div>
             <div class="platform-card-name">Autonomous Heartbeat</div>
             <div class="platform-card-desc">Not cron-driven — a continuous 12 BPM resting cycle. The system thinks, patrols, and self-heals even when no one is asking.</div>
           </div>
         </div>
         <div class="platform-card">
-          <div class="platform-card-icon">&#128260;</div>
+          <div class="platform-card-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><path d="M4 12h4l3-9 4 18 3-9h4"/></svg></div>
           <div>
             <div class="platform-card-name">Real-Time WebSocket</div>
             <div class="platform-card-desc">Live event streaming to the dashboard. Agent actions, ticket updates, memory writes — visible in real-time with filtering.</div>
@@ -2246,18 +2249,18 @@
     // ─── Live feed cycling ───
     (function() {
       const feedLines = [
-        { time: '03:22', agent: 'Backend Dev', color: '#a78bfa', msg: 'claimed tkt_rate_limit_v2 — starting implementation' },
-        { time: '03:23', agent: 'QA', color: '#06d6a0', msg: 'execution audit — 47/47 clean, 0 orphans' },
-        { time: '03:24', agent: 'Infra', color: '#22d3ee', msg: 'nginx cache hit rate 94.2% — optimal' },
-        { time: '03:25', agent: 'Frontend Dev', color: '#fb7185', msg: 'GraphTab.tsx — knowledge graph hover tooltips added' },
-        { time: '03:26', agent: 'Watchdog', color: '#60a5fa', msg: 'memory consolidation cycle — merged 12 redundant entries' },
-        { time: '03:27', agent: 'Security', color: '#fb923c', msg: 'auth flow hardened — SHA-256 legacy verification enabled' },
-        { time: '03:28', agent: 'Researcher', color: '#8b5cf6', msg: 'indexed 847 new data points from web crawl' },
-        { time: '03:29', agent: 'Backend Dev', color: '#a78bfa', msg: 'committed rate-limit middleware — per-API-key enforcement' },
-        { time: '03:30', agent: 'Analyst', color: '#38bdf8', msg: 'cost trend: $0.41/day avg this week — 23% below budget' },
-        { time: '03:31', agent: 'Writer', color: '#2dd4bf', msg: 'changelog entry drafted for cost-split display update' },
-        { time: '03:32', agent: 'QA', color: '#06d6a0', msg: 'compound alert resolved — false positive confirmed' },
-        { time: '03:33', agent: 'Infra', color: '#22d3ee', msg: 'backup verified — pg_dump 142MB compressed, S3 synced' },
+        { time: '03:22', agent: 'Backend Dev', color: '#a78bfa', msg: 'found own bug from yesterday via episodic memory — fixed before any user noticed' },
+        { time: '03:23', agent: 'Brain', color: '#22d3ee', msg: 'dream cycle: cross-linked 23 memories → discovered recurring deployment pattern' },
+        { time: '03:24', agent: 'Frontend Dev', color: '#fb7185', msg: 'rewrote dashboard component QA flagged — improved render time 340ms → 80ms' },
+        { time: '03:25', agent: 'Orchestrator', color: '#8b5cf6', msg: 'pipeline: Researcher → Analyst → Writer — competitive report generated in 90s' },
+        { time: '03:26', agent: 'Security', color: '#fb923c', msg: 'scanned 342 deps, found 1 CVE, wrote patch, opened PR — fully autonomous' },
+        { time: '03:27', agent: 'QA', color: '#06d6a0', msg: 'tested Backend Dev\'s PR — found race condition, filed ticket, Backend Dev already fixing' },
+        { time: '03:28', agent: 'Watchdog', color: '#60a5fa', msg: 'predicted memory pressure from growth trend — preemptively scaled before OOM' },
+        { time: '03:29', agent: 'Infra', color: '#22d3ee', msg: 'nginx config optimized — cache hit rate jumped 78% → 94% from pattern analysis' },
+        { time: '03:30', agent: 'Writer', color: '#2dd4bf', msg: 'read 18 commits across 3 agents, wrote unified release notes — zero human edits needed' },
+        { time: '03:31', agent: 'Backend Dev', color: '#a78bfa', msg: 'recalled procedural memory from similar bug last week — solved in 2 min instead of 20' },
+        { time: '03:32', agent: 'Brain', color: '#22d3ee', msg: 'neuroplasticity: strengthened 8 patterns, pruned 3 stale ones — brain getting sharper' },
+        { time: '03:33', agent: 'Orchestrator', color: '#8b5cf6', msg: 'consensus: 3 agents analyzed incident — agreed on root cause in 45s, auto-resolved' },
       ];
       const feed = document.getElementById('liveFeed');
       if (!feed) return;

@@ -169,7 +169,7 @@ services:
       - ALL
     read_only: true
     tmpfs:
-      - /tmp:mode=1777,size=512m
+      - /tmp:mode=1777,size=2g
     logging:
       driver: json-file
       options:
@@ -178,9 +178,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2048M
+          memory: 4G
         reservations:
-          memory: 384M
+          memory: 1G
 
   dashboard:
     build:
