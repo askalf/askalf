@@ -17,8 +17,36 @@ export class TwilioSmsProvider implements ChannelProvider {
     const signature = headers['x-twilio-signature'];
     if (!signature) return { valid: false };
 
-    // For now, accept if auth token is configured
-    // Full Twilio signature validation requires the full URL + sorted params
+    // Full Twilio signature validation:
+    // 1. Build the full URL
+    // 2. Sort POST params alphabetically and append key+value
+    // 3. HMAC-SHA1 the result with auth token
+    // We need the webhook URL for full validation. If BASE_URL is set, use it.
+    const baseUrl = process.env['BASE_URL'] ?? 'https://askalf.org';
+    const configId = config.id;
+    const webhookUrl = `${baseUrl}/api/v1/forge/channels/twilio/webhook/${configId}`;
+
+    const params = body as Record<string, string>;
+    // Build the data string: URL + sorted params key-value pairs
+    let dataStr = webhookUrl;
+    const sortedKeys = Object.keys(params).sort();
+    for (const key of sortedKeys) {
+      dataStr += key + (params[key] ?? '');
+    }
+
+    const computed = createHmac('sha1', authToken)
+      .update(dataStr)
+      .digest('base64');
+
+    if (computed !== signature) {
+      // Signature mismatch — but allow if the URL might differ (dev vs prod)
+      // Log and accept in development, reject in production
+      if (process.env['NODE_ENV'] === 'production') {
+        return { valid: false };
+      }
+      console.warn('[TwilioSMS] Signature mismatch (dev mode, allowing)');
+    }
+
     return { valid: true };
   }
 
@@ -48,14 +76,18 @@ export class TwilioSmsProvider implements ChannelProvider {
     const authToken = config.config['auth_token'] as string;
     const fromNumber = config.config['phone_number'] as string;
 
-    if (!accountSid || !authToken || !fromNumber) return;
+    if (!accountSid || !authToken || !fromNumber) {
+      throw new Error('Twilio SMS sendReply: missing account_sid, auth_token, or phone_number');
+    }
 
     const toNumber = config.metadata?.['from'] as string;
-    if (!toNumber) return;
+    if (!toNumber) {
+      throw new Error('Twilio SMS sendReply: no "from" number in inbound message metadata');
+    }
 
     const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
 
-    await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -68,5 +100,10 @@ export class TwilioSmsProvider implements ChannelProvider {
       }).toString(),
       signal: AbortSignal.timeout(10_000),
     });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`Twilio SMS send failed (${res.status}): ${errBody.substring(0, 200)}`);
+    }
   }
 }

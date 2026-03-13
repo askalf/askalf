@@ -11,11 +11,9 @@ export class TeamsProvider implements ChannelProvider {
 
   verifyWebhook(headers: Record<string, string>, body: unknown, config: ChannelConfig): ChannelVerifyResult {
     // Bot Framework uses Bearer token auth via Azure AD
-    // For webhook verification, we check the Authorization header
     const authHeader = headers['authorization'] || headers['Authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       // In self-hosted mode, we trust internal routing if no auth header
-      // Production should validate JWT from Bot Framework
       return { valid: true };
     }
     return { valid: true };
@@ -49,11 +47,11 @@ export class TeamsProvider implements ChannelProvider {
   }
 
   async sendReply(config: ChannelConfig, message: ChannelOutboundMessage): Promise<void> {
-    // Teams replies go through the Bot Framework serviceUrl
-    // The serviceUrl is stored in the inbound message metadata
     const appId = config.config['app_id'] as string;
     const appPassword = config.config['app_password'] as string;
-    if (!appId || !appPassword) return;
+    if (!appId || !appPassword) {
+      throw new Error('Teams sendReply: missing app_id or app_password');
+    }
 
     // Get OAuth token from Bot Framework
     const tokenRes = await fetch('https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token', {
@@ -65,17 +63,23 @@ export class TeamsProvider implements ChannelProvider {
         client_secret: appPassword,
         scope: 'https://api.botframework.com/.default',
       }).toString(),
+      signal: AbortSignal.timeout(10_000),
     });
 
-    if (!tokenRes.ok) return;
+    if (!tokenRes.ok) {
+      const errBody = await tokenRes.text().catch(() => '');
+      throw new Error(`Teams OAuth failed (${tokenRes.status}): ${errBody.substring(0, 200)}`);
+    }
     const tokenData = await tokenRes.json() as { access_token: string };
 
-    // Send reply activity
+    // serviceUrl and conversationId come from the inbound message metadata
     const serviceUrl = (config.metadata?.['serviceUrl'] as string) ?? 'https://smba.trafficmanager.net/teams/';
     const conversationId = config.metadata?.['conversationId'] as string;
-    if (!conversationId) return;
+    if (!conversationId) {
+      throw new Error('Teams sendReply: no conversationId in message metadata');
+    }
 
-    await fetch(`${serviceUrl}v3/conversations/${conversationId}/activities`, {
+    const replyRes = await fetch(`${serviceUrl}v3/conversations/${conversationId}/activities`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -83,8 +87,14 @@ export class TeamsProvider implements ChannelProvider {
       },
       body: JSON.stringify({
         type: 'message',
-        text: message.text,
+        text: message.text.substring(0, 28_000), // Teams message limit
       }),
+      signal: AbortSignal.timeout(10_000),
     });
+
+    if (!replyRes.ok) {
+      const errBody = await replyRes.text().catch(() => '');
+      throw new Error(`Teams reply failed (${replyRes.status}): ${errBody.substring(0, 200)}`);
+    }
   }
 }

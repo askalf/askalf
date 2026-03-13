@@ -75,7 +75,10 @@ export class WebhooksProvider implements ChannelProvider {
 
   async sendReply(config: ChannelConfig, message: ChannelOutboundMessage): Promise<void> {
     const callbackUrl = config.config['callback_url'] as string | undefined;
-    if (!callbackUrl) return;
+    if (!callbackUrl) {
+      console.warn('[Webhooks] sendReply skipped: no callback_url configured');
+      return;
+    }
 
     const secret = config.config['webhook_secret'] as string | undefined;
     const body = JSON.stringify({
@@ -90,11 +93,15 @@ export class WebhooksProvider implements ChannelProvider {
       headers['X-Webhook-Signature'] = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
     }
 
-    await fetch(callbackUrl, {
+    const res = await fetch(callbackUrl, {
       method: 'POST',
       headers,
       body,
       signal: AbortSignal.timeout(10_000),
-    }).catch(() => { /* best-effort delivery */ });
+    });
+
+    if (!res.ok) {
+      console.warn(`[Webhooks] sendReply callback returned ${res.status}`);
+    }
   }
 }

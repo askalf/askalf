@@ -497,16 +497,26 @@ export async function channelRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
-      // For other channels, just verify the config has required fields
+      // Required fields per channel type
       const required: Record<string, string[]> = {
         slack: ['bot_token', 'signing_secret'],
         discord: ['bot_token', 'public_key'],
         telegram: ['bot_token'],
         whatsapp: ['access_token', 'phone_number_id'],
+        teams: ['app_id', 'app_password'],
+        email: ['smtp_host', 'smtp_user', 'smtp_pass'],
+        twilio: ['account_sid', 'auth_token', 'phone_number'],
+        sendgrid: ['api_key', 'from_email'],
+        twilio_voice: ['account_sid', 'auth_token', 'phone_number'],
+        zoom: ['client_id', 'client_secret', 'bot_jid', 'verification_token'],
+        zapier: ['webhook_url'],
+        n8n: ['webhook_url'],
+        make: ['webhook_url'],
       };
 
       const requiredFields = required[config.channel_type] ?? [];
-      const missing = requiredFields.filter(f => !config.config[f]);
+      const decrypted = decryptConfigFields(config.config, SENSITIVE_KEYS[config.channel_type as ChannelType] ?? []);
+      const missing = requiredFields.filter(f => !decrypted[f]);
 
       if (missing.length > 0) {
         return reply.status(400).send({
@@ -515,7 +525,159 @@ export async function channelRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      return { success: true, message: 'Configuration valid' };
+      // Actually test the connection for each channel type
+      try {
+        switch (config.channel_type) {
+          case 'slack': {
+            // Test Slack bot token by calling auth.test
+            const token = decrypted['bot_token'] as string;
+            const res = await fetch('https://slack.com/api/auth.test', {
+              headers: { 'Authorization': `Bearer ${token}` },
+              signal: AbortSignal.timeout(10_000),
+            });
+            const data = await res.json() as { ok: boolean; error?: string; team?: string; user?: string };
+            if (!data.ok) return reply.status(400).send({ error: `Slack auth failed: ${data.error}` });
+            return { success: true, message: `Connected as ${data.user} in ${data.team}` };
+          }
+
+          case 'discord': {
+            // Test Discord bot token by fetching current user
+            const token = decrypted['bot_token'] as string;
+            const res = await fetch('https://discord.com/api/v10/users/@me', {
+              headers: { 'Authorization': `Bot ${token}` },
+              signal: AbortSignal.timeout(10_000),
+            });
+            if (!res.ok) return reply.status(400).send({ error: `Discord auth failed (${res.status})` });
+            const data = await res.json() as { username: string; id: string };
+            return { success: true, message: `Connected as ${data.username} (${data.id})` };
+          }
+
+          case 'telegram': {
+            // Test Telegram bot token by calling getMe
+            const token = decrypted['bot_token'] as string;
+            const res = await fetch(`https://api.telegram.org/bot${token}/getMe`, {
+              signal: AbortSignal.timeout(10_000),
+            });
+            const data = await res.json() as { ok: boolean; result?: { username: string }; description?: string };
+            if (!data.ok) return reply.status(400).send({ error: `Telegram auth failed: ${data.description}` });
+            return { success: true, message: `Connected as @${data.result?.username}` };
+          }
+
+          case 'whatsapp': {
+            // Test WhatsApp access token by fetching phone number info
+            const token = decrypted['access_token'] as string;
+            const phoneId = decrypted['phone_number_id'] as string;
+            const res = await fetch(`https://graph.facebook.com/v18.0/${phoneId}`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+              signal: AbortSignal.timeout(10_000),
+            });
+            if (!res.ok) return reply.status(400).send({ error: `WhatsApp auth failed (${res.status})` });
+            const data = await res.json() as { display_phone_number?: string };
+            return { success: true, message: `Connected to ${data.display_phone_number || phoneId}` };
+          }
+
+          case 'teams': {
+            // Test Teams app credentials by getting OAuth token
+            const appId = decrypted['app_id'] as string;
+            const appPassword = decrypted['app_password'] as string;
+            const res = await fetch('https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: appId,
+                client_secret: appPassword,
+                scope: 'https://api.botframework.com/.default',
+              }).toString(),
+              signal: AbortSignal.timeout(10_000),
+            });
+            if (!res.ok) return reply.status(400).send({ error: `Teams OAuth failed (${res.status})` });
+            return { success: true, message: 'Teams Bot Framework credentials valid' };
+          }
+
+          case 'twilio':
+          case 'twilio_voice': {
+            // Test Twilio credentials by fetching account info
+            const sid = decrypted['account_sid'] as string;
+            const token = decrypted['auth_token'] as string;
+            const authStr = Buffer.from(`${sid}:${token}`).toString('base64');
+            const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}.json`, {
+              headers: { 'Authorization': `Basic ${authStr}` },
+              signal: AbortSignal.timeout(10_000),
+            });
+            if (!res.ok) return reply.status(400).send({ error: `Twilio auth failed (${res.status})` });
+            const data = await res.json() as { friendly_name?: string; status?: string };
+            return { success: true, message: `Connected to Twilio account: ${data.friendly_name} (${data.status})` };
+          }
+
+          case 'sendgrid': {
+            // Test SendGrid API key by checking scopes
+            const key = decrypted['api_key'] as string;
+            const res = await fetch('https://api.sendgrid.com/v3/scopes', {
+              headers: { 'Authorization': `Bearer ${key}` },
+              signal: AbortSignal.timeout(10_000),
+            });
+            if (!res.ok) return reply.status(400).send({ error: `SendGrid auth failed (${res.status})` });
+            return { success: true, message: 'SendGrid API key valid' };
+          }
+
+          case 'zoom': {
+            // Test Zoom credentials by getting OAuth token
+            const clientId = decrypted['client_id'] as string;
+            const clientSecret = decrypted['client_secret'] as string;
+            const authStr = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+            const res = await fetch('https://zoom.us/oauth/token?grant_type=client_credentials', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Basic ${authStr}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              signal: AbortSignal.timeout(10_000),
+            });
+            if (!res.ok) return reply.status(400).send({ error: `Zoom OAuth failed (${res.status})` });
+            return { success: true, message: 'Zoom credentials valid' };
+          }
+
+          case 'zapier':
+          case 'n8n':
+          case 'make': {
+            // Test automation webhook URL by sending a test payload
+            const webhookUrl = decrypted['webhook_url'] as string;
+            const res = await fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ event: 'test', source: 'askalf', timestamp: new Date().toISOString() }),
+              signal: AbortSignal.timeout(10_000),
+            });
+            return { success: res.ok, status: res.status, message: res.ok ? 'Webhook reachable' : `Webhook returned ${res.status}` };
+          }
+
+          case 'email': {
+            // Test SMTP by opening a connection
+            const host = decrypted['smtp_host'] as string;
+            const port = parseInt(decrypted['smtp_port'] as string || '587', 10);
+            const net = await import('net');
+            const connected = await new Promise<boolean>((resolve) => {
+              const socket = net.connect({ host, port, timeout: 5000 }, () => {
+                socket.destroy();
+                resolve(true);
+              });
+              socket.on('error', () => resolve(false));
+              socket.on('timeout', () => { socket.destroy(); resolve(false); });
+            });
+            if (!connected) return reply.status(400).send({ error: `Cannot connect to ${host}:${port}` });
+            return { success: true, message: `SMTP server ${host}:${port} reachable` };
+          }
+
+          default:
+            return { success: true, message: 'Configuration valid' };
+        }
+      } catch (err) {
+        return reply.status(502).send({
+          error: 'Channel test failed',
+          message: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
     },
   );
 }

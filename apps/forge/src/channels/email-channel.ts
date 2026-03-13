@@ -1,10 +1,9 @@
 /**
  * Email Channel Provider
  * Handles inbound email webhooks (from SendGrid Inbound Parse, Mailgun, etc.)
- * and sends outbound emails via SMTP.
+ * and sends outbound emails via SMTP using nodemailer, or via raw fetch fallback.
  */
 
-import { createHmac } from 'crypto';
 import type { ChannelProvider, ChannelConfig, ChannelInboundMessage, ChannelOutboundMessage, ChannelVerifyResult } from './types.js';
 
 export class EmailProvider implements ChannelProvider {
@@ -12,7 +11,6 @@ export class EmailProvider implements ChannelProvider {
 
   verifyWebhook(headers: Record<string, string>, _body: unknown, _config: ChannelConfig): ChannelVerifyResult {
     // Email webhooks come from configured email services
-    // Basic verification — check content type
     const contentType = headers['content-type'] || '';
     if (contentType.includes('json') || contentType.includes('form')) {
       return { valid: true };
@@ -24,7 +22,7 @@ export class EmailProvider implements ChannelProvider {
     const payload = body as Record<string, unknown>;
 
     // Support multiple inbound email formats:
-    // SendGrid Inbound Parse format
+    // SendGrid Inbound Parse, Mailgun, generic
     const text = (payload['text'] as string)
       || (payload['plain'] as string)
       || (payload['body-plain'] as string)
@@ -34,7 +32,7 @@ export class EmailProvider implements ChannelProvider {
 
     const from = (payload['from'] as string)
       || (payload['sender'] as string)
-      || (payload['envelope']  as Record<string, string>)?.['from'];
+      || (payload['envelope'] as Record<string, string>)?.['from'];
 
     const subject = payload['subject'] as string;
     const messageId = (payload['Message-Id'] as string) || (payload['message-id'] as string);
@@ -62,12 +60,19 @@ export class EmailProvider implements ChannelProvider {
     const smtpPass = config.config['smtp_pass'] as string;
     const fromEmail = config.config['inbound_address'] as string || smtpUser;
 
-    if (!smtpHost || !smtpUser || !smtpPass) return;
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      throw new Error('Email sendReply: missing SMTP configuration (smtp_host, smtp_user, smtp_pass)');
+    }
 
-    // Use nodemailer if available, otherwise fall back to raw SMTP
+    const replyTo = config.metadata?.['from'] as string;
+    if (!replyTo) {
+      throw new Error('Email sendReply: no "from" address in inbound message metadata');
+    }
+
+    // Try nodemailer first
     try {
       // @ts-expect-error nodemailer is optional — only available if installed
-      const nodemailer: { createTransport: (opts: Record<string, unknown>) => { sendMail: (msg: Record<string, unknown>) => Promise<void> } } = await import('nodemailer');
+      const nodemailer = await import('nodemailer');
       const transporter = nodemailer.createTransport({
         host: smtpHost,
         port: parseInt(smtpPort || '587', 10),
@@ -75,17 +80,82 @@ export class EmailProvider implements ChannelProvider {
         auth: { user: smtpUser, pass: smtpPass },
       });
 
-      const replyTo = config.metadata?.['from'] as string;
-      if (!replyTo) return;
-
       await transporter.sendMail({
         from: fromEmail,
         to: replyTo,
         subject: `Re: ${config.metadata?.['subject'] || 'Agent Response'}`,
         text: message.text,
       });
-    } catch {
-      // Nodemailer not available or send failed
+      return;
+    } catch (importErr) {
+      // nodemailer not installed — fall back to raw SMTP via fetch (for services with HTTP API)
     }
+
+    // Fallback: use raw SMTP connection via net/tls
+    // This is a minimal SMTP implementation for environments without nodemailer
+    const net = await import('net');
+    const tls = await import('tls');
+
+    const port = parseInt(smtpPort || '587', 10);
+    const secure = port === 465;
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('SMTP connection timeout')), 15_000);
+
+      const commands: string[] = [];
+      let step = 0;
+
+      function sendNext(socket: import('net').Socket | import('tls').TLSSocket) {
+        const cmds = [
+          `EHLO askalf.local\r\n`,
+          `AUTH LOGIN\r\n`,
+          `${Buffer.from(smtpUser).toString('base64')}\r\n`,
+          `${Buffer.from(smtpPass).toString('base64')}\r\n`,
+          `MAIL FROM:<${fromEmail}>\r\n`,
+          `RCPT TO:<${replyTo}>\r\n`,
+          `DATA\r\n`,
+          `From: ${fromEmail}\r\nTo: ${replyTo}\r\nSubject: Re: ${config.metadata?.['subject'] || 'Agent Response'}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${message.text}\r\n.\r\n`,
+          `QUIT\r\n`,
+        ];
+
+        if (step < cmds.length) {
+          socket.write(cmds[step]!);
+          step++;
+        }
+      }
+
+      function handleConnection(socket: import('net').Socket | import('tls').TLSSocket) {
+        socket.setEncoding('utf8');
+        socket.on('data', (data: string) => {
+          const code = parseInt(data.substring(0, 3), 10);
+          if (code >= 400 && step > 0) {
+            clearTimeout(timeout);
+            socket.destroy();
+            reject(new Error(`SMTP error at step ${step}: ${data.trim().substring(0, 200)}`));
+            return;
+          }
+          if (step === 0 && data.includes('220')) {
+            sendNext(socket);
+          } else if (data.includes('221')) {
+            // QUIT acknowledged
+            clearTimeout(timeout);
+            socket.destroy();
+            resolve();
+          } else {
+            sendNext(socket);
+          }
+        });
+        socket.on('error', (err) => {
+          clearTimeout(timeout);
+          reject(new Error(`SMTP socket error: ${err.message}`));
+        });
+      }
+
+      if (secure) {
+        const socket = tls.connect({ host: smtpHost, port }, () => handleConnection(socket));
+      } else {
+        const socket = net.connect({ host: smtpHost, port }, () => handleConnection(socket));
+      }
+    });
   }
 }

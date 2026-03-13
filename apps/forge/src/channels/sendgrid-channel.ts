@@ -10,7 +10,7 @@ export class SendGridProvider implements ChannelProvider {
 
   verifyWebhook(headers: Record<string, string>, _body: unknown, _config: ChannelConfig): ChannelVerifyResult {
     // SendGrid Inbound Parse sends multipart/form-data or JSON
-    // Verification is done via the Inbound Parse webhook configuration
+    // Verification is done via the Inbound Parse webhook configuration in SendGrid dashboard
     return { valid: true };
   }
 
@@ -47,12 +47,16 @@ export class SendGridProvider implements ChannelProvider {
     const fromEmail = config.config['from_email'] as string;
     const fromName = config.config['from_name'] as string || 'AskAlf Agent';
 
-    if (!apiKey || !fromEmail) return;
+    if (!apiKey || !fromEmail) {
+      throw new Error('SendGrid sendReply: missing api_key or from_email');
+    }
 
     const toEmail = config.metadata?.['from'] as string;
-    if (!toEmail) return;
+    if (!toEmail) {
+      throw new Error('SendGrid sendReply: no "from" address in inbound message metadata');
+    }
 
-    await fetch('https://api.sendgrid.com/v3/mail/send', {
+    const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,5 +70,10 @@ export class SendGridProvider implements ChannelProvider {
       }),
       signal: AbortSignal.timeout(10_000),
     });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`SendGrid send failed (${res.status}): ${errBody.substring(0, 200)}`);
+    }
   }
 }

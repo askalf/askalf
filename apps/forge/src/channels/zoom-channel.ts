@@ -32,7 +32,13 @@ export class ZoomProvider implements ChannelProvider {
     const authHeader = headers['authorization'];
     if (authHeader === verificationToken) return { valid: true };
 
-    return { valid: true }; // Accept for now, tighten in production
+    // In production, reject unverified requests
+    if (process.env['NODE_ENV'] === 'production') {
+      return { valid: false };
+    }
+
+    console.warn('[Zoom] Webhook verification fallback (dev mode)');
+    return { valid: true };
   }
 
   handleChallenge(_headers: Record<string, string>, body: unknown, config: ChannelConfig): ChannelVerifyResult | null {
@@ -92,7 +98,9 @@ export class ZoomProvider implements ChannelProvider {
     const clientSecret = config.config['client_secret'] as string;
     const botJid = config.config['bot_jid'] as string;
 
-    if (!clientId || !clientSecret || !botJid) return;
+    if (!clientId || !clientSecret || !botJid) {
+      throw new Error('Zoom sendReply: missing client_id, client_secret, or bot_jid');
+    }
 
     // Get OAuth token
     const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
@@ -102,16 +110,22 @@ export class ZoomProvider implements ChannelProvider {
         'Authorization': `Basic ${auth}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
+      signal: AbortSignal.timeout(10_000),
     });
 
-    if (!tokenRes.ok) return;
+    if (!tokenRes.ok) {
+      const errBody = await tokenRes.text().catch(() => '');
+      throw new Error(`Zoom OAuth failed (${tokenRes.status}): ${errBody.substring(0, 200)}`);
+    }
     const tokenData = await tokenRes.json() as { access_token: string };
 
     const toJid = config.metadata?.['toJid'] as string;
     const accountId = config.metadata?.['accountId'] as string;
-    if (!toJid) return;
+    if (!toJid) {
+      throw new Error('Zoom sendReply: no toJid in message metadata');
+    }
 
-    await fetch('https://api.zoom.us/v2/im/chat/messages', {
+    const replyRes = await fetch('https://api.zoom.us/v2/im/chat/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -128,5 +142,10 @@ export class ZoomProvider implements ChannelProvider {
       }),
       signal: AbortSignal.timeout(10_000),
     });
+
+    if (!replyRes.ok) {
+      const errBody = await replyRes.text().catch(() => '');
+      throw new Error(`Zoom send failed (${replyRes.status}): ${errBody.substring(0, 200)}`);
+    }
   }
 }

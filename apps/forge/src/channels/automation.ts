@@ -70,9 +70,12 @@ class WebhookAutomationProvider implements ChannelProvider {
 
   async sendReply(config: ChannelConfig, message: ChannelOutboundMessage): Promise<void> {
     const webhookUrl = config.config['webhook_url'] as string | undefined;
-    if (!webhookUrl) return;
+    if (!webhookUrl) {
+      console.warn(`[${this.platformName}] sendReply skipped: no webhook_url configured`);
+      return;
+    }
 
-    await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -82,7 +85,11 @@ class WebhookAutomationProvider implements ChannelProvider {
         timestamp: new Date().toISOString(),
       }),
       signal: AbortSignal.timeout(10_000),
-    }).catch(() => { /* best-effort delivery */ });
+    });
+
+    if (!res.ok) {
+      console.warn(`[${this.platformName}] sendReply webhook returned ${res.status}`);
+    }
   }
 }
 
