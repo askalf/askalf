@@ -13,6 +13,10 @@ import { query, queryOne } from '../database.js';
 // Types
 // ============================================
 
+export type DeviceType = 'cli' | 'docker' | 'ssh' | 'k8s' | 'browser' | 'desktop' | 'vscode' | 'android' | 'ios' | 'rpi' | 'arduino' | 'homeassistant';
+export type DeviceCategory = 'compute' | 'browser' | 'mobile' | 'iot';
+export type DeviceProtocol = 'websocket' | 'server-managed' | 'mqtt' | 'rest-poll';
+
 export interface AgentDevice {
   id: string;
   user_id: string;
@@ -26,6 +30,11 @@ export interface AgentDevice {
   last_seen_at: Date | null;
   created_at: Date;
   updated_at: Date;
+  device_type: DeviceType;
+  device_category: DeviceCategory;
+  connection_config: Record<string, unknown>;
+  max_concurrent_tasks: number;
+  protocol: DeviceProtocol;
 }
 
 export interface RegisterDeviceInput {
@@ -36,6 +45,11 @@ export interface RegisterDeviceInput {
   hostname?: string;
   os?: string;
   capabilities?: Record<string, unknown>;
+  deviceType?: DeviceType;
+  deviceCategory?: DeviceCategory;
+  connectionConfig?: Record<string, unknown>;
+  maxConcurrentTasks?: number;
+  protocol?: DeviceProtocol;
 }
 
 // ============================================
@@ -67,7 +81,11 @@ export async function registerDevice(input: RegisterDeviceInput): Promise<AgentD
       `UPDATE agent_devices
        SET device_name = $1, hostname = $2, os = $3,
            platform_capabilities = $4, status = 'online',
-           last_seen_at = NOW(), updated_at = NOW()
+           last_seen_at = NOW(), updated_at = NOW(),
+           device_type = COALESCE($6, device_type),
+           device_category = COALESCE($7, device_category),
+           connection_config = COALESCE($8, connection_config),
+           protocol = COALESCE($9, protocol)
        WHERE id = $5
        RETURNING *`,
       [
@@ -76,6 +94,10 @@ export async function registerDevice(input: RegisterDeviceInput): Promise<AgentD
         input.os ?? null,
         JSON.stringify(input.capabilities ?? {}),
         existing.id,
+        input.deviceType ?? null,
+        input.deviceCategory ?? null,
+        input.connectionConfig ? JSON.stringify(input.connectionConfig) : null,
+        input.protocol ?? null,
       ],
     );
     return updated!;
@@ -87,8 +109,8 @@ export async function registerDevice(input: RegisterDeviceInput): Promise<AgentD
 
   const id = `dev_${ulid()}`;
   const device = await queryOne<AgentDevice>(
-    `INSERT INTO agent_devices (id, user_id, tenant_id, api_key_id, device_name, hostname, os, platform_capabilities, status, last_seen_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'online', NOW())
+    `INSERT INTO agent_devices (id, user_id, tenant_id, api_key_id, device_name, hostname, os, platform_capabilities, status, last_seen_at, device_type, device_category, connection_config, max_concurrent_tasks, protocol)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'online', NOW(), $9, $10, $11, $12, $13)
      RETURNING *`,
     [
       id,
@@ -99,6 +121,11 @@ export async function registerDevice(input: RegisterDeviceInput): Promise<AgentD
       input.hostname ?? null,
       input.os ?? null,
       JSON.stringify(input.capabilities ?? {}),
+      input.deviceType ?? 'cli',
+      input.deviceCategory ?? 'compute',
+      JSON.stringify(input.connectionConfig ?? {}),
+      input.maxConcurrentTasks ?? 1,
+      input.protocol ?? 'websocket',
     ],
   );
 
@@ -171,6 +198,71 @@ export async function findOnlineDevice(userId: string): Promise<AgentDevice | nu
      ORDER BY last_seen_at DESC
      LIMIT 1`,
     [userId],
+  );
+  return device ?? null;
+}
+
+/**
+ * Find an online device of a specific type for a user.
+ */
+export async function findOnlineDeviceByType(userId: string, deviceType: DeviceType): Promise<AgentDevice | null> {
+  const device = await queryOne<AgentDevice>(
+    `SELECT * FROM agent_devices
+     WHERE user_id = $1 AND device_type = $2 AND status = 'online'
+       AND last_seen_at > NOW() - INTERVAL '60 seconds'
+     ORDER BY last_seen_at DESC
+     LIMIT 1`,
+    [userId, deviceType],
+  );
+  return device ?? null;
+}
+
+/**
+ * Register a server-managed device (Docker, SSH, K8s, HA) — no WebSocket needed.
+ */
+export async function registerServerDevice(input: RegisterDeviceInput): Promise<AgentDevice> {
+  const countResult = await queryOne<{ count: string }>(
+    `SELECT COUNT(*) as count FROM agent_devices WHERE user_id = $1`,
+    [input.userId],
+  );
+  const currentCount = parseInt(countResult?.count ?? '0', 10);
+  if (currentCount >= MAX_DEVICES_PER_USER) {
+    throw new Error(`Device limit reached (max ${MAX_DEVICES_PER_USER} per user)`);
+  }
+
+  const id = `dev_${ulid()}`;
+  const device = await queryOne<AgentDevice>(
+    `INSERT INTO agent_devices (id, user_id, tenant_id, api_key_id, device_name, hostname, os, platform_capabilities, status, last_seen_at, device_type, device_category, connection_config, max_concurrent_tasks, protocol)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'online', NOW(), $9, $10, $11, $12, $13)
+     RETURNING *`,
+    [
+      id,
+      input.userId,
+      input.tenantId,
+      input.apiKeyId || 'server-managed',
+      input.deviceName,
+      input.hostname ?? null,
+      input.os ?? null,
+      JSON.stringify(input.capabilities ?? {}),
+      input.deviceType ?? 'docker',
+      input.deviceCategory ?? 'compute',
+      JSON.stringify(input.connectionConfig ?? {}),
+      input.maxConcurrentTasks ?? 1,
+      input.protocol ?? 'server-managed',
+    ],
+  );
+  return device!;
+}
+
+/**
+ * Update device connection config.
+ */
+export async function updateDeviceConfig(deviceId: string, userId: string, config: Record<string, unknown>): Promise<AgentDevice | null> {
+  const device = await queryOne<AgentDevice>(
+    `UPDATE agent_devices SET connection_config = $1, updated_at = NOW()
+     WHERE id = $2 AND user_id = $3
+     RETURNING *`,
+    [JSON.stringify(config), deviceId, userId],
   );
   return device ?? null;
 }
