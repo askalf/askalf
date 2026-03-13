@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#030305"/>
+      <stop offset="50%" style="stop-color:#0a0a12"/>
+      <stop offset="100%" style="stop-color:#030305"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#06d6a0"/>
+      <stop offset="100%" style="stop-color:#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="purple" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="100%" style="stop-color:#a78bfa"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid -->
+  <g opacity="0.04" stroke="#f0f0f2" stroke-width="0.5">
+    <line x1="0" y1="0" x2="0" y2="630"/><line x1="60" y1="0" x2="60" y2="630"/>
+    <line x1="120" y1="0" x2="120" y2="630"/><line x1="180" y1="0" x2="180" y2="630"/>
+    <line x1="240" y1="0" x2="240" y2="630"/><line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="360" y1="0" x2="360" y2="630"/><line x1="420" y1="0" x2="420" y2="630"/>
+    <line x1="480" y1="0" x2="480" y2="630"/><line x1="540" y1="0" x2="540" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/><line x1="660" y1="0" x2="660" y2="630"/>
+    <line x1="720" y1="0" x2="720" y2="630"/><line x1="780" y1="0" x2="780" y2="630"/>
+    <line x1="840" y1="0" x2="840" y2="630"/><line x1="900" y1="0" x2="900" y2="630"/>
+    <line x1="960" y1="0" x2="960" y2="630"/><line x1="1020" y1="0" x2="1020" y2="630"/>
+    <line x1="1080" y1="0" x2="1080" y2="630"/><line x1="1140" y1="0" x2="1140" y2="630"/>
+    <line x1="0" y1="63" x2="1200" y2="63"/><line x1="0" y1="126" x2="1200" y2="126"/>
+    <line x1="0" y1="189" x2="1200" y2="189"/><line x1="0" y1="252" x2="1200" y2="252"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/><line x1="0" y1="378" x2="1200" y2="378"/>
+    <line x1="0" y1="441" x2="1200" y2="441"/><line x1="0" y1="504" x2="1200" y2="504"/>
+    <line x1="0" y1="567" x2="1200" y2="567"/>
+  </g>
+
+  <!-- Ambient glow -->
+  <circle cx="900" cy="300" r="250" fill="#06d6a0" opacity="0.03"/>
+  <circle cx="300" cy="400" r="200" fill="#7c3aed" opacity="0.04"/>
+
+  <!-- Knowledge graph nodes (decorative) -->
+  <g opacity="0.3">
+    <circle cx="850" cy="180" r="4" fill="#06d6a0"/><circle cx="920" cy="220" r="3" fill="#a78bfa"/>
+    <circle cx="880" cy="280" r="5" fill="#22d3ee"/><circle cx="950" cy="160" r="3" fill="#fb7185"/>
+    <circle cx="1000" cy="250" r="4" fill="#fbbf24"/><circle cx="870" cy="340" r="3" fill="#60a5fa"/>
+    <circle cx="960" cy="310" r="4" fill="#06d6a0"/><circle cx="1040" cy="190" r="3" fill="#a78bfa"/>
+    <circle cx="810" cy="250" r="3" fill="#22d3ee"/><circle cx="1080" cy="300" r="4" fill="#fb7185"/>
+    <line x1="850" y1="180" x2="920" y2="220" stroke="#f0f0f2" stroke-width="0.5" opacity="0.3"/>
+    <line x1="920" y1="220" x2="880" y2="280" stroke="#f0f0f2" stroke-width="0.5" opacity="0.3"/>
+    <line x1="880" y1="280" x2="960" y2="310" stroke="#f0f0f2" stroke-width="0.5" opacity="0.3"/>
+    <line x1="950" y1="160" x2="1000" y2="250" stroke="#f0f0f2" stroke-width="0.5" opacity="0.3"/>
+    <line x1="1000" y1="250" x2="1040" y2="190" stroke="#f0f0f2" stroke-width="0.5" opacity="0.3"/>
+    <line x1="870" y1="340" x2="810" y2="250" stroke="#f0f0f2" stroke-width="0.5" opacity="0.3"/>
+    <line x1="1040" y1="190" x2="1080" y2="300" stroke="#f0f0f2" stroke-width="0.5" opacity="0.3"/>
+    <line x1="850" y1="180" x2="810" y2="250" stroke="#f0f0f2" stroke-width="0.5" opacity="0.3"/>
+  </g>
+
+  <!-- Heartbeat line -->
+  <polyline points="60,480 160,480 180,480 200,440 220,520 240,480 260,480 360,480"
+    fill="none" stroke="url(#accent)" stroke-width="2" opacity="0.4"/>
+
+  <!-- Logo -->
+  <rect x="80" y="70" width="52" height="52" rx="12" fill="url(#accent)"/>
+  <text x="106" y="107" text-anchor="middle" font-family="monospace" font-weight="800" font-size="28" fill="#030305">A</text>
+
+  <!-- Brand -->
+  <text x="148" y="105" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="24" fill="#f0f0f2" letter-spacing="-0.5">AskAlf</text>
+
+  <!-- Headline -->
+  <text x="80" y="220" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="64" fill="#f0f0f2" letter-spacing="-2">Not a tool.</text>
+  <text x="80" y="300" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="64" fill="url(#accent)" letter-spacing="-2">An organism.</text>
+
+  <!-- Subtext -->
+  <text x="80" y="360" font-family="system-ui, -apple-system, sans-serif" font-weight="400" font-size="22" fill="#f0f0f2" opacity="0.55">Software that builds itself. Remembers everything.</text>
+  <text x="80" y="392" font-family="system-ui, -apple-system, sans-serif" font-weight="400" font-size="22" fill="#f0f0f2" opacity="0.55">Self-hosted. Open-source.</text>
+
+  <!-- Stats bar -->
+  <g font-family="monospace" font-size="14" font-weight="600">
+    <text x="80" y="540" fill="#06d6a0">12 BPM</text>
+    <text x="80" y="558" fill="#f0f0f2" opacity="0.35" font-size="11" font-weight="400">heartbeat</text>
+
+    <text x="220" y="540" fill="#a78bfa">17,000+</text>
+    <text x="220" y="558" fill="#f0f0f2" opacity="0.35" font-size="11" font-weight="400">memories</text>
+
+    <text x="380" y="540" fill="#22d3ee">11 agents</text>
+    <text x="380" y="558" fill="#f0f0f2" opacity="0.35" font-size="11" font-weight="400">in the fleet</text>
+
+    <text x="540" y="540" fill="#fbbf24">10-layer</text>
+    <text x="540" y="558" fill="#f0f0f2" opacity="0.35" font-size="11" font-weight="400">cognitive brain</text>
+  </g>
+
+  <!-- Border -->
+  <rect x="0" y="0" width="1200" height="630" rx="0" fill="none" stroke="#f0f0f2" stroke-width="1" opacity="0.06"/>
+</svg>
