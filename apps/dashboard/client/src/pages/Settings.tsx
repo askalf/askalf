@@ -1228,9 +1228,6 @@ interface BudgetData {
   spentThisMonth: number;
 }
 
-interface AgentCostRow { agentId: string; agentName: string; totalCost: number; totalEvents: number }
-interface GuardrailRow { id: string; name: string; type: string; config: Record<string, unknown>; is_enabled: boolean; is_global: boolean; agent_ids: string[] }
-
 function CostControlsTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1239,13 +1236,9 @@ function CostControlsTab() {
   const [monthlyLimit, setMonthlyLimit] = useState('');
   const [spentToday, setSpentToday] = useState(0);
   const [spentThisMonth, setSpentThisMonth] = useState(0);
-  const [agentCosts, setAgentCosts] = useState<AgentCostRow[]>([]);
-  const [costGuardrails, setCostGuardrails] = useState<GuardrailRow[]>([]);
 
   useEffect(() => {
     fetchBudget();
-    fetchCostBreakdown();
-    fetchGuardrails();
   }, []);
 
   const fetchBudget = async () => {
@@ -1260,26 +1253,6 @@ function CostControlsTab() {
       }
     } catch { /* ignore */ }
     setLoading(false);
-  };
-
-  const fetchCostBreakdown = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/v1/admin/costs?days=1`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json() as { byAgent?: AgentCostRow[] };
-        if (data.byAgent) setAgentCosts(data.byAgent.sort((a, b) => b.totalCost - a.totalCost));
-      }
-    } catch { /* ignore */ }
-  };
-
-  const fetchGuardrails = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/v1/admin/guardrails`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json() as { guardrails?: GuardrailRow[] };
-        if (data.guardrails) setCostGuardrails(data.guardrails.filter(g => g.type === 'cost_limit'));
-      }
-    } catch { /* ignore */ }
   };
 
   const handleSave = async () => {
@@ -1343,9 +1316,6 @@ function CostControlsTab() {
     setSaving(false);
   };
 
-  const dailyPct = dailyLimit.trim() ? Math.min((spentToday / parseFloat(dailyLimit)) * 100, 100) : 0;
-  const monthlyPct = monthlyLimit.trim() ? Math.min((spentThisMonth / parseFloat(monthlyLimit)) * 100, 100) : 0;
-
   if (loading) {
     return (
       <div className="settings-section">
@@ -1369,48 +1339,11 @@ function CostControlsTab() {
         </div>
       )}
 
-      {/* Current spend summary */}
-      <div className="settings-spend-grid">
-        <div className="settings-spend-card">
-          <div className="settings-spend-label">Spent Today</div>
-          <div className="settings-spend-amount">${spentToday.toFixed(4)}</div>
-          {dailyLimit.trim() && (
-            <div>
-              <div className="settings-spend-bar-track">
-                <div
-                  className="settings-spend-bar-fill"
-                  style={{
-                    width: `${dailyPct}%`,
-                    background: dailyPct >= 90 ? '#ef4444' : dailyPct >= 70 ? '#f59e0b' : '#10b981',
-                  }}
-                />
-              </div>
-              <div className="settings-spend-bar-label">
-                {dailyPct.toFixed(0)}% of ${parseFloat(dailyLimit).toFixed(2)} daily limit
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="settings-spend-card">
-          <div className="settings-spend-label">Spent This Month</div>
-          <div className="settings-spend-amount">${spentThisMonth.toFixed(4)}</div>
-          {monthlyLimit.trim() && (
-            <div>
-              <div className="settings-spend-bar-track">
-                <div
-                  className="settings-spend-bar-fill"
-                  style={{
-                    width: `${monthlyPct}%`,
-                    background: monthlyPct >= 90 ? '#ef4444' : monthlyPct >= 70 ? '#f59e0b' : '#10b981',
-                  }}
-                />
-              </div>
-              <div className="settings-spend-bar-label">
-                {monthlyPct.toFixed(0)}% of ${parseFloat(monthlyLimit).toFixed(2)} monthly limit
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Current spend (compact) */}
+      <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: 'var(--space-lg)' }}>
+        Current spend: <span style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>${spentToday.toFixed(2)}</span> today
+        {' / '}
+        <span style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>${spentThisMonth.toFixed(2)}</span> this month
       </div>
 
       <div className="settings-form">
@@ -1464,47 +1397,6 @@ function CostControlsTab() {
         </div>
       </div>
 
-      {/* Agent cost breakdown (today) */}
-      {agentCosts.length > 0 && (
-        <div className="settings-cost-info" style={{ marginTop: 'var(--space-lg)' }}>
-          <div className="settings-cost-info-title">Agent Cost Breakdown (Today)</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-            {agentCosts.map(ac => (
-              <div key={ac.agentId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontWeight: 500 }}>{ac.agentName || ac.agentId}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
-                  ${ac.totalCost.toFixed(4)} <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>({ac.totalEvents} calls)</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Active cost guardrails */}
-      {costGuardrails.length > 0 && (
-        <div className="settings-cost-info" style={{ marginTop: 'var(--space-lg)' }}>
-          <div className="settings-cost-info-title">Active Cost Guardrails</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-            {costGuardrails.map(g => (
-              <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                <div>
-                  <span style={{ fontWeight: 500 }}>{g.name}</span>
-                  <span style={{ marginLeft: '8px', fontSize: '11px', color: g.is_enabled ? 'var(--accent)' : 'var(--text-muted)' }}>
-                    {g.is_enabled ? 'Active' : 'Disabled'}
-                  </span>
-                </div>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-dim)' }}>
-                  {g.config.maxCostPerDay ? `$${g.config.maxCostPerDay}/day` : ''}
-                  {g.config.maxCostPerExecution ? ` $${g.config.maxCostPerExecution}/exec` : ''}
-                  {g.is_global ? ' (global)' : ` (${g.agent_ids.length} agent${g.agent_ids.length !== 1 ? 's' : ''})`}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="settings-cost-info">
         <div className="settings-cost-info-title">How cost controls work</div>
         <ul>
@@ -1512,7 +1404,7 @@ function CostControlsTab() {
           <li>Daily and monthly limits apply across all your agents combined</li>
           <li>When a limit is reached, new executions are blocked until the period resets</li>
           <li>Cost tracking resets daily at midnight UTC and monthly on the 1st</li>
-          <li>Cost guardrails provide per-agent and global enforcement rules</li>
+          <li>For detailed spend breakdowns, agent costs, and forecasts, see the Costs tab in Operations</li>
         </ul>
       </div>
     </div>
