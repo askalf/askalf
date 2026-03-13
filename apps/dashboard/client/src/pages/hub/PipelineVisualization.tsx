@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { usePolling } from '../../hooks/usePolling';
-import { relativeTime, formatDuration, formatCost } from '../../utils/format';
+import { relativeTime, formatDuration } from '../../utils/format';
 import { STATUS_COLORS } from '../../constants/status';
-import type { CoordinationSession, CoordinationTask } from '../../hooks/useHubApi';
+import type { CoordinationSession } from '../../hooks/useHubApi';
 import './PipelineVisualization.css';
 
 interface PipelineNode {

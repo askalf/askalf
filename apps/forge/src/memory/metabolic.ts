@@ -658,7 +658,7 @@ async function runAutonomyLoop(): Promise<void> {
       // Auto-heal: create ticket for investigation (deduplicated: skip if ANY open cost-spike ticket exists or one was created in last 4h)
       try {
         const existingTicket = await substrateQuery<{ id: string }>(
-          `SELECT id FROM agent_tickets WHERE category = 'cost-spike' AND (status IN ('open', 'in_progress') OR created_at > NOW() - INTERVAL '4 hours') LIMIT 1`,
+          `SELECT id FROM agent_tickets WHERE deleted_at IS NULL AND category = 'cost-spike' AND (status IN ('open', 'in_progress') OR created_at > NOW() - INTERVAL '4 hours') LIMIT 1`,
           [],
         );
         if (existingTicket.length === 0) {

@@ -60,6 +60,102 @@ const DEFAULT_CONFIG: AgentConfig = {
 
 // ── Sub-components ──
 
+interface TemplateItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  agent_config?: Record<string, unknown>;
+  required_tools?: string[];
+  schedule_config?: Record<string, unknown>;
+}
+
+const CATEGORY_ICONS: Record<string, string> = {
+  research: '\u{1F50D}', security: '\u{1F6E1}', build: '\u{1F528}', automate: '\u{2699}',
+  monitor: '\u{1F4E1}', analyze: '\u{1F4CA}', dev: '\u{1F4BB}', content: '\u{270F}',
+};
+
+function TemplatePickerStep({ onSelect, onSkip }: { onSelect: (tmpl: Record<string, unknown>) => void; onSkip: () => void }) {
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [filter, setFilter] = useState('');
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+
+  useEffect(() => {
+    hubApi.templates.list().then(data => {
+      if (data.templates) setTemplates(data.templates as unknown as TemplateItem[]);
+    }).catch(() => {}).finally(() => setLoadingTemplates(false));
+  }, []);
+
+  const filtered = filter
+    ? templates.filter(t => t.category === filter)
+    : templates;
+
+  const categories = [...new Set(templates.map(t => t.category))];
+
+  return (
+    <div className="builder-template-step">
+      <h3>Start from a template or build from scratch</h3>
+      <button className="builder-scratch-btn" onClick={onSkip}>
+        Start from Scratch
+      </button>
+
+      <div style={{ marginTop: '24px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          <button
+            className={`builder-scratch-btn ${!filter ? 'active' : ''}`}
+            style={{ padding: '4px 12px', fontSize: '12px' }}
+            onClick={() => setFilter('')}
+          >
+            All ({templates.length})
+          </button>
+          {categories.map(cat => (
+            <button
+              key={cat}
+              className={`builder-scratch-btn ${filter === cat ? 'active' : ''}`}
+              style={{ padding: '4px 12px', fontSize: '12px' }}
+              onClick={() => setFilter(f => f === cat ? '' : cat)}
+            >
+              {CATEGORY_ICONS[cat] || ''} {cat}
+            </button>
+          ))}
+        </div>
+
+        {loadingTemplates ? (
+          <p className="builder-template-hint">Loading templates...</p>
+        ) : filtered.length === 0 ? (
+          <p className="builder-template-hint">No templates found</p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
+            {filtered.map(t => (
+              <button
+                key={t.id}
+                className="builder-template-card"
+                onClick={() => onSelect(t as unknown as Record<string, unknown>)}
+                style={{
+                  textAlign: 'left', padding: '16px', borderRadius: 'var(--radius-sm, 10px)',
+                  background: 'var(--glass, rgba(255,255,255,0.03))', border: '1px solid var(--border, rgba(240,240,242,0.06))',
+                  cursor: 'pointer', transition: 'all 0.2s',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span>{CATEGORY_ICONS[t.category] || '\u{1F916}'}</span>
+                  <span style={{ fontWeight: 600, fontSize: '14px' }}>{t.name}</span>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-dim, rgba(240,240,242,0.55))', lineHeight: 1.5 }}>
+                  {t.description?.slice(0, 100)}{(t.description?.length ?? 0) > 100 ? '...' : ''}
+                </div>
+                <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted, rgba(240,240,242,0.35))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {t.category} · {t.required_tools?.length ?? 0} tools
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function StepNav({
   current,
   onNav,
@@ -533,15 +629,27 @@ export default function BuilderTab({
 
       <div className="builder-content">
         {step === 'template' && (
-          <div className="builder-template-step">
-            <h3>Start from a template or build from scratch</h3>
-            <button className="builder-scratch-btn" onClick={() => setStep('configure')}>
-              Start from Scratch
-            </button>
-            <p className="builder-template-hint">
-              Or pick a template from the Templates tab
-            </p>
-          </div>
+          <TemplatePickerStep onSelect={(tmpl) => {
+            const agentConfig = (tmpl['agent_config'] ?? {}) as Record<string, unknown>;
+            setConfig(prev => ({
+              ...prev,
+              name: (tmpl['name'] as string) ?? prev.name,
+              description: (tmpl['description'] as string) ?? prev.description,
+              systemPrompt: (agentConfig['systemPrompt'] as string) ?? prev.systemPrompt,
+              model: (agentConfig['model'] as string) ?? prev.model,
+              tools: (tmpl['required_tools'] as string[]) ?? prev.tools,
+              autonomyLevel: (agentConfig['autonomyLevel'] as number) ?? prev.autonomyLevel,
+              maxIterations: (agentConfig['maxIterations'] as number) ?? prev.maxIterations,
+              maxCostPerExecution: (agentConfig['maxCostPerExecution'] as number) ?? prev.maxCostPerExecution,
+            }));
+            const schedCfg = (tmpl['schedule_config'] ?? {}) as Record<string, unknown>;
+            if (schedCfg['interval_minutes']) {
+              const mins = schedCfg['interval_minutes'] as number;
+              const inverseMap: Record<number, string> = { 30: '30m', 60: '1h', 180: '3h', 360: '6h', 720: '12h', 1440: '24h' };
+              setConfig(prev => ({ ...prev, scheduleType: 'interval', scheduleInterval: inverseMap[mins] ?? '6h' }));
+            }
+            setStep('configure');
+          }} onSkip={() => setStep('configure')} />
         )}
         {step === 'configure' && <ConfigureStep config={config} onChange={updateConfig} />}
         {step === 'tools' && <ToolsStep config={config} onChange={updateConfig} tools={availableTools} />}

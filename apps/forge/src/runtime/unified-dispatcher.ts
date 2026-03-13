@@ -390,7 +390,7 @@ Investigate and take appropriate action based on your system prompt.${fleetConte
       const assignedTickets = await substrateQuery<{ id: string; title: string; priority: string; description: string }>(
         `SELECT id, title, priority, substring(description from 1 for 1000) as description
          FROM agent_tickets
-         WHERE assigned_to = $1 AND status IN ('open', 'in_progress')
+         WHERE deleted_at IS NULL AND assigned_to = $1 AND status IN ('open', 'in_progress')
          ORDER BY CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, created_at
          LIMIT 5`,
         [agent.name],

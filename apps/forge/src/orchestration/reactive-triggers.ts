@@ -215,7 +215,8 @@ async function handleExecutionCompletedInner(event: ExecutionEvent): Promise<voi
     const title = `[Reactive] ${event.agentName} flagged ${signal.capability} implications`;
     const existingTicket = await query<{ id: string }>(
       `SELECT id FROM agent_tickets
-       WHERE status IN ('open', 'in_progress')
+       WHERE deleted_at IS NULL
+         AND status IN ('open', 'in_progress')
          AND assigned_to = $1
          AND (metadata->>'source_execution_id' = $2
               OR (title = $3 AND created_at > NOW() - INTERVAL '5 minutes'))

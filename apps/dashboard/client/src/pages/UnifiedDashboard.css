@@ -62,6 +62,11 @@
   flex-shrink: 0;
 }
 
+@keyframes topbar-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(6, 214, 160, 0.4); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(6, 214, 160, 0); }
+}
+
 .ud-topbar-workspace {
   font-weight: 700;
   font-size: 0.8125rem;

@@ -125,7 +125,8 @@ async function createAlertTicket(alert: Alert): Promise<void> {
     // Deduplicate: skip if open ticket already exists for this metric
     const existing = await substrateQuery<{ id: string }>(
       `SELECT id FROM agent_tickets
-       WHERE metadata->>'alert_metric' = $1
+       WHERE deleted_at IS NULL
+         AND metadata->>'alert_metric' = $1
          AND status IN ('open', 'in_progress')
        LIMIT 1`,
       [alert.metric],
@@ -137,7 +138,8 @@ async function createAlertTicket(alert: Alert): Promise<void> {
     if (alert.metric === 'hourly_cost') {
       const costSpikeTicket = await substrateQuery<{ id: string }>(
         `SELECT id FROM agent_tickets
-         WHERE category = 'cost-spike'
+         WHERE deleted_at IS NULL
+           AND category = 'cost-spike'
            AND (status IN ('open', 'in_progress') OR created_at > NOW() - INTERVAL '2 hours')
          LIMIT 1`,
         [],
