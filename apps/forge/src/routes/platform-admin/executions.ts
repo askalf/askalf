@@ -304,4 +304,119 @@ export async function registerExecutionCostRoutes(app: FastifyInstance): Promise
       };
     },
   );
+
+  /**
+   * GET /api/v1/admin/executions/:id/steps
+   * Returns all execution steps for replay, ordered by step_number.
+   */
+  app.get(
+    '/api/v1/admin/executions/:id/steps',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+
+      const execution = await queryOne<{ id: string }>(
+        `SELECT id FROM forge_executions WHERE id = $1`,
+        [id],
+      );
+
+      if (!execution) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Execution not found' });
+      }
+
+      const steps = await query<{
+        id: string;
+        execution_id: string;
+        step_number: number;
+        type: string;
+        content: unknown;
+        timestamp: string;
+        duration_ms: number | null;
+        created_at: string;
+      }>(
+        `SELECT id, execution_id, step_number, type, content, timestamp, duration_ms, created_at
+         FROM forge_execution_steps
+         WHERE execution_id = $1
+         ORDER BY step_number ASC`,
+        [id],
+      );
+
+      return reply.send({
+        executionId: id,
+        steps: steps.map((s) => ({
+          id: s.id,
+          stepNumber: s.step_number,
+          type: s.type,
+          content: s.content,
+          timestamp: s.timestamp,
+          durationMs: s.duration_ms,
+          createdAt: s.created_at,
+        })),
+        totalSteps: steps.length,
+      });
+    },
+  );
+
+  /**
+   * POST /api/v1/admin/executions/:id/steps
+   * Record a new execution step (used by the runtime during execution).
+   */
+  app.post(
+    '/api/v1/admin/executions/:id/steps',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        step_number: number;
+        type: string;
+        content: unknown;
+        duration_ms?: number;
+      };
+
+      if (!body.step_number || !body.type || !body.content) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'step_number, type, and content are required' });
+      }
+
+      if (!['tool_call', 'response', 'decision'].includes(body.type)) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'type must be one of: tool_call, response, decision' });
+      }
+
+      const execution = await queryOne<{ id: string }>(
+        `SELECT id FROM forge_executions WHERE id = $1`,
+        [id],
+      );
+
+      if (!execution) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Execution not found' });
+      }
+
+      const step = await queryOne<{
+        id: string;
+        step_number: number;
+        type: string;
+        content: unknown;
+        timestamp: string;
+        duration_ms: number | null;
+        created_at: string;
+      }>(
+        `INSERT INTO forge_execution_steps (id, execution_id, step_number, type, content, duration_ms)
+         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
+         RETURNING id, step_number, type, content, timestamp, duration_ms, created_at`,
+        [id, body.step_number, body.type, JSON.stringify(body.content), body.duration_ms ?? null],
+      );
+
+      return reply.status(201).send({
+        step: step ? {
+          id: step.id,
+          executionId: id,
+          stepNumber: step.step_number,
+          type: step.type,
+          content: step.content,
+          timestamp: step.timestamp,
+          durationMs: step.duration_ms,
+          createdAt: step.created_at,
+        } : null,
+      });
+    },
+  );
 }
