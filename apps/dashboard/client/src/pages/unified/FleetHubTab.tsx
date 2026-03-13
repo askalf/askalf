@@ -6,8 +6,9 @@ import type { ForgeEvent } from '../../constants/status';
 const FleetTab = lazy(() => import('./FleetTab'));
 const BuilderTab = lazy(() => import('./BuilderTab'));
 const TemplatesTab = lazy(() => import('./TemplatesTab'));
+const DelegationGraph = lazy(() => import('./DelegationGraph'));
 
-type SubTab = 'agents' | 'builder' | 'skills';
+type SubTab = 'agents' | 'builder' | 'skills' | 'delegation';
 
 interface FleetHubTabProps {
   wsEvents?: ForgeEvent[];
@@ -30,6 +31,7 @@ export default function FleetHubTab({ wsEvents = [] }: FleetHubTabProps) {
           { key: 'agents', label: 'Agents' },
           { key: 'builder', label: 'Builder' },
           { key: 'skills', label: 'Skills' },
+          { key: 'delegation', label: 'Delegation' },
         ]}
         active={sub}
         onChange={(k) => setSub(k as SubTab)}
@@ -42,6 +44,7 @@ export default function FleetHubTab({ wsEvents = [] }: FleetHubTabProps) {
             {sub === 'agents' && <FleetTab wsEvents={wsEvents} />}
             {sub === 'builder' && <BuilderTab prefilledTemplate={builderTemplate} />}
             {sub === 'skills' && <TemplatesTab onUseTemplate={handleUseTemplate} />}
+            {sub === 'delegation' && <DelegationGraph />}
           </Suspense>
         </ErrorBoundary>
       </div>
