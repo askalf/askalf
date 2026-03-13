@@ -23,7 +23,7 @@ export default function OperationsTab() {
   const contentPagination = useHubStore((s) => s.contentPagination);
 
   const stats = useMemo(() => {
-    const openTickets = tickets.filter((t) => t.status === 'open').length;
+    const openTickets = tickets.filter((t) => t.status === 'open' || t.status === 'in_progress').length;
     const pendingInterventions = interventions.length;
     const contentTotal = contentPagination?.total ?? 0;
     const criticalTickets = tickets.filter((t) => t.priority === 'urgent').length;
