@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import TopBar from '../components/unified/TopBar';
 import ErrorBoundary from '../components/ErrorBoundary';
 import KeyboardHelpOverlay from '../components/KeyboardHelpOverlay';
+import CommandPalette from '../components/CommandPalette';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { hubApi } from '../hooks/useHubApi';
@@ -47,6 +48,7 @@ export default function UnifiedDashboard() {
   const initialTab = (tab && TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'overview';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const { connected, events: wsEvents } = useWebSocket();
 
   const { fetchAgents, fetchTickets, fetchCosts, fetchCoordinationSessions, fetchCoordinationStats, fetchInterventions } = useHubStore();
@@ -113,6 +115,7 @@ export default function UnifiedDashboard() {
   }, [activeTab, fetchAgents, fetchTickets, fetchCosts, fetchCoordinationSessions, fetchCoordinationStats, fetchInterventions]);
 
   const handleToggleHelp = useCallback(() => setHelpOpen(h => !h), []);
+  const handleTogglePalette = useCallback(() => setPaletteOpen(p => !p), []);
 
   const tabListForHelp = useMemo(
     () => TABS.slice(0, 9).map((t, i) => ({
@@ -130,6 +133,8 @@ export default function UnifiedDashboard() {
     onRefresh: handleRefresh,
     onToggleHelp: handleToggleHelp,
     helpOpen,
+    onTogglePalette: handleTogglePalette,
+    paletteOpen,
   });
 
   const tabContent = () => {
@@ -204,6 +209,7 @@ export default function UnifiedDashboard() {
   return (
     <div className="ud-container">
       <KeyboardHelpOverlay open={helpOpen} onClose={handleToggleHelp} tabList={tabListForHelp} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNavigate={(t) => setActiveTab(t as TabKey)} />
       <TopBar
         wsConnected={connected}
         agentCount={agentCount}
