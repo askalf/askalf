@@ -135,11 +135,10 @@ export async function findingOps(input: FindingOpsInput): Promise<ToolResult> {
           const ticketTitle = `[CRITICAL] ${input.finding.substring(0, 100)}`;
           const existing = await p.query(
             `SELECT id FROM agent_tickets
-             WHERE deleted_at IS NULL
-               AND (
-                 (status IN ('open', 'in_progress') AND title = $1)
-                 OR (category = $2 AND created_at > NOW() - INTERVAL '30 minutes')
-               )
+             WHERE (
+               (deleted_at IS NULL AND status IN ('open', 'in_progress') AND title = $1)
+               OR (category = $2 AND created_at > NOW() - INTERVAL '30 minutes')
+             )
              LIMIT 1`,
             [ticketTitle, category],
           );
