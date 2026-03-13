@@ -15374,9 +15374,16 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
 
         // Comprehensive intervention: pause + create high-priority ticket (if none open)
         try {
+          // Skip if ANY compound alert was created in the last 30 minutes (global cooldown)
+          const recentCompound = await p.query(
+            `SELECT id FROM agent_tickets WHERE category = 'compound_alert' AND created_at > NOW() - INTERVAL '30 minutes' AND deleted_at IS NULL LIMIT 1`,
+          );
+          if (recentCompound.rows.length > 0) {
+            return { action: 'compound_debounce', result: `Compound alert created within 30m — skipping`, quality: 0.6, mutated: false };
+          }
           // Skip if an open/in_progress compound alert already exists for this agent
           const existing = await p.query(
-            `SELECT id FROM agent_tickets WHERE agent_name = $1 AND category = 'compound_alert' AND status IN ('open', 'in_progress') LIMIT 1`,
+            `SELECT id FROM agent_tickets WHERE agent_name = $1 AND category = 'compound_alert' AND status IN ('open', 'in_progress') AND deleted_at IS NULL LIMIT 1`,
             [agentName],
           );
           if (existing.rows.length > 0) {
@@ -15403,14 +15410,21 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
   // SYSTEM STRESS — multiple subsystems under pressure
   if (situation.includes('SYSTEM STRESS:')) {
     try {
+      // Dedup: skip if a system_stress finding was created in the last 30 minutes
+      const recentStress = await p.query(
+        `SELECT id FROM agent_findings WHERE category = 'system_stress' AND created_at > NOW() - INTERVAL '30 minutes' LIMIT 1`,
+      );
+      if (recentStress.rows.length > 0) {
+        return { action: 'system_stress_debounce', result: 'System stress finding already exists within 30m — skipping', quality: 0.6, mutated: false };
+      }
       await p.query(
         `INSERT INTO agent_findings (id, agent_id, agent_name, finding, severity, category, metadata, created_at)
-         VALUES ($1, $2, 'core_engine', $3, 'critical', 'system_stress', $4, NOW())`,
+         VALUES ($1, $2, 'core_engine', $3, 'warning', 'system_stress', $4, NOW())`,
         [`finding_stress_${Date.now()}`, AGENT_ID,
          situation.slice(0, 500),
          JSON.stringify({ source: 'core_engine', compound: true })],
       );
-      return { action: 'system_stress_alert', result: 'Created critical finding for system stress', quality: 0.9, mutated: true };
+      return { action: 'system_stress_alert', result: 'Created warning finding for system stress (debounced, non-critical)', quality: 0.9, mutated: true };
     } catch { /* not fatal */ }
     return { action: 'system_stress_observe', result: situation.slice(0, 200), quality: 0.6, mutated: false };
   }
