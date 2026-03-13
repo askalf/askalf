@@ -3531,33 +3531,54 @@ export async function handleConsolidate(): Promise<{
   let reinforced = 0;
 
   // 1. Find and merge near-duplicate semantic memories
+  // Uses HNSW index via KNN scan instead of O(n²) cross-join that was killing Postgres
   try {
-    const result = await p.query(
-      `SELECT a.id AS id_a, b.id AS id_b,
-              a.content AS content_a, b.content AS content_b,
-              a.importance AS imp_a, b.importance AS imp_b,
-              1 - (a.embedding <=> b.embedding) AS similarity
-       FROM forge_semantic_memories a
-       JOIN forge_semantic_memories b ON a.id < b.id
-       WHERE a.agent_id = $1 AND b.agent_id = $1
-         AND a.embedding IS NOT NULL AND b.embedding IS NOT NULL
-         AND 1 - (a.embedding <=> b.embedding) > $2
-       LIMIT 50`,
-      [AGENT_ID, SIMILARITY_THRESHOLD],
+    // Get a batch of memories to check for duplicates (newest first, most likely to be dups)
+    const candidates = await p.query(
+      `SELECT id, embedding, importance, content
+       FROM forge_semantic_memories
+       WHERE agent_id = $1 AND embedding IS NOT NULL
+       ORDER BY created_at DESC
+       LIMIT 200`,
+      [AGENT_ID],
     );
 
-    for (const row of result.rows as Array<Record<string, unknown>>) {
-      const keepId = Number(row['imp_a'] ?? 0) >= Number(row['imp_b'] ?? 0) ? row['id_a'] : row['id_b'];
-      const dropId = keepId === row['id_a'] ? row['id_b'] : row['id_a'];
-      const maxImp = Math.max(Number(row['imp_a'] ?? 0), Number(row['imp_b'] ?? 0));
+    const deletedIds = new Set<string>();
 
-      // Boost importance of kept memory, delete duplicate
-      await p.query(
-        `UPDATE forge_semantic_memories SET importance = LEAST($1 + 0.05, 1.0), access_count = access_count + 1 WHERE id = $2`,
-        [maxImp, keepId],
+    for (const mem of candidates.rows as Array<{ id: string; embedding: string; importance: number; content: string }>) {
+      if (deletedIds.has(mem.id)) continue;
+      if (merged >= 50) break; // Cap merges per cycle
+
+      // Use HNSW index to find nearest neighbor (fast O(log n) lookup)
+      const similar = await p.query(
+        `SELECT id, importance, content,
+                1 - (embedding <=> $1::vector) AS similarity
+         FROM forge_semantic_memories
+         WHERE agent_id = $2
+           AND id != $3
+           AND embedding IS NOT NULL
+         ORDER BY embedding <=> $1::vector
+         LIMIT 3`,
+        [mem.embedding, AGENT_ID, mem.id],
       );
-      await p.query(`DELETE FROM forge_semantic_memories WHERE id = $1`, [dropId]);
-      merged++;
+
+      for (const match of similar.rows as Array<{ id: string; importance: number; similarity: number }>) {
+        if (deletedIds.has(match.id)) continue;
+        if (match.similarity < SIMILARITY_THRESHOLD) continue;
+
+        // Found a near-duplicate — keep the one with higher importance
+        const keepId = mem.importance >= match.importance ? mem.id : match.id;
+        const dropId = keepId === mem.id ? match.id : mem.id;
+        const maxImp = Math.max(mem.importance, match.importance);
+
+        await p.query(
+          `UPDATE forge_semantic_memories SET importance = LEAST($1 + 0.05, 1.0), access_count = access_count + 1 WHERE id = $2`,
+          [maxImp, keepId],
+        );
+        await p.query(`DELETE FROM forge_semantic_memories WHERE id = $1`, [dropId]);
+        deletedIds.add(dropId);
+        merged++;
+      }
     }
   } catch (err) {
     log(`Consolidation merge error: ${err}`);
@@ -4622,23 +4643,42 @@ export async function handleDreamCycle(): Promise<CognitiveLoopResult> {
 
   // ── Phase 1: Memory Consolidation ──
   // Merge near-duplicate semantic memories (similarity > 0.85 but < 0.92)
+  // Uses HNSW KNN instead of O(n²) cross-join
   try {
-    const nearDupes = await p.query(
-      `WITH pairs AS (
-        SELECT a.id as id_a, b.id as id_b, a.content as content_a, b.content as content_b,
-               a.importance as imp_a, b.importance as imp_b, a.access_count as ac_a, b.access_count as ac_b,
-               1 - (a.embedding <=> b.embedding) as similarity
-        FROM forge_semantic_memories a
-        JOIN forge_semantic_memories b ON a.id < b.id AND a.agent_id = b.agent_id
-        WHERE a.agent_id = $1
-          AND a.embedding IS NOT NULL AND b.embedding IS NOT NULL
-          AND 1 - (a.embedding <=> b.embedding) > 0.85
-          AND 1 - (a.embedding <=> b.embedding) < 0.92
-        LIMIT 10
-      )
-      SELECT * FROM pairs ORDER BY similarity DESC`,
+    // Sample recent memories and find near-duplicates via index
+    const samples = await p.query(
+      `SELECT id, embedding, content, importance, access_count
+       FROM forge_semantic_memories
+       WHERE agent_id = $1 AND embedding IS NOT NULL
+       ORDER BY created_at DESC LIMIT 100`,
       [AGENT_ID],
     );
+    const nearDupeRows: Array<Record<string, unknown>> = [];
+    const seen = new Set<string>();
+    for (const mem of samples.rows as Array<{ id: string; embedding: string; content: string; importance: number; access_count: number }>) {
+      if (seen.has(mem.id) || nearDupeRows.length >= 10) break;
+      const neighbors = await p.query(
+        `SELECT id, content, importance, access_count,
+                1 - (embedding <=> $1::vector) AS similarity
+         FROM forge_semantic_memories
+         WHERE agent_id = $2 AND id != $3 AND embedding IS NOT NULL
+         ORDER BY embedding <=> $1::vector LIMIT 3`,
+        [mem.embedding, AGENT_ID, mem.id],
+      );
+      for (const n of neighbors.rows as Array<{ id: string; content: string; importance: number; access_count: number; similarity: number }>) {
+        if (n.similarity > 0.85 && n.similarity < 0.92 && !seen.has(n.id)) {
+          nearDupeRows.push({
+            id_a: mem.id, id_b: n.id,
+            content_a: mem.content, content_b: n.content,
+            imp_a: mem.importance, imp_b: n.importance,
+            ac_a: mem.access_count, ac_b: n.access_count,
+            similarity: n.similarity,
+          });
+          seen.add(n.id);
+        }
+      }
+    }
+    const nearDupes = { rows: nearDupeRows };
 
     for (const pair of nearDupes.rows as Array<Record<string, unknown>>) {
       // Merge: keep the one with higher importance, absorb the other's access count
@@ -5054,27 +5094,31 @@ export async function handleKnowledgeMap(): Promise<{
   }));
 
   // Find connections between top memories (similarity > 0.5)
+  // Uses KNN per-node instead of cross-join (safe: nodes is already capped by LIMIT)
   const edges: Array<{ from: string; to: string; similarity: number }> = [];
   if (nodes.length >= 2) {
-    const edgeResult = await p.query(
-      `SELECT a.id as id_a, b.id as id_b, 1 - (a.embedding <=> b.embedding) as sim
-       FROM forge_semantic_memories a
-       JOIN forge_semantic_memories b ON a.id < b.id AND a.agent_id = b.agent_id
-       WHERE a.agent_id = $1
-         AND a.embedding IS NOT NULL AND b.embedding IS NOT NULL
-         AND a.id = ANY($2) AND b.id = ANY($2)
-         AND 1 - (a.embedding <=> b.embedding) > 0.5
-       ORDER BY sim DESC
-       LIMIT 50`,
-      [AGENT_ID, nodes.map(n => n.id)],
-    );
+    const nodeIds = new Set(nodes.map(n => n.id));
+    for (const node of nodes) {
+      if (edges.length >= 50) break;
+      const nodeData = await p.query(
+        `SELECT embedding FROM forge_semantic_memories WHERE id = $1 AND embedding IS NOT NULL`,
+        [node.id],
+      );
+      if (nodeData.rows.length === 0) continue;
+      const emb = (nodeData.rows[0] as { embedding: string }).embedding;
 
-    for (const row of edgeResult.rows as Array<Record<string, unknown>>) {
-      edges.push({
-        from: String(row['id_a']),
-        to: String(row['id_b']),
-        similarity: Number(Number(row['sim']).toFixed(3)),
-      });
+      const neighbors = await p.query(
+        `SELECT id, 1 - (embedding <=> $1::vector) AS sim
+         FROM forge_semantic_memories
+         WHERE id = ANY($2) AND id != $3 AND embedding IS NOT NULL
+         ORDER BY embedding <=> $1::vector LIMIT 5`,
+        [emb, [...nodeIds], node.id],
+      );
+      for (const row of neighbors.rows as Array<{ id: string; sim: number }>) {
+        if (row.sim > 0.5 && !edges.some(e => (e.from === node.id && e.to === row.id) || (e.from === row.id && e.to === node.id))) {
+          edges.push({ from: node.id, to: row.id, similarity: Number(row.sim.toFixed(3)) });
+        }
+      }
     }
   }
 
@@ -9268,20 +9312,26 @@ Return ONLY the JSON.`,
     } catch {}
   }
 
-  // Symbiosis detection: find memories that always co-occur (accessed together)
-  // Use a simplified approach — find memories created within seconds of each other
-  const coCreated = await p.query(
-    `SELECT a.content as content_a, b.content as content_b
-     FROM forge_semantic_memories a
-     JOIN forge_semantic_memories b ON a.agent_id = b.agent_id
-       AND a.id < b.id
-       AND ABS(EXTRACT(EPOCH FROM a.created_at - b.created_at)) < 60
-       AND a.importance >= 0.5 AND b.importance >= 0.5
-     WHERE a.agent_id = $1
-     ORDER BY a.created_at DESC LIMIT 10`,
+  // Symbiosis detection: find memories created within 60s of each other (co-occurring)
+  // Uses time-windowed approach instead of full cross-join
+  const recentImportant = await p.query(
+    `SELECT id, content, created_at, importance
+     FROM forge_semantic_memories
+     WHERE agent_id = $1 AND importance >= 0.5
+     ORDER BY created_at DESC LIMIT 50`,
     [AGENT_ID],
   );
-  symbioses = coCreated.rows.length;
+  const coCreatedPairs: Array<{ content_a: string; content_b: string }> = [];
+  const rows = recentImportant.rows as Array<{ id: string; content: string; created_at: string; importance: number }>;
+  for (let i = 0; i < rows.length && coCreatedPairs.length < 10; i++) {
+    for (let j = i + 1; j < rows.length && coCreatedPairs.length < 10; j++) {
+      const timeDiff = Math.abs(new Date(rows[i]!.created_at).getTime() - new Date(rows[j]!.created_at).getTime()) / 1000;
+      if (timeDiff < 60) {
+        coCreatedPairs.push({ content_a: rows[i]!.content, content_b: rows[j]!.content });
+      }
+    }
+  }
+  symbioses = coCreatedPairs.length;
 
   // Species census
   const speciesMap: Map<string, { count: number; totalFitness: number }> = new Map();
@@ -11366,23 +11416,38 @@ export async function handleSymbiogenesis(): Promise<{
 }> {
   const p = getForgePool();
 
-  // Find memories that always appear together (co-accessed, co-created)
-  const coOccurrences = await p.query(
-    `SELECT a.id as id_a, a.content as content_a, b.id as id_b, b.content as content_b,
-            a.access_count + b.access_count as combined_access,
-            (a.importance + b.importance) / 2 as avg_importance
-     FROM forge_semantic_memories a
-     JOIN forge_semantic_memories b ON a.agent_id = b.agent_id
-       AND a.id < b.id
-       AND a.embedding IS NOT NULL AND b.embedding IS NOT NULL
-       AND (a.embedding <=> b.embedding) < 0.3
-       AND (a.embedding <=> b.embedding) > 0.15
-     WHERE a.agent_id = $1
-       AND a.access_count >= 2 AND b.access_count >= 2
-     ORDER BY combined_access DESC
-     LIMIT 10`,
+  // Find memories that appear together — related but not duplicates (distance 0.15-0.3)
+  // Uses KNN per-memory instead of O(n²) cross-join
+  const fusionCandidates = await p.query(
+    `SELECT id, embedding, content, access_count, importance
+     FROM forge_semantic_memories
+     WHERE agent_id = $1 AND embedding IS NOT NULL AND access_count >= 2
+     ORDER BY access_count DESC LIMIT 30`,
     [AGENT_ID],
   );
+  const coOccRows: Array<Record<string, unknown>> = [];
+  for (const mem of fusionCandidates.rows as Array<{ id: string; embedding: string; content: string; access_count: number; importance: number }>) {
+    if (coOccRows.length >= 10) break;
+    const neighbors = await p.query(
+      `SELECT id, content, access_count, importance,
+              (embedding <=> $1::vector) as distance
+       FROM forge_semantic_memories
+       WHERE agent_id = $2 AND id != $3 AND embedding IS NOT NULL AND access_count >= 2
+       ORDER BY embedding <=> $1::vector LIMIT 5`,
+      [mem.embedding, AGENT_ID, mem.id],
+    );
+    for (const n of neighbors.rows as Array<{ id: string; content: string; access_count: number; importance: number; distance: number }>) {
+      if (n.distance > 0.15 && n.distance < 0.3) {
+        coOccRows.push({
+          id_a: mem.id, content_a: mem.content,
+          id_b: n.id, content_b: n.content,
+          combined_access: mem.access_count + n.access_count,
+          avg_importance: (mem.importance + n.importance) / 2,
+        });
+      }
+    }
+  }
+  const coOccurrences = { rows: coOccRows };
 
   let fusions = 0;
   const fusedConcepts: string[] = [];
@@ -11702,22 +11767,37 @@ export async function handleWormholeDiscovery(): Promise<{
 
   // Find semantically DISTANT but temporally CLOSE memories
   // (accessed close together = functionally related)
-  const distantButClose = await p.query(
-    `SELECT a.id as id_a, a.content as content_a,
-            b.id as id_b, b.content as content_b,
-            1 - (a.embedding <=> b.embedding) as similarity
-     FROM forge_semantic_memories a
-     JOIN forge_semantic_memories b ON a.agent_id = b.agent_id
-       AND a.id < b.id
-       AND a.embedding IS NOT NULL AND b.embedding IS NOT NULL
-       AND (a.embedding <=> b.embedding) > 0.6
-       AND ABS(EXTRACT(EPOCH FROM a.updated_at - b.updated_at)) < 300
-     WHERE a.agent_id = $1
-       AND a.access_count >= 2 AND b.access_count >= 2
-     ORDER BY (a.embedding <=> b.embedding) DESC
-     LIMIT 5`,
+  // Find semantically distant but temporally close memories via time-window scan
+  const recentAccessed = await p.query(
+    `SELECT id, content, embedding, updated_at, access_count
+     FROM forge_semantic_memories
+     WHERE agent_id = $1 AND embedding IS NOT NULL AND access_count >= 2
+     ORDER BY updated_at DESC LIMIT 40`,
     [AGENT_ID],
   );
+  const distantRows: Array<Record<string, unknown>> = [];
+  const accessedRows = recentAccessed.rows as Array<{ id: string; content: string; embedding: string; updated_at: string; access_count: number }>;
+  for (let i = 0; i < accessedRows.length && distantRows.length < 5; i++) {
+    for (let j = i + 1; j < accessedRows.length && distantRows.length < 5; j++) {
+      const timeDiff = Math.abs(new Date(accessedRows[i]!.updated_at).getTime() - new Date(accessedRows[j]!.updated_at).getTime()) / 1000;
+      if (timeDiff < 300) {
+        // Check embedding distance via a single query
+        const distResult = await p.query(
+          `SELECT (embedding <=> $1::vector) as dist FROM forge_semantic_memories WHERE id = $2`,
+          [accessedRows[i]!.embedding, accessedRows[j]!.id],
+        );
+        const dist = Number((distResult.rows[0] as { dist: number })?.dist ?? 0);
+        if (dist > 0.6) {
+          distantRows.push({
+            id_a: accessedRows[i]!.id, content_a: accessedRows[i]!.content,
+            id_b: accessedRows[j]!.id, content_b: accessedRows[j]!.content,
+            similarity: 1 - dist,
+          });
+        }
+      }
+    }
+  }
+  const distantButClose = { rows: distantRows };
 
   let discovered = 0;
   const connections: Array<{ from: string; to: string; reason: string }> = [];
@@ -15120,15 +15200,28 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
 
     // ACTUATOR: Link isolated knowledge nodes using entity_type similarity
     try {
-      // Find isolated nodes that share the same entity_type — likely related
-      const r = await p.query(
-        `SELECT a.id as a_id, a.label as a_label, b.id as b_id, b.label as b_label, a.entity_type
-         FROM forge_knowledge_nodes a
-         JOIN forge_knowledge_nodes b ON a.entity_type = b.entity_type AND a.id < b.id
-         WHERE NOT EXISTS (SELECT 1 FROM forge_knowledge_edges e WHERE (e.source_id = a.id AND e.target_id = b.id) OR (e.source_id = b.id AND e.target_id = a.id))
-           AND NOT EXISTS (SELECT 1 FROM forge_knowledge_edges e WHERE e.source_id = a.id OR e.target_id = a.id)
-         LIMIT 1`,
+      // Find an isolated node, then find another isolated node of the same type
+      const isolated = await p.query(
+        `SELECT n.id, n.label, n.entity_type
+         FROM forge_knowledge_nodes n
+         WHERE NOT EXISTS (SELECT 1 FROM forge_knowledge_edges e WHERE e.source_id = n.id OR e.target_id = n.id)
+         LIMIT 10`,
       );
+      let r = { rows: [] as Array<Record<string, unknown>> };
+      for (const node of isolated.rows as Array<{ id: string; label: string; entity_type: string }>) {
+        const match = await p.query(
+          `SELECT id, label FROM forge_knowledge_nodes
+           WHERE entity_type = $1 AND id != $2
+             AND NOT EXISTS (SELECT 1 FROM forge_knowledge_edges e WHERE (e.source_id = $2 AND e.target_id = id) OR (e.source_id = id AND e.target_id = $2))
+           LIMIT 1`,
+          [node.entity_type, node.id],
+        );
+        if (match.rows.length > 0) {
+          const m = match.rows[0] as { id: string; label: string };
+          r = { rows: [{ a_id: node.id, a_label: node.label, b_id: m.id, b_label: m.label, entity_type: node.entity_type }] };
+          break;
+        }
+      }
       if (r.rows.length > 0) {
         const row = r.rows[0] as Record<string, unknown>;
         await p.query(
@@ -16420,20 +16513,27 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
   },
 
   // 11: Consolidation opportunity — find near-duplicate memories
+  // Uses KNN per random sample instead of O(n²) full-table cross-join
   async (p) => {
-    const r = await p.query(
-      `SELECT a.content as a_content, b.content as b_content,
-              1 - (a.embedding <=> b.embedding) as similarity
-       FROM forge_semantic_memories a, forge_semantic_memories b
-       WHERE a.agent_id = $1 AND b.agent_id = $1
-         AND a.id < b.id AND a.embedding IS NOT NULL AND b.embedding IS NOT NULL
-       ORDER BY a.embedding <=> b.embedding ASC
-       LIMIT 1`,
+    // Pick a random recent memory and find its nearest neighbor
+    const sample = await p.query(
+      `SELECT id, content, embedding FROM forge_semantic_memories
+       WHERE agent_id = $1 AND embedding IS NOT NULL
+       ORDER BY created_at DESC LIMIT 1 OFFSET (random() * LEAST(20, (SELECT COUNT(*) FROM forge_semantic_memories WHERE agent_id = $1)))::int`,
       [AGENT_ID],
     );
-    if (r.rows.length === 0) return 'No consolidation candidates found.';
-    const pair = r.rows[0] as Record<string, unknown>;
-    return `Consolidation candidate: "${String(pair['a_content']).slice(0, 50)}" ≈ "${String(pair['b_content']).slice(0, 50)}" (sim=${Number(pair['similarity']).toFixed(3)}). Merge?`;
+    if (sample.rows.length === 0) return 'No consolidation candidates found.';
+    const mem = sample.rows[0] as { id: string; content: string; embedding: string };
+    const neighbor = await p.query(
+      `SELECT content, 1 - (embedding <=> $1::vector) AS similarity
+       FROM forge_semantic_memories
+       WHERE agent_id = $2 AND id != $3 AND embedding IS NOT NULL
+       ORDER BY embedding <=> $1::vector LIMIT 1`,
+      [mem.embedding, AGENT_ID, mem.id],
+    );
+    if (neighbor.rows.length === 0) return 'No consolidation candidates found.';
+    const n = neighbor.rows[0] as { content: string; similarity: number };
+    return `Consolidation candidate: "${mem.content.slice(0, 50)}" ≈ "${n.content.slice(0, 50)}" (sim=${n.similarity.toFixed(3)}). Merge?`;
   },
 
   // 12: Strongest procedure — can I make it even better?
