@@ -45,6 +45,7 @@ interface DeviceSession {
   userId: string;
   tenantId: string;
   apiKeyId: string;
+  deviceType: string;
   activeExecutions: Set<string>;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   lastHeartbeat: number;
@@ -278,9 +279,21 @@ async function handleClientMessage(
         return;
       }
 
-      const { hostname, os, capabilities, deviceName } = msg.payload as {
-        hostname?: string; os?: string; capabilities?: Record<string, unknown>; deviceName?: string;
+      const { hostname, os, capabilities, deviceName, deviceType } = msg.payload as {
+        hostname?: string; os?: string; capabilities?: Record<string, unknown>; deviceName?: string; deviceType?: string;
       };
+
+      // Map device type to category and protocol
+      const typeMap: Record<string, { category: string; protocol: string }> = {
+        cli: { category: 'compute', protocol: 'websocket' },
+        browser: { category: 'browser', protocol: 'websocket' },
+        desktop: { category: 'browser', protocol: 'websocket' },
+        vscode: { category: 'browser', protocol: 'websocket' },
+        android: { category: 'mobile', protocol: 'websocket' },
+        ios: { category: 'mobile', protocol: 'websocket' },
+        rpi: { category: 'iot', protocol: 'websocket' },
+      };
+      const resolved = typeMap[deviceType || 'cli'] || { category: 'compute', protocol: 'websocket' };
 
       const device = await registerDevice({
         userId,
@@ -290,6 +303,9 @@ async function handleClientMessage(
         hostname,
         os,
         capabilities,
+        deviceType: (deviceType || 'cli') as 'cli',
+        deviceCategory: resolved.category as 'compute',
+        protocol: resolved.protocol as 'websocket',
       });
 
       const newSession = createSession(ws, device, userId, tenantId, apiKeyId);
@@ -447,8 +463,21 @@ async function handleClientMessage(
       break;
     }
 
-    default:
-      sendMessage(ws, 'device:error', { code: 'UNKNOWN_TYPE', message: `Unknown message type: ${msg.type}` });
+    default: {
+      // Route device-type-specific messages (browser:*, desktop:*, vscode:*, mobile:*, rpi:*)
+      // These are forwarded as execution progress for the active task
+      const prefix = msg.type.split(':')[0];
+      if (session && ['browser', 'desktop', 'vscode', 'mobile', 'rpi'].includes(prefix!)) {
+        const eventBus = getEventBus();
+        for (const execId of session.activeExecutions) {
+          void eventBus?.emitExecution('progress', execId, '', '', {
+            output: JSON.stringify({ messageType: msg.type, data: msg.payload }),
+          }).catch(() => {});
+        }
+      } else {
+        sendMessage(ws, 'device:error', { code: 'UNKNOWN_TYPE', message: `Unknown message type: ${msg.type}` });
+      }
+    }
   }
 }
 
@@ -476,6 +505,7 @@ function createSession(
     userId,
     tenantId,
     apiKeyId,
+    deviceType: device.device_type || 'cli',
     activeExecutions: new Set(),
     heartbeatTimer: null,
     lastHeartbeat: Date.now(),

@@ -18,7 +18,9 @@ import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { runDirectCliExecution } from './worker.js';
 import { getOnlineDeviceSession, dispatchTaskToDevice } from './agent-bridge.js';
-import { findOnlineDevice } from './device-registry.js';
+import { findOnlineDevice, getDevice } from './device-registry.js';
+import { getAdapter, initAdapters } from './adapters/adapter-registry.js';
+import type { DeviceType } from './adapters/device-adapter.js';
 
 // ============================================
 // Types
@@ -60,6 +62,9 @@ export async function startTaskDispatcher(redisUrl: string): Promise<void> {
   subscriber = new Redis(redisUrl, { maxRetriesPerRequest: null });
   publisher = new Redis(redisUrl, { maxRetriesPerRequest: null });
   running = true;
+
+  // Initialize device adapters
+  initAdapters();
 
   subscriber.on('error', (err) => {
     console.error(`[TaskDispatcher] Redis subscriber error: ${err.message}`);
