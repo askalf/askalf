@@ -96,6 +96,7 @@
       font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 16px; color: var(--void);
     }
     .nav-name { font-weight: 700; font-size: 18px; color: var(--text); letter-spacing: -0.02em; }
+    .nav-hamburger { display: none; }
     .nav-links { display: flex; gap: 32px; align-items: center; }
     .nav-links a {
       color: var(--text-dim); text-decoration: none; font-size: 14px; font-weight: 500;
@@ -387,12 +388,29 @@
       position: relative; height: 440px;
       border-radius: var(--radius); background: var(--surface);
       border: 1px solid var(--border); overflow: hidden;
+      cursor: crosshair;
     }
     .brain-vis canvas { width: 100%; height: 100%; }
     .brain-vis-label {
       position: absolute; bottom: 16px; left: 16px; right: 16px;
       font-family: 'JetBrains Mono', monospace; font-size: 11px;
       color: var(--text-muted); text-align: center;
+      pointer-events: none;
+    }
+    .brain-vis-tooltip {
+      position: absolute; pointer-events: none; z-index: 10;
+      padding: 6px 12px; border-radius: var(--radius-xs);
+      background: rgba(10,10,14,0.92); border: 1px solid var(--border-bright);
+      backdrop-filter: blur(12px);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--text); white-space: nowrap;
+      opacity: 0; transition: opacity 0.15s ease;
+      transform: translate(-50%, -100%);
+    }
+    .brain-vis-tooltip.visible { opacity: 1; }
+    .brain-vis-tooltip .tooltip-type {
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 2px; opacity: 0.5;
     }
 
     .brain-processes {
@@ -434,6 +452,96 @@
       font-family: 'JetBrains Mono', monospace; font-size: 11px;
       color: var(--text-muted); line-height: 1.8;
     }
+
+    /* ─── SELF-BUILDING (recursive loop) ─── */
+    .self-building { padding: 160px 0; position: relative; overflow: hidden; }
+    .self-building::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(124,58,237,0.06), transparent);
+      pointer-events: none;
+    }
+    .sb-headline {
+      font-size: clamp(32px, 5vw, 56px); font-weight: 800; letter-spacing: -0.03em;
+      line-height: 1.1; text-align: center; margin-bottom: 20px;
+    }
+    .sb-headline .gradient-text-alt {
+      background: linear-gradient(135deg, var(--amber), var(--rose), var(--purple-light));
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .sb-sub {
+      text-align: center; max-width: 640px; margin: 0 auto 64px;
+      font-size: 17px; color: var(--text-dim); line-height: 1.7;
+    }
+
+    /* The recursive loop visualization */
+    .sb-loop {
+      position: relative; max-width: 720px; margin: 0 auto;
+      display: flex; flex-direction: column; gap: 0;
+    }
+    .sb-step {
+      display: grid; grid-template-columns: 64px 1fr; gap: 20px;
+      align-items: start; position: relative; padding-bottom: 32px;
+    }
+    .sb-step::before {
+      content: ''; position: absolute; left: 31px; top: 48px; bottom: 0;
+      width: 2px; background: linear-gradient(to bottom, var(--border-bright), var(--border));
+    }
+    .sb-step:last-child::before { display: none; }
+    .sb-step:last-child { padding-bottom: 0; }
+    .sb-step-icon {
+      width: 64px; height: 64px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; position: relative; z-index: 1;
+      border: 2px solid var(--border-bright); background: var(--surface);
+      transition: all 0.4s ease;
+    }
+    .sb-step:hover .sb-step-icon { border-color: var(--green); box-shadow: 0 0 20px var(--green-glow); }
+    .sb-step-content { padding-top: 10px; }
+    .sb-step-title {
+      font-weight: 700; font-size: 18px; letter-spacing: -0.01em; margin-bottom: 6px;
+    }
+    .sb-step-desc { font-size: 14px; color: var(--text-dim); line-height: 1.7; }
+    .sb-step-detail {
+      margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--text-muted); padding: 10px 14px; border-radius: var(--radius-xs);
+      background: var(--glass); border: 1px solid var(--border);
+    }
+
+    /* Loop-back arrow */
+    .sb-loop-back {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      margin-top: 32px; padding: 20px; text-align: center;
+      border-radius: var(--radius); background: var(--glass); border: 1px solid var(--border);
+    }
+    .sb-loop-arrow {
+      font-size: 28px; color: var(--green);
+      animation: sb-pulse 2s ease-in-out infinite;
+    }
+    @keyframes sb-pulse {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+    .sb-loop-text {
+      font-family: 'JetBrains Mono', monospace; font-size: 13px;
+      color: var(--text-dim); font-weight: 500;
+    }
+    .sb-loop-text strong { color: var(--green); }
+
+    /* Live proof ticker */
+    .sb-proof {
+      margin-top: 48px; padding: 20px 24px; border-radius: var(--radius);
+      background: var(--surface); border: 1px solid var(--border);
+      text-align: center;
+    }
+    .sb-proof-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .sb-proof-text {
+      font-size: 14px; color: var(--text-dim); line-height: 1.7;
+    }
+    .sb-proof-text em { color: var(--green); font-style: normal; font-weight: 600; }
 
     /* ─── INTEGRATIONS ─── */
     .integrations { padding: 160px 0; }
@@ -576,23 +684,163 @@
       .orch-grid { grid-template-columns: repeat(2, 1fr); }
       .brain-layout { grid-template-columns: 1fr; }
       .brain-vis { height: 300px; }
+      .platform-card { padding: 24px; }
     }
     @media (max-width: 768px) {
       .section-inner { padding: 0 20px; }
-      .nav { padding: 12px 20px; }
-      .nav-links { display: none; }
-      .hero { padding: 120px 20px 60px; }
-      .hero-actions { flex-direction: column; }
-      .hero-stats { flex-wrap: wrap; gap: 24px; }
-      .mission-tabs { grid-template-columns: repeat(2, 1fr); }
-      .mission-preview-grid { grid-template-columns: 1fr; }
-      .fleet-grid { grid-template-columns: 1fr; }
-      .orch-grid { grid-template-columns: 1fr; }
-      .integrations-layout { grid-template-columns: 1fr; }
-      .platform-grid { grid-template-columns: 1fr; }
-      .quickstart-steps { grid-template-columns: 1fr; }
-      .brain-processes { grid-template-columns: repeat(2, 1fr); }
-      .cta-actions { flex-direction: column; align-items: center; }
+      .nav { padding: 12px 16px; }
+      .nav.scrolled { padding: 10px 16px; }
+      .nav-links {
+        display: none;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        flex-direction: column; align-items: center; justify-content: center;
+        gap: 28px; background: rgba(3,3,5,0.96); backdrop-filter: blur(30px);
+        z-index: 200;
+      }
+      .nav-links.open { display: flex; }
+      .nav-links a { font-size: 20px; }
+      .nav-links .nav-cta { font-size: 16px; margin-top: 12px; }
+      .nav-hamburger {
+        display: flex; flex-direction: column; gap: 5px; cursor: pointer;
+        z-index: 201; padding: 8px; background: none; border: none;
+      }
+      .nav-hamburger span {
+        display: block; width: 24px; height: 2px; background: var(--text);
+        border-radius: 2px; transition: all 0.3s ease;
+      }
+      .nav-hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+      .nav-hamburger.open span:nth-child(2) { opacity: 0; }
+      .nav-hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+      .nav-name { font-size: 16px; }
+
+      /* Hero */
+      .hero { padding: 100px 16px 48px; min-height: auto; }
+      .hero h1 { font-size: clamp(32px, 9vw, 52px); }
+      .hero-sub { font-size: 15px; margin-top: 16px; line-height: 1.6; }
+      .hero-badge { font-size: 11px; padding: 5px 12px; margin-bottom: 24px; }
+      .hero-actions { flex-direction: column; width: 100%; margin-top: 28px; }
+      .hero-actions .btn-primary,
+      .hero-actions .btn-secondary { width: 100%; justify-content: center; padding: 14px 24px; }
+      .hero-feed { margin-top: 40px; }
+      .hero-feed-lines { height: 180px; padding: 12px; font-size: 11px; }
+      .feed-line .feed-agent { min-width: 80px; font-size: 11px; }
+      .feed-line .feed-time { min-width: 40px; font-size: 10px; }
+      .feed-line .feed-msg { font-size: 11px; }
+      .hero-stats { flex-wrap: wrap; gap: 16px; justify-content: center; margin-top: 32px; }
+      .hero-stat-value { font-size: 22px; }
+      .hero-stat-label { font-size: 11px; }
+
+      /* Sections */
+      .section-title { font-size: clamp(26px, 7vw, 40px); margin-bottom: 14px; }
+      .section-subtitle { font-size: 15px; line-height: 1.6; }
+      .section-label { font-size: 10px; margin-bottom: 12px; }
+      section.mission, section.fleet, section.brain,
+      section.orchestration, section.integrations,
+      section.platform, section.quickstart { padding: 80px 0; }
+
+      /* Mission Control */
+      .mission-tabs { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 32px; }
+      .mission-tab { padding: 14px; }
+      .mission-tab-name { font-size: 13px; }
+      .mission-tab-desc { font-size: 11px; }
+      .mission-preview { margin-top: 20px; min-height: auto; }
+      .mission-preview-body { padding: 16px; }
+      .mission-preview-grid { grid-template-columns: 1fr; gap: 10px; }
+      .mission-card { padding: 14px; }
+      .mission-card-value { font-size: 20px; }
+
+      /* Fleet */
+      .fleet-grid { grid-template-columns: 1fr; gap: 12px; }
+      .fleet-card { padding: 18px; }
+      .fleet-card-name { font-size: 15px; }
+      .fleet-card-desc { font-size: 12px; }
+      .fleet-group-label { font-size: 11px; margin: 28px 0 14px; }
+
+      /* Brain */
+      .brain-vis { height: 240px; }
+      .brain-tier { padding: 18px; }
+      .brain-tier-name { font-size: 14px; }
+      .brain-tier-desc { font-size: 12px; }
+      .brain-processes { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 24px; }
+      .brain-process { padding: 12px; }
+      .brain-process-name { font-size: 11px; }
+      .brain-process-desc { font-size: 10px; }
+
+      /* Self-building */
+      .self-building { padding: 80px 0; }
+      .sb-headline { font-size: clamp(28px, 8vw, 48px); }
+      .sb-sub { font-size: 15px; margin-bottom: 40px; }
+      .sb-step { grid-template-columns: 48px 1fr; gap: 14px; padding-bottom: 24px; }
+      .sb-step-icon { width: 48px; height: 48px; font-size: 20px; }
+      .sb-step::before { left: 23px; top: 40px; }
+      .sb-step-title { font-size: 16px; }
+      .sb-step-desc { font-size: 13px; }
+      .sb-step-detail { font-size: 10px; }
+      .sb-loop-text { font-size: 12px; }
+      .sb-proof-text { font-size: 13px; }
+
+      /* Orchestration */
+      .orch-grid { grid-template-columns: 1fr; gap: 12px; }
+      .orch-card { padding: 20px; }
+      .orch-card-name { font-size: 16px; }
+      .orch-card-visual { font-size: 10px; line-height: 1.6; padding: 12px; }
+
+      /* Integrations */
+      .integrations-layout { grid-template-columns: 1fr; gap: 24px; }
+      .integ-group-title { font-size: 15px; }
+      .integ-item { padding: 10px 14px; font-size: 12px; }
+
+      /* Platform features */
+      .platform-grid { grid-template-columns: 1fr; gap: 12px; }
+      .platform-card { padding: 20px; gap: 14px; }
+      .platform-card-name { font-size: 15px; }
+      .platform-card-desc { font-size: 12px; }
+      .platform-card-icon { width: 38px; height: 38px; font-size: 18px; }
+
+      /* Quickstart */
+      .quickstart-code { padding: 16px; font-size: 12px; line-height: 1.8; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .quickstart-steps { grid-template-columns: 1fr; gap: 12px; }
+      .quickstart-step { padding: 18px; }
+      .quickstart-step-num { font-size: 24px; }
+
+      /* CTA */
+      .cta { padding: 80px 0 60px; }
+      .cta h2 { font-size: clamp(26px, 7vw, 48px); }
+      .cta-sub { font-size: 15px; margin-bottom: 28px; }
+      .cta-actions { flex-direction: column; align-items: center; width: 100%; padding: 0 20px; }
+      .cta-actions .btn-primary,
+      .cta-actions .btn-secondary { width: 100%; justify-content: center; }
+
+      /* Heartbeat strip */
+      .heartbeat-strip { padding: 28px 0; }
+      .heartbeat-item { font-size: 11px; gap: 8px; }
+      .heartbeat-inner { gap: 40px; }
+
+      /* Footer */
+      .footer { flex-direction: column; gap: 16px; text-align: center; padding: 28px 20px; }
+      .footer-links { gap: 20px; }
+
+      /* Particles — reduce on mobile for perf */
+      .particle { opacity: 0.08; }
+    }
+
+    /* Small phones */
+    @media (max-width: 420px) {
+      .hero h1 { font-size: 28px; }
+      .hero-sub { font-size: 14px; }
+      .hero-stats { gap: 12px; }
+      .hero-stat-value { font-size: 20px; }
+      .mission-tabs { grid-template-columns: 1fr 1fr; gap: 6px; }
+      .mission-tab { padding: 10px; }
+      .mission-tab-icon { font-size: 16px; margin-bottom: 6px; }
+      .mission-tab-name { font-size: 12px; }
+      .mission-tab-desc { display: none; }
+      .brain-processes { grid-template-columns: 1fr 1fr; }
+      .fleet-card-skills { gap: 4px; }
+      .fleet-card-skill { font-size: 10px; padding: 2px 8px; }
+      .quickstart-code { font-size: 11px; padding: 12px; }
+      .orch-card-icon { width: 40px; height: 40px; font-size: 18px; }
+      .section-title { font-size: 24px; }
     }
 
     /* ─── Floating particles ─── */
@@ -622,10 +870,14 @@
       <div class="nav-logo">A</div>
       <span class="nav-name">AskAlf</span>
     </a>
-    <div class="nav-links">
+    <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-links" id="navLinks">
       <a href="#what-you-get">Framework</a>
       <a href="#fleet">Fleet</a>
       <a href="#brain">Memory</a>
+      <a href="#self-building">The Loop</a>
       <a href="#orchestration">Orchestration</a>
       <a href="#integrations">Integrations</a>
       <a href="#quickstart">Deploy</a>
@@ -1125,9 +1377,13 @@
           </div>
         </div>
 
-        <div class="brain-vis">
+        <div class="brain-vis" id="brainVis">
           <canvas id="brainCanvas"></canvas>
-          <div class="brain-vis-label">knowledge graph — entity relationships visualized in real-time</div>
+          <div class="brain-vis-tooltip" id="brainTooltip">
+            <div class="tooltip-type"></div>
+            <div class="tooltip-name"></div>
+          </div>
+          <div class="brain-vis-label">interactive knowledge graph — hover to explore, drag to rearrange</div>
         </div>
       </div>
 
@@ -1171,6 +1427,111 @@
           <div class="brain-process-icon">&#128200;</div>
           <div class="brain-process-name">Analytics</div>
           <div class="brain-process-desc">Memory growth trends, category breakdowns, health metrics</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ SELF-BUILDING ═══════════════════════ -->
+  <section class="self-building" id="self-building">
+    <div class="section-inner">
+      <div class="reveal">
+        <div class="section-label">The Loop</div>
+        <div class="sb-headline">Software that<br><span class="gradient-text-alt">builds itself.</span></div>
+        <p class="sb-sub">
+          AskAlf's internal agent fleet doesn't just run on the platform &mdash; they improve it.
+          Every ticket resolved, every bug fixed, every feature added feeds back into the system
+          that dispatched the work. This isn't CI/CD. It's recursive self-improvement.
+        </p>
+      </div>
+
+      <div class="sb-loop reveal reveal-delay-1">
+        <div class="sb-step">
+          <div class="sb-step-icon">&#128270;</div>
+          <div class="sb-step-content">
+            <div class="sb-step-title">1. The system observes itself</div>
+            <div class="sb-step-desc">
+              Watchdog and QA agents continuously monitor execution health, cost patterns, failure rates,
+              and code quality. They don't wait to be asked &mdash; the heartbeat loop runs at 12 BPM.
+            </div>
+            <div class="sb-step-detail">
+              Watchdog &rarr; "failure rate spike detected: 67% over last hour"
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-step">
+          <div class="sb-step-icon">&#127915;</div>
+          <div class="sb-step-content">
+            <div class="sb-step-title">2. It creates its own tickets</div>
+            <div class="sb-step-desc">
+              Critical findings automatically generate tickets. The system triages severity,
+              assigns the right agent by category, and deduplicates against open work.
+            </div>
+            <div class="sb-step-detail">
+              finding-ops &rarr; ticket created &rarr; assigned to Backend Dev &rarr; priority: urgent
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-step">
+          <div class="sb-step-icon">&#128736;</div>
+          <div class="sb-step-content">
+            <div class="sb-step-title">3. Agents write the fix</div>
+            <div class="sb-step-desc">
+              Backend Dev claims the ticket, reads the codebase via MCP tools, writes the patch,
+              runs tests, and commits. Frontend Dev handles UI. Security hardens auth flows.
+              All working on the platform they run inside.
+            </div>
+            <div class="sb-step-detail">
+              Backend Dev &rarr; git commit -m "fix orphan detection in unified dispatcher"
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-step">
+          <div class="sb-step-icon">&#129504;</div>
+          <div class="sb-step-content">
+            <div class="sb-step-title">4. The brain remembers everything</div>
+            <div class="sb-step-desc">
+              Every execution becomes episodic memory. Every fix becomes procedural knowledge.
+              The system literally gets smarter with each cycle &mdash; dream cycles find connections,
+              consolidation merges redundant knowledge, neuroplasticity adjusts importance weights.
+            </div>
+            <div class="sb-step-detail">
+              17,000+ memories &middot; confidence-weighted &middot; cross-linked via knowledge graph
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-step">
+          <div class="sb-step-icon">&#128260;</div>
+          <div class="sb-step-content">
+            <div class="sb-step-title">5. Next cycle is better than the last</div>
+            <div class="sb-step-desc">
+              The dispatcher runs again. But now the agents have more context, better procedures,
+              and knowledge from every previous execution. The system that dispatches the work
+              is the same system that was improved by the work.
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-loop-back">
+          <div class="sb-loop-arrow">&#x21BA;</div>
+          <div class="sb-loop-text">
+            The loop never stops. Every cycle makes the next one <strong>better</strong>.
+          </div>
+          <div class="sb-loop-arrow">&#x21BA;</div>
+        </div>
+      </div>
+
+      <div class="sb-proof reveal reveal-delay-2">
+        <div class="sb-proof-label">proof of concept</div>
+        <div class="sb-proof-text">
+          This landing page was <em>designed, built, and mobile-optimized</em> by the agent fleet.
+          The knowledge graph above is <em>interactive</em> because Frontend Dev made it so.
+          The bug fixes in the dispatcher were <em>written by Backend Dev</em>.
+          The memory system that stores this knowledge was <em>improved by the system that uses it</em>.
         </div>
       </div>
     </div>
@@ -1467,87 +1828,402 @@
       nav.classList.toggle('scrolled', window.scrollY > 50);
     });
 
-    // ─── Brain canvas — knowledge graph visualization ───
+    // ─── Mobile hamburger menu ───
+    const hamburger = document.getElementById('navHamburger');
+    const navLinks = document.getElementById('navLinks');
+    hamburger.addEventListener('click', () => {
+      hamburger.classList.toggle('open');
+      navLinks.classList.toggle('open');
+      document.body.style.overflow = navLinks.classList.contains('open') ? 'hidden' : '';
+    });
+    navLinks.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', () => {
+        hamburger.classList.remove('open');
+        navLinks.classList.remove('open');
+        document.body.style.overflow = '';
+      });
+    });
+
+    // ─── Brain canvas — interactive knowledge graph ───
     (function() {
       const canvas = document.getElementById('brainCanvas');
-      if (!canvas) return;
+      const container = document.getElementById('brainVis');
+      const tooltip = document.getElementById('brainTooltip');
+      if (!canvas || !container) return;
       const ctx = canvas.getContext('2d');
       let w, h, nodes = [], edges = [];
-      const COLORS = ['#06d6a0', '#7c3aed', '#22d3ee', '#a78bfa', '#fb7185', '#fbbf24', '#60a5fa'];
-      const NODE_COUNT = 60;
+      let mouse = { x: -1000, y: -1000, down: false };
+      let hoveredNode = null, dragNode = null, pinnedNode = null;
+
+      // Entity labels — modeled on actual AskAlf knowledge graph entities
+      const ENTITIES = [
+        { label: 'Backend Dev', type: 'agent', color: '#a78bfa' },
+        { label: 'Frontend Dev', type: 'agent', color: '#fb7185' },
+        { label: 'QA Specialist', type: 'agent', color: '#06d6a0' },
+        { label: 'Security', type: 'agent', color: '#fb923c' },
+        { label: 'Infra', type: 'agent', color: '#22d3ee' },
+        { label: 'Watchdog', type: 'agent', color: '#60a5fa' },
+        { label: 'Researcher', type: 'agent', color: '#fbbf24' },
+        { label: 'Writer', type: 'agent', color: '#4ade80' },
+        { label: 'Analyst', type: 'agent', color: '#38bdf8' },
+        { label: 'Sentinel', type: 'agent', color: '#f87171' },
+        { label: 'Developer', type: 'agent', color: '#8b5cf6' },
+        { label: 'Consolidation', type: 'process', color: '#7c3aed' },
+        { label: 'Dream Cycle', type: 'process', color: '#7c3aed' },
+        { label: 'Neuroplasticity', type: 'process', color: '#7c3aed' },
+        { label: 'Self-Reflection', type: 'process', color: '#7c3aed' },
+        { label: 'Embedding Backfill', type: 'process', color: '#7c3aed' },
+        { label: 'Heartbeat', type: 'system', color: '#06d6a0' },
+        { label: 'Dispatcher', type: 'system', color: '#06d6a0' },
+        { label: 'Forge API', type: 'system', color: '#06d6a0' },
+        { label: 'Dashboard', type: 'system', color: '#22d3ee' },
+        { label: 'PostgreSQL', type: 'infra', color: '#60a5fa' },
+        { label: 'pgvector', type: 'infra', color: '#60a5fa' },
+        { label: 'Redis', type: 'infra', color: '#f87171' },
+        { label: 'Nginx', type: 'infra', color: '#4ade80' },
+        { label: 'SearXNG', type: 'infra', color: '#fbbf24' },
+        { label: 'Semantic Memory', type: 'memory', color: '#a78bfa' },
+        { label: 'Episodic Memory', type: 'memory', color: '#22d3ee' },
+        { label: 'Procedural Memory', type: 'memory', color: '#06d6a0' },
+        { label: 'Working Memory', type: 'memory', color: '#fb7185' },
+        { label: 'Ticket System', type: 'feature', color: '#fbbf24' },
+        { label: 'Orchestrator', type: 'feature', color: '#8b5cf6' },
+        { label: 'Guardrails', type: 'feature', color: '#fb923c' },
+        { label: 'Cost Controls', type: 'feature', color: '#f87171' },
+        { label: 'Audit Log', type: 'feature', color: '#22d3ee' },
+        { label: 'Pipeline', type: 'pattern', color: '#a78bfa' },
+        { label: 'Fan-out', type: 'pattern', color: '#a78bfa' },
+        { label: 'Consensus', type: 'pattern', color: '#a78bfa' },
+        { label: 'Claude API', type: 'provider', color: '#fbbf24' },
+        { label: 'OpenAI API', type: 'provider', color: '#4ade80' },
+        { label: 'Slack', type: 'channel', color: '#38bdf8' },
+        { label: 'Discord', type: 'channel', color: '#8b5cf6' },
+        { label: 'GitHub', type: 'integration', color: '#f0f0f2' },
+        { label: 'Docker', type: 'infra', color: '#60a5fa' },
+        { label: 'MCP Tools', type: 'system', color: '#06d6a0' },
+        { label: 'WebSocket', type: 'system', color: '#22d3ee' },
+      ];
+
+      // Meaningful edges — connections that exist in the real system
+      const EDGE_DEFS = [
+        // Agents → memory
+        [0,25],[1,25],[2,25],[3,25],[4,25],[5,25],
+        [0,26],[1,26],[2,26],[3,26],[5,26],
+        [0,27],[2,27],
+        // Agents → systems
+        [0,18],[1,19],[4,17],[5,17],
+        // Processes → memory
+        [11,25],[11,26],[12,25],[12,26],[13,26],[14,25],
+        // Heartbeat → dispatcher → agents
+        [16,17],[17,0],[17,1],[17,2],[17,3],[17,4],[17,5],
+        // Infra connections
+        [18,20],[18,22],[19,23],[20,21],[18,21],
+        // Features → systems
+        [29,17],[30,17],[31,18],[32,18],[33,18],
+        // Orchestration patterns
+        [30,34],[30,35],[30,36],
+        // Providers
+        [37,18],[38,18],
+        // Channels
+        [39,18],[40,18],
+        // Integrations
+        [41,18],[42,18],[43,18],[44,18],
+        // Cross-connections
+        [28,17],[15,27],[6,24],[7,25],[8,25],[9,31],[10,18],
+      ];
 
       function resize() {
         const rect = canvas.parentElement.getBoundingClientRect();
-        w = canvas.width = rect.width * window.devicePixelRatio;
-        h = canvas.height = rect.height * window.devicePixelRatio;
+        const dpr = window.devicePixelRatio || 1;
+        w = canvas.width = rect.width * dpr;
+        h = canvas.height = rect.height * dpr;
         canvas.style.width = rect.width + 'px';
         canvas.style.height = rect.height + 'px';
-        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
 
       function init() {
         resize();
-        const rw = w / window.devicePixelRatio;
-        const rh = h / window.devicePixelRatio;
+        const rw = w / (window.devicePixelRatio || 1);
+        const rh = h / (window.devicePixelRatio || 1);
         nodes = [];
-        for (let i = 0; i < NODE_COUNT; i++) {
+        // Place nodes with some clustering by type
+        const typeGroups = {};
+        ENTITIES.forEach((e, i) => {
+          if (!typeGroups[e.type]) typeGroups[e.type] = [];
+          typeGroups[e.type].push(i);
+        });
+        const groupKeys = Object.keys(typeGroups);
+        const groupAngle = (2 * Math.PI) / groupKeys.length;
+
+        ENTITIES.forEach((entity, i) => {
+          const gi = groupKeys.indexOf(entity.type);
+          const cx = rw / 2 + Math.cos(groupAngle * gi) * (rw * 0.25);
+          const cy = rh / 2 + Math.sin(groupAngle * gi) * (rh * 0.2);
+          const spread = 60 + Math.random() * 40;
           nodes.push({
-            x: Math.random() * rw,
-            y: Math.random() * rh,
-            vx: (Math.random() - 0.5) * 0.3,
-            vy: (Math.random() - 0.5) * 0.3,
-            r: 2 + Math.random() * 3,
-            color: COLORS[Math.floor(Math.random() * COLORS.length)],
+            x: cx + (Math.random() - 0.5) * spread,
+            y: cy + (Math.random() - 0.5) * spread,
+            vx: (Math.random() - 0.5) * 0.15,
+            vy: (Math.random() - 0.5) * 0.15,
+            r: entity.type === 'agent' ? 5 : entity.type === 'system' ? 4.5 : 3.5,
+            color: entity.color,
+            label: entity.label,
+            type: entity.type,
           });
+        });
+
+        edges = EDGE_DEFS.filter(([i, j]) => i < nodes.length && j < nodes.length);
+      }
+
+      function getConnected(nodeIdx) {
+        const connected = new Set();
+        for (const [i, j] of edges) {
+          if (i === nodeIdx) connected.add(j);
+          if (j === nodeIdx) connected.add(i);
         }
-        edges = [];
+        return connected;
+      }
+
+      function findNearest(mx, my, threshold) {
+        let best = null, bestDist = threshold;
         for (let i = 0; i < nodes.length; i++) {
-          const conns = 1 + Math.floor(Math.random() * 2);
-          for (let c = 0; c < conns; c++) {
-            const j = Math.floor(Math.random() * nodes.length);
-            if (j !== i) edges.push([i, j]);
-          }
+          const dx = nodes[i].x - mx, dy = nodes[i].y - my;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < bestDist) { best = i; bestDist = dist; }
         }
+        return best;
+      }
+
+      // Mouse/touch handlers
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches ? e.touches[0] : e;
+        return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+      }
+
+      canvas.addEventListener('mousemove', (e) => {
+        const p = getPos(e);
+        mouse.x = p.x; mouse.y = p.y;
+        if (dragNode !== null) {
+          nodes[dragNode].x = p.x;
+          nodes[dragNode].y = p.y;
+          nodes[dragNode].vx = 0;
+          nodes[dragNode].vy = 0;
+        }
+        hoveredNode = findNearest(p.x, p.y, 30);
+        updateTooltip(hoveredNode, p);
+      });
+
+      canvas.addEventListener('mouseleave', () => {
+        mouse.x = -1000; mouse.y = -1000;
+        hoveredNode = null;
+        if (dragNode !== null) dragNode = null;
+        tooltip.classList.remove('visible');
+      });
+
+      canvas.addEventListener('mousedown', (e) => {
+        const p = getPos(e);
+        const idx = findNearest(p.x, p.y, 20);
+        if (idx !== null) {
+          dragNode = idx;
+          pinnedNode = (pinnedNode === idx) ? null : idx;
+          canvas.style.cursor = 'grabbing';
+        } else {
+          pinnedNode = null;
+        }
+      });
+
+      canvas.addEventListener('mouseup', () => {
+        dragNode = null;
+        canvas.style.cursor = hoveredNode !== null ? 'grab' : 'crosshair';
+      });
+
+      // Touch support
+      canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const p = getPos(e);
+        mouse.x = p.x; mouse.y = p.y;
+        const idx = findNearest(p.x, p.y, 35);
+        if (idx !== null) {
+          dragNode = idx;
+          pinnedNode = (pinnedNode === idx) ? null : idx;
+          hoveredNode = idx;
+          updateTooltip(idx, p);
+        }
+      }, { passive: false });
+
+      canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const p = getPos(e);
+        mouse.x = p.x; mouse.y = p.y;
+        if (dragNode !== null) {
+          nodes[dragNode].x = p.x;
+          nodes[dragNode].y = p.y;
+          nodes[dragNode].vx = 0;
+          nodes[dragNode].vy = 0;
+        }
+        hoveredNode = findNearest(p.x, p.y, 35);
+        updateTooltip(hoveredNode, p);
+      }, { passive: false });
+
+      canvas.addEventListener('touchend', () => {
+        dragNode = null;
+      });
+
+      function updateTooltip(idx, pos) {
+        if (idx === null && pinnedNode === null) {
+          tooltip.classList.remove('visible');
+          canvas.style.cursor = 'crosshair';
+          return;
+        }
+        const ni = idx !== null ? idx : pinnedNode;
+        const n = nodes[ni];
+        if (!n) return;
+        canvas.style.cursor = 'grab';
+        tooltip.querySelector('.tooltip-type').textContent = n.type;
+        tooltip.querySelector('.tooltip-name').textContent = n.label;
+        tooltip.querySelector('.tooltip-name').style.color = n.color;
+        tooltip.style.left = n.x + 'px';
+        tooltip.style.top = (n.y - 16) + 'px';
+        tooltip.classList.add('visible');
       }
 
       function draw() {
-        const rw = w / window.devicePixelRatio;
-        const rh = h / window.devicePixelRatio;
+        const dpr = window.devicePixelRatio || 1;
+        const rw = w / dpr;
+        const rh = h / dpr;
         ctx.clearRect(0, 0, rw, rh);
 
-        // edges
+        const activeNode = hoveredNode !== null ? hoveredNode : pinnedNode;
+        const connected = activeNode !== null ? getConnected(activeNode) : new Set();
+
+        // Edges
         for (const [i, j] of edges) {
           const a = nodes[i], b = nodes[j];
           const dx = b.x - a.x, dy = b.y - a.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist > 200) continue;
+          if (dist > 300) continue;
+
+          const isHighlighted = activeNode !== null &&
+            (i === activeNode || j === activeNode);
+
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
-          ctx.strokeStyle = `rgba(240,240,242,${0.04 * (1 - dist / 200)})`;
-          ctx.lineWidth = 0.5;
+
+          if (isHighlighted) {
+            const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+            grad.addColorStop(0, a.color + '80');
+            grad.addColorStop(1, b.color + '80');
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 1.5;
+          } else if (activeNode !== null) {
+            ctx.strokeStyle = `rgba(240,240,242,${0.015 * (1 - dist / 300)})`;
+            ctx.lineWidth = 0.3;
+          } else {
+            ctx.strokeStyle = `rgba(240,240,242,${0.05 * (1 - dist / 300)})`;
+            ctx.lineWidth = 0.5;
+          }
           ctx.stroke();
         }
 
-        // nodes
-        for (const n of nodes) {
-          n.x += n.vx; n.y += n.vy;
-          if (n.x < 0 || n.x > rw) n.vx *= -1;
-          if (n.y < 0 || n.y > rh) n.vy *= -1;
+        // Nodes
+        for (let i = 0; i < nodes.length; i++) {
+          const n = nodes[i];
+
+          // Physics — only move if not being dragged
+          if (i !== dragNode) {
+            // Gentle mouse influence
+            if (mouse.x > 0) {
+              const dx = n.x - mouse.x, dy = n.y - mouse.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < 120 && dist > 1) {
+                const force = 0.015 * (1 - dist / 120);
+                n.vx += (dx / dist) * force;
+                n.vy += (dy / dist) * force;
+              }
+            }
+
+            // Light repulsion between nearby nodes
+            for (let j = i + 1; j < nodes.length; j++) {
+              const o = nodes[j];
+              const dx = n.x - o.x, dy = n.y - o.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < 40 && dist > 1) {
+                const force = 0.02 * (1 - dist / 40);
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+                n.vx += fx; n.vy += fy;
+                o.vx -= fx; o.vy -= fy;
+              }
+            }
+
+            // Edge spring force — keep connected nodes somewhat close
+            for (const [ei, ej] of edges) {
+              if (ei !== i && ej !== i) continue;
+              const other = nodes[ei === i ? ej : ei];
+              const dx = other.x - n.x, dy = other.y - n.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              const ideal = 80;
+              if (dist > ideal) {
+                const force = 0.003 * (dist - ideal);
+                n.vx += (dx / dist) * force;
+                n.vy += (dy / dist) * force;
+              }
+            }
+
+            n.vx *= 0.97; n.vy *= 0.97;
+            n.x += n.vx; n.y += n.vy;
+            if (n.x < 10) { n.x = 10; n.vx *= -0.5; }
+            if (n.x > rw - 10) { n.x = rw - 10; n.vx *= -0.5; }
+            if (n.y < 10) { n.y = 10; n.vy *= -0.5; }
+            if (n.y > rh - 10) { n.y = rh - 10; n.vy *= -0.5; }
+          }
+
+          // Determine visual state
+          const isActive = i === activeNode;
+          const isConnected = connected.has(i);
+          const isDimmed = activeNode !== null && !isActive && !isConnected;
+
+          const alpha = isDimmed ? 0.15 : isActive ? 1 : isConnected ? 0.85 : 0.6;
+          const r = isActive ? n.r * 1.8 : isConnected ? n.r * 1.3 : n.r;
+
+          // Glow for active/connected
+          if (isActive || isConnected) {
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, r + (isActive ? 12 : 6), 0, Math.PI * 2);
+            const g = ctx.createRadialGradient(n.x, n.y, r, n.x, n.y, r + (isActive ? 12 : 6));
+            g.addColorStop(0, n.color + (isActive ? '40' : '20'));
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g;
+            ctx.fill();
+          }
+
+          // Node circle
           ctx.beginPath();
-          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
           ctx.fillStyle = n.color;
-          ctx.globalAlpha = 0.6;
+          ctx.globalAlpha = alpha;
           ctx.fill();
           ctx.globalAlpha = 1;
-          // glow
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, n.r + 4, 0, Math.PI * 2);
-          const g = ctx.createRadialGradient(n.x, n.y, n.r, n.x, n.y, n.r + 4);
-          g.addColorStop(0, n.color.replace(')', ',0.15)').replace('rgb', 'rgba'));
-          g.addColorStop(1, 'transparent');
-          ctx.fillStyle = g;
-          ctx.fill();
+
+          // Label for active and connected nodes
+          if (isActive || (isConnected && activeNode !== null)) {
+            ctx.font = (isActive ? '600 11px' : '500 10px') + " 'JetBrains Mono', monospace";
+            ctx.fillStyle = n.color;
+            ctx.globalAlpha = isActive ? 0.95 : 0.7;
+            ctx.textAlign = 'center';
+            ctx.fillText(n.label, n.x, n.y + r + 14);
+            ctx.globalAlpha = 1;
+          }
+        }
+
+        // Update tooltip position for pinned node
+        if (pinnedNode !== null && hoveredNode === null) {
+          const n = nodes[pinnedNode];
+          tooltip.style.left = n.x + 'px';
+          tooltip.style.top = (n.y - 16) + 'px';
         }
 
         requestAnimationFrame(draw);
@@ -1555,7 +2231,7 @@
 
       init();
       draw();
-      window.addEventListener('resize', () => { resize(); });
+      window.addEventListener('resize', () => { init(); });
     })();
 
     // ─── Live feed cycling ───
