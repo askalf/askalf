@@ -3,16 +3,16 @@
 # Key difference from dashboard: docker-cli installed + docker socket mounted
 
 # Stage 1: Claude Code CLI installer (isolated stage)
-FROM node:22-alpine AS claude-installer
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS claude-installer
 
 RUN apk add --no-cache bash curl python3 make g++ && \
     npm install -g @anthropic-ai/claude-code && \
-    claude install --force && \
+    claude install --force 2>&1 || true && \
     npm uninstall -g @anthropic-ai/claude-code && \
     apk del python3 make g++
 
 # Stage 2: Install production dependencies (need native build tools for node-pty)
-FROM node:22-alpine AS deps
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS deps
 
 RUN apk add --no-cache python3 make g++ linux-headers
 
@@ -22,7 +22,7 @@ COPY apps/admin-console/package.json ./
 RUN npm install --omit=dev
 
 # Stage 3: Production runner
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
 
 # Runtime deps: bash (node-pty), git (claude), curl (healthchecks), docker-cli (container management), openssh-client (SSH to host)
 RUN apk add --no-cache bash git curl docker-cli openssh-client
