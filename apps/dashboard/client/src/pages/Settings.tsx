@@ -2190,7 +2190,7 @@ function DevicesTab() {
       {devices.length > 0 && (
         <div className="settings-intg-category">
           <h3 className="settings-intg-category-label">Connected</h3>
-          <div className="settings-intg-grid" style={{ gridTemplateColumns: '1fr' }}>
+          <div className="settings-intg-grid">
             {devices.map((device) => {
               const typeDef = DEVICE_TYPES.find(dt => dt.id === (device.device_type || 'cli'));
               return (
