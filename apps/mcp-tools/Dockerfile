@@ -2,6 +2,9 @@
 # Consolidates mcp-workflow + mcp-data + mcp-infra into one container.
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS builder
 
+# Install build dependencies for native modules (node-pty from workspace peers)
+RUN apk add --no-cache python3 make g++ linux-headers
+
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 WORKDIR /app
