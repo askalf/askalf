@@ -9,6 +9,46 @@ const GraphTab = lazy(() => import('./GraphTab'));
 
 type SubTab = 'memory' | 'graph' | 'analytics';
 
+interface BrainCycle {
+  cycle: string;
+  intervalHours: number;
+  lastRun: string | null;
+  lastDurationMs: number;
+  runCount: number;
+  lastError: string | null;
+  status: 'healthy' | 'stale' | 'failed' | 'unknown';
+}
+
+interface HotMemory {
+  id: string;
+  content: string;
+  access_count: number;
+  importance: number;
+  agent_id: string;
+}
+
+interface BrainActivityData {
+  cycles: BrainCycle[];
+  memory: { semantic: number; episodic: number; procedural: number };
+  activity: {
+    created_last_24h: { semantic: number; episodic: number; procedural: number };
+    hot_memories: HotMemory[];
+    growth_trend: { hour: string; count: number }[];
+    cross_agent_transfers: number;
+  };
+}
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return 'never';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 interface FleetStats {
   total: number;
   semantic: number;
@@ -21,6 +61,94 @@ interface LeaderboardEntry {
   agentId: string;
   name?: string;
   memoryCount: number;
+}
+
+// ── BrainActivityPanel sub-component ──
+
+const CYCLE_STATUS_COLOR: Record<BrainCycle['status'], string> = {
+  healthy: 'var(--status-healthy, #10b981)',
+  stale: '#f59e0b',
+  failed: 'var(--status-error, #ef4444)',
+  unknown: 'var(--text-muted, #52525b)',
+};
+
+function BrainActivityPanel() {
+  const [data, setData] = useState<BrainActivityData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/v1/admin/memory/brain-activity', { credentials: 'include' });
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      setData(await res.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load brain activity');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  if (loading) return <div className="brain-activity-loading">Loading brain activity...</div>;
+  if (error) return (
+    <div className="brain-activity-error">
+      <span>{error}</span>
+      <button className="brain-retry-btn" onClick={fetchData}>Retry</button>
+    </div>
+  );
+  if (!data) return null;
+
+  const hotMemories = (data.activity?.hot_memories ?? []).slice(0, 5);
+
+  return (
+    <div className="brain-activity-panel">
+      {/* Cycle status */}
+      <div className="brain-section">
+        <h3 className="brain-section-title">Consolidation Cycles</h3>
+        <div className="brain-cycles">
+          {data.cycles.map((c) => (
+            <div key={c.cycle} className="brain-cycle-row">
+              <span
+                className="brain-cycle-dot"
+                style={{ background: CYCLE_STATUS_COLOR[c.status] }}
+                title={c.status}
+              />
+              <span className="brain-cycle-name">{c.cycle}</span>
+              <span className="brain-cycle-last">
+                {timeAgo(c.lastRun)}
+                {c.lastDurationMs > 0 && ` · ${c.lastDurationMs}ms`}
+              </span>
+              <span className="brain-cycle-count">{c.runCount}×</span>
+              {c.lastError && (
+                <span className="brain-cycle-error" title={c.lastError}>!</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Hot memories */}
+      {hotMemories.length > 0 && (
+        <div className="brain-section">
+          <h3 className="brain-section-title">Hot Memories</h3>
+          <div className="brain-hot-memories">
+            {hotMemories.map((m) => (
+              <div key={m.id} className="brain-hot-row">
+                <span className="brain-hot-count">{m.access_count}×</span>
+                <span className="brain-hot-content" title={m.content}>
+                  {m.content.length > 120 ? m.content.slice(0, 120) + '…' : m.content}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── BrainAnalytics sub-component ──
@@ -187,6 +315,9 @@ function BrainAnalytics() {
           </div>
         </div>
       )}
+
+      {/* Brain activity — cycles + hot memories */}
+      <BrainActivityPanel />
     </div>
   );
 }
