@@ -103,6 +103,34 @@ let initialized = false;
 const runningCliProcesses = new Map<string, ChildProcess>();
 
 /**
+ * Monitor memory usage and emit warnings when approaching container limits.
+ * Helps diagnose OOM issues before they kill processes silently.
+ */
+function monitorMemoryUsage(executionId: string): void {
+  const checkInterval = setInterval(() => {
+    try {
+      const usage = process.memoryUsage();
+      const heapUsedMb = Math.round(usage.heapUsed / 1024 / 1024);
+      const heapTotalMb = Math.round(usage.heapTotal / 1024 / 1024);
+      const rssMb = Math.round(usage.rss / 1024 / 1024);
+      // Container limit is typically 4GB (4096M); warn at 3GB (75%)
+      if (rssMb > 3072) {
+        logger.warn(
+          `[MEMORY] Execution ${executionId}: high memory usage (heap: ${heapUsedMb}/${heapTotalMb}MB, rss: ${rssMb}MB). ` +
+          `Approaching container limit — may trigger OOM killer.`
+        );
+      }
+    } catch {
+      // Ignore memory check errors
+    }
+  }, 30000); // Check every 30 seconds
+
+  // Store interval ID so we can clear it later
+  const intervalKey = `memory_monitor_${executionId}`;
+  (globalThis as Record<string, unknown>)[intervalKey] = checkInterval;
+}
+
+/**
  * Returns the number of currently running CLI execution processes.
  */
 export function getRunningExecutionCount(): number {
@@ -1881,13 +1909,33 @@ function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
     } else if (!parsed['type'] && exitCode !== 0) {
       isError = true;
     }
+
+    // Populate diagnostics when JSON parsed OK but execution failed
+    if (isError && !diagnostics) {
+      const errField = parsed['error'] as string | undefined;
+      const msgField = parsed['message'] as string | undefined;
+      const sub = parsed['subtype'] as string | undefined;
+      if (errField) {
+        diagnostics = errField.substring(0, 300);
+      } else if (msgField) {
+        diagnostics = msgField.substring(0, 300);
+      } else if (sub) {
+        diagnostics = `CLI error subtype: ${sub} (exit code: ${exitCode}, turns: ${numTurns})`;
+      } else {
+        diagnostics = `CLI process failed (exit code: ${exitCode}, turns: ${numTurns}, tokens: ${inputTokens + outputTokens})`;
+      }
+    }
   } catch {
     logger.error(`[CLI] JSON parse failed for stdout (first 200): ${stdout.substring(0, 200)}`);
     if (stderr) logger.error(`[CLI] stderr (first 500): ${stderr.substring(0, 500)}`);
     if (exitCode !== 0) {
       isError = true;
-      // Provide diagnostic info when JSON parsing fails
-      if (stdout.length === 0) {
+      // Provide diagnostic info when JSON parsing fails, with special handling for signal exits
+      if (exitCode === 137) {
+        diagnostics = `CLI process killed by OOM (exit code: ${exitCode}). Memory limit exceeded — increase container memory or reduce concurrent executions.`;
+      } else if (exitCode === 143) {
+        diagnostics = `CLI process terminated (exit code: ${exitCode}). Process received SIGTERM — possible timeout or resource limit.`;
+      } else if (stdout.length === 0) {
         diagnostics = `CLI process produced no output (exit code: ${exitCode})`;
       } else if (stderr) {
         diagnostics = `CLI process error: ${stderr.substring(0, 200)}`;
@@ -2288,6 +2336,9 @@ export async function runDirectCliExecution(
       args.push('--model', options.modelId);
       logger.info(`[CLI] Using model: ${options.modelId}`);
     }
+
+    // Monitor memory usage during execution
+    monitorMemoryUsage(executionId);
 
     // Execute CLI with retry for transient failures
     const result = await withRetry(
