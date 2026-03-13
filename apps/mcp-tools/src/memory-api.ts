@@ -14455,7 +14455,7 @@ async function generateCompoundSituation(p: ReturnType<typeof getForgePool>): Pr
         -- System totals
         (SELECT COUNT(*) FROM forge_executions WHERE status='failed' AND created_at > NOW()-INTERVAL '6h')::int as recent_fails,
         (SELECT COALESCE(SUM(cost),0)::numeric(10,2) FROM forge_executions WHERE created_at > NOW()-INTERVAL '6h') as recent_cost,
-        (SELECT COUNT(*) FROM agent_tickets WHERE status='open')::int as open_tickets,
+        (SELECT COUNT(*) FROM agent_tickets WHERE status='open' AND category NOT IN ('system_stress','compound_alert'))::int as open_tickets,
         (SELECT COUNT(*) FROM agent_interventions WHERE status='pending')::int as pending_interventions
     `);
 
@@ -14486,7 +14486,7 @@ async function generateCompoundSituation(p: ReturnType<typeof getForgePool>): Pr
     }
 
     // System-wide stress detection
-    const stressScore = (recentFails > 10 ? 1 : 0) + (recentCost > 30 ? 1 : 0) + (openTickets > 10 ? 1 : 0) + (pendingIv > 5 ? 1 : 0);
+    const stressScore = (recentFails > 30 ? 1 : 0) + (recentCost > 100 ? 1 : 0) + (openTickets > 20 ? 1 : 0) + (pendingIv > 10 ? 1 : 0);
     if (stressScore >= 2) {
       return `SYSTEM STRESS: score=${stressScore}/4. ${recentFails} fails, $${recentCost} cost, ${openTickets} open tickets, ${pendingIv} pending interventions. Multiple subsystems under pressure.`;
     }
