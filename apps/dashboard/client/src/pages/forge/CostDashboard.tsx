@@ -6,6 +6,16 @@ import './forge-observe.css';
 
 type CostView = 'all' | 'api' | 'cli';
 
+type HourlyForecast = { hour: string; predicted_cost: number; confidence: number };
+type ForecastData = {
+  hourly_forecast: HourlyForecast[];
+  total_predicted: number;
+  confidence_range: { low: number; high: number };
+  avg_confidence: number;
+};
+
+type ForecastDay = { date: string; predicted: number; avgConfidence: number };
+
 export default function CostDashboard() {
   const costSummary = useHubStore((s) => s.costSummary);
   const dailyCosts = useHubStore((s) => s.dailyCosts);
@@ -18,6 +28,7 @@ export default function CostDashboard() {
   const loading = useHubStore((s) => s.loading);
   const [view, setView] = useState<CostView>('all');
   const [budgetLimit, setBudgetLimit] = useState<{ perExecution: number; perDay: number } | null>(null);
+  const [forecast, setForecast] = useState<ForecastData | null>(null);
 
   const poll = useCallback(() => { fetchCosts(); }, [fetchCosts]);
   usePolling(poll, 30000);
@@ -37,6 +48,14 @@ export default function CostDashboard() {
           });
         }
       })
+      .catch(() => {});
+  }, []);
+
+  // Fetch forecast data
+  useEffect(() => {
+    fetch('/api/v1/admin/costs/forecast?horizon=7d', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: ForecastData | null) => { if (data) setForecast(data); })
       .catch(() => {});
   }, []);
 
@@ -89,6 +108,46 @@ export default function CostDashboard() {
     if (!sortedAgentCosts.length) return 1;
     return Math.max(...sortedAgentCosts.map((a) => a.totalCost), 0.0001);
   }, [sortedAgentCosts]);
+
+  // Aggregate hourly forecast into daily buckets (future days only)
+  const forecastDays = useMemo<ForecastDay[]>(() => {
+    if (!forecast?.hourly_forecast?.length) return [];
+    const today = new Date().toISOString().slice(0, 10);
+    const map: Record<string, { predicted: number; totalConf: number; count: number }> = {};
+    for (const h of forecast.hourly_forecast) {
+      const date = h.hour.slice(0, 10);
+      if (date <= today) continue;
+      if (!map[date]) map[date] = { predicted: 0, totalConf: 0, count: 0 };
+      map[date].predicted += h.predicted_cost;
+      map[date].totalConf += h.confidence;
+      map[date].count++;
+    }
+    return Object.entries(map)
+      .map(([date, v]) => ({ date, predicted: v.predicted, avgConfidence: v.count ? v.totalConf / v.count : 0 }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 7);
+  }, [forecast]);
+
+  // Combined chart max so historical and forecast share same Y scale
+  const chartMax = useMemo(() => {
+    const maxForecast = forecastDays.length ? Math.max(...forecastDays.map((d) => d.predicted)) : 0;
+    return Math.max(maxDailyCost, maxForecast, 0.01);
+  }, [maxDailyCost, forecastDays]);
+
+  // Confidence band: scale global confidence_range proportionally to each day's predicted
+  const forecastConfidenceFactors = useMemo(() => {
+    if (!forecast || !forecast.total_predicted) return { low: 0.9, high: 1.1 };
+    return {
+      low: forecast.confidence_range.low / forecast.total_predicted,
+      high: forecast.confidence_range.high / forecast.total_predicted,
+    };
+  }, [forecast]);
+
+  // Check if forecast exceeds per-day budget
+  const forecastExceedsBudget = useMemo(() => {
+    if (!budgetLimit?.perDay || !forecastDays.length) return false;
+    return forecastDays.some((d) => d.predicted > budgetLimit.perDay);
+  }, [forecastDays, budgetLimit]);
 
   const fmt = (n: number, decimals = 2) => {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -210,9 +269,18 @@ export default function CostDashboard() {
         </div>
       )}
 
-      {/* Bar chart */}
+      {/* Bar chart with forecast overlay */}
       <div className="cost-chart-panel">
-        <div className="cost-chart-title">Daily Spend — {viewLabel}</div>
+        <div className="cost-chart-title-row">
+          <span className="cost-chart-title">Daily Spend — {viewLabel}</span>
+          {forecastDays.length > 0 && (
+            <div className="cost-forecast-legend">
+              <span className="cost-forecast-legend-bar" />
+              <span className="cost-forecast-legend-band" />
+              <span className="cost-forecast-legend-label">7-day forecast · confidence band</span>
+            </div>
+          )}
+        </div>
         {loading['costs'] && sortedDaily.length === 0 ? (
           <div className="cost-chart-empty">Loading cost data...</div>
         ) : sortedDaily.length === 0 ? (
@@ -220,7 +288,7 @@ export default function CostDashboard() {
         ) : (
           <div className="cost-chart">
             {dailyForView.map((day) => {
-              const pct = Math.max((day.viewCost / maxDailyCost) * 100, 2);
+              const pct = Math.max((day.viewCost / chartMax) * 100, 2);
               const isToday = day.date.slice(0, 10) === new Date().toISOString().slice(0, 10);
               return (
                 <div key={day.date} className={`cost-bar-col ${isToday ? 'cost-bar-today' : ''}`}>
@@ -242,6 +310,76 @@ export default function CostDashboard() {
                 </div>
               );
             })}
+
+            {/* Forecast section */}
+            {forecastDays.length > 0 && (
+              <>
+                {/* Divider between historical and forecast */}
+                <div className="cost-forecast-divider" aria-hidden="true">
+                  <div className="cost-forecast-divider-line" />
+                </div>
+
+                {forecastDays.map((day) => {
+                  const pct = Math.max((day.predicted / chartMax) * 100, 2);
+                  const lowPct = Math.max((day.predicted * forecastConfidenceFactors.low / chartMax) * 100, 0);
+                  const highPct = Math.min((day.predicted * forecastConfidenceFactors.high / chartMax) * 100, 100);
+                  const exceedsBudget = budgetLimit?.perDay ? day.predicted > budgetLimit.perDay : false;
+                  const dateLabel = day.date.slice(5); // MM-DD
+                  return (
+                    <div key={`fc-${day.date}`} className={`cost-bar-col cost-bar-forecast-col${exceedsBudget ? ' cost-bar-forecast-over' : ''}`}>
+                      <div className="cost-bar-tooltip cost-forecast-tooltip">
+                        <div className="cost-bar-tip-date">{dateLabel} · forecast</div>
+                        <div className="cost-bar-tip-cost">${day.predicted.toFixed(4)}</div>
+                        <div className="cost-bar-tip-meta">
+                          confidence {Math.round(day.avgConfidence * 100)}%
+                        </div>
+                        <div className="cost-bar-tip-meta">
+                          range ${(day.predicted * forecastConfidenceFactors.low).toFixed(2)}–${(day.predicted * forecastConfidenceFactors.high).toFixed(2)}
+                        </div>
+                        {exceedsBudget && (
+                          <div className="cost-forecast-tip-warn">⚠ exceeds daily budget</div>
+                        )}
+                      </div>
+                      <div className="cost-bar-track cost-bar-track-forecast">
+                        {/* Confidence band */}
+                        <div
+                          className="cost-forecast-band"
+                          style={{
+                            bottom: `${lowPct}%`,
+                            height: `${Math.max(highPct - lowPct, 2)}%`,
+                          }}
+                        />
+                        {/* Predicted bar */}
+                        <div
+                          className={`cost-bar-fill cost-bar-fill-forecast${exceedsBudget ? ' cost-bar-fill-forecast-over' : ''}`}
+                          style={{ height: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="cost-bar-date cost-bar-date-forecast">{day.date.slice(8)}</div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Forecast callout */}
+        {forecast && forecastDays.length > 0 && (
+          <div className={`cost-forecast-callout${forecastExceedsBudget ? ' cost-forecast-callout-warn' : ''}`}>
+            <div className="cost-forecast-callout-main">
+              <span className="cost-forecast-callout-label">7-day forecast</span>
+              <span className={`cost-forecast-callout-value${forecastExceedsBudget ? ' cost-forecast-over-value' : ''}`}>
+                ${forecast.total_predicted.toFixed(2)}
+              </span>
+            </div>
+            <div className="cost-forecast-callout-meta">
+              range ${forecast.confidence_range.low.toFixed(2)}–${forecast.confidence_range.high.toFixed(2)}
+              {' · '}avg confidence {Math.round(forecast.avg_confidence * 100)}%
+              {forecastExceedsBudget && (
+                <span className="cost-forecast-budget-warn"> · ⚠ projected to exceed daily budget</span>
+              )}
+            </div>
           </div>
         )}
       </div>

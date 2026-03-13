@@ -1635,6 +1635,180 @@
 .cost-tip-cli { color: #60a5fa; }
 
 /* ==========================================
+   Cost Forecast Overlay
+   ========================================== */
+
+.cost-chart-title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.cost-chart-title-row .cost-chart-title {
+  margin-bottom: 0;
+}
+
+.cost-forecast-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.cost-forecast-legend-bar {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  background: linear-gradient(180deg, rgba(251, 146, 60, 0.85), rgba(251, 146, 60, 0.3));
+  border: 1px dashed rgba(251, 146, 60, 0.7);
+  border-radius: 2px;
+}
+
+.cost-forecast-legend-band {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  background: rgba(251, 146, 60, 0.15);
+  border: 1px dashed rgba(251, 146, 60, 0.35);
+  border-radius: 2px;
+}
+
+.cost-forecast-legend-label {
+  color: var(--text-muted);
+}
+
+/* Divider between historical and forecast bars */
+.cost-forecast-divider {
+  width: 2px;
+  min-width: 2px;
+  max-width: 2px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.cost-forecast-divider-line {
+  width: 1px;
+  flex: 1;
+  margin-bottom: 18px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.05));
+  border-left: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+/* Forecast bar columns */
+.cost-bar-forecast-col .cost-bar-date {
+  color: rgba(251, 146, 60, 0.6);
+}
+
+.cost-bar-track-forecast {
+  position: relative;
+}
+
+/* Confidence band — absolutely positioned within track */
+.cost-forecast-band {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  background: rgba(251, 146, 60, 0.12);
+  border: 1px dashed rgba(251, 146, 60, 0.35);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* Forecast predicted bar */
+.cost-bar-fill-forecast {
+  background: linear-gradient(180deg, rgba(251, 146, 60, 0.85), rgba(251, 146, 60, 0.3));
+  border: 1px dashed rgba(251, 146, 60, 0.7);
+  border-bottom: none;
+  border-radius: 3px 3px 0 0;
+  position: relative;
+  z-index: 1;
+}
+
+.cost-bar-forecast-col:hover .cost-bar-fill-forecast {
+  background: linear-gradient(180deg, rgba(251, 146, 60, 1), rgba(251, 146, 60, 0.5));
+}
+
+/* Over-budget forecast bars */
+.cost-bar-fill-forecast-over {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.9), rgba(239, 68, 68, 0.35)) !important;
+  border-color: rgba(239, 68, 68, 0.7) !important;
+}
+
+.cost-bar-forecast-over:hover .cost-bar-fill-forecast-over {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 1), rgba(239, 68, 68, 0.55)) !important;
+}
+
+/* Forecast tooltip */
+.cost-forecast-tooltip {
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+.cost-forecast-tip-warn {
+  font-size: 0.65rem;
+  color: #ef4444;
+  margin-top: 3px;
+  font-weight: 600;
+}
+
+/* Forecast callout summary */
+.cost-forecast-callout {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: rgba(251, 146, 60, 0.06);
+  border: 1px solid rgba(251, 146, 60, 0.2);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cost-forecast-callout-warn {
+  background: rgba(239, 68, 68, 0.07);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.cost-forecast-callout-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.cost-forecast-callout-label {
+  font-size: 0.75rem;
+  color: rgba(251, 146, 60, 0.8);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cost-forecast-callout-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgba(251, 146, 60, 0.95);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.cost-forecast-over-value {
+  color: #ef4444 !important;
+}
+
+.cost-forecast-callout-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.cost-forecast-budget-warn {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* ==========================================
    Audit Log — Expandable Rows
    ========================================== */
 
