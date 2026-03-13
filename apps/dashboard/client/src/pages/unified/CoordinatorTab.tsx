@@ -1,13 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useHubStore } from '../../stores/hub';
 import { useToast } from '../../components/Toast';
 import type { ForgeEvent } from '../../constants/status';
 import FleetCoordination from '../hub/FleetCoordination';
+import PipelineVisualization from '../hub/PipelineVisualization';
 import '../hub/FleetCoordination.css';
 import './CoordinatorTab.css';
 
 export default function CoordinatorTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] }) {
   const { addToast } = useToast();
+  const [view, setView] = useState<'visualization' | 'sessions'>('visualization');
   const fetchAgents = useHubStore((s) => s.fetchAgents);
   const fetchSessions = useHubStore((s) => s.fetchCoordinationSessions);
   const fetchStats = useHubStore((s) => s.fetchCoordinationStats);
@@ -53,8 +55,23 @@ export default function CoordinatorTab({ wsEvents = [] }: { wsEvents?: ForgeEven
         </div>
         <p className="coordinator-subtitle">Pipeline &middot; Fan-Out &middot; Consensus</p>
       </div>
+      <div className="coordinator-view-toggle">
+        <button
+          className={`coordinator-toggle-btn ${view === 'visualization' ? 'active' : ''}`}
+          onClick={() => setView('visualization')}
+        >
+          Pipeline Flow
+        </button>
+        <button
+          className={`coordinator-toggle-btn ${view === 'sessions' ? 'active' : ''}`}
+          onClick={() => setView('sessions')}
+        >
+          Team Sessions
+        </button>
+      </div>
       <div className="coordinator-content">
-        <FleetCoordination />
+        {view === 'visualization' && <PipelineVisualization />}
+        {view === 'sessions' && <FleetCoordination />}
       </div>
     </div>
   );
