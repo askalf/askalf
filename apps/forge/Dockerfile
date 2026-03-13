@@ -6,15 +6,28 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 WORKDIR /app
 
-# Copy workspace files
+# Copy workspace files — all package.json files needed for frozen lockfile resolution
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
-COPY apps/forge ./apps/forge
-COPY packages/email ./packages/email
-COPY packages/core ./packages/core
-COPY packages/observability ./packages/observability
+COPY packages/core/package.json ./packages/core/package.json
+COPY packages/observability/package.json ./packages/observability/package.json
+COPY packages/database/package.json ./packages/database/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/auth/package.json ./packages/auth/package.json
+COPY packages/email/package.json ./packages/email/package.json
+COPY packages/agent-cli/package.json ./packages/agent-cli/package.json
+COPY apps/forge/package.json ./apps/forge/package.json
+COPY apps/dashboard/package.json ./apps/dashboard/package.json
+COPY apps/mcp-tools/package.json ./apps/mcp-tools/package.json
+COPY apps/admin-console/package.json ./apps/admin-console/package.json
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
+
+# Copy full source for packages we need to build
+COPY packages/core ./packages/core
+COPY packages/observability ./packages/observability
+COPY packages/email ./packages/email
+COPY apps/forge ./apps/forge
 
 # Build workspace dependencies first, then forge
 RUN pnpm --filter @askalf/core build && \
