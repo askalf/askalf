@@ -21,7 +21,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         status?: string; source?: string; assigned_to?: string;
         filter?: string; page?: string; limit?: string; after_cursor?: string;
       };
-      const conditions: string[] = [];
+      const conditions: string[] = ['deleted_at IS NULL'];
       const params: unknown[] = [];
       const page = Math.max(parseInt(qs.page ?? '1') || 1, 1);
       const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '20') || 20, 200));

@@ -851,6 +851,7 @@ function IntegrationsTab() {
   const [available, setAvailable] = useState<AvailableProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [testing, setTesting] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [expandedRepos, setExpandedRepos] = useState<string | null>(null);
   const [repos, setRepos] = useState<Array<{ id: string; repo_full_name: string; is_private: boolean; language: string | null }>>([]);
@@ -934,6 +935,29 @@ function IntegrationsTab() {
       setMessage({ type: 'error', text: 'Failed to sync repos' });
     } finally {
       setSyncing(null);
+    }
+  };
+
+  const handleTestIntegration = async (id: string, provider: string) => {
+    setTesting(id);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/integrations/${id}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      const data = await res.json() as { success?: boolean; message?: string; error?: string };
+      if (data.success) {
+        setMessage({ type: 'success', text: `${PROVIDER_LABELS[provider] ?? provider}: Credentials verified` });
+        fetchData();
+      } else {
+        setMessage({ type: 'error', text: data.message ?? data.error ?? 'Test failed' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Network error testing integration' });
+    } finally {
+      setTesting(null);
     }
   };
 
@@ -1045,6 +1069,14 @@ function IntegrationsTab() {
                     title="View repos"
                   >
                     {expandedRepos === intg.id ? 'Hide' : 'Repos'}
+                  </button>
+                  <button
+                    className="settings-btn-sm"
+                    onClick={() => handleTestIntegration(intg.id, intg.provider)}
+                    disabled={testing === intg.id}
+                    title="Test credentials"
+                  >
+                    {testing === intg.id ? 'Testing...' : 'Test'}
                   </button>
                   <button
                     className="settings-btn-sm"
@@ -1177,6 +1209,9 @@ interface BudgetData {
   spentThisMonth: number;
 }
 
+interface AgentCostRow { agentId: string; agentName: string; totalCost: number; totalEvents: number }
+interface GuardrailRow { id: string; name: string; type: string; config: Record<string, unknown>; is_enabled: boolean; is_global: boolean; agent_ids: string[] }
+
 function CostControlsTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1185,9 +1220,13 @@ function CostControlsTab() {
   const [monthlyLimit, setMonthlyLimit] = useState('');
   const [spentToday, setSpentToday] = useState(0);
   const [spentThisMonth, setSpentThisMonth] = useState(0);
+  const [agentCosts, setAgentCosts] = useState<AgentCostRow[]>([]);
+  const [costGuardrails, setCostGuardrails] = useState<GuardrailRow[]>([]);
 
   useEffect(() => {
     fetchBudget();
+    fetchCostBreakdown();
+    fetchGuardrails();
   }, []);
 
   const fetchBudget = async () => {
@@ -1202,6 +1241,26 @@ function CostControlsTab() {
       }
     } catch { /* ignore */ }
     setLoading(false);
+  };
+
+  const fetchCostBreakdown = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/costs?days=1`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { byAgent?: AgentCostRow[] };
+        if (data.byAgent) setAgentCosts(data.byAgent.sort((a, b) => b.totalCost - a.totalCost));
+      }
+    } catch { /* ignore */ }
+  };
+
+  const fetchGuardrails = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/guardrails`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { guardrails?: GuardrailRow[] };
+        if (data.guardrails) setCostGuardrails(data.guardrails.filter(g => g.type === 'cost_limit'));
+      }
+    } catch { /* ignore */ }
   };
 
   const handleSave = async () => {
@@ -1386,6 +1445,47 @@ function CostControlsTab() {
         </div>
       </div>
 
+      {/* Agent cost breakdown (today) */}
+      {agentCosts.length > 0 && (
+        <div className="settings-cost-info" style={{ marginTop: 'var(--space-lg)' }}>
+          <div className="settings-cost-info-title">Agent Cost Breakdown (Today)</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+            {agentCosts.map(ac => (
+              <div key={ac.agentId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontWeight: 500 }}>{ac.agentName || ac.agentId}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
+                  ${ac.totalCost.toFixed(4)} <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>({ac.totalEvents} calls)</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active cost guardrails */}
+      {costGuardrails.length > 0 && (
+        <div className="settings-cost-info" style={{ marginTop: 'var(--space-lg)' }}>
+          <div className="settings-cost-info-title">Active Cost Guardrails</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+            {costGuardrails.map(g => (
+              <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+                <div>
+                  <span style={{ fontWeight: 500 }}>{g.name}</span>
+                  <span style={{ marginLeft: '8px', fontSize: '11px', color: g.is_enabled ? 'var(--accent)' : 'var(--text-muted)' }}>
+                    {g.is_enabled ? 'Active' : 'Disabled'}
+                  </span>
+                </div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-dim)' }}>
+                  {g.config.maxCostPerDay ? `$${g.config.maxCostPerDay}/day` : ''}
+                  {g.config.maxCostPerExecution ? ` $${g.config.maxCostPerExecution}/exec` : ''}
+                  {g.is_global ? ' (global)' : ` (${g.agent_ids.length} agent${g.agent_ids.length !== 1 ? 's' : ''})`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="settings-cost-info">
         <div className="settings-cost-info-title">How cost controls work</div>
         <ul>
@@ -1393,6 +1493,7 @@ function CostControlsTab() {
           <li>Daily and monthly limits apply across all your agents combined</li>
           <li>When a limit is reached, new executions are blocked until the period resets</li>
           <li>Cost tracking resets daily at midnight UTC and monthly on the 1st</li>
+          <li>Cost guardrails provide per-agent and global enforcement rules</li>
         </ul>
       </div>
     </div>
@@ -1782,14 +1883,14 @@ function ChannelsTab() {
                             {saving === ch.type ? 'Saving...' : isConnected ? 'Update' : 'Save'}
                           </button>
                           {isConnected && (
-                            <>
-                              <button className="settings-btn-sm" onClick={() => handleTest(ch.type)} disabled={testing === ch.type}>
-                                {testing === ch.type ? 'Testing...' : 'Test'}
-                              </button>
-                              <button className="settings-btn-sm settings-btn-danger" onClick={() => handleDisconnect(ch.type)}>
-                                Disconnect
-                              </button>
-                            </>
+                            <button className="settings-btn-sm" onClick={() => handleTest(ch.type)} disabled={testing === ch.type}>
+                              {testing === ch.type ? 'Testing...' : 'Test'}
+                            </button>
+                          )}
+                          {isConnected && (
+                            <button className="settings-btn-sm settings-btn-danger" onClick={() => handleDisconnect(ch.type)}>
+                              Disconnect
+                            </button>
                           )}
                         </div>
                       </div>
