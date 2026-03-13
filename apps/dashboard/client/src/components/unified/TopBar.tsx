@@ -84,6 +84,20 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
     window.location.href = '/command-center';
   };
 
+  // Heartbeat indicator — check dispatcher status
+  const [heartbeatAlive, setHeartbeatAlive] = useState(false);
+  useEffect(() => {
+    const checkHeartbeat = () => {
+      fetch('/api/v1/forge/daemons', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setHeartbeatAlive(data.active_count > 0); })
+        .catch(() => setHeartbeatAlive(false));
+    };
+    checkHeartbeat();
+    const timer = setInterval(checkHeartbeat, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   const healthColor = wsConnected ? '#22c55e' : '#ef4444';
   const healthLabel = wsConnected ? 'Healthy' : 'Disconnected';
   const userName = user?.displayName || user?.name;
@@ -102,6 +116,19 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
         <span className="ud-topbar-label" aria-label={`Connection status: ${healthLabel}`}>{healthLabel}</span>
         <span className="ud-topbar-divider" />
         <span className="ud-topbar-stat">{agentCount} running</span>
+        <span className="ud-topbar-divider" />
+        <span className="ud-topbar-stat" title="Autonomous heartbeat — continuous dispatch loop">
+          <span
+            className="ud-health-dot"
+            style={{
+              background: heartbeatAlive ? '#06d6a0' : '#6b7280',
+              marginRight: 4,
+              animation: heartbeatAlive ? 'topbar-pulse 5s ease-in-out infinite' : 'none',
+            }}
+            aria-hidden="true"
+          />
+          {heartbeatAlive ? '12 BPM' : 'Idle'}
+        </span>
         <span className="ud-topbar-divider" />
         <span
           className={`ud-topbar-stat${budgetLimit && todayCost / budgetLimit > 0.8 ? todayCost / budgetLimit >= 1 ? ' ud-topbar-cost-over' : ' ud-topbar-cost-warn' : ''}`}

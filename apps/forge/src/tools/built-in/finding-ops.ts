@@ -134,7 +134,8 @@ export async function findingOps(input: FindingOpsInput): Promise<ToolResult> {
           const ticketTitle = `[CRITICAL] ${input.finding.substring(0, 100)}`;
           const existing = await p.query(
             `SELECT id FROM agent_tickets
-             WHERE status IN ('open', 'in_progress')
+             WHERE deleted_at IS NULL
+               AND status IN ('open', 'in_progress')
                AND title = $1
              LIMIT 1`,
             [ticketTitle],

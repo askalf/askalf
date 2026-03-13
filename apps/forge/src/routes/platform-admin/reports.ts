@@ -108,8 +108,8 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
         substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM users'),
         substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE last_login_at > NOW() - INTERVAL '24 hours'`),
         substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE created_at > NOW() - INTERVAL '7 days'`),
-        substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM agent_tickets'),
-        substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM agent_tickets WHERE status IN ('open', 'in_progress')`),
+        substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM agent_tickets WHERE deleted_at IS NULL'),
+        substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM agent_tickets WHERE deleted_at IS NULL AND status IN ('open', 'in_progress')`),
       ]);
 
       return {

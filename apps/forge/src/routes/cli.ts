@@ -53,7 +53,7 @@ export async function cliRoutes(app: FastifyInstance): Promise<void> {
           title: string; status: string; priority: string; assigned_to: string | null;
         }>(
           `SELECT title, status, priority, assigned_to
-           FROM agent_tickets WHERE status IN ('open', 'in_progress')
+           FROM agent_tickets WHERE deleted_at IS NULL AND status IN ('open', 'in_progress')
            ORDER BY CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
            LIMIT 15`
         );
