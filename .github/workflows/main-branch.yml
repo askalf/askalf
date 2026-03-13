@@ -9,7 +9,7 @@ env:
   PNPM_VERSION: 9.15.0
 
 jobs:
-  integration-tests:
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,12 +27,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run integration tests
-        run: pnpm test:integration
+      - name: Run unit tests
+        run: vitest run --config vitest.unit.config.ts
 
   build-docker-images:
     runs-on: ubuntu-latest
-    needs: integration-tests
+    needs: unit-tests
     permissions:
       contents: read
       packages: write
@@ -92,4 +92,4 @@ jobs:
     needs: build-docker-images
     steps:
       - name: Verify Docker images built successfully
-        run: echo "✅ All Docker images built and pushed successfully"
+        run: echo "All Docker images built and pushed successfully"
