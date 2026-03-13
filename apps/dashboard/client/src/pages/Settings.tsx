@@ -1938,6 +1938,10 @@ interface DeviceInfo {
   platform_capabilities: Record<string, unknown>;
   last_seen_at: string | null;
   created_at: string;
+  device_type: string;
+  device_category: string;
+  protocol: string;
+  connection_config: Record<string, unknown>;
 }
 
 const DEVICE_CATEGORIES = [
@@ -1978,11 +1982,50 @@ const DEVICE_TYPES: DeviceTypeDef[] = [
   { id: 'homeassistant', name: 'Home Assistant', description: 'Smart home automation', category: 'iot', icon: '\u{1F3E0}', available: true },
 ];
 
+const DEVICE_TYPE_LABELS: Record<string, string> = {
+  cli: 'CLI', docker: 'Docker', ssh: 'SSH', k8s: 'K8s', browser: 'Browser',
+  desktop: 'Desktop', vscode: 'VS Code', android: 'Android', ios: 'iOS',
+  rpi: 'RPi', arduino: 'Arduino', homeassistant: 'HA',
+};
+
+const SERVER_MANAGED_TYPES = ['docker', 'ssh', 'k8s', 'homeassistant'];
+
+interface SetupForm {
+  deviceType: string;
+  deviceName: string;
+  // Docker
+  socketPath: string;
+  defaultImage: string;
+  // SSH
+  host: string;
+  port: string;
+  username: string;
+  privateKey: string;
+  // K8s
+  namespace: string;
+  kubeconfig: string;
+  image: string;
+  // Home Assistant
+  haUrl: string;
+  haToken: string;
+}
+
+const defaultForm: SetupForm = {
+  deviceType: '', deviceName: '',
+  socketPath: '/var/run/docker.sock', defaultImage: 'node:22-alpine',
+  host: '', port: '22', username: 'root', privateKey: '',
+  namespace: 'default', kubeconfig: '', image: 'node:22-alpine',
+  haUrl: '', haToken: '',
+};
+
 function DevicesTab() {
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [setupType, setSetupType] = useState<string | null>(null);
+  const [form, setForm] = useState<SetupForm>(defaultForm);
+  const [_testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => { fetchDevices(); }, []);
 
@@ -2035,6 +2078,78 @@ function DevicesTab() {
     }
   };
 
+  const handleSetup = (typeId: string) => {
+    if (SERVER_MANAGED_TYPES.includes(typeId)) {
+      setSetupType(typeId);
+      setForm({ ...defaultForm, deviceType: typeId, deviceName: '' });
+      setTestResult(null);
+    }
+  };
+
+  const handleRegister = async () => {
+    setActionLoading('register');
+    setMessage(null);
+    const config: Record<string, unknown> = {};
+    if (form.deviceType === 'docker') {
+      config.socketPath = form.socketPath;
+      config.defaultImage = form.defaultImage;
+    } else if (form.deviceType === 'ssh') {
+      config.host = form.host;
+      config.port = parseInt(form.port) || 22;
+      config.username = form.username;
+      if (form.privateKey) config.privateKey = form.privateKey;
+    } else if (form.deviceType === 'k8s') {
+      config.namespace = form.namespace;
+      config.image = form.image;
+      if (form.kubeconfig) config.kubeconfig = form.kubeconfig;
+    } else if (form.deviceType === 'homeassistant') {
+      config.haUrl = form.haUrl;
+      config.haToken = form.haToken;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/devices`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceName: form.deviceName || `${DEVICE_TYPE_LABELS[form.deviceType] || form.deviceType} Device`,
+          deviceType: form.deviceType,
+          connectionConfig: config,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed' })) as { error?: string };
+        throw new Error(err.error || 'Registration failed');
+      }
+      setMessage({ type: 'success', text: 'Device registered' });
+      setSetupType(null);
+      fetchDevices();
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Registration failed' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTestConnection = async (deviceId: string) => {
+    setActionLoading(`test-${deviceId}`);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/devices/${deviceId}/test`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const result = await res.json() as { ok: boolean; message: string };
+      setTestResult(result);
+      setMessage({ type: result.ok ? 'success' : 'error', text: result.message });
+    } catch {
+      setMessage({ type: 'error', text: 'Connection test failed' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -2076,32 +2191,45 @@ function DevicesTab() {
         <div className="settings-intg-category">
           <h3 className="settings-intg-category-label">Connected</h3>
           <div className="settings-intg-grid" style={{ gridTemplateColumns: '1fr' }}>
-            {devices.map((device) => (
-              <div
-                key={device.id}
-                className="settings-intg-provider-card connected"
-              >
-                <span
-                  className={`settings-device-dot ${device.status}`}
-                />
-                <div className="settings-intg-provider-body">
-                  <div className="settings-intg-provider-name">{device.device_name}</div>
-                  <div className="settings-intg-provider-desc">
-                    {device.os}{device.hostname ? ` \u00B7 ${device.hostname}` : ''} \u00B7 {relativeTime(device.last_seen_at)}
+            {devices.map((device) => {
+              const typeDef = DEVICE_TYPES.find(dt => dt.id === (device.device_type || 'cli'));
+              return (
+                <div
+                  key={device.id}
+                  className="settings-intg-provider-card connected"
+                >
+                  <span
+                    className={`settings-device-dot ${device.status}`}
+                  />
+                  <div className="settings-intg-provider-body">
+                    <div className="settings-intg-provider-name">
+                      {typeDef?.icon || ''} {device.device_name}
+                      <span style={{ opacity: 0.5, fontSize: '0.8em', marginLeft: '6px' }}>
+                        {DEVICE_TYPE_LABELS[device.device_type] || device.device_type || 'CLI'}
+                      </span>
+                    </div>
+                    <div className="settings-intg-provider-desc">
+                      {device.os}{device.hostname ? ` \u00B7 ${device.hostname}` : ''} \u00B7 {relativeTime(device.last_seen_at)}
+                    </div>
+                  </div>
+                  <div className="settings-provider-actions">
+                    {device.protocol === 'server-managed' && (
+                      <button className="settings-btn-sm" onClick={() => handleTestConnection(device.id)} disabled={actionLoading === `test-${device.id}`}>
+                        {actionLoading === `test-${device.id}` ? '...' : 'Test'}
+                      </button>
+                    )}
+                    {device.status !== 'offline' && (
+                      <button className="settings-btn-sm" onClick={() => handleDisconnect(device.id)} disabled={actionLoading === device.id}>
+                        {actionLoading === device.id ? '...' : 'Disconnect'}
+                      </button>
+                    )}
+                    <button className="settings-btn-sm settings-btn-danger" onClick={() => handleRemove(device.id)} disabled={actionLoading === device.id}>
+                      Remove
+                    </button>
                   </div>
                 </div>
-                <div className="settings-provider-actions">
-                  {device.status !== 'offline' && (
-                    <button className="settings-btn-sm" onClick={() => handleDisconnect(device.id)} disabled={actionLoading === device.id}>
-                      {actionLoading === device.id ? '...' : 'Disconnect'}
-                    </button>
-                  )}
-                  <button className="settings-btn-sm settings-btn-danger" onClick={() => handleRemove(device.id)} disabled={actionLoading === device.id}>
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -2114,25 +2242,178 @@ function DevicesTab() {
           <div key={cat.id} className="settings-intg-category">
             <h3 className="settings-intg-category-label">{cat.label}</h3>
             <div className="settings-intg-grid">
-              {types.map(dt => (
-                <div
-                  key={dt.id}
-                  className={`settings-intg-provider-card${!dt.available ? ' upcoming' : ''}`}
-                >
-                  <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{dt.icon}</span>
-                  <div className="settings-intg-provider-body">
-                    <div className="settings-intg-provider-name">{dt.name}</div>
-                    <div className="settings-intg-provider-desc">{dt.description}</div>
+              {types.map(dt => {
+                const isConnected = devices.some(d => d.device_type === dt.id);
+                const isServerManaged = SERVER_MANAGED_TYPES.includes(dt.id);
+                return (
+                  <div
+                    key={dt.id}
+                    className={`settings-intg-provider-card${isConnected ? ' connected' : ''}`}
+                  >
+                    <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{dt.icon}</span>
+                    <div className="settings-intg-provider-body">
+                      <div className="settings-intg-provider-name">{dt.name}</div>
+                      <div className="settings-intg-provider-desc">{dt.description}</div>
+                    </div>
+                    <div className="settings-intg-provider-action">
+                      {isConnected ? (
+                        <span className="settings-intg-badge connected">Connected</span>
+                      ) : isServerManaged ? (
+                        <button className="settings-btn-sm" onClick={() => handleSetup(dt.id)}>
+                          Setup
+                        </button>
+                      ) : (
+                        <span className="settings-intg-badge" style={{ opacity: 0.6 }}>
+                          {dt.id === 'cli' ? 'Via CLI' : 'Via App'}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="settings-intg-provider-action">
-                    <span className="settings-intg-badge connected">Available</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );
       })}
+
+      {/* Setup Dialog for Server-Managed Devices */}
+      {setupType && (
+        <div className="settings-modal-overlay" onClick={() => setSetupType(null)}>
+          <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-modal-header">
+              <h3>Setup {DEVICE_TYPE_LABELS[setupType] || setupType} Device</h3>
+              <button className="settings-modal-close" onClick={() => setSetupType(null)}>&times;</button>
+            </div>
+            <div className="settings-modal-body">
+              <label className="settings-field-label">Device Name</label>
+              <input
+                className="settings-input"
+                value={form.deviceName}
+                onChange={(e) => setForm({ ...form, deviceName: e.target.value })}
+                placeholder={`My ${DEVICE_TYPE_LABELS[setupType]} Device`}
+              />
+
+              {setupType === 'docker' && (
+                <>
+                  <label className="settings-field-label">Docker Socket Path</label>
+                  <input
+                    className="settings-input"
+                    value={form.socketPath}
+                    onChange={(e) => setForm({ ...form, socketPath: e.target.value })}
+                    placeholder="/var/run/docker.sock"
+                  />
+                  <label className="settings-field-label">Default Image</label>
+                  <input
+                    className="settings-input"
+                    value={form.defaultImage}
+                    onChange={(e) => setForm({ ...form, defaultImage: e.target.value })}
+                    placeholder="node:22-alpine"
+                  />
+                </>
+              )}
+
+              {setupType === 'ssh' && (
+                <>
+                  <label className="settings-field-label">Host</label>
+                  <input
+                    className="settings-input"
+                    value={form.host}
+                    onChange={(e) => setForm({ ...form, host: e.target.value })}
+                    placeholder="192.168.1.100"
+                  />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label className="settings-field-label">Username</label>
+                      <input
+                        className="settings-input"
+                        value={form.username}
+                        onChange={(e) => setForm({ ...form, username: e.target.value })}
+                        placeholder="root"
+                      />
+                    </div>
+                    <div style={{ width: '80px' }}>
+                      <label className="settings-field-label">Port</label>
+                      <input
+                        className="settings-input"
+                        value={form.port}
+                        onChange={(e) => setForm({ ...form, port: e.target.value })}
+                        placeholder="22"
+                      />
+                    </div>
+                  </div>
+                  <label className="settings-field-label">Private Key (optional)</label>
+                  <textarea
+                    className="settings-input"
+                    value={form.privateKey}
+                    onChange={(e) => setForm({ ...form, privateKey: e.target.value })}
+                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+                    rows={4}
+                    style={{ fontFamily: 'monospace', fontSize: '0.8em' }}
+                  />
+                </>
+              )}
+
+              {setupType === 'k8s' && (
+                <>
+                  <label className="settings-field-label">Namespace</label>
+                  <input
+                    className="settings-input"
+                    value={form.namespace}
+                    onChange={(e) => setForm({ ...form, namespace: e.target.value })}
+                    placeholder="default"
+                  />
+                  <label className="settings-field-label">Job Image</label>
+                  <input
+                    className="settings-input"
+                    value={form.image}
+                    onChange={(e) => setForm({ ...form, image: e.target.value })}
+                    placeholder="node:22-alpine"
+                  />
+                  <label className="settings-field-label">Kubeconfig (optional)</label>
+                  <textarea
+                    className="settings-input"
+                    value={form.kubeconfig}
+                    onChange={(e) => setForm({ ...form, kubeconfig: e.target.value })}
+                    placeholder="Paste kubeconfig YAML (leave empty to use cluster default)"
+                    rows={4}
+                    style={{ fontFamily: 'monospace', fontSize: '0.8em' }}
+                  />
+                </>
+              )}
+
+              {setupType === 'homeassistant' && (
+                <>
+                  <label className="settings-field-label">Home Assistant URL</label>
+                  <input
+                    className="settings-input"
+                    value={form.haUrl}
+                    onChange={(e) => setForm({ ...form, haUrl: e.target.value })}
+                    placeholder="http://homeassistant.local:8123"
+                  />
+                  <label className="settings-field-label">Long-Lived Access Token</label>
+                  <input
+                    className="settings-input"
+                    type="password"
+                    value={form.haToken}
+                    onChange={(e) => setForm({ ...form, haToken: e.target.value })}
+                    placeholder="eyJ..."
+                  />
+                </>
+              )}
+            </div>
+            <div className="settings-modal-footer">
+              <button className="settings-btn-sm" onClick={() => setSetupType(null)}>Cancel</button>
+              <button
+                className="settings-btn-sm settings-btn-primary"
+                onClick={handleRegister}
+                disabled={actionLoading === 'register'}
+              >
+                {actionLoading === 'register' ? 'Registering...' : 'Register Device'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

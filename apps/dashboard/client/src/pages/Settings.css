@@ -1607,6 +1607,62 @@
   width: fit-content;
 }
 
+/* Device Setup Modal */
+.settings-modal-body {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.settings-modal-footer {
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.settings-field-label {
+  font-size: 0.8rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  margin-top: var(--space-xs);
+}
+
+.settings-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.875rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.settings-input:focus {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+textarea.settings-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.settings-btn-primary {
+  background: var(--accent, #f59e0b) !important;
+  color: #000 !important;
+  font-weight: 600;
+}
+
+.settings-btn-primary:hover {
+  opacity: 0.9;
+}
+
 .settings-facts-note {
   margin-top: var(--space-md);
   font-size: 0.8125rem;
