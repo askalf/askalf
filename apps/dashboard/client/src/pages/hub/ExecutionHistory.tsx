@@ -6,6 +6,7 @@ import StatusBadge from './shared/StatusBadge';
 import PaginationBar from './shared/PaginationBar';
 import FilterBar from './shared/FilterBar';
 import { ExecutionLogViewer } from './ExecutionLogViewer';
+import { ExecutionTimeline } from './ExecutionTimeline';
 import '../forge/forge-observe.css';
 
 function copyToClipboard(text: string) {
@@ -498,6 +499,21 @@ export default function ExecutionHistory() {
                 </div>
               );
             })()}
+
+            {/* Tool Call Timeline */}
+            {selectedTaskDetail && (
+              <div className="hub-detail-section">
+                <h3>Tool Call Timeline</h3>
+                <ExecutionTimeline
+                  logs={selectedTaskDetail.logs ?? []}
+                  startedAt={detailTask?.started_at ?? null}
+                  completedAt={detailTask?.completed_at ?? null}
+                  durationSeconds={detailTask?.duration_seconds}
+                  tokensUsed={detailTask?.tokens_used}
+                  cost={detailTask?.cost}
+                />
+              </div>
+            )}
 
             {/* Logs */}
             <div className="hub-detail-section">
