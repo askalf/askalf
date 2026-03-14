@@ -6,20 +6,7 @@ import { integrationApi } from '../../hooks/useHubApi';
 import type { UserRepo } from '../../hooks/useHubApi';
 import './ChatTab.css';
 
-// ── API helper for slash commands ──
-
-const getApiBase = () => {
-  const host = window.location.hostname;
-  if (host.includes('askalf.org') || host.includes('amnesia.tax')) return '';
-  if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3001';
-  return '';
-};
-
-async function cmdFetch<T = unknown>(path: string): Promise<T> {
-  const res = await fetch(`${getApiBase()}${path}`, { credentials: 'include', headers: { 'Content-Type': 'application/json' } });
-  if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-  return res.json();
-}
+import { apiFetch as cmdFetch, API_BASE } from '../../utils/api';
 
 // ── Slash command system ──
 
@@ -152,7 +139,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
     case 'task':
     case 'do': {
       if (!args) return { text: '**Usage:** `/dispatch <description>`\nExample: `/dispatch fix the broken import in forge admin route`' };
-      const dispatchRes = await fetch(`${getApiBase()}/api/v1/forge/dispatch`, {
+      const dispatchRes = await fetch(`${API_BASE}/api/v1/forge/dispatch`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -391,7 +378,7 @@ function IntentPreview({
     setReposLoading(true);
     Promise.all([
       integrationApi.repos().catch(() => ({ repos: [] as UserRepo[] })),
-      fetch(`${getApiBase()}/api/v1/admin/projects`, { credentials: 'include' })
+      fetch(`${API_BASE}/api/v1/admin/projects`, { credentials: 'include' })
         .then(r => r.ok ? r.json() : { projects: [] })
         .catch(() => ({ projects: [] })),
     ]).then(([repoData, projData]) => {
@@ -762,7 +749,7 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
     if (content.startsWith('{') && content.includes('oauth_token')) {
       try {
         JSON.parse(content); // validate it's JSON
-        const res = await fetch(`${getApiBase()}/api/v1/user/claude-credentials`, {
+        const res = await fetch(`${API_BASE}/api/v1/user/claude-credentials`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
