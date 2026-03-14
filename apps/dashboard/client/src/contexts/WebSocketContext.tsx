@@ -62,6 +62,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             const next = [event, ...prev];
             return next.length > MAX_EVENTS ? next.slice(0, MAX_EVENTS) : next;
           });
+          // Dispatch to NotificationCenter via DOM event
+          window.dispatchEvent(new CustomEvent('forge-event', { detail: event }));
         }
       } catch {
         // ignore malformed messages
