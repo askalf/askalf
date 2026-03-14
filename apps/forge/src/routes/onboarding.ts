@@ -1,6 +1,6 @@
 /**
  * Onboarding Routes
- * Wizard completion tracking for new users
+ * Wizard completion tracking and platform configuration for new users
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -27,7 +27,13 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
         [userId],
       );
 
-      return { completed: !!row?.onboarding_completed_at };
+      // Check if Anthropic key is configured (env or platform_settings)
+      const hasAnthropicKey = !!process.env['ANTHROPIC_API_KEY'];
+
+      return {
+        completed: !!row?.onboarding_completed_at,
+        hasAnthropicKey,
+      };
     },
   );
 
@@ -68,6 +74,73 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
       );
 
       return { success: true };
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/onboarding/api-key
+   * Save Anthropic API key to platform_settings (persists across restarts)
+   * and set it in process.env immediately for the intent parser.
+   */
+  app.post(
+    '/api/v1/forge/onboarding/api-key',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = extractUserId(request);
+      if (!userId) return reply.status(401).send({ error: 'Unauthorized' });
+
+      const body = request.body as { key: string; provider?: string } | null;
+      const apiKey = body?.key?.trim();
+      if (!apiKey) {
+        return reply.status(400).send({ error: 'API key is required' });
+      }
+
+      const provider = body?.provider || 'anthropic';
+      const envName = provider === 'openai' ? 'OPENAI_API_KEY'
+        : provider === 'google' ? 'GOOGLE_AI_KEY'
+        : 'ANTHROPIC_API_KEY';
+
+      // Test the key first (Anthropic only — others are stored but not tested here)
+      if (provider === 'anthropic') {
+        try {
+          const testRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 1,
+              messages: [{ role: 'user', content: 'ping' }],
+            }),
+          });
+          if (!testRes.ok) {
+            const err = await testRes.json().catch(() => ({})) as { error?: { message?: string } };
+            return reply.status(400).send({
+              error: `Invalid API key: ${err.error?.message || testRes.statusText}`,
+            });
+          }
+        } catch (err) {
+          return reply.status(400).send({
+            error: `Connection failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          });
+        }
+      }
+
+      // Save to platform_settings (persists across container restarts)
+      await substrateQuery(
+        `INSERT INTO platform_settings (key, value, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+        [envName, apiKey],
+      );
+
+      // Set in process.env immediately (no restart needed)
+      process.env[envName] = apiKey;
+
+      return { success: true, provider, envName };
     },
   );
 }

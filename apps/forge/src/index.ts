@@ -411,6 +411,22 @@ async function start(): Promise<void> {
     logger.warn(`[SelfHosted] Setup error: ${err instanceof Error ? err.message : String(err)}`);
   });
 
+  // Load platform settings (API keys set through onboarding/UI) into process.env
+  try {
+    const { query: settingsQuery } = await import('./database.js');
+    const settings = await settingsQuery<{ key: string; value: string }>(
+      `SELECT key, value FROM platform_settings WHERE encrypted = false`,
+    );
+    for (const s of settings) {
+      if (!process.env[s.key]) {
+        process.env[s.key] = s.value;
+        logger.info(`[PlatformSettings] Loaded ${s.key} from database`);
+      }
+    }
+  } catch {
+    // Table may not exist yet on first boot
+  }
+
   // Load skills from markdown files (skills/ directory)
   await loadSkills().catch((err) => {
     logger.warn(`[Skills] Load error: ${err instanceof Error ? err.message : String(err)}`);
