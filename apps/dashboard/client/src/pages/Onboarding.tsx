@@ -22,12 +22,12 @@ export default function Onboarding() {
   const [step, setStep] = useState<Step>('welcome');
   const [workspaceName, setWorkspaceName] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
-  const [providerType, setProviderType] = useState<'anthropic' | 'openai' | 'google'>('anthropic');
+  const [parserMode, setParserMode] = useState<'basic' | 'enhanced'>('basic');
   const [apiKey, setApiKey] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [keysSaved, setKeysSaved] = useState<string[]>([]);
+  const [keySaved, setKeySaved] = useState(false);
 
   const currentIdx = STEPS.findIndex(s => s.key === step);
 
@@ -36,28 +36,17 @@ export default function Onboarding() {
     setTesting(true);
     setTestResult(null);
     try {
-      // Save the key first
-      const saveRes = await fetch(`${API_BASE}/api/v1/forge/user-providers/${providerType}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: apiKey.trim() }),
-      });
-      if (!saveRes.ok) {
-        setTestResult({ ok: false, msg: 'Failed to save key' });
-        setTesting(false);
-        return;
-      }
-      // Verify it works
-      const verifyRes = await fetch(`${API_BASE}/api/v1/forge/user-providers/${providerType}/verify`, {
+      // Save and test via the onboarding API key endpoint
+      const res = await fetch(`${API_BASE}/api/v1/forge/onboarding/api-key`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: apiKey.trim(), provider: 'anthropic' }),
       });
-      const data = await verifyRes.json() as { valid?: boolean; error?: string };
-      if (data.valid) {
-        setTestResult({ ok: true, msg: 'Connected successfully' });
-        if (!keysSaved.includes(providerType)) setKeysSaved([...keysSaved, providerType]);
+      const data = await res.json() as { success?: boolean; error?: string };
+      if (res.ok && data.success) {
+        setTestResult({ ok: true, msg: 'Connected and saved' });
+        setKeySaved(true);
       } else {
         setTestResult({ ok: false, msg: data.error || 'Invalid key' });
       }
@@ -134,33 +123,63 @@ export default function Onboarding() {
           {/* Step 2: AI Provider */}
           {step === 'ai-provider' && (
             <div className="ob-step-content">
-              <h1 className="ob-title">Connect an AI provider</h1>
+              <h1 className="ob-title">Intent Parser</h1>
               <p className="ob-desc">
-                AskAlf needs at least one AI provider to power agent executions.
+                Choose how the command center interprets your natural language requests.
+                Agent execution uses Claude CLI separately — this is just for parsing commands.
               </p>
 
-              <div className="ob-provider-tabs">
-                {(['anthropic', 'openai', 'google'] as const).map(p => (
-                  <button
-                    key={p}
-                    className={`ob-provider-tab ${providerType === p ? 'active' : ''} ${keysSaved.includes(p) ? 'saved' : ''}`}
-                    onClick={() => { setProviderType(p); setApiKey(''); setTestResult(null); }}
-                  >
-                    {p === 'anthropic' ? 'Anthropic' : p === 'openai' ? 'OpenAI' : 'Google AI'}
-                    {keysSaved.includes(p) && <span className="ob-provider-check">&#10003;</span>}
-                  </button>
-                ))}
+              <div className="ob-parser-options">
+                <button
+                  className={`ob-parser-option ${parserMode === 'basic' ? 'active' : ''}`}
+                  onClick={() => { setParserMode('basic'); setTestResult(null); }}
+                >
+                  <div className="ob-parser-header">
+                    <span className="ob-parser-name">Basic Parser</span>
+                    <span className="ob-parser-badge">No key needed</span>
+                  </div>
+                  <span className="ob-parser-desc">
+                    Keyword-based intent classification. Works offline. Good for direct commands.
+                  </span>
+                </button>
+
+                <button
+                  className={`ob-parser-option ${parserMode === 'enhanced' ? 'active' : ''} ${keySaved ? 'saved' : ''}`}
+                  onClick={() => { setParserMode('enhanced'); setTestResult(null); }}
+                >
+                  <div className="ob-parser-header">
+                    <span className="ob-parser-name">Enhanced NL Parser</span>
+                    <span className="ob-parser-badge enhanced">Anthropic API key</span>
+                  </div>
+                  <span className="ob-parser-desc">
+                    AI-powered natural language understanding. Handles complex, ambiguous requests.
+                  </span>
+                  {keySaved && <span className="ob-parser-saved">&#10003; Connected</span>}
+                </button>
               </div>
 
-              <div className="ob-field">
-                <label>API Key</label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={e => { setApiKey(e.target.value); setTestResult(null); }}
-                  placeholder={providerType === 'anthropic' ? 'sk-ant-...' : providerType === 'openai' ? 'sk-...' : 'AI...'}
-                />
-              </div>
+              {parserMode === 'enhanced' && !keySaved && (
+                <>
+                  <div className="ob-field">
+                    <label>Anthropic API Key</label>
+                    <input
+                      type="password"
+                      value={apiKey}
+                      onChange={e => { setApiKey(e.target.value); setTestResult(null); }}
+                      placeholder="sk-ant-..."
+                    />
+                    <span className="ob-hint">Get one at console.anthropic.com</span>
+                  </div>
+                  <button
+                    className="ob-btn-secondary"
+                    onClick={handleTestKey}
+                    disabled={testing || !apiKey.trim()}
+                    style={{ alignSelf: 'flex-start' }}
+                  >
+                    {testing ? 'Testing...' : 'Test & Save Key'}
+                  </button>
+                </>
+              )}
 
               {testResult && (
                 <div className={`ob-test-result ${testResult.ok ? 'ok' : 'fail'}`}>
@@ -170,22 +189,14 @@ export default function Onboarding() {
 
               <div className="ob-btn-row">
                 <button className="ob-btn-secondary" onClick={() => setStep('welcome')}>Back</button>
-                <button className="ob-btn-secondary" onClick={handleTestKey} disabled={testing || !apiKey.trim()}>
-                  {testing ? 'Testing...' : 'Test & Save'}
-                </button>
                 <button
                   className="ob-btn-primary"
                   onClick={() => setStep('theme')}
-                  disabled={keysSaved.length === 0}
+                  disabled={parserMode === 'enhanced' && !keySaved}
                 >
                   Continue
                 </button>
               </div>
-              {keysSaved.length === 0 && (
-                <span className="ob-hint" style={{ textAlign: 'center', display: 'block', marginTop: '8px' }}>
-                  Add and test at least one provider to continue
-                </span>
-              )}
             </div>
           )}
 
@@ -236,8 +247,8 @@ export default function Onboarding() {
                   <span>{workspaceName || 'AskAlf'}</span>
                 </div>
                 <div className="ob-summary-row">
-                  <span>AI Providers</span>
-                  <span>{keysSaved.map(k => k === 'anthropic' ? 'Anthropic' : k === 'openai' ? 'OpenAI' : 'Google').join(', ')}</span>
+                  <span>Intent Parser</span>
+                  <span>{parserMode === 'enhanced' ? 'Enhanced (Anthropic)' : 'Basic (keyword)'}</span>
                 </div>
                 <div className="ob-summary-row">
                   <span>Theme</span>
