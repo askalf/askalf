@@ -88,3 +88,10 @@ FORGE_API_ENDPOINTS.md
 
 # Agent-injected system prompt (written by forge worker into worktrees)
 CLAUDE.md
+
+# Local artifacts
+.deployment-history
+package-lock.json
+scripts/*.ps1
+.claude/
+apps/*/.claude/
