@@ -1,15 +1,7 @@
 // Centralized API layer for the Orchestration Hub
 // Maps all 28 admin-hub.js endpoints
 
-const getApiBase = () => {
-  const host = window.location.hostname;
-  // Production: same-origin (nginx routes to dashboard)
-  if (host.includes('askalf.org') || host.includes('amnesia.tax')) return '';
-  // Local dev: dashboard proxy on port 3001 (not forge directly)
-  return 'http://localhost:3001';
-};
-
-const API_BASE = getApiBase();
+import { API_BASE } from '../utils/api';
 
 async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
   const maxRetries = options?.method && options.method !== 'GET' ? 0 : 2;
@@ -29,7 +21,6 @@ async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promi
         const text = await res.text().catch(() => '');
         throw new Error(text || res.statusText);
       }
-      // Guard against non-JSON responses (e.g. nginx error pages during restarts)
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
         const text = await res.text().catch(() => '');
