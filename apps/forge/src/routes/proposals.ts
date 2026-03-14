@@ -191,7 +191,7 @@ export async function proposalRoutes(app: FastifyInstance): Promise<void> {
         details: { title: proposal.title, comment: body.comment, previous_status: proposal.status },
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return reply.send({ responded: true, proposal: updated });
     },

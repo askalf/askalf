@@ -1821,7 +1821,7 @@ function executeClaudeCode(
       proc.on('close', (code) => {
         proc.removeAllListeners(); // Prevent listener leak across 1000s of executions
         if (executionId) runningCliProcesses.delete(executionId);
-        cleanup().catch(() => {});
+        cleanup().catch((e) => { if (e) console.debug("[catch]", String(e)); });
         const cleanStdout = stdout.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
         resolve({
           exitCode: killed ? 124 : (code ?? 1),
@@ -1833,7 +1833,7 @@ function executeClaudeCode(
       proc.on('error', (err) => {
         proc.removeAllListeners();
         if (executionId) runningCliProcesses.delete(executionId);
-        cleanup().catch(() => {});
+        cleanup().catch((e) => { if (e) console.debug("[catch]", String(e)); });
         resolve({ exitCode: 1, stdout: '', stderr: err.message });
       });
 
@@ -2084,7 +2084,7 @@ export async function runDirectCliExecution(
     await query(
       `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2`,
       [errorMsg, executionId],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
     return;
   }
 
@@ -2120,7 +2120,7 @@ export async function runDirectCliExecution(
     const eventBus = getEventBus();
     void eventBus?.emitExecution('started', executionId, agentId, agentName, {
       input: input.substring(0, 200),
-    }).catch(() => {});
+    }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     // Refresh OAuth credentials
     await refreshCredentials();
@@ -2441,7 +2441,7 @@ export async function runDirectCliExecution(
         durationMs,
         turns: parsed.numTurns,
       },
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     // Update agent performance counters (retry on transient DB errors)
     void retryQuery(
@@ -2450,7 +2450,7 @@ export async function runDirectCliExecution(
            tasks_failed = tasks_failed + CASE WHEN $2 THEN 0 ELSE 1 END
        WHERE id = $1`,
       [agentId, !parsed.isError],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     // Pipeline chaining: if this execution is part of a pipeline, start the next task
     if (!parsed.isError) {
@@ -2503,7 +2503,7 @@ export async function runDirectCliExecution(
     if (toolExecs.length > 0) {
       void updateCapabilityFromExecution(
         agentId, toolExecs.map((t) => t.tool_name), !parsed.isError,
-      ).catch(() => {});
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
     }
 
     // Fire-and-forget memory extraction (forge's internal memory manager)
@@ -2559,7 +2559,7 @@ export async function runDirectCliExecution(
 
     // Fire-and-forget knowledge graph extraction (Phase 11)
     if (!parsed.isError && parsed.output.length > 200) {
-      void extractKnowledge(agentId, parsed.output, input).catch(() => {});
+      void extractKnowledge(agentId, parsed.output, input).catch((e) => { if (e) console.debug("[catch]", String(e)); });
     }
 
     // Record cost sample for optimization (Phase 10)
@@ -2567,7 +2567,7 @@ export async function runDirectCliExecution(
       const quality = parsed.isError ? 0.2 : 0.8;
       const totalTokens = parsed.inputTokens + parsed.outputTokens;
       // Record at agent level (CLI mode doesn't populate forge_tool_executions)
-      void recordCostSample(agentName, agentModelId, parsed.costUsd, totalTokens, quality).catch(() => {});
+      void recordCostSample(agentName, agentModelId, parsed.costUsd, totalTokens, quality).catch((e) => { if (e) console.debug("[catch]", String(e)); });
     }
   } catch (err) {
     const durationMs = Date.now() - startTime;
@@ -2588,25 +2588,25 @@ export async function runDirectCliExecution(
     void getEventBus()?.emitExecution('failed', executionId, agentId, agentId, {
       error: `[${errorCode}] ${errorMsg.substring(0, 500)}`,
       durationMs,
-    }).catch(() => {});
+    }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     await query(
       `UPDATE forge_executions
        SET status = 'failed', error = $1, duration_ms = $2, completed_at = NOW()
        WHERE id = $3`,
       [errorMsg, durationMs, executionId],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     // Update agent failure counter
     await query(
       `UPDATE forge_agents SET tasks_failed = tasks_failed + 1 WHERE id = $1`,
       [agentId],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
   } finally {
     // Clean up git credential helper (contains sensitive token — must be removed)
     try {
       const credHelperPath = `/tmp/git-cred-${executionId}.sh`;
-      await unlink(credHelperPath).catch(() => {});
+      await unlink(credHelperPath).catch((e) => { if (e) console.debug("[catch]", String(e)); });
     } catch { /* ignore */ }
 
     // Clean up git worktree (branch stays for Push Panel review)
@@ -2693,7 +2693,7 @@ export async function runCliQuery(
     const parsed = parseCliOutput(result.stdout, result.stderr, result.exitCode);
 
     // Cleanup temp directory
-    await rm(tempDir, { recursive: true }).catch(() => {});
+    await rm(tempDir, { recursive: true }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     return parsed;
   } finally {

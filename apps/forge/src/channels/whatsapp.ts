@@ -113,7 +113,7 @@ export class WhatsAppProvider implements ChannelProvider {
           status: 'read',
           message_id: originalMsgId,
         }),
-      }).catch(() => {}); // Fire-and-forget
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); }); // Fire-and-forget
     }
 
     // Truncate to WhatsApp's 4096 char limit

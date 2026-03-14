@@ -169,7 +169,7 @@ export async function deviceRoutes(app: FastifyInstance): Promise<void> {
         // Clean up adapter resources
         const adapter = getAdapter(device.device_type as DeviceType);
         if (adapter) {
-          await adapter.cleanup(id, device.connection_config as Record<string, unknown>).catch(() => {});
+          await adapter.cleanup(id, device.connection_config as Record<string, unknown>).catch((e) => { if (e) console.debug("[catch]", String(e)); });
         }
       }
 

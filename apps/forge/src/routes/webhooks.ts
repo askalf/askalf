@@ -163,7 +163,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         details: { agentId: agent.id, agentName: agent.name, source: 'webhook' },
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       // Dispatch the execution to the CLI runtime asynchronously
       void runDirectCliExecution(executionId, agent.id, inputText, agent.owner_id, {

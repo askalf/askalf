@@ -161,7 +161,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           details: { name: body.name, type: body.type },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.send({ guardrail });
       } else {
@@ -194,7 +194,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           details: { name: body.name, type: body.type },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.status(201).send({ guardrail });
       }

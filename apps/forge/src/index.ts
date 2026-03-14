@@ -576,7 +576,7 @@ async function start(): Promise<void> {
       for (const row of orphaned) {
         void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
           error: 'Orphaned: forge restarted mid-execution',
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       }
       // Mark parent executions as failed if all their children are now failed
       const parentIds = [...new Set(orphaned.filter(o => o.parent_execution_id).map(o => o.parent_execution_id!))];
@@ -586,7 +586,7 @@ async function start(): Promise<void> {
            WHERE id = $1 AND status = 'running'
              AND NOT EXISTS (SELECT 1 FROM forge_executions WHERE parent_execution_id = $1 AND status NOT IN ('failed', 'completed'))`,
           [parentId],
-        ).catch(() => {});
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       }
 
       // Auto-retry eligible orphaned executions (scheduled agents only, max 1 retry)
@@ -643,7 +643,7 @@ async function start(): Promise<void> {
              SET next_run_at = NOW() + (schedule_interval_minutes || ' minutes')::INTERVAL
              WHERE agent_id = $1`,
             [row.agent_id],
-          ).catch(() => {});
+          ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
           // Spawn retry execution asynchronously
           void runDirectCliExecution(retryId, row.agent_id, retryInput, row.owner_id, {
@@ -741,7 +741,7 @@ async function start(): Promise<void> {
           for (const row of allTimedOut) {
             void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
               error: 'Execution timeout',
-            }).catch(() => {});
+            }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
           }
         }
 
@@ -775,7 +775,7 @@ async function start(): Promise<void> {
                   ticket.id,
                   `Execution timeout: agent ${agentName} exceeded the 20-minute runtime limit. Ticket reopened automatically for the next agent cycle.`,
                 ],
-              ).catch(() => {});
+              ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
               logger.info(`[Forge] Timeout sweeper: reopened ticket ${ticket.id} for agent ${agentName}`);
             }
           }
@@ -856,7 +856,7 @@ async function shutdown(signal: string): Promise<void> {
       for (const row of inflight) {
         void eventBus?.emitExecution('failed', row.id, row.agent_id, row.agent_id, {
           error: `Forge shutting down (${signal})`,
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       }
     }
 
@@ -882,9 +882,9 @@ async function shutdown(signal: string): Promise<void> {
     logger.info('[Forge] Dispatcher and trigger engine stopped');
 
     stopAgentBridge();
-    await stopTaskDispatcher().catch(() => {});
-    await closeAgentCommunication().catch(() => {});
-    await closeRateLimitRedis().catch(() => {});
+    await stopTaskDispatcher().catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    await closeAgentCommunication().catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    await closeRateLimitRedis().catch((e) => { if (e) console.debug("[catch]", String(e)); });
     logger.info('[Forge] Redis connections closed');
 
     await closeDatabase();

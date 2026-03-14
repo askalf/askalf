@@ -436,7 +436,7 @@ export async function registerSystemRoutes(app: FastifyInstance): Promise<void> 
       const eventBus = getEventBus();
       void eventBus?.emitHandoff('requested', body.fromAgentId, body.toAgentId, {
         sessionId: body.sessionId, context: body.task,
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return { handoffId, sessionId: body.sessionId };
     },
