@@ -276,24 +276,34 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
         }
       }
 
-      // Create all executions and launch them
-      const results: { id: string; agent_id: string; agent_name: string; status: string }[] = [];
+      // Create all executions in a single transaction, then launch them
       const userId = request.userId || 'admin';
+      const execIds: { id: string; agentId: string }[] = [];
 
-      for (const exec of executions) {
-        const execId = ulid();
-        await query(
-          `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, metadata, started_at) VALUES ($1, $2, $3, 'pending', $4, $5, NOW())`,
-          [execId, exec.agentId, userId, exec.input, JSON.stringify(exec.metadata || {})]
-        );
-        void runDirectCliExecution(execId, exec.agentId, exec.input, userId);
-        results.push({
-          id: execId,
-          agent_id: exec.agentId,
-          agent_name: agentMap.get(exec.agentId) || 'unknown',
-          status: 'pending'
-        });
-      }
+      // Batch insert in a transaction
+      const { transaction } = await import('../../database.js');
+      await transaction(async (client) => {
+        for (const exec of executions) {
+          const execId = ulid();
+          await client.query(
+            `INSERT INTO forge_executions (id, agent_id, owner_id, status, input, metadata, started_at) VALUES ($1, $2, $3, 'pending', $4, $5, NOW())`,
+            [execId, exec.agentId, userId, exec.input, JSON.stringify(exec.metadata || {})]
+          );
+          execIds.push({ id: execId, agentId: exec.agentId });
+        }
+      });
+
+      // Launch executions (outside transaction — fire-and-forget)
+      const results = execIds.map(({ id, agentId }) => {
+        const input = executions.find(e => e.agentId === agentId)?.input || '';
+        void runDirectCliExecution(id, agentId, input, userId);
+        return {
+          id,
+          agent_id: agentId,
+          agent_name: agentMap.get(agentId) || 'unknown',
+          status: 'pending',
+        };
+      });
 
       return { executions: results, count: results.length };
     }

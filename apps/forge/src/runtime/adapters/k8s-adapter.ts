@@ -85,7 +85,7 @@ export class K8sAdapter implements DeviceAdapter {
       await writeFile(manifestPath, JSON.stringify(jobManifest));
 
       await this.kubectl([...kubeconfigArgs, 'apply', '-f', manifestPath]);
-      await unlink(manifestPath).catch(() => {});
+      await unlink(manifestPath).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       activeJobs.set(task.executionId, jobName);
 
@@ -143,11 +143,11 @@ export class K8sAdapter implements DeviceAdapter {
 
       // Timeout
       activeJobs.delete(task.executionId);
-      await this.kubectl([...kubeconfigArgs, 'delete', 'job', jobName, '-n', namespace]).catch(() => {});
+      await this.kubectl([...kubeconfigArgs, 'delete', 'job', jobName, '-n', namespace]).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       await this.recordResult(task.executionId, 'failed', '', 'Kubernetes job timed out');
     } finally {
       if (kubeconfigFile) {
-        await unlink(kubeconfigFile).catch(() => {});
+        await unlink(kubeconfigFile).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       }
     }
   }
@@ -186,7 +186,7 @@ export class K8sAdapter implements DeviceAdapter {
     if (!jobName) return false;
 
     const namespace = config.namespace || 'default';
-    await this.kubectl(['delete', 'job', jobName, '-n', namespace]).catch(() => {});
+    await this.kubectl(['delete', 'job', jobName, '-n', namespace]).catch((e) => { if (e) console.debug("[catch]", String(e)); });
     activeJobs.delete(executionId);
     return true;
   }
@@ -201,7 +201,7 @@ export class K8sAdapter implements DeviceAdapter {
         : ['cluster-info'];
 
       const output = await this.kubectl(args);
-      if (kubeconfigFile) await unlink(kubeconfigFile).catch(() => {});
+      if (kubeconfigFile) await unlink(kubeconfigFile).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       return { ok: true, message: output.split('\n')[0] || 'Kubernetes cluster connected' };
     } catch (err) {
       return { ok: false, message: `K8s error: ${err instanceof Error ? err.message : String(err)}` };
@@ -212,6 +212,6 @@ export class K8sAdapter implements DeviceAdapter {
     const namespace = config.namespace || 'default';
     await this.kubectl([
       'delete', 'jobs', '-n', namespace, '-l', `askalf.io/device=${deviceId}`,
-    ]).catch(() => {});
+    ]).catch((e) => { if (e) console.debug("[catch]", String(e)); });
   }
 }

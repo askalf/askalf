@@ -253,7 +253,7 @@ export async function registerAgentBridge(app: FastifyInstance): Promise<void> {
 
   // Periodic stale device cleanup (every 60s)
   staleCleanupTimer = setInterval(() => {
-    void cleanupStaleDevices().catch(() => {});
+    void cleanupStaleDevices().catch((e) => { if (e) console.debug("[catch]", String(e)); });
   }, 60_000);
 
   console.log('[AgentBridge] WebSocket endpoint registered at /ws/agent-bridge');
@@ -363,7 +363,7 @@ async function handleClientMessage(
       );
 
       const eventBus = getEventBus();
-      void eventBus?.emitExecution('started', executionId, '', '').catch(() => {});
+      void eventBus?.emitExecution('started', executionId, '', '').catch((e) => { if (e) console.debug("[catch]", String(e)); });
       console.log(`[AgentBridge] Execution ${executionId} accepted by device ${session.deviceId}`);
       break;
     }
@@ -379,7 +379,7 @@ async function handleClientMessage(
       const eventBus = getEventBus();
       void eventBus?.emitExecution('progress', executionId, '', '', {
         output: typeof data === 'string' ? data : JSON.stringify(data ?? ''),
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       break;
     }
 
@@ -412,7 +412,7 @@ async function handleClientMessage(
         void eventBus?.emitExecution('completed', executionId, exec.agent_id, exec.agent_id, {
           output: output ?? '',
           cost,
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         // Publish to agent results channel for fleet coordination
         const { getRedisPublisher } = await import('./task-dispatcher.js');
@@ -456,7 +456,7 @@ async function handleClientMessage(
         const eventBus = getEventBus();
         void eventBus?.emitExecution('failed', executionId, exec.agent_id, exec.agent_id, {
           error: error ?? 'Device execution failed',
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       }
 
       console.log(`[AgentBridge] Execution ${executionId} failed on device ${session.deviceId}: ${error}`);
@@ -472,7 +472,7 @@ async function handleClientMessage(
         for (const execId of session.activeExecutions) {
           void eventBus?.emitExecution('progress', execId, '', '', {
             output: JSON.stringify({ messageType: msg.type, data: msg.payload }),
-          }).catch(() => {});
+          }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
         }
       } else {
         sendMessage(ws, 'device:error', { code: 'UNKNOWN_TYPE', message: `Unknown message type: ${msg.type}` });
@@ -538,7 +538,7 @@ function cleanupSession(session: DeviceSession, markOffline = true): void {
   }
 
   if (markOffline) {
-    void markDeviceOffline(session.deviceId).catch(() => {});
+    void markDeviceOffline(session.deviceId).catch((e) => { if (e) console.debug("[catch]", String(e)); });
   }
 
   // Fail any in-progress executions
@@ -546,7 +546,7 @@ function cleanupSession(session: DeviceSession, markOffline = true): void {
     void dbQuery(
       `UPDATE forge_executions SET status = 'failed', error = 'Device disconnected', completed_at = NOW() WHERE id = $1 AND status IN ('pending', 'running')`,
       [execId],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
   }
 
   console.log(`[AgentBridge] Session cleaned up for device=${session.deviceId} (activeExecs=${session.activeExecutions.size})`);
@@ -577,7 +577,7 @@ async function validateBridgeToken(key: string): Promise<{ id: string; user_id: 
       void dbQuery(
         `UPDATE api_keys SET last_used_at = NOW(), usage_count = usage_count + 1 WHERE id = $1`,
         [row.id],
-      ).catch(() => {});
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       return { id: row.id, user_id: row.user_id, tenant_id: row.tenant_id, key_prefix: row.key_prefix };
     }
   }

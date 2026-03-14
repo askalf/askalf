@@ -61,7 +61,7 @@ export async function orchestrateFromNL(
       taskCount: limitedTasks.length,
       tasks: limitedTasks.map((t) => t.title),
     },
-  }).catch(() => {});
+  }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
   // Step 2: Match agents to tasks
   const matches = await matchAgentsToTasks(limitedTasks);
@@ -119,7 +119,7 @@ export async function orchestrateFromNL(
       agentId: match.agentId,
       agentName: match.agentName,
       data: { taskTitle: task.title },
-    }).catch(() => {});
+    }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     results.push({
       title: task.title,

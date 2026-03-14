@@ -49,7 +49,7 @@ async function resolveApiKey(provider: ProviderRow, userId?: string): Promise<st
       void queryOne(
         `UPDATE user_provider_keys SET last_used_at = NOW() WHERE user_id = $1 AND provider_type = $2`,
         [userId, provider.type],
-      ).catch(() => {});
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       return decodeKey(userKey.api_key_encrypted);
     }
   }

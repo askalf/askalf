@@ -111,7 +111,7 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
         details: { name: body.name },
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return reply.status(201).send({ workflow });
     },
@@ -270,7 +270,7 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
         details: { fields: Object.keys(body) },
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return reply.send({ workflow });
     },
@@ -344,7 +344,7 @@ export async function workflowRoutes(app: FastifyInstance): Promise<void> {
         details: { workflowId },
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return reply.status(201).send({ run });
     },

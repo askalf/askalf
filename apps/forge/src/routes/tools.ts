@@ -168,7 +168,7 @@ export async function toolRoutes(app: FastifyInstance): Promise<void> {
         details: { name: body.name, type: body.type ?? 'custom' },
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return reply.status(201).send({ tool });
     },
@@ -228,7 +228,7 @@ export async function toolRoutes(app: FastifyInstance): Promise<void> {
         details: { name: body.name, transportType: body.transportType },
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return reply.status(201).send({ server });
     },
@@ -320,7 +320,7 @@ export async function toolRoutes(app: FastifyInstance): Promise<void> {
         details: { serverName: server.name, toolCount: discoveredTools.length, healthStatus },
         ipAddress: request.ip,
         userAgent: request.headers['user-agent'],
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       if (errorMessage) {
         return reply.status(502).send({
