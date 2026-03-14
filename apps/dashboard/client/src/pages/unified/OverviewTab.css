@@ -348,7 +348,7 @@
 /* ── Main Grid ── */
 .mc-grid-main {
   display: grid;
-  grid-template-columns: 1fr 1.4fr 0.8fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   flex: 1;
   min-height: 0;
@@ -874,3 +874,35 @@
 }
 [data-theme="light"] .mc-cost-day { color: #a1a1aa; }
 [data-theme="light"] .mc-cost-col.today .mc-cost-day { color: #7c3aed; }
+
+/* ── Needs Attention Panel ── */
+.mc-attention { flex: 1; min-width: 280px; }
+.mc-attention-ok { font-size: 0.7rem; color: var(--status-healthy); }
+.mc-attn-group { margin-bottom: 0.75rem; }
+.mc-attn-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 0.375rem; font-family: var(--font-mono); }
+.mc-attn-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.5rem; border-radius: 6px; cursor: pointer; transition: background 0.15s; font-size: 0.8rem; color: var(--text-secondary); background: none; border: none; width: 100%; text-align: left; font-family: inherit; }
+.mc-attn-item:hover { background: var(--elevated); }
+.mc-attn-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.mc-attn-dot.running { background: #3b82f6; box-shadow: 0 0 6px rgba(59, 130, 246, 0.4); }
+.mc-attn-dot.failed { background: #ef4444; }
+.mc-attn-dot.ticket { background: #f59e0b; }
+.mc-attn-agent { flex: 1; }
+.mc-attn-time { font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); }
+.mc-attn-action { font-size: 0.7rem; color: var(--crystal); }
+
+/* ── Activity Summary Panel ── */
+.mc-activity { flex: 1; min-width: 280px; }
+.mc-activity-stats { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+.mc-activity-stat { flex: 1; text-align: center; padding: 0.625rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+.mc-activity-stat:hover { border-color: var(--border-hover); }
+.mc-activity-val { display: block; font-size: 1.1rem; font-weight: 700; font-family: var(--font-mono); }
+.mc-activity-val.ok { color: var(--status-healthy); }
+.mc-activity-val.fail { color: var(--danger); }
+.mc-activity-val.cost { color: var(--crystal); }
+.mc-activity-lbl { display: block; font-size: 0.65rem; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+.mc-activity-feed { display: flex; flex-direction: column; gap: 2px; }
+.mc-activity-evt { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.25rem 0.375rem; font-size: 0.75rem; border-radius: 4px; }
+.mc-activity-time { font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono); flex-shrink: 0; }
+.mc-activity-msg { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-activity-more { background: none; border: none; color: var(--crystal); font-size: 0.75rem; cursor: pointer; padding: 0.375rem 0; text-align: center; font-family: inherit; margin-top: 0.25rem; }
+.mc-activity-more:hover { text-decoration: underline; }
