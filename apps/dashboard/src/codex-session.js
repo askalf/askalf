@@ -13,6 +13,8 @@ import { mkdir, access, writeFile, copyFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { CircularBuffer } from './circular-buffer.js';
+
 const RING_BUFFER_SIZE = 5000;
 const MAX_RESTART_RETRIES = 5;
 const RESTART_BACKOFF_BASE_MS = 2000;
@@ -20,39 +22,6 @@ const MAX_RESIZE_COLS = 500;
 const MAX_RESIZE_ROWS = 200;
 
 const CODEX_HOME = process.env['CODEX_SESSION_HOME'] || '/home/substrate/.codex-session';
-
-/** O(1) circular buffer — no shift() overhead */
-class CircularBuffer {
-  constructor(capacity) {
-    this.capacity = capacity;
-    this.buffer = new Array(capacity);
-    this.head = 0;
-    this.size = 0;
-  }
-
-  push(item) {
-    this.buffer[this.head] = item;
-    this.head = (this.head + 1) % this.capacity;
-    if (this.size < this.capacity) this.size++;
-  }
-
-  getAll() {
-    if (this.size === 0) return [];
-    if (this.size < this.capacity) {
-      return this.buffer.slice(0, this.size);
-    }
-    return [
-      ...this.buffer.slice(this.head),
-      ...this.buffer.slice(0, this.head),
-    ];
-  }
-
-  clear() {
-    this.buffer = new Array(this.capacity);
-    this.head = 0;
-    this.size = 0;
-  }
-}
 
 class CodexSessionManager {
   constructor() {
