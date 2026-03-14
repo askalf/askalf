@@ -1163,7 +1163,7 @@
 }
 
 .landing-pricing-cta.cta-default {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--text, #fafafa);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
 }

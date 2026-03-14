@@ -14,7 +14,7 @@
 .chat-sidebar {
   width: 240px;
   min-width: 200px;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   background: rgba(255, 255, 255, 0.02);
@@ -70,7 +70,7 @@
 }
 
 .chat-conv-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface);
   color: var(--text, #e4e4e7);
 }
 
@@ -139,7 +139,7 @@
 .chat-conv-rename-input {
   width: 100%;
   padding: 4px 6px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border: 1px solid var(--crystal, #7c3aed);
   border-radius: 4px;
   color: var(--text, #e4e4e7);
@@ -216,8 +216,8 @@
 
 .chat-suggestions button {
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 20px;
   color: var(--text-muted, rgba(255, 255, 255, 0.3));
   font-size: 13px;
@@ -269,7 +269,7 @@
 }
 
 .chat-msg-assistant .chat-msg-avatar {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--text-muted, rgba(255, 255, 255, 0.3));
 }
 
@@ -306,9 +306,9 @@
 }
 
 .chat-msg-assistant .chat-msg-text {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text, #e4e4e7);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-bottom-left-radius: 4px;
   backdrop-filter: blur(8px);
 }
@@ -318,7 +318,7 @@
   font-size: 12px;
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--crystal-lighter, #a78bfa);
 }
 
@@ -348,7 +348,7 @@
 /* ── Intent Preview ── */
 
 .chat-intent-preview {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 10px;
   padding: 16px;
@@ -424,7 +424,7 @@
 .chat-intent-subtasks {
   margin: 8px 0 12px;
   padding: 8px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
 }
 
 .chat-intent-subtasks-header {
@@ -497,7 +497,7 @@
 /* ── Configure Form ── */
 
 .chat-intent-configure {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   padding-top: 12px;
   margin-bottom: 14px;
   display: flex;
@@ -523,7 +523,7 @@
 .chat-intent-field textarea,
 .chat-intent-field select {
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   color: var(--text, #e4e4e7);
@@ -621,7 +621,7 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
 }
 
 .chat-intent-actions {
@@ -654,15 +654,15 @@
 }
 
 .chat-btn-secondary {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text-muted, rgba(255, 255, 255, 0.3));
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
 }
 
 .chat-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--text, #e4e4e7);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-hover);
 }
 
 /* ── Input Area ── */
@@ -671,7 +671,7 @@
   display: flex;
   gap: 8px;
   padding: 12px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(8px);
 }
@@ -679,8 +679,8 @@
 .chat-input {
   flex: 1;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text, #e4e4e7);
   font-size: 14px;

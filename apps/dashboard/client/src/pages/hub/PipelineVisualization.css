@@ -13,7 +13,7 @@
 /* ---- Flow Container ---- */
 .pipeline-flow-container {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: var(--space-lg);
   backdrop-filter: blur(8px);
@@ -21,7 +21,7 @@
 
 .pipeline-flow-header {
   margin-bottom: var(--space-lg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
   padding-bottom: var(--space-lg);
 }
 
@@ -103,12 +103,12 @@
 
 .pipeline-node:hover {
   transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: var(--text-muted);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
 }
 
 .pipeline-node.selected {
-  border-color: rgba(255, 255, 255, 0.5);
+  border-color: var(--text-tertiary);
   box-shadow: 0 0 16px currentColor;
 }
 
@@ -206,7 +206,7 @@
 /* ---- Detail Panel ---- */
 .pipeline-flow-detail-panel {
   background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: var(--space-md);
   overflow-y: auto;
@@ -234,7 +234,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
   padding-bottom: var(--space-md);
 }
 
@@ -326,8 +326,8 @@
 }
 
 .pipeline-run-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: var(--space-md);
   cursor: pointer;
@@ -399,7 +399,7 @@
   justify-content: center;
   min-height: 300px;
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 12px;
   color: var(--text-muted);
   font-size: 0.9rem;
