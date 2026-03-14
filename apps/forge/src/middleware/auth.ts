@@ -79,8 +79,10 @@ async function tryApiKeyAuth(request: FastifyRequest): Promise<boolean> {
     const tokenHash = rateLimitTokenHash(token);
     void cacheKeyRateLimit(tokenHash, apiKey.rate_limit ?? 100).catch(() => {});
 
+    // Only trust x-user-id from internal services (dashboard proxy), not external API callers
     const forwardedUserId = request.headers['x-user-id'];
-    request.userId = (typeof forwardedUserId === 'string' && forwardedUserId) ? forwardedUserId : apiKey.owner_id;
+    const isInternalProxy = request.headers['x-forwarded-for'] && request.ip?.startsWith('172.');
+    request.userId = (isInternalProxy && typeof forwardedUserId === 'string' && forwardedUserId) ? forwardedUserId : apiKey.owner_id;
     request.apiKeyId = apiKey.id;
     request.apiKeyPermissions = apiKey.permissions as string[];
 

@@ -163,6 +163,7 @@ services:
     networks:
       - askalf-net
     restart: unless-stopped
+    stop_grace_period: 100s
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -178,6 +179,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '2.0'
           memory: 2G
         reservations:
           memory: 512M

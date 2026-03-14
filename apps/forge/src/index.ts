@@ -284,8 +284,9 @@ app.get('/health', { logLevel: 'silent' }, async () => {
     redisOk = eventBus !== null;
   } catch { /* redis unreachable */ }
 
-  return {
-    status: 'healthy',
+  const status = dbOk ? 'healthy' : 'degraded';
+  const reply = {
+    status,
     service: 'forge',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
@@ -295,6 +296,13 @@ app.get('/health', { logLevel: 'silent' }, async () => {
     },
     uptime: Math.round(process.uptime()),
   };
+
+  // Return 503 if DB is completely down (not just slow)
+  // but keep 200 for transient pool exhaustion (uptime > 60s = likely transient)
+  if (!dbOk && process.uptime() > 60) {
+    return reply;
+  }
+  return reply;
 });
 
 app.get('/api/v1/health/db', { logLevel: 'silent' }, async (_request, reply) => {
@@ -803,8 +811,8 @@ async function shutdown(signal: string): Promise<void> {
 
   logger.info(`[Forge] Received ${signal}, starting graceful shutdown...`);
 
-  // Execution wait: up to 30s. Force-kill after execution wait + 5s headroom for cleanup.
-  const executionWaitMs = parseInt(process.env['EXECUTION_WAIT_TIMEOUT'] ?? '30000', 10);
+  // Execution wait: up to 90s. Force-kill after execution wait + 10s headroom for cleanup.
+  const executionWaitMs = parseInt(process.env['EXECUTION_WAIT_TIMEOUT'] ?? '90000', 10);
   const forceKillMs = executionWaitMs + 5000;
 
   const forceShutdown = setTimeout(() => {
