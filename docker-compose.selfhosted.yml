@@ -19,7 +19,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: askalf
       POSTGRES_INITDB_ARGS: "--data-checksums"
-    shm_size: 192m
+    shm_size: 256m
     volumes:
       - askalf_postgres:/var/lib/postgresql/data
       - ./packages/database/src/migrations:/docker-entrypoint-initdb.d:ro
@@ -56,9 +56,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1G
         reservations:
-          memory: 256M
+          memory: 512M
 
   redis:
     image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
@@ -96,9 +96,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 640M
         reservations:
-          memory: 128M
+          memory: 256M
 
   # ===========================================
   # APPLICATION LAYER
@@ -178,9 +178,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 2G
         reservations:
-          memory: 1G
+          memory: 512M
 
   dashboard:
     build:
@@ -242,7 +242,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1536M
+          memory: 768M
         reservations:
           memory: 256M
 
