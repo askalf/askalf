@@ -26,7 +26,7 @@ function LoadingScreen() {
           fontSize: '1.5rem',
           fontWeight: 800,
           letterSpacing: '-0.03em',
-          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          fontFamily: 'var(--font-mono)',
           color: '#a78bfa',
         }}>askalf</span>
       </div>

@@ -164,7 +164,7 @@ export default function StatusPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 {svc.latency !== undefined && (
                   <span style={{
-                    fontFamily: 'JetBrains Mono, monospace',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: '0.75rem',
                     color: 'var(--text-secondary)',
                   }}>

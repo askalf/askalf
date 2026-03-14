@@ -307,7 +307,7 @@
 
 .ud-scheduler-toggle:hover {
   border-color: rgba(255, 255, 255, 0.2);
-  color: #e4e4e7;
+  color: var(--text);
 }
 
 .ud-scheduler-toggle.running {
@@ -486,7 +486,7 @@
   background: none;
   border: none;
   border-radius: 6px;
-  color: #e4e4e7;
+  color: var(--text);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
@@ -618,7 +618,7 @@
 
 .ud-ticket-num {
   font-weight: 700;
-  color: #e4e4e7;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -735,7 +735,7 @@
 
 .ud-btn-sm:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: #e4e4e7;
+  color: var(--text);
 }
 
 .ud-master-project-picker {
@@ -785,7 +785,7 @@
 
 .ud-project-item:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: #e4e4e7;
+  color: var(--text);
 }
 
 .ud-project-item.active {
@@ -939,7 +939,7 @@
 .ud-notification-title {
   font-size: 13px;
   font-weight: 600;
-  color: #e4e4e7;
+  color: var(--text);
 }
 
 .ud-notification-clear {
@@ -1007,7 +1007,7 @@
 .ud-notification-item-title {
   font-size: 12px;
   font-weight: 600;
-  color: #e4e4e7;
+  color: var(--text);
   margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -1078,7 +1078,7 @@
 .ud-account-name {
   font-size: 13px;
   font-weight: 600;
-  color: #e4e4e7;
+  color: var(--text);
 }
 
 .ud-account-email {
@@ -1118,7 +1118,7 @@
 
 .ud-account-link:hover {
   background: rgba(255, 255, 255, 0.04);
-  color: #e4e4e7;
+  color: var(--text);
 }
 
 .ud-account-logout:hover {
@@ -1171,7 +1171,7 @@
 }
 
 .ud-sub-tab.active {
-  color: #e4e4e7;
+  color: var(--text);
   background: rgba(255, 255, 255, 0.06);
 }
 

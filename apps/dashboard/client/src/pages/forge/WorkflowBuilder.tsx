@@ -391,7 +391,7 @@ function NodeConfigEditor({ node, onChange, agents, allNodes }: NodeEditorProps)
               placeholder={'{\n  "summary": "agent1.output",\n  "score": "agent2.result.score"\n}'}
               rows={5}
               className="fobs-input"
-              style={{ fontFamily: 'monospace', fontSize: '0.75rem', width: '100%' }}
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', width: '100%' }}
             />
             <span className="fwb-context-hint">Map output keys to context paths from previous nodes</span>
           </div>

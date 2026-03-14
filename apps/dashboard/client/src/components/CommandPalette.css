@@ -26,7 +26,7 @@
     0 24px 80px rgba(0, 0, 0, 0.7),
     0 0 40px rgba(0, 255, 120, 0.05);
   overflow: hidden;
-  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  font-family: var(--font-mono);
 }
 
 /* ── Input row ── */
@@ -182,7 +182,7 @@
 
 /* Agent status */
 .cp-badge--running  { background: rgba(52, 211, 153, 0.15); color: #34d399; border-color: rgba(52, 211, 153, 0.3); }
-.cp-badge--idle     { background: rgba(148, 163, 184, 0.1);  color: #94a3b8; border-color: rgba(148, 163, 184, 0.2); }
+.cp-badge--idle     { background: rgba(148, 163, 184, 0.1);  color: var(--text-muted); border-color: rgba(148, 163, 184, 0.2); }
 .cp-badge--paused   { background: rgba(251, 191, 36, 0.12);  color: #fbbf24; border-color: rgba(251, 191, 36, 0.25); }
 .cp-badge--error    { background: rgba(248, 113, 113, 0.15); color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
 
@@ -190,7 +190,7 @@
 .cp-badge--urgent   { background: rgba(248, 113, 113, 0.15); color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
 .cp-badge--high     { background: rgba(251, 146, 60, 0.15);  color: #fb923c; border-color: rgba(251, 146, 60, 0.3); }
 .cp-badge--medium   { background: rgba(251, 191, 36, 0.12);  color: #fbbf24; border-color: rgba(251, 191, 36, 0.25); }
-.cp-badge--low      { background: rgba(148, 163, 184, 0.1);  color: #94a3b8; border-color: rgba(148, 163, 184, 0.2); }
+.cp-badge--low      { background: rgba(148, 163, 184, 0.1);  color: var(--text-muted); border-color: rgba(148, 163, 184, 0.2); }
 
 /* ── Footer ── */
 .cp-footer {

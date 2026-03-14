@@ -332,10 +332,10 @@ export default function ExecutionHistory() {
                       </div>
                     </td>
                     <td><StatusBadge status={task.status} /></td>
-                    <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                    <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                       {task.duration_seconds ? formatDurationSeconds(task.duration_seconds) : formatDurationBetween(task.started_at, task.completed_at)}
                     </td>
-                    <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{formatCost(task.cost)}</td>
+                    <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{formatCost(task.cost)}</td>
                     <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatTokens(task.tokens_used)}</td>
                     <td>
                       {preview ? (

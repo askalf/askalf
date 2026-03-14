@@ -96,7 +96,7 @@ export default function TerminalSession({
         brightCyan: '#22d3ee',
         brightWhite: '#fafafa',
       },
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+      fontFamily: 'var(--font-mono)',
       fontSize: 13,
       lineHeight: 1.4,
       scrollback: 10000,
