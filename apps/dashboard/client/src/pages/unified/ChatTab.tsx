@@ -119,7 +119,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
     case 'keys':
     case 'apikeys':
     case 'providers': {
-      const data = await cmdFetch<{ providers: { provider: string; has_key: boolean; model_count: number }[] }>('/api/v1/user/providers').catch(() => ({ providers: [] }));
+      const data = await cmdFetch<{ providers: { provider: string; has_key: boolean; model_count: number }[] }>('/api/v1/forge/user-providers').catch(() => ({ providers: [] }));
       if (!data.providers.length) return { text: 'No providers configured. Use `/settings ai-keys` to add one.' };
       const rows = data.providers.map(p => `${p.has_key ? '\u2713' : '\u2717'} **${p.provider}** — ${p.has_key ? 'connected' : 'not set'} (${p.model_count} models)`);
       return { text: `**AI Provider Keys**\n${rows.join('\n')}` };
