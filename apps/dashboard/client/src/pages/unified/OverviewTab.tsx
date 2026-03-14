@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePolling } from '../../hooks/usePolling';
 import { formatCost, formatCount, relativeTime, todayDateStr } from '../../utils/format';
+import { apiFetchSafe } from '../../utils/api';
 import type { ForgeEvent } from '../../constants/status';
 import './OverviewTab.css';
 
@@ -65,13 +66,7 @@ interface CostData {
 
 // ── Helpers ──
 
-async function apiFetch<T>(url: string): Promise<T | null> {
-  try {
-    const res = await fetch(url, { credentials: 'include' });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch { return null; }
-}
+// Using shared apiFetchSafe from utils/api
 
 function useClock() {
   const [now, setNow] = useState(new Date());
@@ -508,12 +503,12 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
 
   const fetchAll = useCallback(async () => {
     const [h, m, fs, ex, c, ag] = await Promise.all([
-      apiFetch<HealthData>('/api/v1/admin/monitoring/health'),
-      apiFetch<MetricsData>('/api/v1/admin/reports/metrics'),
-      apiFetch<FleetStatsData>('/api/v1/forge/fleet/stats'),
-      apiFetch<{ executions: ExecutionEntry[] }>('/api/v1/admin/executions/timeline?hours=24'),
-      apiFetch<CostData>('/api/v1/admin/costs?days=7'),
-      apiFetch<{ agents: AgentInfo[] }>('/api/v1/admin/agents'),
+      apiFetchSafe<HealthData>('/api/v1/admin/monitoring/health'),
+      apiFetchSafe<MetricsData>('/api/v1/admin/reports/metrics'),
+      apiFetchSafe<FleetStatsData>('/api/v1/forge/fleet/stats'),
+      apiFetchSafe<{ executions: ExecutionEntry[] }>('/api/v1/admin/executions/timeline?hours=24'),
+      apiFetchSafe<CostData>('/api/v1/admin/costs?days=7'),
+      apiFetchSafe<{ agents: AgentInfo[] }>('/api/v1/admin/agents'),
     ]);
     if (h) setHealth(h);
     if (m) setMetrics(m);

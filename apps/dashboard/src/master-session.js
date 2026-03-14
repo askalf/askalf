@@ -16,6 +16,8 @@ import { readFile, writeFile, copyFile, mkdir, access, rename } from 'fs/promise
 import { tmpdir } from 'os';
 import { join } from 'path';
 
+import { CircularBuffer } from './circular-buffer.js';
+
 const RING_BUFFER_SIZE = 5000;
 const MAX_RESTART_RETRIES = 5;
 const RESTART_BACKOFF_BASE_MS = 2000;
@@ -30,42 +32,8 @@ const CREDENTIALS_MOUNT = '/tmp/claude-credentials/.credentials.json';
 const CREDENTIALS_PATH = `${CLAUDE_DIR}/.credentials.json`;
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
-const TOKEN_REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-const TOKEN_REFRESH_BUFFER_MS = 60 * 60 * 1000;   // Refresh if <1h remaining
-
-/** O(1) circular buffer — no shift() overhead */
-class CircularBuffer {
-  constructor(capacity) {
-    this.capacity = capacity;
-    this.buffer = new Array(capacity);
-    this.head = 0;
-    this.size = 0;
-  }
-
-  push(item) {
-    this.buffer[this.head] = item;
-    this.head = (this.head + 1) % this.capacity;
-    if (this.size < this.capacity) this.size++;
-  }
-
-  getAll() {
-    if (this.size === 0) return [];
-    if (this.size < this.capacity) {
-      return this.buffer.slice(0, this.size);
-    }
-    // Buffer is full: read from head (oldest) to end, then 0 to head
-    return [
-      ...this.buffer.slice(this.head),
-      ...this.buffer.slice(0, this.head),
-    ];
-  }
-
-  clear() {
-    this.buffer = new Array(this.capacity);
-    this.head = 0;
-    this.size = 0;
-  }
-}
+const TOKEN_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+const TOKEN_REFRESH_BUFFER_MS = 60 * 60 * 1000;
 
 /** Atomic file write: write to temp in same dir then rename */
 async function atomicWriteFile(filePath, data) {
