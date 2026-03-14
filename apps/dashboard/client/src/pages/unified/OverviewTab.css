@@ -1,5 +1,5 @@
 /* ============================================
-   MISSION CONTROL — Deep Space Telemetry
+   MISSION CONTROL — Command Bridge Emergence
    ============================================ */
 
 .mc-root {
@@ -8,8 +8,112 @@
   flex-direction: column;
   background: #04040a;
   overflow: hidden;
-  animation: mc-emerge 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
+  animation: mc-bridge-boot 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Bridge Boot Sequence ── */
+@keyframes mc-bridge-boot {
+  0% { opacity: 0; filter: brightness(0); }
+  15% { opacity: 1; filter: brightness(0.3) saturate(0); }
+  40% { filter: brightness(0.6) saturate(0.5); }
+  70% { filter: brightness(0.9) saturate(0.8); }
+  100% { filter: brightness(1) saturate(1); }
+}
+
+/* Status bar slides down */
+.mc-status-bar {
+  animation: mc-slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+@keyframes mc-slide-down {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Left gauges stagger in */
+.mc-gauges {
+  animation: mc-slide-left 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+}
+
+@keyframes mc-slide-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Right panels stagger in */
+.mc-panels {
+  animation: mc-slide-right 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.7s both;
+}
+
+@keyframes mc-slide-right {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Center orbital materializes */
+.mc-orbital {
+  animation: mc-materialize 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+
+@keyframes mc-materialize {
+  0% { opacity: 0; transform: scale(0.6); filter: blur(8px); }
+  40% { opacity: 0.5; transform: scale(0.85); filter: blur(3px); }
+  100% { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+/* Ticker scrolls up from below */
+.mc-ticker {
+  animation: mc-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.9s both;
+}
+
+@keyframes mc-slide-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Individual gauge values flicker on */
+.mc-gauge-val {
+  animation: mc-flicker 0.8s steps(4) 0.6s both;
+}
+
+@keyframes mc-flicker {
+  0% { opacity: 0; }
+  20% { opacity: 0.7; }
+  40% { opacity: 0.2; }
+  60% { opacity: 0.9; }
+  80% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Execution numbers count up feel */
+.mc-exec-num {
+  animation: mc-flicker 0.6s steps(3) 0.8s both;
+}
+
+/* Check pills appear one by one */
+.mc-check {
+  animation: mc-pill-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.mc-check:nth-child(1) { animation-delay: 0.5s; }
+.mc-check:nth-child(2) { animation-delay: 0.6s; }
+.mc-check:nth-child(3) { animation-delay: 0.7s; }
+.mc-check:nth-child(4) { animation-delay: 0.8s; }
+.mc-check:nth-child(5) { animation-delay: 0.9s; }
+.mc-check:nth-child(6) { animation-delay: 1.0s; }
+
+@keyframes mc-pill-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Memory bars grow in */
+.mc-mem-fill {
+  animation: mc-bar-grow 1s cubic-bezier(0.16, 1, 0.3, 1) 1s both;
+}
+
+@keyframes mc-bar-grow {
+  from { width: 0 !important; }
 }
 
 .mc-root::before {
