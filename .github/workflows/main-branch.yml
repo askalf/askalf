@@ -6,6 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/sprayberrylabs/askalf
   PNPM_VERSION: 9.15.0
 
 jobs:
@@ -38,6 +39,7 @@ jobs:
       contents: read
       packages: write
     strategy:
+      fail-fast: false
       matrix:
         include:
           - app: dashboard
@@ -70,7 +72,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image-name }}
+          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.image-name }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -85,8 +87,8 @@ jobs:
           push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image-name }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ github.repository }}/${{ matrix.image-name }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image-name }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.image-name }}:buildcache,mode=max
 
   verify-build:
     runs-on: ubuntu-latest
