@@ -520,7 +520,7 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
     if (fs) setFleetStats(fs);
     if (ex) setExecutions(Array.isArray(ex.executions) ? ex.executions.slice(0, 20) : []);
     if (c) setCostData(c);
-    if (ag?.agents) setAllAgents(ag.agents.filter(a => a.status === 'active'));
+    if (ag?.agents) setAllAgents(ag.agents.filter(a => a.status !== 'archived' && a.status !== 'decommissioned'));
   }, []);
 
   usePolling(fetchAll, 30000);
