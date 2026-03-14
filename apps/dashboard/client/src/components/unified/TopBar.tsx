@@ -171,9 +171,6 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
               )}
               <div className="ud-account-divider" role="separator" />
               <button role="menuitem" className="ud-account-link" onClick={() => { setMenuOpen(false); onNavigate?.('settings'); }}>Settings</button>
-              {user?.role === 'super_admin' && (
-                <button role="menuitem" className="ud-account-link" onClick={() => { setMenuOpen(false); onNavigate?.('users'); }}>Users</button>
-              )}
             </div>
           )}
         </div>
