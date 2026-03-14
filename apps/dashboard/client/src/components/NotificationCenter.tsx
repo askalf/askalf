@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface Notification {
   id: string;
@@ -9,11 +9,51 @@ interface Notification {
   read: boolean;
 }
 
+const MAX_NOTIFICATIONS = 50;
+
 export default function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const unreadCount = notifications.filter(n => !n.read).length;
+  const seenIdsRef = useRef(new Set<string>());
+
+  // Listen for WebSocket events via the global event bus
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const event = e.detail;
+      if (!event?.type) return;
+
+      // Only notify on important events
+      let notification: Notification | null = null;
+      const id = `${event.id || Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+      if (seenIdsRef.current.has(event.id)) return;
+      if (event.id) seenIdsRef.current.add(event.id);
+
+      const agent = event.agentName || event.agentId || 'System';
+      const msg = event.data?.message || event.data?.output?.slice(0, 100) || '';
+
+      if (event.type === 'failed') {
+        notification = {
+          id, title: `${agent} failed`, message: msg || 'Execution failed',
+          type: 'error', timestamp: Date.now(), read: false,
+        };
+      } else if (event.type === 'completed' && event.category === 'execution') {
+        notification = {
+          id, title: `${agent} completed`, message: msg || 'Task finished',
+          type: 'success', timestamp: Date.now(), read: false,
+        };
+      }
+
+      if (notification) {
+        setNotifications(prev => [notification!, ...prev].slice(0, MAX_NOTIFICATIONS));
+      }
+    };
+
+    window.addEventListener('forge-event' as string, handler as EventListener);
+    return () => window.removeEventListener('forge-event' as string, handler as EventListener);
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -38,6 +78,10 @@ export default function NotificationCenter() {
     setDropdownOpen(false);
   };
 
+  const handleMarkAllRead = useCallback(() => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  }, []);
+
   const getTypeColor = (type: Notification['type']) => {
     switch (type) {
       case 'error': return '#ef4444';
@@ -47,11 +91,18 @@ export default function NotificationCenter() {
     }
   };
 
+  const relTime = (ts: number) => {
+    const diff = Date.now() - ts;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    return `${Math.floor(diff / 3600000)}h ago`;
+  };
+
   return (
     <div className="ud-notification-center" ref={menuRef}>
       <button
         className="ud-notification-btn"
-        onClick={() => setDropdownOpen(!dropdownOpen)}
+        onClick={() => { setDropdownOpen(!dropdownOpen); if (!dropdownOpen) handleMarkAllRead(); }}
         aria-label="Notifications"
         aria-expanded={dropdownOpen}
         aria-haspopup="menu"
@@ -71,11 +122,7 @@ export default function NotificationCenter() {
           <div className="ud-notification-header">
             <span className="ud-notification-title">Notifications</span>
             {notifications.length > 0 && (
-              <button
-                className="ud-notification-clear"
-                onClick={handleClearAll}
-                aria-label="Clear all notifications"
-              >
+              <button className="ud-notification-clear" onClick={handleClearAll} aria-label="Clear all">
                 Clear
               </button>
             )}
@@ -99,9 +146,7 @@ export default function NotificationCenter() {
                   <div className="ud-notification-content">
                     <div className="ud-notification-item-title">{notification.title}</div>
                     <div className="ud-notification-item-message">{notification.message}</div>
-                    <div className="ud-notification-item-time">
-                      {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
+                    <div className="ud-notification-item-time">{relTime(notification.timestamp)}</div>
                   </div>
                 </div>
               ))

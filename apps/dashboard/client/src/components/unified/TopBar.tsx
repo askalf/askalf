@@ -76,15 +76,6 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch {
-      // ignore
-    }
-    window.location.href = '/command-center';
-  };
-
   const healthColor = wsConnected ? '#22c55e' : '#ef4444';
   const healthLabel = wsConnected ? 'Healthy' : 'Disconnected';
   const userName = user?.displayName || user?.name;
@@ -174,8 +165,7 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
             <div className="ud-account-dropdown" role="menu" aria-label="Account options">
               {user && (
                 <div className="ud-account-info" role="presentation">
-                  <div className="ud-account-name">{user.name ?? user.email}</div>
-                  {user.name && <div className="ud-account-email">{user.email}</div>}
+                  <div className="ud-account-name">{user.displayName || user.name || 'Admin'}</div>
                   {user.role && <div className="ud-account-role">{user.role}</div>}
                 </div>
               )}
@@ -184,10 +174,6 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
               {user?.role === 'super_admin' && (
                 <button role="menuitem" className="ud-account-link" onClick={() => { setMenuOpen(false); onNavigate?.('users'); }}>Users</button>
               )}
-              <div className="ud-account-divider" role="separator" />
-              <button role="menuitem" className="ud-account-link ud-account-logout" onClick={handleLogout}>
-                Sign Out
-              </button>
             </div>
           )}
         </div>
