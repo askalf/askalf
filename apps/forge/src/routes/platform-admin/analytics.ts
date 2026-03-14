@@ -233,4 +233,62 @@ export async function registerAnalyticsRoutes(app: FastifyInstance): Promise<voi
       };
     },
   );
+
+  // Cost forecast — simple linear projection based on recent daily averages
+  app.get(
+    '/api/v1/admin/costs/forecast',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest) => {
+      const { horizon = '7d' } = request.query as { horizon?: string };
+      const days = parseInt(horizon.replace('d', ''), 10) || 7;
+
+      // Get daily costs for the last 14 days to build the trend
+      const dailyCosts = await query<{ date: string; total_cost: string; event_count: string }>(
+        `SELECT DATE(created_at)::text AS date,
+                COALESCE(SUM(cost), 0)::text AS total_cost,
+                COUNT(*)::text AS event_count
+         FROM forge_cost_events
+         WHERE created_at >= NOW() - INTERVAL '14 days'
+         GROUP BY DATE(created_at)
+         ORDER BY date`,
+      );
+
+      if (dailyCosts.length === 0) {
+        return { hourly_forecast: [], total_predicted: 0, confidence_range: { low: 0, high: 0 }, avg_confidence: 0 };
+      }
+
+      const costs = dailyCosts.map(r => parseFloat(r.total_cost) || 0);
+      const avg = costs.reduce((s, c) => s + c, 0) / costs.length;
+      const variance = costs.reduce((s, c) => s + (c - avg) ** 2, 0) / costs.length;
+      const stddev = Math.sqrt(variance);
+
+      // Project forward hour by hour
+      const hourly_forecast: { hour: string; predicted_cost: number; confidence: number }[] = [];
+      const hourlyAvg = avg / 24;
+      const now = new Date();
+      for (let h = 0; h < days * 24; h++) {
+        const hour = new Date(now.getTime() + h * 3600_000);
+        const confidence = Math.max(0.3, 1 - (h / (days * 24)) * 0.5);
+        hourly_forecast.push({
+          hour: hour.toISOString(),
+          predicted_cost: Math.round(hourlyAvg * 10000) / 10000,
+          confidence,
+        });
+      }
+
+      const total_predicted = Math.round(avg * days * 100) / 100;
+      const avg_confidence = Math.max(0.4, 1 - days * 0.05);
+
+      return {
+        hourly_forecast,
+        total_predicted,
+        confidence_range: {
+          low: Math.max(0, Math.round((avg - stddev) * days * 100) / 100),
+          high: Math.round((avg + stddev) * days * 100) / 100,
+        },
+        avg_confidence: Math.round(avg_confidence * 100) / 100,
+      };
+    },
+  );
+
 }
