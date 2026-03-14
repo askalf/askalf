@@ -1,5 +1,5 @@
 /* ============================================
-   Knowledge Graph Viewer
+   Knowledge Graph — Neural Network Visualization
    ============================================ */
 
 .graph-tab {
@@ -8,15 +8,20 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: #0a0a0f;
-  animation: forge-fade-in 0.3s ease-out;
+  background: #04040a;
+  animation: graph-emerge 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes graph-emerge {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* ---- Controls Overlay ---- */
 .graph-controls {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 10px;
+  left: 10px;
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -37,22 +42,26 @@
 
 .graph-search {
   width: 200px;
-  padding: 6px 28px 6px 10px;
-  font-size: 0.8rem;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
-  color: var(--text);
+  padding: 7px 28px 7px 12px;
+  font-size: 0.78rem;
+  background: rgba(8, 8, 18, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.9);
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .graph-search:focus {
-  border-color: var(--crystal, #7c3aed);
+  border-color: rgba(124, 58, 237, 0.5);
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.15);
 }
 
 .graph-search::placeholder {
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.25);
 }
 
 .graph-search-clear {
@@ -60,107 +69,138 @@
   right: 6px;
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   padding: 2px 4px;
 }
 
+.graph-search-clear:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .graph-filter {
-  padding: 6px 8px;
-  font-size: 0.75rem;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
-  color: var(--text);
+  padding: 7px 10px;
+  font-size: 0.72rem;
+  background: rgba(8, 8, 18, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
   outline: none;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  transition: border-color 0.2s;
+}
+
+.graph-filter:focus {
+  border-color: rgba(124, 58, 237, 0.4);
 }
 
 .graph-filter option {
-  background: rgba(20, 20, 25, 0.9);
+  background: #0d0d1a;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .graph-btn {
-  padding: 6px 10px;
-  font-size: 0.75rem;
+  padding: 7px 14px;
+  font-size: 0.72rem;
   font-weight: 600;
-  background: rgba(124, 58, 237, 0.2);
+  background: rgba(124, 58, 237, 0.15);
   border: 1px solid rgba(124, 58, 237, 0.3);
-  border-radius: 6px;
-  color: var(--crystal-lighter, #a78bfa);
+  border-radius: 8px;
+  color: #a78bfa;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.02em;
 }
 
 .graph-btn:hover {
-  background: rgba(124, 58, 237, 0.35);
+  background: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.2);
+  transform: translateY(-1px);
 }
 
 .graph-stats-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .graph-stat {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  background: rgba(0, 0, 0, 0.4);
-  padding: 2px 8px;
-  border-radius: 4px;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(8, 8, 18, 0.6);
+  backdrop-filter: blur(8px);
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: 0.03em;
 }
 
 .graph-stat.highlight {
   color: #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.15);
 }
 
 /* ---- Legend ---- */
 .graph-legend {
   position: absolute;
-  bottom: 8px;
-  left: 8px;
+  bottom: 10px;
+  left: 10px;
   z-index: 10;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  max-width: 400px;
+  max-width: 420px;
 }
 
 .graph-legend-item {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  font-size: 0.65rem;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 0.62rem;
   font-weight: 500;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
-  color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  background: rgba(8, 8, 18, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  transition: all 0.15s;
-  font-family: inherit;
+  transition: all 0.2s;
+  font-family: 'Segoe UI', system-ui, sans-serif;
   text-transform: capitalize;
+  letter-spacing: 0.03em;
 }
 
 .graph-legend-item:hover {
   border-color: rgba(255, 255, 255, 0.15);
-  color: var(--text);
+  color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-1px);
 }
 
 .graph-legend-item.active {
   border-color: rgba(124, 58, 237, 0.4);
-  background: rgba(124, 58, 237, 0.15);
-  color: var(--crystal-lighter, #a78bfa);
+  background: rgba(124, 58, 237, 0.12);
+  color: #c4b5fd;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.1);
 }
 
 .graph-legend-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
+  transition: box-shadow 0.2s;
+}
+
+.graph-legend-item:hover .graph-legend-dot,
+.graph-legend-item.active .graph-legend-dot {
+  box-shadow: 0 0 8px currentColor;
 }
 
 /* ---- Canvas ---- */
@@ -168,6 +208,11 @@
   flex: 1;
   min-height: 0;
   position: relative;
+  overflow: hidden;
+}
+
+.graph-canvas canvas {
+  display: block;
 }
 
 .graph-loading,
@@ -178,108 +223,172 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted, rgba(255, 255, 255, 0.4));
-  font-size: 0.9rem;
   z-index: 5;
+  pointer-events: none;
+}
+
+.graph-loading {
+  color: rgba(167, 139, 250, 0.6);
+  font-size: 0.85rem;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  gap: 16px;
+}
+
+.graph-loading-orb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.6), rgba(124, 58, 237, 0.2));
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.3), 0 0 60px rgba(124, 58, 237, 0.1);
+  animation: orb-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes orb-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+.graph-empty {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.85rem;
 }
 
 .graph-empty-icon {
-  font-size: 2rem;
+  font-size: 1.5rem;
   margin-bottom: 8px;
-  opacity: 0.4;
+  opacity: 0.3;
 }
 
 .graph-empty-title {
   font-weight: 600;
   margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .graph-empty-msg {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.2);
 }
 
 /* ---- Detail Panel ---- */
 .graph-detail {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 10px;
+  right: 10px;
   z-index: 10;
-  width: 280px;
-  max-height: calc(100% - 16px);
+  width: 290px;
+  max-height: calc(100% - 20px);
   overflow-y: auto;
-  background: rgba(20, 20, 25, 0.92);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 14px;
+  background: rgba(10, 10, 20, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 40px rgba(124, 58, 237, 0.05);
+  animation: panel-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+@keyframes panel-slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.graph-detail::-webkit-scrollbar { width: 4px; }
+.graph-detail::-webkit-scrollbar-track { background: transparent; }
+.graph-detail::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.3); border-radius: 2px; }
 
 .graph-detail-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .graph-detail-type {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 .graph-detail-close {
-  background: none;
+  background: rgba(255, 255, 255, 0.05);
   border: none;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  font-size: 0.9rem;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
 }
 
 .graph-detail-close:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .graph-detail-title {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text);
+  color: rgba(255, 255, 255, 0.95);
   margin-bottom: 6px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .graph-detail-desc {
-  font-size: 0.8rem;
-  color: var(--text-muted, rgba(255, 255, 255, 0.4));
-  line-height: 1.5;
-  margin-bottom: 8px;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.55;
+  margin-bottom: 10px;
 }
 
 .graph-detail-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  margin-bottom: 10px;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-.graph-detail-edges h4 {
-  font-size: 0.75rem;
+.graph-detail-edges h4,
+.graph-detail-agents h4 {
+  font-size: 0.68rem;
   font-weight: 600;
-  color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  color: rgba(255, 255, 255, 0.3);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-bottom: 6px;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.graph-detail-agents {
+  margin-bottom: 12px;
+}
+
+.graph-detail-agent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.graph-agent-tag {
+  font-size: 0.62rem;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  color: #c4b5fd;
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
 .graph-detail-edge-list {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   max-height: 200px;
   overflow-y: auto;
 }
@@ -287,19 +396,25 @@
 .graph-detail-edge {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  padding: 3px 0;
+  gap: 8px;
+  font-size: 0.72rem;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.graph-detail-edge:last-child {
+  border-bottom: none;
 }
 
 .graph-edge-relation {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.6rem;
   flex-shrink: 0;
+  opacity: 0.7;
 }
 
 .graph-edge-target {
-  color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  color: rgba(255, 255, 255, 0.45);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -308,49 +423,55 @@
 /* ---- Top Connected Panel ---- */
 .graph-top-panel {
   position: absolute;
-  top: 64px;
-  left: 8px;
+  top: 70px;
+  left: 10px;
   z-index: 10;
   width: 240px;
   max-height: 320px;
   overflow-y: auto;
-  background: rgba(20, 20, 25, 0.92);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 10px;
+  background: rgba(10, 10, 20, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: panel-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .graph-top-title {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin-bottom: 8px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.3);
+  margin-bottom: 10px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 .graph-top-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-  border-radius: 4px;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s;
-  font-size: 0.75rem;
-  color: var(--text, #fff);
+  transition: all 0.15s;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .graph-top-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(124, 58, 237, 0.1);
+  transform: translateX(2px);
 }
 
 .graph-top-rank {
-  font-size: 0.65rem;
-  color: var(--text-muted);
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.2);
   width: 22px;
   flex-shrink: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 .graph-top-label {
@@ -361,50 +482,23 @@
 }
 
 .graph-top-count {
-  font-size: 0.65rem;
-  color: var(--crystal-lighter, #a78bfa);
+  font-size: 0.6rem;
+  color: #a78bfa;
   flex-shrink: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 /* ---- Stat Button ---- */
 .graph-stat-btn {
   cursor: pointer;
   border: none;
-  font-family: inherit;
-  transition: all 0.15s;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  transition: all 0.2s;
 }
 
 .graph-stat-btn:hover,
 .graph-stat-btn.active {
-  color: var(--crystal-lighter, #a78bfa);
-  background: rgba(124, 58, 237, 0.15);
-}
-
-/* ---- Agent Tags ---- */
-.graph-detail-agents {
-  margin-bottom: 10px;
-}
-
-.graph-detail-agents h4 {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted, rgba(255, 255, 255, 0.4));
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  margin-bottom: 6px;
-}
-
-.graph-detail-agent-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.graph-agent-tag {
-  font-size: 0.65rem;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(124, 58, 237, 0.25);
-  color: var(--crystal-lighter, #a78bfa);
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.25);
 }
