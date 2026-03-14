@@ -96,7 +96,7 @@
   justify-content: space-between;
   margin-bottom: var(--space-lg);
   padding-bottom: var(--space-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
 }
 
 .hub-detail-header h2 {
@@ -124,7 +124,7 @@
 
 .hub-modal__close:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
 }
 
 .hub-detail-stats {
@@ -137,7 +137,7 @@
 .hub-detail-stat {
   text-align: center;
   padding: var(--space-sm);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border-radius: 8px;
 }
 
@@ -247,7 +247,7 @@
 .hub-detail-log-level.info { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
 .hub-detail-log-level.warn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
 .hub-detail-log-level.error { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-.hub-detail-log-level.debug { background: rgba(255, 255, 255, 0.06); color: var(--text-muted); }
+.hub-detail-log-level.debug { background: var(--elevated); color: var(--text-muted); }
 
 .hub-detail-log-msg {
   color: var(--text-secondary);
@@ -276,8 +276,8 @@
 }
 
 .hub-fleet-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-md);
   cursor: pointer;
@@ -387,7 +387,7 @@
 .hub-fleet-autonomy-bar {
   flex: 1;
   height: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -653,8 +653,8 @@
 }
 
 .hub-report-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-md);
 }
@@ -692,8 +692,8 @@
 }
 
 .hub-sched-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-md);
   transition: all 0.2s;
@@ -750,7 +750,7 @@
 }
 
 .hub-sched-type-badge.manual {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--text-muted);
 }
 
@@ -812,8 +812,8 @@
 }
 
 .hub-gate-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-lg);
   transition: all 0.2s;
@@ -940,7 +940,7 @@
   gap: var(--space-xs);
   margin-bottom: var(--space-lg);
   padding-bottom: var(--space-sm);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
 }
 
 .hub-sub-nav button {
@@ -964,7 +964,7 @@
 }
 
 .hub-sub-nav button.active {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   border-color: rgba(255, 255, 255, 0.1);
   color: var(--text);
   font-weight: 600;
@@ -1016,7 +1016,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
 }
 
 .hub-modal__header h2 {
@@ -1117,7 +1117,7 @@
   align-items: center;
   gap: 6px;
   padding: var(--space-sm) var(--space-md);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   color: var(--text-secondary);
@@ -1128,7 +1128,7 @@
 }
 
 .hub-type-chip:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
 }
 
 .hub-type-chip.active {
@@ -1153,7 +1153,7 @@
 .hub-filter-tabs {
   display: flex;
   gap: 2px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border-radius: 8px;
   padding: 2px;
 }
@@ -1271,8 +1271,8 @@
 }
 
 .hub-ticket-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-md);
   cursor: pointer;
@@ -1311,7 +1311,7 @@
   font-size: 0.65rem;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--text-secondary);
   text-transform: capitalize;
 }
@@ -1696,7 +1696,7 @@
 
 .elv {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.2);
   font-family: var(--font-mono);
@@ -1711,8 +1711,8 @@
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
 }
 
@@ -1907,7 +1907,7 @@
 .elv-lvl--info  { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
 .elv-lvl--warn  { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
 .elv-lvl--error { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-.elv-lvl--debug { background: rgba(255, 255, 255, 0.06); color: var(--text-muted); }
+.elv-lvl--debug { background: var(--elevated); color: var(--text-muted); }
 
 /* Message */
 .elv-msg {
@@ -1998,7 +1998,7 @@
   font-size: 0.75rem;
   font-weight: 400;
   color: var(--text-muted, #64748b);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   border-radius: 10px;
   padding: 1px 8px;
 }
@@ -2073,7 +2073,7 @@
 .atl-label-spacer {
   height: 28px;
   flex-shrink: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border);
 }
 
 .atl-label {
@@ -2271,7 +2271,7 @@
   padding: 2px 8px;
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text-secondary);
   font-size: 0.7rem;
   font-weight: 500;
@@ -2316,7 +2316,7 @@
   flex-wrap: nowrap;
   gap: 1px;
   background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px;
   overflow-x: auto;
@@ -2381,8 +2381,8 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .etl-detail-badge {

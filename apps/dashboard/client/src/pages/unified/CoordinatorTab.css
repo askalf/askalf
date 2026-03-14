@@ -11,7 +11,7 @@
 
 .coordinator-header {
   padding: var(--space-lg) var(--space-lg) var(--space-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -45,7 +45,7 @@
   gap: var(--space-xs);
   padding: var(--space-md) var(--space-lg) 0;
   flex-shrink: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
 }
 
 .coordinator-toggle-btn {

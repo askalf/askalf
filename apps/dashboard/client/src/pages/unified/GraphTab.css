@@ -8,7 +8,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: #04040a;
+  background: var(--void);
   animation: graph-emerge 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -49,7 +49,7 @@
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(124, 58, 237, 0.15);
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text);
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   font-family: var(--font-body);
@@ -61,7 +61,7 @@
 }
 
 .graph-search::placeholder {
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--text-muted);
 }
 
 .graph-search-clear {
@@ -69,14 +69,14 @@
   right: 6px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 0.7rem;
   padding: 2px 4px;
 }
 
 .graph-search-clear:hover {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
 }
 
 .graph-filter {
@@ -87,7 +87,7 @@
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(124, 58, 237, 0.15);
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text);
   outline: none;
   font-family: var(--font-body);
   transition: border-color 0.2s;
@@ -98,8 +98,8 @@
 }
 
 .graph-filter option {
-  background: #0d0d1a;
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--void);
+  color: var(--text);
 }
 
 .graph-btn {
@@ -129,7 +129,7 @@
 
 .graph-stat {
   font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   background: rgba(8, 8, 18, 0.6);
   backdrop-filter: blur(8px);
   padding: 3px 10px;
@@ -169,7 +169,7 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 6px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
   font-family: var(--font-body);
@@ -178,8 +178,8 @@
 }
 
 .graph-legend-item:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.8);
+  border-color: var(--border-hover);
+  color: var(--text);
   transform: translateY(-1px);
 }
 
@@ -250,7 +250,7 @@
 }
 
 .graph-empty {
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
@@ -263,7 +263,7 @@
 .graph-empty-title {
   font-weight: 600;
   margin-bottom: 4px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
 }
 
 .graph-empty-msg {
@@ -315,9 +315,9 @@
 }
 
 .graph-detail-close {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--elevated);
   border: none;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 0.8rem;
   padding: 3px 8px;
@@ -327,20 +327,20 @@
 
 .graph-detail-close:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text);
 }
 
 .graph-detail-title {
   font-size: 1rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--text);
   margin-bottom: 6px;
   font-family: var(--font-body);
 }
 
 .graph-detail-desc {
   font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--text-muted);
   line-height: 1.55;
   margin-bottom: 10px;
 }
@@ -350,7 +350,7 @@
   flex-wrap: wrap;
   gap: 8px;
   font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
   margin-bottom: 12px;
   font-family: var(--font-mono);
 }
@@ -359,7 +359,7 @@
 .graph-detail-agents h4 {
   font-size: 0.68rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 8px;
@@ -414,7 +414,7 @@
 }
 
 .graph-edge-target {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -444,7 +444,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text-muted);
   margin-bottom: 10px;
   font-family: var(--font-mono);
 }
@@ -458,7 +458,7 @@
   cursor: pointer;
   transition: all 0.15s;
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-secondary);
 }
 
 .graph-top-item:hover {
