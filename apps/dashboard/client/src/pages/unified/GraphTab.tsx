@@ -349,12 +349,12 @@ function renderFrame(
 
     // Label — only show when zoomed in enough or node is important
     if (transform.k > 0.4 || node.mention_count > 5 || isSelected || isHighlighted) {
-      const fontSize = Math.max(4, Math.min(11, dynamicSize * 0.9)) / Math.max(0.5, transform.k * 0.7);
-      ctx.font = `500 ${fontSize}px Satoshi, system-ui, sans-serif`;
+      const fontSize = Math.round(Math.max(8, Math.min(13, dynamicSize * 1.1)) / Math.max(0.5, transform.k * 0.7));
+      ctx.font = `600 ${fontSize}px Satoshi, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isDimmed ? 'rgba(255,255,255,0.08)' : `rgba(255,255,255,${0.5 + totalGlow * 0.4})`;
-      ctx.fillText(node.label, node.x, node.y + dynamicSize + 3);
+      ctx.fillStyle = isDimmed ? 'rgba(255,255,255,0.08)' : `rgba(255,255,255,${0.6 + totalGlow * 0.35})`;
+      ctx.fillText(node.label, Math.round(node.x), Math.round(node.y + dynamicSize + 4));
     }
   }
 
