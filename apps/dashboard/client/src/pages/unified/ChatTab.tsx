@@ -83,12 +83,12 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
     case 'cost':
     case 'spend': {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = await cmdFetch<{ summary: { total: { totalCost: number; executionCount: number }; byAgent?: { name: string; totalCost: number; executionCount: number }[] } }>('/api/v1/admin/reports/costs/summary').catch(() => ({ summary: { total: { totalCost: 0, executionCount: 0 } } as any }));
-      const lines = [`**Cost Summary (30 days)**`, `Total: **$${data.summary.total.totalCost.toFixed(2)}** (${data.summary.total.executionCount} runs)`];
-      if (data.summary.byAgent?.length) {
+      const data = await cmdFetch<{ totals: { totalCost: number; executionCount: number }; byAgent?: { agentName: string; totalCost: number; eventCount: number }[] }>('/api/v1/admin/costs/summary').catch(() => ({ totals: { totalCost: 0, executionCount: 0 } } as any));
+      const lines = [`**Cost Summary (30 days)**`, `Total: **$${data.totals.totalCost.toFixed(2)}** (${data.totals.executionCount} runs)`];
+      if (data.byAgent?.length) {
         lines.push('', '**By Agent:**');
-        for (const a of data.summary.byAgent.slice(0, 8)) {
-          lines.push(`\`${a.name.padEnd(18)}\` $${a.totalCost.toFixed(2)} (${a.executionCount} runs)`);
+        for (const a of data.byAgent.slice(0, 8)) {
+          lines.push(`\`${a.agentName.padEnd(18)}\` $${a.totalCost.toFixed(2)} (${a.eventCount} runs)`);
         }
       }
       return { text: lines.join('\n') };
