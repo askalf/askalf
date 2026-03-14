@@ -87,7 +87,7 @@ export class DockerAdapter implements DeviceAdapter {
   ): Promise<void> {
     const timeout = setTimeout(async () => {
       // Kill container on timeout
-      await dockerApiPostRaw(socketPath, `/containers/${containerId}/kill`, null).catch(() => {});
+      await dockerApiPostRaw(socketPath, `/containers/${containerId}/kill`, null).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       await this.recordResult(task.executionId, 'failed', '', 'Execution timed out');
     }, EXECUTION_TIMEOUT_MS);
 
@@ -102,7 +102,7 @@ export class DockerAdapter implements DeviceAdapter {
       const logs = await dockerApiGet(socketPath, `/containers/${containerId}/logs?stdout=true&stderr=true`);
 
       // Clean up container
-      await dockerApiDelete(socketPath, `/containers/${containerId}`).catch(() => {});
+      await dockerApiDelete(socketPath, `/containers/${containerId}`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       runningContainers.delete(task.executionId);
 
       if (exitCode === 0) {
@@ -129,7 +129,7 @@ export class DockerAdapter implements DeviceAdapter {
     if (!containerId) return false;
 
     const socketPath = config.socketPath || '/var/run/docker.sock';
-    await dockerApiPostRaw(socketPath, `/containers/${containerId}/kill`, null).catch(() => {});
+    await dockerApiPostRaw(socketPath, `/containers/${containerId}/kill`, null).catch((e) => { if (e) console.debug("[catch]", String(e)); });
     runningContainers.delete(executionId);
     return true;
   }
@@ -152,8 +152,8 @@ export class DockerAdapter implements DeviceAdapter {
       const containers = await dockerApiGet(socketPath, `/containers/json?filters={"label":["askalf.device=${deviceId}"]}`);
       const parsed = JSON.parse(containers) as Array<{ Id: string }>;
       for (const c of parsed) {
-        await dockerApiPostRaw(socketPath, `/containers/${c.Id}/kill`, null).catch(() => {});
-        await dockerApiDelete(socketPath, `/containers/${c.Id}`).catch(() => {});
+        await dockerApiPostRaw(socketPath, `/containers/${c.Id}/kill`, null).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+        await dockerApiDelete(socketPath, `/containers/${c.Id}`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       }
     } catch {
       // Best effort

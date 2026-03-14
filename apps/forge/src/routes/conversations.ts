@@ -206,12 +206,12 @@ export async function conversationRoutes(app: FastifyInstance): Promise<void> {
         void query(
           `UPDATE forge_conversations SET title = $1, updated_at = NOW() WHERE id = $2`,
           [title, id],
-        ).catch(() => {});
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       } else {
         void query(
           `UPDATE forge_conversations SET updated_at = NOW() WHERE id = $1`,
           [id],
-        ).catch(() => {});
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       }
 
       return reply.status(201).send(message);

@@ -172,7 +172,7 @@ async function createAlertTicket(alert: Alert): Promise<void> {
       `INSERT INTO agent_audit_log (entity_type, entity_id, action, actor, old_value, new_value)
        VALUES ('ticket', $1, 'created', 'system:monitor', '{}', $2)`,
       [id, JSON.stringify({ title: alert.message, priority, assigned_to: assignedTo })],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     console.log(`[Monitor] Auto-created ticket ${id} for ${alert.metric} → assigned to ${assignedTo}`);
   } catch (err) {
@@ -331,10 +331,10 @@ export async function runHealthCheck(): Promise<HealthReport> {
         event: 'alert',
         severity: alert.severity,
         message: alert.message,
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       // Level 4: Auto-create tickets for alerts so agents can pick them up
-      void createAlertTicket(alert).catch(() => {});
+      void createAlertTicket(alert).catch((e) => { if (e) console.debug("[catch]", String(e)); });
     }
 
     // Send external notifications (Slack/Discord) for critical alerts with debounce

@@ -54,10 +54,10 @@ export async function startMqttBridge(): Promise<void> {
           handleMqttResult(deviceId, data);
           break;
         case 'status':
-          void handleDeviceStatus(deviceId, data).catch(() => {});
+          void handleDeviceStatus(deviceId, data).catch((e) => { if (e) console.debug("[catch]", String(e)); });
           break;
         case 'sensors':
-          void handleSensorData(deviceId, data).catch(() => {});
+          void handleSensorData(deviceId, data).catch((e) => { if (e) console.debug("[catch]", String(e)); });
           break;
       }
     });

@@ -585,7 +585,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         const startRes = await dockerApi('POST', `/v1.44/containers/${builderId}/start`);
         if (startRes.statusCode !== 204 && startRes.statusCode !== 200) {
           // Cleanup failed container
-          await dockerApi('DELETE', `/v1.44/containers/${builderId}?force=true`).catch(() => {});
+          await dockerApi('DELETE', `/v1.44/containers/${builderId}?force=true`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
           request.log.error({ statusCode: startRes.statusCode, data: startRes.data.substring(0, 500) }, 'Failed to start builder');
           return reply.status(500).send({ error: 'Failed to start builder' });
         }
@@ -635,7 +635,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
 
         if (!running) {
           // Container finished — clean up
-          await dockerApi('DELETE', `/v1.44/containers/${builderId}?force=true`).catch(() => {});
+          await dockerApi('DELETE', `/v1.44/containers/${builderId}?force=true`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
           return reply.send({
             status: exitCode === 0 ? 'completed' : 'failed',
             exit_code: exitCode,
@@ -772,7 +772,7 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         query(
           `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2`,
           [String(err), executionId],
-        ).catch(() => {});
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       });
 
       return reply.status(201).send({

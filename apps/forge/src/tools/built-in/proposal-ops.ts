@@ -92,7 +92,7 @@ export async function proposalOps(input: ProposalOpsInput): Promise<ToolResult> 
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [ulid(), input.agent_id, 'proposal.created', 'proposal', id,
            JSON.stringify({ title: input.title, type: input.proposal_type, risk: input.risk_level ?? 'low' })],
-        ).catch(() => {});
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return {
           output: { created: true, proposal },
@@ -127,7 +127,7 @@ export async function proposalOps(input: ProposalOpsInput): Promise<ToolResult> 
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [ulid(), input.agent_id ?? 'system', 'proposal.submitted', 'proposal', input.proposal_id,
            JSON.stringify({ previous_status: existing.status })],
-        ).catch(() => {});
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return {
           output: { submitted: true, proposal },
@@ -210,7 +210,7 @@ export async function proposalOps(input: ProposalOpsInput): Promise<ToolResult> 
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [ulid(), input.reviewer_agent_id, 'proposal.reviewed', 'proposal', input.proposal_id,
            JSON.stringify({ verdict: input.verdict, new_status: newStatus })],
-        ).catch(() => {});
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return {
           output: { reviewed: true, review, status_changed: newStatus },
@@ -324,7 +324,7 @@ export async function proposalOps(input: ProposalOpsInput): Promise<ToolResult> 
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [ulid(), input.agent_id ?? 'system', 'proposal.applied', 'proposal', input.proposal_id,
            JSON.stringify({ title: proposal.title })],
-        ).catch(() => {});
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return {
           output: { applied: true, proposal: updated },
@@ -389,7 +389,7 @@ export async function proposalOps(input: ProposalOpsInput): Promise<ToolResult> 
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [ulid(), input.agent_id ?? 'system', 'proposal.revised', 'proposal', input.proposal_id,
            JSON.stringify({ fields_updated: setClauses.length - 2 })],
-        ).catch(() => {});
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return {
           output: { revised: true, proposal: updated },

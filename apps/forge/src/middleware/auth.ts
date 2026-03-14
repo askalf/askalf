@@ -73,11 +73,11 @@ async function tryApiKeyAuth(request: FastifyRequest): Promise<boolean> {
     void retryQuery(
       `UPDATE forge_api_keys SET last_used_at = NOW() WHERE id = $1`,
       [apiKey.id],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     // Cache per-key rate limit in Redis for the rate limiter
     const tokenHash = rateLimitTokenHash(token);
-    void cacheKeyRateLimit(tokenHash, apiKey.rate_limit ?? 100).catch(() => {});
+    void cacheKeyRateLimit(tokenHash, apiKey.rate_limit ?? 100).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     // Only trust x-user-id from internal services (dashboard proxy), not external API callers
     const forwardedUserId = request.headers['x-user-id'];

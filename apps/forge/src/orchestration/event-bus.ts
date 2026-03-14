@@ -130,7 +130,7 @@ export class ForgeEventBus {
     const channel = `forge:events:${event.type}`;
 
     // Publish to Redis — the psubscribe handler will emit locally when it arrives back
-    await this.pub.publish(channel, JSON.stringify(event)).catch(() => {});
+    await this.pub.publish(channel, JSON.stringify(event)).catch((e) => { if (e) console.debug("[catch]", String(e)); });
   }
 
   // -----------------------------------------------------------------------
@@ -225,8 +225,8 @@ export class ForgeEventBus {
     if (this.closed) return;
     this.closed = true;
     this.emitter.removeAllListeners();
-    await this.sub.quit().catch(() => {});
-    await this.pub.quit().catch(() => {});
+    await this.sub.quit().catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    await this.pub.quit().catch((e) => { if (e) console.debug("[catch]", String(e)); });
   }
 }
 
