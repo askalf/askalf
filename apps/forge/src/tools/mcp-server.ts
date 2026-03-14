@@ -410,7 +410,7 @@ export async function registerMCPRoutes(app: FastifyInstance): Promise<void> {
     request.raw.on('close', () => {
       transports.delete(sessionId);
       forgeMcpConnections.dec();
-      void server.close().catch(() => {});
+      void server.close().catch((e) => { if (e) console.debug("[catch]", String(e)); });
     });
 
     await server.connect(transport);

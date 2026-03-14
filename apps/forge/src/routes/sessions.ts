@@ -119,7 +119,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
           details: { agentId: body.agentId },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.status(201).send({ session });
       } catch (err: unknown) {
@@ -364,7 +364,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
           details: { executionId, agentId: session.agent_id },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.status(201).send({ execution });
       } catch (err: unknown) {
@@ -419,7 +419,7 @@ export async function sessionRoutes(app: FastifyInstance): Promise<void> {
           resourceId: id,
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.send({
           message: 'Session deactivated',

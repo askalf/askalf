@@ -197,7 +197,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           details: { agentId: body.agentId, priority },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         // Fire CLI execution asynchronously — return immediately, CLI runs in background
         void runDirectCliExecution(
@@ -901,7 +901,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           details: { originalExecutionId: id, agentId: original.agent_id },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         void runDirectCliExecution(
           newExecutionId,
@@ -921,7 +921,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           void query(
             `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status IN ('pending', 'running')`,
             [`Failed to start retry: ${errMsg}`, newExecutionId],
-          ).catch(() => {});
+          ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
         });
 
         return reply.status(201).send({ execution: newExecution });
@@ -988,7 +988,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           details: { agentId: execution.agent_id, processKilled: killed },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.send({ cancelled: true, processKilled: killed });
       } catch (err: unknown) {

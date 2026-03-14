@@ -119,7 +119,7 @@ export async function registerOrchestrationRoutes(app: FastifyInstance): Promise
           JSON.stringify({ status: oldIntervention?.status || 'pending' }),
           JSON.stringify({ status: statusMap[body.action], action: body.action, feedback: body.feedback || null }),
         ],
-      ).catch(() => {});
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       // Phase 4: Close the learning loop — feed human response into memory
       if (oldIntervention && body.feedback) {

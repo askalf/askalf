@@ -153,7 +153,7 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
           },
         };
 
-        await mkdir(dirname(CREDENTIALS_PATH), { recursive: true }).catch(() => {});
+        await mkdir(dirname(CREDENTIALS_PATH), { recursive: true }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
         await writeFile(CREDENTIALS_PATH, JSON.stringify(credentials, null, 2), 'utf-8');
 
         console.log('[OAuth] Claude credentials saved successfully');

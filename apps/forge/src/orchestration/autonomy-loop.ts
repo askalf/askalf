@@ -120,7 +120,7 @@ async function cleanupBranchAndWorktree(branch: string): Promise<void> {
       if (entry.includes(`branch refs/heads/${branch}`)) {
         const pathMatch = entry.match(/^worktree\s+(.+)/m);
         if (pathMatch?.[1]) {
-          await git(`worktree remove "${pathMatch[1]}" --force`).catch(() => {});
+          await git(`worktree remove "${pathMatch[1]}" --force`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
           console.log(`[AutonomyLoop] Removed worktree: ${pathMatch[1]}`);
         }
         break;
@@ -129,7 +129,7 @@ async function cleanupBranchAndWorktree(branch: string): Promise<void> {
   } catch { /* non-fatal */ }
 
   // Delete the branch
-  await git(`branch -D ${branch}`).catch(() => {});
+  await git(`branch -D ${branch}`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 }
 
 // ============================================
@@ -420,7 +420,7 @@ async function autoDeploy(services: string[], mergeCommit: string, proposalId: s
 
   // Tag deployment
   const tag = `deploy-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
-  await git(`tag ${tag} ${mergeCommit}`).catch(() => {});
+  await git(`tag ${tag} ${mergeCommit}`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
   console.log(`[AutonomyLoop] Deploying ${services.join(', ')} — tag: ${tag}`);
 
   const safeServices = services.filter(s => !PROTECTED_SERVICES.has(s) && s !== 'forge');
@@ -469,7 +469,7 @@ async function autoDeploy(services: string[], mergeCommit: string, proposalId: s
     `INSERT INTO deployment_logs (id, service, action, status, health_result, agent_name)
      VALUES ($1, $2, 'auto-deploy', 'completed', $3, 'autonomy-loop')`,
     [generateId(), services.join(','), JSON.stringify({ commit: mergeCommit, tag })],
-  ).catch(() => {});
+  ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 }
 
 async function healthCheck(container: string): Promise<boolean> {
@@ -538,7 +538,7 @@ async function rebuildServices(services: string[], mergeCommit: string, deployTa
     const containerId = JSON.parse(createRes.data).Id;
     const startRes = await dockerApi('POST', `/v1.44/containers/${containerId}/start`);
     if (startRes.statusCode !== 204 && startRes.statusCode !== 200) {
-      await dockerApi('DELETE', `/v1.44/containers/${containerId}?force=true`).catch(() => {});
+      await dockerApi('DELETE', `/v1.44/containers/${containerId}?force=true`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       console.error('[AutonomyLoop] Failed to start builder');
       return;
     }
@@ -558,7 +558,7 @@ async function rebuildServices(services: string[], mergeCommit: string, deployTa
         const info = JSON.parse(inspect.data);
         if (!info.State?.Running) {
           exitCode = info.State?.ExitCode ?? -1;
-          await dockerApi('DELETE', `/v1.44/containers/${containerId}?force=true`).catch(() => {});
+          await dockerApi('DELETE', `/v1.44/containers/${containerId}?force=true`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
           break;
         }
       }
@@ -616,14 +616,14 @@ async function rollbackDeploy(mergeCommit: string, services: string[], deployTag
       await rebuildServices(needsRebuild, 'HEAD', deployTag + '-rollback');
     }
     for (const svc of services.filter(s => !BAKED_SERVICES.has(s) && s !== 'forge')) {
-      await dockerApi('POST', `/v1.44/containers/askalf-${svc}/restart?t=10`).catch(() => {});
+      await dockerApi('POST', `/v1.44/containers/askalf-${svc}/restart?t=10`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
     }
 
     await query(
       `INSERT INTO deployment_logs (id, service, action, status, health_result, agent_name)
        VALUES ($1, $2, 'rollback', 'completed', $3, 'autonomy-loop')`,
       [generateId(), services.join(','), JSON.stringify({ reverted: mergeCommit, tag: deployTag })],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     await notifyAdmin('error', `Auto-rollback: ${services.join(', ')}`,
       `Deployment of commit ${mergeCommit.slice(0, 8)} failed health checks. Automatically reverted. Tag: ${deployTag}`);

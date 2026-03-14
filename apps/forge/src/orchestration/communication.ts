@@ -120,7 +120,7 @@ export class AgentCommunication {
       `UPDATE forge_agent_relationships SET interaction_count = interaction_count + 1, last_interaction = NOW()
        WHERE (agent_a_id = $1 AND agent_b_id = $2) OR (agent_a_id = $2 AND agent_b_id = $1)`,
       [fromAgentId, toAgentId],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     return msgId;
   }
@@ -152,7 +152,7 @@ export class AgentCommunication {
     await query(
       `UPDATE forge_agent_messages SET read_at = NOW() WHERE id = ANY($1)`,
       [messageIds],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
   }
 
   // -----------------------------------------------------------------------

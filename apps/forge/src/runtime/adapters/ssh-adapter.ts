@@ -103,7 +103,7 @@ export class SshAdapter implements DeviceAdapter {
       }
     } finally {
       if (keyFile) {
-        await unlink(keyFile).catch(() => {});
+        await unlink(keyFile).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       }
     }
   }
