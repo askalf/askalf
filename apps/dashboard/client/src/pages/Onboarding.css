@@ -533,3 +533,75 @@
   color: #10b981;
   font-weight: 600;
 }
+
+/* ── Optional Section ── */
+.ob-optional-section {
+  margin-top: 8px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.ob-optional-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ob-optional-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.ob-optional-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text, #f4f4f5);
+}
+
+.ob-optional-desc {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.3);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.ob-optional-fields {
+  display: flex;
+  gap: 6px;
+}
+
+.ob-optional-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: var(--text, #f4f4f5);
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.ob-optional-input:focus {
+  border-color: rgba(124, 58, 237, 0.3);
+}
+
+.ob-optional-input::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.ob-optional-saved {
+  font-size: 0.8rem;
+  color: #10b981;
+  font-weight: 600;
+}
