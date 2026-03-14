@@ -458,3 +458,78 @@
   .ob-step-label { display: none; }
   .ob-theme-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Parser Options ── */
+.ob-parser-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ob-parser-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 2px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  font-family: var(--font-body);
+  color: inherit;
+}
+
+.ob-parser-option:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.ob-parser-option.active {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.05);
+}
+
+.ob-parser-option.saved {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.ob-parser-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ob-parser-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text, #f4f4f5);
+}
+
+.ob-parser-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.ob-parser-badge.enhanced {
+  background: rgba(124, 58, 237, 0.1);
+  color: #a78bfa;
+}
+
+.ob-parser-desc {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.4;
+}
+
+.ob-parser-saved {
+  font-size: 0.75rem;
+  color: #10b981;
+  font-weight: 600;
+}
