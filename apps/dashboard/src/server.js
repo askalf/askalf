@@ -1639,6 +1639,40 @@ fastify.patch('/api/user/profile', async (request, reply) => {
   return { success: true };
 });
 
+// Change password
+fastify.post('/api/user/password', async (request, reply) => {
+  const user = await getAdminUser();
+  if (!user) return reply.status(401).send({ error: 'Not authenticated' });
+
+  const { currentPassword, newPassword } = request.body || {};
+  if (!currentPassword || !newPassword) {
+    return reply.status(400).send({ error: 'Current password and new password are required' });
+  }
+  if (newPassword.length < 12) {
+    return reply.status(400).send({ error: 'New password must be at least 12 characters' });
+  }
+
+  // Get current password hash
+  const row = await queryOne('SELECT password_hash FROM users WHERE id = $1', [user.id]);
+  if (!row || !row.password_hash) {
+    return reply.status(400).send({ error: 'Password not set for this account' });
+  }
+
+  // Verify current password
+  const bcryptMod = await import('bcryptjs');
+  const bcrypt = bcryptMod.default || bcryptMod;
+  const valid = await bcrypt.compare(currentPassword, row.password_hash);
+  if (!valid) {
+    return reply.status(403).send({ error: 'Current password is incorrect' });
+  }
+
+  // Hash and update
+  const newHash = await bcrypt.hash(newPassword, 12);
+  await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, user.id]);
+
+  return { success: true };
+});
+
 // Get user's recent activity feed
 fastify.get('/api/user/activity', async (request, reply) => {
   const user = await getAdminUser();
