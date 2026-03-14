@@ -908,11 +908,8 @@ process.on('uncaughtException', (err) => {
   shutdown('UNCAUGHT_EXCEPTION');
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error(`[Forge] Unhandled rejection reason: ${reason}`);
-  // Log but don't crash — many fire-and-forget patterns exist.
-  // TODO: After transaction adoption reduces fire-and-forget patterns,
-  // escalate this to shutdown.
+process.on('unhandledRejection', (reason) => {
+  logger.error(`[Forge] Unhandled rejection: ${reason instanceof Error ? reason.stack || reason.message : String(reason)}`);
 });
 
 start();
