@@ -124,7 +124,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
           details: { name: body.name },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.status(201).send({ agent });
       } catch (err: unknown) {
@@ -355,7 +355,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
           details: { fields: Object.keys(body) },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.send({ agent });
       } catch (err: unknown) {
@@ -410,7 +410,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
           resourceId: id,
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.status(204).send();
       } catch (err: unknown) {
@@ -464,7 +464,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
           resourceId: id,
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.send({ agent });
       } catch (err: unknown) {
@@ -554,7 +554,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
           details: { forkedFrom: id, sourceName: source.name },
           ipAddress: request.ip,
           userAgent: request.headers['user-agent'],
-        }).catch(() => {});
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
         return reply.status(201).send({ agent: forked });
       } catch (err: unknown) {

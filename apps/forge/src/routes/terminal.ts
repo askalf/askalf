@@ -225,7 +225,7 @@ Keep responses concise and terminal-friendly:
           void query(
             `UPDATE user_provider_keys SET last_used_at = NOW() WHERE user_id = $1 AND provider_type = 'anthropic'`,
             [userId],
-          ).catch(() => {});
+          ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
         }
 
         return reply.send({

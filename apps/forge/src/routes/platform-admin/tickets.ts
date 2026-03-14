@@ -151,7 +151,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         `INSERT INTO agent_audit_log (entity_type, entity_id, action, actor, actor_id, old_value, new_value)
          VALUES ('ticket', $1, 'created', $2, $3, '{}', $4)`,
         [id, `human:${createdBy}`, createdBy, JSON.stringify({ title: body['title'], priority: body['priority'] })],
-      ).catch(() => {});
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return reply.code(201).send({ ticket });
     },
@@ -216,7 +216,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
           JSON.stringify({ status: oldTicket?.['status'], priority: oldTicket?.['priority'] }),
           JSON.stringify(body),
         ],
-      ).catch(() => {});
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return { ticket };
     },
@@ -246,7 +246,7 @@ export async function registerTicketRoutes(app: FastifyInstance): Promise<void> 
         `INSERT INTO agent_audit_log (entity_type, entity_id, action, actor, old_value, new_value)
          VALUES ('ticket', $1, 'deleted', $2, $3, '{"soft_deleted": true}')`,
         [id, `human:${request.userId || 'admin'}`, JSON.stringify({ status: old['status'], title: old['title'] })],
-      ).catch(() => {});
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return { success: true, id, soft_deleted: true };
     },

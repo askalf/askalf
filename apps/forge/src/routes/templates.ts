@@ -197,7 +197,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
       void query(
         `UPDATE forge_agent_templates SET usage_count = usage_count + 1, updated_at = NOW() WHERE id = $1`,
         [id],
-      ).catch(() => {});
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       // Audit log
       void logAudit({
@@ -206,7 +206,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
         resourceType: 'agent',
         resourceId: agentId,
         details: { templateId: id, templateName: template.name },
-      }).catch(() => {});
+      }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
       return reply.status(201).send({
         agent,

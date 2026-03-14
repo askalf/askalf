@@ -83,7 +83,7 @@ export function initRateLimit(redisUrl: string, keyPrefixes: string[] = []): voi
 
 export async function closeRateLimitRedis(): Promise<void> {
   if (rateLimitRedis) {
-    await rateLimitRedis.quit().catch(() => {});
+    await rateLimitRedis.quit().catch((e) => { if (e) console.debug("[catch]", String(e)); });
     rateLimitRedis = null;
   }
 }

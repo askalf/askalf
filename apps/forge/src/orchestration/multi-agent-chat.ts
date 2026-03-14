@@ -83,7 +83,7 @@ export async function createChatSession(
   const eventBus = getEventBus();
   void eventBus?.emitCoordination('plan_created', sessionId, {
     data: { type: 'multi-agent-chat', topic, agents: agents.map((a) => a.name) },
-  }).catch(() => {});
+  }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
   return session;
 }
@@ -106,7 +106,7 @@ export function addModeratorMessage(sessionId: string, content: string, moderato
   };
 
   session.messages.push(msg);
-  void appendContext(sessionId, 'chat-history', JSON.stringify(msg)).catch(() => {});
+  void appendContext(sessionId, 'chat-history', JSON.stringify(msg)).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
   return msg;
 }
@@ -164,14 +164,14 @@ Respond naturally to the conversation. Be concise (2-4 sentences). Build on what
     };
 
     session.messages.push(msg);
-    void appendContext(sessionId, 'chat-history', JSON.stringify(msg)).catch(() => {});
+    void appendContext(sessionId, 'chat-history', JSON.stringify(msg)).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     const eventBus = getEventBus();
     void eventBus?.emitAgent('status_changed', agent.id, agent.name, {
       event: 'chat_message',
       sessionId,
       messageId: msg.id,
-    }).catch(() => {});
+    }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
     return msg;
   } catch (err) {

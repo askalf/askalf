@@ -123,7 +123,7 @@ export class MCPClientManager {
       await query(
         `UPDATE forge_mcp_servers SET health_status = 'unhealthy', last_health_check = NOW() WHERE id = $1`,
         [serverConfig.id],
-      ).catch(() => {});
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
       throw new Error(`Failed to connect to MCP server ${serverConfig.name}: ${err instanceof Error ? err.message : String(err)}`);
     }
 

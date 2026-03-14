@@ -253,7 +253,7 @@ async function createLinkedProposal(
      VALUES ($1, $2, $3, $4, $5, $6)`,
     [ulid(), agentId, 'proposal.auto_submitted', 'proposal', proposalId,
      JSON.stringify({ revision_id: revisionId, agent_name: agentName, reviewers: ['Meta', 'Architect'] })],
-  ).catch(() => {});
+  ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
   // Notify reviewers via audit log entries they can discover
   for (const reviewerId of [REVIEWER_META_ID, REVIEWER_ARCHITECT_ID]) {
@@ -262,7 +262,7 @@ async function createLinkedProposal(
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [ulid(), reviewerId, 'proposal.review_requested', 'proposal', proposalId,
        JSON.stringify({ revision_id: revisionId, target_agent: agentName, proposal_type: 'prompt_revision' })],
-    ).catch(() => {});
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
   }
 
   console.log(`[PromptRewriter] Created change proposal ${proposalId} for revision ${revisionId}, assigned to Meta + Architect for review`);
