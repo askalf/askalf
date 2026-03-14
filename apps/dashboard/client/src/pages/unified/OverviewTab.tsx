@@ -170,13 +170,21 @@ function HeartbeatStrip() {
 
 // ── Orbital Fleet Canvas ──
 
+interface AgentInfo {
+  id: string;
+  name: string;
+  status: string;
+}
+
 function OrbitalFleet({
   executions,
+  allAgents,
   running,
   total,
   onClick,
 }: {
   executions: ExecutionEntry[];
+  allAgents: AgentInfo[];
   running: number;
   total: number;
   onClick?: () => void;
@@ -192,19 +200,26 @@ function OrbitalFleet({
     if (!ctx) return;
     let animId: number;
 
-    // Build agent data from executions
-    const agentMap = new Map<string, { name: string; count: number; lastStatus: string }>();
+    // Build agent data: start with ALL agents, enrich with execution data
+    const execMap = new Map<string, { count: number; lastStatus: string }>();
     for (const e of executions) {
       const name = e.agent_name || 'Unknown';
-      const existing = agentMap.get(name);
+      const existing = execMap.get(name);
       if (existing) {
         existing.count++;
         if (e.status === 'running') existing.lastStatus = 'running';
       } else {
-        agentMap.set(name, { name, count: 1, lastStatus: e.status });
+        execMap.set(name, { count: 1, lastStatus: e.status });
       }
     }
-    const agents = Array.from(agentMap.values());
+
+    const agents = allAgents.length > 0
+      ? allAgents.map(a => ({
+          name: a.name,
+          count: execMap.get(a.name)?.count ?? 0,
+          lastStatus: execMap.get(a.name)?.lastStatus ?? (a.status === 'active' ? 'idle' : a.status),
+        }))
+      : Array.from(execMap.entries()).map(([name, data]) => ({ name, ...data }));
 
     const draw = (time: number) => {
       const dpr = window.devicePixelRatio || 1;
@@ -328,7 +343,7 @@ function OrbitalFleet({
     };
     animId = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animId);
-  }, [executions, running, total]);
+  }, [executions, allAgents, running, total]);
 
   return (
     <div ref={containerRef} className="mc-orbital" onClick={onClick}>
@@ -488,21 +503,24 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
   const [fleetStats, setFleetStats] = useState<FleetStatsData | null>(null);
   const [executions, setExecutions] = useState<ExecutionEntry[]>([]);
   const [costData, setCostData] = useState<CostData | null>(null);
+  const [allAgents, setAllAgents] = useState<AgentInfo[]>([]);
   const clock = useClock();
 
   const fetchAll = useCallback(async () => {
-    const [h, m, fs, ex, c] = await Promise.all([
+    const [h, m, fs, ex, c, ag] = await Promise.all([
       apiFetch<HealthData>('/api/v1/admin/monitoring/health'),
       apiFetch<MetricsData>('/api/v1/admin/reports/metrics'),
       apiFetch<FleetStatsData>('/api/v1/forge/fleet/stats'),
       apiFetch<{ executions: ExecutionEntry[] }>('/api/v1/admin/executions/timeline?hours=24'),
       apiFetch<CostData>('/api/v1/admin/costs?days=7'),
+      apiFetch<{ agents: AgentInfo[] }>('/api/v1/admin/agents'),
     ]);
     if (h) setHealth(h);
     if (m) setMetrics(m);
     if (fs) setFleetStats(fs);
     if (ex) setExecutions(Array.isArray(ex.executions) ? ex.executions.slice(0, 20) : []);
     if (c) setCostData(c);
+    if (ag?.agents) setAllAgents(ag.agents.filter(a => a.status === 'active'));
   }, []);
 
   usePolling(fetchAll, 30000);
@@ -584,6 +602,7 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
         {/* Center: Orbital Fleet */}
         <OrbitalFleet
           executions={executions}
+          allAgents={allAgents}
           running={activeAgents}
           total={totalAgents}
           onClick={() => onNavigate?.('fleet')}
