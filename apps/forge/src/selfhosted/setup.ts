@@ -59,8 +59,8 @@ export async function runSelfHostedSetup(): Promise<void> {
     `INSERT INTO users (
       id, tenant_id, email, email_normalized, password_hash,
       email_verified, display_name, timezone, status, role,
-      onboarding_completed_at, created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, true, 'Admin', 'UTC', 'active', 'super_admin', NOW(), NOW(), NOW())
+      created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, true, 'Admin', 'UTC', 'active', 'super_admin', NOW(), NOW())
     ON CONFLICT DO NOTHING`,
     [userId, tenantId, email, emailNormalized, passwordHash],
   );

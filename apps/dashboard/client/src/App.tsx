@@ -1,11 +1,13 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
+import { useAuthStore } from './stores/auth';
 
 import WsToastBridge from './components/WsToastBridge';
 
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
 const UnifiedDashboard = lazy(() => import('./pages/UnifiedDashboard'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
@@ -34,12 +36,27 @@ function LoadingScreen() {
   );
 }
 
+function OnboardingGate() {
+  const onboardingCompleted = useAuthStore(s => s.onboardingCompleted);
+  const isLoading = useAuthStore(s => s.isLoading);
+  const location = useLocation();
+
+  if (isLoading) return null;
+  if (!onboardingCompleted && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
+  return null;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
     <ScrollToTop />
+    <OnboardingGate />
     <Suspense fallback={<LoadingScreen />}>
     <Routes>
+      <Route path="/onboarding" element={<Onboarding />} />
+
       <Route element={<AdminLayout />}>
         <Route path="/command-center" element={<UnifiedDashboard />} />
         <Route path="/command-center/:tab" element={<UnifiedDashboard />} />

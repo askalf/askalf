@@ -20,24 +20,32 @@ export interface User {
   role: 'user' | 'admin' | 'super_admin';
   tenantName?: string | null;
   themePreference?: string | null;
+  onboardingCompleted?: boolean;
 }
 
 interface AuthState {
   user: User | null;
   isLoading: boolean;
+  onboardingCompleted: boolean;
   checkAuth: () => Promise<void>;
+  setOnboardingCompleted: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: true,
+  onboardingCompleted: true, // assume true until we know otherwise
 
   checkAuth: async () => {
     try {
       const res = await fetch(`${API_BASE}/api/v1/auth/me`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        set({ user: data.user, isLoading: false });
+        set({
+          user: data.user,
+          isLoading: false,
+          onboardingCompleted: data.user?.onboardingCompleted ?? true,
+        });
         if (data.user?.themePreference) {
           try {
             const stored = localStorage.getItem('askalf-theme');
@@ -48,12 +56,14 @@ export const useAuthStore = create<AuthState>((set) => ({
           } catch { /* ignore */ }
         }
       } else {
-        set({ user: null, isLoading: false });
+        set({ user: null, isLoading: false, onboardingCompleted: true });
       }
     } catch {
-      set({ user: null, isLoading: false });
+      set({ user: null, isLoading: false, onboardingCompleted: true });
     }
   },
+
+  setOnboardingCompleted: () => set({ onboardingCompleted: true }),
 }));
 
 if (typeof window !== 'undefined') {

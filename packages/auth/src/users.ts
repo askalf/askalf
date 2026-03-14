@@ -19,6 +19,8 @@ export interface User {
   locked_until: Date | null;
   last_login_at: Date | null;
   last_login_ip: string | null;
+  onboarding_completed_at: Date | null;
+  theme_preference: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -45,6 +47,8 @@ function rowToUser(row: Record<string, unknown>): User {
       ? new Date(row['last_login_at'] as string)
       : null,
     last_login_ip: row['last_login_ip'] as string | null,
+    onboarding_completed_at: row['onboarding_completed_at'] ? new Date(row['onboarding_completed_at'] as string) : null,
+    theme_preference: (row['theme_preference'] as string) || null,
     created_at: new Date(row['created_at'] as string),
     updated_at: new Date(row['updated_at'] as string),
   };

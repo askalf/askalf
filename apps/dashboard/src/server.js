@@ -2336,7 +2336,20 @@ async function proxyToForge(request, reply, path) {
 fastify.get('/api/v1/auth/me', async (request, reply) => {
   const user = await getAdminUser();
   if (!user) return reply.status(500).send({ error: 'No admin user found' });
-  return { user };
+  // Include tenant name and onboarding status
+  const tenant = await queryOne('SELECT name FROM tenants WHERE id = $1', [user.tenant_id]);
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      displayName: user.display_name,
+      role: user.role,
+      tenantName: tenant?.name || null,
+      themePreference: user.theme_preference || null,
+      onboardingCompleted: !!user.onboarding_completed_at,
+    },
+  };
 });
 
 
