@@ -4,12 +4,17 @@ import TabBar from '../../components/TabBar';
 import type { ForgeEvent } from '../../constants/status';
 
 const OperationsTab = lazy(() => import('./OperationsTab'));
-const MonitorTab = lazy(() => import('./MonitorTab'));
-const PushPanel = lazy(() => import('../forge/PushPanel'));
-const WorkflowBuilder = lazy(() => import('../forge/WorkflowBuilder'));
+const CostDashboard = lazy(() => import('../forge/CostDashboard'));
+const ExecutionHistory = lazy(() => import('../hub/ExecutionHistory'));
+const AgentTimeline = lazy(() => import('../hub/AgentTimeline'));
+const ProviderHealthPage = lazy(() => import('../forge/ProviderHealth'));
+const GuardrailsManager = lazy(() => import('../forge/GuardrailsManager'));
+const AuditLog = lazy(() => import('../forge/AuditLog'));
 const CoordinatorTab = lazy(() => import('./CoordinatorTab'));
+const WorkflowBuilder = lazy(() => import('../forge/WorkflowBuilder'));
+const PushPanel = lazy(() => import('../forge/PushPanel'));
 
-type SubTab = 'tickets' | 'monitor' | 'orchestrator' | 'workflows' | 'deploy';
+type SubTab = 'tickets' | 'costs' | 'executions' | 'timeline' | 'providers' | 'guardrails' | 'audit' | 'orchestrator' | 'workflows' | 'deploy';
 
 interface OpsTabProps {
   wsEvents?: ForgeEvent[];
@@ -23,8 +28,13 @@ export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
       <TabBar
         tabs={[
           { key: 'tickets', label: 'Tickets' },
-          { key: 'monitor', label: 'Monitor' },
+          { key: 'costs', label: 'Costs' },
+          { key: 'executions', label: 'Executions' },
+          { key: 'timeline', label: 'Timeline' },
           { key: 'orchestrator', label: 'Orchestrator' },
+          { key: 'providers', label: 'Providers' },
+          { key: 'guardrails', label: 'Guardrails' },
+          { key: 'audit', label: 'Audit' },
           { key: 'workflows', label: 'Workflows' },
           { key: 'deploy', label: 'Deploy' },
         ]}
@@ -37,8 +47,13 @@ export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
         <ErrorBoundary inline>
           <Suspense fallback={<div className="ud-loading">Loading...</div>}>
             {sub === 'tickets' && <OperationsTab />}
-            {sub === 'monitor' && <MonitorTab />}
+            {sub === 'costs' && <CostDashboard />}
+            {sub === 'executions' && <ExecutionHistory />}
+            {sub === 'timeline' && <AgentTimeline />}
             {sub === 'orchestrator' && <CoordinatorTab wsEvents={wsEvents} />}
+            {sub === 'providers' && <ProviderHealthPage />}
+            {sub === 'guardrails' && <GuardrailsManager />}
+            {sub === 'audit' && <AuditLog />}
             {sub === 'workflows' && <WorkflowBuilder />}
             {sub === 'deploy' && <PushPanel wsEvents={wsEvents} />}
           </Suspense>

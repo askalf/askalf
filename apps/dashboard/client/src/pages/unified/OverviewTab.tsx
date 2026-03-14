@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { usePolling } from '../../hooks/usePolling';
-import { formatCost, formatDuration, formatTokens, formatCount, relativeTime, todayDateStr } from '../../utils/format';
+import { formatCost, formatCount, relativeTime, todayDateStr } from '../../utils/format';
 import type { ForgeEvent } from '../../constants/status';
 import './OverviewTab.css';
 
@@ -35,14 +35,6 @@ interface FleetStatsData {
   tiers?: { semantic?: number; episodic?: number; procedural?: number };
 }
 
-interface LeaderboardEntry {
-  agentId: string;
-  agentName?: string;
-  successRate: number;
-  totalCost: number;
-  tasksCompleted?: number;
-  tasksFailed?: number;
-}
 
 interface ExecutionEntry {
   id: string;
@@ -338,246 +330,6 @@ function AgentRing({
   );
 }
 
-// ── Live Feed ──
-
-function LiveFeed({
-  events,
-  onNavigate,
-}: {
-  events: ForgeEvent[];
-  onNavigate?: (tab: string) => void;
-}) {
-  const recent = useMemo(() => events.slice(-20).reverse(), [events]);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  return (
-    <div className="mc-panel mc-feed">
-      <div className="mc-panel-hdr">
-        <span className="mc-panel-title">
-          <span className="mc-live-dot" />
-          Live Feed
-        </span>
-        <button className="mc-panel-link" onClick={() => onNavigate?.('live')} type="button">
-          Full Stream &rarr;
-        </button>
-      </div>
-      <div className="mc-panel-body mc-feed-list" ref={listRef}>
-        {recent.length === 0 && (
-          <div className="mc-empty">Waiting for events...</div>
-        )}
-        {recent.map((ev, i) => (
-          <div
-            key={`${ev.receivedAt}-${i}`}
-            className={`mc-feed-row ${i === 0 ? 'mc-feed-new' : ''}`}
-          >
-            <span className={`mc-feed-dot ${eventTypeClass(ev.type)}`} />
-            <span className="mc-feed-time">{formatTime(ev.receivedAt)}</span>
-            <span className="mc-feed-msg" title={summarizeEvent(ev)}>
-              {summarizeEvent(ev)}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Leaderboard ──
-
-function Leaderboard({
-  entries,
-  onNavigate,
-}: {
-  entries: LeaderboardEntry[];
-  onNavigate?: (tab: string) => void;
-}) {
-  return (
-    <div className="mc-panel mc-leaderboard">
-      <div className="mc-panel-hdr">
-        <span className="mc-panel-title">Fleet Leaderboard</span>
-        <button className="mc-panel-link" onClick={() => onNavigate?.('fleet')} type="button">
-          Fleet &rarr;
-        </button>
-      </div>
-      <div className="mc-panel-body">
-        {entries.length === 0 && <div className="mc-empty">No data</div>}
-        {entries.length > 0 && (
-          <table className="mc-lb-table">
-            <thead>
-              <tr>
-                <th>Agent</th>
-                <th>Rate</th>
-                <th>Cost</th>
-                <th>Tasks</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((e) => {
-                const rateClass =
-                  e.successRate > 90 ? 'green' : e.successRate > 70 ? 'yellow' : 'red';
-                return (
-                  <tr
-                    key={e.agentId}
-                    onClick={() => onNavigate?.('fleet')}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(ev) => ev.key === 'Enter' && onNavigate?.('fleet')}
-                  >
-                    <td className="mc-lb-agent">{e.agentName || e.agentId}</td>
-                    <td className={`mc-lb-rate ${rateClass}`}>
-                      {e.successRate.toFixed(0)}%
-                    </td>
-                    <td className="mc-lb-cost">{formatCost(e.totalCost)}</td>
-                    <td className="mc-lb-tasks">
-                      {(e.tasksCompleted ?? 0) + (e.tasksFailed ?? 0)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Recent Executions ──
-
-function RecentExecutions({
-  executions,
-  onNavigate,
-}: {
-  executions: ExecutionEntry[];
-  onNavigate?: (tab: string) => void;
-}) {
-  const statusIcon = (s: string) => {
-    switch (s) {
-      case 'completed': return '\u2713';
-      case 'failed': return '\u2717';
-      case 'running': return '\u25B6';
-      default: return '\u25CB';
-    }
-  };
-  const statusClass = (s: string) => {
-    switch (s) {
-      case 'completed': return 'green';
-      case 'failed': return 'red';
-      case 'running': return 'blue';
-      default: return '';
-    }
-  };
-
-  return (
-    <div className="mc-panel mc-executions">
-      <div className="mc-panel-hdr">
-        <span className="mc-panel-title">Recent Executions</span>
-        <button className="mc-panel-link" onClick={() => onNavigate?.('ops')} type="button">
-          History &rarr;
-        </button>
-      </div>
-      <div className="mc-panel-body mc-exec-list">
-        {executions.length === 0 && (
-          <div className="mc-empty">No recent executions</div>
-        )}
-        {executions.map((ex) => (
-          <div key={ex.id} className="mc-exec-row">
-            <span className={`mc-exec-badge ${statusClass(ex.status)}`}>
-              {statusIcon(ex.status)}
-            </span>
-            <span className="mc-exec-agent">
-              {ex.agent_name || ex.agent_id || 'Unknown'}
-            </span>
-            <span className="mc-exec-dur">{formatDuration(ex.duration_ms ?? undefined)}</span>
-            <span className="mc-exec-cost">{formatCost(ex.cost)}</span>
-            <span className="mc-exec-time">{relativeTime(ex.started_at)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Cost Command Panel ──
-
-function CostPanel({ costData }: { costData: CostData | null }) {
-  const daily = costData?.dailyCosts ?? [];
-  const todayStr = todayDateStr();
-  const todayEntry = daily.find((d) => d.date === todayStr);
-  const today = todayEntry?.totalCost ?? (daily.length > 0 ? daily[0]?.totalCost ?? 0 : 0);
-  const weekTotal = daily.reduce((sum, d) => sum + d.totalCost, 0);
-
-  const totalTokens = costData
-    ? (costData.summary.total.totalInputTokens ?? 0) + (costData.summary.total.totalOutputTokens ?? 0)
-    : 0;
-
-  const chronoDaily = useMemo(() => [...daily].reverse(), [daily]);
-  const maxDaily = useMemo(() => {
-    if (!chronoDaily.length) return 1;
-    return Math.max(...chronoDaily.map((d) => d.totalCost), 0.01);
-  }, [chronoDaily]);
-
-  return (
-    <div className="mc-panel mc-cost">
-      <div className="mc-panel-hdr">
-        <span className="mc-panel-title">Cost Telemetry</span>
-      </div>
-      <div className="mc-panel-body">
-        {!costData ? (
-          <div className="mc-empty">Loading costs...</div>
-        ) : (
-          <>
-            <div className="mc-cost-kpis">
-              <div className="mc-cost-kpi">
-                <span className="mc-cost-num">{formatCost(today)}</span>
-                <span className="mc-cost-lbl">Today</span>
-              </div>
-              <div className="mc-cost-kpi">
-                <span className="mc-cost-num">{formatCost(weekTotal)}</span>
-                <span className="mc-cost-lbl">7-Day</span>
-              </div>
-              <div className="mc-cost-kpi">
-                <span className="mc-cost-num">{formatTokens(totalTokens)}</span>
-                <span className="mc-cost-lbl">Tokens</span>
-              </div>
-              <div className="mc-cost-kpi">
-                <span className="mc-cost-num sm">{formatCost(costData.summary.api.totalCost)}</span>
-                <span className="mc-cost-lbl">API</span>
-              </div>
-              <div className="mc-cost-kpi">
-                <span className="mc-cost-num sm">{formatCost(costData.summary.cli.totalCost)}</span>
-                <span className="mc-cost-lbl">CLI</span>
-              </div>
-            </div>
-            {chronoDaily.length > 0 && (
-              <div className="mc-cost-chart">
-                {chronoDaily.slice(-7).map((d) => {
-                  const barPct = (d.totalCost / maxDaily) * 100;
-                  const isToday = d.date === todayStr;
-                  return (
-                    <div key={d.date} className={`mc-cost-col ${isToday ? 'today' : ''}`}>
-                      <div className="mc-cost-bar-track">
-                        <div
-                          className="mc-cost-bar"
-                          style={{ height: `${Math.max(barPct, 2)}%` }}
-                          title={`${d.date}: ${formatCost(d.totalCost)}`}
-                        />
-                      </div>
-                      <span className="mc-cost-day">{d.date.slice(-5)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Memory Tier Bar ──
-
 function MemoryBar({
   fleetStats,
   onClick,
@@ -631,30 +383,150 @@ function MemoryBar({
   );
 }
 
+// ── Needs Attention Panel ──
+
+function NeedsAttention({
+  executions,
+  openTickets,
+  onNavigate,
+}: {
+  executions: ExecutionEntry[];
+  openTickets: number;
+  onNavigate?: (tab: string) => void;
+}) {
+  const failedRecent = executions.filter(e => e.status === 'failed');
+  const running = executions.filter(e => e.status === 'running');
+  const hasIssues = failedRecent.length > 0 || openTickets > 0;
+
+  return (
+    <div className="mc-panel mc-attention">
+      <div className="mc-panel-hdr">
+        <span className="mc-panel-title">
+          {hasIssues ? 'Needs Attention' : 'All Clear'}
+        </span>
+        {!hasIssues && <span className="mc-attention-ok">No issues</span>}
+      </div>
+      <div className="mc-panel-body">
+        {running.length > 0 && (
+          <div className="mc-attn-group">
+            <div className="mc-attn-label">Running Now</div>
+            {running.map(e => (
+              <div key={e.id} className="mc-attn-item mc-attn-running" onClick={() => onNavigate?.('ops')}>
+                <span className="mc-attn-dot running" />
+                <span className="mc-attn-agent">{e.agent_name || 'Agent'}</span>
+                <span className="mc-attn-time">{relativeTime(e.started_at)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {failedRecent.length > 0 && (
+          <div className="mc-attn-group">
+            <div className="mc-attn-label">Failed Recently</div>
+            {failedRecent.slice(0, 5).map(e => (
+              <div key={e.id} className="mc-attn-item mc-attn-failed" onClick={() => onNavigate?.('ops')}>
+                <span className="mc-attn-dot failed" />
+                <span className="mc-attn-agent">{e.agent_name || 'Agent'}</span>
+                <span className="mc-attn-time">{relativeTime(e.started_at)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {openTickets > 0 && (
+          <div className="mc-attn-group">
+            <button className="mc-attn-item mc-attn-tickets" onClick={() => onNavigate?.('ops')}>
+              <span className="mc-attn-dot ticket" />
+              <span className="mc-attn-agent">{openTickets} open ticket{openTickets !== 1 ? 's' : ''}</span>
+              <span className="mc-attn-action">View</span>
+            </button>
+          </div>
+        )}
+        {!hasIssues && running.length === 0 && (
+          <div className="mc-empty" style={{ padding: '2rem 0' }}>
+            System is healthy. No failures or open tickets.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Activity Summary ──
+
+function ActivitySummary({
+  executions,
+  todayCost,
+  wsEvents,
+  onNavigate,
+}: {
+  executions: ExecutionEntry[];
+  todayCost: number;
+  costData: CostData | null;
+  wsEvents: ForgeEvent[];
+  onNavigate?: (tab: string) => void;
+}) {
+  const completed = executions.filter(e => e.status === 'completed').length;
+  const failed = executions.filter(e => e.status === 'failed').length;
+  const recentEvents = wsEvents.slice(0, 8);
+
+  return (
+    <div className="mc-panel mc-activity">
+      <div className="mc-panel-hdr">
+        <span className="mc-panel-title">Activity</span>
+      </div>
+      <div className="mc-panel-body">
+        <div className="mc-activity-stats">
+          <button className="mc-activity-stat" onClick={() => onNavigate?.('ops')}>
+            <span className="mc-activity-val ok">{completed}</span>
+            <span className="mc-activity-lbl">Completed</span>
+          </button>
+          <button className="mc-activity-stat" onClick={() => onNavigate?.('ops')}>
+            <span className="mc-activity-val fail">{failed}</span>
+            <span className="mc-activity-lbl">Failed</span>
+          </button>
+          <button className="mc-activity-stat" onClick={() => onNavigate?.('ops')}>
+            <span className="mc-activity-val cost">{formatCost(todayCost)}</span>
+            <span className="mc-activity-lbl">Cost Today</span>
+          </button>
+        </div>
+        {recentEvents.length > 0 && (
+          <div className="mc-activity-feed">
+            {recentEvents.map((evt, i) => (
+              <div key={`${evt.id ?? i}`} className={`mc-activity-evt ${eventTypeClass(evt.type || '')}`}>
+                <span className="mc-activity-time">{formatTime(typeof evt.timestamp === 'number' ? evt.timestamp : Date.now())}</span>
+                <span className="mc-activity-msg">{summarizeEvent(evt)}</span>
+              </div>
+            ))}
+            <button className="mc-activity-more" onClick={() => onNavigate?.('live')}>
+              View full feed
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ──
 
 export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [fleetStats, setFleetStats] = useState<FleetStatsData | null>(null);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [executions, setExecutions] = useState<ExecutionEntry[]>([]);
   const [costData, setCostData] = useState<CostData | null>(null);
   const clock = useClock();
 
   const fetchAll = useCallback(async () => {
-    const [h, m, fs, lb, ex, c] = await Promise.all([
+    const [h, m, fs, ex, c] = await Promise.all([
       apiFetch<HealthData>('/api/v1/admin/monitoring/health'),
       apiFetch<MetricsData>('/api/v1/admin/reports/metrics'),
       apiFetch<FleetStatsData>('/api/v1/forge/fleet/stats'),
-      apiFetch<LeaderboardEntry[]>('/api/v1/admin/fleet/leaderboard'),
       apiFetch<{ executions: ExecutionEntry[] }>('/api/v1/admin/executions/timeline?hours=24'),
       apiFetch<CostData>('/api/v1/admin/costs?days=7'),
     ]);
     if (h) setHealth(h);
     if (m) setMetrics(m);
     if (fs) setFleetStats(fs);
-    if (lb) setLeaderboard(lb);
     if (ex) setExecutions(Array.isArray(ex.executions) ? ex.executions.slice(0, 12) : []);
     if (c) setCostData(c);
   }, []);
@@ -716,14 +588,16 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
         <MemoryBar fleetStats={fleetStats} onClick={() => onNavigate?.('brain')} />
       </div>
 
-      {/* Row 3: Main Grid — Feed | Executions + Leaderboard | Cost */}
+      {/* Row 3: Needs Attention + Activity */}
       <div className="mc-grid-main">
-        <LiveFeed events={wsEvents} onNavigate={onNavigate} />
-        <div className="mc-grid-center">
-          <RecentExecutions executions={executions} onNavigate={onNavigate} />
-          <Leaderboard entries={leaderboard} onNavigate={onNavigate} />
-        </div>
-        <CostPanel costData={costData} />
+        <NeedsAttention executions={executions} openTickets={openTickets} onNavigate={onNavigate} />
+        <ActivitySummary
+          executions={executions}
+          todayCost={todayCost}
+          costData={costData}
+          wsEvents={wsEvents}
+          onNavigate={onNavigate}
+        />
       </div>
     </div>
   );
