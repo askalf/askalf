@@ -33,7 +33,7 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   line-height: 1.2;
 }
 
@@ -228,7 +228,7 @@
   position: absolute;
   left: 12px;
   font-size: 0.6rem;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   color: var(--crystal);
   background: rgba(124, 58, 237, 0.1);
   padding: 1px 6px;
@@ -491,7 +491,7 @@
 .fwb-edge-arrow { color: var(--crystal); font-size: 0.85rem; }
 .fwb-edge-to { color: var(--text-primary); font-weight: 500; }
 .fwb-edge-cond {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--crystal);
   background: rgba(124, 58, 237, 0.08);
@@ -524,7 +524,7 @@
 }
 
 .fwb-type-desc code {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--crystal);
   background: rgba(124, 58, 237, 0.08);

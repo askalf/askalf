@@ -52,7 +52,7 @@
   color: rgba(255, 255, 255, 0.9);
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 .graph-search:focus {
@@ -89,7 +89,7 @@
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.8);
   outline: none;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
   transition: border-color 0.2s;
 }
 
@@ -112,7 +112,7 @@
   color: #a78bfa;
   cursor: pointer;
   transition: all 0.2s;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
   letter-spacing: 0.02em;
 }
 
@@ -135,7 +135,7 @@
   padding: 3px 10px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.04);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 0.03em;
 }
 
@@ -172,7 +172,7 @@
   color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
   transition: all 0.2s;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
   text-transform: capitalize;
   letter-spacing: 0.03em;
 }
@@ -230,7 +230,7 @@
 .graph-loading {
   color: rgba(167, 139, 250, 0.6);
   font-size: 0.85rem;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
   letter-spacing: 0.05em;
   gap: 16px;
 }
@@ -311,7 +311,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .graph-detail-close {
@@ -335,7 +335,7 @@
   font-weight: 600;
   color: rgba(255, 255, 255, 0.95);
   margin-bottom: 6px;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 .graph-detail-desc {
@@ -352,7 +352,7 @@
   font-size: 0.68rem;
   color: rgba(255, 255, 255, 0.3);
   margin-bottom: 12px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .graph-detail-edges h4,
@@ -382,7 +382,7 @@
   background: rgba(124, 58, 237, 0.1);
   border: 1px solid rgba(124, 58, 237, 0.2);
   color: #c4b5fd;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 .graph-detail-edge-list {
@@ -407,7 +407,7 @@
 }
 
 .graph-edge-relation {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.6rem;
   flex-shrink: 0;
   opacity: 0.7;
@@ -446,7 +446,7 @@
   letter-spacing: 0.06em;
   color: rgba(255, 255, 255, 0.3);
   margin-bottom: 10px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .graph-top-item {
@@ -471,7 +471,7 @@
   color: rgba(255, 255, 255, 0.2);
   width: 22px;
   flex-shrink: 0;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .graph-top-label {
@@ -485,14 +485,14 @@
   font-size: 0.6rem;
   color: #a78bfa;
   flex-shrink: 0;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 /* ---- Stat Button ---- */
 .graph-stat-btn {
   cursor: pointer;
   border: none;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   transition: all 0.2s;
 }
 

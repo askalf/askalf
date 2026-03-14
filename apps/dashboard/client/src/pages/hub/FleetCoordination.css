@@ -346,7 +346,7 @@
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .coord-task-error {
@@ -378,7 +378,7 @@
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .coord-cancel-btn {

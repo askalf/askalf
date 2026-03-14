@@ -94,7 +94,7 @@
 }
 
 .fobs-mono {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
 }
 
@@ -120,7 +120,7 @@
 }
 
 .fobs-entity-id {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--text-muted);
 }
@@ -130,7 +130,7 @@
 }
 
 .fobs-json-preview {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--text-muted);
   word-break: break-all;
@@ -203,7 +203,7 @@
 .fobs-bar-value {
   font-size: 0.55rem;
   color: var(--text-muted);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   margin-bottom: 4px;
   opacity: 0;
   transition: opacity 0.15s;
@@ -357,7 +357,7 @@
 .fobs-provider-url {
   font-size: 0.7rem;
   color: var(--text-muted);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   margin-top: 0.4rem;
   padding: 0.2rem 0.5rem;
   background: rgba(0, 0, 0, 0.2);
@@ -545,7 +545,7 @@
 }
 
 .prov-key-hint {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   background: rgba(0, 0, 0, 0.2);
@@ -574,7 +574,7 @@
 
 .prov-key-input {
   min-width: 280px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
 }
 
@@ -783,7 +783,7 @@
 
 .uprov-key-hint {
   font-size: 0.8rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   background: var(--deep);
   padding: 0.15rem 0.5rem;
@@ -877,7 +877,7 @@
   flex: 1;
   padding: 0.5rem 0.75rem;
   font-size: 0.85rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   background: var(--deep);
   color: var(--text);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -1053,7 +1053,7 @@
 }
 
 .gr-priority {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
 }
 
@@ -1089,7 +1089,7 @@
 }
 
 .gr-config-money {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
   color: var(--text, #e4e4e7);
 }
@@ -1108,7 +1108,7 @@
 
 .gr-config-json {
   margin: 0;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.65rem;
   color: var(--text-muted);
   line-height: 1.4;
@@ -1260,7 +1260,7 @@
 
 .cost-budget-numbers {
   font-size: 0.85rem;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   color: var(--text, #e4e4e7);
   font-weight: 600;
 }
@@ -1318,7 +1318,7 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text, #e4e4e7);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   line-height: 1.2;
   margin-bottom: 0.25rem;
 }
@@ -1412,7 +1412,7 @@
   font-size: 0.6rem;
   color: var(--text-muted);
   margin-top: 4px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 /* Tooltip on hover */
@@ -1446,7 +1446,7 @@
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--text, #e4e4e7);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .cost-bar-tip-meta {
@@ -1540,7 +1540,7 @@
   font-size: 1.4rem;
   font-weight: 700;
   color: var(--text, #e4e4e7);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .cost-split-meta {
@@ -1791,7 +1791,7 @@
   font-size: 1.1rem;
   font-weight: 700;
   color: rgba(251, 146, 60, 0.95);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .cost-forecast-over-value {
@@ -1877,7 +1877,7 @@
 }
 
 .al-entity-id {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-muted);
   cursor: pointer;
@@ -1898,7 +1898,7 @@
 }
 
 .al-actor-id {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.65rem;
   color: var(--text-muted);
 }
@@ -1906,7 +1906,7 @@
 .al-details-cell { max-width: 400px; }
 
 .al-details-preview {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--text-muted);
   word-break: break-word;
@@ -1940,7 +1940,7 @@
 
 .al-detail-id,
 .al-detail-exec {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-muted);
 }
@@ -1972,7 +1972,7 @@
 .al-json-pre {
   margin: 0;
   padding: 0.6rem 0.75rem;
-  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   white-space: pre-wrap;
@@ -2022,7 +2022,7 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text, #e4e4e7);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   line-height: 1.2;
 }
 
@@ -2084,7 +2084,7 @@
 
 .al-dist-count {
   color: var(--text-muted);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
 }
 
@@ -2180,7 +2180,7 @@
 }
 
 .al-detail-chip {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   background: rgba(255, 255, 255, 0.06);
@@ -2317,7 +2317,7 @@
 
 .exec-dist-count {
   color: var(--text-muted);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
 }
 
@@ -2352,7 +2352,7 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text, #e4e4e7);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   line-height: 1.2;
 }
 
@@ -2374,7 +2374,7 @@
 
 /* Input preview in table */
 .exec-input-preview {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-muted);
   max-width: 200px;
@@ -2427,7 +2427,7 @@
 }
 
 .exec-id-mono {
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   color: var(--text-muted);
 }
@@ -2494,7 +2494,7 @@
 .exec-code-pre {
   margin: 0;
   padding: 0.6rem 0.75rem;
-  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   white-space: pre-wrap;
@@ -2514,7 +2514,7 @@
 .exec-error-pre {
   margin: 0;
   padding: 0.6rem 0.75rem;
-  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: #ef4444;
   white-space: pre-wrap;

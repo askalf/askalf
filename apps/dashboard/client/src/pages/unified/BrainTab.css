@@ -333,7 +333,7 @@
 
 [data-theme="light"] .brain-card {
   background: #ffffff;
-  border-color: #e4e4e7;
+  border-color: var(--text);
 }
 
 [data-theme="light"] .brain-card-label {
@@ -350,7 +350,7 @@
 
 [data-theme="light"] .brain-stacked-bar {
   background: #f4f4f5;
-  border-color: #e4e4e7;
+  border-color: var(--text);
 }
 
 [data-theme="light"] .brain-legend-item {
@@ -363,7 +363,7 @@
 
 [data-theme="light"] .brain-lb-bar-track {
   background: #f4f4f5;
-  border-color: #e4e4e7;
+  border-color: var(--text);
 }
 
 [data-theme="light"] .brain-lb-count {
@@ -380,7 +380,7 @@
 
 [data-theme="light"] .brain-retry-btn {
   background: #f4f4f5;
-  border-color: #e4e4e7;
+  border-color: var(--text);
   color: #18181b;
 }
 
@@ -391,7 +391,7 @@
 [data-theme="light"] .brain-cycle-row,
 [data-theme="light"] .brain-hot-row {
   background: #ffffff;
-  border-color: #e4e4e7;
+  border-color: var(--text);
 }
 
 [data-theme="light"] .brain-cycle-name {

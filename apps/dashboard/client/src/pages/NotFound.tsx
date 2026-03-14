@@ -19,7 +19,7 @@ export default function NotFound() {
           fontSize: '6rem',
           fontWeight: 800,
           letterSpacing: '-0.04em',
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: 'var(--font-mono)',
           background: 'linear-gradient(135deg, #7c3aed, #a78bfa)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',

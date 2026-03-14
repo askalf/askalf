@@ -140,7 +140,7 @@ export default function DocsPage() {
                   borderRadius: 'var(--radius-sm)',
                   background: 'rgba(138, 92, 246, 0.15)',
                   color: '#a78bfa',
-                  fontFamily: 'JetBrains Mono, monospace',
+                  fontFamily: 'var(--font-mono)',
                 }}>{agent.type}</span>
               </div>
               <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
@@ -218,7 +218,7 @@ export default function DocsPage() {
             borderRadius: 'var(--radius-md)',
             padding: '1rem 1.25rem',
             marginBottom: '0.75rem',
-            fontFamily: 'JetBrains Mono, monospace',
+            fontFamily: 'var(--font-mono)',
             fontSize: '0.8125rem',
             lineHeight: 1.6,
             overflowX: 'auto',

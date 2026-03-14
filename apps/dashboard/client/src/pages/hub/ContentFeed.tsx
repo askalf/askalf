@@ -425,7 +425,7 @@ export default function ContentFeed() {
               {selectedContentItem.execution_id && (
                 <>
                   <div><strong>Execution:</strong></div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{selectedContentItem.execution_id}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{selectedContentItem.execution_id}</div>
                 </>
               )}
             </div>

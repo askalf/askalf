@@ -322,14 +322,14 @@ export default function DelegationGraph() {
 
         // Count text inside
         const fontSize = Math.max(10, r * 0.55);
-        ctx.font = `700 ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.font = `700 ${fontSize}px Satoshi, system-ui, sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillStyle = isDimmed ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.95)';
         ctx.fillText(String(node.ticketCount), node.x, node.y);
 
         // Name label below
         const lblSize = Math.max(9, r * 0.4);
-        ctx.font = `500 ${lblSize}px 'Segoe UI', system-ui, sans-serif`;
+        ctx.font = `500 ${lblSize}px Satoshi, system-ui, sans-serif`;
         ctx.textBaseline = 'top';
         ctx.fillStyle = isDimmed ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.7)';
         ctx.fillText(node.name, node.x, node.y + r + 6);

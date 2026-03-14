@@ -2240,7 +2240,7 @@ function DevicesTab() {
                     onChange={(e) => setForm({ ...form, privateKey: e.target.value })}
                     placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
                     rows={4}
-                    style={{ fontFamily: 'monospace', fontSize: '0.8em' }}
+                    style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}
                   />
                 </>
               )}
@@ -2268,7 +2268,7 @@ function DevicesTab() {
                     onChange={(e) => setForm({ ...form, kubeconfig: e.target.value })}
                     placeholder="Paste kubeconfig YAML (leave empty to use cluster default)"
                     rows={4}
-                    style={{ fontFamily: 'monospace', fontSize: '0.8em' }}
+                    style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8em' }}
                   />
                 </>
               )}

@@ -204,7 +204,7 @@
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   max-height: 150px;
   overflow-y: auto;
 }
@@ -555,7 +555,7 @@
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   max-height: 300px;
   overflow-y: auto;
   line-height: 1.5;
@@ -585,7 +585,7 @@
   border-radius: 3px;
   background: rgba(139, 92, 246, 0.12);
   color: #a78bfa;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 
@@ -1294,7 +1294,7 @@
 
 .hub-ticket-id {
   font-size: 0.7rem;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   color: var(--text-muted);
 }
 
@@ -1699,7 +1699,7 @@
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.2);
-  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   overflow: hidden;
 }
@@ -2390,7 +2390,7 @@
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 4px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .etl-detail-meta {
@@ -2430,7 +2430,7 @@
 
 .etl-detail-pre {
   margin: 0;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-secondary);
   white-space: pre-wrap;
@@ -2480,7 +2480,7 @@
   color: var(--text-muted);
   width: 36px;
   flex-shrink: 0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 .etl-iter-bars {

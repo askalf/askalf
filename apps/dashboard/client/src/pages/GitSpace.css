@@ -240,7 +240,7 @@
 
 .cr-badge--merged {
   background: rgba(148, 163, 184, 0.15);
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .cr-branch-agent {
@@ -279,7 +279,7 @@
 .cr-empty-icon {
   font-size: 2.5rem;
   opacity: 0.3;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .cr-empty-state h3 {
@@ -320,7 +320,7 @@
 }
 
 .cr-diff-branch-name {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--crystal);
@@ -373,7 +373,7 @@
 }
 
 .cr-commit-hash {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--water);
   flex-shrink: 0;
@@ -416,7 +416,7 @@
 }
 
 .cr-file-path {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
 }
 
@@ -531,7 +531,7 @@
 }
 
 .cr-diff-path {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text);
@@ -573,7 +573,7 @@
 .cr-diff-content {
   margin: 0;
   padding: 0;
-  font-family: 'Fira Code', 'JetBrains Mono', 'Cascadia Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1.5;
   overflow-x: auto;
@@ -685,7 +685,7 @@
 }
 
 .cr-merged-banner code {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-weight: 600;
 }
 
@@ -1049,10 +1049,10 @@
 
 .cr-build-log pre {
   margin: 0;
-  font-family: 'Fira Code', 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   line-height: 1.5;
-  color: #94a3b8;
+  color: var(--text-muted);
   white-space: pre-wrap;
   word-break: break-all;
 }
@@ -1123,7 +1123,7 @@
 }
 
 .cr-dtask-services {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--text-muted);
   overflow: hidden;
@@ -1205,7 +1205,7 @@
   display: block;
   font-size: 0.7rem;
   color: var(--text-muted);
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .cr-deploy-result {
@@ -2069,10 +2069,10 @@
   background: #0a0e14;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-family: 'Fira Code', 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1.5;
-  color: #94a3b8;
+  color: var(--text-muted);
   overflow-x: auto;
   white-space: pre;
 }
@@ -2086,7 +2086,7 @@
   padding: 1px 5px;
   background: rgba(59, 130, 246, 0.1);
   border-radius: 3px;
-  font-family: 'Fira Code', 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   color: #93c5fd;
 }
@@ -2262,7 +2262,7 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   line-height: 1.2;
 }
 
@@ -2370,7 +2370,7 @@
 .dep-service-meta {
   font-size: 0.68rem;
   color: var(--text-muted);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 .dep-status-badge {
@@ -2526,7 +2526,7 @@
 
 .dep-task-duration {
   font-size: 0.72rem;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   color: var(--text-secondary);
 }
 
@@ -2555,7 +2555,7 @@
 
 .dep-task-detail-row span:last-child {
   color: var(--text-primary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
 }
 
@@ -2572,7 +2572,7 @@
   margin: 0;
   padding: 0.5rem 0.75rem;
   font-size: 0.68rem;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-all;

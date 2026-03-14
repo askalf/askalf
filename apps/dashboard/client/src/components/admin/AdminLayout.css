@@ -2,7 +2,7 @@
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background: #0a0a0f;
+  background: var(--void);
 }
 
 /* Sidebar */
@@ -51,7 +51,7 @@
   font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   background: linear-gradient(135deg, #fff 0%, #a78bfa 100%);
   background-size: 200% 200%;
   -webkit-background-clip: text;

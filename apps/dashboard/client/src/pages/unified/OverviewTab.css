@@ -130,7 +130,7 @@
 }
 
 .mc-clock {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.5);
@@ -483,7 +483,7 @@
 .mc-feed-dot.mc-evt-default { background: rgba(255, 255, 255, 0.2); }
 
 .mc-feed-time {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   color: rgba(255, 255, 255, 0.25);
   flex-shrink: 0;
@@ -549,7 +549,7 @@
 .mc-lb-rate.red { color: #ef4444; }
 
 .mc-lb-cost {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: rgba(255, 255, 255, 0.4);
 }
@@ -600,14 +600,14 @@
 }
 
 .mc-exec-dur {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: rgba(255, 255, 255, 0.35);
   flex-shrink: 0;
 }
 
 .mc-exec-cost {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: rgba(255, 255, 255, 0.35);
   flex-shrink: 0;
