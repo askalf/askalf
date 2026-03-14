@@ -71,6 +71,40 @@ export async function registerMemoryRoutes(app: FastifyInstance): Promise<void> 
   );
 
   // ------------------------------------------
+  // DELETE MEMORY — remove individual memories
+  // ------------------------------------------
+
+  app.delete(
+    '/api/v1/admin/memory/:tier/:id',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { tier, id } = request.params as { tier: string; id: string };
+
+      const tableMap: Record<string, string> = {
+        semantic: 'forge_semantic_memories',
+        episodic: 'forge_episodic_memories',
+        procedural: 'forge_procedural_memories',
+      };
+
+      const table = tableMap[tier];
+      if (!table) {
+        return reply.code(400).send({ error: `Invalid tier: ${tier}. Use semantic, episodic, or procedural.` });
+      }
+
+      const result = await query<{ id: string }>(
+        `DELETE FROM ${table} WHERE id = $1 RETURNING id`,
+        [id],
+      );
+
+      if (result.length === 0) {
+        return reply.code(404).send({ error: 'Memory not found' });
+      }
+
+      return { deleted: true, tier, id };
+    },
+  );
+
+  // ------------------------------------------
   // BRAIN ACTIVITY — memory consolidation metrics
   // ------------------------------------------
 

@@ -136,15 +136,17 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
       return { text: `Opening settings: **${tab}**` };
     }
 
-    case 'connect':
-      return { text: [
-        '**Import OAuth Token**',
-        '1. On your machine: `cat ~/.claude/.credentials.json`',
-        '2. Copy the entire JSON output',
-        '3. Paste it here and press Enter',
-        '',
-        'Or add an API key: `/settings ai-keys`',
-      ].join('\n') };
+    case 'connect': {
+      // Initiate OAuth flow
+      try {
+        const res = await cmdFetch<{ authUrl: string }>('/api/v1/forge/oauth/start');
+        if (res.authUrl) {
+          window.open(res.authUrl, '_blank');
+          return { text: '**OAuth flow started** — authorize in the new tab. Your credentials will be saved automatically.' };
+        }
+      } catch { /* fall through */ }
+      return { text: '**Connect Claude** — go to Settings to set up OAuth, or use the onboarding wizard.' };
+    }
 
     case 'dispatch':
     case 'task':
