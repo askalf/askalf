@@ -28,6 +28,10 @@ export default function Onboarding() {
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [keySaved, setKeySaved] = useState(false);
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [openaiTesting, setOpenaiTesting] = useState(false);
+  const [openaiResult, setOpenaiResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [openaiSaved, setOpenaiSaved] = useState(false);
 
   const currentIdx = STEPS.findIndex(s => s.key === step);
 
@@ -54,6 +58,30 @@ export default function Onboarding() {
       setTestResult({ ok: false, msg: 'Connection failed' });
     }
     setTesting(false);
+  };
+
+  const handleSaveOpenai = async () => {
+    if (!openaiKey.trim()) return;
+    setOpenaiTesting(true);
+    setOpenaiResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/onboarding/api-key`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: openaiKey.trim(), provider: 'openai' }),
+      });
+      const data = await res.json() as { success?: boolean; error?: string };
+      if (res.ok && data.success) {
+        setOpenaiResult({ ok: true, msg: 'OpenAI key saved' });
+        setOpenaiSaved(true);
+      } else {
+        setOpenaiResult({ ok: false, msg: data.error || 'Failed to save' });
+      }
+    } catch {
+      setOpenaiResult({ ok: false, msg: 'Connection failed' });
+    }
+    setOpenaiTesting(false);
   };
 
   const handleComplete = async () => {
@@ -187,6 +215,43 @@ export default function Onboarding() {
                 </div>
               )}
 
+              {/* Optional: OpenAI for embeddings */}
+              <div className="ob-optional-section">
+                <div className="ob-optional-header">
+                  <span className="ob-optional-label">Optional</span>
+                  <span className="ob-optional-title">OpenAI Key for Embeddings</span>
+                </div>
+                <p className="ob-optional-desc">
+                  Powers semantic memory search and enables OpenAI model agents.
+                  Without this, the brain uses basic matching instead of vector similarity.
+                </p>
+                {!openaiSaved ? (
+                  <div className="ob-optional-fields">
+                    <input
+                      type="password"
+                      className="ob-optional-input"
+                      value={openaiKey}
+                      onChange={e => { setOpenaiKey(e.target.value); setOpenaiResult(null); }}
+                      placeholder="sk-..."
+                    />
+                    <button
+                      className="ob-btn-secondary"
+                      onClick={handleSaveOpenai}
+                      disabled={openaiTesting || !openaiKey.trim()}
+                    >
+                      {openaiTesting ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="ob-optional-saved">&#10003; OpenAI key saved</div>
+                )}
+                {openaiResult && !openaiSaved && (
+                  <div className={`ob-test-result ${openaiResult.ok ? 'ok' : 'fail'}`}>
+                    {openaiResult.msg}
+                  </div>
+                )}
+              </div>
+
               <div className="ob-btn-row">
                 <button className="ob-btn-secondary" onClick={() => setStep('welcome')}>Back</button>
                 <button
@@ -249,6 +314,10 @@ export default function Onboarding() {
                 <div className="ob-summary-row">
                   <span>Intent Parser</span>
                   <span>{parserMode === 'enhanced' ? 'Enhanced (Anthropic)' : 'Basic (keyword)'}</span>
+                </div>
+                <div className="ob-summary-row">
+                  <span>Embeddings</span>
+                  <span>{openaiSaved ? 'OpenAI (vector search)' : 'Basic (no similarity)'}</span>
                 </div>
                 <div className="ob-summary-row">
                   <span>Theme</span>
