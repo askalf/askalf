@@ -88,7 +88,7 @@
 }
 
 .hb-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
 }
 
 [data-theme="light"] .hb-btn:hover {
@@ -351,7 +351,7 @@
   gap: 0;
   padding: 0 12px;
   background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   overflow-x: auto;
   scrollbar-width: thin;
@@ -441,7 +441,7 @@
 }
 
 .ud-sidebar-panel {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
 }
 
 .ud-sidebar-panel-header {
@@ -570,7 +570,7 @@
 }
 
 .ud-activity-row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
 }
 
 .ud-activity-time {
@@ -642,7 +642,7 @@
 }
 
 .ud-ticket-row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
 }
 
 .ud-ticket-priority {
@@ -699,7 +699,7 @@
   justify-content: space-between;
   padding: 6px 12px;
   background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -932,7 +932,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -984,7 +984,7 @@
 }
 
 .ud-notification-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
 }
 
 .ud-notification-item.ud-notification-unread {
@@ -1097,7 +1097,7 @@
 
 .ud-account-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   margin: 4px 0;
 }
 
@@ -1149,7 +1149,7 @@
   display: flex;
   gap: 2px;
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.015);
 }
 
@@ -1172,7 +1172,7 @@
 
 .ud-sub-tab.active {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
 }
 
 /* ---- Composite tabs ---- */

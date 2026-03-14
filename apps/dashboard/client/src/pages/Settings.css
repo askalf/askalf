@@ -27,8 +27,8 @@
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   margin-bottom: var(--space-lg);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   font-size: 0.875rem;
@@ -38,7 +38,7 @@
 }
 
 .settings-back-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--text);
   border-color: var(--crystal-dim);
 }
@@ -97,7 +97,7 @@
 }
 
 .settings-nav-item:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text);
 }
 
@@ -114,8 +114,8 @@
 
 /* Content */
 .settings-content {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: var(--space-xl);
   min-width: 0;
@@ -166,7 +166,7 @@
 .settings-field input {
   padding: var(--space-md);
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   color: var(--text);
   font-size: 1rem;
@@ -242,8 +242,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
 }
 
@@ -266,8 +266,8 @@
 
 .settings-coming-soon-badge {
   padding: 4px 12px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
+  border: 1px solid var(--border);
   border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -285,7 +285,7 @@
 .connector-card {
   padding: var(--space-lg);
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   transition: all var(--transition-fast);
 }
@@ -307,7 +307,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border-radius: var(--radius-lg);
   font-size: 1.125rem;
   font-weight: 700;
@@ -335,7 +335,7 @@
   font-weight: 500;
   padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text-muted);
 }
 
@@ -352,8 +352,8 @@
 
 .connector-form input {
   padding: var(--space-md);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   color: var(--text);
   font-size: 0.9375rem;
@@ -371,8 +371,8 @@
 
 .connector-btn {
   padding: var(--space-sm) var(--space-md);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
   font-size: 0.875rem;
@@ -382,7 +382,7 @@
 }
 
 .connector-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
 }
 
 .connector-btn.connect {
@@ -428,7 +428,7 @@
   justify-content: space-between;
   padding: var(--space-md);
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 
@@ -447,7 +447,7 @@
 .settings-clear-btn {
   padding: var(--space-sm) var(--space-md);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   font-size: 0.875rem;
@@ -457,7 +457,7 @@
 }
 
 .settings-clear-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border-color: var(--crystal);
   color: var(--crystal);
 }
@@ -509,7 +509,7 @@
   gap: var(--space-lg);
   padding: var(--space-xl);
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-lg);
 }
@@ -586,7 +586,7 @@
 .settings-toggle {
   padding: var(--space-sm) var(--space-md);
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   font-size: 0.875rem;
@@ -596,7 +596,7 @@
 }
 
 .settings-toggle:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text);
 }
 
@@ -664,7 +664,7 @@
 .settings-input-disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  background: rgba(255, 255, 255, 0.03) !important;
+  background: var(--surface) !important;
 }
 
 /* ===========================================
@@ -673,7 +673,7 @@
 
 .billing-plan-card {
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
   margin-bottom: var(--space-xl);
@@ -715,7 +715,7 @@
 }
 
 .billing-plan-badge[data-plan="free"] {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
 }
 
@@ -770,7 +770,7 @@
 
 .billing-usage-card {
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   margin-bottom: var(--space-md);
@@ -796,7 +796,7 @@
 
 .billing-usage-bar-container {
   height: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border-radius: var(--radius-full);
   overflow: hidden;
   margin-bottom: var(--space-sm);
@@ -836,7 +836,7 @@
 
 .billing-stat-item {
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   text-align: center;
@@ -894,14 +894,14 @@
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .billing-link-card:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border-color: var(--crystal-dim);
 }
 
@@ -943,7 +943,7 @@
 .billing-manage-btn {
   padding: var(--space-sm) var(--space-lg);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   color: var(--text);
   font-size: 0.875rem;
@@ -953,7 +953,7 @@
 }
 
 .billing-manage-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border-color: var(--crystal);
   color: var(--crystal);
 }
@@ -966,8 +966,8 @@
 .billing-manual-plan {
   display: inline-block;
   padding: var(--space-sm) var(--space-lg);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   font-size: 0.875rem;
@@ -996,7 +996,7 @@
 .billing-plan-option {
   position: relative;
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   text-align: center;
@@ -1085,8 +1085,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
   font-size: 1rem;
@@ -1096,7 +1096,7 @@
 }
 
 .billing-team-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   border-color: var(--synapse);
   color: var(--synapse);
 }
@@ -1110,8 +1110,8 @@
   width: 50px;
   height: 28px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
   font-size: 0.875rem;
@@ -1192,8 +1192,8 @@
 }
 
 .billing-plan-btn.current {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   color: var(--text-muted);
   cursor: default;
 }
@@ -1211,7 +1211,7 @@
 
 .billing-plan-btn.downgrade {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
 }
 
@@ -1267,7 +1267,7 @@
 .billing-bundle-card {
   position: relative;
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   text-align: center;
@@ -1321,8 +1321,8 @@
 .billing-bundle-btn {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
   font-size: 0.8125rem;
@@ -1363,7 +1363,7 @@
   margin-bottom: var(--space-xl);
   padding: var(--space-lg);
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 
@@ -1399,7 +1399,7 @@
   align-items: center;
   text-align: center;
   padding: var(--space-md);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border-radius: var(--radius-md);
 }
 
@@ -1535,7 +1535,7 @@
 
 .settings-modal {
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   max-width: 500px;
   width: 100%;
@@ -1549,7 +1549,7 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--space-lg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
 }
 
 .settings-modal-header h3 {
@@ -1586,7 +1586,7 @@
 
 .settings-fact-item {
   padding: var(--space-sm) 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -1604,7 +1604,7 @@
 .settings-fact-category {
   font-size: 0.75rem;
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   display: inline-block;
@@ -1649,7 +1649,7 @@
 
 .settings-input:focus {
   border-color: rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
 }
 
 textarea.settings-input {
@@ -1683,7 +1683,7 @@ textarea.settings-input {
 }
 
 .settings-pref-item {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   padding: var(--space-md);
   border-radius: var(--radius-md);
   text-align: center;
@@ -1737,7 +1737,7 @@ textarea.settings-input {
   color: var(--text);
   line-height: 1.5;
   margin: 0;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   padding: var(--space-md);
   border-radius: var(--radius-md);
 }
@@ -1769,7 +1769,7 @@ textarea.settings-input {
 
 .settings-episode-item {
   padding: var(--space-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border);
 }
 
 .settings-episode-item:last-child {
@@ -1805,14 +1805,14 @@ textarea.settings-input {
 }
 
 .settings-episode-valence.neutral {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
 }
 
 .settings-episode-type {
   font-size: 0.75rem;
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   text-transform: capitalize;
@@ -1965,8 +1965,8 @@ textarea.settings-input {
 
 /* ---- AI Keys Tab ---- */
 .settings-ai-key-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg, 12px);
   padding: 1rem 1.25rem;
   margin-bottom: var(--space-md);
@@ -2007,7 +2007,7 @@ textarea.settings-input {
 .settings-ai-key-btn {
   padding: 0.375rem 0.75rem;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
   font-size: 0.8125rem;
@@ -2035,7 +2035,7 @@ textarea.settings-input {
   flex: 1;
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   background: var(--void, #0f0f1a);
   color: var(--text);
   font-size: 0.8125rem;
@@ -2060,7 +2060,7 @@ textarea.settings-input {
 
 .settings-integration-card {
   background: var(--deep, #0f0f1a);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
@@ -2147,9 +2147,9 @@ textarea.settings-input {
   padding: 4px 10px;
   font-size: 0.75rem;
   font-weight: 500;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -2157,7 +2157,7 @@ textarea.settings-input {
 }
 
 .settings-btn-sm:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--text);
   border-color: var(--crystal-dim);
 }
@@ -2258,7 +2258,7 @@ textarea.settings-input {
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--deep, #0f0f1a);
   color: var(--text);
@@ -2270,7 +2270,7 @@ textarea.settings-input {
 }
 
 .settings-connect-btn:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   border-color: var(--crystal-dim);
   transform: translateY(-1px);
 }
@@ -2389,7 +2389,7 @@ textarea.settings-input {
 }
 
 .settings-intg-badge.upcoming {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--text-muted, rgba(255, 255, 255, 0.35));
 }
 
@@ -2502,8 +2502,8 @@ textarea.settings-input {
 
 .settings-provider-card {
   padding: var(--space-lg);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-md);
 }
@@ -2557,7 +2557,7 @@ textarea.settings-input {
 }
 
 .settings-provider-inactive {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--elevated);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
 }
 
@@ -2571,7 +2571,7 @@ textarea.settings-input {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
   background: var(--deep);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
   font-family: var(--font-mono);

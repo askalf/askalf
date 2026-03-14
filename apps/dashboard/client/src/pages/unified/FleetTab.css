@@ -11,7 +11,7 @@
 /* ── Header ── */
 .fleet-header {
   padding: var(--space-lg, 1.5rem) var(--space-lg, 1.5rem) var(--space-md, 1rem);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -63,8 +63,8 @@
 }
 
 .fleet-stat-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: var(--space-md, 1rem) var(--space-lg, 1.5rem);
   text-align: center;
@@ -73,7 +73,7 @@
 }
 
 .fleet-stat-card:hover {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--border-hover);
   transform: translateY(-2px);
 }
 
@@ -99,8 +99,8 @@
 
 /* ── Glassmorphism Panel ── */
 .fleet-panel {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 10px;
   backdrop-filter: blur(8px);
   overflow: hidden;
@@ -111,7 +111,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-md, 1rem) var(--space-lg, 1.5rem);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
 }
 
 .fleet-section-title {
@@ -148,7 +148,7 @@
   padding: 5px 12px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   color: var(--text, #f4f4f5);
   font-size: 12px;
   width: 180px;
@@ -177,7 +177,7 @@
   padding: 6px 14px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
   font-size: 12px;
   font-weight: 500;
@@ -188,8 +188,8 @@
 }
 
 .fleet-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--elevated);
+  border-color: var(--border-hover);
   color: var(--text, #e4e4e7);
 }
 
@@ -226,8 +226,8 @@
 
 .fleet-btn.danger:disabled {
   color: var(--text-muted, rgba(255, 255, 255, 0.25));
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--surface);
+  border-color: var(--border-hover);
 }
 
 /* ── Status Chips ── */
@@ -347,7 +347,7 @@
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
@@ -388,7 +388,7 @@
 .fleet-table tbody tr:nth-child(8) { animation-delay: 210ms; }
 
 .fleet-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
 }
 
 .fleet-table tbody tr.selected {
@@ -400,7 +400,7 @@
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--elevated);
   color: var(--text-tertiary, rgba(255, 255, 255, 0.5));
   margin-left: 8px;
 }
@@ -409,7 +409,7 @@
 .fleet-detail {
   width: 420px;
   flex-shrink: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(8px);
   overflow-y: auto;
@@ -433,7 +433,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
 }
 
 .fleet-detail-title {
@@ -458,7 +458,7 @@
 
 .fleet-detail-tabs {
   display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
   padding: 0 16px;
 }
 
@@ -598,7 +598,7 @@
   display: flex;
   gap: 8px;
   padding: 12px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
 }
 
 /* ── Empty State ── */
@@ -846,7 +846,7 @@
   .fleet-detail {
     width: 100%;
     border-left: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
     max-height: 400px;
   }
   .fleet-stats-grid { grid-template-columns: repeat(2, 1fr); }
