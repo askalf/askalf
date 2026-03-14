@@ -1,16 +1,17 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import './Onboarding.css';
 
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:3001' : '';
 
-type Step = 'welcome' | 'ai-provider' | 'theme' | 'complete';
+type Step = 'welcome' | 'ai-provider' | 'connect-claude' | 'theme' | 'complete';
 
 const STEPS: { key: Step; label: string }[] = [
   { key: 'welcome', label: 'Workspace' },
-  { key: 'ai-provider', label: 'AI Provider' },
+  { key: 'ai-provider', label: 'AI Config' },
+  { key: 'connect-claude', label: 'Connect Claude' },
   { key: 'theme', label: 'Appearance' },
   { key: 'complete', label: 'Launch' },
 ];
@@ -32,6 +33,34 @@ export default function Onboarding() {
   const [openaiTesting, setOpenaiTesting] = useState(false);
   const [openaiResult, setOpenaiResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [openaiSaved, setOpenaiSaved] = useState(false);
+  const [oauthStatus, setOauthStatus] = useState<'unknown' | 'connected' | 'expired' | 'none'>('unknown');
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  // Check OAuth status on mount and after redirect
+  useEffect(() => {
+    const checkOAuth = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/forge/oauth/status`, { credentials: 'include' });
+        const data = await res.json() as { connected: boolean; status: string };
+        setOauthStatus(data.connected ? 'connected' : data.status === 'expired' ? 'expired' : 'none');
+      } catch {
+        setOauthStatus('none');
+      }
+    };
+    checkOAuth();
+
+    // Handle OAuth redirect result
+    const success = searchParams.get('oauth_success');
+    const error = searchParams.get('oauth_error');
+    if (success === 'true') {
+      setOauthStatus('connected');
+      setStep('connect-claude');
+    } else if (error) {
+      setOauthStatus('none');
+      setStep('connect-claude');
+    }
+  }, [searchParams]);
 
   const currentIdx = STEPS.findIndex(s => s.key === step);
 
@@ -256,7 +285,7 @@ export default function Onboarding() {
                 <button className="ob-btn-secondary" onClick={() => setStep('welcome')}>Back</button>
                 <button
                   className="ob-btn-primary"
-                  onClick={() => setStep('theme')}
+                  onClick={() => setStep('connect-claude')}
                   disabled={parserMode === 'enhanced' && !keySaved}
                 >
                   Continue
@@ -265,7 +294,76 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 3: Theme */}
+          {/* Step 3: Connect Claude */}
+          {step === 'connect-claude' && (
+            <div className="ob-step-content">
+              <h1 className="ob-title">Connect Claude for agent execution</h1>
+              <p className="ob-desc">
+                Agents use Claude CLI to execute tasks. Connect your Anthropic account
+                via OAuth so agents can run autonomously.
+              </p>
+
+              <div className="ob-oauth-card">
+                {oauthStatus === 'connected' ? (
+                  <div className="ob-oauth-connected">
+                    <div className="ob-oauth-check">&#10003;</div>
+                    <div>
+                      <div className="ob-oauth-status-text">Claude Connected</div>
+                      <div className="ob-oauth-status-sub">Agent execution is ready</div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="ob-oauth-info">
+                      <div className="ob-oauth-icon">C</div>
+                      <div>
+                        <div className="ob-oauth-info-title">Anthropic OAuth</div>
+                        <div className="ob-oauth-info-desc">
+                          Sign in with your Anthropic account. This authorizes agent execution
+                          using your Claude subscription.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      className="ob-btn-oauth"
+                      disabled={oauthLoading}
+                      onClick={async () => {
+                        setOauthLoading(true);
+                        try {
+                          const res = await fetch(`${API_BASE}/api/v1/forge/oauth/start`, { credentials: 'include' });
+                          const data = await res.json() as { authUrl: string };
+                          window.location.href = data.authUrl;
+                        } catch {
+                          setOauthLoading(false);
+                        }
+                      }}
+                    >
+                      {oauthLoading ? 'Redirecting...' : 'Connect with Anthropic'}
+                    </button>
+                    {searchParams.get('oauth_error') && (
+                      <div className="ob-test-result fail">
+                        OAuth failed: {searchParams.get('oauth_error')?.replace(/_/g, ' ')}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="ob-btn-row">
+                <button className="ob-btn-secondary" onClick={() => setStep('ai-provider')}>Back</button>
+                <button className="ob-btn-primary" onClick={() => setStep('theme')}>
+                  {oauthStatus === 'connected' ? 'Continue' : 'Skip for now'}
+                </button>
+              </div>
+              {oauthStatus !== 'connected' && (
+                <span className="ob-hint" style={{ textAlign: 'center', display: 'block' }}>
+                  You can connect later in Settings. Without this, agents cannot execute tasks.
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Step 4: Theme */}
           {step === 'theme' && (
             <div className="ob-step-content">
               <h1 className="ob-title">Choose your theme</h1>
@@ -291,7 +389,7 @@ export default function Onboarding() {
               </div>
 
               <div className="ob-btn-row">
-                <button className="ob-btn-secondary" onClick={() => setStep('ai-provider')}>Back</button>
+                <button className="ob-btn-secondary" onClick={() => setStep('connect-claude')}>Back</button>
                 <button className="ob-btn-primary" onClick={() => setStep('complete')}>Continue</button>
               </div>
             </div>
@@ -318,6 +416,10 @@ export default function Onboarding() {
                 <div className="ob-summary-row">
                   <span>Embeddings</span>
                   <span>{openaiSaved ? 'OpenAI (vector search)' : 'Basic (no similarity)'}</span>
+                </div>
+                <div className="ob-summary-row">
+                  <span>Agent Execution</span>
+                  <span>{oauthStatus === 'connected' ? 'Claude (OAuth)' : 'Not connected'}</span>
                 </div>
                 <div className="ob-summary-row">
                   <span>Theme</span>
