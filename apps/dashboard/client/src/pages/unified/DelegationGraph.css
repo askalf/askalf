@@ -1,10 +1,20 @@
+/* ============================================
+   Delegation Graph — Neural Network Style
+   ============================================ */
+
 .deleg-graph {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--surface, #0f172a);
-  color: var(--text-primary, #f1f5f9);
+  background: #04040a;
+  color: rgba(241, 245, 249, 0.9);
   overflow: hidden;
+  animation: deleg-emerge 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes deleg-emerge {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .deleg-header {
@@ -13,20 +23,22 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.25rem 0.75rem;
-  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid rgba(124, 58, 237, 0.1);
   flex-shrink: 0;
+  background: rgba(8, 8, 18, 0.5);
 }
 
 .deleg-title h2 {
   margin: 0 0 0.2rem;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary, #f1f5f9);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .deleg-subtitle {
-  font-size: 0.75rem;
-  color: var(--text-muted, #94a3b8);
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.02em;
 }
 
 .deleg-legend {
@@ -40,15 +52,16 @@
 .deleg-legend-item {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.7rem;
-  color: var(--text-muted, #94a3b8);
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.45);
   white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 .deleg-legend-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -64,28 +77,60 @@
   flex: 1;
   min-width: 0;
   position: relative;
+  overflow: hidden;
+}
+
+.deleg-canvas canvas {
+  display: block;
 }
 
 .deleg-loading {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted, #94a3b8);
-  font-size: 0.875rem;
+  gap: 14px;
+  color: rgba(167, 139, 250, 0.5);
+  font-size: 0.82rem;
+  z-index: 5;
+  pointer-events: none;
+  letter-spacing: 0.04em;
+}
+
+.deleg-loading-orb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.5), rgba(124, 58, 237, 0.15));
+  box-shadow: 0 0 24px rgba(124, 58, 237, 0.25), 0 0 48px rgba(124, 58, 237, 0.08);
+  animation: deleg-orb-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes deleg-orb-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.4); opacity: 1; }
 }
 
 .deleg-detail {
-  width: 220px;
+  width: 230px;
   flex-shrink: 0;
-  border-left: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-left: 1px solid rgba(124, 58, 237, 0.12);
   padding: 1rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  animation: forge-fade-in 0.15s ease;
+  background: rgba(10, 10, 20, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: deleg-panel-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes deleg-panel-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .deleg-detail-header {
@@ -104,29 +149,33 @@
 
 .deleg-detail-close {
   margin-left: auto;
-  background: none;
+  background: rgba(255, 255, 255, 0.04);
   border: none;
-  color: var(--text-muted, #94a3b8);
+  color: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   line-height: 1;
-  padding: 0;
+  padding: 3px 7px;
+  border-radius: 5px;
+  transition: all 0.15s;
 }
 
 .deleg-detail-close:hover {
-  color: var(--text-primary, #f1f5f9);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .deleg-detail-stat {
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
-  color: var(--text-muted, #94a3b8);
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .deleg-detail-stat span:last-child {
   font-weight: 600;
-  color: var(--text-primary, #f1f5f9);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 .deleg-detail-edges {
@@ -135,20 +184,26 @@
 }
 
 .deleg-detail-edges-label {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted, #94a3b8);
-  margin-bottom: 0.4rem;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.25);
+  margin-bottom: 0.5rem;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 .deleg-edge-row {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  padding: 0.25rem 0;
-  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.05));
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.deleg-edge-row:last-child {
+  border-bottom: none;
 }
 
 .deleg-edge-dir {
@@ -156,21 +211,19 @@
   width: 16px;
   text-align: center;
   flex-shrink: 0;
+  font-size: 0.85rem;
 }
 
-.deleg-edge-dir.out {
-  color: #60a5fa;
-}
-
-.deleg-edge-dir.in {
-  color: #34d399;
-}
+.deleg-edge-dir.out { color: #60a5fa; }
+.deleg-edge-dir.in { color: #34d399; }
 
 .deleg-edge-count {
   margin-left: auto;
-  background: var(--surface-elevated, rgba(255, 255, 255, 0.06));
-  padding: 0.1rem 0.35rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  color: var(--text-muted, #94a3b8);
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: #c4b5fd;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
