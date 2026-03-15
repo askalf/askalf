@@ -135,6 +135,22 @@
     .wfc-icon{font-size:2rem;margin-bottom:12px}
     .wfc h3{font-size:1rem;font-weight:700;margin-bottom:8px}.wfc p{font-size:.85rem;color:var(--text-dim);line-height:1.5}
 
+    /* Brain / Knowledge Graph */
+    .brain-layout{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+    .brain-canvas-wrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(124,58,237,.12);background:#04040a;min-height:380px;box-shadow:0 8px 40px rgba(0,0,0,.3),0 0 40px rgba(124,58,237,.04)}
+    .brain-canvas-wrap canvas{width:100%;height:100%;display:block}
+    .brain-details{display:flex;flex-direction:column;gap:20px}
+    .brain-tier{padding:16px 20px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+    .brain-tier-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .brain-tier-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .brain-tier-name{font-size:.9rem;font-weight:700}
+    .brain-tier-bar{height:4px;background:rgba(255,255,255,.04);border-radius:2px;margin-bottom:8px;overflow:hidden}
+    .brain-tier-fill{height:100%;border-radius:2px;transition:width 1.5s cubic-bezier(.16,1,.3,1)}
+    .brain-tier-desc{font-size:.8rem;color:var(--text-dim);line-height:1.5;margin:0}
+    .brain-emergent{padding:16px 20px;background:rgba(124,58,237,.04);border:1px solid rgba(124,58,237,.12);border-radius:12px}
+    .brain-emergent p{font-size:.9rem;color:var(--text-mid);line-height:1.6;margin:0}
+    @media(max-width:900px){.brain-layout{grid-template-columns:1fr}.brain-canvas-wrap{min-height:280px}}
+
     /* Numbers */
     .nb2{display:flex;justify-content:center;gap:48px;flex-wrap:wrap;padding:60px 24px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin:0 auto;max-width:1200px}
     .ni{text-align:center}
@@ -275,6 +291,48 @@
     </div>
     <p class="pvc"><strong>Mission Control</strong> — orbital fleet visualization, real-time heartbeat, cost telemetry, neural memory graph</p>
   </div>
+
+  <!-- Knowledge Graph / Brain -->
+  <section id="brain">
+    <div class="sl rv">THE BRAIN</div>
+    <h2 class="st rv">1,500 nodes of knowledge.<br>Built overnight. Without instruction.</h2>
+    <p class="sd rv">The agents don't just execute — they learn. Every fix, every deployment, every failure is encoded into a 10-layer cognitive memory system that grows on its own.</p>
+
+    <div class="brain-layout rv">
+      <div class="brain-canvas-wrap">
+        <canvas id="bc"></canvas>
+      </div>
+      <div class="brain-details">
+        <div class="brain-tier">
+          <div class="brain-tier-hdr">
+            <span class="brain-tier-dot" style="background:#a78bfa"></span>
+            <span class="brain-tier-name">Semantic Memory</span>
+          </div>
+          <div class="brain-tier-bar"><div class="brain-tier-fill" style="width:35%;background:#a78bfa;box-shadow:0 0 12px rgba(167,139,250,.4)"></div></div>
+          <p class="brain-tier-desc">Facts, concepts, relationships. "Redis is a cache layer." "The auth middleware checks JWT tokens." Cross-linked into a searchable knowledge graph.</p>
+        </div>
+        <div class="brain-tier">
+          <div class="brain-tier-hdr">
+            <span class="brain-tier-dot" style="background:#22d3ee"></span>
+            <span class="brain-tier-name">Episodic Memory</span>
+          </div>
+          <div class="brain-tier-bar"><div class="brain-tier-fill" style="width:60%;background:#22d3ee;box-shadow:0 0 12px rgba(34,211,238,.4)"></div></div>
+          <p class="brain-tier-desc">What happened and what worked. "Last time the DB locked up, increasing work_mem fixed it." Reinforced by outcomes — successes strengthen, failures decay.</p>
+        </div>
+        <div class="brain-tier">
+          <div class="brain-tier-hdr">
+            <span class="brain-tier-dot" style="background:#10b981"></span>
+            <span class="brain-tier-name">Procedural Memory</span>
+          </div>
+          <div class="brain-tier-bar"><div class="brain-tier-fill" style="width:15%;background:#10b981;box-shadow:0 0 12px rgba(16,185,129,.4)"></div></div>
+          <p class="brain-tier-desc">How to do things. Patterns, workflows, rules. Extracted from successful executions and consolidated into reusable procedures.</p>
+        </div>
+        <div class="brain-emergent">
+          <p>The wildest part: nobody told the agents to build this graph. They discovered 1,500 relationships between concepts, services, and patterns <strong>on their own</strong>. That's not automation. That's emergent intelligence.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- Who it's for -->
   <section>
@@ -436,6 +494,181 @@
     x.font='500 8px Satoshi,system-ui';x.textAlign='center';x.textBaseline='top';x.fillStyle=`rgba(${cl[0]},${cl[1]},${cl[2]},.6)`;x.fillText(a.n,Math.round(ax),Math.round(ay+nR+3))});
     for(let i=0;i<3;i++){const pi=(t*.001+i*.33)%1,ai=Math.floor((t*.0001+i*2.618)%ag.length),a=ag[ai],oR=mR*.5+(ai%3)*(mR*.15),an=t*(.0003+(ai*.618%1)*.0004)+(ai*Math.PI*2)/ag.length,ax=cx+Math.cos(an)*oR,ay=cy+Math.sin(an)*oR,px=cx+(ax-cx)*pi,py=cy+(ay-cy)*pi,cl=a.c;const pg=x.createRadialGradient(px,py,0,px,py,8);pg.addColorStop(0,`rgba(${cl[0]},${cl[1]},${cl[2]},.4)`);pg.addColorStop(1,`rgba(${cl[0]},${cl[1]},${cl[2]},0)`);x.beginPath();x.arc(px,py,8,0,Math.PI*2);x.fillStyle=pg;x.fill();x.beginPath();x.arc(px,py,1.5,0,Math.PI*2);x.fillStyle=`rgba(${cl[0]},${cl[1]},${cl[2]},.7)`;x.fill()}
     requestAnimationFrame(dr)}requestAnimationFrame(dr)})();
+
+    // Brain / Knowledge Graph Canvas
+    (function(){
+      const c=document.getElementById('bc');if(!c)return;
+      const x=c.getContext('2d');
+      // Node types with colors matching the 3 tiers + general
+      const types=[
+        {label:'concept',color:[167,139,250]},   // semantic - purple
+        {label:'service',color:[167,139,250]},
+        {label:'pattern',color:[34,211,238]},     // episodic - cyan
+        {label:'error',color:[34,211,238]},
+        {label:'tool',color:[16,185,129]},        // procedural - green
+        {label:'file',color:[16,185,129]},
+        {label:'metric',color:[251,191,36]},
+        {label:'ticket',color:[251,146,60]},
+        {label:'component',color:[248,113,113]},
+      ];
+      const labels=['askalf-forge','Redis','PostgreSQL','pgvector','Docker','auth','JWT','WebSocket',
+        'agent-bridge','knowledge-graph','memory','embeddings','ticket-ops','finding-ops',
+        'autonomy-loop','cost-tracker','heartbeat','OAuth','PKCE','rate-limit',
+        'deploy','CI/CD','migration','guardrails','audit-log','scheduler',
+        'semantic','episodic','procedural','metabolic','decay','consolidation',
+        'fan-out','pipeline','consensus','DAG','event-bus','dispatcher',
+        'SearXNG','Cloudflare','Slack','Discord','Telegram','MCP-tools',
+        'node-pty','Claude CLI','intent-parser','executor','worker',
+        'orbital-fleet','sparkline','canal','queue','pub-sub'];
+      const nodes=[];const edges=[];const N=50;
+
+      function init(){
+        const rect=c.parentElement.getBoundingClientRect();
+        const dpr=devicePixelRatio||1;
+        c.width=rect.width*dpr;c.height=380*dpr;
+        c.style.width=rect.width+'px';c.style.height='380px';
+        x.setTransform(dpr,0,0,dpr,0,0);
+        const w=rect.width,h=380;
+        // Create nodes
+        for(let i=0;i<N;i++){
+          const t=types[i%types.length];
+          const angle=Math.random()*Math.PI*2;
+          const r=Math.random()*Math.min(w,h)*.35;
+          nodes.push({
+            x:w/2+Math.cos(angle)*r+(Math.random()-.5)*60,
+            y:h/2+Math.sin(angle)*r+(Math.random()-.5)*60,
+            vx:0,vy:0,
+            r:Math.random()*3+2,
+            color:t.color,
+            label:labels[i]||t.label,
+            phase:Math.random()*Math.PI*2,
+            mentions:Math.floor(Math.random()*8)+1,
+          });
+        }
+        // Create edges (random connections, ~2 per node)
+        for(let i=0;i<N;i++){
+          const count=Math.floor(Math.random()*3)+1;
+          for(let j=0;j<count;j++){
+            const target=Math.floor(Math.random()*N);
+            if(target!==i) edges.push({source:i,target});
+          }
+        }
+        // Simple force layout
+        for(let iter=0;iter<100;iter++){
+          const alpha=1-iter/100;
+          for(let i=0;i<N;i++){
+            for(let j=i+1;j<N;j++){
+              const dx=nodes[j].x-nodes[i].x,dy=nodes[j].y-nodes[i].y;
+              const dist=Math.sqrt(dx*dx+dy*dy)||1;
+              const f=300*alpha/(dist*dist);
+              nodes[i].vx-=(dx/dist)*f;nodes[i].vy-=(dy/dist)*f;
+              nodes[j].vx+=(dx/dist)*f;nodes[j].vy+=(dy/dist)*f;
+            }
+          }
+          for(const e of edges){
+            const s=nodes[e.source],t2=nodes[e.target];
+            const dx=t2.x-s.x,dy=t2.y-s.y,dist=Math.sqrt(dx*dx+dy*dy)||1;
+            const f=(dist-50)*.1*alpha;
+            s.vx+=(dx/dist)*f;s.vy+=(dy/dist)*f;
+            t2.vx-=(dx/dist)*f;t2.vy-=(dy/dist)*f;
+          }
+          for(const n of nodes){
+            n.vx+=(w/2-n.x)*.005*alpha;n.vy+=(h/2-n.y)*.005*alpha;
+            n.vx*=.5;n.vy*=.5;n.x+=n.vx;n.y+=n.vy;
+            n.x=Math.max(20,Math.min(w-20,n.x));
+            n.y=Math.max(20,Math.min(h-20,n.y));
+          }
+        }
+      }
+
+      let pulses=[];
+      function draw(t){
+        const w=c.clientWidth,h=380;
+        x.clearRect(0,0,w,h);
+        // Background
+        const bg=x.createRadialGradient(w/2,h/2,0,w/2,h/2,w*.5);
+        bg.addColorStop(0,'#0a0a18');bg.addColorStop(1,'#04040a');
+        x.fillStyle=bg;x.fillRect(0,0,w,h);
+        // Nebula
+        const nb=x.createRadialGradient(w*.4,h*.4,0,w*.4,h*.4,w*.3);
+        nb.addColorStop(0,'rgba(124,58,237,.03)');nb.addColorStop(1,'rgba(0,0,0,0)');
+        x.fillStyle=nb;x.fillRect(0,0,w,h);
+
+        // Edges
+        for(const e of edges){
+          const s=nodes[e.source],t2=nodes[e.target];
+          const mx=(s.x+t2.x)/2,my=(s.y+t2.y)/2;
+          const dx=t2.x-s.x,dy=t2.y-s.y;
+          const cpx=mx+(-dy*.08),cpy=my+(dx*.08);
+          x.beginPath();x.moveTo(s.x,s.y);x.quadraticCurveTo(cpx,cpy,t2.x,t2.y);
+          x.strokeStyle='rgba(124,58,237,.08)';x.lineWidth=.5;x.stroke();
+          // Glow layer
+          x.beginPath();x.moveTo(s.x,s.y);x.quadraticCurveTo(cpx,cpy,t2.x,t2.y);
+          x.strokeStyle='rgba(124,58,237,.03)';x.lineWidth=2;x.stroke();
+        }
+
+        // Spawn pulses
+        if(Math.random()<.05&&edges.length>0){
+          const ei=Math.floor(Math.random()*edges.length);
+          const e=edges[ei];const s=nodes[e.source];
+          pulses.push({ei,progress:0,speed:.006+Math.random()*.008,color:s.color,size:1.5+Math.random()});
+        }
+        // Draw pulses
+        pulses=pulses.filter(p=>{
+          p.progress+=p.speed;
+          if(p.progress>=1)return false;
+          const e=edges[p.ei];const s=nodes[e.source],t2=nodes[e.target];
+          const mx=(s.x+t2.x)/2,my=(s.y+t2.y)/2;
+          const dx=t2.x-s.x,dy=t2.y-s.y;
+          const cpx=mx+(-dy*.08),cpy=my+(dx*.08);
+          const ip=1-p.progress,pp=p.progress;
+          const px=ip*ip*s.x+2*ip*pp*cpx+pp*pp*t2.x;
+          const py=ip*ip*s.y+2*ip*pp*cpy+pp*pp*t2.y;
+          const pg=x.createRadialGradient(px,py,0,px,py,p.size*4);
+          pg.addColorStop(0,'rgba('+p.color[0]+','+p.color[1]+','+p.color[2]+',.5)');
+          pg.addColorStop(1,'rgba('+p.color[0]+','+p.color[1]+','+p.color[2]+',0)');
+          x.beginPath();x.arc(px,py,p.size*4,0,Math.PI*2);x.fillStyle=pg;x.fill();
+          x.beginPath();x.arc(px,py,p.size,0,Math.PI*2);
+          x.fillStyle='rgba('+p.color[0]+','+p.color[1]+','+p.color[2]+',.8)';x.fill();
+          return true;
+        });
+
+        // Nodes
+        for(const n of nodes){
+          const c2=n.color;
+          const breathe=Math.sin(t*.002+n.phase)*.3+.7;
+          const r=n.r*(0.9+breathe*.2);
+          // Aura
+          if(n.mentions>3){
+            const ar=r*(2+breathe);
+            const ag=x.createRadialGradient(n.x,n.y,r*.5,n.x,n.y,ar);
+            ag.addColorStop(0,'rgba('+c2[0]+','+c2[1]+','+c2[2]+',.1)');
+            ag.addColorStop(1,'rgba('+c2[0]+','+c2[1]+','+c2[2]+',0)');
+            x.beginPath();x.arc(n.x,n.y,ar,0,Math.PI*2);x.fillStyle=ag;x.fill();
+          }
+          // Corona
+          const cr=r*1.5;
+          const cg=x.createRadialGradient(n.x,n.y,r*.5,n.x,n.y,cr);
+          cg.addColorStop(0,'rgba('+c2[0]+','+c2[1]+','+c2[2]+',.2)');
+          cg.addColorStop(1,'rgba('+c2[0]+','+c2[1]+','+c2[2]+',0)');
+          x.beginPath();x.arc(n.x,n.y,cr,0,Math.PI*2);x.fillStyle=cg;x.fill();
+          // Core
+          x.beginPath();x.arc(n.x,n.y,r,0,Math.PI*2);
+          const ng=x.createRadialGradient(n.x-1,n.y-1,0,n.x,n.y,r);
+          ng.addColorStop(0,'rgba('+Math.min(255,c2[0]+40)+','+Math.min(255,c2[1]+40)+','+Math.min(255,c2[2]+40)+',.9)');
+          ng.addColorStop(1,'rgba('+c2[0]+','+c2[1]+','+c2[2]+',.7)');
+          x.fillStyle=ng;x.fill();
+          // Label (only for larger nodes)
+          if(n.mentions>4){
+            x.font='500 8px Satoshi,system-ui';x.textAlign='center';x.textBaseline='top';
+            x.fillStyle='rgba(255,255,255,.35)';
+            x.fillText(n.label,Math.round(n.x),Math.round(n.y+r+3));
+          }
+        }
+        requestAnimationFrame(draw);
+      }
+      init();requestAnimationFrame(draw);
+    })();
 
     // Scroll reveal
     const obs=new IntersectionObserver(e=>{e.forEach(en=>{if(en.isIntersecting){en.target.classList.add('v');en.target.querySelectorAll('.ap,.it').forEach((el,i)=>{el.style.animation=`pe .4s cubic-bezier(.16,1,.3,1) ${i*.04}s both`})}})},{threshold:.1,rootMargin:'0px 0px -50px 0px'});
