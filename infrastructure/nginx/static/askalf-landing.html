@@ -217,6 +217,13 @@
     .sh h2{font-size:clamp(1.8rem,4vw,2.5rem);font-weight:800;letter-spacing:-.03em;margin-bottom:16px}
     .sh p{font-size:1.05rem;color:var(--text-mid);margin-bottom:32px;line-height:1.7}
 
+    /* Calendar reminder */
+    .cal-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);border-radius:10px;color:var(--crystal-light);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:var(--font-body);text-decoration:none}
+    .cal-btn:hover{background:rgba(124,58,237,.2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(124,58,237,.2);color:var(--crystal-bright)}
+    .cal-btn svg{width:16px;height:16px;flex-shrink:0}
+    .cal-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+    .cal-label{font-family:var(--font-mono);font-size:.8rem;color:var(--text-dim)}
+
     /* Footer */
     footer{padding:40px 24px;text-align:center;border-top:1px solid var(--border);color:var(--text-dim);font-size:.8rem}
     footer a{color:var(--text-dim)}footer a:hover{color:var(--text)}
@@ -267,6 +274,17 @@
           <span class="cm">docker compose</span> <span class="fl">-f docker-compose.selfhosted.yml</span> up <span class="fl">-d</span><br>
           <span class="co"># 7 agents are now running on your machine</span>
         </div>
+      </div>
+      <div class="cal-row" style="animation:mu .8s cubic-bezier(.16,1,.3,1) 1.4s both">
+        <span class="cal-label">LAUNCHES TODAY 7PM EST</span>
+        <a class="cal-btn" href="#" id="cal-ics" onclick="downloadICS();return false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Add to Calendar
+        </a>
+        <a class="cal-btn" href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=AskAlf%20Launch%20%E2%80%94%20Repo%20Goes%20Public&dates=20260315T190000/20260315T200000&ctz=America/New_York&details=AskAlf%20repo%20goes%20public%20on%20GitHub.%20Deploy%20your%20AI%20agent%20fleet.%0A%0Ahttps://askalf.org%0Ahttps://github.com/SprayberryLabs/askalf&location=https://askalf.org" target="_blank">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="1"/></svg>
+          Google Calendar
+        </a>
       </div>
     </div>
   </section>
@@ -808,6 +826,38 @@
       }
       init();requestAnimationFrame(draw);
     })();
+
+    // Calendar ICS download
+    function downloadICS(){
+      const ics=[
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//AskAlf//Launch//EN',
+        'BEGIN:VEVENT',
+        'DTSTART:20260315T230000Z',
+        'DTEND:20260316T000000Z',
+        'SUMMARY:AskAlf Launch — Repo Goes Public',
+        'DESCRIPTION:AskAlf repo goes public on GitHub.\\nDeploy your AI agent fleet.\\n\\nhttps://askalf.org\\nhttps://github.com/SprayberryLabs/askalf',
+        'URL:https://askalf.org',
+        'BEGIN:VALARM',
+        'TRIGGER:-PT30M',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:AskAlf launches in 30 minutes!',
+        'END:VALARM',
+        'BEGIN:VALARM',
+        'TRIGGER:-PT0M',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:AskAlf is LIVE! https://askalf.org',
+        'END:VALARM',
+        'END:VEVENT',
+        'END:VCALENDAR',
+      ].join('\r\n');
+      const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download='askalf-launch.ics';a.click();
+      URL.revokeObjectURL(url);
+    }
 
     // Dispatch simulator
     (function(){
