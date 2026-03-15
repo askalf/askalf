@@ -41,8 +41,6 @@
     .nb{font-family:var(--font-mono);font-size:1.1rem;font-weight:800;color:var(--crystal-light);letter-spacing:-.02em}
     .nl{display:flex;align-items:center;gap:28px;list-style:none}
     .nl a{font-size:.85rem;font-weight:500;color:var(--text-dim);transition:color .2s}.nl a:hover{color:var(--text)}
-    .nc{padding:8px 20px;background:var(--crystal);border:none;border-radius:8px;color:#fff!important;font-weight:600;font-size:.85rem;cursor:pointer;transition:all .2s;text-decoration:none}
-    .nc:hover{background:#6d28d9;transform:translateY(-1px);box-shadow:0 4px 20px var(--crystal-glow)}
     .gh{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;font-size:.8rem;font-weight:600;color:var(--text-mid);transition:all .2s}
     .gh:hover{border-color:rgba(255,255,255,.12);color:var(--text)}.gh svg{width:16px;height:16px}
 
@@ -68,13 +66,9 @@
     .bs{display:inline-flex;align-items:center;gap:8px;padding:15px 28px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;color:var(--text-mid);font-size:1rem;font-weight:500;cursor:pointer;transition:all .2s;text-decoration:none;font-family:var(--font-body)}
     .bs:hover{background:rgba(255,255,255,.08);color:var(--text);border-color:rgba(255,255,255,.12)}
 
-    /* Agent name ring in hero */
-    .hero-agents{position:absolute;z-index:0;inset:0;pointer-events:none;overflow:hidden}
-    .hero-agent-label{position:absolute;font-family:var(--font-mono);font-size:.65rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;opacity:0;white-space:nowrap;transition:opacity .6s}
-    .hero-agent-label.active{opacity:1}
 
     /* Terminal */
-    .tb{margin:40px auto 0;max-width:540px;background:rgba(8,8,26,.8);border:1px solid rgba(124,58,237,.15);border-radius:12px;overflow:hidden;backdrop-filter:blur(12px);animation:mu .6s cubic-bezier(.16,1,.3,1) 1.2s both}
+    .tb{margin:40px auto 0;max-width:540px;background:rgba(8,8,26,.8);border:1px solid rgba(124,58,237,.15);border-radius:12px;overflow:hidden;backdrop-filter:blur(12px)}
     .tbar{display:flex;align-items:center;padding:8px 14px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}
     .tl{font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim)}
     .tc{padding:16px 20px;font-family:var(--font-mono);font-size:.85rem;color:var(--text-mid);line-height:1.8}
@@ -129,21 +123,7 @@
     .xr{color:#f87171}.xg{color:#4ade80}.xy{color:#facc15}.xb{color:#60a5fa}.xm{color:#c4b5fd}.xc{color:#22d3ee}.xd{color:#52525b}.xw{color:#e4e4e7}.xbold{font-weight:700}
     @media(max-width:700px){.term-grid{grid-template-columns:1fr}}
 
-    /* Bold claim */
-    .claim{text-align:center;padding:80px 24px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-    .claim-text{font-size:clamp(1.5rem,3.5vw,2.4rem);font-weight:800;letter-spacing:-.03em;line-height:1.2;max-width:800px;margin:0 auto}
-    .claim-text em{font-style:normal;color:var(--crystal-light)}
-    .claim-sub{font-size:1rem;color:var(--text-dim);margin-top:16px;max-width:600px;margin-left:auto;margin-right:auto}
 
-    /* Story cards */
-    .stories{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-    .story{padding:28px 24px;background:var(--surface);border:1px solid var(--border);border-radius:16px;transition:all .3s;position:relative}
-    .story:hover{border-color:rgba(124,58,237,.2);transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
-    .story-time{font-family:var(--font-mono);font-size:.7rem;color:var(--crystal-light);margin-bottom:12px;letter-spacing:.06em}
-    .story h3{font-size:1rem;font-weight:700;margin-bottom:8px;line-height:1.3}
-    .story p{font-size:.85rem;color:var(--text-dim);line-height:1.6}
-    .story-agent{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:4px 10px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.75rem;font-weight:600;color:var(--text-mid)}
-    .story-dot{width:6px;height:6px;border-radius:50%}
 
 
     /* Compare */
@@ -287,7 +267,6 @@
     /* Auto-typing */
     .dispatch-auto{font-family:var(--font-mono);font-size:.8rem;color:var(--text-dim);margin-top:12px;height:20px}
     .dispatch-cursor{display:inline-block;width:2px;height:14px;background:var(--crystal-light);margin-left:2px;animation:blink .8s step-end infinite;vertical-align:text-bottom}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
     /* Footer */
     footer{padding:40px 24px;text-align:center;border-top:1px solid var(--border);color:var(--text-dim);font-size:.8rem}
@@ -296,14 +275,12 @@
 
     /* Responsive */
     @media(max-width:900px){
-      .stories{grid-template-columns:1fr 1fr}
-      nav{padding:12px 20px}.nl{gap:16px}
+            nav{padding:12px 20px}.nl{gap:16px}
       .cg{grid-template-columns:1fr;gap:12px}.cv{display:none}
       .term-grid{grid-template-columns:1fr}
     }
     @media(max-width:600px){
-      .stories{grid-template-columns:1fr}
-      .nb2{gap:16px;flex-wrap:wrap;justify-content:center}.nv{font-size:1.8rem}.ni{min-width:80px}
+            .nb2{gap:16px;flex-wrap:wrap;justify-content:center}.nv{font-size:1.8rem}.ni{min-width:80px}
       .nl{display:none}
       nav .nb{font-size:.9rem}
       nav .nc{padding:6px 14px;font-size:.75rem}
@@ -354,7 +331,7 @@
       <li><a href="#brain">Brain</a></li>
       <li><a href="#compare">Why AskAlf</a></li>
       <li><a href="/docs">Docs</a></li>
-      <li><a href="https://github.com/SprayberryLabs" class="gh" target="_blank">
+      <li><a href="https://github.com/SprayberryLabs/askalf" class="gh" target="_blank">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         Star on GitHub
       </a></li>
@@ -370,7 +347,7 @@
       <p class="hs">7 core agents that write code, fix bugs, scan for vulnerabilities, monitor infrastructure, and coordinate autonomously. Unlimited custom specialists spawned on demand. They work while you sleep. They learn from every execution. They never quit.</p>
       <p class="hcmp"><strong>Other tools give you a chatbot.</strong> AskAlf gives you a workforce. Runs on anything with Docker.</p>
       <div class="ha">
-        <a href="https://github.com/SprayberryLabs" class="bs" target="_blank">
+        <a href="https://github.com/SprayberryLabs/askalf" class="bs" target="_blank">
           <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           Star on GitHub
         </a>
@@ -437,15 +414,15 @@
 
       <div class="tl-entry rv"><div class="tl-time">06:47 AM</div><div class="tl-dot" style="background:var(--text-dim)"></div><div class="tl-content"><div class="tl-text" style="color:var(--text-dim)">Fleet goes quiet. 7 agents ran 18 executions across 8 hours. Total API cost: <strong style="color:var(--green)">$0.43.</strong></div></div></div>
 
-      <div class="tl-entry rv"><div class="tl-time">9:00 AM</div><div class="tl-dot" style="background:var(--crystal-light);box-shadow:0 0 12px var(--crystal-glow)"></div><div class="tl-content"><div class="tl-text"><strong>You open your laptop. Coffee in hand. 2 bugs fixed. 2 CVEs patched. 1 outage prevented. A changelog waiting. And your AI team is already smarter than it was last night.</strong></div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">09:00 AM</div><div class="tl-dot" style="background:var(--crystal-light);box-shadow:0 0 12px var(--crystal-glow)"></div><div class="tl-content"><div class="tl-text"><strong>You open your laptop. Coffee in hand. 2 bugs fixed. 2 CVEs patched. 1 outage prevented. A changelog waiting. And your AI team is already smarter than it was last night.</strong></div></div></div>
     </div>
   </section>
 
   <!-- $0.43 Reveal -->
   <div class="price-reveal rv">
     <div class="price-number">$0.43</div>
-    <div class="price-context">That's what the whole night cost.<br>3 bugs fixed. 2 CVEs patched. 1 outage prevented. 14 new things learned.</div>
-    <div class="price-breakdown">12 executions &middot; your fleet &middot; 8 hours &middot; you slept through all of it</div>
+    <div class="price-context">That's what the whole night cost.<br>2 bugs fixed. 2 CVEs patched. 1 outage prevented. 14 new things learned.</div>
+    <div class="price-breakdown">18 executions &middot; 7 agents &middot; 8 hours &middot; you slept through all of it</div>
   </div>
 
 
@@ -549,7 +526,7 @@
   <!-- Why AskAlf -->
   <section id="compare" class="cmp">
     <div class="sl rv">THE DIFFERENCE</div>
-    <h2 class="st rv" style="text-align:center">Frameworks give you Lego.<br>AskAlf gives you the factory.</h2><br>
+    <h2 class="st rv" style="text-align:center">Frameworks give you Lego.<br>AskAlf gives you the factory.</h2>
     <div class="cg rv">
       <div class="cc them">
         <h3>CrewAI / AutoGen / LangGraph / OpenClaw</h3>
@@ -737,7 +714,7 @@
   <!-- FAQ -->
   <section>
     <div class="sl rv">QUESTIONS YOU'RE THINKING</div>
-    <h2 class="st rv">Straight answers.</h2><br>
+    <h2 class="st rv">Straight answers.</h2>
     <div class="faq-grid">
       <div class="faq-item rv">
         <h3>Is this vaporware?</h3>
@@ -777,7 +754,7 @@
   <!-- Share -->
   <div class="sb rv">
     <a class="sbt tw" href="https://twitter.com/intent/tweet?text=Not%20one%20AI.%20An%20entire%20team.%207%20autonomous%20agents%20that%20code%2C%20debug%2C%20deploy%2C%20and%20monitor%20%E2%80%94%20while%20you%20sleep.%20Self-hosted.%20Open%20source.&url=https://askalf.org" target="_blank">Share on X</a>
-    <button class="sbt hn" onclick="navigator.clipboard.writeText('AskAlf \u2013 Not one AI, an entire team (self-hosted, open source)\nhttps://askalf.org\n\n7 core agents + unlimited custom specialists. Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer.\n\nMission control dashboard with orbital fleet visualization. 10-layer cognitive memory with pgvector. 15 channels. 22 integrations. 12 device adapters. Multi-agent orchestration.\n\nNot a framework \u2014 a complete platform. Deploy with Docker Compose in 60 seconds.\n\nGitHub: https://github.com/SprayberryLabs/askalf (live March 15 @ 7PM EST)');this.textContent='Copied!'">Copy HN Post</button>
+    <button class="sbt hn" onclick="navigator.clipboard.writeText('AskAlf \u2013 Not one AI, an entire team (self-hosted, open source)\nhttps://askalf.org\n\n7 core agents + unlimited custom specialists. Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer.\n\nMission control dashboard with orbital fleet visualization. 10-layer cognitive memory with pgvector. 15 channels. 22 integrations. 12 device adapters. Multi-agent orchestration.\n\nNot a framework \u2014 a complete platform. Deploy with Docker Compose in 60 seconds.\n\nGitHub: https://github.com/SprayberryLabs/askalf');this.textContent='Copied!'">Copy HN Post</button>
     <button class="sbt cp" onclick="navigator.clipboard.writeText('https://askalf.org');this.textContent='Copied!'">Copy Link</button>
   </div>
 
@@ -789,18 +766,17 @@
       <p>No cloud dependency. No API proxies. No vendor lock-in. Deploy on your own hardware with Docker Compose. Guided 5-step onboarding wizard. OAuth built in.</p>
       <div class="ha" style="justify-content:center">
         
-        <a href="https://github.com/SprayberryLabs" class="bs" target="_blank">View Source</a>
+        <a href="https://github.com/SprayberryLabs/askalf" class="bs" target="_blank">View Source</a>
       </div>
     </div>
   </section>
 
   <footer>
-    <div class="fl"><a href="/docs">Docs</a><a href="https://github.com/SprayberryLabs" target="_blank">GitHub</a><a href="mailto:support@askalf.org">Support</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+    <div class="fl"><a href="/docs">Docs</a><a href="https://github.com/SprayberryLabs/askalf" target="_blank">GitHub</a><a href="mailto:support@askalf.org">Support</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
     <p>&copy; 2026 SprayberryLabs. AskAlf is open-source software. <a href="mailto:support@askalf.org">support@askalf.org</a></p>
   </footer>
 
   <script>
-    // Hero constellation
     // Hero Canvas — Agent Fleet Emergence
     (function(){const c=document.getElementById('hc'),x=c.getContext('2d');let w,h,m={x:-1e3,y:-1e3};
     // 7 core agents with colors
