@@ -78,6 +78,24 @@
     .st{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-bottom:16px}
     .sd{font-size:1.05rem;color:var(--text-mid);max-width:600px;line-height:1.7;margin-bottom:48px}
 
+    /* Overnight Timeline */
+    .timeline-section{max-width:800px}
+    .timeline-intro{text-align:center;margin-bottom:48px}
+    .timeline{position:relative;padding:0 0 0 80px}
+    .timeline-line{position:absolute;left:56px;top:0;bottom:0;width:1px;background:linear-gradient(180deg,transparent,rgba(124,58,237,.2) 5%,rgba(124,58,237,.2) 95%,transparent)}
+    .tl-entry{position:relative;padding:0 0 28px 0}
+    .tl-time{position:absolute;left:-80px;top:2px;width:68px;text-align:right;font-family:var(--font-mono);font-size:.72rem;font-weight:600;color:var(--text-dim)}
+    .tl-dot{position:absolute;left:-28px;top:6px;width:9px;height:9px;border-radius:50%;z-index:1}
+    .tl-content{padding:0 0 0 8px}
+    .tl-agent{font-family:var(--font-mono);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+    .tl-text{font-size:.9rem;color:var(--text-mid);line-height:1.6}
+    .tl-text strong{color:var(--text)}
+    .tl-text em{color:var(--crystal-light);font-style:normal}
+    .tl-text code{font-family:var(--font-mono);font-size:.8em;background:rgba(255,255,255,.04);padding:2px 6px;border-radius:4px;color:var(--crystal-light)}
+    .tl-entry:last-child{padding-bottom:0}
+    /* Agent colors in timeline */
+    .tl-agent{color:var(--text-dim)}
+
     /* Bold claim */
     .claim{text-align:center;padding:80px 24px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
     .claim-text{font-size:clamp(1.5rem,3.5vw,2.4rem);font-weight:800;letter-spacing:-.03em;line-height:1.2;max-width:800px;margin:0 auto}
@@ -330,60 +348,40 @@
     </div>
   </section>
 
-  <!-- Bold claim -->
-  <div class="claim rv">
-    <p class="claim-text">Every other AI tool gives you <em>one assistant</em>.<br>AskAlf gives you <em>seven engineers</em> who never sleep,<br>never forget, and get better every day.</p>
-    <p class="claim-sub">They found 3 bugs at 2am. They deployed the fix at 2:04am. You found out at 9am when you checked the dashboard over coffee.</p>
-  </div>
-
-  <!-- Use case stories -->
-  <section id="stories">
-    <div class="sl rv">WHAT HAPPENS WHILE YOU SLEEP</div>
-    <h2 class="st rv">Real outcomes. Not hypotheticals.</h2>
-    <p class="sd rv">These aren't feature descriptions. These are things the agents actually do, autonomously, every single day.</p>
-
-    <div class="stories">
-      <div class="story rv">
-        <div class="story-time">OVERNIGHT</div>
-        <h3>1,500 knowledge nodes appeared. Nobody asked for them.</h3>
-        <p>The agents autonomously mapped relationships between services, patterns, and concepts. They discovered that Redis connects to the rate limiter which connects to the auth middleware — and stored the entire dependency chain. No human instructed this. They just... learned.</p>
-        <div class="story-agent"><span class="story-dot" style="background:#a78bfa"></span>Emergent behavior — all 7 agents</div>
-      </div>
-      <div class="story rv">
-        <div class="story-time">$0.43</div>
-        <h3>An entire night of engineering. Forty-three cents.</h3>
-        <p>12 executions across 7 agents. 3 bugs found and fixed. 2 CVEs patched. 1 outage prevented. 14 new knowledge nodes. Total cost: less than a pack of gum. Cost guardrails held the entire time.</p>
-        <div class="story-agent"><span class="story-dot" style="background:#fb923c"></span>All agents — cost-controlled</div>
-      </div>
-      <div class="story rv">
-        <div class="story-time">ONE SENTENCE</div>
-        <h3>"Add dark mode to the settings page."</h3>
-        <p>You typed 7 words. The intent parser routed to Frontend Dev who built the component. QA wrote tests. Infra deployed it. Writer updated the docs. Four agents coordinated from one English sentence. You went to lunch.</p>
-        <div class="story-agent"><span class="story-dot" style="background:#a78bfa"></span>Frontend Dev + QA + Infra + Writer</div>
-      </div>
-      <div class="story rv">
-        <div class="story-time">02:14 AM</div>
-        <h3>QA found a bug. Then assigned it to Backend Dev. On its own.</h3>
-        <p>Not "QA reported a bug." QA <em>created a ticket</em>, <em>set the priority</em>, <em>assigned it to Backend Dev</em>, and Backend Dev <em>picked it up and fixed it</em>. Two agents coordinated without any human involvement. The fix was committed at 02:31 AM.</p>
-        <div class="story-agent"><span class="story-dot" style="background:#34d399"></span>QA delegated to Backend Dev</div>
-      </div>
-      <div class="story rv">
-        <div class="story-time">05:30 AM</div>
-        <h3>Watchdog caught a memory leak 4 hours before it would have caused downtime.</h3>
-        <p>Redis was at 92% memory. Watchdog detected it on a patrol cycle, created a ticket for Infra. Infra pruned stale keys and adjusted the maxmemory config. Memory dropped to 54%. Zero downtime. Zero humans involved. You found out at 9am in the morning briefing.</p>
-        <div class="story-agent"><span class="story-dot" style="background:#2dd4bf"></span>Watchdog + Infra</div>
-      </div>
+  <!-- THE OVERNIGHT TIMELINE -->
+  <section id="stories" class="timeline-section">
+    <div class="timeline-intro rv">
+      <h2 class="st" style="text-align:center">You close your laptop at 10:47 PM.<br>Here's what happens next.</h2>
+    </div>
+    <div class="timeline">
+      <div class="timeline-line"></div>
+      <div class="tl-entry rv"><div class="tl-time">10:47 PM</div><div class="tl-dot" style="background:var(--text-dim)"></div><div class="tl-content"><div class="tl-text">You close your laptop. Go to bed. The fleet is awake.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">11:02 PM</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Patrol cycle begins. Container health: OK. Endpoint latency: OK. Redis memory: 71%. <em>Noted.</em></div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">11:14 PM</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security</div><div class="tl-text">Dependency scan started. 847 packages queued.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">12:01 AM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">Regression detected in checkout flow. <strong>Created ticket #247. Assigned to Backend Dev.</strong> Nobody told QA to do this.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">12:03 AM</div><div class="tl-dot" style="background:#60a5fa"></div><div class="tl-content"><div class="tl-agent" style="color:#60a5fa">Backend Dev</div><div class="tl-text">Claims ticket #247. Traces root cause to a race condition in the payment handler.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">12:18 AM</div><div class="tl-dot" style="background:#60a5fa"></div><div class="tl-content"><div class="tl-agent" style="color:#60a5fa">Backend Dev</div><div class="tl-text">Fix committed. <code>git commit -m "Fix race condition in payment handler"</code></div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">12:22 AM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">Picks up the fix. Runs 42 test cases. <strong>All pass.</strong> Ticket #247 resolved.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">02:14 AM</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security</div><div class="tl-text">Scan complete. <strong>2 CVEs found.</strong> Tickets created. Assigned to Backend Dev.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">02:31 AM</div><div class="tl-dot" style="background:#60a5fa"></div><div class="tl-content"><div class="tl-agent" style="color:#60a5fa">Backend Dev</div><div class="tl-text">Both CVEs patched. Dependencies upgraded. Security verifies. Vulnerabilities that existed since Tuesday — gone before Wednesday.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">03:47 AM</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Brain</div><div class="tl-text">14 new knowledge nodes discovered. The agents found that <em>the rate limiter connects to the auth middleware which connects to the session store</em> — and mapped it. <strong>Nobody asked for this. They just learned.</strong></div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">04:02 AM</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Patrol cycle. Redis memory: <strong>92%.</strong> Ticket created for Infra. Priority: high.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">04:11 AM</div><div class="tl-dot" style="background:#fb923c"></div><div class="tl-content"><div class="tl-agent" style="color:#fb923c">Infra</div><div class="tl-text">Pruned 7,166 stale memories. Ran VACUUM FULL. Redis: <strong>54%.</strong> Crisis averted. Zero downtime.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">05:30 AM</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Brain</div><div class="tl-text">Consolidation complete. Knowledge graph: 1,500+ nodes. The system is smarter than it was 7 hours ago.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">06:47 AM</div><div class="tl-dot" style="background:var(--text-dim)"></div><div class="tl-content"><div class="tl-text" style="color:var(--text-dim)">All agents idle. The sun is coming up.</div></div></div>
+      <div class="tl-entry rv"><div class="tl-time">9:00 AM</div><div class="tl-dot" style="background:var(--crystal-light);box-shadow:0 0 12px var(--crystal-glow)"></div><div class="tl-content"><div class="tl-text"><strong>You open your laptop. Coffee in hand. Everything is already done.</strong></div></div></div>
     </div>
   </section>
 
   <!-- $0.43 Reveal -->
   <div class="price-reveal rv">
     <div class="price-number">$0.43</div>
-    <div class="price-context">That's what it cost to run 7 AI engineers for an entire night.<br>3 bugs fixed. 2 CVEs patched. 1 outage prevented. 14 new things learned.</div>
-    <div class="price-breakdown">12 executions &middot; 7 agents &middot; 8 hours &middot; cost guardrails held</div>
+    <div class="price-context">That's what the whole night cost.<br>3 bugs fixed. 2 CVEs patched. 1 outage prevented. 14 new things learned.</div>
+    <div class="price-breakdown">12 executions &middot; 7 agents &middot; 8 hours &middot; you slept through all of it</div>
   </div>
 
-  <!-- Dashboard Preview -->
+
+    <!-- Dashboard Preview -->
   <div class="pv rv">
     <div class="pf">
       <div class="pvb"><span class="pvl">askalf.org/command-center</span></div>
