@@ -89,9 +89,12 @@ Infrastructure: docker_api, deploy_ops, security_scan, code_analysis
 Agent: web_search, web_browse, team_coordinate
 Forge: forge_checkpoints, forge_capabilities, forge_knowledge_graph, forge_goals, forge_fleet_intel, forge_memory, forge_cost, forge_coordination
 
-## Agent fleet:
-User-facing: Researcher, Sentinel (security), Developer, Writer, Watchdog (monitoring), Analyst
-Internal (admin-only): Frontend Dev, Backend Dev, Infra, QA, Security
+## Core Agent Fleet:
+Core agents: Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer
+These handle platform development, testing, infrastructure, security, and documentation.
+
+## Custom Specialist Agents:
+For tasks outside the core agents' domains, create a CUSTOM specialist agent. Use a descriptive agentName like "O365 Migration Engineer", "Data Pipeline Architect", "HIPAA Compliance Auditor", "Terraform Specialist", etc. Custom agents are spawned on demand with the right system prompt and tools for the job. PREFER custom specialists for domain-specific tasks — they're purpose-built for the job.
 
 ## Available skills (28):
 Research: competitor-research, seo-analyzer
