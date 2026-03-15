@@ -357,6 +357,54 @@ services:
           memory: 128M
 
   # ===========================================
+  # GLUETUN — VPN tunnel for outbound agent traffic (optional)
+  # Enable by setting ENABLE_VPN=true in .env
+  # ===========================================
+  gluetun:
+    image: qmcgaw/gluetun:v3.40.0@sha256:2b42bfa046757145a5155acece417b65b4443c8033fb88661a8e9dcf7fda5a00
+    container_name: askalf-gluetun
+    labels:
+      - "autoheal-askalf=true"
+    profiles:
+      - vpn
+    environment:
+      VPN_SERVICE_PROVIDER: ${VPN_SERVICE_PROVIDER:-protonvpn}
+      VPN_TYPE: ${VPN_TYPE:-wireguard}
+      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY:-}
+      OPENVPN_USER: ${OPENVPN_USER:-}
+      OPENVPN_PASSWORD: ${OPENVPN_PASSWORD:-}
+      SERVER_COUNTRIES: ${VPN_SERVER_COUNTRIES:-Switzerland}
+      HTTPPROXY: "on"
+      HTTPPROXY_LISTENING_ADDRESS: ":8888"
+      HTTPPROXY_STEALTH: "on"
+      BLOCK_MALICIOUS: "on"
+      DOT: "on"
+      DOT_PROVIDERS: cloudflare
+    cap_add:
+      - NET_ADMIN
+    cap_drop:
+      - ALL
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  # ===========================================
   # AUTOHEAL — askalf-selfhosted containers ONLY
   # ===========================================
   autoheal:
