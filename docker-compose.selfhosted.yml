@@ -139,6 +139,8 @@ services:
       GIT_CONFIG_VALUE_0: /workspace
       MAX_CLI_CONCURRENCY: ${MAX_CLI_CONCURRENCY:-4}
       SEARXNG_URL: http://searxng:8080
+      # Public demo (only for hosted askalf.org, not self-hosted)
+      ENABLE_PUBLIC_DEMO: ${ENABLE_PUBLIC_DEMO:-}
       # OAuth (for Claude CLI subscription)
       ANTHROPIC_OAUTH_CLIENT_ID: ${ANTHROPIC_OAUTH_CLIENT_ID:-}
       ANTHROPIC_OAUTH_CLIENT_SECRET: ${ANTHROPIC_OAUTH_CLIENT_SECRET:-}
