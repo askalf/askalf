@@ -1,0 +1,37 @@
+# AskAlf VPN Override — routes all outbound traffic through Gluetun
+#
+# Usage:
+#   docker compose -f docker-compose.selfhosted.yml --profile vpn -f docker-compose.vpn.yml up -d
+#
+# Requires VPN credentials in .env (see .env.example)
+# Supports: ProtonVPN, Mullvad, NordVPN, Surfshark, and 30+ providers via Gluetun
+
+services:
+  # Route Forge API calls (Anthropic, OpenAI, GitHub) through VPN
+  forge:
+    environment:
+      HTTP_PROXY: http://gluetun:8888
+      HTTPS_PROXY: http://gluetun:8888
+      NO_PROXY: postgres,redis,searxng,dashboard,mcp-tools,localhost,127.0.0.1
+    depends_on:
+      gluetun:
+        condition: service_healthy
+
+  # Route MCP tool calls (web search, external APIs) through VPN
+  mcp-tools:
+    environment:
+      HTTP_PROXY: http://gluetun:8888
+      HTTPS_PROXY: http://gluetun:8888
+      NO_PROXY: postgres,redis,searxng,forge,localhost,127.0.0.1
+    depends_on:
+      gluetun:
+        condition: service_healthy
+
+  # Route SearXNG search engine requests through VPN
+  # Enables Google, Google Scholar, Mojeek, Qwant (blocked without VPN)
+  searxng:
+    volumes:
+      - ./infrastructure/searxng/settings-vpn.yml:/etc/searxng/settings.yml:ro
+    depends_on:
+      gluetun:
+        condition: service_healthy
