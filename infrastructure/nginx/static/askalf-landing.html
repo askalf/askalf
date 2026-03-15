@@ -104,6 +104,17 @@
     /* Agent colors in timeline */
     .tl-agent{color:var(--text-dim)}
 
+    /* Terminal callout */
+    .term-callout{max-width:1000px;margin:0 auto;padding:80px 24px}
+    .term-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .term-card{background:rgba(8,8,26,.8);border:1px solid rgba(124,58,237,.12);border-radius:16px;overflow:hidden;backdrop-filter:blur(12px)}
+    .term-card-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}
+    .term-card-name{font-family:var(--font-mono);font-size:.75rem;font-weight:700;color:var(--text-mid)}
+    .term-card-badge{font-family:var(--font-mono);font-size:.6rem;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em}
+    .term-card-body{padding:20px;font-family:var(--font-mono);font-size:.8rem;line-height:1.8;color:var(--text-dim)}
+    .term-card-body .prompt{color:var(--green)}.term-card-body .output{color:var(--text-mid)}.term-card-body .dim{color:var(--text-dim)}
+    @media(max-width:700px){.term-grid{grid-template-columns:1fr}}
+
     /* Bold claim */
     .claim{text-align:center;padding:80px 24px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
     .claim-text{font-size:clamp(1.5rem,3.5vw,2.4rem);font-weight:800;letter-spacing:-.03em;line-height:1.2;max-width:800px;margin:0 auto}
@@ -486,6 +497,7 @@
           <li>&#x2717; You build the deployment</li>
           <li>&#x2717; You build the agent coordination</li>
           <li>&#x2717; You build the cost tracking</li>
+          <li>&#x2717; No embedded AI terminals</li>
           <li>&#x2717; One generic agent</li>
         </ul>
       </div>
@@ -499,11 +511,52 @@
           <li>&#x2713; Pipeline, fan-out, consensus orchestration</li>
           <li>&#x2713; Cost guardrails + audit logging</li>
           <li>&#x2713; 15 channels + 22 integrations</li>
+          <li>&#x2713; Embedded Claude CLI + OpenAI Codex terminals</li>
           <li>&#x2713; 7 core agents + custom specialists that coordinate</li>
         </ul>
       </div>
     </div>
   </section>
+
+  <!-- Embedded Terminals -->
+  <div class="term-callout">
+    <div class="sl rv">BUILT INTO THE DASHBOARD</div>
+    <h2 class="st rv">Full Claude CLI and OpenAI Codex terminals.<br>Inside your dashboard. Not a wrapper.</h2>
+    <p class="sd rv">Open a terminal tab. You're in a live Claude or Codex session with full access to your codebase, your agents' context, and your knowledge graph. No copy-pasting. No context switching.</p>
+
+    <div class="term-grid rv">
+      <div class="term-card">
+        <div class="term-card-hdr">
+          <span class="term-card-name">Claude CLI</span>
+          <span class="term-card-badge" style="background:rgba(167,139,250,.15);color:#a78bfa">Anthropic</span>
+        </div>
+        <div class="term-card-body">
+          <span class="prompt">claude&gt;</span> <span class="output">fix the race condition in payment handler</span><br>
+          <span class="dim">Reading src/handlers/payment.ts...</span><br>
+          <span class="dim">Found: concurrent access without mutex on line 412</span><br>
+          <span class="output">Applied fix. Running tests... <strong style="color:var(--green)">42/42 passed.</strong></span><br>
+          <span class="prompt">claude&gt;</span> <span class="output">commit and create a ticket for QA</span><br>
+          <span class="dim">Committed: "Fix race condition in payment handler"</span><br>
+          <span class="dim">Created ticket #248. Assigned to QA.</span>
+        </div>
+      </div>
+      <div class="term-card">
+        <div class="term-card-hdr">
+          <span class="term-card-name">OpenAI Codex</span>
+          <span class="term-card-badge" style="background:rgba(16,185,129,.15);color:#10b981">OpenAI</span>
+        </div>
+        <div class="term-card-body">
+          <span class="prompt">codex&gt;</span> <span class="output">scaffold a new REST endpoint for /api/v1/webhooks</span><br>
+          <span class="dim">Creating route, handler, schema, and tests...</span><br>
+          <span class="dim">Generated 4 files in src/routes/webhooks/</span><br>
+          <span class="output">Route registered. Swagger docs updated.</span><br>
+          <span class="prompt">codex&gt;</span> <span class="output">add signature verification middleware</span><br>
+          <span class="dim">Added HMAC-SHA256 verification.</span><br>
+          <span class="output">Tests passing. <strong style="color:var(--green)">Ready for review.</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- The Ecosystem — Devices, Integrations, Channels, Stack -->
   <section id="devices">
