@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS client_errors (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Missing column referenced by orphan recovery in index.ts
+ALTER TABLE forge_executions ADD COLUMN IF NOT EXISTS parent_execution_id TEXT;
+
 -- From 052_platform_settings.sql
 CREATE TABLE IF NOT EXISTS platform_settings (
   key TEXT PRIMARY KEY,
