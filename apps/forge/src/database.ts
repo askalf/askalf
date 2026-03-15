@@ -120,3 +120,66 @@ export function getPool(): pg.Pool {
 export const substrateQuery = query;
 export const substrateQueryOne = queryOne;
 export const getSubstratePool = getPool;
+
+/**
+ * Run forge SQL migrations from apps/forge/migrations/ in order.
+ * Uses a tracking table (forge_migrations) to skip already-applied files.
+ * Safe to call on every startup — idempotent.
+ */
+export async function runForgeMigrations(migrationsDir: string): Promise<void> {
+  const { readdir, readFile } = await import('fs/promises');
+  const { join } = await import('path');
+
+  const client = await getPool().connect();
+  try {
+    // Create tracking table if it doesn't exist
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS forge_migrations (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Get already-applied migrations
+    const applied = await client.query<{ name: string }>('SELECT name FROM forge_migrations ORDER BY name');
+    const appliedSet = new Set(applied.rows.map(r => r.name));
+
+    // Read migration files sorted by name
+    let files: string[];
+    try {
+      files = (await readdir(migrationsDir)).filter(f => f.endsWith('.sql')).sort();
+    } catch {
+      console.warn('[DB] No migrations directory found at', migrationsDir);
+      return;
+    }
+
+    let count = 0;
+    for (const file of files) {
+      if (appliedSet.has(file)) continue;
+
+      const sql = await readFile(join(migrationsDir, file), 'utf8');
+      try {
+        await client.query('BEGIN');
+        await client.query(sql);
+        await client.query('INSERT INTO forge_migrations (name) VALUES ($1)', [file]);
+        await client.query('COMMIT');
+        count++;
+        console.log(`[DB] Migration applied: ${file}`);
+      } catch (err) {
+        await client.query('ROLLBACK');
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[DB] Migration failed: ${file} — ${msg}`);
+        throw err;
+      }
+    }
+
+    if (count === 0) {
+      console.log(`[DB] All ${files.length} migrations already applied`);
+    } else {
+      console.log(`[DB] Applied ${count} new migration(s)`);
+    }
+  } finally {
+    client.release();
+  }
+}
