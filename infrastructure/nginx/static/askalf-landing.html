@@ -295,8 +295,53 @@
     .fl{display:flex;justify-content:center;gap:24px;margin-bottom:16px}
 
     /* Responsive */
-    @media(max-width:900px){.stories{grid-template-columns:1fr 1fr}nav{padding:12px 20px}.nl{gap:16px}.cg{grid-template-columns:1fr;gap:12px}.cv{display:none}}
-    @media(max-width:600px){.stories{grid-template-columns:1fr}.nb2{gap:24px}.nv{font-size:1.8rem}.nl{display:none}.shc{padding:32px 20px}.sb{flex-wrap:wrap}}
+    @media(max-width:900px){
+      .stories{grid-template-columns:1fr 1fr}
+      nav{padding:12px 20px}.nl{gap:16px}
+      .cg{grid-template-columns:1fr;gap:12px}.cv{display:none}
+      .term-grid{grid-template-columns:1fr}
+    }
+    @media(max-width:600px){
+      .stories{grid-template-columns:1fr}
+      .nb2{gap:16px;flex-wrap:wrap;justify-content:center}.nv{font-size:1.8rem}.ni{min-width:80px}
+      .nl{display:none}
+      nav .nb{font-size:.9rem}
+      nav .nc{padding:6px 14px;font-size:.75rem}
+      .shc{padding:32px 20px}
+      .sb{flex-wrap:wrap}
+      /* Timeline: stack time above content on mobile */
+      .timeline{padding:0 0 0 28px}
+      .timeline-line{left:8px}
+      .tl-time{position:relative;left:0;top:0;width:auto;text-align:left;margin-bottom:2px}
+      .tl-dot{left:-24px;top:24px}
+      .tl-entry{padding:0 0 20px 0}
+      .tl-content{padding:0}
+      /* Hero */
+      .hero{padding:100px 16px 40px}
+      .hero h1{font-size:2.2rem}
+      .tb{margin:24px auto 0;max-width:100%}
+      .tc{font-size:.75rem;line-height:1.7;padding:12px 14px;overflow-x:auto}
+      .ha{flex-direction:column;gap:10px}
+      .bp,.bs{width:100%;justify-content:center}
+      /* Terminal cards */
+      .tm-xterm{font-size:10px;line-height:1.3;padding:10px 12px;min-height:200px;overflow-x:auto}
+      .tm-toolbar{flex-wrap:wrap;gap:4px}
+      .tm-actions{gap:4px}
+      /* Brain */
+      .brain-layout{grid-template-columns:1fr}
+      /* Price */
+      .price-reveal{padding:60px 16px}
+      /* Sections */
+      section{padding:60px 16px}
+      .st{font-size:1.6rem}
+      .sd{font-size:.95rem}
+      /* Calendar */
+      .cal-row{flex-direction:column;gap:8px}
+      /* Honesty */
+      .honesty{padding:24px 20px}
+      /* Footer */
+      .fl{flex-wrap:wrap;gap:16px}
+    }
   </style>
 </head>
 <body>
