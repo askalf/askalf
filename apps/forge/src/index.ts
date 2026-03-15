@@ -23,7 +23,7 @@ import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import { initializeDatabase, initializeSubstrateDatabase, closeDatabase, query as dbQuery, substrateQuery, getPool } from './database.js';
+import { initializeDatabase, initializeSubstrateDatabase, closeDatabase, query as dbQuery, substrateQuery, getPool, runForgeMigrations } from './database.js';
 import { loadConfig } from './config.js';
 import { agentRoutes } from './routes/agents.js';
 import { executionRoutes } from './routes/executions.js';
@@ -417,6 +417,13 @@ async function start(): Promise<void> {
     initializeSubstrateDatabase(config.substrateDatabaseUrl);
     logger.info('[Forge] Substrate database connection initialized');
   }
+
+  // Run forge database migrations
+  const { join } = await import('path');
+  const migrationsDir = join(process.env['REPO_ROOT'] || '/workspace', 'apps/forge/migrations');
+  await runForgeMigrations(migrationsDir).catch((err) => {
+    logger.error(`[Forge] Migration error: ${err instanceof Error ? err.message : String(err)}`);
+  });
 
   // Self-hosted: seed admin user on first boot
   await runSelfHostedSetup().catch((err) => {
