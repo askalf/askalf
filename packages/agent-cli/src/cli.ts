@@ -158,7 +158,6 @@ function disconnect(): void {
 
 // Parse CLI arguments
 const args = process.argv.slice(2);
-const command = args[0];
 
 // Flags
 if (args.includes('--version') || args.includes('-v')) {
@@ -166,9 +165,8 @@ if (args.includes('--version') || args.includes('-v')) {
   process.exit(0);
 }
 
-if (args.includes('--help') || args.includes('-h')) {
-  args[0] = undefined as unknown as string; // fall through to default help
-}
+// If --help/-h is present anywhere, show top-level help regardless of subcommand
+const command = (args.includes('--help') || args.includes('-h')) ? undefined : args[0];
 
 switch (command) {
   case 'connect': {
