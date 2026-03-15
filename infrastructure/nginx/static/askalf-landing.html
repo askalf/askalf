@@ -120,14 +120,6 @@
     .story-agent{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:4px 10px;background:rgba(255,255,255,.03);border-radius:6px;font-size:.75rem;font-weight:600;color:var(--text-mid)}
     .story-dot{width:6px;height:6px;border-radius:50%}
 
-    /* Preview */
-    .pv{padding:0 24px 80px;max-width:1100px;margin:0 auto;text-align:center}
-    .pf{position:relative;border-radius:16px;overflow:hidden;border:1px solid rgba(124,58,237,.15);box-shadow:0 20px 80px rgba(0,0,0,.5),0 0 60px rgba(124,58,237,.08);background:var(--deep)}
-    .pvb{display:flex;align-items:center;padding:8px 16px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}
-    .pvl{font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim)}
-    .pvi{position:relative;background:#04040a;min-height:400px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-    .pvi canvas{width:100%;height:100%;display:block}
-    .pvc{margin-top:16px;font-size:.85rem;color:var(--text-dim)}.pvc strong{color:var(--text-mid)}
 
     /* Compare */
     .cmp{text-align:center;padding:80px 24px}
@@ -298,7 +290,7 @@
 
     /* Responsive */
     @media(max-width:900px){.fg,.stories,.wf{grid-template-columns:1fr 1fr}nav{padding:12px 20px}.nl{gap:16px}.cg{grid-template-columns:1fr;gap:12px}.cv{display:none}}
-    @media(max-width:600px){.fg,.stories,.wf{grid-template-columns:1fr}.nb2{gap:24px}.nv{font-size:1.8rem}.nl{display:none}.shc{padding:32px 20px}.pvi{min-height:250px}.sb{flex-wrap:wrap}}
+    @media(max-width:600px){.fg,.stories,.wf{grid-template-columns:1fr}.nb2{gap:24px}.nv{font-size:1.8rem}.nl{display:none}.shc{padding:32px 20px}.sb{flex-wrap:wrap}}
   </style>
 </head>
 <body>
@@ -405,15 +397,6 @@
     <div class="price-breakdown">12 executions &middot; your fleet &middot; 8 hours &middot; you slept through all of it</div>
   </div>
 
-
-    <!-- Dashboard Preview -->
-  <div class="pv rv">
-    <div class="pf">
-      <div class="pvb"><span class="pvl">askalf.org/command-center</span></div>
-      <div class="pvi"><canvas id="pc"></canvas></div>
-    </div>
-    <p class="pvc"><strong>Mission Control</strong> — orbital fleet visualization, real-time heartbeat, cost telemetry, neural memory graph</p>
-  </div>
 
   <!-- Knowledge Graph / Brain -->
   <section id="brain">
@@ -965,69 +948,6 @@
     init();requestAnimationFrame(dr);
     })();
 
-    // Preview canvas — core fleet + spawning custom specialists
-    (function(){const c=document.getElementById('pc');if(!c)return;const x=c.getContext('2d');
-    const core=[{n:'Backend Dev',c:[96,165,250]},{n:'Frontend Dev',c:[167,139,250]},{n:'QA',c:[52,211,153]},{n:'Infra',c:[251,146,60]},{n:'Security',c:[248,113,113]},{n:'Watchdog',c:[45,212,191]},{n:'Writer',c:[232,121,249]}];
-    const customNames=['Terraform Specialist','ML Ops Engineer','Data Pipeline Architect','HIPAA Auditor','iOS Build Engineer','Salesforce Dev','K8s Migration','API Gateway Specialist'];
-    const customColor=[245,158,11];
-    // Active custom agents that spawn and despawn
-    let customs=[];
-    function spawnCustom(t){
-      if(customs.length>=3)return;
-      if(Math.random()>.005)return;
-      const name=customNames[Math.floor(Math.random()*customNames.length)];
-      if(customs.find(c2=>c2.n===name))return;
-      customs.push({n:name,born:t,life:4000+Math.random()*6000,angle:Math.random()*Math.PI*2,orbitR:.85+Math.random()*.12});
-    }
-    function dr(t){const d=devicePixelRatio||1,r=c.parentElement.getBoundingClientRect(),w=r.width,h=400;c.width=w*d;c.height=h*d;c.style.width=w+'px';c.style.height='400px';x.setTransform(d,0,0,d,0,0);
-    const bg=x.createRadialGradient(w/2,h/2,0,w/2,h/2,w*.5);bg.addColorStop(0,'#0d0d1a');bg.addColorStop(.5,'#080812');bg.addColorStop(1,'#04040a');x.fillStyle=bg;x.fillRect(0,0,w,h);
-    const nb=x.createRadialGradient(w*.45,h*.4,0,w*.45,h*.4,w*.3);nb.addColorStop(0,'rgba(124,58,237,.03)');nb.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=nb;x.fillRect(0,0,w,h);
-    const cx2=w/2,cy2=h/2,mR=Math.min(w,h)*.38;
-    // Rings — 3 core + 1 outer dashed for customs
-    for(let i=1;i<=3;i++){x.beginPath();x.arc(cx2,cy2,mR*(i/3),0,Math.PI*2);x.strokeStyle=`rgba(124,58,237,${.05+i*.02})`;x.lineWidth=.5;x.stroke()}
-    x.beginPath();x.arc(cx2,cy2,mR*.88,0,Math.PI*2);x.setLineDash([4,8]);x.strokeStyle='rgba(245,158,11,.08)';x.lineWidth=.5;x.stroke();x.setLineDash([]);
-    // Core
-    const p=Math.sin(t*.002)*.3+.7,cR=16+p*3;
-    const cg2=x.createRadialGradient(cx2,cy2,0,cx2,cy2,cR*3);cg2.addColorStop(0,`rgba(124,58,237,${.1*p})`);cg2.addColorStop(1,'rgba(124,58,237,0)');x.beginPath();x.arc(cx2,cy2,cR*3,0,Math.PI*2);x.fillStyle=cg2;x.fill();
-    const cc2=x.createRadialGradient(cx2-3,cy2-3,0,cx2,cy2,cR);cc2.addColorStop(0,'rgba(167,139,250,.9)');cc2.addColorStop(1,'rgba(124,58,237,.6)');x.beginPath();x.arc(cx2,cy2,cR,0,Math.PI*2);x.fillStyle=cc2;x.fill();
-    x.font='700 10px Satoshi,system-ui';x.textAlign='center';x.textBaseline='middle';x.fillStyle='rgba(255,255,255,.9)';x.fillText('7+',cx2,cy2);
-    // Core agents
-    core.forEach((a,i)=>{const oR=mR*.5+(i%3)*(mR*.15),sp=.0003+(i*.618%1)*.0004,an=t*sp+(i*Math.PI*2)/core.length,ax=cx2+Math.cos(an)*oR,ay=cy2+Math.sin(an)*oR,cl=a.c,nR=5;
-    x.beginPath();x.moveTo(cx2,cy2);x.lineTo(ax,ay);x.strokeStyle=`rgba(${cl[0]},${cl[1]},${cl[2]},.06)`;x.lineWidth=.5;x.stroke();
-    const co=x.createRadialGradient(ax,ay,nR*.5,ax,ay,nR*1.8);co.addColorStop(0,`rgba(${cl[0]},${cl[1]},${cl[2]},.15)`);co.addColorStop(1,`rgba(${cl[0]},${cl[1]},${cl[2]},0)`);x.beginPath();x.arc(ax,ay,nR*1.8,0,Math.PI*2);x.fillStyle=co;x.fill();
-    x.beginPath();x.arc(ax,ay,nR,0,Math.PI*2);x.fillStyle=`rgba(${cl[0]},${cl[1]},${cl[2]},.8)`;x.fill();
-    x.font='500 8px Satoshi,system-ui';x.textAlign='center';x.textBaseline='top';x.fillStyle=`rgba(${cl[0]},${cl[1]},${cl[2]},.6)`;x.fillText(a.n,Math.round(ax),Math.round(ay+nR+3))});
-    // Spawn + draw custom specialists
-    spawnCustom(t);
-    customs=customs.filter(cs=>{
-      const age=t-cs.born;if(age>cs.life)return false;
-      const fadeIn=Math.min(1,age/800);
-      const fadeOut=Math.max(0,1-(age-(cs.life-800))/800);
-      const alpha=Math.min(fadeIn,fadeOut);
-      const oR2=mR*cs.orbitR;
-      const an2=cs.angle+t*.0002;
-      const ax2=cx2+Math.cos(an2)*oR2,ay2=cy2+Math.sin(an2)*oR2;
-      const cl2=customColor,nR2=4;
-      // Glow
-      const glow=x.createRadialGradient(ax2,ay2,0,ax2,ay2,nR2*3);
-      glow.addColorStop(0,`rgba(${cl2[0]},${cl2[1]},${cl2[2]},${.2*alpha})`);
-      glow.addColorStop(1,`rgba(${cl2[0]},${cl2[1]},${cl2[2]},0)`);
-      x.beginPath();x.arc(ax2,ay2,nR2*3,0,Math.PI*2);x.fillStyle=glow;x.fill();
-      // Node
-      x.beginPath();x.arc(ax2,ay2,nR2,0,Math.PI*2);
-      x.fillStyle=`rgba(${cl2[0]},${cl2[1]},${cl2[2]},${.8*alpha})`;x.fill();
-      // Connection to core
-      x.beginPath();x.moveTo(cx2,cy2);x.lineTo(ax2,ay2);
-      x.strokeStyle=`rgba(${cl2[0]},${cl2[1]},${cl2[2]},${.04*alpha})`;x.lineWidth=.5;x.stroke();
-      // Label
-      x.font='500 7px Satoshi,system-ui';x.textAlign='center';x.textBaseline='top';
-      x.fillStyle=`rgba(${cl2[0]},${cl2[1]},${cl2[2]},${.5*alpha})`;
-      x.fillText(cs.n,Math.round(ax2),Math.round(ay2+nR2+3));
-      return true;
-    });
-    // Synaptic pulses
-    for(let i=0;i<3;i++){const pi=(t*.001+i*.33)%1,ai=Math.floor((t*.0001+i*2.618)%core.length),a=core[ai],oR=mR*.5+(ai%3)*(mR*.15),an=t*(.0003+(ai*.618%1)*.0004)+(ai*Math.PI*2)/core.length,ax=cx2+Math.cos(an)*oR,ay=cy2+Math.sin(an)*oR,px=cx2+(ax-cx2)*pi,py=cy2+(ay-cy2)*pi,cl=a.c;const pg=x.createRadialGradient(px,py,0,px,py,8);pg.addColorStop(0,`rgba(${cl[0]},${cl[1]},${cl[2]},.4)`);pg.addColorStop(1,`rgba(${cl[0]},${cl[1]},${cl[2]},0)`);x.beginPath();x.arc(px,py,8,0,Math.PI*2);x.fillStyle=pg;x.fill();x.beginPath();x.arc(px,py,1.5,0,Math.PI*2);x.fillStyle=`rgba(${cl[0]},${cl[1]},${cl[2]},.7)`;x.fill()}
-    requestAnimationFrame(dr)}requestAnimationFrame(dr)})();
 
     // Brain / Knowledge Graph Canvas
     (function(){
