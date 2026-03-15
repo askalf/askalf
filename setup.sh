@@ -70,15 +70,25 @@ replace_if_default "FORGE_API_KEY" "fk_$(gen_secret 32)"
 replace_if_default "CHANNEL_ENCRYPTION_KEY" "$(gen_hex 32)"
 replace_if_default "SEARXNG_SECRET_KEY" "$(gen_hex 32)"
 
+# Generate admin password if blank
+if grep -q "^ADMIN_PASSWORD=$" "$ENV_FILE" 2>/dev/null; then
+  ADMIN_PASS="$(gen_secret 16)"
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s|^ADMIN_PASSWORD=|ADMIN_PASSWORD=${ADMIN_PASS}|" "$ENV_FILE"
+  else
+    sed -i "s|^ADMIN_PASSWORD=|ADMIN_PASSWORD=${ADMIN_PASS}|" "$ENV_FILE"
+  fi
+  echo "  Generated: ADMIN_PASSWORD"
+fi
+
 echo ""
 echo "Configuration saved to .env"
 echo ""
 echo "Next steps:"
 echo "  1. Edit .env and add your API keys (ANTHROPIC_API_KEY, etc.)"
-echo "  2. Set ADMIN_EMAIL and ADMIN_PASSWORD"
-echo "  3. Start AskAlf:"
+echo "  2. Start AskAlf:"
 echo ""
 echo "     docker compose -f docker-compose.selfhosted.yml up -d"
 echo ""
-echo "  4. Open http://localhost:3001"
+echo "  3. Open http://localhost:3001"
 echo ""
