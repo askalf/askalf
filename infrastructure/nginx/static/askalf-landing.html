@@ -104,49 +104,29 @@
     /* Agent colors in timeline */
     .tl-agent{color:var(--text-dim)}
 
-    /* Terminal callout — faithful CLI reproductions */
+    /* Terminal callout — exact match of dashboard TerminalTab */
     .term-callout{max-width:1060px;margin:0 auto;padding:80px 24px}
     .term-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-    .term-card{border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.06);box-shadow:0 8px 40px rgba(0,0,0,.4);display:flex;flex-direction:column}
-
-    /* Claude Code TUI */
-    .cc-tui{background:#0a0a0f;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:#e4e4e7;min-height:340px;display:flex;flex-direction:column;position:relative}
-    .cc-body{flex:1;padding:14px 16px;overflow:hidden}
-    .cc-msg{margin-bottom:12px}
-    .cc-user{color:#e4e4e7;margin-bottom:4px}
-    .cc-user-label{color:#c4b5fd;font-weight:700;font-size:11px}
-    .cc-tool{margin:8px 0;padding:6px 0 6px 14px;border-left:2px solid rgba(167,139,250,.25)}
-    .cc-tool-name{color:#a78bfa;font-size:11px;font-weight:600;margin-bottom:2px}
-    .cc-tool-body{color:rgba(228,228,231,.5);font-size:11px}
-    .cc-diff-add{color:#4ade80}.cc-diff-rm{color:#f87171}
-    .cc-response{color:#e4e4e7;font-size:12px;line-height:1.6}
-    .cc-footer{padding:6px 16px;border-top:1px solid rgba(255,255,255,.04);display:flex;align-items:center;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.2)}
-    .cc-footer-model{color:#a78bfa}
-    .cc-input{padding:8px 16px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:6px}
-    .cc-prompt{color:#c4b5fd;font-weight:700}
-    .cc-cursor{display:inline-block;width:7px;height:13px;background:#a78bfa;animation:blink 1s step-end infinite;vertical-align:text-bottom}
-
-    /* Codex TUI */
-    .cx-tui{background:#0a0a0f;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:#e4e4e7;min-height:340px;display:flex;flex-direction:column;position:relative}
-    .cx-header{padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:8px;font-size:10px;color:rgba(255,255,255,.25)}
-    .cx-header strong{color:#10b981;font-weight:700;font-size:11px}
-    .cx-body{flex:1;padding:14px 16px;overflow:hidden}
-    .cx-msg{margin-bottom:10px}
-    .cx-user-msg{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:8px 12px;color:#e4e4e7;margin-bottom:10px;font-size:12px}
-    .cx-agent{margin-bottom:10px}
-    .cx-agent-label{font-size:10px;color:#10b981;font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
-    .cx-thinking{color:rgba(228,228,231,.35);font-style:italic;margin-bottom:6px;font-size:11px}
-    .cx-file-op{display:flex;align-items:center;gap:6px;font-size:11px;margin:3px 0;color:rgba(228,228,231,.6)}
-    .cx-file-op .op{font-weight:700;font-size:10px;padding:1px 5px;border-radius:3px}
-    .cx-file-op .op-create{background:rgba(74,222,128,.1);color:#4ade80}
-    .cx-file-op .op-run{background:rgba(250,204,21,.1);color:#facc15}
-    .cx-check{color:#4ade80}
-    .cx-footer{padding:6px 16px;border-top:1px solid rgba(255,255,255,.04);display:flex;align-items:center;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.2)}
-    .cx-footer-model{color:#10b981}
-    .cx-input{padding:8px 16px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:6px}
-    .cx-prompt-label{color:rgba(255,255,255,.25);font-size:10px}
-    .cx-cursor{display:inline-block;width:7px;height:13px;background:#10b981;animation:blink 1s step-end infinite;vertical-align:text-bottom}
+    .term-card{border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.06);box-shadow:0 8px 40px rgba(0,0,0,.4);display:flex;flex-direction:column;background:#0c0c0e}
+    /* Tab bar */
+    .tm-tabs{display:flex;gap:2px;padding:6px 12px;background:#0a0a0c;border-bottom:1px solid rgba(124,58,237,.15)}
+    .tm-tab{padding:4px 14px;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:#71717a;background:transparent;border:1px solid transparent;border-radius:4px;cursor:default}
+    .tm-tab.active-claude{color:#c4b5fd;background:rgba(124,58,237,.12);border-color:rgba(124,58,237,.3)}
+    .tm-tab.active-codex{color:#10b981;background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3)}
+    /* Toolbar */
+    .tm-toolbar{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#0a0a0c;border-bottom:1px solid rgba(124,58,237,.15)}
+    .tm-status{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em}
+    .tm-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .tm-pid{color:#52525b;margin-left:4px}
+    .tm-actions{display:flex;gap:6px}
+    .tm-btn{padding:3px 10px;font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:#71717a;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:4px;cursor:default}
+    /* xterm area */
+    .tm-xterm{flex:1;background:#0a0a0f;padding:12px 16px;font-family:var(--font-mono);font-size:13px;line-height:1.4;color:#e4e4e7;min-height:260px;overflow:hidden;white-space:pre-wrap;word-break:break-word}
+    .tm-cursor-purple{display:inline-block;width:8px;height:16px;background:#a78bfa;animation:blink 1s step-end infinite;vertical-align:text-bottom}
+    .tm-cursor-green{display:inline-block;width:8px;height:16px;background:#10b981;animation:blink 1s step-end infinite;vertical-align:text-bottom}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+    /* xterm ANSI colors */
+    .xr{color:#f87171}.xg{color:#4ade80}.xy{color:#facc15}.xb{color:#60a5fa}.xm{color:#c4b5fd}.xc{color:#22d3ee}.xd{color:#52525b}.xw{color:#e4e4e7}.xbold{font-weight:700}
     @media(max-width:700px){.term-grid{grid-template-columns:1fr}}
 
     /* Bold claim */
@@ -563,81 +543,86 @@
     <p class="sd rv">Open a terminal tab. You're in a live Claude or Codex session with full access to your codebase, your agents' context, and your knowledge graph. No copy-pasting. No context switching.</p>
 
     <div class="term-grid rv">
-      <!-- Claude Code — faithful TUI reproduction -->
+      <!-- Claude Code — exact dashboard layout -->
       <div class="term-card">
-        <div class="cc-tui">
-          <div class="cc-body">
-            <div class="cc-msg">
-              <div class="cc-user-label">You</div>
-              <div class="cc-user">fix the race condition in the payment handler</div>
-            </div>
-            <div class="cc-msg">
-              <div class="cc-tool">
-                <div class="cc-tool-name">Read src/handlers/payment.ts</div>
-                <div class="cc-tool-body">412 lines | analyzing concurrent access patterns...</div>
-              </div>
-              <div class="cc-tool">
-                <div class="cc-tool-name">Read src/handlers/payment.test.ts</div>
-                <div class="cc-tool-body">86 lines | 42 test cases</div>
-              </div>
-              <div class="cc-response" style="margin:8px 0">I found the issue. Lines 411-418 access the order state concurrently without a lock. Two requests can both read <code style="background:rgba(255,255,255,.06);padding:1px 4px;border-radius:3px;font-size:11px">order.status === 'pending'</code> before either writes.</div>
-              <div class="cc-tool">
-                <div class="cc-tool-name">Edit src/handlers/payment.ts</div>
-                <div class="cc-tool-body">
-                  <div class="cc-diff-rm">- const order = await getOrder(id);</div>
-                  <div class="cc-diff-add">+ const order = await getOrderForUpdate(id);</div>
-                </div>
-              </div>
-              <div class="cc-tool">
-                <div class="cc-tool-name">Bash npm test -- payment</div>
-                <div class="cc-tool-body" style="color:#4ade80">42 passed <span style="color:rgba(228,228,231,.3)">| 0 failed | 1.2s</span></div>
-              </div>
-              <div class="cc-response">Fixed the race condition by using <code style="background:rgba(255,255,255,.06);padding:1px 4px;border-radius:3px;font-size:11px">SELECT ... FOR UPDATE</code> to prevent concurrent reads. All 42 tests passing.</div>
-            </div>
+        <div class="tm-tabs">
+          <span class="tm-tab">Codex</span>
+          <span class="tm-tab active-claude">Claude Code</span>
+        </div>
+        <div class="tm-toolbar">
+          <div class="tm-status">
+            <span class="tm-dot" style="background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)"></span>
+            <span>running</span>
+            <span class="tm-pid">PID 48291</span>
           </div>
-          <div class="cc-footer">
-            <span class="cc-footer-model">claude-opus-4-6</span>
-            <span>3.2k tokens &middot; $0.04</span>
-          </div>
-          <div class="cc-input">
-            <span class="cc-prompt">❯</span>
-            <span class="cc-cursor"></span>
+          <div class="tm-actions">
+            <span class="tm-btn">Ctrl+C</span>
+            <span class="tm-btn">Restart</span>
           </div>
         </div>
+        <div class="tm-xterm"><span class="xm">╭────────────────────────────────────────────╮</span>
+<span class="xm">│</span> <span class="xm xbold">✻ Claude Code</span>                              <span class="xm">│</span>
+<span class="xm">│</span>   <span class="xd">/help for help</span>                           <span class="xm">│</span>
+<span class="xm">╰────────────────────────────────────────────╯</span>
+
+<span class="xm xbold">❯</span> <span class="xw">fix the race condition in payment handler</span>
+
+  <span class="xd">⎿</span>  <span class="xm">Read</span> <span class="xd">src/handlers/payment.ts</span>
+
+  <span class="xd">⎿</span>  <span class="xm">Read</span> <span class="xd">src/handlers/payment.test.ts</span>
+
+  I found the issue on line 412. Two requests can
+  read <span class="xw">order.status === 'pending'</span> before either writes.
+
+  <span class="xd">⎿</span>  <span class="xm">Edit</span> <span class="xd">src/handlers/payment.ts</span>
+     <span class="xr">- const order = await getOrder(id);</span>
+     <span class="xg">+ const order = await getOrderForUpdate(id);</span>
+
+  <span class="xd">⎿</span>  <span class="xm">Bash</span> <span class="xd">npm test -- payment</span>
+     <span class="xg xbold">42 passed</span> <span class="xd">| 0 failed | 1.2s</span>
+
+  Fixed. <span class="xw">SELECT ... FOR UPDATE</span> prevents the race.
+
+<span class="xm xbold">❯</span> <span class="tm-cursor-purple"></span></div>
       </div>
 
-      <!-- Codex CLI — faithful Ink TUI reproduction -->
+      <!-- Codex — exact dashboard layout -->
       <div class="term-card">
-        <div class="cx-tui">
-          <div class="cx-header">
-            <strong>codex</strong>
-            <span>full-auto</span>
-            <span style="margin-left:auto">/workspace</span>
+        <div class="tm-tabs">
+          <span class="tm-tab active-codex">Codex</span>
+          <span class="tm-tab">Claude Code</span>
+        </div>
+        <div class="tm-toolbar">
+          <div class="tm-status">
+            <span class="tm-dot" style="background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)"></span>
+            <span>running</span>
+            <span class="tm-pid">PID 48307</span>
           </div>
-          <div class="cx-body">
-            <div class="cx-user-msg">scaffold a REST endpoint for /api/v1/webhooks</div>
-            <div class="cx-agent">
-              <div class="cx-agent-label">Codex</div>
-              <div class="cx-thinking">Planning file structure...</div>
-              <div style="color:#e4e4e7;font-size:12px;margin-bottom:8px">I'll create the route, handler, validation schema, and tests.</div>
-              <div class="cx-file-op"><span class="op op-create">CREATE</span> src/routes/webhooks/index.ts</div>
-              <div class="cx-file-op"><span class="op op-create">CREATE</span> src/routes/webhooks/handler.ts</div>
-              <div class="cx-file-op"><span class="op op-create">CREATE</span> src/routes/webhooks/schema.ts</div>
-              <div class="cx-file-op"><span class="op op-create">CREATE</span> src/routes/webhooks/webhooks.test.ts</div>
-              <div class="cx-file-op" style="margin-top:6px"><span class="op op-run">RUN</span> npm test -- webhooks</div>
-              <div style="margin-top:4px;font-size:11px"><span class="cx-check">&#x2713;</span> <span style="color:#4ade80">8 passed</span> <span style="color:rgba(228,228,231,.3)">| 0 failed | 0.9s</span></div>
-              <div style="color:#e4e4e7;font-size:12px;margin-top:8px">Route registered. Methods: GET, POST, DELETE. All tests passing.</div>
-            </div>
-          </div>
-          <div class="cx-footer">
-            <span class="cx-footer-model">codex-mini-latest</span>
-            <span>1.8k tokens</span>
-          </div>
-          <div class="cx-input">
-            <span class="cx-prompt-label">message codex</span>
-            <span class="cx-cursor"></span>
+          <div class="tm-actions">
+            <span class="tm-btn">Ctrl+C</span>
+            <span class="tm-btn">Restart</span>
           </div>
         </div>
+        <div class="tm-xterm"><span class="xg xbold">codex</span> <span class="xd">--full-auto</span>
+
+<span class="xd">┌──────────────────────────────────────────┐</span>
+<span class="xd">│</span> scaffold a REST endpoint for webhooks     <span class="xd">│</span>
+<span class="xd">└──────────────────────────────────────────┘</span>
+
+<span class="xg xbold">Codex</span>
+  I'll create the route, handler, schema, and tests.
+
+  <span class="xc">create</span>  src/routes/webhooks/index.ts
+  <span class="xc">create</span>  src/routes/webhooks/handler.ts
+  <span class="xc">create</span>  src/routes/webhooks/schema.ts
+  <span class="xc">create</span>  src/routes/webhooks/webhooks.test.ts
+
+  <span class="xy">run</span>     npm test -- webhooks
+          <span class="xg xbold">✓ 8 passed</span> <span class="xd">| 0 failed | 0.9s</span>
+
+  Route registered. Methods: GET, POST, DELETE.
+
+<span class="xg xbold">codex&gt;</span> <span class="tm-cursor-green"></span></div>
       </div>
     </div>
   </div>
