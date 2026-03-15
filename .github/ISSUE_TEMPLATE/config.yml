@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://askalf.org/docs
+    about: Check the docs before opening an issue.
+  - name: Support
+    url: mailto:support@askalf.org
+    about: For direct support, email us.
