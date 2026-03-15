@@ -14727,7 +14727,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       // Just bump access count for informational knowledge
       await p.query(
         `UPDATE forge_semantic_memories SET access_count = access_count + 1
-         WHERE agent_id = $1 AND content ILIKE $2 LIMIT 1`,
+         WHERE id = (SELECT id FROM forge_semantic_memories WHERE agent_id = $1 AND content ILIKE $2 LIMIT 1)`,
         [AGENT_ID, `%${knowledge.slice(0, 40)}%`],
       ).catch(() => {});
       return { action: 'knowledge_review_note', result: `Reviewed knowledge: "${knowledge.slice(0, 60)}" — informational, no action needed`, quality: 0.5, mutated: false };
