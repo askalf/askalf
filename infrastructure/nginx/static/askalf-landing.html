@@ -1060,31 +1060,53 @@
       ];
       let defaultIdx=0;
 
+      function renderAgents(agents,enhanced){
+        let html='';
+        if(enhanced){html+='<div style="font-family:var(--font-mono);font-size:.65rem;color:var(--crystal-light);margin-bottom:8px;letter-spacing:.08em">ENHANCED NL PARSER</div>';}
+        agents.forEach((a,i)=>{
+          html+=`<div class="dispatch-route" style="animation-delay:${i*.1}s">
+            <span class="dispatch-agent-dot" style="background:${a.color};box-shadow:0 0 8px ${a.color}"></span>
+            <div><div class="dispatch-agent-name">${a.name}</div><div class="dispatch-agent-task">${a.role||a.task}</div></div>
+            <span class="dispatch-arrow">${a.primary||i===0?'PRIMARY':'SUPPORT'}</span>
+          </div>`;
+        });
+        output.innerHTML=html;
+        output.className='dispatch-result show';
+      }
+
       let debounce=null;
       input.addEventListener('input',function(){
         clearTimeout(debounce);
-        debounce=setTimeout(()=>{
-          const val=input.value.toLowerCase().trim();
+        debounce=setTimeout(async()=>{
+          const val=input.value.trim();
           if(!val){output.className='dispatch-result';output.innerHTML='';return;}
 
+          // Try the live enhanced parser first
+          try{
+            const res=await fetch('/api/v1/public/intent',{
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({message:val}),
+              signal:AbortSignal.timeout(6000),
+            });
+            if(res.ok){
+              const data=await res.json();
+              if(data.agents&&data.agents.length>0){
+                renderAgents(data.agents,data.enhanced);
+                return;
+              }
+            }
+          }catch{}
+
+          // Fallback to client-side keyword matching
+          const low=val.toLowerCase();
           let matched=null;
           for(const r of routes){
-            if(r.kw.some(k=>val.includes(k))){matched=r.agents;break;}
+            if(r.kw.some(k=>low.includes(k))){matched=r.agents;break;}
           }
           if(!matched){matched=defaults[defaultIdx%defaults.length];defaultIdx++;}
-
-          let html='';
-          matched.forEach((a,i)=>{
-            html+=`<div class="dispatch-route" style="animation-delay:${i*.1}s">
-              <span class="dispatch-agent-dot" style="background:${a.color};box-shadow:0 0 8px ${a.color}"></span>
-              <div><div class="dispatch-agent-name">${a.name}</div><div class="dispatch-agent-task">${a.task}</div></div>
-              <span class="dispatch-arrow">${i===0?'PRIMARY':'SUPPORT'}</span>
-            </div>`;
-          });
-
-          output.innerHTML=html;
-          output.className='dispatch-result show';
-        },300);
+          renderAgents(matched.map((a,i)=>({...a,role:a.task,primary:i===0})),false);
+        },500);
       });
     })();
 
