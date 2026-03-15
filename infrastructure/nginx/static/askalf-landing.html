@@ -1083,12 +1083,15 @@
 
           // Try the live enhanced parser first
           try{
-            const res=await fetch('/api/v1/public/intent',{
+            const ctrl=new AbortController();
+            const tm=setTimeout(()=>ctrl.abort(),6000);
+            const res=await fetch('https://askalf.org/api/v1/public/intent',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify({message:val}),
-              signal:AbortSignal.timeout(6000),
+              signal:ctrl.signal,
             });
+            clearTimeout(tm);
             if(res.ok){
               const data=await res.json();
               if(data.agents&&data.agents.length>0){
@@ -1096,7 +1099,7 @@
                 return;
               }
             }
-          }catch{}
+          }catch(e){console.debug('[intent]',e)}
 
           // Fallback to client-side keyword matching
           const low=val.toLowerCase();
