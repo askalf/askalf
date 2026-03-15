@@ -188,14 +188,16 @@ fastify.addHook('onSend', async (request, reply) => {
 let _cachedAdminUser = null;
 async function getAdminUser() {
   if (_cachedAdminUser) return _cachedAdminUser;
-  const admin = await queryOne(
-    `SELECT id FROM users WHERE role IN ('super_admin', 'admin') AND status = 'active' ORDER BY created_at ASC LIMIT 1`
-  );
-  if (admin) {
-    const user = await getUserById(admin.id);
-    if (user) { _cachedAdminUser = user; return user; }
-  }
-  return null;
+  // Self-hosted: no users table — return a synthetic admin identity
+  _cachedAdminUser = {
+    id: 'selfhosted-admin',
+    email: process.env.SELFHOSTED_ADMIN_EMAIL || 'admin@localhost',
+    name: 'Admin',
+    display_name: 'Admin',
+    role: 'super_admin',
+    status: 'active',
+  };
+  return _cachedAdminUser;
 }
 
 // Metrics instrumentation
