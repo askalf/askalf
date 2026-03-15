@@ -86,6 +86,15 @@ DOCKERFILE_SECURITY_AUDIT.md
 FORGE_API_DOCUMENTATION.md
 FORGE_API_ENDPOINTS.md
 
+# Internal docs (not for public repo)
+docs/SIGIL.md
+docs/SIGIL-EXPLAINED.txt
+docs/SECURITY_AUDIT.md
+docs/METACOGNITION.md
+docs/legal/
+docs/public/
+docs/adr/
+
 # Agent-injected system prompt (written by forge worker into worktrees)
 CLAUDE.md
 
