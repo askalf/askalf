@@ -28,10 +28,10 @@ INSERT INTO forge_agents (
 ) ON CONFLICT (owner_id, slug) DO NOTHING;
 
 -- Register capabilities
-INSERT INTO forge_agent_capabilities (agent_id, capability, proficiency)
+INSERT INTO forge_agent_capabilities (id, agent_id, capability, proficiency)
 VALUES
-  ('01HEARTBEAT000000000000000', 'monitoring', 80),
-  ('01HEARTBEAT000000000000000', 'troubleshooting', 70)
+  ('cap_heartbeat_monitor', '01HEARTBEAT000000000000000', 'monitoring', 80),
+  ('cap_heartbeat_troubleshoot', '01HEARTBEAT000000000000000', 'troubleshooting', 70)
 ON CONFLICT (agent_id, capability) DO NOTHING;
 
 -- Schedule: continuous, every 15 minutes

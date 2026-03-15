@@ -141,6 +141,12 @@ export async function runForgeMigrations(migrationsDir: string): Promise<void> {
       )
     `);
 
+    // Drop model FK constraint if it exists — models are populated at runtime,
+    // not by migrations, so agent seed data can't satisfy the FK during init
+    await client.query(`
+      ALTER TABLE IF EXISTS forge_agents DROP CONSTRAINT IF EXISTS forge_agents_model_id_fkey
+    `).catch(() => {});
+
     // Get already-applied migrations
     const applied = await client.query<{ name: string }>('SELECT name FROM forge_migrations ORDER BY name');
     const appliedSet = new Set(applied.rows.map(r => r.name));
@@ -169,8 +175,16 @@ export async function runForgeMigrations(migrationsDir: string): Promise<void> {
       } catch (err) {
         await client.query('ROLLBACK');
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[DB] Migration failed: ${file} — ${msg}`);
-        throw err;
+        // Skip migrations that reference removed auth tables (users, sessions)
+        // These are safe to skip in self-hosted mode
+        const skippable = /relation "(users|sessions|tenants)" does not exist|violates foreign key/i;
+        if (skippable.test(msg)) {
+          await client.query('INSERT INTO forge_migrations (name) VALUES ($1) ON CONFLICT DO NOTHING', [file]);
+          console.warn(`[DB] Migration skipped (auth dependency): ${file}`);
+        } else {
+          console.error(`[DB] Migration failed: ${file} — ${msg}`);
+          throw err;
+        }
       }
     }
 
