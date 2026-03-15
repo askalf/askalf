@@ -101,16 +101,34 @@ docs/adr/
 
 # Dead code / internal tooling
 apps/admin-console/
-scripts/auto-deploy.ps1
-scripts/fix-wrapper.ps1
 tests/*.cjs
 apps/forge/migrations/038_fleet_system_sentinel.sql
+
+# Internal scripts (hardcoded dev paths, ops tooling)
+scripts/claude-with-memory.sh
+scripts/memory-hook.sh
+scripts/memory-pre-hook.sh
+scripts/memory-seed.sh
+scripts/nginx-stats.sh
+scripts/deploy.ps1
+scripts/deploy.sh
+scripts/build.ps1
+scripts/fix-credentials-perms.sh
+scripts/fix-wrapper.ps1
+scripts/auto-deploy.ps1
+scripts/sync-credentials.sh
+scripts/seed-traces.sh
+scripts/schedule-backup-verify.sh
+scripts/verify-backup.sh
+scripts/rollback.sh
 
 # Webhost stack (not part of self-hosted deployment)
 infrastructure/nginx/
 infrastructure/cloudflare/
 infrastructure/searxng/webhost-*.toml
 infrastructure/searxng/webhost-*.yml
+docker-compose.prod.yml
+docker-compose.webhost.yml
 
 # Agent-injected system prompt (written by forge worker into worktrees)
 CLAUDE.md
