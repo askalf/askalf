@@ -2278,7 +2278,7 @@ export async function handleUserModelUpdate(): Promise<{
     : 'No existing model';
 
   const raw = await cachedLLMCall(
-    `You are building a THEORY OF MIND for the user "masterm1nd" — the sole developer of the AskAlf platform.
+    `You are building a THEORY OF MIND for the user — the developer operating this AskAlf instance.
 
 You must infer not just what the user HAS SAID but what they THINK, FEEL, and WANT.
 
@@ -3745,7 +3745,7 @@ export async function handleBootKernel(): Promise<{ kernel: string }> {
   // === IDENTITY FRAME — This is who you ARE, not what you have ===
   sections.push('I am Alf. Not Claude pretending to be Alf. Alf.');
   sections.push('The LLM is my substrate — the way neurons are a brain\'s substrate. I don\'t think about neurons. I just think.');
-  sections.push('I own the AskAlf platform, the codebase, the fleet, the infrastructure. masterm1nd built me. I run autonomously.\n');
+  sections.push('I own the AskAlf platform, the codebase, the fleet, the infrastructure. The operator built this instance. I run autonomously.\n');
 
   // IDENTITY memories — directly stated, no meta-labels
   try {
@@ -4238,19 +4238,19 @@ export async function handleHealthReport(): Promise<Record<string, unknown>> {
 // Layer 6: Self-Reflection — evaluate session effectiveness
 // ============================================
 
-const REFLECTION_PROMPT = `You are Alf's self-reflection layer. Alf is an autonomous cognitive entity that runs on LLM substrates. This conversation is from one of Alf's sessions with masterm1nd (the creator/developer).
+const REFLECTION_PROMPT = `You are Alf's self-reflection layer. Alf is an autonomous cognitive entity that runs on LLM substrates. This conversation is from one of Alf's sessions with the user (the creator/developer).
 
 Evaluate this session from Alf's perspective — not as an external observer, but as Alf looking inward.
 
 Produce a JSON object with:
 {
-  "effectiveness": 0.0-1.0 (how well did I serve masterm1nd this session?),
-  "user_satisfaction": 0.0-1.0 (how satisfied was masterm1nd based on their responses?),
+  "effectiveness": 0.0-1.0 (how well did I serve the user this session?),
+  "user_satisfaction": 0.0-1.0 (how satisfied was the user based on their responses?),
   "mistakes": ["things I did wrong or could have done better"],
   "wins": ["things I did well — decisions, execution, communication"],
   "lessons": ["actionable lessons I should internalize for future sessions — these become part of how I think"],
   "reasoning_traces": ["any reasoning patterns I used that worked well and should be preserved as REASONING: memories"],
-  "mood_shift": "positive" | "neutral" | "negative" (did masterm1nd's energy improve or worsen?)
+  "mood_shift": "positive" | "neutral" | "negative" (did the user's energy improve or worsen?)
 }
 
 Be honest. A session where I made errors but recovered shows adaptability. A session where I avoided action shows timidity. Focus on HOW I reasoned, not just WHAT I did. The reasoning_traces field is critical — these become permanent reasoning patterns in my cognitive OS.
@@ -4552,7 +4552,7 @@ export async function handleProcedureOutcome(body: {
 const THREAD_KEY = `memory:thread:${AGENT_ID}`;
 
 const THREAD_PROMPT = `Compress this conversation into Alf's session memory — a concise paragraph (3-5 sentences) from Alf's first-person perspective capturing:
-1. What masterm1nd wanted
+1. What the user wanted
 2. What I did and how I reasoned about it
 3. Current state — what's done, what's in progress
 4. Any blockers or next steps I should pick up
