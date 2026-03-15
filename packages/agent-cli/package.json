@@ -12,10 +12,17 @@
     "dev": "tsx src/cli.ts"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
-  "keywords": ["askalf", "agent", "cli", "ai"],
+  "keywords": ["askalf", "agent", "cli", "ai", "autonomous", "fleet", "self-hosted"],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SprayberryLabs/askalf.git",
+    "directory": "packages/agent-cli"
+  },
+  "homepage": "https://askalf.org",
   "dependencies": {
     "ws": "^8.16.0"
   },

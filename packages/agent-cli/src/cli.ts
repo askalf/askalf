@@ -160,6 +160,16 @@ function disconnect(): void {
 const args = process.argv.slice(2);
 const command = args[0];
 
+// Flags
+if (args.includes('--version') || args.includes('-v')) {
+  console.log('1.0.0');
+  process.exit(0);
+}
+
+if (args.includes('--help') || args.includes('-h')) {
+  args[0] = undefined as unknown as string; // fall through to default help
+}
+
 switch (command) {
   case 'connect': {
     const apiKey = args[1];
