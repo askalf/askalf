@@ -34,13 +34,27 @@ else
   echo "Created .env from template."
 fi
 
-# Generate secure random strings
+# Generate secure random strings (with fallback if openssl not available)
 gen_secret() {
-  openssl rand -base64 "$1" 2>/dev/null | tr -d '=/+' | head -c "$1"
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -base64 "$1" 2>/dev/null | tr -d '=/+' | head -c "$1"
+  elif command -v node >/dev/null 2>&1; then
+    node -e "process.stdout.write(require('crypto').randomBytes($1).toString('base64url').slice(0,$1))"
+  else
+    echo "Error: openssl or node required to generate secrets" >&2
+    exit 1
+  fi
 }
 
 gen_hex() {
-  openssl rand -hex "$1" 2>/dev/null
+  if command -v openssl >/dev/null 2>&1; then
+    openssl rand -hex "$1" 2>/dev/null
+  elif command -v node >/dev/null 2>&1; then
+    node -e "process.stdout.write(require('crypto').randomBytes($1).toString('hex'))"
+  else
+    echo "Error: openssl or node required to generate secrets" >&2
+    exit 1
+  fi
 }
 
 # Replace placeholder values with generated secrets
