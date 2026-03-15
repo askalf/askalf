@@ -21,7 +21,7 @@ COPY packages/agent-cli/package.json ./packages/agent-cli/package.json
 COPY apps/forge/package.json ./apps/forge/package.json
 COPY apps/dashboard/package.json ./apps/dashboard/package.json
 COPY apps/mcp-tools/package.json ./apps/mcp-tools/package.json
-COPY apps/admin-console/package.json ./apps/admin-console/package.json
+
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
