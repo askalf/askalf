@@ -146,12 +146,6 @@
     .ad{width:10px;height:10px;border-radius:50%;background:var(--ac,var(--crystal));box-shadow:0 0 8px var(--ac,var(--crystal-glow))}
     .an{font-weight:600;font-size:.9rem}.ar{font-size:.75rem;color:var(--text-dim);font-family:var(--font-mono)}
 
-    /* Who it's for */
-    .wf{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-    .wfc{padding:28px 24px;background:var(--surface);border:1px solid var(--border);border-radius:16px;text-align:center;transition:all .3s}
-    .wfc:hover{border-color:rgba(124,58,237,.2);transform:translateY(-2px)}
-    .wfc-icon{font-size:2rem;margin-bottom:12px}
-    .wfc h3{font-size:1rem;font-weight:700;margin-bottom:8px}.wfc p{font-size:.85rem;color:var(--text-dim);line-height:1.5}
 
     /* Brain / Knowledge Graph */
     .brain-layout{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
@@ -289,8 +283,8 @@
     .fl{display:flex;justify-content:center;gap:24px;margin-bottom:16px}
 
     /* Responsive */
-    @media(max-width:900px){.fg,.stories,.wf{grid-template-columns:1fr 1fr}nav{padding:12px 20px}.nl{gap:16px}.cg{grid-template-columns:1fr;gap:12px}.cv{display:none}}
-    @media(max-width:600px){.fg,.stories,.wf{grid-template-columns:1fr}.nb2{gap:24px}.nv{font-size:1.8rem}.nl{display:none}.shc{padding:32px 20px}.sb{flex-wrap:wrap}}
+    @media(max-width:900px){.fg,.stories{grid-template-columns:1fr 1fr}nav{padding:12px 20px}.nl{gap:16px}.cg{grid-template-columns:1fr;gap:12px}.cv{display:none}}
+    @media(max-width:600px){.fg,.stories{grid-template-columns:1fr}.nb2{gap:24px}.nv{font-size:1.8rem}.nl{display:none}.shc{padding:32px 20px}.sb{flex-wrap:wrap}}
   </style>
 </head>
 <body>
@@ -485,30 +479,6 @@
     </div>
   </section>
 
-  <!-- Who it's for -->
-  <section>
-    <div class="sl rv">WHO IT'S FOR</div>
-    <h2 class="st rv">Built for people who ship</h2>
-    <p class="sd rv">If you've ever wished you had a team of engineers working while you sleep, this is for you.</p>
-
-    <div class="wf">
-      <div class="wfc rv">
-        <div class="wfc-icon">&#x1F680;</div>
-        <h3>Solo Founders</h3>
-        <p>You're one person building a product. Now you have 7 engineers. The playing field just leveled.</p>
-      </div>
-      <div class="wfc rv">
-        <div class="wfc-icon">&#x1F3D7;</div>
-        <h3>Small Teams</h3>
-        <p>Your 3-person team now has the output of 10. QA, security, and infra run on autopilot.</p>
-      </div>
-      <div class="wfc rv">
-        <div class="wfc-icon">&#x1F3E2;</div>
-        <h3>DevOps & Platform Teams</h3>
-        <p>Automate incident response, dependency updates, and deployment pipelines. Self-hosted — your compliance team will love it.</p>
-      </div>
-    </div>
-  </section>
 
   <!-- Numbers -->
   <div class="nb2 rv">
