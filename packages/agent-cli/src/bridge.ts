@@ -227,11 +227,9 @@ export class AgentBridge {
   }
 
   private findClaude(): string | null {
+    const cmd = process.platform === 'win32' ? 'where claude' : 'which claude';
     try {
-      const result = execSync('which claude 2>/dev/null || where claude 2>nul', {
-        encoding: 'utf8',
-        timeout: 5000,
-      }).trim();
+      const result = execSync(cmd, { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
       return result.split('\n')[0] || null;
     } catch {
       return null;
@@ -324,7 +322,7 @@ export class AgentBridge {
     this.heartbeatTimer = setInterval(() => {
       this.send('device:heartbeat', {
         load: 0,
-        activeExecutions: this.activeExecution ? [this.activeExecution.id] : [],
+        activeExecutions: this.activeExecution ? 1 : 0,
       });
     }, this.options.heartbeatInterval);
   }
