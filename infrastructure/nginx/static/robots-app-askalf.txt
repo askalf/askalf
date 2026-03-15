@@ -1,3 +1,0 @@
-# app.askalf.org — authenticated app
-User-agent: *
-Disallow: /
