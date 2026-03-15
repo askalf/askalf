@@ -357,8 +357,9 @@ services:
           memory: 128M
 
   # ===========================================
-  # GLUETUN — VPN tunnel for outbound agent traffic (optional)
-  # Enable by setting ENABLE_VPN=true in .env
+  # GLUETUN — VPN tunnel for outbound traffic (optional)
+  # Activate: docker compose --profile vpn up -d
+  # All outbound API calls route through encrypted VPN tunnel.
   # ===========================================
   gluetun:
     image: qmcgaw/gluetun:v3.40.0@sha256:2b42bfa046757145a5155acece417b65b4443c8033fb88661a8e9dcf7fda5a00
@@ -374,9 +375,11 @@ services:
       OPENVPN_USER: ${OPENVPN_USER:-}
       OPENVPN_PASSWORD: ${OPENVPN_PASSWORD:-}
       SERVER_COUNTRIES: ${VPN_SERVER_COUNTRIES:-Switzerland}
+      # HTTP proxy for other containers to route through
       HTTPPROXY: "on"
       HTTPPROXY_LISTENING_ADDRESS: ":8888"
       HTTPPROXY_STEALTH: "on"
+      # DNS over TLS + malware blocking
       BLOCK_MALICIOUS: "on"
       DOT: "on"
       DOT_PROVIDERS: cloudflare
@@ -399,13 +402,22 @@ services:
       - /tmp:mode=1777,size=16m
     security_opt:
       - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           memory: 192M
+        reservations:
+          memory: 64M
 
   # ===========================================
-  # AUTOHEAL — askalf-selfhosted containers ONLY
+  # AUTOHEAL — auto-restart unhealthy containers
+  # Monitors all containers with autoheal-askalf label.
+  # If a container fails its healthcheck, Autoheal restarts it.
   # ===========================================
   autoheal:
     image: willfarrell/autoheal@sha256:eeb45dc8997520bedc6b53c65c4a605a6ded3ea2be960e6c194fb9d8e3f10d4d
@@ -425,6 +437,11 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
     deploy:
       resources:
         limits:
