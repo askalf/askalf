@@ -146,8 +146,33 @@ docker compose -f docker-compose.selfhosted.yml up -d</pre>
     <h2>Device Adapters</h2>
     <p>12 adapter types for connecting devices to your fleet:</p>
     <p>CLI Agent &middot; Docker &middot; SSH &middot; Kubernetes &middot; Browser &middot; Desktop &middot; VS Code &middot; Android &middot; iOS &middot; Raspberry Pi &middot; Arduino/ESP32 &middot; Home Assistant</p>
-    <pre>npm install -g @askalf/agent
-askalf-agent connect &lt;your-api-key&gt;</pre>
+
+    <h3>CLI Agent</h3>
+    <pre>npm install -g @askalf/agent</pre>
+    <pre># Connect this device to your fleet
+askalf-agent connect &lt;your-api-key&gt;
+
+# Connect to a self-hosted instance
+askalf-agent connect &lt;your-api-key&gt; --url wss://your-server.com
+
+# Run as a background daemon
+askalf-agent daemon
+
+# Check connection status
+askalf-agent status
+
+# Disconnect
+askalf-agent disconnect</pre>
+
+    <table>
+      <tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+      <tr><td><code>--url &lt;url&gt;</code></td><td>Server WebSocket URL</td><td><code>wss://askalf.org</code></td></tr>
+      <tr><td><code>--name &lt;name&gt;</code></td><td>Device display name</td><td>System hostname</td></tr>
+      <tr><td><code>--version</code></td><td>Show version</td><td></td></tr>
+      <tr><td><code>--help</code></td><td>Show help</td><td></td></tr>
+    </table>
+
+    <p>Config is stored in <code>~/.askalf/agent.json</code>. The agent auto-detects capabilities (shell, git, docker, node, python) and reports them to the fleet.</p>
 
     <h2>API Keys</h2>
     <p>Generate API keys in <strong>Settings &rarr; API Keys</strong>. Keys use the <code>fk_</code> prefix, PBKDF2 hashing, per-key rate limits, and optional expiration. Use them with the CLI agent or the REST API.</p>
