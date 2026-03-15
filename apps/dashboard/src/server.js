@@ -158,7 +158,11 @@ await fastify.register(fastifyCors, {
 
 // Cookie support for session auth with secure options
 await fastify.register(fastifyCookie, {
-  secret: process.env['SESSION_SECRET'] || 'dev-session-secret-not-for-production',
+  secret: (() => {
+    const s = process.env['SESSION_SECRET'];
+    if (!s && process.env['NODE_ENV'] === 'production') throw new Error('SESSION_SECRET must be set in production');
+    return s || 'dev-session-secret-not-for-production';
+  })(),
   hook: 'onRequest',
   parseOptions: {
     httpOnly: true,
