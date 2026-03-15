@@ -268,7 +268,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       SEARXNG_URL: http://searxng:8080
       FORGE_URL: http://forge:3005
-      FORGE_API_KEY: ${FORGE_API_KEY}
+      FORGE_API_KEY: ${FORGE_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       REPO_ROOT: /workspace
     volumes:
