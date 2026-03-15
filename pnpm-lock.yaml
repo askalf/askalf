@@ -50,27 +50,6 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
 
-  apps/admin-console:
-    dependencies:
-      '@fastify/cookie':
-        specifier: ^11.0.1
-        version: 11.0.2
-      '@fastify/cors':
-        specifier: ^10.0.0
-        version: 10.1.0
-      '@fastify/websocket':
-        specifier: ^11.2.0
-        version: 11.2.0
-      fastify:
-        specifier: '>=5.8.1'
-        version: 5.8.2
-      node-pty:
-        specifier: ^1.0.0
-        version: 1.1.0
-      pg:
-        specifier: ^8.13.1
-        version: 8.16.3
-
   apps/dashboard:
     dependencies:
       '@askalf/auth':
@@ -5089,7 +5068,7 @@ snapshots:
 
   postgres-migrations@5.3.0:
     dependencies:
-      pg: 8.16.3
+      pg: 8.20.0
       sql-template-strings: 2.2.2
     transitivePeerDependencies:
       - pg-native
