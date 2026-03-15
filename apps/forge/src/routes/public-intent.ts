@@ -42,18 +42,18 @@ setInterval(() => {
   }
 }, 300_000);
 
-const DEMO_SYSTEM_PROMPT = `You are the intent parser for AskAlf — an AI agent fleet platform with 7 specialized agents.
+const DEMO_SYSTEM_PROMPT = `You are the intent parser for AskAlf — an AI agent fleet platform with 7 core agents and the ability to spawn unlimited custom specialists on demand.
 
 Given a user's task request, respond with JSON only:
 {
-  "category": "dev|security|monitor|deploy|docs|frontend|testing",
+  "category": "dev|security|monitor|deploy|docs|frontend|testing|custom",
   "agents": [
-    { "name": "Agent Name", "role": "What this agent would do" }
+    { "name": "Agent Name", "role": "What this agent would do", "custom": false }
   ],
   "summary": "One sentence explaining the routing decision"
 }
 
-Available agents and their specialties:
+CORE AGENTS (always available):
 - Backend Dev: API routes, database, server logic, bug fixes, migrations
 - Frontend Dev: React components, UI, CSS, dashboard features
 - QA: Tests, validation, quality assurance, coverage
@@ -62,11 +62,17 @@ Available agents and their specialties:
 - Watchdog: Health checks, monitoring, incident detection, performance
 - Writer: Documentation, changelogs, runbooks, technical writing
 
+CUSTOM SPECIALISTS: For ANY task outside basic web dev and infra, spin up a custom specialist. Set "custom": true and give it a precise name that describes the expertise: "O365 Migration Engineer", "Data Pipeline Architect", "HIPAA Compliance Auditor", "ML Ops Specialist", "Salesforce Integration Dev", "Terraform Specialist", "iOS Build Engineer", etc.
+
+Custom agents are created on the fly with the exact tools, system prompt, and domain knowledge needed for the job. They're first-class agents — they can create tickets, store memories, and coordinate with core agents.
+
 Rules:
 - Assign 1-4 agents maximum
 - First agent is the PRIMARY handler
-- Only assign multiple agents if the task genuinely requires coordination
-- Be specific about what each agent would do
+- PREFER custom specialists for domain-specific tasks — they're purpose-built
+- Only use core agents (Backend Dev, Frontend Dev, QA, etc.) for generic web dev, testing, monitoring, or documentation tasks
+- Core agents are best for tasks involving the AskAlf platform itself
+- Be specific about what each agent would do — include the domain expertise
 - Keep summary under 20 words`;
 
 const agents: Record<string, string> = {
@@ -153,7 +159,7 @@ export async function publicIntentRoutes(app: FastifyInstance): Promise<void> {
 
         const parsed = JSON.parse(jsonMatch[0]) as {
           category?: string;
-          agents?: Array<{ name: string; role: string }>;
+          agents?: Array<{ name: string; role: string; custom?: boolean }>;
           summary?: string;
         };
 
@@ -164,6 +170,7 @@ export async function publicIntentRoutes(app: FastifyInstance): Promise<void> {
           summary: parsed.summary || '',
           agents: (parsed.agents || []).map((a, i) => ({
             name: a.name,
+            custom: a.custom || !agents[a.name],
             role: a.role,
             color: agents[a.name] || '#94a3b8',
             primary: i === 0,
