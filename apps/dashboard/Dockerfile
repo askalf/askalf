@@ -74,22 +74,36 @@ RUN cp -r /app/apps/dashboard/src /app/deploy/src && \
     cp -f /app/apps/dashboard/client/public/*.gif /app/deploy/public/app/ 2>/dev/null || true && \
     cp -f /app/apps/dashboard/client/public/*.png /app/deploy/public/app/ 2>/dev/null || true
 
+# Build args — set to "false" to skip CLI installs and save ~360MB
+ARG INSTALL_CLAUDE=true
+ARG INSTALL_CODEX=true
+
 # Claude Code CLI stage - install in isolation, extract only the binary
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS claude-installer
-
-RUN apk add --no-cache bash curl python3 make g++ && \
-    npm install -g @anthropic-ai/claude-code && \
-    claude install --force 2>&1 || true && \
-    npm uninstall -g @anthropic-ai/claude-code && \
-    apk del python3 make g++ && \
-    test -f /root/.local/bin/claude
+ARG INSTALL_CLAUDE
+RUN if [ "$INSTALL_CLAUDE" = "true" ]; then \
+      apk add --no-cache bash curl python3 make g++ && \
+      npm install -g @anthropic-ai/claude-code && \
+      claude install --force 2>&1 || true && \
+      npm uninstall -g @anthropic-ai/claude-code && \
+      apk del python3 make g++ && \
+      test -f /root/.local/bin/claude; \
+    else \
+      mkdir -p /root/.local/bin && echo '#!/bin/sh' > /root/.local/bin/claude && chmod +x /root/.local/bin/claude; \
+    fi
 
 # Codex CLI stage - install with platform-specific native binary
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS codex-installer
-
-RUN npm cache clean --force && \
-    npm install -g @openai/codex && \
-    codex --version
+ARG INSTALL_CODEX
+RUN if [ "$INSTALL_CODEX" = "true" ]; then \
+      npm cache clean --force && \
+      npm install -g @openai/codex && \
+      codex --version; \
+    else \
+      mkdir -p /usr/local/lib/node_modules/@openai/codex/bin && \
+      echo '#!/usr/bin/env node' > /usr/local/lib/node_modules/@openai/codex/bin/codex.js && \
+      chmod +x /usr/local/lib/node_modules/@openai/codex/bin/codex.js; \
+    fi
 
 # Production stage - minimal Alpine
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
@@ -105,12 +119,11 @@ RUN addgroup -g 1001 -S substrate && \
              /home/substrate/.codex-session && \
     chown -R substrate:substrate /home/substrate
 
-# Copy Claude binary directly to user home (single copy, no duplication)
+# Copy Claude binary (stub if INSTALL_CLAUDE=false)
 COPY --from=claude-installer --chown=substrate:substrate /root/.local/bin/claude /home/substrate/.local/bin/claude
 
-# Copy Codex CLI (full npm global install — includes platform-specific native binary)
+# Copy Codex CLI (stub if INSTALL_CODEX=false)
 COPY --from=codex-installer /usr/local/lib/node_modules/@openai /usr/local/lib/node_modules/@openai
-# Must be a symlink (not a copy) so require.resolve() finds the native binary package
 RUN ln -s /usr/local/lib/node_modules/@openai/codex/bin/codex.js /usr/local/bin/codex
 
 WORKDIR /app

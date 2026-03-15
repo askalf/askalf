@@ -192,6 +192,8 @@ services:
       dockerfile: apps/dashboard/Dockerfile
       args:
         SELFHOSTED: "true"
+        INSTALL_CLAUDE: ${INSTALL_CLAUDE:-true}
+        INSTALL_CODEX: ${INSTALL_CODEX:-true}
     container_name: askalf-dashboard
     labels:
       - "autoheal-askalf=true"
