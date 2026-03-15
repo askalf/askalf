@@ -3,6 +3,50 @@
 -- migrations reference the removed users/sessions tables.
 -- Safe to run multiple times (IF NOT EXISTS / IF EXISTS).
 
+-- Stub auth tables — old code references users/tenants/sessions but auth was
+-- removed for self-hosted. These stubs contain a single synthetic admin row
+-- so FK constraints and queries succeed without modifying 30+ source files.
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY DEFAULT 'selfhosted-admin',
+  tenant_id TEXT DEFAULT 'selfhosted',
+  email TEXT DEFAULT 'admin@localhost',
+  email_normalized TEXT DEFAULT 'admin@localhost',
+  password_hash TEXT DEFAULT '',
+  display_name TEXT DEFAULT 'Admin',
+  name TEXT DEFAULT 'Admin',
+  role TEXT DEFAULT 'super_admin',
+  status TEXT DEFAULT 'active',
+  timezone TEXT DEFAULT 'UTC',
+  email_verified BOOLEAN DEFAULT true,
+  onboarding_completed_at TIMESTAMPTZ DEFAULT NOW(),
+  last_login_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+INSERT INTO users (id) VALUES ('selfhosted-admin') ON CONFLICT DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS tenants (
+  id TEXT PRIMARY KEY DEFAULT 'selfhosted',
+  user_id TEXT DEFAULT 'selfhosted-admin',
+  name TEXT DEFAULT 'Self-Hosted',
+  slug TEXT DEFAULT 'self-hosted',
+  type TEXT DEFAULT 'user',
+  tier TEXT DEFAULT 'selfhosted',
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+INSERT INTO tenants (id) VALUES ('selfhosted') ON CONFLICT DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY DEFAULT 'selfhosted-session',
+  user_id TEXT DEFAULT 'selfhosted-admin',
+  csrf_token TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '100 years'
+);
+INSERT INTO sessions (id) VALUES ('selfhosted-session') ON CONFLICT DO NOTHING;
+
 -- From 020_user_facing_fleet.sql: is_internal column
 ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT false;
 
