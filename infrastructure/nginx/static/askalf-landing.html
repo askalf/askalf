@@ -157,6 +157,46 @@
     .nv{font-size:2.5rem;font-weight:800;font-family:var(--font-mono);background:linear-gradient(135deg,var(--crystal-bright),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.2}
     .nlb{font-size:.8rem;color:var(--text-dim);margin-top:4px;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
 
+    /* Dispatch simulator */
+    .dispatch-section{text-align:center}
+    .dispatch-box{max-width:640px;margin:0 auto;position:relative}
+    .dispatch-input{width:100%;padding:16px 20px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:1rem;font-family:var(--font-body);outline:none;transition:border-color .2s;box-sizing:border-box}
+    .dispatch-input:focus{border-color:rgba(124,58,237,.4);box-shadow:0 0 20px rgba(124,58,237,.1)}
+    .dispatch-input::placeholder{color:var(--text-dim)}
+    .dispatch-result{margin-top:20px;text-align:left;display:none}
+    .dispatch-result.show{display:block;animation:mu .5s cubic-bezier(.16,1,.3,1)}
+    .dispatch-route{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px}
+    .dispatch-arrow{color:var(--crystal-light);font-family:var(--font-mono);font-size:.8rem;flex-shrink:0}
+    .dispatch-agent-name{font-weight:700;font-size:.95rem}
+    .dispatch-agent-task{font-size:.8rem;color:var(--text-dim);margin-top:2px}
+    .dispatch-agent-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+    /* Morning briefing */
+    .briefing{max-width:700px;margin:0 auto;background:rgba(8,8,26,.6);border:1px solid rgba(124,58,237,.12);border-radius:16px;overflow:hidden;backdrop-filter:blur(12px)}
+    .briefing-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border)}
+    .briefing-title{font-family:var(--font-mono);font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--crystal-light)}
+    .briefing-time{font-family:var(--font-mono);font-size:.7rem;color:var(--text-dim)}
+    .briefing-body{padding:16px 20px}
+    .briefing-row{display:flex;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+    .briefing-row:last-child{border-bottom:none}
+    .briefing-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+    .briefing-stat{font-family:var(--font-mono);font-size:.8rem;font-weight:600;color:var(--text);min-width:40px}
+    .briefing-desc{font-size:.85rem;color:var(--text-mid)}
+    .briefing-footer{padding:12px 20px;border-top:1px solid var(--border);text-align:center;font-size:.8rem;color:var(--text-dim);font-style:italic}
+
+    /* Tech stack */
+    .tech-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+    .tech-badge{display:flex;align-items:center;gap:8px;padding:10px 18px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;font-size:.85rem;font-weight:600;color:var(--text-mid);transition:all .2s}
+    .tech-badge:hover{border-color:rgba(124,58,237,.2);transform:translateY(-2px)}
+    .tech-ver{font-size:.7rem;color:var(--text-dim);font-family:var(--font-mono)}
+
+    /* FAQ */
+    .faq-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .faq-item{padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+    .faq-item h3{font-size:.95rem;font-weight:700;margin-bottom:8px;color:var(--text)}
+    .faq-item p{font-size:.85rem;color:var(--text-dim);line-height:1.6;margin:0}
+    @media(max-width:600px){.faq-grid{grid-template-columns:1fr}}
+
     /* Integrations */
     .ig{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
     .it{padding:8px 16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;font-size:.8rem;font-weight:500;color:var(--text-dim);transition:all .2s}
@@ -334,6 +374,40 @@
     </div>
   </section>
 
+  <!-- Morning Briefing (social proof via simulated output) -->
+  <section>
+    <div class="sl rv">WHAT YOU WAKE UP TO</div>
+    <h2 class="st rv">Your morning briefing. You didn't do any of this.</h2>
+    <p class="sd rv">This is what the dashboard shows when you open your laptop at 9am. Everything was handled while you slept.</p>
+
+    <div class="briefing rv">
+      <div class="briefing-hdr">
+        <span class="briefing-title">Overnight Report</span>
+        <span class="briefing-time">02:14 AM — 06:47 AM</span>
+      </div>
+      <div class="briefing-body">
+        <div class="briefing-row"><span class="briefing-dot" style="background:#34d399"></span><span class="briefing-stat">3</span><span class="briefing-desc">bugs found and fixed. QA wrote the tests. Backend Dev patched the code. Nobody asked.</span></div>
+        <div class="briefing-row"><span class="briefing-dot" style="background:#f87171"></span><span class="briefing-stat">847</span><span class="briefing-desc">dependencies scanned. 2 CVEs found. Both patched. Security filed the report.</span></div>
+        <div class="briefing-row"><span class="briefing-dot" style="background:#2dd4bf"></span><span class="briefing-stat">92%</span><span class="briefing-desc">Redis memory → pruned to 54%. Watchdog caught it. Infra fixed it. 0 downtime.</span></div>
+        <div class="briefing-row"><span class="briefing-dot" style="background:#a78bfa"></span><span class="briefing-stat">14</span><span class="briefing-desc">new knowledge nodes added to the brain. 3 cross-agent connections discovered.</span></div>
+        <div class="briefing-row"><span class="briefing-dot" style="background:#fb923c"></span><span class="briefing-stat">$0.43</span><span class="briefing-desc">total cost. All 7 agents ran 12 executions. Cost guardrails held.</span></div>
+      </div>
+      <div class="briefing-footer">You slept 7 hours. Your AI team shipped 3 fixes, found 2 vulnerabilities, prevented 1 outage, and learned 14 new things.</div>
+    </div>
+  </section>
+
+  <!-- Interactive Dispatch Simulator -->
+  <section class="dispatch-section">
+    <div class="sl rv">TRY IT</div>
+    <h2 class="st rv" style="text-align:center">Tell them what you need.<br>They figure out the rest.</h2>
+    <p class="sd rv" style="text-align:center;margin-left:auto;margin-right:auto">The intent parser analyzes your request and routes it to the right agent(s). Type anything.</p>
+
+    <div class="dispatch-box rv">
+      <input type="text" class="dispatch-input" id="dispatch-in" placeholder="e.g. &quot;fix the broken login page&quot; or &quot;scan for vulnerabilities&quot;" autocomplete="off">
+      <div class="dispatch-result" id="dispatch-out"></div>
+    </div>
+  </section>
+
   <!-- Who it's for -->
   <section>
     <div class="sl rv">WHO IT'S FOR</div>
@@ -439,6 +513,71 @@
     <p class="sd rv">Your agents work where you work.</p>
     <div class="ig rv">
       <span class="it">GitHub</span><span class="it">GitLab</span><span class="it">Bitbucket</span><span class="it">Slack</span><span class="it">Discord</span><span class="it">Telegram</span><span class="it">WhatsApp</span><span class="it">Teams</span><span class="it">AWS</span><span class="it">GCP</span><span class="it">Azure</span><span class="it">Vercel</span><span class="it">Netlify</span><span class="it">Docker</span><span class="it">Kubernetes</span><span class="it">SSH</span><span class="it">Jira</span><span class="it">Linear</span><span class="it">Notion</span><span class="it">Datadog</span><span class="it">Sentry</span><span class="it">PagerDuty</span><span class="it">Grafana</span><span class="it">Cloudflare</span><span class="it">Supabase</span><span class="it">Zapier</span><span class="it">n8n</span><span class="it">SendGrid</span><span class="it">Twilio</span><span class="it">Home Assistant</span><span class="it">Raspberry Pi</span><span class="it">Arduino</span>
+    </div>
+  </section>
+
+  <!-- Tech Stack -->
+  <section>
+    <div class="sl rv">BUILT WITH</div>
+    <h2 class="st rv">Real engineering. Real stack.</h2>
+    <p class="sd rv">No wrappers. No abstractions. Production infrastructure you can inspect, modify, and own.</p>
+    <div class="tech-grid rv">
+      <div class="tech-badge">TypeScript <span class="tech-ver">5.4</span></div>
+      <div class="tech-badge">Node.js <span class="tech-ver">22</span></div>
+      <div class="tech-badge">React <span class="tech-ver">19</span></div>
+      <div class="tech-badge">Fastify <span class="tech-ver">5</span></div>
+      <div class="tech-badge">PostgreSQL <span class="tech-ver">17</span></div>
+      <div class="tech-badge">pgvector <span class="tech-ver">0.8</span></div>
+      <div class="tech-badge">Redis <span class="tech-ver">8</span></div>
+      <div class="tech-badge">Docker Compose</div>
+      <div class="tech-badge">Claude CLI</div>
+      <div class="tech-badge">OpenAI Codex</div>
+      <div class="tech-badge">SearXNG</div>
+      <div class="tech-badge">Cloudflare Tunnel</div>
+      <div class="tech-badge">Canvas 2D</div>
+      <div class="tech-badge">WebSocket</div>
+      <div class="tech-badge">MCP Protocol</div>
+      <div class="tech-badge">PKCE OAuth</div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section>
+    <div class="sl rv">QUESTIONS YOU'RE THINKING</div>
+    <h2 class="st rv">Straight answers.</h2><br>
+    <div class="faq-grid">
+      <div class="faq-item rv">
+        <h3>Is this vaporware?</h3>
+        <p>No. It's running right now on real infrastructure. The agents that built this platform are the same agents that ship to you. The knowledge graph, the memory system, the orchestration — all production code.</p>
+      </div>
+      <div class="faq-item rv">
+        <h3>How much does it cost to run?</h3>
+        <p>Infrastructure: ~$5/month (small VPS + Docker). AI costs: depends on usage. Our fleet runs 12 executions overnight for ~$0.43. Cost guardrails prevent runaway spending.</p>
+      </div>
+      <div class="faq-item rv">
+        <h3>Do I need all 7 agents?</h3>
+        <p>No. Disable any agent you don't need. Create custom agents with the Builder. Each agent is independently configurable with its own model, budget, and schedule.</p>
+      </div>
+      <div class="faq-item rv">
+        <h3>What AI providers does it support?</h3>
+        <p>Anthropic (Claude) for agent execution via OAuth. OpenAI for embeddings. Google AI optional. The intent parser works with Anthropic or in basic keyword mode with no API key.</p>
+      </div>
+      <div class="faq-item rv">
+        <h3>Can the agents modify production code?</h3>
+        <p>Yes — that's the point. They create branches, commit code, and deploy. You set the autonomy level. Full auto, human-in-the-loop approval, or manual dispatch only.</p>
+      </div>
+      <div class="faq-item rv">
+        <h3>What happens if an agent breaks something?</h3>
+        <p>Watchdog detects it. QA validates it. Infra rolls it back. The ticket system creates a paper trail. Cost guardrails cap spending. You get a morning briefing of everything that happened.</p>
+      </div>
+      <div class="faq-item rv">
+        <h3>Is my data safe?</h3>
+        <p>Your data never leaves your infrastructure. No telemetry, no analytics, no phone-home. Everything runs in your Docker containers on your hardware. Open source — audit every line.</p>
+      </div>
+      <div class="faq-item rv">
+        <h3>How is this different from ChatGPT/Claude?</h3>
+        <p>Those are one mind answering one question. This is seven specialists who coordinate, delegate work to each other, share memory, learn from outcomes, and operate 24/7 without prompting.</p>
+      </div>
     </div>
   </section>
 
@@ -668,6 +807,82 @@
         requestAnimationFrame(draw);
       }
       init();requestAnimationFrame(draw);
+    })();
+
+    // Dispatch simulator
+    (function(){
+      const input=document.getElementById('dispatch-in');
+      const output=document.getElementById('dispatch-out');
+      if(!input||!output)return;
+
+      const routes=[
+        {kw:['fix','bug','error','broken','crash','fail','issue'],agents:[
+          {name:'Backend Dev',color:'#60a5fa',task:'Analyze error, trace root cause, implement fix'},
+          {name:'QA',color:'#34d399',task:'Write regression test, verify fix'},
+        ]},
+        {kw:['security','vuln','cve','scan','audit','secret','leak'],agents:[
+          {name:'Security',color:'#f87171',task:'Run vulnerability scan, check dependencies'},
+        ]},
+        {kw:['deploy','ship','release','push','ci','cd'],agents:[
+          {name:'Infra',color:'#fb923c',task:'Build, deploy, run health checks'},
+          {name:'QA',color:'#34d399',task:'Run smoke tests post-deploy'},
+        ]},
+        {kw:['ui','frontend','css','style','component','page','dark mode','button'],agents:[
+          {name:'Frontend Dev',color:'#a78bfa',task:'Build/update UI component'},
+          {name:'QA',color:'#34d399',task:'Visual regression test'},
+        ]},
+        {kw:['api','route','endpoint','database','query','migration','schema'],agents:[
+          {name:'Backend Dev',color:'#60a5fa',task:'Implement API route, write migration'},
+        ]},
+        {kw:['doc','readme','changelog','write','blog'],agents:[
+          {name:'Writer',color:'#e879f9',task:'Draft documentation, update changelog'},
+        ]},
+        {kw:['monitor','health','alert','down','slow','performance','memory','cpu'],agents:[
+          {name:'Watchdog',color:'#2dd4bf',task:'Run health checks, diagnose issue'},
+          {name:'Infra',color:'#fb923c',task:'Apply fix, tune configuration'},
+        ]},
+        {kw:['test','qa','coverage','validate','check'],agents:[
+          {name:'QA',color:'#34d399',task:'Write tests, run test suite, report coverage'},
+        ]},
+        {kw:['add','build','create','implement','feature','new'],agents:[
+          {name:'Backend Dev',color:'#60a5fa',task:'Implement feature backend'},
+          {name:'Frontend Dev',color:'#a78bfa',task:'Build UI for feature'},
+          {name:'QA',color:'#34d399',task:'Write tests for new feature'},
+          {name:'Writer',color:'#e879f9',task:'Update docs'},
+        ]},
+      ];
+
+      const defaultRoute=[
+        {name:'Backend Dev',color:'#60a5fa',task:'Analyze request, plan implementation'},
+        {name:'QA',color:'#34d399',task:'Validate changes'},
+      ];
+
+      let debounce=null;
+      input.addEventListener('input',function(){
+        clearTimeout(debounce);
+        debounce=setTimeout(()=>{
+          const val=input.value.toLowerCase().trim();
+          if(!val){output.className='dispatch-result';output.innerHTML='';return;}
+
+          let matched=null;
+          for(const r of routes){
+            if(r.kw.some(k=>val.includes(k))){matched=r.agents;break;}
+          }
+          if(!matched)matched=defaultRoute;
+
+          let html='';
+          matched.forEach((a,i)=>{
+            html+=`<div class="dispatch-route" style="animation-delay:${i*.1}s">
+              <span class="dispatch-agent-dot" style="background:${a.color};box-shadow:0 0 8px ${a.color}"></span>
+              <div><div class="dispatch-agent-name">${a.name}</div><div class="dispatch-agent-task">${a.task}</div></div>
+              <span class="dispatch-arrow">${i===0?'PRIMARY':'SUPPORT'}</span>
+            </div>`;
+          });
+
+          output.innerHTML=html;
+          output.className='dispatch-result show';
+        },300);
+      });
     })();
 
     // Scroll reveal
