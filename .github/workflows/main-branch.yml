@@ -48,9 +48,6 @@ jobs:
           - app: forge
             dockerfile: ./apps/forge/Dockerfile
             image-name: forge
-          - app: admin-console
-            dockerfile: ./apps/admin-console/Dockerfile
-            image-name: admin-console
           - app: mcp-tools
             dockerfile: ./apps/mcp-tools/Dockerfile
             image-name: mcp-tools
