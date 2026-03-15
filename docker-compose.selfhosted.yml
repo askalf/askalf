@@ -400,10 +400,6 @@ services:
     networks:
       - askalf-net
     restart: unless-stopped
-    tmpfs:
-      - /tmp:mode=1777,size=16m
-    security_opt:
-      - no-new-privileges:true
     logging:
       driver: json-file
       options:
