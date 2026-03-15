@@ -95,6 +95,15 @@ docs/legal/
 docs/public/
 docs/adr/
 
+# Dead code / internal tooling
+apps/admin-console/
+scripts/auto-deploy.ps1
+scripts/fix-wrapper.ps1
+tests/*.cjs
+infrastructure/nginx/static/askalf-hold.html
+infrastructure/nginx/static/robots-app-askalf.txt
+apps/forge/migrations/038_fleet_system_sentinel.sql
+
 # Agent-injected system prompt (written by forge worker into worktrees)
 CLAUDE.md
 
