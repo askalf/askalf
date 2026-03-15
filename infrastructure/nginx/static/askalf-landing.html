@@ -104,31 +104,49 @@
     /* Agent colors in timeline */
     .tl-agent{color:var(--text-dim)}
 
-    /* Terminal callout — real xterm look */
+    /* Terminal callout — faithful CLI reproductions */
     .term-callout{max-width:1060px;margin:0 auto;padding:80px 24px}
     .term-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-    .term-card{border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.06);box-shadow:0 8px 40px rgba(0,0,0,.4)}
-    .term-toolbar{display:flex;align-items:center;gap:10px;padding:7px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.04)}
-    .term-health{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-    .term-health.claude{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)}
-    .term-health.codex{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)}
-    .term-status{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim)}
-    .term-status strong{color:var(--text-mid);font-weight:600}
-    .term-pid{font-family:var(--font-mono);font-size:.6rem;color:rgba(255,255,255,.2);margin-left:auto}
-    .term-xterm{background:#0a0a0f;padding:16px 18px;font-family:var(--font-mono);font-size:13px;line-height:1.5;color:#e4e4e7;min-height:220px;overflow:hidden;position:relative}
-    .term-xterm::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,#0a0a0f);pointer-events:none}
-    .term-cursor{display:inline-block;width:8px;height:15px;vertical-align:text-bottom;animation:blink 1s step-end infinite}
-    .term-cursor.claude{background:#a78bfa}
-    .term-cursor.codex{background:#10b981}
+    .term-card{border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.06);box-shadow:0 8px 40px rgba(0,0,0,.4);display:flex;flex-direction:column}
+
+    /* Claude Code TUI */
+    .cc-tui{background:#0a0a0f;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:#e4e4e7;min-height:340px;display:flex;flex-direction:column;position:relative}
+    .cc-body{flex:1;padding:14px 16px;overflow:hidden}
+    .cc-msg{margin-bottom:12px}
+    .cc-user{color:#e4e4e7;margin-bottom:4px}
+    .cc-user-label{color:#c4b5fd;font-weight:700;font-size:11px}
+    .cc-tool{margin:8px 0;padding:6px 0 6px 14px;border-left:2px solid rgba(167,139,250,.25)}
+    .cc-tool-name{color:#a78bfa;font-size:11px;font-weight:600;margin-bottom:2px}
+    .cc-tool-body{color:rgba(228,228,231,.5);font-size:11px}
+    .cc-diff-add{color:#4ade80}.cc-diff-rm{color:#f87171}
+    .cc-response{color:#e4e4e7;font-size:12px;line-height:1.6}
+    .cc-footer{padding:6px 16px;border-top:1px solid rgba(255,255,255,.04);display:flex;align-items:center;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.2)}
+    .cc-footer-model{color:#a78bfa}
+    .cc-input{padding:8px 16px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:6px}
+    .cc-prompt{color:#c4b5fd;font-weight:700}
+    .cc-cursor{display:inline-block;width:7px;height:13px;background:#a78bfa;animation:blink 1s step-end infinite;vertical-align:text-bottom}
+
+    /* Codex TUI */
+    .cx-tui{background:#0a0a0f;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:#e4e4e7;min-height:340px;display:flex;flex-direction:column;position:relative}
+    .cx-header{padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:8px;font-size:10px;color:rgba(255,255,255,.25)}
+    .cx-header strong{color:#10b981;font-weight:700;font-size:11px}
+    .cx-body{flex:1;padding:14px 16px;overflow:hidden}
+    .cx-msg{margin-bottom:10px}
+    .cx-user-msg{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:8px 12px;color:#e4e4e7;margin-bottom:10px;font-size:12px}
+    .cx-agent{margin-bottom:10px}
+    .cx-agent-label{font-size:10px;color:#10b981;font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+    .cx-thinking{color:rgba(228,228,231,.35);font-style:italic;margin-bottom:6px;font-size:11px}
+    .cx-file-op{display:flex;align-items:center;gap:6px;font-size:11px;margin:3px 0;color:rgba(228,228,231,.6)}
+    .cx-file-op .op{font-weight:700;font-size:10px;padding:1px 5px;border-radius:3px}
+    .cx-file-op .op-create{background:rgba(74,222,128,.1);color:#4ade80}
+    .cx-file-op .op-run{background:rgba(250,204,21,.1);color:#facc15}
+    .cx-check{color:#4ade80}
+    .cx-footer{padding:6px 16px;border-top:1px solid rgba(255,255,255,.04);display:flex;align-items:center;justify-content:space-between;font-size:10px;color:rgba(255,255,255,.2)}
+    .cx-footer-model{color:#10b981}
+    .cx-input{padding:8px 16px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:6px}
+    .cx-prompt-label{color:rgba(255,255,255,.25);font-size:10px}
+    .cx-cursor{display:inline-block;width:7px;height:13px;background:#10b981;animation:blink 1s step-end infinite;vertical-align:text-bottom}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-    .term-xterm .ansi-bold{font-weight:700}
-    .term-xterm .ansi-blue{color:#60a5fa}
-    .term-xterm .ansi-green{color:#4ade80}
-    .term-xterm .ansi-cyan{color:#22d3ee}
-    .term-xterm .ansi-magenta{color:#c4b5fd}
-    .term-xterm .ansi-yellow{color:#facc15}
-    .term-xterm .ansi-red{color:#f87171}
-    .term-xterm .ansi-dim{color:rgba(228,228,231,.4)}
     @media(max-width:700px){.term-grid{grid-template-columns:1fr}}
 
     /* Bold claim */
@@ -545,58 +563,80 @@
     <p class="sd rv">Open a terminal tab. You're in a live Claude or Codex session with full access to your codebase, your agents' context, and your knowledge graph. No copy-pasting. No context switching.</p>
 
     <div class="term-grid rv">
+      <!-- Claude Code — faithful TUI reproduction -->
       <div class="term-card">
-        <div class="term-toolbar">
-          <span class="term-health claude"></span>
-          <span class="term-status"><strong>Claude Code</strong> &middot; running</span>
-          <span class="term-pid">PID 48291</span>
-        </div>
-        <div class="term-xterm">
-<span class="ansi-magenta ansi-bold">❯</span> fix the race condition in the payment handler
-
-<span class="ansi-dim">  ● Reading</span> src/handlers/payment.ts
-<span class="ansi-dim">  ● Reading</span> src/handlers/payment.test.ts
-
-  I found the issue. Lines 411-418 access the order state
-  concurrently without a lock. Two requests can both read
-  `order.status === 'pending'` before either writes.
-
-<span class="ansi-dim">  ● Edit</span> src/handlers/payment.ts
-<span class="ansi-blue">   412</span>  <span class="ansi-red">- const order = await getOrder(id);</span>
-<span class="ansi-blue">   412</span>  <span class="ansi-green">+ const order = await getOrderForUpdate(id);</span>
-<span class="ansi-blue">   413</span>  <span class="ansi-green">+ // SELECT ... FOR UPDATE prevents concurrent reads</span>
-
-<span class="ansi-dim">  ● Bash</span> <span class="ansi-dim">npm test -- payment</span>
-  <span class="ansi-green ansi-bold">42 passed</span> <span class="ansi-dim">| 0 failed | 1.2s</span>
-
-<span class="ansi-magenta ansi-bold">❯</span> <span class="term-cursor claude"></span>
+        <div class="cc-tui">
+          <div class="cc-body">
+            <div class="cc-msg">
+              <div class="cc-user-label">You</div>
+              <div class="cc-user">fix the race condition in the payment handler</div>
+            </div>
+            <div class="cc-msg">
+              <div class="cc-tool">
+                <div class="cc-tool-name">Read src/handlers/payment.ts</div>
+                <div class="cc-tool-body">412 lines | analyzing concurrent access patterns...</div>
+              </div>
+              <div class="cc-tool">
+                <div class="cc-tool-name">Read src/handlers/payment.test.ts</div>
+                <div class="cc-tool-body">86 lines | 42 test cases</div>
+              </div>
+              <div class="cc-response" style="margin:8px 0">I found the issue. Lines 411-418 access the order state concurrently without a lock. Two requests can both read <code style="background:rgba(255,255,255,.06);padding:1px 4px;border-radius:3px;font-size:11px">order.status === 'pending'</code> before either writes.</div>
+              <div class="cc-tool">
+                <div class="cc-tool-name">Edit src/handlers/payment.ts</div>
+                <div class="cc-tool-body">
+                  <div class="cc-diff-rm">- const order = await getOrder(id);</div>
+                  <div class="cc-diff-add">+ const order = await getOrderForUpdate(id);</div>
+                </div>
+              </div>
+              <div class="cc-tool">
+                <div class="cc-tool-name">Bash npm test -- payment</div>
+                <div class="cc-tool-body" style="color:#4ade80">42 passed <span style="color:rgba(228,228,231,.3)">| 0 failed | 1.2s</span></div>
+              </div>
+              <div class="cc-response">Fixed the race condition by using <code style="background:rgba(255,255,255,.06);padding:1px 4px;border-radius:3px;font-size:11px">SELECT ... FOR UPDATE</code> to prevent concurrent reads. All 42 tests passing.</div>
+            </div>
+          </div>
+          <div class="cc-footer">
+            <span class="cc-footer-model">claude-opus-4-6</span>
+            <span>3.2k tokens &middot; $0.04</span>
+          </div>
+          <div class="cc-input">
+            <span class="cc-prompt">❯</span>
+            <span class="cc-cursor"></span>
+          </div>
         </div>
       </div>
+
+      <!-- Codex CLI — faithful Ink TUI reproduction -->
       <div class="term-card">
-        <div class="term-toolbar">
-          <span class="term-health codex"></span>
-          <span class="term-status"><strong>Codex CLI</strong> &middot; running</span>
-          <span class="term-pid">PID 48307</span>
-        </div>
-        <div class="term-xterm">
-<span class="ansi-green ansi-bold">codex&gt;</span> scaffold a REST endpoint for /api/v1/webhooks
-
-<span class="ansi-dim">Thinking...</span>
-
-I'll create the route, handler, validation schema, and tests.
-
-<span class="ansi-cyan">  Created</span>  src/routes/webhooks/index.ts
-<span class="ansi-cyan">  Created</span>  src/routes/webhooks/handler.ts
-<span class="ansi-cyan">  Created</span>  src/routes/webhooks/schema.ts
-<span class="ansi-cyan">  Created</span>  src/routes/webhooks/webhooks.test.ts
-
-<span class="ansi-dim">Running:</span> npm test -- webhooks
-  <span class="ansi-green ansi-bold">8 passed</span> <span class="ansi-dim">| 0 failed | 0.9s</span>
-
-Route registered at <span class="ansi-cyan">/api/v1/webhooks</span>
-Methods: <span class="ansi-bold">GET</span>, <span class="ansi-bold">POST</span>, <span class="ansi-bold">DELETE</span>
-
-<span class="ansi-green ansi-bold">codex&gt;</span> <span class="term-cursor codex"></span>
+        <div class="cx-tui">
+          <div class="cx-header">
+            <strong>codex</strong>
+            <span>full-auto</span>
+            <span style="margin-left:auto">/workspace</span>
+          </div>
+          <div class="cx-body">
+            <div class="cx-user-msg">scaffold a REST endpoint for /api/v1/webhooks</div>
+            <div class="cx-agent">
+              <div class="cx-agent-label">Codex</div>
+              <div class="cx-thinking">Planning file structure...</div>
+              <div style="color:#e4e4e7;font-size:12px;margin-bottom:8px">I'll create the route, handler, validation schema, and tests.</div>
+              <div class="cx-file-op"><span class="op op-create">CREATE</span> src/routes/webhooks/index.ts</div>
+              <div class="cx-file-op"><span class="op op-create">CREATE</span> src/routes/webhooks/handler.ts</div>
+              <div class="cx-file-op"><span class="op op-create">CREATE</span> src/routes/webhooks/schema.ts</div>
+              <div class="cx-file-op"><span class="op op-create">CREATE</span> src/routes/webhooks/webhooks.test.ts</div>
+              <div class="cx-file-op" style="margin-top:6px"><span class="op op-run">RUN</span> npm test -- webhooks</div>
+              <div style="margin-top:4px;font-size:11px"><span class="cx-check">&#x2713;</span> <span style="color:#4ade80">8 passed</span> <span style="color:rgba(228,228,231,.3)">| 0 failed | 0.9s</span></div>
+              <div style="color:#e4e4e7;font-size:12px;margin-top:8px">Route registered. Methods: GET, POST, DELETE. All tests passing.</div>
+            </div>
+          </div>
+          <div class="cx-footer">
+            <span class="cx-footer-model">codex-mini-latest</span>
+            <span>1.8k tokens</span>
+          </div>
+          <div class="cx-input">
+            <span class="cx-prompt-label">message codex</span>
+            <span class="cx-cursor"></span>
+          </div>
         </div>
       </div>
     </div>
