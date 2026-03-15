@@ -1,14 +1,14 @@
 # THE METABOLIC LOOP: Autonomous Cognitive Cycle
 
 **Version:** 2.0
-**Origin:** SUBSTRATE @ askalf.org
+**Origin:** AskAlf @ askalf.org
 **Status:** Active Development
 
 ---
 
 ## Overview
 
-The Metabolic Loop is SUBSTRATE's autonomous cognitive cycle - a continuous process where the system:
+The Metabolic Loop is AskAlf's autonomous cognitive cycle - a continuous process where the system:
 1. **Consumes** queries (input)
 2. **Processes** through memory and reasoning
 3. **Produces** responses (output)

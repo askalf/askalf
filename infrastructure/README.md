@@ -1,210 +1,80 @@
-# SUBSTRATE Infrastructure
+# Infrastructure
 
-Production infrastructure for deploying SUBSTRATE via Docker.
-
-## Architecture
-
-```
-Internet
-    │
-    ▼
-Cloudflare Tunnel (cloudflared)
-    │
-    ▼
-nginx (reverse proxy, rate limiting)
-    │
-    ├── amnesia.tax    → dashboard (port 3001)
-    └── /api/*         → forge (port 3005)
-                              │
-                              ▼
-                         PostgreSQL + Redis
-```
+Docker infrastructure for AskAlf — self-hosted AI agent fleet platform.
 
 ## Containers
 
 | Container | Description | Port |
 |-----------|-------------|------|
-| postgres | PostgreSQL 17 + pgvector | 5432 |
-| redis | Redis cache/queue | 6379 |
-| dashboard | Unified frontend + API | 3001 |
-| forge | Agent orchestration engine | 3005 |
-| mcp-tools | MCP tool server (24 tools) | 3010 |
-| nginx | Reverse proxy | 80 |
-| cloudflared | Cloudflare tunnel | - |
-| searxng | Self-hosted web search | 8080 |
-| docker-proxy | Docker socket proxy | 2375 |
-| autoheal | Container recovery | - |
+| askalf-postgres | PostgreSQL 17 + pgvector | 5432 |
+| askalf-redis | Redis 8 | 6379 |
+| askalf-dashboard | React dashboard + Claude/Codex terminals | 3001 |
+| askalf-forge | Agent runtime, API, scheduler, orchestration | 3005 |
+| askalf-mcp-tools | MCP tool server for agents | 3010 |
+| askalf-searxng | Privacy-respecting web search | 8080 |
+| askalf-autoheal | Container auto-recovery | - |
 
-## Setup Instructions
-
-### 1. Configure Environment
-
-Copy and edit the production environment file:
+## Quick Start
 
 ```bash
-cp .env.production.example .env.production
-# Edit .env.production with your credentials
+git clone https://github.com/SprayberryLabs/askalf.git
+cd askalf && ./setup.sh
+docker compose -f docker-compose.selfhosted.yml up -d
 ```
 
-Required variables:
-- `POSTGRES_PASSWORD` - Database password
-- `REDIS_PASSWORD` - Redis password
-- `SESSION_SECRET` - 32+ character session secret
-- `JWT_SECRET` - 32+ character JWT secret
-- `OPENAI_API_KEY` - OpenAI API key (for embeddings)
-- `ANTHROPIC_API_KEY` - Anthropic API key (for Claude)
-- `STRIPE_SECRET_KEY` - Stripe secret key
-- `STRIPE_WEBHOOK_SECRET` - Stripe webhook secret
+Open `http://localhost:3001` and complete the onboarding wizard.
 
-### 2. Configure Cloudflare Tunnel
+## Configuration
 
-1. Install cloudflared locally:
-   ```bash
-   # macOS
-   brew install cloudflared
-
-   # Windows
-   winget install Cloudflare.cloudflared
-   ```
-
-2. Login to Cloudflare:
-   ```bash
-   cloudflared tunnel login
-   ```
-
-3. Create a tunnel:
-   ```bash
-   cloudflared tunnel create substrate
-   ```
-
-4. Copy the credentials file:
-   ```bash
-   cp ~/.cloudflared/<TUNNEL_ID>.json infrastructure/cloudflared/credentials.json
-   ```
-
-5. Update `infrastructure/cloudflared/config.yml`:
-   - Replace `YOUR_TUNNEL_ID_HERE` with your tunnel ID
-
-6. Add DNS routes:
-   ```bash
-   cloudflared tunnel route dns substrate askalf.org
-   cloudflared tunnel route dns substrate api.askalf.org
-   cloudflared tunnel route dns substrate app.askalf.org
-   ```
-
-### 3. Deploy
+Copy and edit the environment file:
 
 ```bash
-# Build and start all containers
-docker-compose -f docker-compose.prod.yml --env-file .env.production up -d --build
-
-# View logs
-docker-compose -f docker-compose.prod.yml logs -f
-
-# Check status
-docker-compose -f docker-compose.prod.yml ps
+cp .env.example .env
 ```
 
-### 4. Verify Deployment
+Required:
+- `POSTGRES_PASSWORD` — Database password
+- `REDIS_PASSWORD` — Redis password
+- `JWT_SECRET` — 32+ character JWT secret
+- `SESSION_SECRET` — 32+ character session secret
 
-```bash
-# Check health endpoints
-curl https://askalf.org/health
-curl https://api.askalf.org/health
-curl https://app.askalf.org/health
+Optional:
+- `ANTHROPIC_API_KEY` — For enhanced intent parser
+- `OPENAI_API_KEY` — For embeddings and agent execution
+- `GOOGLE_AI_KEY` — For Google AI models
 
-# Check API metrics
-curl https://api.askalf.org/metrics
+## Directory Structure
+
 ```
-
-## Development
-
-For local development without cloudflared:
-
-```bash
-# Start dev stack
-docker-compose up -d
-
-# Access services directly:
-# - API: http://localhost:3000
-# - Website: http://localhost:8080
-# - Dashboard: http://localhost:3001
+infrastructure/
+├── nginx/
+│   ├── conf.d/          # nginx site configs
+│   └── static/          # Landing page, docs, privacy, terms
+├── postgres/
+│   └── postgresql.conf  # Tuned PostgreSQL config
+├── redis/
+│   └── redis-selfhosted.conf
+├── searxng/
+│   └── settings.yml     # Search engine config
+└── README.md
 ```
 
 ## Maintenance
 
-### Backups
-
-Automated daily backups are stored in `./backups/`:
-- Daily: kept for 7 days
-- Weekly: kept for 4 weeks
-- Monthly: kept for 6 months
-
-Manual backup:
 ```bash
-docker exec substrate-prod-postgres pg_dump -U substrate substrate > backup-$(date +%Y%m%d).sql
-```
-
-### Logs
-
-```bash
-# All services
-docker-compose -f docker-compose.prod.yml logs -f
+# View logs
+docker compose -f docker-compose.selfhosted.yml logs -f
 
 # Specific service
-docker-compose -f docker-compose.prod.yml logs -f api
+docker compose -f docker-compose.selfhosted.yml logs -f forge
 
-# API structured logs
-docker logs substrate-prod-api 2>&1 | jq
+# Database backup
+docker exec askalf-postgres pg_dump -U substrate askalf > backup-$(date +%Y%m%d).sql
+
+# Restart a service
+docker compose -f docker-compose.selfhosted.yml restart forge
 ```
 
-### Scaling
+## Support
 
-To run multiple API instances behind nginx:
-
-1. Update `docker-compose.prod.yml`:
-   ```yaml
-   api:
-     deploy:
-       replicas: 3
-   ```
-
-2. Update nginx upstream in `nginx.conf`:
-   ```nginx
-   upstream api_servers {
-       server api:3000;
-       # Docker Swarm or Kubernetes handles routing to replicas
-   }
-   ```
-
-## Troubleshooting
-
-### Container won't start
-
-```bash
-# Check logs
-docker logs substrate-prod-<container>
-
-# Check health
-docker inspect --format='{{.State.Health.Status}}' substrate-prod-<container>
-```
-
-### Database connection issues
-
-```bash
-# Test database connection
-docker exec -it askalf-postgres psql -U substrate -d askalf -c "SELECT 1"
-```
-
-### Cloudflared tunnel not working
-
-```bash
-# Check tunnel status
-docker logs substrate-prod-cloudflared
-
-# Verify credentials
-cat infrastructure/cloudflared/credentials.json
-
-# Test tunnel locally
-cloudflared tunnel run substrate
-```
+[askalf.org](https://askalf.org) — [Docs](https://askalf.org/docs) — [support@askalf.org](mailto:support@askalf.org)

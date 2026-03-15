@@ -86,11 +86,15 @@ DOCKERFILE_SECURITY_AUDIT.md
 FORGE_API_DOCUMENTATION.md
 FORGE_API_ENDPOINTS.md
 
-# Internal docs (not for public repo)
+# Internal/stale docs (not for public repo)
 docs/SIGIL.md
 docs/SIGIL-EXPLAINED.txt
 docs/SECURITY_AUDIT.md
 docs/METACOGNITION.md
+docs/API.md
+docs/ARCHITECTURE.md
+docs/AGENT_ARCHITECTURE.md
+docs/PUBLIC_KNOWLEDGE_API.md
 docs/legal/
 docs/public/
 docs/adr/
