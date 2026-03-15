@@ -6,7 +6,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Static } from '@sinclair/typebox';
 import { ulid } from 'ulid';
-import { query, queryOne } from '../database.js';
+import { query, queryOne, transaction } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { logAudit } from '../observability/audit.js';
 import { checkGuardrails, checkUserBudget } from '../observability/guardrails.js';
@@ -613,8 +613,14 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const body = request.body as Static<typeof BatchExecutionBody>;
 
       try {
-        // Dispatch each agent as an individual CLI execution
-        const executionIds: string[] = [];
+        // Validate agents and collect execution data before inserting
+        type PendingExecution = {
+          execId: string;
+          agentId: string;
+          input: string;
+          agent: AgentCheckRow;
+        };
+        const pending: PendingExecution[] = [];
         for (const a of body.agents) {
           const execId = ulid();
           const agent = await queryOne<AgentCheckRow>(
@@ -636,13 +642,24 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
             continue;
           }
 
-          await queryOne<ExecutionRow>(
-            `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
-             VALUES ($1, $2, $3, $4, 'pending', '{}', NOW()) RETURNING *`,
-            [execId, a.agentId, userId, a.input],
-          );
+          pending.push({ execId, agentId: a.agentId, input: a.input, agent });
+        }
 
-          void runDirectCliExecution(execId, a.agentId, a.input, userId, {
+        // Insert all rows atomically — partial failure rolls back all, preventing orphaned pending rows
+        await transaction(async (client) => {
+          for (const { execId, agentId, input } of pending) {
+            await client.query(
+              `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
+               VALUES ($1, $2, $3, $4, 'pending', '{}', NOW())`,
+              [execId, agentId, userId, input],
+            );
+          }
+        });
+
+        // Fire CLI launches after successful commit — fire-and-forget
+        const executionIds: string[] = [];
+        for (const { execId, agentId, input, agent } of pending) {
+          void runDirectCliExecution(execId, agentId, input, userId, {
             modelId: agent.model_id ?? undefined,
             systemPrompt: agent.system_prompt ?? undefined,
             maxBudgetUsd: agent.max_cost_per_execution,
