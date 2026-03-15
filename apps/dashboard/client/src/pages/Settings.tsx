@@ -5,9 +5,9 @@ import { useThemeStore } from '../stores/theme';
 import { relativeTime } from '../utils/format';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'security' | 'ai-keys' | 'costs' | 'integrations' | 'channels' | 'devices';
+type SettingsTab = 'profile' | 'appearance' | 'providers' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'security', 'ai-keys', 'costs', 'integrations', 'channels', 'devices'];
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'providers', 'api-keys', 'costs', 'integrations', 'channels', 'devices'];
 
 export default function SettingsPage({ embedded }: { embedded?: boolean }) {
   const [searchParams] = useSearchParams();
@@ -58,13 +58,23 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
             Appearance
           </button>
           <button
-            className={`settings-nav-item ${activeTab === 'ai-keys' ? 'active' : ''}`}
-            onClick={() => setActiveTab('ai-keys')}
+            className={`settings-nav-item ${activeTab === 'providers' ? 'active' : ''}`}
+            onClick={() => setActiveTab('providers')}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
             </svg>
-            AI Keys
+            Providers
+          </button>
+          <button
+            className={`settings-nav-item ${activeTab === 'api-keys' ? 'active' : ''}`}
+            onClick={() => setActiveTab('api-keys')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            API Keys
           </button>
           <button
             className={`settings-nav-item ${activeTab === 'costs' ? 'active' : ''}`}
@@ -109,7 +119,8 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
         <div className="settings-content">
           {activeTab === 'profile' && <ProfileTab user={user} />}
           {activeTab === 'appearance' && <AppearanceTab />}
-          {activeTab === 'ai-keys' && <AIKeysTab />}
+          {activeTab === 'providers' && <AIKeysTab />}
+          {activeTab === 'api-keys' && <ForgeApiKeysTab />}
           {activeTab === 'costs' && <CostControlsTab />}
           {activeTab === 'integrations' && <IntegrationsTab />}
           {activeTab === 'channels' && <ChannelsTab />}
@@ -2136,6 +2147,204 @@ function DevicesTab() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Forge API Keys Tab ──
+
+interface ForgeApiKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  permissions: string[];
+  rate_limit: number;
+  last_used_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+function ForgeApiKeysTab() {
+  const [keys, setKeys] = useState<ForgeApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyResult, setNewKeyResult] = useState<{ key: string; name: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { fetchKeys(); }, []);
+
+  const fetchKeys = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/api-keys`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { api_keys: ForgeApiKey[] };
+        setKeys(data.api_keys);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  const handleCreate = async () => {
+    if (!newKeyName.trim()) return;
+    setSaving(true);
+    setMessage(null);
+    setNewKeyResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/api-keys`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newKeyName.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create key');
+      }
+      const data = await res.json() as { key: string; name: string };
+      setNewKeyResult({ key: data.key, name: data.name });
+      setNewKeyName('');
+      setCreating(false);
+      fetchKeys();
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to create key' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRevoke = async (id: string, name: string) => {
+    setMessage(null);
+    setNewKeyResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/api-keys/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to revoke key');
+      setMessage({ type: 'success', text: `"${name}" revoked` });
+      fetchKeys();
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to revoke key' });
+    }
+  };
+
+  const handleRotate = async (id: string, name: string) => {
+    setMessage(null);
+    setNewKeyResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/api-keys/${id}/rotate`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Failed to rotate key');
+      const data = await res.json() as { new_key: string };
+      setNewKeyResult({ key: data.new_key, name });
+      setMessage({ type: 'success', text: `"${name}" rotated. Old key valid for 24 hours.` });
+      fetchKeys();
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to rotate key' });
+    }
+  };
+
+  const copyKey = (key: string) => {
+    navigator.clipboard.writeText(key);
+    setMessage({ type: 'success', text: 'Copied to clipboard' });
+  };
+
+  if (loading) {
+    return (
+      <div className="settings-section">
+        <h2>API Keys</h2>
+        <p className="settings-section-desc">Loading...</p>
+      </div>
+    );
+  }
+
+  const activeKeys = keys.filter(k => k.is_active);
+
+  return (
+    <div className="settings-section">
+      <h2>API Keys</h2>
+      <p className="settings-section-desc">
+        Generate keys to connect devices, external tools, and custom integrations to your AskAlf fleet.
+        Use with <code style={{ fontSize: '.85em', background: 'rgba(124,58,237,.1)', padding: '1px 6px', borderRadius: '4px' }}>askalf-agent connect &lt;key&gt;</code> or the REST API.
+      </p>
+
+      {newKeyResult && (
+        <div className="settings-message settings-message-success" style={{ wordBreak: 'break-all' }}>
+          <div>
+            <strong>New key for "{newKeyResult.name}"</strong> — copy it now, it won't be shown again.
+            <div style={{ marginTop: '8px', fontFamily: 'var(--font-mono)', fontSize: '.85em', background: 'rgba(0,0,0,.2)', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => copyKey(newKeyResult.key)}>
+              {newKeyResult.key}
+              <span style={{ marginLeft: '8px', opacity: .5, fontSize: '.8em' }}>click to copy</span>
+            </div>
+          </div>
+          <button className="settings-message-dismiss" onClick={() => setNewKeyResult(null)}>&times;</button>
+        </div>
+      )}
+
+      {message && !newKeyResult && (
+        <div className={`settings-message settings-message-${message.type}`}>
+          {message.text}
+          <button className="settings-message-dismiss" onClick={() => setMessage(null)}>&times;</button>
+        </div>
+      )}
+
+      {creating ? (
+        <div className="settings-form" style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input
+              type="text"
+              value={newKeyName}
+              onChange={(e) => setNewKeyName(e.target.value)}
+              placeholder="Key name (e.g. my-laptop, ci-runner)"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              style={{ flex: 1 }}
+            />
+            <button className="settings-save-btn" onClick={handleCreate} disabled={saving || !newKeyName.trim()}>
+              {saving ? 'Creating...' : 'Create'}
+            </button>
+            <button className="settings-btn-sm" onClick={() => { setCreating(false); setNewKeyName(''); }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button className="settings-save-btn" onClick={() => setCreating(true)} style={{ marginBottom: '16px' }}>
+          + Generate New Key
+        </button>
+      )}
+
+      {activeKeys.length === 0 ? (
+        <p style={{ color: 'var(--text-tertiary)', fontSize: '.9rem' }}>No API keys yet. Generate one to connect devices to your fleet.</p>
+      ) : (
+        <div className="settings-form">
+          {activeKeys.map((k) => (
+            <div key={k.id} className="settings-provider-card">
+              <div className="settings-provider-header">
+                <div className="settings-provider-info">
+                  <span className="settings-provider-name">{k.name}</span>
+                  <span className="settings-provider-desc" style={{ fontFamily: 'var(--font-mono)', fontSize: '.8em' }}>{k.key_prefix}...</span>
+                </div>
+                <div className="settings-provider-status">
+                  {k.last_used_at && (
+                    <span style={{ fontSize: '.75rem', color: 'var(--text-tertiary)' }}>
+                      Last used {relativeTime(k.last_used_at)}
+                    </span>
+                  )}
+                  <span className="settings-provider-badge settings-provider-active">Active</span>
+                </div>
+              </div>
+              <div className="settings-provider-actions">
+                <button className="settings-btn-sm" onClick={() => handleRotate(k.id, k.name)}>Rotate</button>
+                <button className="settings-btn-sm" style={{ color: '#f87171' }} onClick={() => handleRevoke(k.id, k.name)}>Revoke</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
