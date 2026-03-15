@@ -145,7 +145,7 @@ services:
     volumes:
       - .:/workspace
       - claude_credentials:/tmp/claude-credentials
-      - ${CLAUDE_CREDENTIALS_FILE:-${USERPROFILE}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:rw
+      - ${CLAUDE_CREDENTIALS_FILE:-${HOME}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:rw
       - /var/run/docker.sock:/var/run/docker.sock:ro
     group_add:
       - "0"
@@ -210,7 +210,7 @@ services:
     volumes:
       - .:/workspace:rw
       - claude_credentials:/tmp/claude-credentials
-      - ${CLAUDE_CREDENTIALS_FILE:-${USERPROFILE}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
+      - ${CLAUDE_CREDENTIALS_FILE:-${HOME}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
       - dashboard_claude_home:/home/substrate/.claude-session
       - dashboard_codex_home:/home/substrate/.codex-session
     depends_on:
@@ -382,8 +382,6 @@ services:
 
 volumes:
   askalf_postgres:
-    name: substrate_prod_postgres
-    external: true
   askalf_redis:
   searxng_cache:
   claude_credentials:
