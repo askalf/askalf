@@ -191,9 +191,13 @@
     .dispatch-input:focus{border-color:rgba(124,58,237,.4);box-shadow:0 0 20px rgba(124,58,237,.1)}
     .dispatch-input::placeholder{color:var(--text-dim)}
     .dispatch-result{margin-top:20px;text-align:left;display:none}
-    .dispatch-result.show{display:block;animation:mu .5s cubic-bezier(.16,1,.3,1)}
-    .dispatch-route{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px}
-    .dispatch-arrow{color:var(--crystal-light);font-family:var(--font-mono);font-size:.8rem;flex-shrink:0}
+    .dispatch-result.show{display:block}
+    .dispatch-routing{font-family:var(--font-mono);font-size:.65rem;color:var(--crystal-light);margin-bottom:10px;letter-spacing:.08em;opacity:0;animation:mu .3s cubic-bezier(.16,1,.3,1) forwards}
+    .dispatch-route{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;opacity:0;transform:translateX(-20px);animation:dispatchIn .4s cubic-bezier(.16,1,.3,1) forwards}
+    @keyframes dispatchIn{0%{opacity:0;transform:translateX(-20px)}100%{opacity:1;transform:translateX(0)}}
+    .dispatch-arrow{color:var(--crystal-light);font-family:var(--font-mono);font-size:.7rem;flex-shrink:0;margin-left:auto;padding:2px 8px;border-radius:4px}
+    .dispatch-arrow.primary{background:rgba(124,58,237,.1);color:var(--crystal-light)}
+    .dispatch-arrow.support{background:rgba(255,255,255,.03);color:var(--text-dim)}
     .dispatch-agent-name{font-weight:700;font-size:.95rem}
     .dispatch-agent-task{font-size:.8rem;color:var(--text-dim);margin-top:2px}
     .dispatch-agent-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -483,7 +487,7 @@
     <p class="sd rv" style="text-align:center;margin-left:auto;margin-right:auto">The intent parser analyzes your request and routes it to the right agent(s). Type anything.</p>
 
     <div class="dispatch-box rv">
-      <input type="text" class="dispatch-input" id="dispatch-in" placeholder="Type a task..." autocomplete="off">
+      <input type="text" class="dispatch-input" id="dispatch-in" placeholder="Type a task and press Enter..." autocomplete="off">
       <div class="dispatch-auto" id="dispatch-auto"><span class="dispatch-cursor"></span></div>
       <div class="dispatch-result" id="dispatch-out"></div>
     </div>
@@ -1144,27 +1148,27 @@ Methods: <span class="ansi-bold">GET</span>, <span class="ansi-bold">POST</span>
       URL.revokeObjectURL(url);
     }
 
-    // Auto-typing demo for dispatch simulator
+    // Auto-typing placeholder (visual only — does NOT trigger dispatch)
     (function(){
       const input=document.getElementById('dispatch-in');
       const auto=document.getElementById('dispatch-auto');
       if(!input||!auto)return;
-      const examples=['fix the broken login page','scan all dependencies for CVEs','deploy the latest build to production','add rate limiting to the API','write tests for the checkout flow','monitor Redis memory usage'];
+      const examples=['fix the broken login page','scan all dependencies for CVEs','deploy the latest build to production','add rate limiting to the API','write tests for the checkout flow','monitor Redis memory and fix if critical'];
       let ei=0,ci=0,typing=true,timeout=null;
       function tick(){
-        if(input===document.activeElement){auto.style.display='none';return;}
+        if(input===document.activeElement||input.value){auto.style.display='none';return;}
         auto.style.display='block';
         const ex=examples[ei];
         if(typing){
           ci++;
           auto.innerHTML=ex.substring(0,ci)+'<span class="dispatch-cursor"></span>';
-          if(ci>=ex.length){typing=false;timeout=setTimeout(tick,2000);return;}
+          if(ci>=ex.length){typing=false;timeout=setTimeout(tick,2500);return;}
           timeout=setTimeout(tick,50+Math.random()*80);
         }else{
           ci--;
           auto.innerHTML=ex.substring(0,ci)+'<span class="dispatch-cursor"></span>';
-          if(ci<=0){typing=true;ei=(ei+1)%examples.length;timeout=setTimeout(tick,500);return;}
-          timeout=setTimeout(tick,30);
+          if(ci<=0){typing=true;ei=(ei+1)%examples.length;timeout=setTimeout(tick,600);return;}
+          timeout=setTimeout(tick,25);
         }
       }
       setTimeout(tick,2000);
@@ -1172,7 +1176,7 @@ Methods: <span class="ansi-bold">GET</span>, <span class="ansi-bold">POST</span>
       input.addEventListener('blur',()=>{if(!input.value){ci=0;typing=true;setTimeout(tick,1000);}});
     })();
 
-    // Dispatch simulator
+    // Dispatch simulator — fires on Enter only
     (function(){
       const input=document.getElementById('dispatch-in');
       const output=document.getElementById('dispatch-out');
@@ -1180,104 +1184,117 @@ Methods: <span class="ansi-bold">GET</span>, <span class="ansi-bold">POST</span>
 
       const routes=[
         {kw:['security','vuln','cve','scan','audit','secret','leak','password','credential','exposure'],agents:[
-          {name:'Security',color:'#f87171',task:'Scan dependencies, check for exposed secrets, audit permissions'},
+          {name:'Security',color:'#f87171',task:'Run full dependency + secret scan across 847 packages'},
+          {name:'Backend Dev',color:'#60a5fa',task:'Patch any CVEs found — upgrade libraries, verify fix'},
         ]},
         {kw:['monitor','health','alert','down','slow','performance','memory','cpu','redis','postgres','latency'],agents:[
-          {name:'Watchdog',color:'#2dd4bf',task:'Run diagnostics, check container health, measure latency'},
-          {name:'Infra',color:'#fb923c',task:'Apply fix if issue found'},
+          {name:'Watchdog',color:'#2dd4bf',task:'Run diagnostics — container health, latency, memory'},
+          {name:'Infra',color:'#fb923c',task:'Apply fix if threshold breached — consult Brain for past solutions'},
         ]},
         {kw:['deploy','ship','release','push','ci','cd','production','staging'],agents:[
-          {name:'Infra',color:'#fb923c',task:'Build containers, run deploy pipeline, verify health'},
+          {name:'QA',color:'#34d399',task:'Run full regression suite before deploy'},
+          {name:'Infra',color:'#fb923c',task:'Build containers, push to registry, rolling deploy'},
+          {name:'Watchdog',color:'#2dd4bf',task:'Monitor health post-deploy — rollback if degraded'},
         ]},
         {kw:['doc','readme','changelog','write','blog','runbook','guide'],agents:[
-          {name:'Writer',color:'#e879f9',task:'Draft documentation, update changelog, write runbook'},
+          {name:'Writer',color:'#e879f9',task:'Draft documentation from codebase analysis'},
         ]},
         {kw:['ui','frontend','css','style','component','page','dark mode','button','modal','layout','responsive'],agents:[
-          {name:'Frontend Dev',color:'#a78bfa',task:'Build React component, update styling'},
+          {name:'Frontend Dev',color:'#a78bfa',task:'Build React component, wire up state and styling'},
+          {name:'QA',color:'#34d399',task:'Write visual regression tests'},
         ]},
         {kw:['test','coverage','validate','spec','unit','integration','regression'],agents:[
           {name:'QA',color:'#34d399',task:'Write test suite, validate edge cases, measure coverage'},
+          {name:'Backend Dev',color:'#60a5fa',task:'Fix any failures found during test run'},
         ]},
         {kw:['docker','container','kubernetes','k8s','infra','nginx','ssl','dns','tunnel'],agents:[
           {name:'Infra',color:'#fb923c',task:'Configure infrastructure, manage containers'},
         ]},
         {kw:['api','route','endpoint','database','query','migration','schema','model'],agents:[
-          {name:'Backend Dev',color:'#60a5fa',task:'Implement API endpoint, write database migration'},
+          {name:'Backend Dev',color:'#60a5fa',task:'Implement endpoint, write migration, add validation'},
+          {name:'QA',color:'#34d399',task:'Generate test suite for new endpoint'},
+          {name:'Writer',color:'#e879f9',task:'Update API documentation'},
         ]},
-        {kw:['fix','bug','error','broken','crash','fail','issue','regression'],agents:[
-          {name:'Backend Dev',color:'#60a5fa',task:'Trace root cause, implement fix'},
-          {name:'QA',color:'#34d399',task:'Write regression test, verify fix'},
+        {kw:['fix','bug','error','broken','crash','fail','issue','regression','race'],agents:[
+          {name:'Backend Dev',color:'#60a5fa',task:'Trace root cause from logs and code — write fix'},
+          {name:'QA',color:'#34d399',task:'Write regression test to prevent recurrence'},
+          {name:'Frontend Dev',color:'#a78bfa',task:'Verify no UI contract break from fix'},
         ]},
         {kw:['add','build','create','implement','feature','new'],agents:[
-          {name:'Backend Dev',color:'#60a5fa',task:'Implement backend logic'},
-          {name:'Frontend Dev',color:'#a78bfa',task:'Build user interface'},
-          {name:'QA',color:'#34d399',task:'Write tests'},
-          {name:'Writer',color:'#e879f9',task:'Update documentation'},
+          {name:'Backend Dev',color:'#60a5fa',task:'Implement backend logic and data layer'},
+          {name:'Frontend Dev',color:'#a78bfa',task:'Build user interface components'},
+          {name:'QA',color:'#34d399',task:'Write tests for new feature'},
+          {name:'Writer',color:'#e879f9',task:'Update docs and changelog'},
         ]},
       ];
 
-      const defaults=[
-        [{name:'Watchdog',color:'#2dd4bf',task:'Assess system state, gather context'}],
-        [{name:'Security',color:'#f87171',task:'Evaluate request, check for risks'}],
-        [{name:'Writer',color:'#e879f9',task:'Analyze request, draft response'}],
-        [{name:'Infra',color:'#fb923c',task:'Evaluate infrastructure impact'}],
-        [{name:'Frontend Dev',color:'#a78bfa',task:'Analyze UI requirements'}],
-      ];
-      let defaultIdx=0;
+      let dispatching=false;
 
       function renderAgents(agents,enhanced){
-        let html='';
-        if(enhanced){html+='<div style="font-family:var(--font-mono);font-size:.65rem;color:var(--crystal-light);margin-bottom:8px;letter-spacing:.08em">ENHANCED NL PARSER</div>';}
+        dispatching=true;
+        let html='<div class="dispatch-routing">'+(enhanced?'ENHANCED NL PARSER — ':'')+'ROUTING TO '+agents.length+' AGENT'+(agents.length>1?'S':'')+'</div>';
         agents.forEach((a,i)=>{
           const isCustom=a.custom;
           const color=isCustom?'#f59e0b':a.color||'#94a3b8';
           const badge=isCustom?'<span style="font-size:.6rem;padding:1px 6px;border-radius:4px;background:rgba(245,158,11,.15);color:#f59e0b;font-family:var(--font-mono);font-weight:700;letter-spacing:.06em;margin-left:6px">CUSTOM</span>':'';
-          html+=`<div class="dispatch-route" style="animation-delay:${i*.1}s">
+          const delay=.15+i*.12;
+          const role=a.primary||i===0?'PRIMARY':'SUPPORT';
+          const roleClass=a.primary||i===0?'primary':'support';
+          html+=`<div class="dispatch-route" style="animation-delay:${delay}s">
             <span class="dispatch-agent-dot" style="background:${color};box-shadow:0 0 8px ${color}"></span>
             <div><div class="dispatch-agent-name">${a.name}${badge}</div><div class="dispatch-agent-task">${a.role||a.task}</div></div>
-            <span class="dispatch-arrow">${a.primary||i===0?'PRIMARY':'SUPPORT'}</span>
+            <span class="dispatch-arrow ${roleClass}">${role}</span>
           </div>`;
         });
         output.innerHTML=html;
         output.className='dispatch-result show';
+        setTimeout(()=>{dispatching=false;},800);
       }
 
-      let debounce=null;
-      input.addEventListener('input',function(){
-        clearTimeout(debounce);
-        debounce=setTimeout(async()=>{
-          const val=input.value.trim();
-          if(!val){output.className='dispatch-result';output.innerHTML='';return;}
+      async function dispatch(){
+        if(dispatching)return;
+        const val=input.value.trim();
+        if(!val){output.className='dispatch-result';output.innerHTML='';return;}
 
-          // Try the live enhanced parser first
-          try{
-            const ctrl=new AbortController();
-            const tm=setTimeout(()=>ctrl.abort(),6000);
-            const res=await fetch('https://askalf.org/api/v1/public/intent',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({message:val}),
-              signal:ctrl.signal,
-            });
-            clearTimeout(tm);
-            if(res.ok){
-              const data=await res.json();
-              if(data.agents&&data.agents.length>0){
-                renderAgents(data.agents,data.enhanced);
-                return;
-              }
+        // Show "routing..." state
+        output.innerHTML='<div class="dispatch-routing">PARSING INTENT...</div>';
+        output.className='dispatch-result show';
+
+        // Try the live enhanced parser first
+        try{
+          const ctrl=new AbortController();
+          const tm=setTimeout(()=>ctrl.abort(),6000);
+          const res=await fetch('https://askalf.org/api/v1/public/intent',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({message:val}),
+            signal:ctrl.signal,
+          });
+          clearTimeout(tm);
+          if(res.ok){
+            const data=await res.json();
+            if(data.agents&&data.agents.length>0){
+              renderAgents(data.agents,data.enhanced);
+              return;
             }
-          }catch(e){console.debug('[intent]',e)}
-
-          // Fallback to client-side keyword matching
-          const low=val.toLowerCase();
-          let matched=null;
-          for(const r of routes){
-            if(r.kw.some(k=>low.includes(k))){matched=r.agents;break;}
           }
-          if(!matched){matched=defaults[defaultIdx%defaults.length];defaultIdx++;}
-          renderAgents(matched.map((a,i)=>({...a,role:a.task,primary:i===0})),false);
-        },500);
+        }catch(e){console.debug('[intent]',e)}
+
+        // Fallback to client-side keyword matching
+        const low=val.toLowerCase();
+        let matched=null;
+        for(const r of routes){
+          if(r.kw.some(k=>low.includes(k))){matched=r.agents;break;}
+        }
+        if(!matched){matched=[
+          {name:'Backend Dev',color:'#60a5fa',task:'Analyze request and implement solution'},
+          {name:'QA',color:'#34d399',task:'Validate implementation'},
+        ];}
+        renderAgents(matched.map((a,i)=>({...a,role:a.task,primary:i===0})),false);
+      }
+
+      input.addEventListener('keydown',function(e){
+        if(e.key==='Enter'){e.preventDefault();dispatch();}
       });
     })();
 
