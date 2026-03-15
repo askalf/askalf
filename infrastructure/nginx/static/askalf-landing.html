@@ -131,13 +131,6 @@
     .cl li{font-size:.85rem;color:var(--text-dim);display:flex;align-items:center;gap:8px}.cc.us .cl li{color:var(--text-mid)}
     .cv{font-size:1.2rem;font-weight:800;color:var(--text-dim);align-self:center;font-family:var(--font-mono)}
 
-    /* Features */
-    .fg{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-    .fc{padding:28px 24px;background:var(--surface);border:1px solid var(--border);border-radius:16px;transition:all .3s;position:relative;overflow:hidden}
-    .fc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--crystal),transparent);opacity:0;transition:opacity .3s}
-    .fc:hover{border-color:rgba(124,58,237,.2);transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3)}.fc:hover::before{opacity:1}
-    .fi{font-size:1.8rem;margin-bottom:16px;display:block}
-    .fc h3{font-size:1.05rem;font-weight:700;margin-bottom:8px}.fc p{font-size:.85rem;color:var(--text-dim);line-height:1.6}
 
 
 
@@ -273,8 +266,8 @@
     .fl{display:flex;justify-content:center;gap:24px;margin-bottom:16px}
 
     /* Responsive */
-    @media(max-width:900px){.fg,.stories{grid-template-columns:1fr 1fr}nav{padding:12px 20px}.nl{gap:16px}.cg{grid-template-columns:1fr;gap:12px}.cv{display:none}}
-    @media(max-width:600px){.fg,.stories{grid-template-columns:1fr}.nb2{gap:24px}.nv{font-size:1.8rem}.nl{display:none}.shc{padding:32px 20px}.sb{flex-wrap:wrap}}
+    @media(max-width:900px){.stories{grid-template-columns:1fr 1fr}nav{padding:12px 20px}.nl{gap:16px}.cg{grid-template-columns:1fr;gap:12px}.cv{display:none}}
+    @media(max-width:600px){.stories{grid-template-columns:1fr}.nb2{gap:24px}.nv{font-size:1.8rem}.nl{display:none}.shc{padding:32px 20px}.sb{flex-wrap:wrap}}
   </style>
 </head>
 <body>
@@ -283,8 +276,8 @@
     <span class="nb">askalf</span>
     <ul class="nl">
       <li><a href="#stories">Use Cases</a></li>
-      <li><a href="#features">Features</a></li>
       <li><a href="#devices">Ecosystem</a></li>
+      <li><a href="#brain">Brain</a></li>
       <li><a href="#compare">Why AskAlf</a></li>
       <li><a href="https://github.com/SprayberryLabs" class="gh" target="_blank">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -510,22 +503,6 @@
       </div>
     </div>
   </section>
-
-  <!-- Features -->
-  <section id="features">
-    <div class="sl rv">CAPABILITIES</div>
-    <h2 class="st rv">Everything. Out of the box.</h2>
-    <p class="sd rv">A complete, production-ready platform. Not an MVP. Not a demo.</p>
-    <div class="fg">
-      <div class="fc rv"><span class="fi">&#x1F6F0;</span><h3>Mission Control Dashboard</h3><p>Orbital fleet visualization. Real-time heartbeat ECG. Cost sparklines. Neural knowledge graph. Command Bridge boot sequence.</p></div>
-      <div class="fc rv"><span class="fi">&#x1F9E0;</span><h3>Cognitive Memory</h3><p>10-layer brain: semantic, episodic, procedural. pgvector embeddings. Knowledge graph with 1,500+ nodes. Metabolic consolidation cycles.</p></div>
-      <div class="fc rv"><span class="fi">&#x1F500;</span><h3>Multi-Agent Orchestration</h3><p>Pipeline, fan-out, consensus. DAG task decomposition. Delegation graph. Automated ticket lifecycle across agents.</p></div>
-      <div class="fc rv"><span class="fi">&#x1F4AC;</span><h3>15 Communication Channels</h3><p>Slack, Discord, Telegram, WhatsApp, Teams, REST API, Webhooks, Zapier, n8n, Make, Email, SMS, SendGrid, Twilio, Zoom.</p></div>
-      <div class="fc rv"><span class="fi">&#x1F4BB;</span><h3>12 Device Adapters</h3><p>Docker, SSH, Kubernetes, Browser, Desktop, VS Code, Android, iOS, Raspberry Pi, Arduino/ESP32, Home Assistant.</p></div>
-      <div class="fc rv"><span class="fi">&#x1F512;</span><h3>Production Hardened</h3><p>PKCE OAuth. Cost guardrails. Rate limiting. Encrypted secrets. Audit logging. Health checks. Graceful shutdown.</p></div>
-    </div>
-  </section>
-
 
   <!-- The Ecosystem — Devices, Integrations, Channels, Stack -->
   <section id="devices">
