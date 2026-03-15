@@ -153,20 +153,26 @@ TypeScript 5.4 · Node.js 22 · React 19 · Fastify 5 · PostgreSQL 17 · pgvect
 
 ---
 
-## Optional: VPN + Autoheal
+## Optional: VPN Tunneling
 
-**Proton VPN tunneling** — Route all outbound agent traffic through an encrypted VPN tunnel via Gluetun. Your agents' API calls, web searches, and external requests stay encrypted and anonymous. Supports ProtonVPN, Mullvad, NordVPN, Surfshark, and any Gluetun-compatible provider.
-
-**Autoheal** — Automatic container recovery. If any container fails its health check, it gets restarted automatically. Zero-downtime self-healing.
+Route all outbound agent traffic through an encrypted VPN tunnel via **Gluetun**. Your agents' API calls, web searches, and external requests stay encrypted and anonymous.
 
 ```bash
-# Enable in your .env file
-ENABLE_VPN=true
+# Add to your .env file
 VPN_SERVICE_PROVIDER=protonvpn
-OPENVPN_USER=your-proton-username
-OPENVPN_PASSWORD=your-proton-password
-ENABLE_AUTOHEAL=true
+VPN_TYPE=wireguard
+WIREGUARD_PRIVATE_KEY=your-key-from-protonvpn-dashboard
+VPN_SERVER_COUNTRIES=Switzerland
+
+# Start with VPN enabled
+docker compose -f docker-compose.selfhosted.yml --profile vpn up -d
 ```
+
+Supports 30+ providers — ProtonVPN, Mullvad, NordVPN, Surfshark, and [more](https://github.com/qdm12/gluetun-wiki/tree/main/setup/providers). Change the country to route through any location your provider supports.
+
+## Autoheal
+
+Automatic container recovery — included by default. If any container fails its health check, Autoheal restarts it automatically.
 
 ---
 
