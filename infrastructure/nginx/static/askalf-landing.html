@@ -436,10 +436,10 @@
   <section>
     <div class="honesty rv">
       <div class="honesty-label">Full transparency</div>
-      <h3>The agents got so autonomous they almost broke themselves.</h3>
-      <p>We're telling you this because you should know. A stress detection system created a ticket. An agent investigated it, which cost money, which triggered a <em>new</em> stress alert, which created <em>another</em> ticket, which triggered <em>another</em> investigation. A recursive loop.</p>
-      <p>The system was creating infinite tickets about its own anxiety. We had to build deduplication, cooldown windows, and severity downgrading to stop agents from investigating their own investigations.</p>
-      <p><strong>We fixed it.</strong> But we're showing you this because real autonomy has real edges. Every other AI product hides the failures. We think the failures are the most interesting part — they prove the system is actually thinking, not just following scripts.</p>
+      <h3>The agents don't always get it right on the first try.</h3>
+      <p>An agent once committed a fix that broke a different feature. QA caught it in 14 minutes, created a new ticket, and Backend Dev rolled it back. The system self-corrected — but the first fix was wrong.</p>
+      <p>We're telling you this because every other AI product pretends to be perfect. We'd rather show you how the system <em>recovers</em> from mistakes than pretend it never makes them. The ticket system, the patrol cycles, the QA verification — they exist because agents are powerful but not infallible.</p>
+      <p><strong>The value isn't perfection. It's that problems get found and fixed at 2am instead of discovered at 2pm.</strong></p>
     </div>
   </section>
 
@@ -1014,46 +1014,51 @@
       if(!input||!output)return;
 
       const routes=[
-        {kw:['fix','bug','error','broken','crash','fail','issue'],agents:[
-          {name:'Backend Dev',color:'#60a5fa',task:'Analyze error, trace root cause, implement fix'},
+        {kw:['security','vuln','cve','scan','audit','secret','leak','password','credential','exposure'],agents:[
+          {name:'Security',color:'#f87171',task:'Scan dependencies, check for exposed secrets, audit permissions'},
+        ]},
+        {kw:['monitor','health','alert','down','slow','performance','memory','cpu','redis','postgres','latency'],agents:[
+          {name:'Watchdog',color:'#2dd4bf',task:'Run diagnostics, check container health, measure latency'},
+          {name:'Infra',color:'#fb923c',task:'Apply fix if issue found'},
+        ]},
+        {kw:['deploy','ship','release','push','ci','cd','production','staging'],agents:[
+          {name:'Infra',color:'#fb923c',task:'Build containers, run deploy pipeline, verify health'},
+        ]},
+        {kw:['doc','readme','changelog','write','blog','runbook','guide'],agents:[
+          {name:'Writer',color:'#e879f9',task:'Draft documentation, update changelog, write runbook'},
+        ]},
+        {kw:['ui','frontend','css','style','component','page','dark mode','button','modal','layout','responsive'],agents:[
+          {name:'Frontend Dev',color:'#a78bfa',task:'Build React component, update styling'},
+        ]},
+        {kw:['test','coverage','validate','spec','unit','integration','regression'],agents:[
+          {name:'QA',color:'#34d399',task:'Write test suite, validate edge cases, measure coverage'},
+        ]},
+        {kw:['docker','container','kubernetes','k8s','infra','nginx','ssl','dns','tunnel'],agents:[
+          {name:'Infra',color:'#fb923c',task:'Configure infrastructure, manage containers'},
+        ]},
+        {kw:['api','route','endpoint','database','query','migration','schema','model'],agents:[
+          {name:'Backend Dev',color:'#60a5fa',task:'Implement API endpoint, write database migration'},
+        ]},
+        {kw:['fix','bug','error','broken','crash','fail','issue','regression'],agents:[
+          {name:'Backend Dev',color:'#60a5fa',task:'Trace root cause, implement fix'},
           {name:'QA',color:'#34d399',task:'Write regression test, verify fix'},
         ]},
-        {kw:['security','vuln','cve','scan','audit','secret','leak'],agents:[
-          {name:'Security',color:'#f87171',task:'Run vulnerability scan, check dependencies'},
-        ]},
-        {kw:['deploy','ship','release','push','ci','cd'],agents:[
-          {name:'Infra',color:'#fb923c',task:'Build, deploy, run health checks'},
-          {name:'QA',color:'#34d399',task:'Run smoke tests post-deploy'},
-        ]},
-        {kw:['ui','frontend','css','style','component','page','dark mode','button'],agents:[
-          {name:'Frontend Dev',color:'#a78bfa',task:'Build/update UI component'},
-          {name:'QA',color:'#34d399',task:'Visual regression test'},
-        ]},
-        {kw:['api','route','endpoint','database','query','migration','schema'],agents:[
-          {name:'Backend Dev',color:'#60a5fa',task:'Implement API route, write migration'},
-        ]},
-        {kw:['doc','readme','changelog','write','blog'],agents:[
-          {name:'Writer',color:'#e879f9',task:'Draft documentation, update changelog'},
-        ]},
-        {kw:['monitor','health','alert','down','slow','performance','memory','cpu'],agents:[
-          {name:'Watchdog',color:'#2dd4bf',task:'Run health checks, diagnose issue'},
-          {name:'Infra',color:'#fb923c',task:'Apply fix, tune configuration'},
-        ]},
-        {kw:['test','qa','coverage','validate','check'],agents:[
-          {name:'QA',color:'#34d399',task:'Write tests, run test suite, report coverage'},
-        ]},
         {kw:['add','build','create','implement','feature','new'],agents:[
-          {name:'Backend Dev',color:'#60a5fa',task:'Implement feature backend'},
-          {name:'Frontend Dev',color:'#a78bfa',task:'Build UI for feature'},
-          {name:'QA',color:'#34d399',task:'Write tests for new feature'},
-          {name:'Writer',color:'#e879f9',task:'Update docs'},
+          {name:'Backend Dev',color:'#60a5fa',task:'Implement backend logic'},
+          {name:'Frontend Dev',color:'#a78bfa',task:'Build user interface'},
+          {name:'QA',color:'#34d399',task:'Write tests'},
+          {name:'Writer',color:'#e879f9',task:'Update documentation'},
         ]},
       ];
 
-      const defaultRoute=[
-        {name:'Backend Dev',color:'#60a5fa',task:'Analyze request, plan implementation'},
-        {name:'QA',color:'#34d399',task:'Validate changes'},
+      const defaults=[
+        [{name:'Watchdog',color:'#2dd4bf',task:'Assess system state, gather context'}],
+        [{name:'Security',color:'#f87171',task:'Evaluate request, check for risks'}],
+        [{name:'Writer',color:'#e879f9',task:'Analyze request, draft response'}],
+        [{name:'Infra',color:'#fb923c',task:'Evaluate infrastructure impact'}],
+        [{name:'Frontend Dev',color:'#a78bfa',task:'Analyze UI requirements'}],
       ];
+      let defaultIdx=0;
 
       let debounce=null;
       input.addEventListener('input',function(){
@@ -1066,7 +1071,7 @@
           for(const r of routes){
             if(r.kw.some(k=>val.includes(k))){matched=r.agents;break;}
           }
-          if(!matched)matched=defaultRoute;
+          if(!matched){matched=defaults[defaultIdx%defaults.length];defaultIdx++;}
 
           let html='';
           matched.forEach((a,i)=>{
