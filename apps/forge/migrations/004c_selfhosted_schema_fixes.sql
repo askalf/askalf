@@ -35,6 +35,11 @@ CREATE TABLE IF NOT EXISTS client_errors (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Sentinel agent for local CLI memory writes (FK constraint satisfaction)
+INSERT INTO forge_agents (id, owner_id, name, slug, description, system_prompt, status, type, autonomy_level, enabled_tools, is_internal, metadata)
+VALUES ('cli:local:master', 'system:forge', 'Alf', 'alf-master', 'Local Claude Code CLI instance.', 'BOOT_FROM_BRAIN', 'active', 'custom', 5, '{}', true, '{"system_agent": true}')
+ON CONFLICT (id) DO NOTHING;
+
 -- Missing column referenced by orphan recovery in index.ts
 ALTER TABLE forge_executions ADD COLUMN IF NOT EXISTS parent_execution_id TEXT;
 
