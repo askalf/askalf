@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation — AskAlf</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700,800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--void:#030308;--deep:#08081a;--text:#f0f0f2;--text-mid:rgba(255,255,255,.6);--text-dim:rgba(255,255,255,.3);--crystal:#7c3aed;--crystal-light:#a78bfa;--border:rgba(255,255,255,.06);--font-body:'Satoshi',system-ui,sans-serif;--font-mono:'JetBrains Mono',monospace}
+    body{font-family:var(--font-body);background:var(--void);color:var(--text);line-height:1.7;-webkit-font-smoothing:antialiased}
+    a{color:var(--crystal-light);text-decoration:none}a:hover{color:#c4b5fd}
+    .page{max-width:760px;margin:0 auto;padding:80px 24px 120px}
+    .back{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;color:var(--text-dim);margin-bottom:40px;transition:color .2s}.back:hover{color:var(--text)}
+    h1{font-size:2rem;font-weight:800;letter-spacing:-.03em;margin-bottom:8px}
+    .sub{color:var(--text-dim);font-size:.9rem;margin-bottom:48px}
+    h2{font-size:1.3rem;font-weight:700;margin:40px 0 16px;padding-top:24px;border-top:1px solid var(--border)}
+    h3{font-size:1.05rem;font-weight:600;margin:24px 0 8px;color:var(--crystal-light)}
+    p,li{color:var(--text-mid);font-size:.95rem;margin-bottom:12px}
+    ul,ol{padding-left:24px}
+    li{margin-bottom:8px}
+    code{font-family:var(--font-mono);font-size:.85em;background:rgba(255,255,255,.04);padding:2px 6px;border-radius:4px;color:var(--crystal-light)}
+    pre{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:16px 20px;overflow-x:auto;margin:16px 0;font-family:var(--font-mono);font-size:.85rem;color:var(--text-mid);line-height:1.6}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+    .card{padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px}
+    .card h4{font-size:.9rem;font-weight:600;margin-bottom:4px;color:var(--text)}.card p{font-size:.8rem;margin:0}
+    @media(max-width:600px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <a href="/" class="back">&larr; Back to AskAlf</a>
+    <h1>Documentation</h1>
+    <p class="sub">Everything you need to deploy and operate your AI agent fleet.</p>
+
+    <h2>Quick Start</h2>
+    <p>Deploy AskAlf in 60 seconds:</p>
+    <pre>git clone https://github.com/SprayberryLabs/askalf.git
+cd askalf && ./setup.sh
+docker compose -f docker-compose.selfhosted.yml up -d</pre>
+    <p>Open <code>http://localhost:3001</code> and complete the 5-step onboarding wizard.</p>
+
+    <h2>Requirements</h2>
+    <ul>
+      <li>Docker and Docker Compose</li>
+      <li>4GB+ RAM (8GB recommended)</li>
+      <li>At least one AI provider key (Anthropic recommended)</li>
+      <li>Git</li>
+    </ul>
+
+    <h2>Architecture</h2>
+    <div class="grid">
+      <div class="card"><h4>Forge</h4><p>API server, agent runtime, execution engine, orchestration</p></div>
+      <div class="card"><h4>Dashboard</h4><p>React SPA, WebSocket hub, Claude/Codex terminal sessions</p></div>
+      <div class="card"><h4>MCP Tools</h4><p>Tool server for agents: tickets, memory, search, docker, security</p></div>
+      <div class="card"><h4>PostgreSQL + pgvector</h4><p>Database with vector embeddings for semantic memory</p></div>
+      <div class="card"><h4>Redis</h4><p>Pubsub, rate limiting, session cache, BullMQ queues</p></div>
+      <div class="card"><h4>SearXNG</h4><p>Privacy-respecting web search for agents</p></div>
+    </div>
+
+    <h2>Agent Fleet</h2>
+    <p>AskAlf ships with 7 specialized agents:</p>
+    <ul>
+      <li><strong>Backend Dev</strong> — API routes, database queries, server-side logic</li>
+      <li><strong>Frontend Dev</strong> — React components, UI features, styling</li>
+      <li><strong>QA</strong> — Tests, validation, quality assurance</li>
+      <li><strong>Infra</strong> — Docker, deployments, infrastructure management</li>
+      <li><strong>Security</strong> — Vulnerability scanning, dependency audits, secret detection</li>
+      <li><strong>Watchdog</strong> — Health checks, incident detection, monitoring</li>
+      <li><strong>Writer</strong> — Documentation, changelogs, technical writing</li>
+    </ul>
+
+    <h2>Onboarding Wizard</h2>
+    <p>The 5-step setup guides you through:</p>
+    <ol>
+      <li><strong>Workspace</strong> — Name your deployment</li>
+      <li><strong>AI Config</strong> — Choose basic or enhanced intent parser, optionally add OpenAI key for embeddings</li>
+      <li><strong>Connect Claude</strong> — OAuth flow for agent execution (or skip)</li>
+      <li><strong>Appearance</strong> — Dark, light, or system theme</li>
+      <li><strong>Launch</strong> — Review and enter the command center</li>
+    </ol>
+
+    <h2>Dashboard Tabs</h2>
+    <h3>Overview</h3>
+    <p>Mission control with orbital fleet visualization, real-time heartbeat, cost telemetry, and event ticker.</p>
+    <h3>Command</h3>
+    <p>Natural language task dispatch. Type what you need, the intent parser routes to the right agent(s).</p>
+    <h3>Code</h3>
+    <p>Embedded Claude Code and Codex terminal sessions with full platform MCP tools.</p>
+    <h3>Fleet</h3>
+    <p>Agent management: list, configure, run, pause, decommission. Builder for new agents. Skill templates. Delegation graph.</p>
+    <h3>Ops</h3>
+    <p>Tickets, costs, executions, timeline, orchestrator, providers, guardrails, audit log, workflows, deploy.</p>
+    <h3>Live</h3>
+    <p>Real-time WebSocket event stream with agent filter and type filtering.</p>
+    <h3>Brain</h3>
+    <p>Memory browser, knowledge graph visualization, analytics with consolidation cycles and hot memories.</p>
+    <h3>Settings</h3>
+    <p>Profile, appearance, AI keys, cost controls, integrations (22 providers), channels (15 types), devices (12 adapters).</p>
+
+    <h2>Source Code</h2>
+    <p>Full source available on GitHub: <a href="https://github.com/SprayberryLabs/askalf" target="_blank">github.com/SprayberryLabs/askalf</a></p>
+  </div>
+</body>
+</html>
