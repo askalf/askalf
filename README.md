@@ -124,6 +124,8 @@ GitHub · GitLab · Bitbucket · AWS · GCP · Azure · Vercel · Netlify · Rai
 | **Channels** | 15 built in | You build it |
 | **Device control** | 12 adapters built in | You build it |
 | **AI terminals** | Embedded Claude CLI + Codex | Not available |
+| **VPN tunneling** | Built-in Gluetun + Proton VPN | Not available |
+| **Auto-recovery** | Autoheal container self-healing | Not available |
 | **Custom agents** | Spawned on demand, first-class | You build it |
 
 ---
@@ -147,7 +149,24 @@ GitHub · GitLab · Bitbucket · AWS · GCP · Azure · Vercel · Netlify · Rai
 
 ## Tech Stack
 
-TypeScript 5.4 · Node.js 22 · React 19 · Fastify 5 · PostgreSQL 17 · pgvector 0.8 · Redis 8 · Docker Compose · xterm.js · node-pty · WebSocket · MCP Protocol · PKCE OAuth · Cloudflare Tunnel · SearXNG
+TypeScript 5.4 · Node.js 22 · React 19 · Fastify 5 · PostgreSQL 17 · pgvector 0.8 · Redis 8 · Docker Compose · xterm.js · node-pty · WebSocket · MCP Protocol · PKCE OAuth · SearXNG · Gluetun VPN · Autoheal
+
+---
+
+## Optional: VPN + Autoheal
+
+**Proton VPN tunneling** — Route all outbound agent traffic through an encrypted VPN tunnel via Gluetun. Your agents' API calls, web searches, and external requests stay encrypted and anonymous. Supports ProtonVPN, Mullvad, NordVPN, Surfshark, and any Gluetun-compatible provider.
+
+**Autoheal** — Automatic container recovery. If any container fails its health check, it gets restarted automatically. Zero-downtime self-healing.
+
+```bash
+# Enable in your .env file
+ENABLE_VPN=true
+VPN_SERVICE_PROVIDER=protonvpn
+OPENVPN_USER=your-proton-username
+OPENVPN_PASSWORD=your-proton-password
+ENABLE_AUTOHEAL=true
+```
 
 ---
 
