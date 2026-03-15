@@ -240,6 +240,30 @@
     .cal-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;flex-wrap:wrap}
     .cal-label{font-family:var(--font-mono);font-size:.8rem;color:var(--text-dim)}
 
+    /* $0.43 cinematic reveal */
+    .price-reveal{text-align:center;padding:120px 24px;position:relative;overflow:hidden}
+    .price-reveal::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(124,58,237,.06),transparent 70%);pointer-events:none}
+    .price-number{font-size:clamp(5rem,15vw,12rem);font-weight:900;font-family:var(--font-mono);background:linear-gradient(135deg,var(--crystal-bright),var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;letter-spacing:-.06em;opacity:0;transform:scale(.8);transition:opacity 1.2s cubic-bezier(.16,1,.3,1),transform 1.2s cubic-bezier(.16,1,.3,1)}
+    .price-reveal.v .price-number{opacity:1;transform:scale(1)}
+    .price-context{font-size:clamp(1rem,2.5vw,1.5rem);color:var(--text-mid);margin-top:16px;max-width:600px;margin-left:auto;margin-right:auto;line-height:1.5;opacity:0;transform:translateY(20px);transition:opacity .8s .4s,transform .8s .4s}
+    .price-reveal.v .price-context{opacity:1;transform:translateY(0)}
+    .price-breakdown{font-size:.9rem;color:var(--text-dim);margin-top:24px;opacity:0;transition:opacity .8s .8s}
+    .price-reveal.v .price-breakdown{opacity:1}
+
+    /* Honesty section */
+    .honesty{max-width:700px;margin:0 auto;padding:48px;background:rgba(248,113,113,.03);border:1px solid rgba(248,113,113,.12);border-radius:20px;position:relative;overflow:hidden}
+    .honesty::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#f87171,transparent)}
+    .honesty-label{font-family:var(--font-mono);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:#f87171;margin-bottom:16px}
+    .honesty h3{font-size:1.3rem;font-weight:800;margin-bottom:12px;line-height:1.3}
+    .honesty p{font-size:.95rem;color:var(--text-mid);line-height:1.7;margin-bottom:12px}
+    .honesty p:last-child{margin-bottom:0}
+    .honesty strong{color:var(--text)}
+
+    /* Auto-typing */
+    .dispatch-auto{font-family:var(--font-mono);font-size:.8rem;color:var(--text-dim);margin-top:12px;height:20px}
+    .dispatch-cursor{display:inline-block;width:2px;height:14px;background:var(--crystal-light);margin-left:2px;animation:blink .8s step-end infinite;vertical-align:text-bottom}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
     /* Footer */
     footer{padding:40px 24px;text-align:center;border-top:1px solid var(--border);color:var(--text-dim);font-size:.8rem}
     footer a{color:var(--text-dim)}footer a:hover{color:var(--text)}
@@ -344,12 +368,6 @@
         <div class="story-agent"><span class="story-dot" style="background:#34d399"></span>QA delegated to Backend Dev</div>
       </div>
       <div class="story rv">
-        <div class="story-time">03:47 AM</div>
-        <h3>The agents got so autonomous they almost broke themselves.</h3>
-        <p>A stress detection system created a ticket. An agent investigated, which cost money, which triggered another stress alert, which created another ticket. A recursive investigation loop. We had to build deduplication to stop them from investigating their own investigations.</p>
-        <div class="story-agent"><span class="story-dot" style="background:#f87171"></span>Real incident — autonomy has edges</div>
-      </div>
-      <div class="story rv">
         <div class="story-time">05:30 AM</div>
         <h3>Watchdog caught a memory leak 4 hours before it would have caused downtime.</h3>
         <p>Redis was at 92% memory. Watchdog detected it on a patrol cycle, created a ticket for Infra. Infra pruned stale keys and adjusted the maxmemory config. Memory dropped to 54%. Zero downtime. Zero humans involved. You found out at 9am in the morning briefing.</p>
@@ -357,6 +375,13 @@
       </div>
     </div>
   </section>
+
+  <!-- $0.43 Reveal -->
+  <div class="price-reveal rv">
+    <div class="price-number">$0.43</div>
+    <div class="price-context">That's what it cost to run 7 AI engineers for an entire night.<br>3 bugs fixed. 2 CVEs patched. 1 outage prevented. 14 new things learned.</div>
+    <div class="price-breakdown">12 executions &middot; 7 agents &middot; 8 hours &middot; cost guardrails held</div>
+  </div>
 
   <!-- Dashboard Preview -->
   <div class="pv rv">
@@ -409,6 +434,17 @@
     </div>
   </section>
 
+  <!-- Honesty moment -->
+  <section>
+    <div class="honesty rv">
+      <div class="honesty-label">Full transparency</div>
+      <h3>The agents got so autonomous they almost broke themselves.</h3>
+      <p>We're telling you this because you should know. A stress detection system created a ticket. An agent investigated it, which cost money, which triggered a <em>new</em> stress alert, which created <em>another</em> ticket, which triggered <em>another</em> investigation. A recursive loop.</p>
+      <p>The system was creating infinite tickets about its own anxiety. We had to build deduplication, cooldown windows, and severity downgrading to stop agents from investigating their own investigations.</p>
+      <p><strong>We fixed it.</strong> But we're showing you this because real autonomy has real edges. Every other AI product hides the failures. We think the failures are the most interesting part — they prove the system is actually thinking, not just following scripts.</p>
+    </div>
+  </section>
+
   <!-- Morning Briefing (social proof via simulated output) -->
   <section>
     <div class="sl rv">WHAT YOU WAKE UP TO</div>
@@ -438,7 +474,8 @@
     <p class="sd rv" style="text-align:center;margin-left:auto;margin-right:auto">The intent parser analyzes your request and routes it to the right agent(s). Type anything.</p>
 
     <div class="dispatch-box rv">
-      <input type="text" class="dispatch-input" id="dispatch-in" placeholder="e.g. &quot;fix the broken login page&quot; or &quot;scan for vulnerabilities&quot;" autocomplete="off">
+      <input type="text" class="dispatch-input" id="dispatch-in" placeholder="Type a task..." autocomplete="off">
+      <div class="dispatch-auto" id="dispatch-auto"><span class="dispatch-cursor"></span></div>
       <div class="dispatch-result" id="dispatch-out"></div>
     </div>
   </section>
@@ -943,6 +980,34 @@
       a.href=url;a.download='askalf-launch.ics';a.click();
       URL.revokeObjectURL(url);
     }
+
+    // Auto-typing demo for dispatch simulator
+    (function(){
+      const input=document.getElementById('dispatch-in');
+      const auto=document.getElementById('dispatch-auto');
+      if(!input||!auto)return;
+      const examples=['fix the broken login page','scan all dependencies for CVEs','deploy the latest build to production','add rate limiting to the API','write tests for the checkout flow','monitor Redis memory usage'];
+      let ei=0,ci=0,typing=true,timeout=null;
+      function tick(){
+        if(input===document.activeElement){auto.style.display='none';return;}
+        auto.style.display='block';
+        const ex=examples[ei];
+        if(typing){
+          ci++;
+          auto.innerHTML=ex.substring(0,ci)+'<span class="dispatch-cursor"></span>';
+          if(ci>=ex.length){typing=false;timeout=setTimeout(tick,2000);return;}
+          timeout=setTimeout(tick,50+Math.random()*80);
+        }else{
+          ci--;
+          auto.innerHTML=ex.substring(0,ci)+'<span class="dispatch-cursor"></span>';
+          if(ci<=0){typing=true;ei=(ei+1)%examples.length;timeout=setTimeout(tick,500);return;}
+          timeout=setTimeout(tick,30);
+        }
+      }
+      setTimeout(tick,2000);
+      input.addEventListener('focus',()=>{auto.style.display='none';clearTimeout(timeout);});
+      input.addEventListener('blur',()=>{if(!input.value){ci=0;typing=true;setTimeout(tick,1000);}});
+    })();
 
     // Dispatch simulator
     (function(){
