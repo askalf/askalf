@@ -104,15 +104,31 @@
     /* Agent colors in timeline */
     .tl-agent{color:var(--text-dim)}
 
-    /* Terminal callout */
-    .term-callout{max-width:1000px;margin:0 auto;padding:80px 24px}
+    /* Terminal callout — real xterm look */
+    .term-callout{max-width:1060px;margin:0 auto;padding:80px 24px}
     .term-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-    .term-card{background:rgba(8,8,26,.8);border:1px solid rgba(124,58,237,.12);border-radius:16px;overflow:hidden;backdrop-filter:blur(12px)}
-    .term-card-hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)}
-    .term-card-name{font-family:var(--font-mono);font-size:.75rem;font-weight:700;color:var(--text-mid)}
-    .term-card-badge{font-family:var(--font-mono);font-size:.6rem;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em}
-    .term-card-body{padding:20px;font-family:var(--font-mono);font-size:.8rem;line-height:1.8;color:var(--text-dim)}
-    .term-card-body .prompt{color:var(--green)}.term-card-body .output{color:var(--text-mid)}.term-card-body .dim{color:var(--text-dim)}
+    .term-card{border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.06);box-shadow:0 8px 40px rgba(0,0,0,.4)}
+    .term-toolbar{display:flex;align-items:center;gap:10px;padding:7px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid rgba(255,255,255,.04)}
+    .term-health{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .term-health.claude{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)}
+    .term-health.codex{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)}
+    .term-status{font-family:var(--font-mono);font-size:.65rem;color:var(--text-dim)}
+    .term-status strong{color:var(--text-mid);font-weight:600}
+    .term-pid{font-family:var(--font-mono);font-size:.6rem;color:rgba(255,255,255,.2);margin-left:auto}
+    .term-xterm{background:#0a0a0f;padding:16px 18px;font-family:var(--font-mono);font-size:13px;line-height:1.5;color:#e4e4e7;min-height:220px;overflow:hidden;position:relative}
+    .term-xterm::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,#0a0a0f);pointer-events:none}
+    .term-cursor{display:inline-block;width:8px;height:15px;vertical-align:text-bottom;animation:blink 1s step-end infinite}
+    .term-cursor.claude{background:#a78bfa}
+    .term-cursor.codex{background:#10b981}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+    .term-xterm .ansi-bold{font-weight:700}
+    .term-xterm .ansi-blue{color:#60a5fa}
+    .term-xterm .ansi-green{color:#4ade80}
+    .term-xterm .ansi-cyan{color:#22d3ee}
+    .term-xterm .ansi-magenta{color:#c4b5fd}
+    .term-xterm .ansi-yellow{color:#facc15}
+    .term-xterm .ansi-red{color:#f87171}
+    .term-xterm .ansi-dim{color:rgba(228,228,231,.4)}
     @media(max-width:700px){.term-grid{grid-template-columns:1fr}}
 
     /* Bold claim */
@@ -526,33 +542,57 @@
 
     <div class="term-grid rv">
       <div class="term-card">
-        <div class="term-card-hdr">
-          <span class="term-card-name">Claude CLI</span>
-          <span class="term-card-badge" style="background:rgba(167,139,250,.15);color:#a78bfa">Anthropic</span>
+        <div class="term-toolbar">
+          <span class="term-health claude"></span>
+          <span class="term-status"><strong>Claude Code</strong> &middot; running</span>
+          <span class="term-pid">PID 48291</span>
         </div>
-        <div class="term-card-body">
-          <span class="prompt">claude&gt;</span> <span class="output">fix the race condition in payment handler</span><br>
-          <span class="dim">Reading src/handlers/payment.ts...</span><br>
-          <span class="dim">Found: concurrent access without mutex on line 412</span><br>
-          <span class="output">Applied fix. Running tests... <strong style="color:var(--green)">42/42 passed.</strong></span><br>
-          <span class="prompt">claude&gt;</span> <span class="output">commit and create a ticket for QA</span><br>
-          <span class="dim">Committed: "Fix race condition in payment handler"</span><br>
-          <span class="dim">Created ticket #248. Assigned to QA.</span>
+        <div class="term-xterm">
+<span class="ansi-magenta ansi-bold">❯</span> fix the race condition in the payment handler
+
+<span class="ansi-dim">  ● Reading</span> src/handlers/payment.ts
+<span class="ansi-dim">  ● Reading</span> src/handlers/payment.test.ts
+
+  I found the issue. Lines 411-418 access the order state
+  concurrently without a lock. Two requests can both read
+  `order.status === 'pending'` before either writes.
+
+<span class="ansi-dim">  ● Edit</span> src/handlers/payment.ts
+<span class="ansi-blue">   412</span>  <span class="ansi-red">- const order = await getOrder(id);</span>
+<span class="ansi-blue">   412</span>  <span class="ansi-green">+ const order = await getOrderForUpdate(id);</span>
+<span class="ansi-blue">   413</span>  <span class="ansi-green">+ // SELECT ... FOR UPDATE prevents concurrent reads</span>
+
+<span class="ansi-dim">  ● Bash</span> <span class="ansi-dim">npm test -- payment</span>
+  <span class="ansi-green ansi-bold">42 passed</span> <span class="ansi-dim">| 0 failed | 1.2s</span>
+
+<span class="ansi-magenta ansi-bold">❯</span> <span class="term-cursor claude"></span>
         </div>
       </div>
       <div class="term-card">
-        <div class="term-card-hdr">
-          <span class="term-card-name">OpenAI Codex</span>
-          <span class="term-card-badge" style="background:rgba(16,185,129,.15);color:#10b981">OpenAI</span>
+        <div class="term-toolbar">
+          <span class="term-health codex"></span>
+          <span class="term-status"><strong>Codex CLI</strong> &middot; running</span>
+          <span class="term-pid">PID 48307</span>
         </div>
-        <div class="term-card-body">
-          <span class="prompt">codex&gt;</span> <span class="output">scaffold a new REST endpoint for /api/v1/webhooks</span><br>
-          <span class="dim">Creating route, handler, schema, and tests...</span><br>
-          <span class="dim">Generated 4 files in src/routes/webhooks/</span><br>
-          <span class="output">Route registered. Swagger docs updated.</span><br>
-          <span class="prompt">codex&gt;</span> <span class="output">add signature verification middleware</span><br>
-          <span class="dim">Added HMAC-SHA256 verification.</span><br>
-          <span class="output">Tests passing. <strong style="color:var(--green)">Ready for review.</strong></span>
+        <div class="term-xterm">
+<span class="ansi-green ansi-bold">codex&gt;</span> scaffold a REST endpoint for /api/v1/webhooks
+
+<span class="ansi-dim">Thinking...</span>
+
+I'll create the route, handler, validation schema, and tests.
+
+<span class="ansi-cyan">  Created</span>  src/routes/webhooks/index.ts
+<span class="ansi-cyan">  Created</span>  src/routes/webhooks/handler.ts
+<span class="ansi-cyan">  Created</span>  src/routes/webhooks/schema.ts
+<span class="ansi-cyan">  Created</span>  src/routes/webhooks/webhooks.test.ts
+
+<span class="ansi-dim">Running:</span> npm test -- webhooks
+  <span class="ansi-green ansi-bold">8 passed</span> <span class="ansi-dim">| 0 failed | 0.9s</span>
+
+Route registered at <span class="ansi-cyan">/api/v1/webhooks</span>
+Methods: <span class="ansi-bold">GET</span>, <span class="ansi-bold">POST</span>, <span class="ansi-bold">DELETE</span>
+
+<span class="ansi-green ansi-bold">codex&gt;</span> <span class="term-cursor codex"></span>
         </div>
       </div>
     </div>
