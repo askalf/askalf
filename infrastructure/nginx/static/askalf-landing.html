@@ -139,12 +139,6 @@
     .fi{font-size:1.8rem;margin-bottom:16px;display:block}
     .fc h3{font-size:1.05rem;font-weight:700;margin-bottom:8px}.fc p{font-size:.85rem;color:var(--text-dim);line-height:1.6}
 
-    /* Agents */
-    .ac{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
-    .ap{display:flex;align-items:center;gap:10px;padding:12px 20px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:12px;transition:all .3s;cursor:default}
-    .ap:hover{border-color:var(--ac,var(--crystal));background:rgba(255,255,255,.04);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
-    .ad{width:10px;height:10px;border-radius:50%;background:var(--ac,var(--crystal));box-shadow:0 0 8px var(--ac,var(--crystal-glow))}
-    .an{font-weight:600;font-size:.9rem}.ar{font-size:.75rem;color:var(--text-dim);font-family:var(--font-mono)}
 
 
     /* Brain / Knowledge Graph */
@@ -226,10 +220,6 @@
     .faq-item p{font-size:.85rem;color:var(--text-dim);line-height:1.6;margin:0}
     @media(max-width:600px){.faq-grid{grid-template-columns:1fr}}
 
-    /* Integrations */
-    .ig{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-    .it{padding:8px 16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;font-size:.8rem;font-weight:500;color:var(--text-dim);transition:all .2s}
-    .it:hover{border-color:rgba(124,58,237,.3);color:var(--text);background:rgba(124,58,237,.05)}
 
     /* Share */
     .sb{display:flex;align-items:center;justify-content:center;gap:12px;padding:40px 24px;flex-wrap:wrap}
@@ -294,8 +284,7 @@
     <ul class="nl">
       <li><a href="#stories">Use Cases</a></li>
       <li><a href="#features">Features</a></li>
-      <li><a href="#fleet">Fleet</a></li>
-      <li><a href="#devices">Devices</a></li>
+      <li><a href="#devices">Ecosystem</a></li>
       <li><a href="#compare">Why AskAlf</a></li>
       <li><a href="https://github.com/SprayberryLabs" class="gh" target="_blank">
         <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -537,53 +526,42 @@
     </div>
   </section>
 
-  <!-- Agent Fleet -->
-  <section id="fleet">
-    <div class="sl rv">YOUR AI TEAM</div>
-    <h2 class="st rv">Your fleet never sleeps</h2>
-    <p class="sd rv">Each agent is specialized, scheduled, and learns from every execution. They coordinate via tickets and evolve their own capabilities.</p>
-    <div class="ac rv">
-      <div class="ap" style="--ac:#60a5fa"><span class="ad"></span><div><div class="an">Backend Dev</div><div class="ar">API routes, database, server logic</div></div></div>
-      <div class="ap" style="--ac:#a78bfa"><span class="ad"></span><div><div class="an">Frontend Dev</div><div class="ar">React, UI, dashboard features</div></div></div>
-      <div class="ap" style="--ac:#34d399"><span class="ad"></span><div><div class="an">QA</div><div class="ar">Tests, validation, quality</div></div></div>
-      <div class="ap" style="--ac:#fb923c"><span class="ad"></span><div><div class="an">Infra</div><div class="ar">Docker, deploys, infrastructure</div></div></div>
-      <div class="ap" style="--ac:#f87171"><span class="ad"></span><div><div class="an">Security</div><div class="ar">Vulnerability scanning, secrets</div></div></div>
-      <div class="ap" style="--ac:#2dd4bf"><span class="ad"></span><div><div class="an">Watchdog</div><div class="ar">Health checks, incident detection</div></div></div>
-      <div class="ap" style="--ac:#e879f9"><span class="ad"></span><div><div class="an">Writer</div><div class="ar">Docs, changelogs, runbooks</div></div></div>
-    </div>
-  </section>
 
-  <!-- Device Control -->
+  <!-- The Ecosystem — Devices, Integrations, Channels, Stack -->
   <section id="devices">
-    <div class="sl rv">DEVICE CONTROL</div>
-    <h2 class="st rv">Your agents don't just run in the cloud.<br>They control real machines.</h2>
-    <p class="sd rv">Connect any device — from Kubernetes clusters to Raspberry Pis. Agents execute tasks directly on your infrastructure through 12 adapter types.</p>
+    <div class="sl rv">THE ECOSYSTEM</div>
+    <h2 class="st rv">12 device adapters. 22 integrations. 15 channels.</h2>
+    <p class="sd rv">Your agents don't just run in the cloud — they control real machines, talk to your tools, and reach you anywhere. Encrypted credentials. Signature verification. Test-before-deploy.</p>
 
     <div class="device-grid rv">
       <div class="device-category">
-        <div class="device-cat-label">Compute</div>
+        <div class="device-cat-label">Compute & IoT (12 Adapters)</div>
         <div class="device-list">
           <div class="device-item"><span class="device-icon">&#x1F4BB;</span><div><strong>CLI Agent</strong><br><span class="device-desc">Any machine with Node.js — <code>npm i -g @askalf/agent</code></span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F433;</span><div><strong>Docker Host</strong><br><span class="device-desc">Execute tasks inside containers via Docker API. Resource limits enforced.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F510;</span><div><strong>SSH Remote</strong><br><span class="device-desc">Connect to any server. Key-based auth. Jump host support.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x2699;&#xFE0F;</span><div><strong>Kubernetes</strong><br><span class="device-desc">Create Jobs in any namespace. Resource limits. Pod log extraction.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F433;</span><div><strong>Docker &middot; SSH &middot; Kubernetes</strong><br><span class="device-desc">Containers, remote servers, K8s Jobs. Resource limits enforced.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F5A5;&#xFE0F;</span><div><strong>Browser &middot; Desktop &middot; VS Code</strong><br><span class="device-desc">Navigate, click, screenshot, edit files, run terminal commands.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F4F1;</span><div><strong>Android &middot; iOS</strong><br><span class="device-desc">Tap, swipe, launch apps, push notifications.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F4A1;</span><div><strong>Raspberry Pi &middot; Arduino &middot; Home Assistant</strong><br><span class="device-desc">GPIO, MQTT, sensor telemetry, smart home control.</span></div></div>
         </div>
       </div>
       <div class="device-category">
-        <div class="device-cat-label">Desktop & Mobile</div>
+        <div class="device-cat-label">Channels (15)</div>
         <div class="device-list">
-          <div class="device-item"><span class="device-icon">&#x1F310;</span><div><strong>Browser Bridge</strong><br><span class="device-desc">Navigate, screenshot, click, extract DOM, evaluate JS.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F5A5;&#xFE0F;</span><div><strong>Desktop Control</strong><br><span class="device-desc">Mouse, keyboard, screen capture, file system access.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4DD;</span><div><strong>VS Code</strong><br><span class="device-desc">Open files, edit code, run terminal, read diagnostics.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4F1;</span><div><strong>Android & iOS</strong><br><span class="device-desc">Tap, swipe, launch apps, push notifications, clipboard access.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F4AC;</span><div><strong>Slack &middot; Discord &middot; Teams</strong><br><span class="device-desc">Bot tokens. Signature verification. Slash commands.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F4AC;</span><div><strong>Telegram &middot; WhatsApp</strong><br><span class="device-desc">Webhook auto-registration. Platform-specific verification.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x2699;&#xFE0F;</span><div><strong>Zapier &middot; n8n &middot; Make</strong><br><span class="device-desc">Webhook URLs. API key auth. Bi-directional automation.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F4E7;</span><div><strong>Email &middot; SMS &middot; Voice &middot; Zoom</strong><br><span class="device-desc">SMTP, SendGrid, Twilio SMS, Twilio Voice.</span></div></div>
         </div>
       </div>
       <div class="device-category">
-        <div class="device-cat-label">IoT & Edge</div>
+        <div class="device-cat-label">Integrations (22)</div>
         <div class="device-list">
-          <div class="device-item"><span class="device-icon">&#x1F353;</span><div><strong>Raspberry Pi</strong><br><span class="device-desc">GPIO read/write, sensor data, camera capture, I2C/SPI.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4A1;</span><div><strong>Arduino / ESP32</strong><br><span class="device-desc">MQTT protocol. Lightweight JSON commands. Sensor telemetry.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F3E0;</span><div><strong>Home Assistant</strong><br><span class="device-desc">Lights, switches, climate, scenes, automations. REST API.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F4E6;</span><div><strong>GitHub &middot; GitLab &middot; Bitbucket</strong><br><span class="device-desc">OAuth. PR automation. Branch management. Pipeline triggers.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x2601;&#xFE0F;</span><div><strong>AWS &middot; GCP &middot; Azure</strong><br><span class="device-desc">Cloud infrastructure. Credentials validated on save.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F680;</span><div><strong>Vercel &middot; Netlify &middot; Railway &middot; Fly.io</strong><br><span class="device-desc">Deploy triggers. Build status. Environment management.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F4CB;</span><div><strong>Jira &middot; Linear &middot; Notion &middot; Asana</strong><br><span class="device-desc">Project sync. Issue creation. Status updates.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F4CA;</span><div><strong>Datadog &middot; Sentry &middot; PagerDuty &middot; Grafana</strong><br><span class="device-desc">Monitoring. Alert correlation. Incident management.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F5C4;&#xFE0F;</span><div><strong>Cloudflare &middot; S3 &middot; Supabase</strong><br><span class="device-desc">CDN management. Object storage. Database access.</span></div></div>
         </div>
       </div>
     </div>
@@ -591,52 +569,8 @@
     <div class="device-cta rv">
       <p>Runs on <strong>Linux, macOS, and Windows</strong>. If it has Docker, it runs AskAlf. If it has a network connection, your agents can control it.</p>
     </div>
-  </section>
 
-  <!-- Integrations & Channels -->
-  <section id="integrations">
-    <div class="sl rv">INTEGRATIONS & CHANNELS</div>
-    <h2 class="st rv">Your agents work where you work.</h2>
-    <p class="sd rv">22 provider integrations and 15 communication channels. All with encrypted credentials, signature verification, and test-before-deploy.</p>
-
-    <div class="device-grid rv">
-      <div class="device-category">
-        <div class="device-cat-label">Source Control (OAuth)</div>
-        <div class="device-list">
-          <div class="device-item"><span class="device-icon">&#x1F4E6;</span><div><strong>GitHub</strong><br><span class="device-desc">OAuth flow. Repo listing. Branch management. PR automation.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4E6;</span><div><strong>GitLab</strong><br><span class="device-desc">OAuth flow. Repo sync. Merge request integration.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4E6;</span><div><strong>Bitbucket</strong><br><span class="device-desc">OAuth flow. Repository management. Pipeline triggers.</span></div></div>
-        </div>
-      </div>
-      <div class="device-category">
-        <div class="device-cat-label">Messaging (15 Channels)</div>
-        <div class="device-list">
-          <div class="device-item"><span class="device-icon">&#x1F4AC;</span><div><strong>Slack</strong><br><span class="device-desc">Bot token auth. Signature verification. Channel responses.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4AC;</span><div><strong>Discord</strong><br><span class="device-desc">Ed25519 signature verification. Slash commands.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4AC;</span><div><strong>Telegram, WhatsApp, Teams</strong><br><span class="device-desc">Webhook auto-registration. Platform-specific verification.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x2699;&#xFE0F;</span><div><strong>Zapier, n8n, Make</strong><br><span class="device-desc">Webhook URLs. API key auth. Bi-directional automation.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4E7;</span><div><strong>Email, SMS, Voice</strong><br><span class="device-desc">SMTP, SendGrid, Twilio SMS, Twilio Voice, Zoom.</span></div></div>
-        </div>
-      </div>
-      <div class="device-category">
-        <div class="device-cat-label">Cloud & DevOps (19 API Key Providers)</div>
-        <div class="device-list">
-          <div class="device-item"><span class="device-icon">&#x2601;&#xFE0F;</span><div><strong>AWS, GCP, Azure</strong><br><span class="device-desc">Cloud infrastructure access. Credentials validated on save.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F680;</span><div><strong>Vercel, Netlify, Railway, Fly.io</strong><br><span class="device-desc">Deploy triggers. Build status. Environment management.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4CB;</span><div><strong>Jira, Linear, Notion, Asana</strong><br><span class="device-desc">Project management sync. Issue creation. Status updates.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F4CA;</span><div><strong>Datadog, Sentry, PagerDuty, Grafana</strong><br><span class="device-desc">Monitoring data. Alert correlation. Incident management.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F5C4;&#xFE0F;</span><div><strong>Cloudflare, S3, Supabase</strong><br><span class="device-desc">CDN management. Object storage. Database access.</span></div></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Tech Stack -->
-  <section>
-    <div class="sl rv">BUILT WITH</div>
-    <h2 class="st rv">Real engineering. Real stack.</h2>
-    <p class="sd rv">No wrappers. No abstractions. Production infrastructure you can inspect, modify, and own.</p>
-    <div class="tech-grid rv">
+    <div class="tech-grid rv" style="margin-top:48px">
       <div class="tech-badge">TypeScript <span class="tech-ver">5.4</span></div>
       <div class="tech-badge">Node.js <span class="tech-ver">22</span></div>
       <div class="tech-badge">React <span class="tech-ver">19</span></div>
@@ -649,7 +583,6 @@
       <div class="tech-badge">OpenAI Codex</div>
       <div class="tech-badge">SearXNG</div>
       <div class="tech-badge">Cloudflare Tunnel</div>
-      <div class="tech-badge">Canvas 2D</div>
       <div class="tech-badge">WebSocket</div>
       <div class="tech-badge">MCP Protocol</div>
       <div class="tech-badge">PKCE OAuth</div>
