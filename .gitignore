@@ -104,6 +104,14 @@ apps/admin-console/
 tests/*.cjs
 apps/forge/migrations/038_fleet_system_sentinel.sql
 
+# Old SaaS/hosted code (not used in self-hosted)
+.env.production.example
+apps/forge/scripts/create-shard-curator.mjs
+apps/dashboard/public/docs.html
+packages/core/src/types/consumer.ts
+packages/core/src/utils/environmental.ts
+scripts/baseline-migrations.sh
+
 # Internal scripts (hardcoded dev paths, ops tooling)
 scripts/claude-with-memory.sh
 scripts/memory-hook.sh
