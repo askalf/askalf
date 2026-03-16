@@ -1,5 +1,2 @@
-// Memory types (cognitive model)
-export * from './memory.js';
-
-// Event types
-export * from './events.js';
+// Types are defined within each app's own codebase.
+// This file kept for backwards compatibility.
