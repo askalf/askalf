@@ -47,6 +47,56 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 INSERT INTO sessions (id) VALUES ('selfhosted-session') ON CONFLICT DO NOTHING;
 
+-- Agent findings (used by finding_ops MCP tool)
+CREATE TABLE IF NOT EXISTS agent_findings (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  agent_id TEXT,
+  agent_name TEXT,
+  finding TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'critical')),
+  category TEXT,
+  execution_id TEXT,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_agent_findings_created_at ON agent_findings(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_findings_agent_name ON agent_findings(agent_name);
+
+-- Audit/log tables used by dashboard scheduler and route handlers
+CREATE TABLE IF NOT EXISTS agent_audit_log (
+  id SERIAL PRIMARY KEY,
+  entity_type TEXT,
+  entity_id TEXT,
+  action TEXT NOT NULL,
+  actor TEXT,
+  actor_id TEXT,
+  old_value TEXT,
+  new_value TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created ON agent_audit_log(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS agent_logs (
+  id SERIAL PRIMARY KEY,
+  agent_id TEXT,
+  level TEXT DEFAULT 'info',
+  message TEXT,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_agent_logs_created ON agent_logs(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id SERIAL PRIMARY KEY,
+  user_id TEXT,
+  action TEXT NOT NULL,
+  resource TEXT,
+  resource_id TEXT,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC);
+
 -- From 020_user_facing_fleet.sql: is_internal column
 ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT false;
 
