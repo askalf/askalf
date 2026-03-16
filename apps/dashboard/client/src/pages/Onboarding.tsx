@@ -37,7 +37,8 @@ export default function Onboarding() {
   const [oauthLoading, setOauthLoading] = useState(false);
   const [oauthState, setOauthState] = useState('');
   const [oauthCode, setOauthCode] = useState('');
-  const [oauthStep, setOauthStep] = useState<'idle' | 'waiting' | 'exchanging'>('idle');
+  const [oauthStep, setOauthStep] = useState<'idle' | 'waiting'>('idle');
+  const [oauthExchanging, setOauthExchanging] = useState(false);
   const [oauthError, setOauthError] = useState('');
   const [searchParams] = useSearchParams();
 
@@ -366,9 +367,9 @@ export default function Onboarding() {
                           />
                           <button
                             className="ob-btn-oauth"
-                            disabled={!oauthCode.trim() || oauthStep === 'exchanging'}
+                            disabled={!oauthCode.trim() || oauthExchanging}
                             onClick={async () => {
-                              setOauthStep('exchanging');
+                              setOauthExchanging(true);
                               setOauthError('');
                               try {
                                 const res = await fetch(`${API_BASE}/api/v1/forge/oauth/exchange`, {
@@ -384,15 +385,14 @@ export default function Onboarding() {
                                 } else {
                                   const data = await res.json() as { error?: string };
                                   setOauthError(data.error || 'Exchange failed');
-                                  setOauthStep('waiting');
                                 }
                               } catch {
                                 setOauthError('Failed to exchange code');
-                                setOauthStep('waiting');
                               }
+                              setOauthExchanging(false);
                             }}
                           >
-                            {oauthStep === 'exchanging' ? 'Connecting...' : 'Submit'}
+                            {oauthExchanging ? 'Connecting...' : 'Submit'}
                           </button>
                         </div>
                       </div>
