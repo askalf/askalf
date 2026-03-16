@@ -170,6 +170,18 @@ docker compose -f docker-compose.selfhosted.yml --profile vpn up -d
 
 Supports 30+ providers — ProtonVPN, Mullvad, NordVPN, Surfshark, and [more](https://github.com/qdm12/gluetun-wiki/tree/main/setup/providers). Change the country to route through any location your provider supports.
 
+## Migrating from OpenClaw
+
+One-command migration converts your OpenClaw agents, skills, memory, and config to AskAlf format:
+
+```bash
+./scripts/migrate-from-openclaw.sh ~/.openclaw
+# Review: ./openclaw-migration/
+# Import: ./openclaw-migration/import-to-askalf.sh
+```
+
+Converts: agents (AGENTS.md + SOUL.md → system prompts), skills (SKILL.md → templates), memory (MEMORY.md → semantic seeds), channels, providers, and heartbeat config.
+
 ## Autoheal
 
 Automatic container recovery — included by default. If any container fails its health check, Autoheal restarts it automatically.
