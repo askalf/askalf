@@ -35,6 +35,10 @@ export default function Onboarding() {
   const [openaiSaved, setOpenaiSaved] = useState(false);
   const [oauthStatus, setOauthStatus] = useState<'unknown' | 'connected' | 'expired' | 'none'>('unknown');
   const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthState, setOauthState] = useState('');
+  const [oauthCode, setOauthCode] = useState('');
+  const [oauthStep, setOauthStep] = useState<'idle' | 'waiting' | 'exchanging'>('idle');
+  const [oauthError, setOauthError] = useState('');
   const [searchParams] = useSearchParams();
 
   // Check OAuth status on mount and after redirect
@@ -324,26 +328,77 @@ export default function Onboarding() {
                         </div>
                       </div>
                     </div>
-                    <button
-                      className="ob-btn-oauth"
-                      disabled={oauthLoading}
-                      onClick={async () => {
-                        setOauthLoading(true);
-                        try {
-                          const res = await fetch(`${API_BASE}/api/v1/forge/oauth/start`, { credentials: 'include' });
-                          const data = await res.json() as { authUrl: string };
-                          window.location.href = data.authUrl;
-                        } catch {
+                    {oauthStep === 'idle' && (
+                      <button
+                        className="ob-btn-oauth"
+                        disabled={oauthLoading}
+                        onClick={async () => {
+                          setOauthLoading(true);
+                          setOauthError('');
+                          try {
+                            const res = await fetch(`${API_BASE}/api/v1/forge/oauth/start`, { credentials: 'include' });
+                            const data = await res.json() as { authUrl: string; state: string };
+                            setOauthState(data.state);
+                            setOauthStep('waiting');
+                            window.open(data.authUrl, '_blank');
+                          } catch {
+                            setOauthError('Failed to start OAuth flow');
+                          }
                           setOauthLoading(false);
-                        }
-                      }}
-                    >
-                      {oauthLoading ? 'Redirecting...' : 'Connect with Anthropic'}
-                    </button>
-                    {searchParams.get('oauth_error') && (
-                      <div className="ob-test-result fail">
-                        OAuth failed: {searchParams.get('oauth_error')?.replace(/_/g, ' ')}
+                        }}
+                      >
+                        {oauthLoading ? 'Opening...' : 'Connect with Anthropic'}
+                      </button>
+                    )}
+                    {oauthStep === 'waiting' && (
+                      <div style={{ marginTop: '12px' }}>
+                        <div className="ob-oauth-info-desc" style={{ marginBottom: '8px' }}>
+                          Authorize in the browser tab that opened, then paste the code from the success page:
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            value={oauthCode}
+                            onChange={(e) => setOauthCode(e.target.value)}
+                            placeholder="Paste authorization code here"
+                            style={{ flex: 1, padding: '10px 14px', background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '8px', color: '#fff', fontFamily: 'var(--font-mono)', fontSize: '.85rem' }}
+                            autoFocus
+                          />
+                          <button
+                            className="ob-btn-oauth"
+                            disabled={!oauthCode.trim() || oauthStep === 'exchanging'}
+                            onClick={async () => {
+                              setOauthStep('exchanging');
+                              setOauthError('');
+                              try {
+                                const res = await fetch(`${API_BASE}/api/v1/forge/oauth/exchange`, {
+                                  method: 'POST',
+                                  credentials: 'include',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ code: oauthCode.trim(), state: oauthState }),
+                                });
+                                if (res.ok) {
+                                  setOauthStatus('connected');
+                                  setOauthStep('idle');
+                                  setOauthCode('');
+                                } else {
+                                  const data = await res.json() as { error?: string };
+                                  setOauthError(data.error || 'Exchange failed');
+                                  setOauthStep('waiting');
+                                }
+                              } catch {
+                                setOauthError('Failed to exchange code');
+                                setOauthStep('waiting');
+                              }
+                            }}
+                          >
+                            {oauthStep === 'exchanging' ? 'Connecting...' : 'Submit'}
+                          </button>
+                        </div>
                       </div>
+                    )}
+                    {oauthError && (
+                      <div className="ob-test-result fail">{oauthError}</div>
                     )}
                   </>
                 )}

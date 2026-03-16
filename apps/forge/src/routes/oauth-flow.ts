@@ -20,7 +20,8 @@ import { authMiddleware } from '../middleware/auth.js';
 // Claude CLI's public OAuth client (PKCE, no secret needed)
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const OAUTH_AUTHORIZE_URL = 'https://claude.ai/oauth/authorize';
-const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
+const OAUTH_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
+const OAUTH_REDIRECT_URI = 'https://platform.claude.com/oauth/code/callback';
 const CREDENTIALS_PATH = '/tmp/claude-credentials/.credentials.json';
 
 // In-memory PKCE state (short-lived, single instance)
@@ -61,16 +62,11 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
 
       pendingFlows.set(state, { codeVerifier, createdAt: Date.now() });
 
-      // Build the callback URL based on the request origin
-      const host = request.headers['x-forwarded-host'] || request.headers.host || 'localhost:3001';
-      const proto = request.headers['x-forwarded-proto'] || 'http';
-      const callbackUrl = `${proto}://${host}/api/v1/forge/oauth/callback`;
-
       const params = new URLSearchParams({
         response_type: 'code',
         client_id: OAUTH_CLIENT_ID,
-        redirect_uri: callbackUrl,
-        scope: 'user:inference',
+        redirect_uri: OAUTH_REDIRECT_URI,
+        scope: 'user:inference user:profile',
         state,
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
@@ -83,41 +79,28 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
   );
 
   /**
-   * GET /api/v1/forge/oauth/callback
-   * Handles the redirect from Anthropic after user authorizes.
-   * Exchanges the authorization code for tokens and writes credentials.
+   * POST /api/v1/forge/oauth/exchange
+   * Manual code exchange — user authorizes on claude.ai, gets redirected to
+   * Anthropic's success page with the code, pastes it here.
    */
-  app.get(
-    '/api/v1/forge/oauth/callback',
+  app.post(
+    '/api/v1/forge/oauth/exchange',
+    { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { code, state, error } = request.query as {
-        code?: string; state?: string; error?: string;
-      };
-
-      // Determine redirect target
-      const host = request.headers['x-forwarded-host'] || request.headers.host || 'localhost:3001';
-      const proto = request.headers['x-forwarded-proto'] || 'http';
-      const dashboardUrl = `${proto}://${host}`;
-
-      if (error) {
-        return reply.redirect(`${dashboardUrl}/onboarding?oauth_error=${encodeURIComponent(error)}`);
-      }
+      const { code, state } = request.body as { code?: string; state?: string };
 
       if (!code || !state) {
-        return reply.redirect(`${dashboardUrl}/onboarding?oauth_error=missing_code`);
+        return reply.code(400).send({ error: 'Missing code or state' });
       }
 
       const pending = pendingFlows.get(state);
       if (!pending) {
-        return reply.redirect(`${dashboardUrl}/onboarding?oauth_error=invalid_state`);
+        return reply.code(400).send({ error: 'Invalid or expired state. Start the flow again.' });
       }
 
       pendingFlows.delete(state);
 
-      const callbackUrl = `${proto}://${host}/api/v1/forge/oauth/callback`;
-
       try {
-        // Exchange code for tokens
         const tokenRes = await fetch(OAUTH_TOKEN_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -125,7 +108,7 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
             grant_type: 'authorization_code',
             client_id: OAUTH_CLIENT_ID,
             code,
-            redirect_uri: callbackUrl,
+            redirect_uri: OAUTH_REDIRECT_URI,
             code_verifier: pending.codeVerifier,
           }),
         });
@@ -133,7 +116,7 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
         if (!tokenRes.ok) {
           const errText = await tokenRes.text().catch(() => 'Unknown');
           console.error(`[OAuth] Token exchange failed (${tokenRes.status}): ${errText}`);
-          return reply.redirect(`${dashboardUrl}/onboarding?oauth_error=token_exchange_failed`);
+          return reply.code(400).send({ error: 'Token exchange failed', details: errText });
         }
 
         const tokenData = await tokenRes.json() as {
@@ -143,7 +126,6 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
           scope?: string;
         };
 
-        // Write credentials file (same format as Claude CLI)
         const credentials = {
           claudeAiOauth: {
             accessToken: tokenData.access_token,
@@ -153,14 +135,14 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
           },
         };
 
-        await mkdir(dirname(CREDENTIALS_PATH), { recursive: true }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+        await mkdir(dirname(CREDENTIALS_PATH), { recursive: true }).catch(() => {});
         await writeFile(CREDENTIALS_PATH, JSON.stringify(credentials, null, 2), 'utf-8');
 
         console.log('[OAuth] Claude credentials saved successfully');
-        return reply.redirect(`${dashboardUrl}/onboarding?oauth_success=true`);
+        return { success: true, expiresAt: credentials.claudeAiOauth.expiresAt };
       } catch (err) {
         console.error('[OAuth] Flow error:', err);
-        return reply.redirect(`${dashboardUrl}/onboarding?oauth_error=internal_error`);
+        return reply.code(500).send({ error: 'Internal error during token exchange' });
       }
     },
   );
