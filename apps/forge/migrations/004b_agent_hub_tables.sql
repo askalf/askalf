@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS agent_interventions (
   responded_by TEXT,
   responded_at TIMESTAMPTZ,
   autonomy_delta NUMERIC DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_interventions_agent_id ON agent_interventions(agent_id);

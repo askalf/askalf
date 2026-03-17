@@ -60,6 +60,7 @@ import { oauthFlowRoutes } from './routes/oauth-flow.js';
 import { publicIntentRoutes } from './routes/public-intent.js';
 import { dispatchRoutes } from './routes/dispatch.js';
 import { fleetAnalyticsRoutes } from './routes/fleet-analytics.js';
+import { marketplaceRoutes } from './routes/marketplace.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution, getRunningExecutionCount, waitForRunningExecutions } from './runtime/worker.js';
 import { startTaskDispatcher, stopTaskDispatcher } from './runtime/task-dispatcher.js';
@@ -399,6 +400,7 @@ await oauthFlowRoutes(app);
 await publicIntentRoutes(app);
 await dispatchRoutes(app);
 await fleetAnalyticsRoutes(app);
+await marketplaceRoutes(app);
 await registerMCPRoutes(app);
 await registerAgentBridge(app);
 
@@ -501,6 +503,8 @@ async function start(): Promise<void> {
     const { startWebhookRetryWorker } = await import('./channels/webhook-delivery.js');
     startChannelResultHandler();
     startWebhookRetryWorker();
+    const { startOpenClawBridge } = await import('./channels/openclaw-manager.js');
+    startOpenClawBridge().catch(err => logger.warn(`[Forge] OpenClaw bridge skipped: ${err.message}`));
     logger.info('[Forge] Channel result handler + webhook delivery worker started');
 
     // Start persistent event logger (logs all events to postgres)

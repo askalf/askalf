@@ -17,11 +17,13 @@ import { SendGridProvider } from './sendgrid-channel.js';
 import { TwilioVoiceProvider } from './twilio-voice.js';
 import { ZoomProvider } from './zoom-channel.js';
 import { WebhooksProvider } from './webhooks.js';
+import { OpenClawProvider } from './openclaw.js';
 
 const providers = new Map<ChannelType, ChannelProvider>();
 
 // Register providers
 providers.set('webhooks', new WebhooksProvider());
+providers.set('openclaw', new OpenClawProvider());
 providers.set('slack', new SlackProvider());
 providers.set('discord', new DiscordProvider());
 providers.set('telegram', new TelegramProvider());

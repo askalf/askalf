@@ -123,7 +123,7 @@ BEGIN
     ALTER TABLE agent_tickets DROP CONSTRAINT agent_tickets_source_check;
   END IF;
   ALTER TABLE agent_tickets ADD CONSTRAINT agent_tickets_source_check
-    CHECK (source IN ('human', 'agent', 'system', 'autonomy-loop', 'qa', 'security', 'watchdog', 'monitoring', 'scheduler'));
+    CHECK (source IN ('human', 'agent', 'system', 'autonomy-loop', 'qa', 'security', 'watchdog', 'monitoring', 'scheduler', 'brain_question'));
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
@@ -190,8 +190,11 @@ ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS is_continuous BOOLEAN DEFAULT 
 -- Channel messages (used by channel result handler)
 CREATE TABLE IF NOT EXISTS channel_messages (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  channel_id TEXT, channel_type TEXT, direction TEXT DEFAULT 'outbound',
+  channel_id TEXT, channel_config_id TEXT, channel_type TEXT,
+  external_message_id TEXT, external_channel_id TEXT, external_user_id TEXT,
+  direction TEXT DEFAULT 'outbound',
   content TEXT, metadata JSONB DEFAULT '{}', execution_id TEXT, agent_id TEXT,
+  status TEXT DEFAULT 'received',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_channel_messages_created ON channel_messages(created_at DESC);

@@ -48,6 +48,7 @@ import {
 const PORT = parseInt(process.env['PORT'] ?? '3010', 10);
 const log = (msg: string) => console.log(`[mcp-tools] ${new Date().toISOString()} ${msg}`);
 const INTERNAL_API_SECRET = process.env['INTERNAL_API_SECRET'] ?? '';
+if (!INTERNAL_API_SECRET) log('WARNING: INTERNAL_API_SECRET not set — /mcp endpoints are unprotected');
 
 const isDev = process.env['NODE_ENV'] !== 'production';
 const ALLOWED_ORIGINS = [
@@ -152,7 +153,6 @@ app.use((req, res, next) => {
   const isProtected = INTERNAL_PROTECTED.some(p => req.path === p || req.path.startsWith(p + '?'));
   if (!isProtected) return next();
   if (!INTERNAL_API_SECRET) {
-    log('WARNING: INTERNAL_API_SECRET not set — /mcp endpoints are unprotected');
     return next();
   }
   if (!verifyInternalAuth(INTERNAL_API_SECRET, req.method, req.path, req.headers as Record<string, string | string[] | undefined>)) {

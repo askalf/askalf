@@ -125,6 +125,10 @@ services:
       GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
       # Channel integrations
       CHANNEL_ENCRYPTION_KEY: ${CHANNEL_ENCRYPTION_KEY:-}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      # OpenClaw bridge (optional)
+      OPENCLAW_GATEWAY_URL: ${OPENCLAW_GATEWAY_URL:-}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-}
       BASE_URL: http://localhost:${DASHBOARD_PORT:-3001}
       # Auth
       JWT_SECRET: ${JWT_SECRET}
@@ -264,6 +268,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3010
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
       FORGE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
       SUBSTRATE_DATABASE_URL: postgresql://substrate:${POSTGRES_PASSWORD}@postgres:5432/askalf
@@ -366,8 +371,6 @@ services:
   gluetun:
     image: qmcgaw/gluetun:v3.40.0@sha256:2b42bfa046757145a5155acece417b65b4443c8033fb88661a8e9dcf7fda5a00
     container_name: askalf-gluetun
-    labels:
-      - "autoheal-askalf=true"
     profiles:
       - vpn
     environment:
@@ -387,10 +390,14 @@ services:
       DOT_PROVIDERS: cloudflare
     cap_add:
       - NET_ADMIN
+      - CHOWN
+      - DAC_OVERRIDE
     cap_drop:
       - ALL
     devices:
       - /dev/net/tun:/dev/net/tun
+    tmpfs:
+      - /tmp/gluetun:uid=1000,gid=1000
     healthcheck:
       test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
       interval: 60s

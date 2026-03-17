@@ -13,6 +13,7 @@ const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Docs = lazy(() => import('./pages/Docs'));
 const Status = lazy(() => import('./pages/Status'));
+const SecurityComparison = lazy(() => import('./pages/SecurityComparison'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -72,6 +73,7 @@ export default function App() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/docs" element={<Docs />} />
+      <Route path="/security" element={<SecurityComparison />} />
       <Route path="/status" element={<Status />} />
       <Route path="/app/*" element={<Navigate to="/command-center" replace />} />
       <Route path="/admin/*" element={<Navigate to="/command-center" replace />} />

@@ -1229,7 +1229,47 @@ export const hubApi = {
         `/api/v1/forge/fleet/analytics?${buildParams({ days: days || 14 })}`,
       ),
   },
+
+  // Marketplace
+  marketplace: {
+    list: (params: { type?: string; tag?: string; search?: string; sort?: string; featured?: boolean } = {}) =>
+      apiFetch<{ packages: MarketplacePackage[] }>(
+        `/api/v1/admin/marketplace/packages?${buildParams({ type: params.type, tag: params.tag, search: params.search, sort: params.sort, featured: params.featured })}`,
+      ),
+
+    detail: (slug: string) =>
+      apiFetch<{ package: MarketplacePackage }>(`/api/v1/admin/marketplace/packages/${encodeURIComponent(slug)}`),
+
+    install: (slug: string) =>
+      apiFetch<{ success: boolean; message: string }>(
+        `/api/v1/admin/marketplace/packages/${encodeURIComponent(slug)}/install`,
+        { method: 'POST', body: JSON.stringify({}) },
+      ),
+
+    rate: (slug: string, body: { rating: number; review?: string }) =>
+      apiFetch<{ success: boolean }>(
+        `/api/v1/admin/marketplace/packages/${encodeURIComponent(slug)}/rate`,
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+  },
 };
+
+// Marketplace types
+export interface MarketplacePackage {
+  slug: string;
+  name: string;
+  description: string;
+  full_description?: string;
+  author: string;
+  type: 'mcp_server' | 'skill_template' | 'tool_bundle';
+  tags: string[];
+  rating: number;
+  install_count: number;
+  featured?: boolean;
+  repo_url?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface DeploymentLog {
   id: string;
