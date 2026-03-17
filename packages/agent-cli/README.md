@@ -1,6 +1,10 @@
 # @askalf/agent
 
-Connect local devices to your [AskAlf](https://askalf.org) fleet via WebSocket bridge.
+**Connect any device to your AskAlf fleet.**
+
+WebSocket bridge that registers your machine as a device in the AskAlf platform. Once connected, the fleet's 7 core agents (Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer) can dispatch tasks to your device — executed via Claude CLI with full codebase access.
+
+Part of [AskAlf](https://askalf.org) — the self-hosted autonomous AI agent fleet platform with multi-agent orchestration, persistent memory, 16 communication channels, and a 28-package marketplace.
 
 ## Install
 
@@ -8,45 +12,134 @@ Connect local devices to your [AskAlf](https://askalf.org) fleet via WebSocket b
 npm install -g @askalf/agent
 ```
 
-## Usage
+Don't have AskAlf yet? Deploy the full platform first:
+
+```bash
+curl -fsSL https://get.askalf.org | bash
+```
+
+## Quick Start
 
 ```bash
 # Connect this device to your fleet
-askalf-agent connect <api-key>
+askalf-agent connect <your-api-key>
 
-# Connect to a specific server
-askalf-agent connect <api-key> --url wss://your-server.com
+# Connect to a self-hosted instance
+askalf-agent connect <your-api-key> --url wss://your-server.com
 
-# Name this device
-askalf-agent connect <api-key> --name "build-server"
-
-# Run as background daemon
+# Run as a background daemon
 askalf-agent daemon
 
 # Check connection status
 askalf-agent status
 
-# Stop the agent
+# Disconnect
 askalf-agent disconnect
 ```
 
+## What It Does
+
+When connected, your device:
+
+1. **Registers** with the AskAlf fleet via WebSocket
+2. **Reports capabilities** — shell, git, docker, node, python, filesystem (auto-detected)
+3. **Receives tasks** dispatched by the Forge orchestrator or unified dispatcher
+4. **Executes via Claude CLI** — `claude --print --output-format json`
+5. **Reports results** back to the fleet with token counts, cost, and duration
+6. **Streams progress** — the fleet sees output in real-time via the event bus
+
+The fleet sees your device in the Devices tab and can route tasks to it based on capabilities. The autonomous brain can also dispatch investigation tickets to devices when fleet agents identify issues.
+
 ## How It Works
 
-1. Your device connects to the AskAlf forge via WebSocket
-2. The device registers its capabilities (shell, git, docker, node, python)
-3. When the fleet dispatches a task to your device, the agent runs it using Claude CLI
-4. Results are streamed back to the platform in real time
+```
+Your Machine                    AskAlf Fleet
+┌──────────────┐    WSS     ┌──────────────────────┐
+│ askalf-agent  │◄──────────►│  Forge Orchestrator   │
+│              │            │  Unified Dispatcher   │
+│ Claude CLI   │            │  Event Bus (Redis)    │
+│ Your Code    │            │  Brain + Memory       │
+│              │            │  26 MCP Tools         │
+└──────────────┘            └──────────────────────┘
+                                    │
+                            ┌───────┴───────┐
+                            │  Dashboard    │
+                            │  Devices Tab  │
+                            │  Fleet View   │
+                            └───────────────┘
+```
+
+- **Heartbeat** every 30 seconds to maintain presence
+- **Auto-reconnect** on disconnect (5 second backoff)
+- **Task cancellation** via SIGTERM
+- **10 minute timeout** per execution (configurable)
+- **Progress streaming** — the fleet sees output in real-time
+- **API key auth** — Bearer token on WebSocket handshake
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 22+ (18+ may work but 22 is recommended)
 - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) installed (`npm install -g @anthropic-ai/claude-code`)
-- An AskAlf API key (generate in Settings > API Keys)
+- An AskAlf instance running (deploy with `curl -fsSL https://get.askalf.org | bash`)
 
 ## Configuration
 
-Config is stored in `~/.askalf/agent.json`. The daemon PID file is at `~/.askalf/agent.pid`.
+Config stored in `~/.askalf/agent.json`:
+
+```json
+{
+  "apiKey": "your-forge-api-key",
+  "url": "wss://your-server.com",
+  "deviceName": "my-laptop"
+}
+```
+
+Get your API key from the AskAlf dashboard at Settings > API Keys, or use the `FORGE_API_KEY` from your `.env` file.
+
+## Options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--url <url>` | Server WebSocket URL | `wss://askalf.org` |
+| `--name <name>` | Device display name | System hostname |
+| `--version` | Show version | |
+| `--help` | Show help | |
+
+## Programmatic Usage
+
+```typescript
+import { AgentBridge } from '@askalf/agent';
+
+const bridge = new AgentBridge({
+  apiKey: 'your-api-key',
+  url: 'wss://your-server.com',
+  deviceName: 'my-server',
+  hostname: 'prod-01',
+  os: 'Linux 6.1',
+  capabilities: { shell: true, docker: true, git: true, node: true, python: true, filesystem: true },
+});
+
+await bridge.connect();
+
+// The bridge will now:
+// - Register with the fleet
+// - Accept dispatched tasks
+// - Execute via Claude CLI
+// - Report results back
+// - Maintain heartbeat
+// - Auto-reconnect on failure
+```
+
+## Supported Platforms
+
+Runs anywhere Node.js runs — Linux, macOS, Windows, Raspberry Pi, cloud VMs, CI runners.
+
+## Related
+
+- [AskAlf Platform](https://github.com/SprayberryLabs/askalf) — the full platform
+- [Architecture Docs](https://github.com/SprayberryLabs/askalf/blob/main/docs/ARCHITECTURE.md) — system internals
+- [Contributing Guide](https://github.com/SprayberryLabs/askalf/blob/main/CONTRIBUTING.md) — how to contribute
 
 ## License
 
-MIT
+MIT — [askalf.org](https://askalf.org)
