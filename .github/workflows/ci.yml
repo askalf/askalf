@@ -30,6 +30,7 @@ jobs:
         run: |
           pnpm --filter @askalf/db build || true
           pnpm --filter @askalf/observability build
+          pnpm --filter @askalf/email build || true
 
       - name: Build forge
         run: pnpm --filter @askalf/forge build
