@@ -42,7 +42,7 @@ export default function Onboarding() {
   const [oauthError, setOauthError] = useState('');
   const [searchParams] = useSearchParams();
 
-  // Check OAuth status on mount and after redirect
+  // Check OAuth + provider key status on mount
   useEffect(() => {
     const checkOAuth = async () => {
       try {
@@ -53,7 +53,19 @@ export default function Onboarding() {
         setOauthStatus('none');
       }
     };
+    const checkProviders = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/forge/user-providers`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json() as { keys?: { provider_type: string }[] };
+          const keys = data.keys || [];
+          if (keys.some(k => k.provider_type === 'openai')) setOpenaiSaved(true);
+          if (keys.some(k => k.provider_type === 'anthropic')) setParserMode('enhanced');
+        }
+      } catch { /* ignore */ }
+    };
     checkOAuth();
+    checkProviders();
 
     // Handle OAuth redirect result
     const success = searchParams.get('oauth_success');
