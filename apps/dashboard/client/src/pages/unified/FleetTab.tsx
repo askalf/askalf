@@ -157,7 +157,7 @@ interface LiveLogEntry {
 function ScheduleEditor({ agentId, currentSchedule, currentInterval }: { agentId: string; currentSchedule: string; currentInterval?: number }) {
   const [editing, setEditing] = useState(false);
   const [scheduleType, setScheduleType] = useState(currentSchedule === 'manual' ? 'manual' : 'continuous');
-  const [interval, setInterval] = useState(currentInterval || 60);
+  const [intervalMin, setIntervalMin] = useState(currentInterval || 60);
   const [saving, setSaving] = useState(false);
   const { addToast } = useToast();
 
@@ -194,8 +194,8 @@ function ScheduleEditor({ agentId, currentSchedule, currentInterval }: { agentId
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)' }}>every</span>
             <input
               type="number"
-              value={interval}
-              onChange={(e) => setInterval(Math.max(5, parseInt(e.target.value) || 30))}
+              value={intervalMin}
+              onChange={(e) => setIntervalMin(Math.max(5, parseInt(e.target.value) || 30))}
               min={5}
               max={1440}
               style={{ width: 60, padding: '4px 6px', background: 'var(--deep)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontSize: 12, textAlign: 'center' }}
@@ -214,7 +214,7 @@ function ScheduleEditor({ agentId, currentSchedule, currentInterval }: { agentId
                 method: 'POST',
                 body: JSON.stringify({
                   schedule_type: scheduleType === 'continuous' ? 'scheduled' : 'manual',
-                  schedule_interval_minutes: scheduleType === 'continuous' ? interval : null,
+                  schedule_interval_minutes: scheduleType === "continuous" ? intervalMin : null,
                   is_continuous: scheduleType === 'continuous',
                 }),
               });
