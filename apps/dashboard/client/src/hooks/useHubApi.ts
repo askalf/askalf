@@ -58,6 +58,7 @@ export interface Agent {
   description: string;
   system_prompt: string;
   schedule: string | null;
+  schedule_interval_minutes?: number | null;
   config: Record<string, unknown>;
   enabled_tools: string[];
   autonomy_level: number;
