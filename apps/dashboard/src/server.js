@@ -192,7 +192,14 @@ fastify.addHook('onSend', async (request, reply) => {
 let _cachedAdminUser = null;
 async function getAdminUser() {
   if (_cachedAdminUser) return _cachedAdminUser;
-  // Self-hosted: no users table — return a synthetic admin identity
+  // Self-hosted: query stub users table for persisted preferences
+  try {
+    const row = await queryOne('SELECT * FROM users WHERE id = $1', ['selfhosted-admin']);
+    if (row) {
+      _cachedAdminUser = row;
+      return _cachedAdminUser;
+    }
+  } catch { /* table may not exist yet */ }
   _cachedAdminUser = {
     id: 'selfhosted-admin',
     email: process.env.SELFHOSTED_ADMIN_EMAIL || 'admin@localhost',
@@ -200,6 +207,8 @@ async function getAdminUser() {
     display_name: 'Admin',
     role: 'super_admin',
     status: 'active',
+    onboarding_completed_at: new Date(),
+    theme_preference: 'dark',
   };
   return _cachedAdminUser;
 }
