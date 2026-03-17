@@ -47,6 +47,21 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 INSERT INTO sessions (id) VALUES ('selfhosted-session') ON CONFLICT DO NOTHING;
 
+-- Legacy table aliases (dashboard queries 'agents' not 'forge_agents')
+CREATE TABLE IF NOT EXISTS agents (
+  id TEXT PRIMARY KEY, name TEXT, slug TEXT, description TEXT,
+  status TEXT DEFAULT 'active', type TEXT DEFAULT 'custom', model TEXT,
+  system_prompt TEXT, is_decommissioned BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tickets (
+  id TEXT PRIMARY KEY, title TEXT, description TEXT,
+  status TEXT DEFAULT 'open', priority TEXT DEFAULT 'medium',
+  assigned_to TEXT, created_by TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Agent findings (used by finding_ops MCP tool)
 CREATE TABLE IF NOT EXISTS agent_findings (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
