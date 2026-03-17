@@ -159,7 +159,7 @@ function ScheduleEditor({ agentId, currentSchedule, currentInterval }: { agentId
   const [scheduleType, setScheduleType] = useState(currentSchedule === 'manual' ? 'manual' : 'continuous');
   const [interval, setInterval] = useState(currentInterval || 60);
   const [saving, setSaving] = useState(false);
-  const toast = useToast();
+  const { addToast } = useToast();
 
   if (!editing) {
     const label = currentSchedule === 'manual' || !currentSchedule
@@ -218,10 +218,10 @@ function ScheduleEditor({ agentId, currentSchedule, currentInterval }: { agentId
                   is_continuous: scheduleType === 'continuous',
                 }),
               });
-              toast.success('Schedule updated');
+              addToast('Schedule updated', 'success');
               setEditing(false);
             } catch {
-              toast.error('Failed to update schedule');
+              addToast('Failed to update schedule', 'error');
             }
             setSaving(false);
           }}
@@ -305,7 +305,7 @@ function AgentDetailPanel({
             </div>
             <div className="fleet-overview-row" style={{ flexDirection: 'column', gap: 8 }}>
               <span className="fleet-overview-label">Schedule</span>
-              <ScheduleEditor agentId={agent.id} currentSchedule={agent.schedule || 'manual'} currentInterval={agent.schedule_interval_minutes} />
+              <ScheduleEditor agentId={agent.id} currentSchedule={agent.schedule || 'manual'} currentInterval={agent.schedule_interval_minutes ?? undefined} />
             </div>
             <div className="fleet-overview-row">
               <span className="fleet-overview-label">Tasks</span>
