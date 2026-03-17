@@ -186,3 +186,21 @@ ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS schedule_type TEXT DEFAULT 'ma
 ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS next_run_at TIMESTAMPTZ;
 ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMPTZ;
 ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS is_continuous BOOLEAN DEFAULT false;
+
+-- Channel messages (used by channel result handler)
+CREATE TABLE IF NOT EXISTS channel_messages (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  channel_id TEXT, channel_type TEXT, direction TEXT DEFAULT 'outbound',
+  content TEXT, metadata JSONB DEFAULT '{}', execution_id TEXT, agent_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_channel_messages_created ON channel_messages(created_at DESC);
+
+-- Reactive triggers (used by trigger engine)
+CREATE TABLE IF NOT EXISTS forge_reactive_triggers (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  agent_id TEXT, trigger_type TEXT NOT NULL, trigger_pattern TEXT,
+  action TEXT, enabled BOOLEAN DEFAULT true, metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_reactive_triggers_agent ON forge_reactive_triggers(agent_id);
