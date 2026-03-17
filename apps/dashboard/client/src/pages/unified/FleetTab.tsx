@@ -210,8 +210,10 @@ function ScheduleEditor({ agentId, currentSchedule, currentInterval }: { agentId
           onClick={async () => {
             setSaving(true);
             try {
-              await hubApi(`/api/v1/admin/agents/${agentId}/schedule`, {
+              await fetch(`${window.location.origin}/api/v1/admin/agents/${agentId}/schedule`, {
                 method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   schedule_type: scheduleType === 'continuous' ? 'scheduled' : 'manual',
                   schedule_interval_minutes: scheduleType === "continuous" ? intervalMin : null,
