@@ -152,6 +152,94 @@ interface LiveLogEntry {
   message: string;
 }
 
+// ── Schedule Editor ──
+
+function ScheduleEditor({ agentId, currentSchedule, currentInterval }: { agentId: string; currentSchedule: string; currentInterval?: number }) {
+  const [editing, setEditing] = useState(false);
+  const [scheduleType, setScheduleType] = useState(currentSchedule === 'manual' ? 'manual' : 'continuous');
+  const [interval, setInterval] = useState(currentInterval || 60);
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
+
+  if (!editing) {
+    const label = currentSchedule === 'manual' || !currentSchedule
+      ? 'Manual'
+      : `Every ${currentInterval || '?'} min`;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="fleet-overview-value">{label}</span>
+        <button
+          onClick={() => setEditing(true)}
+          style={{ background: 'none', border: '1px solid rgba(255,255,255,.1)', borderRadius: 4, color: 'rgba(255,255,255,.5)', fontSize: 11, padding: '2px 8px', cursor: 'pointer' }}
+        >
+          Edit
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <select
+          value={scheduleType}
+          onChange={(e) => setScheduleType(e.target.value)}
+          style={{ padding: '4px 8px', background: 'var(--deep)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontSize: 12 }}
+        >
+          <option value="manual">Manual</option>
+          <option value="continuous">Continuous</option>
+        </select>
+        {scheduleType === 'continuous' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)' }}>every</span>
+            <input
+              type="number"
+              value={interval}
+              onChange={(e) => setInterval(Math.max(5, parseInt(e.target.value) || 30))}
+              min={5}
+              max={1440}
+              style={{ width: 60, padding: '4px 6px', background: 'var(--deep)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontSize: 12, textAlign: 'center' }}
+            />
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)' }}>min</span>
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await hubApi(`/api/v1/admin/agents/${agentId}/schedule`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  schedule_type: scheduleType === 'continuous' ? 'scheduled' : 'manual',
+                  schedule_interval_minutes: scheduleType === 'continuous' ? interval : null,
+                  is_continuous: scheduleType === 'continuous',
+                }),
+              });
+              toast.success('Schedule updated');
+              setEditing(false);
+            } catch {
+              toast.error('Failed to update schedule');
+            }
+            setSaving(false);
+          }}
+          style={{ padding: '3px 12px', background: 'rgba(124,58,237,.2)', border: '1px solid rgba(124,58,237,.3)', borderRadius: 4, color: '#c4b5fd', fontSize: 11, cursor: 'pointer' }}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+        <button
+          onClick={() => setEditing(false)}
+          style={{ padding: '3px 12px', background: 'none', border: '1px solid rgba(255,255,255,.1)', borderRadius: 4, color: 'rgba(255,255,255,.4)', fontSize: 11, cursor: 'pointer' }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AgentDetailPanel({
   detail,
   agent,
@@ -215,9 +303,9 @@ function AgentDetailPanel({
               <span className="fleet-overview-label">Autonomy</span>
               <span className="fleet-overview-value">{agent.autonomy_level}/5</span>
             </div>
-            <div className="fleet-overview-row">
+            <div className="fleet-overview-row" style={{ flexDirection: 'column', gap: 8 }}>
               <span className="fleet-overview-label">Schedule</span>
-              <span className="fleet-overview-value">{agent.schedule || 'manual'}</span>
+              <ScheduleEditor agentId={agent.id} currentSchedule={agent.schedule || 'manual'} currentInterval={agent.schedule_interval_minutes} />
             </div>
             <div className="fleet-overview-row">
               <span className="fleet-overview-label">Tasks</span>
