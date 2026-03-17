@@ -9,7 +9,7 @@ import { authMiddleware } from '../middleware/auth.js';
 
 const CREDENTIALS_PATH = '/tmp/claude-home/.claude/.credentials.json';
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
-const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
+const OAUTH_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
 
 interface CredentialsFile {
   claudeAiOauth?: {
