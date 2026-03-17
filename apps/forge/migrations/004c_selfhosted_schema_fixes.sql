@@ -178,3 +178,11 @@ CREATE TABLE IF NOT EXISTS platform_settings (
   encrypted BOOLEAN NOT NULL DEFAULT false,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Additional columns on forge_agents referenced by dashboard
+ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS is_decommissioned BOOLEAN DEFAULT false;
+ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS schedule_interval_minutes INTEGER;
+ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS schedule_type TEXT DEFAULT 'manual';
+ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS next_run_at TIMESTAMPTZ;
+ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS last_run_at TIMESTAMPTZ;
+ALTER TABLE forge_agents ADD COLUMN IF NOT EXISTS is_continuous BOOLEAN DEFAULT false;
