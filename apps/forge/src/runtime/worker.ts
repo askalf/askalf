@@ -2462,16 +2462,18 @@ export async function runDirectCliExecution(
     // no remaining open tickets, decommission it. Spawned agents use owner_id='system:core_engine'.
     void (async () => {
       try {
-        const agent = await queryOne<{ owner_id: string; name: string }>(
+        const agents = await query<{ owner_id: string; name: string }>(
           `SELECT owner_id, name FROM forge_agents WHERE id = $1`,
           [agentId],
         );
+        const agent = agents[0];
         if (agent?.owner_id === 'system:core_engine') {
-          const openTickets = await queryOne<{ count: string }>(
+          const tickets = await query<{ count: string }>(
             `SELECT COUNT(*)::text as count FROM agent_tickets
              WHERE assigned_to = $1 AND status IN ('open', 'in_progress') AND deleted_at IS NULL`,
             [agent.name],
           );
+          const openTickets = tickets[0];
           if (parseInt(openTickets?.count || '0') === 0) {
             await query(
               `UPDATE forge_agents SET status = 'archived', is_decommissioned = true, dispatch_enabled = false, updated_at = NOW()
