@@ -1645,8 +1645,8 @@ async function refreshCredentials(): Promise<void> {
   const credsPath = `${CLAUDE_DIR}/.credentials.json`;
   const mountPath = '/tmp/claude-credentials/.credentials.json';
 
+  // Step 1: Copy fresher token from mount if available (best-effort — mount may not exist)
   try {
-    // Step 1: Copy fresher token from mount if available
     await access(mountPath);
     const mountRaw = await readFile(mountPath, 'utf8');
     const mountCreds = JSON.parse(mountRaw);
@@ -1661,8 +1661,10 @@ async function refreshCredentials(): Promise<void> {
       await chmod(credsPath, 0o600);
       logger.info('[CLI] Refreshed credentials from mount');
     }
+  } catch { /* mount may not exist — continue to auto-refresh */ }
 
-    // Step 2: Check if token needs auto-refresh
+  // Step 2: Check if token needs auto-refresh (runs regardless of mount availability)
+  try {
     const raw = await readFile(credsPath, 'utf8');
     const creds = JSON.parse(raw);
     const oauth = creds.claudeAiOauth;
@@ -1727,7 +1729,11 @@ async function refreshCredentials(): Promise<void> {
     } catch (writeErr) {
       logger.warn(`[CLI] Could not persist to mount (read-only?): ${(writeErr as Error).message}`);
     }
-  } catch { /* mount may not exist */ }
+  } catch (err) {
+    // Re-throw auth failures (OAuth refresh token rejected) so callers can abort
+    if (err instanceof Error && /OAuth refresh/i.test(err.message)) throw err;
+    logger.warn(`[CLI] Token auto-refresh error: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 /**
@@ -2451,6 +2457,32 @@ export async function runDirectCliExecution(
        WHERE id = $1`,
       [agentId, !parsed.isError],
     ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+
+    // Auto-cleanup spawned specialists: if this agent was spawned on demand and has
+    // no remaining open tickets, decommission it. Spawned agents use owner_id='system:core_engine'.
+    void (async () => {
+      try {
+        const agent = await queryOne<{ owner_id: string; name: string }>(
+          `SELECT owner_id, name FROM forge_agents WHERE id = $1`,
+          [agentId],
+        );
+        if (agent?.owner_id === 'system:core_engine') {
+          const openTickets = await queryOne<{ count: string }>(
+            `SELECT COUNT(*)::text as count FROM agent_tickets
+             WHERE assigned_to = $1 AND status IN ('open', 'in_progress') AND deleted_at IS NULL`,
+            [agent.name],
+          );
+          if (parseInt(openTickets?.count || '0') === 0) {
+            await query(
+              `UPDATE forge_agents SET status = 'archived', is_decommissioned = true, dispatch_enabled = false, updated_at = NOW()
+               WHERE id = $1`,
+              [agentId],
+            );
+            logger.info(`[Worker] Auto-decommissioned spawned specialist "${agent.name}" — no open tickets remaining`);
+          }
+        }
+      } catch { /* non-fatal */ }
+    })();
 
     // Pipeline chaining: if this execution is part of a pipeline, start the next task
     if (!parsed.isError) {
