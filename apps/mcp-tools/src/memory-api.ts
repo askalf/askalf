@@ -14713,14 +14713,19 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     const knowledgeMatch = situation.match(/Reviewing knowledge: (.+)\. What should I do/);
     const knowledge = knowledgeMatch?.[1] ?? situation.slice(0, 120);
 
-    // Skip identity/rule/pattern memories — those are operational, not investigatable
+    // Skip identity/rule/pattern/insight memories — those are operational or reflective, not investigatable
     const kl = knowledge.toLowerCase();
-    if (kl.startsWith('identity:') || kl.startsWith('rule:') || kl.startsWith('pattern:') || kl.startsWith('narrative:')) {
+    if (kl.startsWith('identity:') || kl.startsWith('rule:') || kl.startsWith('pattern:') || kl.startsWith('narrative:') || kl.startsWith('insight:') || kl.startsWith('cross-link:')) {
       return { action: 'knowledge_review_skip', result: `Reviewed operational memory: "${knowledge.slice(0, 60)}" — no investigation needed`, quality: 0.5, mutated: false };
     }
 
-    // Check if this knowledge is actionable (contains a finding, question, or system state observation)
-    const actionableSignals = ['should', 'could', 'need', 'fail', 'error', 'broken', 'missing', 'bug', 'issue', 'slow', 'high', 'low', 'investigate', 'check', 'verify', 'fix', 'improve', 'optimize', 'critical', 'warning'];
+    // Skip healthy status reports that contain signal words in a non-problematic context
+    if (kl.includes('0 failed') || kl.includes('all healthy') || kl.includes('no new incidents') || kl.includes('no failures') || kl.includes('completed successfully')) {
+      return { action: 'knowledge_review_skip', result: `Reviewed healthy status: "${knowledge.slice(0, 60)}" — no investigation needed`, quality: 0.5, mutated: false };
+    }
+
+    // Check if this knowledge is actionable — must reference a concrete system issue, not a vague observation
+    const actionableSignals = ['fail', 'error', 'broken', 'missing', 'bug', 'crash', 'timeout', 'EACCES', 'denied', 'expired', 'unreachable', 'inaccessible', 'exception', 'outage', 'down'];
     const isActionable = actionableSignals.some(s => kl.includes(s));
 
     if (!isActionable) {
@@ -14733,16 +14738,26 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       return { action: 'knowledge_review_note', result: `Reviewed knowledge: "${knowledge.slice(0, 60)}" — informational, no action needed`, quality: 0.5, mutated: false };
     }
 
-    // Actionable knowledge — check if we already have a ticket for this
-    const existing = await p.query(
-      `SELECT id FROM agent_tickets WHERE source IN ('brain_question', 'core_engine')
-         AND status IN ('open', 'in_progress')
-         AND title ILIKE $1
-         AND created_at > NOW() - INTERVAL '48 hours' LIMIT 1`,
-      [`%${knowledge.slice(0, 40)}%`],
-    );
-    if (existing.rows.length > 0) {
-      return { action: 'knowledge_review_exists', result: `Knowledge "${knowledge.slice(0, 60)}" already has an active ticket`, quality: 0.5, mutated: false };
+    // Actionable knowledge — check if a similar ticket already exists
+    // Strip filler words, keep domain-relevant keywords for matching
+    const stopWords = new Set(['this','that','with','from','have','been','were','there','their','about','would','could','should','which','these','those','into','more','also','just','than','then','other','after','before','during','between','through','being','having','each','every','some','such','only','over','much','very','most','will','does','doing','done','make','made','like','need','want','know','take','come','going','when','what','here','where','they','them','your','find','found','issue','problem','reported','multiple','times','indicating','persistent','requiring','human','intervention','investigate','report','findings','still','persists','across','checks','many','several']);
+    const allWords = [...new Set((kl.match(/\b[a-z]{4,}\b/g) ?? []).filter(w => !stopWords.has(w)))];
+    if (allWords.length >= 2) {
+      // Check if ANY open ticket matches at least 2 of our keywords
+      const existing = await p.query(
+        `SELECT id FROM agent_tickets WHERE source = 'brain_question'
+           AND status IN ('open', 'in_progress')
+           AND created_at > NOW() - INTERVAL '48 hours'`,
+      );
+      const openTitles = (existing.rows as Array<Record<string, unknown>>).map(r => String(r['title'] ?? r['id']).toLowerCase());
+      // Not in the DB query params — but only a handful of open tickets so this is fine
+      const isDup = openTitles.some(title => {
+        const matches = allWords.filter(w => title.includes(w));
+        return matches.length >= 2;
+      });
+      if (isDup) {
+        return { action: 'knowledge_review_exists', result: `Knowledge "${knowledge.slice(0, 60)}" already has an active ticket`, quality: 0.5, mutated: false };
+      }
     }
 
     // Route to the right agent
@@ -15951,16 +15966,35 @@ RULES:
     systemActionTypes.add('brain_question_dispatch');
 
     try {
-      // Extract the question from the situation
+      // Extract the question from the situation — use full situation as fallback for routing
       const questionMatch = situation.match(/Top: "([^"]+)"/);
       const question = questionMatch?.[1] ?? situation.slice(0, 120);
+      // Route based on full situation text, not just the extracted question (regex may truncate)
+      const ql = situation.toLowerCase();
 
-      // Determine best agent based on question content
+      // Dedup: skip if a similar ticket already exists (2+ domain keywords overlap)
+      const bqStopWords = new Set(['this','that','with','from','have','been','were','there','their','about','would','could','should','which','these','those','into','more','also','just','than','then','other','after','before','during','between','through','being','having','each','every','some','such','only','over','much','very','most','will','does','doing','done','make','made','like','need','want','know','take','come','going','when','what','here','where','they','them','your','find','found','issue','problem','reported','multiple','times','indicating','persistent','requiring','human','intervention','investigate','report','findings','still','persists','across','checks','many','several']);
+      const bqWords = [...new Set((question.toLowerCase().match(/\b[a-z]{4,}\b/g) ?? []).filter(w => !bqStopWords.has(w)))];
+      if (bqWords.length >= 2) {
+        const existingTickets = await p.query(
+          `SELECT title FROM agent_tickets WHERE source = 'brain_question'
+             AND status IN ('open', 'in_progress')
+             AND created_at > NOW() - INTERVAL '48 hours'`,
+        );
+        const isDup = (existingTickets.rows as Array<Record<string, unknown>>).some(r => {
+          const title = String(r['title'] ?? '').toLowerCase();
+          return bqWords.filter(w => title.includes(w)).length >= 2;
+        });
+        if (isDup) {
+          return { action: 'brain_question_exists', result: `Brain question "${question.slice(0, 60)}" already has an active ticket`, quality: 0.5, mutated: false };
+        }
+      }
+
+      // Determine best agent — check infra/docker before security (docker issues contain 'permission' too)
       let targetAgent = 'Backend Dev'; // default
-      const ql = question.toLowerCase();
-      if (ql.includes('frontend') || ql.includes('dashboard') || ql.includes('ui') || ql.includes('component')) targetAgent = 'Frontend Dev';
-      else if (ql.includes('security') || ql.includes('auth') || ql.includes('vulnerability') || ql.includes('permission')) targetAgent = 'Security';
-      else if (ql.includes('container') || ql.includes('docker') || ql.includes('memory') || ql.includes('disk') || ql.includes('infra')) targetAgent = 'Infra';
+      if (ql.includes('container') || ql.includes('docker') || ql.includes('disk') || ql.includes('infra') || ql.includes('socket')) targetAgent = 'Infra';
+      else if (ql.includes('security') || ql.includes('auth') || ql.includes('vulnerability') || ql.includes('permission') || ql.includes('oauth') || ql.includes('token expir')) targetAgent = 'Security';
+      else if (ql.includes('frontend') || ql.includes('dashboard') || ql.includes('ui') || ql.includes('component')) targetAgent = 'Frontend Dev';
       else if (ql.includes('test') || ql.includes('quality') || ql.includes('metric') || ql.includes('health')) targetAgent = 'QA';
 
       const ticketId = `tkt_brain_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;

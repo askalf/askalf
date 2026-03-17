@@ -24,9 +24,10 @@ const FleetHubTab = lazy(() => import('./unified/FleetHubTab'));
 const OpsTab = lazy(() => import('./unified/OpsTab'));
 const BrainTab = lazy(() => import('./unified/BrainTab'));
 const LiveFeedTab = lazy(() => import('./unified/LiveFeedTab'));
+const MarketplaceTab = lazy(() => import('./unified/MarketplaceTab'));
 const Settings = lazy(() => import('./Settings'));
 
-type TabKey = 'command' | 'code' | 'overview' | 'fleet' | 'ops' | 'brain' | 'live' | 'settings';
+type TabKey = 'command' | 'code' | 'overview' | 'fleet' | 'ops' | 'brain' | 'live' | 'marketplace' | 'settings';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
@@ -36,6 +37,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'ops', label: 'Ops' },
   { key: 'live', label: 'Live' },
   { key: 'brain', label: 'Brain' },
+  { key: 'marketplace', label: 'Marketplace' },
   { key: 'settings', label: 'Settings' },
 ];
 
@@ -192,6 +194,14 @@ export default function UnifiedDashboard() {
           <ErrorBoundary inline key="brain">
             <Suspense fallback={<div className="ud-loading">Loading Brain...</div>}>
               <BrainTab />
+            </Suspense>
+          </ErrorBoundary>
+        );
+      case 'marketplace':
+        return (
+          <ErrorBoundary inline key="marketplace">
+            <Suspense fallback={<div className="ud-loading">Loading Marketplace...</div>}>
+              <MarketplaceTab />
             </Suspense>
           </ErrorBoundary>
         );

@@ -10,16 +10,26 @@ Other tools give you a chatbot. AskAlf gives you a workforce.
 
 ---
 
-## Deploy in 60 Seconds
+## Deploy in One Line
 
 ```bash
-git clone https://github.com/SprayberryLabs/askalf.git
-cd askalf && ./setup.sh
-docker compose -f docker-compose.selfhosted.yml up -d
-# Open http://localhost:3001 — your fleet is live
+curl -fsSL https://get.askalf.org | bash
 ```
 
-Runs on **Linux, macOS, and Windows** — anything with Docker.
+That's it. Checks prerequisites, generates secrets, pulls images, and starts your fleet at `http://localhost:3001`.
+
+Runs on **Linux, macOS, and Windows WSL2** — anything with Docker.
+
+<details>
+<summary>Manual install</summary>
+
+```bash
+git clone https://github.com/askalf/askalf.git
+cd askalf/substrate && ./setup.sh
+docker compose -f docker-compose.selfhosted.yml up -d
+```
+
+</details>
 
 ---
 
@@ -100,9 +110,9 @@ Your agents don't just run in the cloud — they control real machines.
 | **Desktop & Mobile** | Browser Bridge, Desktop Control, VS Code, Android, iOS |
 | **IoT & Edge** | Raspberry Pi, Arduino/ESP32, Home Assistant |
 
-### 15 Communication Channels
+### 16 Communication Channels
 
-Slack · Discord · Telegram · WhatsApp · Teams · REST API · Webhooks · Zapier · n8n · Make · Email · SMS · SendGrid · Twilio · Zoom
+Slack · Discord · Telegram · WhatsApp · Teams · **OpenClaw** · REST API · Webhooks · Zapier · n8n · Make · Email · SMS · SendGrid · Twilio · Zoom
 
 ### 22 Integration Providers
 
@@ -114,19 +124,20 @@ GitHub · GitLab · Bitbucket · AWS · GCP · Azure · Vercel · Netlify · Rai
 
 **This is not a framework.** Not a library. Not a toolkit you assemble yourself.
 
-| | AskAlf | Frameworks (CrewAI, AutoGen, LangGraph, OpenClaw) |
-|---|--------|---------------------------------------------------|
-| **Dashboard** | Mission control with orbital fleet viz | You build it |
-| **Memory** | 10-layer cognitive brain with pgvector | You build it |
-| **Deployment** | Docker Compose, 60 seconds | You build it |
-| **Orchestration** | Pipeline, fan-out, consensus | You build it |
-| **Cost tracking** | Guardrails + audit logging | You build it |
-| **Channels** | 15 built in | You build it |
-| **Device control** | 12 adapters built in | You build it |
-| **AI terminals** | Embedded Claude CLI + Codex | Not available |
-| **VPN tunneling** | Built-in Gluetun + Proton VPN | Not available |
-| **Auto-recovery** | Autoheal container self-healing | Not available |
-| **Custom agents** | Spawned on demand, first-class | You build it |
+| | AskAlf | OpenClaw | Frameworks (CrewAI, AutoGen, LangGraph) |
+|---|--------|---------|------------------------------------------|
+| **Multi-agent fleet** | 7 core + unlimited custom | Single agent | You build it |
+| **Dashboard** | Mission control with fleet viz | CLI/chat only | You build it |
+| **Memory** | 10-layer cognitive brain with pgvector | 24h context window | You build it |
+| **Deployment** | `curl \| bash`, 60 seconds | `npm install -g` | You build it |
+| **Orchestration** | Autonomous ticket dispatch | Reactive only | You build it |
+| **Security** | AES-256, sandboxed, VPN, audited | 512 vulnerabilities found | You build it |
+| **Cost tracking** | Per-agent budgets + audit log | Token estimates | You build it |
+| **Channels** | 16 built in (inc. OpenClaw) | 19 chat platforms | You build it |
+| **Marketplace** | MCP tools + skill templates | ClawHub skills | You build it |
+| **AI terminals** | Embedded Claude CLI + Codex | Not available | Not available |
+| **VPN tunneling** | Built-in Gluetun + Proton VPN | Not available | Not available |
+| **Auto-recovery** | Autoheal container self-healing | Not available | Not available |
 
 ---
 
@@ -169,6 +180,35 @@ docker compose -f docker-compose.selfhosted.yml --profile vpn up -d
 ```
 
 Supports 30+ providers — ProtonVPN, Mullvad, NordVPN, Surfshark, and [more](https://github.com/qdm12/gluetun-wiki/tree/main/setup/providers). Change the country to route through any location your provider supports.
+
+## Marketplace
+
+Browse, install, and publish tools and skills from the community marketplace — built into the dashboard.
+
+- **26 built-in MCP tools** — tickets, findings, Docker, deploy, security scan, code analysis, knowledge graph, fleet intel, and more
+- **Community packages** — publish your own tools and skill templates
+- **One-click install** — add tools to your agents directly from the marketplace
+- **Ratings and reviews** — community-driven quality signals
+
+Visit `/command-center/marketplace` in your dashboard.
+
+---
+
+## OpenClaw Bridge
+
+Already running OpenClaw? Connect it as a channel frontend to AskAlf. Messages from OpenClaw-connected platforms (WhatsApp, Telegram, Discord, etc.) route through AskAlf's agent fleet with full memory, orchestration, and multi-agent coordination.
+
+```bash
+# Add to your .env
+OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
+OPENCLAW_GATEWAY_TOKEN=your-gateway-token
+```
+
+OpenClaw handles the chat. AskAlf handles the thinking.
+
+Compare features: [AskAlf vs OpenClaw Security](/security)
+
+---
 
 ## Migrating from OpenClaw
 

@@ -710,6 +710,53 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
   });
 
   // ============================================
+  // MARKETPLACE
+  // ============================================
+
+  fastify.get('/api/v1/admin/marketplace/packages', async (request, reply) => {
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
+    const { type, tag, search, sort, featured } = request.query;
+    const params = new URLSearchParams();
+    if (type) params.set('type', type);
+    if (tag) params.set('tag', tag);
+    if (search) params.set('search', search);
+    if (sort) params.set('sort', sort);
+    if (featured) params.set('featured', featured);
+    const qs = params.toString();
+    const res = await callForgeAdmin(`/marketplace/packages${qs ? `?${qs}` : ''}`);
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ packages: [] });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/marketplace/packages/:slug', async (request, reply) => {
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
+    const { slug } = request.params;
+    const res = await callForgeAdmin(`/marketplace/packages/${encodeURIComponent(slug)}`);
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Package not found', message: res.message });
+    return res;
+  });
+
+  fastify.post('/api/v1/admin/marketplace/packages/:slug/install', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const { slug } = request.params;
+    const res = await callForgeAdmin(`/marketplace/packages/${encodeURIComponent(slug)}/install`, { method: 'POST', body: request.body || {} });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Install failed', message: res.message });
+    return res;
+  });
+
+  fastify.post('/api/v1/admin/marketplace/packages/:slug/rate', async (request, reply) => {
+    const admin = await requireUser(request, reply);
+    if (!admin) return { error: 'Authentication required' };
+    const { slug } = request.params;
+    const res = await callForgeAdmin(`/marketplace/packages/${encodeURIComponent(slug)}/rate`, { method: 'POST', body: request.body });
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Rating failed', message: res.message });
+    return res;
+  });
+
+  // ============================================
   // TOOLS
   // ============================================
 
