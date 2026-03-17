@@ -122,12 +122,11 @@ const ALERT_ASSIGNMENT: Record<string, string> = {
  */
 async function createAlertTicket(alert: Alert): Promise<void> {
   try {
-    // Deduplicate: skip if open ticket already exists for this metric
+    // Deduplicate: skip if ticket exists for this metric (open, or closed within last hour)
     const existing = await substrateQuery<{ id: string }>(
       `SELECT id FROM agent_tickets
-       WHERE deleted_at IS NULL
-         AND metadata->>'alert_metric' = $1
-         AND status IN ('open', 'in_progress')
+       WHERE metadata->>'alert_metric' = $1
+         AND (status IN ('open', 'in_progress') OR created_at > NOW() - INTERVAL '1 hour')
        LIMIT 1`,
       [alert.metric],
     );
