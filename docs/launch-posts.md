@@ -26,6 +26,8 @@ One-line install: `curl -fsSL https://get.askalf.org | bash`
 
 Stack: TypeScript, Node 22, React 19, Fastify 5, PostgreSQL 17 + pgvector, Redis, Docker.
 
+Discord: https://discord.gg/fENVZpdYcX
+
 Happy to answer questions about the architecture. Full docs: https://github.com/SprayberryLabs/askalf/blob/main/docs/ARCHITECTURE.md
 
 ---
@@ -61,6 +63,8 @@ curl -fsSL https://get.askalf.org | bash
 GitHub: https://github.com/SprayberryLabs/askalf
 Docs: https://github.com/SprayberryLabs/askalf/blob/main/docs/ARCHITECTURE.md
 Website: https://askalf.org
+
+Discord: https://discord.gg/fENVZpdYcX
 
 MIT licensed. Happy to answer any questions.
 
@@ -151,5 +155,7 @@ Self-hosted. MIT licensed. Your data stays yours.
 
 GitHub: github.com/SprayberryLabs/askalf
 Docs: ARCHITECTURE.md
+
+Discord: discord.gg/fENVZpdYcX
 
 Star it. Fork it. Break it. Ship it.

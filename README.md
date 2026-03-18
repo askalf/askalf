@@ -6,7 +6,7 @@
 
 Other tools give you a chatbot. AskAlf gives you a workforce.
 
-**[askalf.org](https://askalf.org)** · **[Docs](https://askalf.org/docs)** · **[support@askalf.org](mailto:support@askalf.org)**
+**[askalf.org](https://askalf.org)** · **[Docs](https://askalf.org/docs)** · **[Discord](https://discord.gg/fENVZpdYcX)** · **[@ask_alf](https://x.com/ask_alf)**
 
 ---
 
