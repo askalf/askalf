@@ -593,99 +593,11 @@
     <p class="sd rv">Open a terminal tab. You're in a live Claude or Codex session with full access to your codebase, your agents' context, and your knowledge graph. No copy-pasting. No context switching.</p>
 
     <div class="term-grid rv">
-      <!-- Claude Code — pixel-perfect match of real dashboard -->
-      <div class="term-card">
-        <div class="tm-tabs">
-          <span class="tm-tab">CODEX</span>
-          <span class="tm-tab active-claude">CLAUDE CODE</span>
-        </div>
-        <div class="tm-toolbar">
-          <div class="tm-status">
-            <span class="tm-dot" style="background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)"></span>
-            <span>RUNNING</span>
-            <span class="tm-pid">PID 2909</span>
-          </div>
-          <div class="tm-actions">
-            <span class="tm-btn">WORKSPACE ▾</span>
-            <span class="tm-btn">CTRL+C</span>
-            <span class="tm-btn">RESTART</span>
-          </div>
-        </div>
-        <div class="tm-xterm"><span class="xr">▐</span><span class="xr">█▌</span><span class="xr">▐▌</span><span class="xr">▐█</span><span class="xr">▌▐</span>  <span class="xw xbold">Claude Code</span> <span class="xd">v2.1.76</span>
-<span class="xr">▐</span><span class="xr">█▌</span><span class="xr">▐▌</span><span class="xr">▐█</span><span class="xr">▌▐</span>  <span class="xd">Opus 4.6 (1M context) · Claude Max</span>
-         <span class="xd">/workspace</span>
-<span class="xd">─────────────────────────────────────────────</span>
-<span class="xw">❯</span> <span class="xw">█</span>
-
-  <span class="xm">❯❯</span> <span class="xg">bypass permissions on</span> <span class="xd">(shift+tab to cycle)</span>
-<span class="xr">▐</span><span class="xr">█▌</span><span class="xr">▐▌</span><span class="xr">▐█</span><span class="xr">▌▐</span>  <span class="xw xbold">Claude Code</span> <span class="xd">v2.1.76</span>
-<span class="xr">▐</span><span class="xr">█▌</span><span class="xr">▐▌</span><span class="xr">▐█</span><span class="xr">▌▐</span>  <span class="xd">Opus 4.6 (1M context) · Claude Max</span>
-         <span class="xd">/workspace</span>
-<span class="xd">─────────────────────────────────────────────</span>
-<span style="background:rgba(96,165,250,.15);display:inline-block;width:100%;padding:1px 0"> <span class="xw">fix the race condition in payment handler</span></span>
-
-<span class="xw">●</span> I found a race condition on line 412 of
-  <span class="xd">src/handlers/payment.ts</span>. Two concurrent
-  requests can both read
-  <span class="xw">order.status === 'pending'</span> before either
-  commits the update.
-
-  <span class="xm">⎿</span>  <span class="xm xbold">Edit</span> <span class="xd">src/handlers/payment.ts</span>
-     <span class="xr">- const order = await getOrder(id);</span>
-     <span class="xg">+ const order = await getOrderForUpdate(id);</span>
-
-  <span class="xm">⎿</span>  <span class="xm xbold">Bash</span> <span class="xd">npm test -- payment</span>
-     <span class="xg">42 passed</span> <span class="xd">| 0 failed | 1.2s</span>
-
-  Fixed. <span class="xw">SELECT ... FOR UPDATE</span> prevents the
-  concurrent read.
-<span class="xd">─────────────────────────────────────────────</span>
-<span class="xw">❯</span> <span class="tm-cursor-purple"></span>
-
-  <span class="xm">❯❯</span> <span class="xg">bypass permissions on</span> <span class="xd">(shift+tab to cycle)</span></div>
+      <div class="term-card" style="padding:0;border:none;box-shadow:none;background:transparent">
+        <img src="/term-claude.png" alt="Claude Code terminal — fixing a race condition in payment handler" style="width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.08);box-shadow:0 12px 48px rgba(0,0,0,.6)" loading="lazy">
       </div>
-
-      <!-- Codex — pixel-perfect match of real dashboard -->
-      <div class="term-card">
-        <div class="tm-tabs">
-          <span class="tm-tab active-codex">CODEX</span>
-          <span class="tm-tab">CLAUDE CODE</span>
-        </div>
-        <div class="tm-toolbar">
-          <div class="tm-status">
-            <span class="tm-dot" style="background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)"></span>
-            <span>RUNNING</span>
-            <span class="tm-pid">PID 3041</span>
-          </div>
-          <div class="tm-actions">
-            <span class="tm-btn">WORKSPACE ▾</span>
-            <span class="tm-btn">CTRL+C</span>
-            <span class="tm-btn">RESTART</span>
-          </div>
-        </div>
-        <div class="tm-xterm"><span class="xg xbold">codex</span> <span class="xd">v0.98.0</span>
-
-<span class="xd">╭──────────────────────────────────────────╮</span>
-<span class="xd">│</span>                                          <span class="xd">│</span>
-<span class="xd">│</span> scaffold a REST endpoint for webhooks     <span class="xd">│</span>
-<span class="xd">│</span>                                          <span class="xd">│</span>
-<span class="xd">╰──────────────────────────────────────────╯</span>
-
-<span class="xg xbold">Codex</span>
-  I'll create the route, handler, schema, and tests.
-
-  <span class="xc">create</span>  src/routes/webhooks/index.ts
-  <span class="xc">create</span>  src/routes/webhooks/handler.ts
-  <span class="xc">create</span>  src/routes/webhooks/schema.ts
-  <span class="xc">create</span>  src/routes/webhooks/webhooks.test.ts
-
-  <span class="xy">exec</span>    npm test -- webhooks
-          <span class="xg">✓ 8 passed</span> <span class="xd">| 0 failed | 0.9s</span>
-
-  Route registered at <span class="xw">/api/v1/webhooks</span>
-  Methods: GET, POST, DELETE
-
-<span class="xg xbold">codex&gt;</span> <span class="tm-cursor-green"></span></div>
+      <div class="term-card" style="padding:0;border:none;box-shadow:none;background:transparent">
+        <img src="/term-codex.png" alt="OpenAI Codex terminal — scaffolding a REST endpoint" style="width:100%;border-radius:10px;border:1px solid rgba(255,255,255,.08);box-shadow:0 12px 48px rgba(0,0,0,.6)" loading="lazy">
       </div>
     </div>
   </div>
