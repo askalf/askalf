@@ -120,26 +120,26 @@
     /* Terminal callout — exact match of dashboard TerminalTab */
     .term-callout{max-width:1060px;margin:0 auto;padding:80px 24px}
     .term-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-    .term-card{border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.06);box-shadow:0 8px 40px rgba(0,0,0,.4);display:flex;flex-direction:column;background:#0c0c0e}
+    .term-card{border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.08);box-shadow:0 12px 48px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.3);display:flex;flex-direction:column;background:#000}
     /* Tab bar */
-    .tm-tabs{display:flex;gap:2px;padding:6px 12px;background:#0a0a0c;border-bottom:1px solid rgba(124,58,237,.15)}
-    .tm-tab{padding:4px 14px;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:#71717a;background:transparent;border:1px solid transparent;border-radius:4px;cursor:default}
-    .tm-tab.active-claude{color:#c4b5fd;background:rgba(124,58,237,.12);border-color:rgba(124,58,237,.3)}
-    .tm-tab.active-codex{color:#10b981;background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3)}
+    .tm-tabs{display:flex;gap:2px;padding:5px 10px;background:#111;border-bottom:1px solid #222}
+    .tm-tab{padding:4px 12px;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.03em;text-transform:uppercase;color:#555;background:transparent;border:1px solid transparent;border-radius:4px;cursor:default;transition:color .15s}
+    .tm-tab.active-claude{color:#c4b5fd;background:rgba(124,58,237,.1);border-color:rgba(124,58,237,.25)}
+    .tm-tab.active-codex{color:#10b981;background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.25)}
     /* Toolbar */
-    .tm-toolbar{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#0a0a0c;border-bottom:1px solid rgba(124,58,237,.15)}
-    .tm-status{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em}
-    .tm-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-    .tm-pid{color:#52525b;margin-left:4px}
-    .tm-actions{display:flex;gap:6px}
-    .tm-btn{padding:3px 10px;font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:#71717a;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:4px;cursor:default}
-    /* xterm area */
-    .tm-xterm{flex:1;background:#0a0a0f;padding:12px 16px;font-family:var(--font-mono);font-size:13px;line-height:1.4;color:#e4e4e7;min-height:260px;overflow:hidden;white-space:pre-wrap;word-break:break-word}
-    .tm-cursor-purple{display:inline-block;width:8px;height:16px;background:#a78bfa;animation:blink 1s step-end infinite;vertical-align:text-bottom}
-    .tm-cursor-green{display:inline-block;width:8px;height:16px;background:#10b981;animation:blink 1s step-end infinite;vertical-align:text-bottom}
+    .tm-toolbar{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;background:#111;border-bottom:1px solid #1a1a1a}
+    .tm-status{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.03em}
+    .tm-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .tm-pid{color:#444;margin-left:4px}
+    .tm-actions{display:flex;gap:4px}
+    .tm-btn{padding:2px 8px;font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.03em;text-transform:uppercase;color:#555;background:rgba(255,255,255,.02);border:1px solid #222;border-radius:3px;cursor:default}
+    /* xterm area — matches real xterm.js rendering */
+    .tm-xterm{flex:1;background:#000;padding:8px 12px;font-family:var(--font-mono);font-size:13px;line-height:1.2;color:#d4d4d4;min-height:280px;overflow:hidden;white-space:pre-wrap;word-break:break-word;-webkit-font-smoothing:antialiased;letter-spacing:0;border-right:14px solid #0a0a0a}
+    .tm-cursor-purple{display:inline-block;width:8px;height:17px;background:#a78bfa;animation:blink 1s step-end infinite;vertical-align:text-bottom;margin-left:1px}
+    .tm-cursor-green{display:inline-block;width:8px;height:17px;background:#10b981;animation:blink 1s step-end infinite;vertical-align:text-bottom;margin-left:1px}
     @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-    /* xterm ANSI colors */
-    .xr{color:#f87171}.xg{color:#4ade80}.xy{color:#facc15}.xb{color:#60a5fa}.xm{color:#c4b5fd}.xc{color:#22d3ee}.xd{color:#52525b}.xw{color:#e4e4e7}.xbold{font-weight:700}
+    /* xterm ANSI colors — matched to real terminal palette */
+    .xr{color:#f87171}.xg{color:#4ade80}.xy{color:#facc15}.xb{color:#60a5fa}.xm{color:#c084fc}.xc{color:#22d3ee}.xd{color:#404040}.xw{color:#d4d4d4}.xbold{font-weight:700}
     @media(max-width:700px){.term-grid{grid-template-columns:1fr}}
 
 
@@ -618,28 +618,31 @@
             <span class="tm-btn">Restart</span>
           </div>
         </div>
-        <div class="tm-xterm"><span class="xm">╭────────────────────────────────────────────╮</span>
-<span class="xm">│</span> <span class="xm xbold">✻ Claude Code</span>                              <span class="xm">│</span>
-<span class="xm">│</span>   <span class="xd">/help for help</span>                           <span class="xm">│</span>
-<span class="xm">╰────────────────────────────────────────────╯</span>
+        <div class="tm-xterm"><span class="xm">╭──────────────────────────────────────────────╮</span>
+<span class="xm">│</span>        <span class="xm xbold">✻ Claude Code</span>                        <span class="xm">│</span>
+<span class="xm">│</span>                                              <span class="xm">│</span>
+<span class="xm">│</span>   <span class="xd">/help for help</span>                             <span class="xm">│</span>
+<span class="xm">╰──────────────────────────────────────────────╯</span>
 
-<span class="xm xbold">❯</span> <span class="xw">fix the race condition in payment handler</span>
+<span class="xm xbold">❯</span> <span class="xw">fix the race condition in the payment handler</span>
 
-  <span class="xd">⎿</span>  <span class="xm">Read</span> <span class="xd">src/handlers/payment.ts</span>
+ <span class="xd">⎿</span>  <span class="xm">Read</span> <span class="xd">src/handlers/payment.ts</span>
 
-  <span class="xd">⎿</span>  <span class="xm">Read</span> <span class="xd">src/handlers/payment.test.ts</span>
+ <span class="xd">⎿</span>  <span class="xm">Read</span> <span class="xd">src/handlers/payment.test.ts</span>
 
-  I found the issue on line 412. Two requests can
-  read <span class="xw">order.status === 'pending'</span> before either writes.
+ I found the issue. Line 412 — two concurrent
+ requests can both read <span class="xw">order.status === 'pending'</span>
+ before either commits the update.
 
-  <span class="xd">⎿</span>  <span class="xm">Edit</span> <span class="xd">src/handlers/payment.ts</span>
-     <span class="xr">- const order = await getOrder(id);</span>
-     <span class="xg">+ const order = await getOrderForUpdate(id);</span>
+ <span class="xd">⎿</span>  <span class="xm">Edit</span> <span class="xd">src/handlers/payment.ts</span>
+    <span class="xr">- const order = await getOrder(id);</span>
+    <span class="xg">+ const order = await getOrderForUpdate(id);</span>
 
-  <span class="xd">⎿</span>  <span class="xm">Bash</span> <span class="xd">npm test -- payment</span>
-     <span class="xg xbold">42 passed</span> <span class="xd">| 0 failed | 1.2s</span>
+ <span class="xd">⎿</span>  <span class="xm">Bash</span> <span class="xd">npm test -- payment</span>
+    <span class="xg">42 passed</span> <span class="xd">| 0 failed | 1.2s</span>
 
-  Fixed. <span class="xw">SELECT ... FOR UPDATE</span> prevents the race.
+ Fixed. Added <span class="xw">SELECT ... FOR UPDATE</span> to prevent
+ concurrent reads on pending orders.
 
 <span class="xm xbold">❯</span> <span class="tm-cursor-purple"></span></div>
       </div>
@@ -662,23 +665,23 @@
           </div>
         </div>
         <div class="tm-xterm"><span class="xg xbold">codex</span> <span class="xd">--full-auto</span>
-
-<span class="xd">┌──────────────────────────────────────────┐</span>
+<span class="xd">╭──────────────────────────────────────────╮</span>
 <span class="xd">│</span> scaffold a REST endpoint for webhooks     <span class="xd">│</span>
-<span class="xd">└──────────────────────────────────────────┘</span>
+<span class="xd">╰──────────────────────────────────────────╯</span>
 
-<span class="xg xbold">Codex</span>
-  I'll create the route, handler, schema, and tests.
+<span class="xg xbold">Codex</span> I'll create the route, handler, schema,
+and tests for a webhooks endpoint.
 
-  <span class="xc">create</span>  src/routes/webhooks/index.ts
-  <span class="xc">create</span>  src/routes/webhooks/handler.ts
-  <span class="xc">create</span>  src/routes/webhooks/schema.ts
-  <span class="xc">create</span>  src/routes/webhooks/webhooks.test.ts
+  <span class="xc">create</span> src/routes/webhooks/index.ts
+  <span class="xc">create</span> src/routes/webhooks/handler.ts
+  <span class="xc">create</span> src/routes/webhooks/schema.ts
+  <span class="xc">create</span> src/routes/webhooks/webhooks.test.ts
 
-  <span class="xy">run</span>     npm test -- webhooks
-          <span class="xg xbold">✓ 8 passed</span> <span class="xd">| 0 failed | 0.9s</span>
+  <span class="xy">exec</span>   npm test -- webhooks
+         <span class="xg">✓ 8 passed</span> <span class="xd">| 0 failed | 0.9s</span>
 
-  Route registered. Methods: GET, POST, DELETE.
+Route registered at /api/v1/webhooks.
+Methods: GET, POST, DELETE.
 
 <span class="xg xbold">codex&gt;</span> <span class="tm-cursor-green"></span></div>
       </div>
