@@ -543,14 +543,35 @@
     </div>
   </section>
 
+  <!-- Marketplace -->
+  <section style="text-align:center">
+    <div class="sl rv">MARKETPLACE</div>
+    <h2 class="st rv">28 packages. One-click install.</h2>
+    <p class="sd rv">Browse, install, rate, and publish tools and skills from the community marketplace — built into the dashboard.</p>
+    <div class="rv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;max-width:800px;margin:36px auto 0">
+      <div style="padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
+        <div style="font-size:.75rem;font-weight:600;color:var(--crystal-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Tools</div>
+        <div style="color:var(--text-mid);font-size:.85rem;line-height:1.7">Docker API &middot; Security Scan &middot; Code Analysis &middot; Deploy Ops &middot; Fleet Intel &middot; Web Search &middot; DB Query &middot; Knowledge Graph</div>
+      </div>
+      <div style="padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
+        <div style="font-size:.75rem;font-weight:600;color:var(--green);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Skills</div>
+        <div style="color:var(--text-mid);font-size:.85rem;line-height:1.7">Incident Responder &middot; PR Reviewer &middot; Deploy Manager &middot; Security Scanner &middot; Data Analyst &middot; Cost Optimizer &middot; API Tester</div>
+      </div>
+      <div style="padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
+        <div style="font-size:.75rem;font-weight:600;color:var(--cyan);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Community</div>
+        <div style="color:var(--text-mid);font-size:.85rem;line-height:1.7">Publish your own packages &middot; Ratings and reviews &middot; Version tracking &middot; One-click install from dashboard</div>
+      </div>
+    </div>
+  </section>
+
   <!-- OpenClaw Migration -->
   <div class="rv" style="max-width:700px;margin:0 auto;padding:60px 24px;text-align:center">
     <div style="padding:36px 32px;background:rgba(248,113,113,.03);border:1px solid rgba(248,113,113,.12);border-radius:16px">
-      <div style="font-family:var(--font-mono);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#fb923c;margin-bottom:14px">SWITCHING FROM OPENCLAW?</div>
-      <h3 style="font-size:1.4rem;font-weight:800;margin-bottom:12px">Migrate in 60 seconds.</h3>
-      <p style="color:var(--text-mid);font-size:.95rem;line-height:1.6;margin-bottom:20px">Your agents, skills, memory, channels, and config — converted automatically. Two commands. Nothing lost.</p>
-      <pre style="text-align:left;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-family:var(--font-mono);font-size:.85rem;color:var(--text-mid);line-height:1.7;margin:0 auto;max-width:520px">./scripts/migrate-from-openclaw.sh
-./openclaw-migration/import-to-askalf.sh</pre>
+      <div style="font-family:var(--font-mono);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#fb923c;margin-bottom:14px">USING OPENCLAW?</div>
+      <h3 style="font-size:1.4rem;font-weight:800;margin-bottom:12px">Keep OpenClaw. Add AskAlf.</h3>
+      <p style="color:var(--text-mid);font-size:.95rem;line-height:1.6;margin-bottom:20px">Connect OpenClaw as a channel frontend — its 19 chat platforms, your agent fleet. Messages route through AskAlf with full memory, orchestration, and multi-agent coordination.</p>
+      <pre style="text-align:left;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-family:var(--font-mono);font-size:.85rem;color:var(--text-mid);line-height:1.7;margin:0 auto;max-width:520px">OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789</pre>
+      <p style="color:var(--text-dim);font-size:.85rem;margin-top:16px"><a href="/security" style="color:var(--crystal-light)">Feature comparison: AskAlf vs OpenClaw</a></p>
     </div>
   </div>
 
@@ -754,7 +775,7 @@
   <!-- Share -->
   <div class="sb rv">
     <a class="sbt tw" href="https://twitter.com/intent/tweet?text=Not%20one%20AI.%20An%20entire%20team.%207%20autonomous%20agents%20that%20code%2C%20debug%2C%20deploy%2C%20and%20monitor%20%E2%80%94%20while%20you%20sleep.%20Self-hosted.%20Open%20source.&url=https://askalf.org" target="_blank">Share on X</a>
-    <button class="sbt hn" onclick="navigator.clipboard.writeText('AskAlf \u2013 Not one AI, an entire team (self-hosted, open source)\nhttps://askalf.org\n\n7 core agents + unlimited custom specialists. Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer.\n\nMission control dashboard with orbital fleet visualization. 10-layer cognitive memory with pgvector. 15 channels. 22 integrations. 12 device adapters. Multi-agent orchestration.\n\nNot a framework \u2014 a complete platform. Deploy with Docker Compose in 60 seconds.\n\nGitHub: https://github.com/SprayberryLabs/askalf');this.textContent='Copied!'">Copy HN Post</button>
+    <button class="sbt hn" onclick="navigator.clipboard.writeText('AskAlf \u2013 Not one AI, an entire team (self-hosted, open source)\nhttps://askalf.org\n\n7 core agents + unlimited custom specialists. Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer.\n\nMission control dashboard. 10-layer cognitive memory with pgvector. 28 marketplace packages. 16 channels including OpenClaw bridge. Multi-agent orchestration.\n\ncurl -fsSL https://get.askalf.org | bash\n\nGitHub: https://github.com/SprayberryLabs/askalf\nDiscord: https://discord.gg/fENVZpdYcX');this.textContent='Copied!'">Copy HN Post</button>
     <button class="sbt cp" onclick="navigator.clipboard.writeText('https://askalf.org');this.textContent='Copied!'">Copy Link</button>
   </div>
 
@@ -764,16 +785,21 @@
       <div class="sl">SELF-HOSTED</div>
       <h2>Your data. Your agents.<br>Your infrastructure.</h2>
       <p>No cloud dependency. No API proxies. No vendor lock-in. Deploy on your own hardware with Docker Compose. Guided 5-step onboarding. Optional VPN tunneling. Automatic container recovery. OAuth built in.</p>
+      <div class="tb" style="max-width:480px;margin:24px auto">
+        <div class="tbar"><span class="tl">$ terminal</span></div>
+        <div class="tc"><span class="cm">curl</span> <span class="fl">-fsSL</span> https://get.askalf.org | <span class="cm">bash</span></div>
+      </div>
       <div class="ha" style="justify-content:center">
-        <a href="https://github.com/SprayberryLabs/askalf/releases/tag/v1.0.0" class="bp" target="_blank">Download v1.0.0</a>
+        <a href="https://github.com/SprayberryLabs/askalf/releases/tag/v1.1.0" class="bp" target="_blank">Release Notes (v1.1.0)</a>
+        <a href="https://discord.gg/fENVZpdYcX" class="bs" target="_blank">Join Discord</a>
         <a href="https://github.com/SprayberryLabs/askalf" class="bs" target="_blank">View Source</a>
       </div>
     </div>
   </section>
 
   <footer>
-    <div class="fl"><a href="/docs">Docs</a><a href="https://github.com/SprayberryLabs/askalf" target="_blank">GitHub</a><a href="mailto:support@askalf.org">Support</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
-    <p>&copy; 2026 SprayberryLabs. AskAlf is open-source software. <a href="mailto:support@askalf.org">support@askalf.org</a></p>
+    <div class="fl"><a href="/docs">Docs</a><a href="https://github.com/SprayberryLabs/askalf" target="_blank">GitHub</a><a href="https://discord.gg/fENVZpdYcX" target="_blank">Discord</a><a href="https://x.com/ask_alf" target="_blank">X / Twitter</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+    <p>&copy; 2026 SprayberryLabs. AskAlf is open-source software. MIT License.</p>
   </footer>
 
   <script>
