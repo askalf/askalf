@@ -142,6 +142,15 @@
     .xr{color:#f87171}.xg{color:#4ade80}.xy{color:#facc15}.xb{color:#60a5fa}.xm{color:#c084fc}.xc{color:#22d3ee}.xd{color:#404040}.xw{color:#d4d4d4}.xbold{font-weight:700}
     @media(max-width:700px){.term-grid{grid-template-columns:1fr}}
 
+    /* Scenario tabs */
+    .scenario-tab{padding:8px 20px;font-family:var(--font-mono);font-size:.75rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-dim);background:transparent;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .2s}
+    .scenario-tab:hover{color:var(--text-mid);border-color:rgba(255,255,255,.12)}
+    .scenario-tab.active{color:var(--crystal-light);background:rgba(124,58,237,.1);border-color:rgba(124,58,237,.3)}
+    .scenario{display:none}.scenario.active{display:block}
+    .scenario-hook{font-size:1.1rem;color:var(--text-mid);text-align:center;margin-bottom:32px;line-height:1.6;max-width:640px;margin-left:auto;margin-right:auto}
+    .scenario-result{text-align:center;margin-top:28px;padding:20px 24px;background:rgba(124,58,237,.05);border:1px solid rgba(124,58,237,.15);border-radius:12px;color:var(--text-mid);font-size:.95rem;line-height:1.6}
+    .scenario-result strong{color:var(--crystal-light)}
+
 
 
 
@@ -378,44 +387,73 @@
     </div>
   </section>
 
-  <!-- THE OVERNIGHT TIMELINE -->
-  <section id="stories" class="timeline-section">
-    <div class="timeline-intro rv">
-      <h2 class="st" style="text-align:center">You close your laptop at 10:47 PM.<br>Here's what happens next.</h2>
+  <!-- SCENARIO TABS -->
+  <section id="stories" style="max-width:900px">
+    <div class="sl rv" style="text-align:center">WHO IT'S FOR</div>
+    <h2 class="st rv" style="text-align:center">Pick your story.</h2>
+    <p class="sd rv" style="text-align:center;margin-left:auto;margin-right:auto">Same platform. Different problems. Click a tab to see what AskAlf does for you.</p>
+
+    <div class="rv" style="display:flex;gap:4px;justify-content:center;margin-bottom:32px;flex-wrap:wrap" id="scenario-tabs">
+      <button class="scenario-tab active" onclick="showScenario('dev')">Solo Developer</button>
+      <button class="scenario-tab" onclick="showScenario('startup')">Startup Team</button>
+      <button class="scenario-tab" onclick="showScenario('devops')">DevOps / Infra</button>
+      <button class="scenario-tab" onclick="showScenario('agency')">Agency</button>
     </div>
-    <div class="timeline">
-      <div class="timeline-line"></div>
 
-      <div class="tl-entry rv"><div class="tl-time">10:47 PM</div><div class="tl-dot" style="background:var(--text-dim)"></div><div class="tl-content"><div class="tl-text">You close your laptop. The fleet detects your last commit. <em>Game on.</em></div></div></div>
+    <!-- SOLO DEVELOPER -->
+    <div class="scenario active" id="scenario-dev">
+      <div class="scenario-hook">You push code at 10:47 PM. You wake up at 9 AM. Everything is fixed.</div>
+      <div class="timeline"><div class="timeline-line"></div>
+        <div class="tl-entry"><div class="tl-time">10:49 PM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">Your last commit touched the checkout flow. QA spins up 42 regression tests. <strong>3 fail.</strong> Ticket created, assigned to Backend Dev. You have no idea.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">10:51 PM</div><div class="tl-dot" style="background:#60a5fa"></div><div class="tl-content"><div class="tl-agent" style="color:#60a5fa">Backend Dev</div><div class="tl-text">Traces it to a race condition on line 412. Writes the fix. Commits. <em>12 minutes after you went to bed.</em></div></div></div>
+        <div class="tl-entry"><div class="tl-time">11:14 PM</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security</div><div class="tl-text">Scans 847 packages. Finds <code>CVE-2026-1847</code> in your payment library. <strong>Critical.</strong> Backend Dev patches it before midnight.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">01:15 AM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">While validating the CVE patches, discovers an <strong>unrelated bug</strong> — off-by-one in pagination. Nobody asked it to look there.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">02:04 AM</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Redis at 91%. Creates ticket for Infra with a note: <em>"3rd spike this week."</em> Infra checks the Brain, finds a past fix, applies it. Redis drops to 52%.</div></div></div>
+      </div>
+      <div class="scenario-result"><strong>$0.43.</strong> 2 bugs fixed. 2 CVEs patched. 1 outage prevented. You slept through all of it.</div>
+    </div>
 
-      <div class="tl-entry rv"><div class="tl-time">10:49 PM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">Your last commit touched the checkout flow. QA spins up 42 regression tests. <strong>3 fail.</strong> Ticket #247 created and assigned to Backend Dev. You have no idea this is happening.</div></div></div>
+    <!-- STARTUP TEAM -->
+    <div class="scenario" id="scenario-startup">
+      <div class="scenario-hook">Your 3-person team can't afford QA, DevOps, or security hires. AskAlf is the rest of your engineering team.</div>
+      <div class="timeline"><div class="timeline-line"></div>
+        <div class="tl-entry"><div class="tl-time">Continuous</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">Runs your test suite on every PR. Your co-founder pushed a migration that drops a column still in use. QA catches it <strong>before merge.</strong> Saves a production outage.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">Tuesday</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security</div><div class="tl-text">Weekly dependency audit finds your auth library has a session fixation vulnerability. <strong>Published 6 hours ago.</strong> Security patches it before your users wake up.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">3:12 AM</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Your staging database is at <strong>94% disk.</strong> Watchdog creates a ticket for Infra. Infra cleans up old migration backups and extends the volume. Your demo with the investor tomorrow isn't ruined.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">Friday</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Brain</div><div class="tl-text">After 2 weeks, the Brain has mapped your entire stack. It knows that your Stripe webhook handler depends on a Redis queue that depends on a worker that crashes when memory exceeds 256MB. <em>No one documented this. The agents figured it out.</em></div></div></div>
+      </div>
+      <div class="scenario-result">The security hire you can't afford. The QA process you don't have time to build. The on-call engineer who never sleeps. <strong>~$12/month.</strong></div>
+    </div>
 
-      <div class="tl-entry rv"><div class="tl-time">10:51 PM</div><div class="tl-dot" style="background:#60a5fa"></div><div class="tl-content"><div class="tl-agent" style="color:#60a5fa">Backend Dev</div><div class="tl-text">Claims ticket #247. Reads QA's failure logs. Traces it to a race condition on line 412 — two requests reading <code>order.status === 'pending'</code> before either commits. Writes the fix. Commits. <em>12 minutes after you went to bed.</em></div></div></div>
+    <!-- DEVOPS / INFRA -->
+    <div class="scenario" id="scenario-devops">
+      <div class="scenario-hook">Your agents monitor what Datadog can't fix. They don't just alert — they remediate.</div>
+      <div class="timeline"><div class="timeline-line"></div>
+        <div class="tl-entry"><div class="tl-time">Every 15m</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Health checks across all services. Container status, memory, disk, API latency, error rates. Doesn't just page you — <strong>creates actionable tickets</strong> with context from past incidents.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">2:04 AM</div><div class="tl-dot" style="background:#fb923c"></div><div class="tl-content"><div class="tl-agent" style="color:#fb923c">Infra</div><div class="tl-text">Redis memory creeping. Infra doesn't guess — checks the Brain for what worked before. Finds: <em>"volatile-lru eviction policy resolved this in 4 minutes."</em> Applies it. <strong>Zero downtime. No human involved.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">Nightly</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security</div><div class="tl-text">Scans all 12 services for CVEs. Patches automatically. Your compliance audit next month? Already handled. <strong>Every night.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">Weekly</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Brain</div><div class="tl-text">Correlates incidents: "Redis memory spikes happen every Tuesday after the batch job runs." Creates a proactive ticket to reschedule it. <em>Pattern detection no dashboard can do.</em></div></div></div>
+      </div>
+      <div class="scenario-result"><strong>$0.43/night</strong> instead of $4,000/month for an on-call engineer. Agents that learn from every incident and get faster over time.</div>
+    </div>
 
-      <div class="tl-entry rv"><div class="tl-time">11:03 PM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">Re-runs all 42 tests against the fix. <strong>All pass.</strong> Ticket #247 resolved. Total time from your commit to verified fix: <strong>16 minutes.</strong></div></div></div>
-
-      <div class="tl-entry rv"><div class="tl-time">11:14 PM</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security</div><div class="tl-text">Nightly dependency scan begins. 847 packages. 193,000 lines of transitive dependencies. <strong>2 CVEs found.</strong> One is critical — <code>CVE-2026-1847</code> in a payment library. Tickets created. Priority: <strong>urgent.</strong></div></div></div>
-
-      <div class="tl-entry rv"><div class="tl-time">12:41 AM</div><div class="tl-dot" style="background:#60a5fa"></div><div class="tl-content"><div class="tl-agent" style="color:#60a5fa">Backend Dev</div><div class="tl-text">Claims both CVE tickets. Upgrades the payment library. Patches the config parser. Commits. Security re-scans — <strong>clean.</strong> Vulnerabilities that existed since Tuesday are gone before Wednesday.</div></div></div>
-
-      <div class="tl-entry rv"><div class="tl-time">01:15 AM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">While validating Backend Dev's CVE patches, QA discovers an <strong>unrelated bug</strong> — an off-by-one in the pagination endpoint. Nobody asked it to look there. Ticket #249 created. Backend Dev claims it in 3 minutes.</div></div></div>
-
-      <div class="tl-entry rv"><div class="tl-time">02:04 AM</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Patrol cycle. <strong>Redis memory: 91%.</strong> Ticket created for Infra. Watchdog adds a note from memory: <em>"This is the 3rd spike this week. Consider eviction policy change."</em></div></div></div>
-
-      <div class="tl-entry rv"><div class="tl-time">02:19 AM</div><div class="tl-dot" style="background:#fb923c"></div><div class="tl-content"><div class="tl-agent" style="color:#fb923c">Infra</div><div class="tl-text">Reads Watchdog's note. Checks the Brain for past fixes. Finds a procedural memory: <em>"Last time, volatile-lru eviction policy resolved this in 4 minutes."</em> Applies it. Redis drops to <strong>52%.</strong> No restart. No downtime.</div></div></div>
-
-      <div class="tl-entry rv"><div class="tl-time">03:47 AM</div><div class="tl-dot" style="background:#a78bfa;box-shadow:0 0 8px rgba(167,139,250,.4)"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Brain</div><div class="tl-text">Overnight consolidation. The checkout race condition fix is extracted into a reusable procedure. 14 new knowledge nodes discovered — the agents mapped connections they were never taught: <em>rate limiter → auth middleware → session store → Redis.</em> Next time any of this breaks, the fix takes seconds.</div></div></div>
-
-      <div class="tl-entry rv"><div class="tl-time">06:47 AM</div><div class="tl-dot" style="background:var(--text-dim)"></div><div class="tl-content"><div class="tl-text" style="color:var(--text-dim)">Fleet goes quiet. 7 agents ran 18 executions across 8 hours. Total API cost: <strong style="color:var(--green)">$0.43.</strong></div></div></div>
-
-      <div class="tl-entry rv"><div class="tl-time">09:00 AM</div><div class="tl-dot" style="background:var(--crystal-light);box-shadow:0 0 12px var(--crystal-glow)"></div><div class="tl-content"><div class="tl-text"><strong>You open your laptop. 2 bugs fixed. 2 CVEs patched. 1 outage prevented. A bonus bug found that nobody asked about. And the Brain is smarter than it was last night.</strong></div></div></div>
+    <!-- AGENCY -->
+    <div class="scenario" id="scenario-agency">
+      <div class="scenario-hook">You manage 8 client projects. Each one gets its own agent fleet. Monday morning, all 8 have overnight reports waiting.</div>
+      <div class="timeline"><div class="timeline-line"></div>
+        <div class="tl-entry"><div class="tl-time">Client A</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Their landing page went down at 1 AM. Watchdog detected it, Infra restarted the container, <strong>posted in your Slack channel.</strong> Client never knew. Uptime: 99.98%.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">Client B</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">Their developer pushed a breaking change to the API. QA caught it in staging before it hit production. Ticket created, fix deployed. <strong>Client's users never saw the bug.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">Client C</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security</div><div class="tl-text">Their WordPress plugin has a known XSS vulnerability. Security finds it, patches it, verifies the fix. You invoice them for "proactive security maintenance." <strong>They love you for it.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">Monday 9 AM</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Writer</div><div class="tl-text">Overnight reports generated for all 8 projects. Formatted, filed, ready to forward. Your Monday standup takes 5 minutes instead of 45.</div></div></div>
+      </div>
+      <div class="scenario-result">8 projects. 7 agents each. <strong>~$3.50/night total.</strong> You bill each client for managed DevOps and pocket the difference.</div>
     </div>
   </section>
 
   <!-- $0.43 Reveal -->
   <div class="price-reveal rv">
     <div class="price-number">$0.43</div>
-    <div class="price-context">That's what the whole night cost.<br>2 bugs fixed. 2 CVEs patched. 1 outage prevented. 14 new things learned.</div>
+    <div class="price-context">That's what one night costs.<br>Bugs fixed. CVEs patched. Outages prevented. Knowledge accumulated.</div>
     <div class="price-breakdown">18 executions &middot; 7 agents &middot; 8 hours &middot; you slept through all of it</div>
   </div>
 
@@ -468,29 +506,6 @@
       <p>An agent once committed a fix that broke a different feature. QA caught it in 14 minutes, created a new ticket, and Backend Dev rolled it back. The system self-corrected — but the first fix was wrong.</p>
       <p>We're telling you this because every other AI product pretends to be perfect. We'd rather show you how the system <em>recovers</em> from mistakes than pretend it never makes them. The ticket system, the patrol cycles, the QA verification — they exist because agents are powerful but not infallible.</p>
       <p><strong>The value isn't perfection. It's that problems get found and fixed at 2am instead of discovered at 2pm.</strong></p>
-    </div>
-  </section>
-
-  <!-- Morning Briefing (social proof via simulated output) -->
-  <section>
-    <div class="sl rv">WHAT YOU WAKE UP TO</div>
-    <h2 class="st rv">Your morning briefing. You didn't do any of this.</h2>
-    <p class="sd rv">This is what the dashboard shows when you open your laptop at 9am. Everything was handled while you slept.</p>
-
-    <div class="briefing rv">
-      <div class="briefing-hdr">
-        <span class="briefing-title">Overnight Report</span>
-        <span class="briefing-time">10:47 PM — 06:47 AM</span>
-      </div>
-      <div class="briefing-body">
-        <div class="briefing-row"><span class="briefing-dot" style="background:#34d399"></span><span class="briefing-stat">2</span><span class="briefing-desc">bugs caught and fixed. Your last commit had a race condition — QA found it 2 minutes after you went to bed. Fixed in 16.</span></div>
-        <div class="briefing-row"><span class="briefing-dot" style="background:#f87171"></span><span class="briefing-stat">2</span><span class="briefing-desc">CVEs found in 847 dependencies. One critical — in your payment library. Both patched and verified before sunrise.</span></div>
-        <div class="briefing-row"><span class="briefing-dot" style="background:#a78bfa"></span><span class="briefing-stat">1</span><span class="briefing-desc">frontend contract break detected and fixed. The checkout API change rippled — Frontend Dev caught it and updated the component.</span></div>
-        <div class="briefing-row"><span class="briefing-dot" style="background:#2dd4bf"></span><span class="briefing-stat">91%</span><span class="briefing-desc">Redis memory → 52%. Watchdog flagged it. Infra used a past fix from the Brain. Zero downtime.</span></div>
-        <div class="briefing-row"><span class="briefing-dot" style="background:#e879f9"></span><span class="briefing-stat">1</span><span class="briefing-desc">changelog generated and filed. Writer summarized the night's work — ready for your morning standup.</span></div>
-        <div class="briefing-row"><span class="briefing-dot" style="background:#fb923c"></span><span class="briefing-stat">$0.43</span><span class="briefing-desc">total cost. 7 agents. 18 executions. 8 hours. Cost guardrails held.</span></div>
-      </div>
-      <div class="briefing-footer">You slept 7 hours. Your AI team fixed 2 bugs, patched 2 CVEs, prevented 1 outage, updated the frontend, wrote the changelog, and the Brain got smarter.</div>
     </div>
   </section>
 
@@ -739,6 +754,14 @@
   </footer>
 
   <script>
+    // Scenario tab switcher
+    function showScenario(id){
+      document.querySelectorAll('.scenario').forEach(s=>s.classList.remove('active'));
+      document.querySelectorAll('.scenario-tab').forEach(t=>t.classList.remove('active'));
+      document.getElementById('scenario-'+id).classList.add('active');
+      event.target.classList.add('active');
+    }
+
     // Hero Canvas — Agent Fleet Emergence
     (function(){const c=document.getElementById('hc'),x=c.getContext('2d');let w,h,m={x:-1e3,y:-1e3};
     // 7 core agents with colors
