@@ -724,7 +724,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     if (sort) params.set('sort', sort);
     if (featured) params.set('featured', featured);
     const qs = params.toString();
-    const res = await callForgeAdmin(`/marketplace/packages${qs ? `?${qs}` : ''}`);
+    const res = await callForge(`/marketplace/packages${qs ? `?${qs}` : ''}`);
     if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ packages: [] });
     return res;
   });
@@ -733,7 +733,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireUser(request, reply);
     if (!admin) return { error: 'Authentication required' };
     const { slug } = request.params;
-    const res = await callForgeAdmin(`/marketplace/packages/${encodeURIComponent(slug)}`);
+    const res = await callForge(`/marketplace/packages/${encodeURIComponent(slug)}`);
     if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Package not found', message: res.message });
     return res;
   });
@@ -742,7 +742,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireAdmin(request, reply);
     if (!admin) return { error: 'Admin access required' };
     const { slug } = request.params;
-    const res = await callForgeAdmin(`/marketplace/packages/${encodeURIComponent(slug)}/install`, { method: 'POST', body: request.body || {} });
+    const res = await callForge(`/marketplace/packages/${encodeURIComponent(slug)}/install`, { method: 'POST', body: request.body || {} });
     if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Install failed', message: res.message });
     return res;
   });
@@ -751,7 +751,7 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     const admin = await requireUser(request, reply);
     if (!admin) return { error: 'Authentication required' };
     const { slug } = request.params;
-    const res = await callForgeAdmin(`/marketplace/packages/${encodeURIComponent(slug)}/rate`, { method: 'POST', body: request.body });
+    const res = await callForge(`/marketplace/packages/${encodeURIComponent(slug)}/rate`, { method: 'POST', body: request.body });
     if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Rating failed', message: res.message });
     return res;
   });
