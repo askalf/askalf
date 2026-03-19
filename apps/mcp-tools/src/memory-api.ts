@@ -14724,6 +14724,13 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       return { action: 'knowledge_review_skip', result: `Reviewed healthy status: "${knowledge.slice(0, 60)}" — no investigation needed`, quality: 0.5, mutated: false };
     }
 
+    // Skip known/acknowledged issues that have already been investigated
+    if ((kl.includes('docker socket') || kl.includes('docker.sock') || kl.includes('eacces') && kl.includes('docker')) ||
+        (kl.includes('oauth token') && kl.includes('expir')) ||
+        kl.includes('not a code defect') || kl.includes('requires human intervention') || kl.includes('host-level')) {
+      return { action: 'knowledge_review_skip', result: `Reviewed known issue: "${knowledge.slice(0, 60)}" — already acknowledged`, quality: 0.5, mutated: false };
+    }
+
     // Check if this knowledge is actionable — must reference a concrete system issue, not a vague observation
     const actionableSignals = ['fail', 'error', 'broken', 'missing', 'bug', 'crash', 'timeout', 'EACCES', 'denied', 'expired', 'unreachable', 'inaccessible', 'exception', 'outage', 'down'];
     const isActionable = actionableSignals.some(s => kl.includes(s));
