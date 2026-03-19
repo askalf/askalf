@@ -337,11 +337,10 @@ function ModelStep({
     { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', provider: 'anthropic', tier: 'top' },
     { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', provider: 'anthropic', tier: 'mid' },
     { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5', provider: 'anthropic', tier: 'fast' },
-    { id: 'gpt-4.1', label: 'GPT-4.1', provider: 'openai', tier: 'top' },
-    { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', provider: 'openai', tier: 'mid' },
-    { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', provider: 'openai', tier: 'fast' },
-    { id: 'o3', label: 'o3', provider: 'openai', tier: 'top' },
-    { id: 'o4-mini', label: 'o4-mini', provider: 'openai', tier: 'mid' },
+    { id: 'gpt-5.4', label: 'GPT-5.4 Thinking', provider: 'openai', tier: 'top' },
+    { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini', provider: 'openai', tier: 'mid' },
+    { id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano', provider: 'openai', tier: 'fast' },
+    { id: 'gpt-5.3-instant', label: 'GPT-5.3 Instant', provider: 'openai', tier: 'fast' },
   ];
 
   // Detect configured providers from the providers list or fall back to checking if any provider has models
