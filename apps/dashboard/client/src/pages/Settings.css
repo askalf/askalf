@@ -2304,8 +2304,8 @@ textarea.settings-input {
 
 .settings-intg-provider-card {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0;
   padding: 0.75rem 1rem;
   background: var(--surface, rgba(255, 255, 255, 0.03));
   border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
@@ -2313,6 +2313,7 @@ textarea.settings-input {
   transition: all 0.15s ease;
   min-width: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .settings-intg-provider-card:hover {
