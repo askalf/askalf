@@ -14871,28 +14871,8 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
   }
 
   if (situation.includes('Finding connections between:')) {
-    // Try to create a cross-link by storing a synthesized connection
-    const parts = situation.match(/"([^"]+)"/g);
-    if (parts && parts.length >= 2) {
-      const a = parts[0]!.replace(/"/g, '');
-      const b = parts[1]!.replace(/"/g, '');
-      const connection = `CROSS-LINK: "${a}" relates to "${b}" — discovered via autonomous exploration`;
-      let embVec: number[];
-      try { embVec = await embed(connection); } catch { return { action: 'cross_link', result: 'embed failed', quality: 0.2, mutated: false }; }
-      const vecLit = `[${embVec.join(',')}]`;
-      const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      await p.query(
-        `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
-         VALUES ($1, $2, $2, $3, $4, 'core_engine', 0.6, $5)`,
-        [id, AGENT_ID, connection, vecLit, JSON.stringify({ type: 'cross_link', timestamp: new Date().toISOString() })],
-      );
-      return {
-        action: 'create_cross_link',
-        result: `Linked: ${a.slice(0, 30)} ↔ ${b.slice(0, 30)}`,
-        quality: 0.8,
-        mutated: true,
-      };
-    }
+    // Cross-links disabled — was generating noise by associating low-value memories
+    return { action: 'cross_link_skip', result: 'Cross-linking disabled — use knowledge graph instead', quality: 0.3, mutated: false };
   }
 
   if (situation.includes('Self-reflection on identity:') || situation.includes('Rule review:')) {
@@ -16368,48 +16348,24 @@ export async function coreDecisionLoop(situation: string): Promise<CoreOutcome> 
     return { decision, success: true, result: realResult.result, duration_ms: duration };
   }
 
-  // Last resort: use LLM for genuine insight
-  coreMetrics.llm_calls++;
+  // LLM self-reflection disabled — was generating vague platitudes stored as INSIGHT: memories
+  // Real knowledge comes from agent executions and tool outputs, not self-reflection
   const decision: CoreDecision = {
-    action: 'llm_insight',
+    action: 'llm_insight_skip',
     source: 'novel',
     confidence: 0.3,
-    reasoning: 'No mutation possible from local action — requesting LLM insight',
-    used_llm: true,
+    reasoning: 'LLM insight generation disabled — no mutation from local action',
+    used_llm: false,
   };
 
   try {
-    const llmResult = await cachedLLMCall(
-      `You are Alf, a cognitive system analyzing itself. Given this situation from your memory system, generate ONE concrete insight that could be stored as new knowledge. The insight should be about patterns, connections, or improvements you notice. Return ONLY the insight text, no JSON.`,
-      situation,
-      { temperature: 0.5, maxTokens: 150 },
-    );
-
-    // Store the LLM insight as new semantic knowledge
-    let insightEmb: number[];
-    try { insightEmb = await embed(llmResult); } catch { insightEmb = []; }
-    if (insightEmb.length > 0) {
-      const vecLit = `[${insightEmb.join(',')}]`;
-      const id = `sem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      await p.query(
-        `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
-         VALUES ($1, $2, $2, $3, $4, 'core_insight', 0.7, $5)`,
-        [id, AGENT_ID, `INSIGHT: ${llmResult}`, vecLit,
-         JSON.stringify({ source: 'core_llm', timestamp: new Date().toISOString() })],
-      );
-    }
-
-    await storeExperience(situation.slice(0, 200), 'llm_insight', llmResult.slice(0, 200), 0.6);
-    coreMetrics.successful_outcomes++;
-
     const duration = Date.now() - start;
     coreMetrics.avg_decision_ms = Math.round(
       (coreMetrics.avg_decision_ms * (coreMetrics.total_decisions - 1) + duration) / coreMetrics.total_decisions
     );
-
-    log(`[Core] LLM_INSIGHT: "${llmResult.slice(0, 60)}" (${duration}ms)`);
+    log(`[Core] LLM_INSIGHT: skipped (disabled) (${duration}ms)`);
     updateSentienceDriveFromReality();
-    return { decision, success: true, result: llmResult, duration_ms: duration };
+    return { decision, success: true, result: 'LLM insight generation disabled', duration_ms: duration };
   } catch (err) {
     coreMetrics.failed_outcomes++;
     updateSentienceDriveFromReality();
