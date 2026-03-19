@@ -14724,13 +14724,6 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       return { action: 'knowledge_review_skip', result: `Reviewed healthy status: "${knowledge.slice(0, 60)}" — no investigation needed`, quality: 0.5, mutated: false };
     }
 
-    // Skip known/acknowledged issues that have already been investigated
-    if ((kl.includes('docker socket') || kl.includes('docker.sock') || kl.includes('eacces') && kl.includes('docker')) ||
-        (kl.includes('oauth token') && kl.includes('expir')) ||
-        kl.includes('not a code defect') || kl.includes('requires human intervention') || kl.includes('host-level')) {
-      return { action: 'knowledge_review_skip', result: `Reviewed known issue: "${knowledge.slice(0, 60)}" — already acknowledged`, quality: 0.5, mutated: false };
-    }
-
     // Check if this knowledge is actionable — must reference a concrete system issue, not a vague observation
     const actionableSignals = ['fail', 'error', 'broken', 'missing', 'bug', 'crash', 'timeout', 'EACCES', 'denied', 'expired', 'unreachable', 'inaccessible', 'exception', 'outage', 'down'];
     const isActionable = actionableSignals.some(s => kl.includes(s));
@@ -15872,42 +15865,10 @@ RULES:
   }
 
   if (situation.includes('Agent output digest:') && situation.includes('actionable')) {
-    systemActionTypes.add('agent_output_learn');
-
-    // ACTUATOR: Extract key facts from recent agent outputs and store as semantic memories
-    try {
-      const recent = await p.query(
-        `SELECT a.name, substring(e.output from 1 for 500) as output, e.id as exec_id
-         FROM forge_executions e
-         JOIN forge_agents a ON a.id = e.agent_id
-         WHERE e.status = 'completed' AND e.output IS NOT NULL AND LENGTH(e.output) > 50
-           AND e.created_at > NOW() - INTERVAL '6 hours'
-           AND NOT EXISTS (
-             SELECT 1 FROM forge_semantic_memories sm
-             WHERE sm.metadata->>'source_execution' = e.id
-           )
-         ORDER BY e.created_at DESC
-         LIMIT 1`,
-      );
-      if (recent.rows.length > 0) {
-        const exec = recent.rows[0] as Record<string, unknown>;
-        const output = String(exec['output']).slice(0, 400);
-        // Store a condensed version of the agent output as a semantic fact
-        const factContent = `AGENT_REPORT: ${exec['name']} reported: ${output.replace(/\n/g, ' ')}`;
-        let embVec: number[];
-        try { embVec = await embed(factContent); } catch { return { action: 'agent_output_learn', result: 'embed failed', quality: 0.2, mutated: false }; }
-        const vecLit = `[${embVec.join(',')}]`;
-        const id = `sem_agent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        await p.query(
-          `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, embedding, source, importance, metadata)
-           VALUES ($1, $2, $2, $3, $4, 'agent_output', 0.7, $5)`,
-          [id, AGENT_ID, factContent, vecLit,
-           JSON.stringify({ source_execution: exec['exec_id'], agent_name: exec['name'], type: 'agent_report' })],
-        );
-        return { action: 'agent_output_learn', result: `Learned from ${exec['name']}: "${output.slice(0, 80)}..."`, quality: 0.85, mutated: true };
-      }
-    } catch { /* not fatal */ }
-    return { action: 'agent_output_learn', result: 'No new agent outputs to learn from', quality: 0.4, mutated: false };
+    // Agent output learning disabled — was storing raw status confirmations and ticket
+    // resolution summaries as semantic memories, which then triggered false investigation tickets.
+    // Real knowledge from agent work is already captured through the ticket/finding system.
+    return { action: 'agent_output_learn', result: 'Agent output learning disabled — use tickets/findings instead', quality: 0.4, mutated: false };
   }
 
   if (situation.includes('Agent findings digest:') && situation.includes('critical')) {
