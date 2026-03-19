@@ -133,10 +133,23 @@ scripts/rollback.sh
 # Webhost stack (not part of self-hosted deployment)
 infrastructure/nginx/
 infrastructure/cloudflare/
+infrastructure/postgres/postgresql.conf
+infrastructure/redis/redis.conf
+infrastructure/redis/docker-entrypoint.sh
+infrastructure/searxng/settings.yml
+infrastructure/searxng/settings-vpn.yml
+infrastructure/searxng/limiter.toml
 infrastructure/searxng/webhost-*.toml
 infrastructure/searxng/webhost-*.yml
 docker-compose.prod.yml
 docker-compose.webhost.yml
+docker-compose.vpn.yml
+
+# Internal ops scripts
+apps/forge/insert-fleet-system.mjs
+apps/forge/scripts/trigger-fleet-24x7.mjs
+apps/forge/scripts/trigger-wave3.mjs
+scripts/setup-discord.mjs
 
 # Agent-injected system prompt (written by forge worker into worktrees)
 CLAUDE.md
