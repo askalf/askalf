@@ -95,9 +95,10 @@ RUN if [ "$INSTALL_CLAUDE" = "true" ]; then \
 # Codex CLI stage - install with platform-specific native binary
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS codex-installer
 ARG INSTALL_CODEX
+ARG CODEX_VERSION=latest
 RUN if [ "$INSTALL_CODEX" = "true" ]; then \
       npm cache clean --force && \
-      npm install -g @openai/codex && \
+      npm install -g @openai/codex@${CODEX_VERSION} && \
       codex --version; \
     else \
       mkdir -p /usr/local/lib/node_modules/@openai/codex/bin && \
