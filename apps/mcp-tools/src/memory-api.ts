@@ -3384,14 +3384,6 @@ async function storeMemories(
       switch (mem.type) {
         case 'semantic': {
           if (!mem.content?.trim()) break;
-          // Skip routine monitoring descriptions — these aren't real knowledge
-          const cl = mem.content.toLowerCase();
-          if (cl.includes('health check') || cl.includes('0 failed') || cl.includes('execution error') ||
-              cl.includes('fleet execution') || cl.includes('no failures') || cl.includes('all healthy') ||
-              cl.includes('watchdog') || cl.includes('0% failure') || (cl.includes('monitor') && cl.includes('check'))) {
-            skipped++;
-            break;
-          }
           let embedding: number[] | null = null;
           try { embedding = await embed(mem.content); } catch { /* continue */ }
 
@@ -14715,79 +14707,18 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
 
   // ACTUATOR: Reviewing knowledge — evaluate if knowledge needs fleet investigation
   if (situation.includes('Reviewing knowledge:') && situation.includes('What should I do')) {
-    systemActionTypes.add('knowledge_review_dispatch');
-
-    // Extract the knowledge being reviewed
+    // Knowledge review — bump access count only. Do NOT create tickets.
+    // Tickets should come from real-time observations (Watchdog, Security scans, QA failures),
+    // not from re-reading stored memories. Re-reading old notes about past incidents
+    // caused a feedback loop: memory → ticket → agent investigates → stores result → memory → ticket.
     const knowledgeMatch = situation.match(/Reviewing knowledge: (.+)\. What should I do/);
     const knowledge = knowledgeMatch?.[1] ?? situation.slice(0, 120);
-
-    // Skip identity/rule/pattern/insight memories — those are operational or reflective, not investigatable
-    const kl = knowledge.toLowerCase();
-    if (kl.startsWith('identity:') || kl.startsWith('rule:') || kl.startsWith('pattern:') || kl.startsWith('narrative:') || kl.startsWith('insight:') || kl.startsWith('cross-link:')) {
-      return { action: 'knowledge_review_skip', result: `Reviewed operational memory: "${knowledge.slice(0, 60)}" — no investigation needed`, quality: 0.5, mutated: false };
-    }
-
-    // Skip healthy status reports that contain signal words in a non-problematic context
-    if (kl.includes('0 failed') || kl.includes('all healthy') || kl.includes('no new incidents') || kl.includes('no failures') || kl.includes('completed successfully') || kl.includes('0 failures') || kl.includes('all fleet agents are healthy') || kl.includes('no stuck') || kl.includes('operating cleanly')) {
-      return { action: 'knowledge_review_skip', result: `Reviewed healthy status: "${knowledge.slice(0, 60)}" — no investigation needed`, quality: 0.5, mutated: false };
-    }
-
-    // Check if this knowledge is actionable — must reference a concrete system issue, not a vague observation
-    const actionableSignals = ['fail', 'error', 'broken', 'missing', 'bug', 'crash', 'timeout', 'EACCES', 'denied', 'expired', 'unreachable', 'inaccessible', 'exception', 'outage', 'down'];
-    const isActionable = actionableSignals.some(s => kl.includes(s));
-
-    if (!isActionable) {
-      // Just bump access count for informational knowledge
-      await p.query(
-        `UPDATE forge_semantic_memories SET access_count = access_count + 1
-         WHERE id = (SELECT id FROM forge_semantic_memories WHERE agent_id = $1 AND content ILIKE $2 LIMIT 1)`,
-        [AGENT_ID, `%${knowledge.slice(0, 40)}%`],
-      ).catch(() => {});
-      return { action: 'knowledge_review_note', result: `Reviewed knowledge: "${knowledge.slice(0, 60)}" — informational, no action needed`, quality: 0.5, mutated: false };
-    }
-
-    // Actionable knowledge — check if a similar ticket already exists
-    // Strip filler words, keep domain-relevant keywords for matching
-    const stopWords = new Set(['this','that','with','from','have','been','were','there','their','about','would','could','should','which','these','those','into','more','also','just','than','then','other','after','before','during','between','through','being','having','each','every','some','such','only','over','much','very','most','will','does','doing','done','make','made','like','need','want','know','take','come','going','when','what','here','where','they','them','your','find','found','issue','problem','reported','multiple','times','indicating','persistent','requiring','human','intervention','investigate','report','findings','still','persists','across','checks','many','several']);
-    const allWords = [...new Set((kl.match(/\b[a-z]{4,}\b/g) ?? []).filter(w => !stopWords.has(w)))];
-    if (allWords.length >= 2) {
-      // Check if ANY open ticket matches at least 2 of our keywords
-      const existing = await p.query(
-        `SELECT id FROM agent_tickets WHERE source = 'brain_question'
-           AND status IN ('open', 'in_progress')
-           AND created_at > NOW() - INTERVAL '48 hours'`,
-      );
-      const openTitles = (existing.rows as Array<Record<string, unknown>>).map(r => String(r['title'] ?? r['id']).toLowerCase());
-      // Not in the DB query params — but only a handful of open tickets so this is fine
-      const isDup = openTitles.some(title => {
-        const matches = allWords.filter(w => title.includes(w));
-        return matches.length >= 2;
-      });
-      if (isDup) {
-        return { action: 'knowledge_review_exists', result: `Knowledge "${knowledge.slice(0, 60)}" already has an active ticket`, quality: 0.5, mutated: false };
-      }
-    }
-
-    // Route to the right agent
-    let targetAgent = 'Backend Dev';
-    if (kl.includes('frontend') || kl.includes('dashboard') || kl.includes('ui')) targetAgent = 'Frontend Dev';
-    else if (kl.includes('security') || kl.includes('auth') || kl.includes('vuln')) targetAgent = 'Security';
-    else if (kl.includes('container') || kl.includes('docker') || kl.includes('infra') || kl.includes('disk')) targetAgent = 'Infra';
-    else if (kl.includes('test') || kl.includes('quality') || kl.includes('metric') || kl.includes('patrol')) targetAgent = 'QA';
-
-    const ticketId = `tkt_kr_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    try {
-      await p.query(
-        `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, agent_name, assigned_to, is_agent_ticket, source)
-         VALUES ($1, $2, $3, 'open', 'medium', 'investigation', 'system:core_engine', $4, $4, true, 'brain_question')
-         ON CONFLICT DO NOTHING`,
-        [ticketId, `Investigate: ${knowledge.slice(0, 100)}`, `The core engine reviewed this knowledge and determined it needs real investigation.\n\nKnowledge: ${knowledge}\n\nInvestigate the current state of this. Report findings and create follow-up tickets if needed.`, targetAgent],
-      );
-      trackOutcome('knowledge_review', knowledge.slice(0, 60), 2 * 60 * 60 * 1000, 'check_ticket_resolution');
-      return { action: 'knowledge_review_dispatch', result: `Dispatched knowledge investigation → ${targetAgent}: "${knowledge.slice(0, 60)}"`, quality: 0.85, mutated: true };
-    } catch {
-      return { action: 'knowledge_review_dispatch', result: 'Failed to create investigation ticket', quality: 0.3, mutated: false };
-    }
+    await p.query(
+      `UPDATE forge_semantic_memories SET access_count = access_count + 1
+       WHERE id = (SELECT id FROM forge_semantic_memories WHERE agent_id = $1 AND content ILIKE $2 LIMIT 1)`,
+      [AGENT_ID, `%${knowledge.slice(0, 40)}%`],
+    ).catch(() => {});
+    return { action: 'knowledge_review_note', result: `Reviewed: "${knowledge.slice(0, 60)}" — access count bumped`, quality: 0.5, mutated: false };
   }
 
   if (situation.includes('Consolidation candidate:')) {
@@ -15917,53 +15848,11 @@ RULES:
     return { action: 'agent_finding_act', result: 'No unhandled critical findings', quality: 0.5, mutated: false };
   }
 
-  // ACTUATOR: Brain question dispatch — route unticketed brain questions to fleet agents
+  // Brain question dispatch — disabled. Same issue as knowledge review: creating tickets
+  // from stored memories causes feedback loops. Real monitoring (Watchdog, Security, QA)
+  // already creates tickets from live observations.
   if (situation.includes('Brain questions:') && situation.includes('unticketed')) {
-    systemActionTypes.add('brain_question_dispatch');
-
-    try {
-      // Extract the question from the situation — use full situation as fallback for routing
-      const questionMatch = situation.match(/Top: "([^"]+)"/);
-      const question = questionMatch?.[1] ?? situation.slice(0, 120);
-      // Route based on full situation text, not just the extracted question (regex may truncate)
-      const ql = situation.toLowerCase();
-
-      // Dedup: skip if a similar ticket already exists (2+ domain keywords overlap)
-      const bqStopWords = new Set(['this','that','with','from','have','been','were','there','their','about','would','could','should','which','these','those','into','more','also','just','than','then','other','after','before','during','between','through','being','having','each','every','some','such','only','over','much','very','most','will','does','doing','done','make','made','like','need','want','know','take','come','going','when','what','here','where','they','them','your','find','found','issue','problem','reported','multiple','times','indicating','persistent','requiring','human','intervention','investigate','report','findings','still','persists','across','checks','many','several']);
-      const bqWords = [...new Set((question.toLowerCase().match(/\b[a-z]{4,}\b/g) ?? []).filter(w => !bqStopWords.has(w)))];
-      if (bqWords.length >= 2) {
-        const existingTickets = await p.query(
-          `SELECT title FROM agent_tickets WHERE source = 'brain_question'
-             AND status IN ('open', 'in_progress')
-             AND created_at > NOW() - INTERVAL '48 hours'`,
-        );
-        const isDup = (existingTickets.rows as Array<Record<string, unknown>>).some(r => {
-          const title = String(r['title'] ?? '').toLowerCase();
-          return bqWords.filter(w => title.includes(w)).length >= 2;
-        });
-        if (isDup) {
-          return { action: 'brain_question_exists', result: `Brain question "${question.slice(0, 60)}" already has an active ticket`, quality: 0.5, mutated: false };
-        }
-      }
-
-      // Determine best agent — check infra/docker before security (docker issues contain 'permission' too)
-      let targetAgent = 'Backend Dev'; // default
-      if (ql.includes('container') || ql.includes('docker') || ql.includes('disk') || ql.includes('infra') || ql.includes('socket')) targetAgent = 'Infra';
-      else if (ql.includes('security') || ql.includes('auth') || ql.includes('vulnerability') || ql.includes('permission') || ql.includes('oauth') || ql.includes('token expir')) targetAgent = 'Security';
-      else if (ql.includes('frontend') || ql.includes('dashboard') || ql.includes('ui') || ql.includes('component')) targetAgent = 'Frontend Dev';
-      else if (ql.includes('test') || ql.includes('quality') || ql.includes('metric') || ql.includes('health')) targetAgent = 'QA';
-
-      const ticketId = `tkt_brain_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      await p.query(
-        `INSERT INTO agent_tickets (id, title, description, status, priority, category, created_by, agent_name, assigned_to, is_agent_ticket, source)
-         VALUES ($1, $2, $3, 'open', 'medium', 'investigation', 'system:core_engine', $4, $4, true, 'brain_question')
-         ON CONFLICT DO NOTHING`,
-        [ticketId, `Investigate: ${question.slice(0, 100)}`, `The core engine's brain generated this question during knowledge review and needs a real investigation — not just LLM reasoning. Agent should check actual system state, logs, database, or code to answer definitively.\n\nQuestion: ${question}\n\nReport findings back. If actionable, create follow-up tickets.`, targetAgent],
-      );
-      trackOutcome('brain_question_dispatch', question.slice(0, 60), 2 * 60 * 60 * 1000, 'check_ticket_resolution');
-      return { action: 'brain_question_dispatch', result: `Dispatched brain question → ${targetAgent}: "${question.slice(0, 60)}"`, quality: 0.85, mutated: true };
-    } catch { /* not fatal */ }
-    return { action: 'brain_question_dispatch', result: 'Failed to create investigation ticket', quality: 0.3, mutated: false };
+    return { action: 'brain_question_skip', result: 'Brain question dispatch disabled — tickets come from real-time observations only', quality: 0.5, mutated: false };
   }
 
   // ACTUATOR: Dream insight validation — create ticket to verify dream insights against reality
@@ -16952,7 +16841,7 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
     if (all.length === 0) return 'Brain questions: no pending questions or knowledge gaps need investigation.';
     // Check if any of these already have tickets
     const existing = await p.query(
-      `SELECT title FROM agent_tickets WHERE source = 'brain_question' AND status IN ('open','in_progress') AND created_at > NOW() - INTERVAL '48 hours' LIMIT 5`,
+      `SELECT title FROM agent_tickets WHERE source = 'brain_question' AND (status IN ('open','in_progress') OR (status = 'resolved' AND created_at > NOW() - INTERVAL '7 days')) AND created_at > NOW() - INTERVAL '7 days' LIMIT 20`,
     );
     const ticketed = (existing.rows as Array<Record<string, unknown>>).map(r => String(r['title']).toLowerCase());
     const unticketedQuestions = all.filter(q => !ticketed.some(t => t.includes(q.slice(0, 30).toLowerCase())));
