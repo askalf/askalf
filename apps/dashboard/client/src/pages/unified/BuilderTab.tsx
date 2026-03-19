@@ -334,17 +334,27 @@ function ModelStep({
   providers: ProviderStatus[];
 }) {
   const MODELS = [
-    { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', provider: 'anthropic' },
-    { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', provider: 'anthropic' },
-    { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5', provider: 'anthropic' },
-    { id: 'gpt-4o', label: 'GPT-4o', provider: 'openai' },
-    { id: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'openai' },
-    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'google' },
+    { id: 'claude-opus-4-6', label: 'Claude Opus 4.6', provider: 'anthropic', tier: 'top' },
+    { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', provider: 'anthropic', tier: 'mid' },
+    { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5', provider: 'anthropic', tier: 'fast' },
+    { id: 'gpt-4.1', label: 'GPT-4.1', provider: 'openai', tier: 'top' },
+    { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', provider: 'openai', tier: 'mid' },
+    { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', provider: 'openai', tier: 'fast' },
+    { id: 'o3', label: 'o3', provider: 'openai', tier: 'top' },
+    { id: 'o4-mini', label: 'o4-mini', provider: 'openai', tier: 'mid' },
   ];
 
+  // Detect configured providers from the providers list or fall back to checking if any provider has models
+  const configuredProviders = new Set(
+    providers.filter(p => p.status === 'healthy').map(p => p.name)
+  );
+  // If no providers reported healthy (common in selfhosted), assume anthropic+openai are configured
+  if (configuredProviders.size === 0 && providers.length === 0) {
+    configuredProviders.add('anthropic');
+    configuredProviders.add('openai');
+  }
+
   const selectedModel = MODELS.find(m => m.id === config.model);
-  const selectedProvider = selectedModel ? providers.find(p => p.name === selectedModel.provider) : null;
-  const providerUnhealthy = selectedProvider && selectedProvider.status !== 'healthy';
 
   return (
     <div className="builder-form">
@@ -353,29 +363,17 @@ function ModelStep({
         <select value={config.model} onChange={e => {
           const m = MODELS.find(x => x.id === e.target.value);
           onChange({ model: e.target.value, provider: m?.provider || config.provider });
-        }}>
-          {MODELS.map(m => {
-            const p = providers.find(x => x.name === m.provider);
-            const ok = p?.status === 'healthy';
-            return (
-              <option key={m.id} value={m.id}>{m.label} ({m.provider}{ok ? '' : ' - not configured'})</option>
-            );
-          })}
+        }} style={{ color: 'var(--text, #f0f0f2)' }}>
+          {MODELS.map(m => (
+            <option key={m.id} value={m.id}>{m.label}</option>
+          ))}
         </select>
       </label>
-      {providerUnhealthy && (
-        <div className="builder-provider-warning">
-          Provider "{selectedProvider.name}" is not configured. This agent won't be able to run until you add an API key in Settings &gt; Providers.
+      {selectedModel && (
+        <div style={{ fontSize: '12px', color: 'var(--text-dim, rgba(240,240,242,0.55))', marginTop: '8px' }}>
+          Provider: {selectedModel.provider} · Tier: {selectedModel.tier === 'top' ? 'Most capable' : selectedModel.tier === 'mid' ? 'Balanced' : 'Fast & cheap'}
         </div>
       )}
-      <div className="builder-provider-status">
-        <span className="builder-label">Provider Status:</span>
-        {providers.map(p => (
-          <span key={p.name} className={`builder-provider-badge ${p.status === 'healthy' ? 'healthy' : 'unhealthy'}`}>
-            {p.name}: {p.status}
-          </span>
-        ))}
-      </div>
     </div>
   );
 }
