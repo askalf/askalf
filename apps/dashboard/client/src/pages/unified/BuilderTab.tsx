@@ -134,7 +134,7 @@ function TemplatePickerStep({ onSelect, onSkip }: { onSelect: (tmpl: Record<stri
                 style={{
                   textAlign: 'left', padding: '16px', borderRadius: 'var(--radius-sm, 10px)',
                   background: 'var(--glass, rgba(255,255,255,0.03))', border: '1px solid var(--border, rgba(240,240,242,0.06))',
-                  cursor: 'pointer', transition: 'all 0.2s',
+                  cursor: 'pointer', transition: 'all 0.2s', color: 'var(--text, #f0f0f2)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
