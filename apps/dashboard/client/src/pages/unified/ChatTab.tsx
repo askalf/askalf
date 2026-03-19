@@ -795,20 +795,35 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
         <div className="chat-messages">
           {messages.length === 0 && (
             <div className="chat-welcome">
-              <h2>Welcome to AskAlf</h2>
-              <p>Tell me what you need done in plain English, or use <code>/help</code> for slash commands.</p>
+              <div className="chat-welcome-beacon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              </div>
+              <h2>Command your fleet</h2>
+              <p>Describe what you need in plain English. The dispatcher will route it to the right agent. Or use <code>/help</code> for slash commands.</p>
+              <div className="chat-welcome-fleet">
+                {['Backend Dev', 'Frontend Dev', 'QA', 'Security', 'Infra', 'Watchdog', 'Writer'].map(name => (
+                  <span key={name} className="chat-welcome-agent">
+                    <span className="chat-welcome-agent-dot" />
+                    {name}
+                  </span>
+                ))}
+              </div>
               <div className="chat-suggestions">
-                <button onClick={() => handleSend('Research my top competitors')}>
-                  Research my competitors
+                <button onClick={() => handleSend('Scan my codebase for security vulnerabilities')}>
+                  <span className="chat-sugg-icon">&#x1F6E1;</span>
+                  Scan for security vulnerabilities
                 </button>
-                <button onClick={() => handleSend('Scan my codebase for security issues')}>
-                  Security scan
+                <button onClick={() => handleSend('Review the last 5 commits for bugs')}>
+                  <span className="chat-sugg-icon">&#x1F50D;</span>
+                  Review recent commits
                 </button>
-                <button onClick={() => handleSend('Monitor my system health every 6 hours')}>
-                  System monitoring
+                <button onClick={() => handleSend('Check system health and fix any issues')}>
+                  <span className="chat-sugg-icon">&#x2764;</span>
+                  Health check + auto-fix
                 </button>
-                <button onClick={() => handleSend('Review recent code changes')}>
-                  Code review
+                <button onClick={() => handleSend('Write tests for the checkout flow')}>
+                  <span className="chat-sugg-icon">&#x2705;</span>
+                  Write tests for checkout
                 </button>
               </div>
             </div>
