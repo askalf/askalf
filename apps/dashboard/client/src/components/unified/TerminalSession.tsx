@@ -22,6 +22,22 @@ export interface TerminalSessionConfig {
   restartLabel: string;
 }
 
+interface RemoteRepo {
+  id: string;
+  provider: string;
+  repo_full_name: string;
+  clone_url: string | null;
+  default_branch: string;
+  is_private: boolean;
+  language: string | null;
+}
+
+const getApiBase = () => {
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3001';
+  return '';
+};
+
 export default function TerminalSession({
   config,
   projects,
@@ -39,11 +55,40 @@ export default function TerminalSession({
   const [loadError, setLoadError] = useState(false);
   const { connected, status, send, sendSignal, resize, restart, setCwd, onData, onHistory } = useTerminalSession(config.wsPath);
   const [cwdOpen, setCwdOpen] = useState(false);
+  const [remoteRepos, setRemoteRepos] = useState<RemoteRepo[]>([]);
+  const [cloning, setCloning] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${getApiBase()}/api/v1/integrations/repos`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { repos: [] })
+      .then((data: { repos: RemoteRepo[] }) => setRemoteRepos(data.repos || []))
+      .catch(() => {});
+  }, []);
 
   const handleProjectSelect = useCallback((path: string) => {
     setCwd(path);
     onSetCwd?.(path);
     setCwdOpen(false);
+  }, [setCwd, onSetCwd]);
+
+  const handleCloneRepo = useCallback(async (repo: RemoteRepo) => {
+    if (!repo.clone_url) return;
+    setCloning(repo.repo_full_name);
+    try {
+      const res = await fetch(`${getApiBase()}/api/v1/admin/projects/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url: repo.clone_url, name: repo.repo_full_name.split('/').pop() }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { path: string };
+        setCwd(data.path);
+        onSetCwd?.(data.path);
+        setCwdOpen(false);
+      }
+    } catch { /* ignore */ }
+    setCloning(null);
   }, [setCwd, onSetCwd]);
 
   const debouncedResize = useCallback((cols: number, rows: number) => {
@@ -184,31 +229,61 @@ export default function TerminalSession({
           <span>{statusLabel}</span>
           {status?.pid && <span className="ud-master-pid">PID {status.pid}</span>}
         </div>
-        {projects && projects.length > 0 && (
-          <div className="ud-master-project-picker" style={{ position: 'relative' }}>
-            <button
-              className="ud-btn-sm ud-project-btn"
-              onClick={() => setCwdOpen(o => !o)}
-              title={status?.cwd || 'Select project'}
-            >
-              {status?.cwd ? status.cwd.split('/').pop() : 'Project'} ▾
-            </button>
-            {cwdOpen && (
-              <div className="ud-project-dropdown">
-                {projects.map(p => (
-                  <button
-                    key={p.path}
-                    className={`ud-project-item ${status?.cwd === p.path ? 'active' : ''}`}
-                    onClick={() => handleProjectSelect(p.path)}
-                  >
-                    <span className="ud-project-name">{p.name}</span>
-                    <span className="ud-project-type">{p.branch || p.type}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="ud-master-project-picker" style={{ position: 'relative' }}>
+          <button
+            className="ud-btn-sm ud-project-btn"
+            onClick={() => setCwdOpen(o => !o)}
+            title={status?.cwd || 'Select workspace'}
+          >
+            {status?.cwd ? status.cwd.split('/').pop() : 'Workspace'} ▾
+          </button>
+          {cwdOpen && (
+            <div className="ud-project-dropdown" style={{ maxHeight: '400px', overflowY: 'auto', minWidth: '280px' }}>
+              {projects && projects.length > 0 && (
+                <>
+                  <div style={{ padding: '4px 10px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.25)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Local Projects</div>
+                  {projects.map(p => (
+                    <button
+                      key={p.path}
+                      className={`ud-project-item ${status?.cwd === p.path ? 'active' : ''}`}
+                      onClick={() => handleProjectSelect(p.path)}
+                    >
+                      <span className="ud-project-name">{p.name}</span>
+                      <span className="ud-project-type">{p.branch || p.type}</span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {remoteRepos.length > 0 && (
+                <>
+                  <div style={{ padding: '4px 10px', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.25)', borderBottom: '1px solid rgba(255,255,255,0.06)', marginTop: projects && projects.length > 0 ? '4px' : '0' }}>Connected Repos</div>
+                  {remoteRepos.map(r => (
+                    <button
+                      key={r.id}
+                      className="ud-project-item"
+                      onClick={() => handleCloneRepo(r)}
+                      disabled={cloning === r.repo_full_name}
+                    >
+                      <span className="ud-project-name" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '10px', opacity: 0.5 }}>{r.provider === 'github' ? 'GH' : r.provider === 'gitlab' ? 'GL' : 'BB'}</span>
+                        {r.repo_full_name}
+                        {r.is_private && <span style={{ fontSize: '8px', padding: '0 4px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', color: 'rgba(255,255,255,0.3)' }}>private</span>}
+                      </span>
+                      <span className="ud-project-type">
+                        {cloning === r.repo_full_name ? 'cloning...' : r.language || r.default_branch}
+                      </span>
+                    </button>
+                  ))}
+                </>
+              )}
+              {(!projects || projects.length === 0) && remoteRepos.length === 0 && (
+                <div style={{ padding: '12px', fontSize: '12px', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
+                  No projects or repos. Connect a source control integration in Settings.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="ud-master-actions">
           <button
             className="ud-btn-sm"

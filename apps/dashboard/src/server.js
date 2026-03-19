@@ -653,6 +653,40 @@ fastify.get('/api/v1/admin/projects', async (request, reply) => {
   return { projects };
 });
 
+// Clone a remote repo into the workspace
+fastify.post('/api/v1/admin/projects/clone', async (request, reply) => {
+  const { url, name } = request.body || {};
+  if (!url || !name) return reply.code(400).send({ error: 'url and name required' });
+
+  const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, '-');
+  const targetPath = `${workspaceDir}/repos/${safeName}`;
+
+  try {
+    const { existsSync, mkdirSync } = await import('fs');
+    const { execSync } = await import('child_process');
+
+    // Create repos directory if it doesn't exist
+    const reposDir = `${workspaceDir}/repos`;
+    if (!existsSync(reposDir)) mkdirSync(reposDir, { recursive: true });
+
+    if (existsSync(targetPath)) {
+      // Already cloned — just return the path
+      return { path: targetPath, status: 'exists' };
+    }
+
+    // Clone with depth 1 for speed
+    execSync(`git clone --depth 1 ${url} ${targetPath}`, {
+      timeout: 120000,
+      stdio: 'pipe',
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    });
+
+    return { path: targetPath, status: 'cloned' };
+  } catch (err) {
+    return reply.code(500).send({ error: `Clone failed: ${err.message}` });
+  }
+});
+
 // Periodic broadcast (every 30 seconds - reduced from 5s to prevent database overload)
 // 6 queries per broadcast * 2 broadcasts/minute = 12 queries/minute (vs 72 before)
 setInterval(async () => {
