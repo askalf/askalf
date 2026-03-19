@@ -3384,6 +3384,14 @@ async function storeMemories(
       switch (mem.type) {
         case 'semantic': {
           if (!mem.content?.trim()) break;
+          // Skip routine monitoring descriptions — these aren't real knowledge
+          const cl = mem.content.toLowerCase();
+          if (cl.includes('health check') || cl.includes('0 failed') || cl.includes('execution error') ||
+              cl.includes('fleet execution') || cl.includes('no failures') || cl.includes('all healthy') ||
+              cl.includes('watchdog') || cl.includes('0% failure') || (cl.includes('monitor') && cl.includes('check'))) {
+            skipped++;
+            break;
+          }
           let embedding: number[] | null = null;
           try { embedding = await embed(mem.content); } catch { /* continue */ }
 
