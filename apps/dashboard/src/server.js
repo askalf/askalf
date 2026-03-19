@@ -654,32 +654,52 @@ fastify.get('/api/v1/admin/projects', async (request, reply) => {
 });
 
 // Clone a remote repo into the workspace
+const _cloneInFlight = new Set();
 fastify.post('/api/v1/admin/projects/clone', async (request, reply) => {
   const { url, name } = request.body || {};
   if (!url || !name) return reply.code(400).send({ error: 'url and name required' });
 
-  const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, '-');
-  const targetPath = `${workspaceDir}/repos/${safeName}`;
+  // Validate URL — only allow https git URLs (no shell metacharacters)
+  if (!/^https:\/\/[a-zA-Z0-9._\-/]+\.git$/.test(url) && !/^https:\/\/github\.com\/[a-zA-Z0-9._\-]+\/[a-zA-Z0-9._\-]+$/.test(url)) {
+    return reply.code(400).send({ error: 'Invalid URL — must be an HTTPS git URL' });
+  }
+
+  // Rate limit — one clone at a time
+  if (_cloneInFlight.size >= 2) {
+    return reply.code(429).send({ error: 'Clone already in progress, try again shortly' });
+  }
+
+  const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, '-').slice(0, 100);
+  const { resolve } = await import('path');
+  const reposDir = resolve(workspaceDir, 'repos');
+  const targetPath = resolve(reposDir, safeName);
+
+  // Path traversal check
+  if (!targetPath.startsWith(reposDir)) {
+    return reply.code(400).send({ error: 'Invalid project name' });
+  }
 
   try {
     const { existsSync, mkdirSync } = await import('fs');
-    const { execSync } = await import('child_process');
+    const { execFileSync } = await import('child_process');
 
-    // Create repos directory if it doesn't exist
-    const reposDir = `${workspaceDir}/repos`;
     if (!existsSync(reposDir)) mkdirSync(reposDir, { recursive: true });
 
     if (existsSync(targetPath)) {
-      // Already cloned — just return the path
       return { path: targetPath, status: 'exists' };
     }
 
-    // Clone with depth 1 for speed
-    execSync(`git clone --depth 1 ${url} ${targetPath}`, {
-      timeout: 120000,
-      stdio: 'pipe',
-      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
-    });
+    _cloneInFlight.add(safeName);
+    try {
+      // execFileSync prevents shell injection — args passed as array, not string
+      execFileSync('git', ['clone', '--depth', '1', url, targetPath], {
+        timeout: 120000,
+        stdio: 'pipe',
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+      });
+    } finally {
+      _cloneInFlight.delete(safeName);
+    }
 
     return { path: targetPath, status: 'cloned' };
   } catch (err) {
