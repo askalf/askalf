@@ -1017,6 +1017,8 @@ function IntegrationsTab() {
                           >
                             Connect
                           </a>
+                        ) : isOAuth && !isAvailable ? (
+                          <span className="settings-intg-badge upcoming" title={`Add ${p.id.toUpperCase()}_TOKEN to your .env file`}>Needs .env</span>
                         ) : (
                           <span className="settings-intg-badge upcoming">Configure</span>
                         )}
