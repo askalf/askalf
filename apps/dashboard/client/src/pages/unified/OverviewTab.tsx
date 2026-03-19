@@ -196,15 +196,16 @@ function OrbitalFleet({
     let animId: number;
 
     // Build agent data: start with ALL agents, enrich with execution data
-    const execMap = new Map<string, { count: number; lastStatus: string }>();
+    const execMap = new Map<string, { count: number; lastStatus: string; cost: number }>();
     for (const e of executions) {
       const name = e.agent_name || 'Unknown';
       const existing = execMap.get(name);
       if (existing) {
         existing.count++;
+        existing.cost += e.cost ?? 0;
         if (e.status === 'running') existing.lastStatus = 'running';
       } else {
-        execMap.set(name, { count: 1, lastStatus: e.status });
+        execMap.set(name, { count: 1, lastStatus: e.status, cost: e.cost ?? 0 });
       }
     }
 
@@ -213,6 +214,7 @@ function OrbitalFleet({
           name: a.name,
           count: execMap.get(a.name)?.count ?? 0,
           lastStatus: execMap.get(a.name)?.lastStatus ?? (a.status === 'active' ? 'idle' : a.status),
+          cost: execMap.get(a.name)?.cost ?? 0,
         }))
       : Array.from(execMap.entries()).map(([name, data]) => ({ name, ...data }));
 
@@ -232,105 +234,160 @@ function OrbitalFleet({
       const cy = h / 2;
       const maxR = Math.min(w, h) * 0.42;
 
-      // Orbital rings
+      // Orbital rings with subtle dashes
       for (let ring = 1; ring <= 3; ring++) {
         const r = maxR * (ring / 3);
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(124, 58, 237, ${0.06 + ring * 0.02})`;
-        ctx.lineWidth = 0.5;
+        ctx.strokeStyle = `rgba(124, 58, 237, ${0.05 + ring * 0.025})`;
+        ctx.lineWidth = 0.6;
+        ctx.setLineDash([4, 6]);
         ctx.stroke();
+        ctx.setLineDash([]);
       }
 
       // Center core — breathing
       const corePulse = Math.sin(time * 0.002) * 0.3 + 0.7;
-      const coreR = 20 + corePulse * 4;
+      const coreR = 28 + corePulse * 5;
 
-      // Core glow
-      const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 3);
-      coreGlow.addColorStop(0, `rgba(124, 58, 237, ${0.12 * corePulse})`);
-      coreGlow.addColorStop(0.5, `rgba(124, 58, 237, ${0.04 * corePulse})`);
+      // Core glow — larger, more presence
+      const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 4);
+      coreGlow.addColorStop(0, `rgba(124, 58, 237, ${0.15 * corePulse})`);
+      coreGlow.addColorStop(0.4, `rgba(124, 58, 237, ${0.06 * corePulse})`);
       coreGlow.addColorStop(1, 'rgba(124, 58, 237, 0)');
       ctx.beginPath();
-      ctx.arc(cx, cy, coreR * 3, 0, Math.PI * 2);
+      ctx.arc(cx, cy, coreR * 4, 0, Math.PI * 2);
       ctx.fillStyle = coreGlow;
       ctx.fill();
 
       // Core circle
-      const coreGrad = ctx.createRadialGradient(cx - 4, cy - 4, 0, cx, cy, coreR);
-      coreGrad.addColorStop(0, 'rgba(167, 139, 250, 0.9)');
-      coreGrad.addColorStop(1, 'rgba(124, 58, 237, 0.6)');
+      const coreGrad = ctx.createRadialGradient(cx - 5, cy - 5, 0, cx, cy, coreR);
+      coreGrad.addColorStop(0, 'rgba(167, 139, 250, 0.95)');
+      coreGrad.addColorStop(1, 'rgba(124, 58, 237, 0.65)');
       ctx.beginPath();
       ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
       ctx.fillStyle = coreGrad;
       ctx.fill();
 
-      // Core text
-      ctx.font = `700 ${coreR * 0.7}px Satoshi, system-ui, sans-serif`;
+      // Core border ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, coreR + 1, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(167, 139, 250, ${0.3 + corePulse * 0.2})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Core text — running count
+      ctx.font = `700 ${coreR * 0.65}px Satoshi, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-      ctx.fillText(String(running), cx, cy - 2);
-      ctx.font = `500 ${coreR * 0.3}px Satoshi, system-ui, sans-serif`;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.fillText(`/ ${total}`, cx, cy + coreR * 0.45);
+      ctx.fillText(String(running), cx, cy - 4);
+      ctx.font = `500 ${coreR * 0.28}px Satoshi, system-ui, sans-serif`;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.fillText(`of ${total} active`, cx, cy + coreR * 0.42);
 
-      // Agent satellites
+      // Agent satellites — bigger, with labels and status info
       if (agents.length > 0) {
         agents.forEach((agent, i) => {
-          const orbitR = maxR * 0.5 + (i % 3) * (maxR * 0.18);
-          const speed = 0.0003 + (i * 0.618 % 1) * 0.0004;
+          const orbitR = maxR * 0.45 + (i % 3) * (maxR * 0.2);
+          const speed = 0.0002 + (i * 0.618 % 1) * 0.0003;
           const angle = time * speed + (i * Math.PI * 2) / Math.max(agents.length, 1);
           const ax = cx + Math.cos(angle) * orbitR;
           const ay = cy + Math.sin(angle) * orbitR;
           const col = agentColor(agent.name);
-          const nodeR = 5 + Math.min(agent.count, 8) * 1.2;
+          const baseR = 8;
+          const nodeR = baseR + Math.min(agent.count, 10) * 1.5;
           const isRunning = agent.lastStatus === 'running';
+          const isFailed = agent.lastStatus === 'failed';
 
-          // Connection line to core
+          // Connection line to core — data stream particles
           ctx.beginPath();
           ctx.moveTo(cx, cy);
           ctx.lineTo(ax, ay);
-          ctx.strokeStyle = rgba(col, 0.08);
-          ctx.lineWidth = 0.5;
+          ctx.strokeStyle = rgba(col, isRunning ? 0.12 : 0.05);
+          ctx.lineWidth = isRunning ? 1 : 0.5;
           ctx.stroke();
 
-          // Satellite glow
+          // Data packet traveling along the line (only for running agents)
           if (isRunning) {
-            const satGlow = ctx.createRadialGradient(ax, ay, 0, ax, ay, nodeR * 4);
-            satGlow.addColorStop(0, rgba(col, 0.2));
-            satGlow.addColorStop(1, rgba(col, 0));
+            const packetT = (time * 0.001 + i) % 1;
+            const px = cx + (ax - cx) * packetT;
+            const py = cy + (ay - cy) * packetT;
             ctx.beginPath();
-            ctx.arc(ax, ay, nodeR * 4, 0, Math.PI * 2);
-            ctx.fillStyle = satGlow;
+            ctx.arc(px, py, 2, 0, Math.PI * 2);
+            ctx.fillStyle = rgba(col, 0.6);
             ctx.fill();
           }
 
-          // Corona
-          const coronaR = nodeR * 1.8;
-          const corona = ctx.createRadialGradient(ax, ay, nodeR * 0.5, ax, ay, coronaR);
-          corona.addColorStop(0, rgba(col, 0.15));
-          corona.addColorStop(1, rgba(col, 0));
+          // Running agent outer pulse ring
+          if (isRunning) {
+            const pulsePhase = (Math.sin(time * 0.004 + i) + 1) / 2;
+            const pulseR = nodeR * (2 + pulsePhase * 2);
+            ctx.beginPath();
+            ctx.arc(ax, ay, pulseR, 0, Math.PI * 2);
+            ctx.strokeStyle = rgba(col, 0.08 * (1 - pulsePhase));
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+
+          // Satellite glow — bigger for running agents
+          const glowR = isRunning ? nodeR * 5 : nodeR * 2.5;
+          const satGlow = ctx.createRadialGradient(ax, ay, 0, ax, ay, glowR);
+          satGlow.addColorStop(0, rgba(col, isRunning ? 0.25 : 0.1));
+          satGlow.addColorStop(0.5, rgba(col, isRunning ? 0.08 : 0.02));
+          satGlow.addColorStop(1, rgba(col, 0));
           ctx.beginPath();
-          ctx.arc(ax, ay, coronaR, 0, Math.PI * 2);
-          ctx.fillStyle = corona;
+          ctx.arc(ax, ay, glowR, 0, Math.PI * 2);
+          ctx.fillStyle = satGlow;
           ctx.fill();
 
-          // Node
+          // Failed agent — red warning ring
+          if (isFailed) {
+            ctx.beginPath();
+            ctx.arc(ax, ay, nodeR + 4, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(239, 68, 68, ${0.4 + Math.sin(time * 0.006) * 0.3})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+
+          // Node circle
           ctx.beginPath();
           ctx.arc(ax, ay, nodeR, 0, Math.PI * 2);
-          const nodeGrad = ctx.createRadialGradient(ax - 2, ay - 2, 0, ax, ay, nodeR);
-          nodeGrad.addColorStop(0, rgba([Math.min(255, col[0] + 40), Math.min(255, col[1] + 40), Math.min(255, col[2] + 40)], 0.9));
-          nodeGrad.addColorStop(1, rgba(col, 0.7));
+          const nodeGrad = ctx.createRadialGradient(ax - 3, ay - 3, 0, ax, ay, nodeR);
+          nodeGrad.addColorStop(0, rgba([Math.min(255, col[0] + 50), Math.min(255, col[1] + 50), Math.min(255, col[2] + 50)], 0.95));
+          nodeGrad.addColorStop(1, rgba(col, 0.75));
           ctx.fillStyle = nodeGrad;
           ctx.fill();
 
-          // Label
-          ctx.font = `500 9px Satoshi, system-ui, sans-serif`;
+          // Spinning ring for running agents
+          if (isRunning) {
+            ctx.beginPath();
+            const spinAngle = time * 0.003;
+            ctx.arc(ax, ay, nodeR + 2, spinAngle, spinAngle + Math.PI * 1.2);
+            ctx.strokeStyle = rgba(col, 0.6);
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+
+          // Agent name label — bigger, clearer
+          ctx.font = `600 11px Satoshi, system-ui, sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
-          ctx.fillStyle = rgba(col, 0.7);
-          ctx.fillText(agent.name, ax, ay + nodeR + 4);
+          ctx.fillStyle = rgba(col, 0.85);
+          ctx.fillText(agent.name, ax, ay + nodeR + 5);
+
+          // Status sub-label
+          const statusText = isRunning ? 'RUNNING' : isFailed ? 'FAILED' : agent.count > 0 ? `${agent.count} tasks` : 'IDLE';
+          ctx.font = `500 8px Satoshi, system-ui, sans-serif`;
+          ctx.fillStyle = isRunning ? rgba(col, 0.6) : isFailed ? 'rgba(239, 68, 68, 0.6)' : rgba(col, 0.35);
+          ctx.fillText(statusText, ax, ay + nodeR + 18);
+
+          // Cost label if significant
+          if (agent.cost > 0.001) {
+            ctx.font = `500 8px Satoshi, system-ui, sans-serif`;
+            ctx.fillStyle = rgba(col, 0.3);
+            ctx.fillText(`$${agent.cost.toFixed(3)}`, ax, ay + nodeR + 29);
+          }
         });
       }
 
@@ -457,10 +514,10 @@ function MemoryTiers({ fleetStats, onClick }: { fleetStats: FleetStatsData | nul
   );
 }
 
-// ── Event Ticker ──
+// ── Event Ticker — vertical scrolling feed ──
 
 function EventTicker({ events }: { events: ForgeEvent[] }) {
-  const recent = events.slice(-30).reverse();
+  const recent = events.slice(-40).reverse();
 
   return (
     <div className="mc-ticker">
@@ -477,10 +534,14 @@ function EventTicker({ events }: { events: ForgeEvent[] }) {
             const msg = evt.data && typeof evt.data === 'object' && typeof (evt.data as Record<string, unknown>).message === 'string'
               ? (evt.data as Record<string, unknown>).message as string
               : `${evt.category || ''} ${type}`;
+            const ts = evt.receivedAt
+              ? new Date(evt.receivedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+              : '';
             return (
               <span key={`${evt.id ?? i}`} className={`mc-ticker-item ${statusClass}`}>
                 <span className="mc-ticker-agent">{agent}</span>
                 <span className="mc-ticker-msg">{msg}</span>
+                {ts && <span className="mc-ticker-ts">{ts}</span>}
               </span>
             );
           })}
@@ -625,18 +686,27 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
               </button>
             </div>
             {running.length > 0 && (
-              <div className="mc-running-list">
-                {running.map(e => {
-                  const col = agentColor(e.agent_name || '');
-                  return (
-                    <div key={e.id} className="mc-running-item">
-                      <span className="mc-running-dot" style={{ background: rgba(col, 0.8), boxShadow: `0 0 6px ${rgba(col, 0.4)}` }} />
-                      <span className="mc-running-name">{e.agent_name || 'Agent'}</span>
-                      <span className="mc-running-time">{relativeTime(e.started_at)}</span>
-                    </div>
-                  );
-                })}
-              </div>
+              <>
+                <div className="mc-active-hdr">
+                  <span className="mc-active-beacon" />
+                  <span className="mc-active-label">CURRENTLY RUNNING</span>
+                </div>
+                <div className="mc-running-list">
+                  {running.map(e => {
+                    const col = agentColor(e.agent_name || '');
+                    return (
+                      <div key={e.id} className="mc-running-item">
+                        <span className="mc-running-dot" style={{ background: rgba(col, 0.8), boxShadow: `0 0 8px ${rgba(col, 0.4)}` }} />
+                        <span className="mc-running-name">{e.agent_name || 'Agent'}</span>
+                        {e.cost != null && e.cost > 0 && (
+                          <span className="mc-running-task">${e.cost.toFixed(4)}</span>
+                        )}
+                        <span className="mc-running-time">{relativeTime(e.started_at)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
 
