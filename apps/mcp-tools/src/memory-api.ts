@@ -14720,7 +14720,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     }
 
     // Skip healthy status reports that contain signal words in a non-problematic context
-    if (kl.includes('0 failed') || kl.includes('all healthy') || kl.includes('no new incidents') || kl.includes('no failures') || kl.includes('completed successfully')) {
+    if (kl.includes('0 failed') || kl.includes('all healthy') || kl.includes('no new incidents') || kl.includes('no failures') || kl.includes('completed successfully') || kl.includes('0 failures') || kl.includes('all fleet agents are healthy') || kl.includes('no stuck') || kl.includes('operating cleanly')) {
       return { action: 'knowledge_review_skip', result: `Reviewed healthy status: "${knowledge.slice(0, 60)}" — no investigation needed`, quality: 0.5, mutated: false };
     }
 
