@@ -339,7 +339,6 @@ class MasterSessionManager {
 
     const shell = 'claude';
     const args = [
-      '--dangerously-skip-permissions',
       '--mcp-config', `${CLAUDE_HOME}/mcp.json`,
     ];
 
@@ -483,24 +482,6 @@ class MasterSessionManager {
     }
 
     // 2. Permissions bypass warning — select menu with:
-    //    ❯ 1. No, exit
-    //      2. Yes, I accept
-    if (clean.includes('no,exit') && clean.includes('yes,iaccept')) {
-      console.log('[MasterSession] Auto-accepting permissions bypass (arrow down + enter)');
-      setTimeout(() => {
-        if (this.pty) {
-          this.pty.write('\x1b[B');
-          setTimeout(() => {
-            if (this.pty) this.pty.write('\r');
-          }, 300);
-        }
-      }, 500);
-      this._outputBuffer = '';
-      this._setupComplete = true;
-      if (this._startupTimer) { clearTimeout(this._startupTimer); this._startupTimer = null; }
-      return;
-    }
-
     // 3. Any "yes/no" or "y/n" confirmation prompt
     if (clean.includes('(y/n)') || clean.includes('(yes/no)')) {
       console.log('[MasterSession] Auto-accepting y/n prompt');
