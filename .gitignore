@@ -160,3 +160,9 @@ package-lock.json
 scripts/*.ps1
 .claude/
 apps/*/.claude/
+
+# Binary artifacts
+apps/dashboard/client/public/releases/
+
+# Local Claude Code settings
+.claude/settings.local.json
