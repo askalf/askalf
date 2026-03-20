@@ -14773,7 +14773,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
         action: 'reinforce_weak_procedure',
         result: `Reinforced "${String(proc['trigger_pattern']).slice(0, 50)}" → conf=${proc['confidence']}`,
         quality: 0.7,
-        mutated: true,
+        mutated: false,
       };
     }
     return { action: 'reinforce_weak_procedure', result: 'No weak procedures found', quality: 0.3, mutated: false };
@@ -14820,7 +14820,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       action: 'reinforce_identity',
       result: `Reinforced ${prefix.replace('%', '')} memories`,
       quality: 0.7,
-      mutated: true,
+      mutated: false,
     };
   }
 
@@ -14856,7 +14856,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
        WHERE agent_id = $1 AND content LIKE 'PATTERN:%'`,
       [AGENT_ID],
     );
-    return { action: 'reinforce_patterns', result: 'Reinforced PATTERN memories', quality: 0.6, mutated: true };
+    return { action: 'reinforce_patterns', result: 'Reinforced PATTERN memories', quality: 0.6, mutated: false };
   }
 
   // ============================================================================
@@ -15939,7 +15939,7 @@ RULES:
        AND id = (SELECT id FROM forge_semantic_memories WHERE agent_id = $1 ORDER BY RANDOM() LIMIT 1)`,
     [AGENT_ID],
   );
-  return { action: 'access_random', result: 'Bumped random memory access count', quality: 0.5, mutated: true };
+  return { action: 'access_random', result: 'Bumped random memory access count', quality: 0.5, mutated: false };
 }
 
 /**
@@ -15977,7 +15977,7 @@ async function crystallizeProcedure(p: ReturnType<typeof getForgePool>): Promise
       action: 'reinforce_procedure',
       result: `Reinforced existing procedure: "${existing.procedure.trigger.slice(0, 50)}" (conf was ${existing.procedure.confidence.toFixed(2)})`,
       quality: 0.7,
-      mutated: true,
+      mutated: false,
     };
   }
 
