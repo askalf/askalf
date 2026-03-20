@@ -18,6 +18,7 @@ export class TelegramProvider implements ChannelProvider {
     const expectedSecret = config.config['webhook_secret'] as string | undefined;
     if (!expectedSecret) {
       // If no secret configured, accept all (Telegram doesn't require signature verification)
+      console.warn('[Telegram] WARNING: webhook_secret not configured — accepting all inbound webhooks without verification. Set webhook_secret in channel config to enable signature checks.');
       return { valid: true };
     }
 

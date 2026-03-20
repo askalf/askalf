@@ -79,7 +79,10 @@ export class WebhooksProvider implements ChannelProvider {
     if (!secret) {
       // No secret configured — accept with API key check only
       const apiKey = config.config['api_key'] as string | undefined;
-      if (!apiKey) return { valid: true };
+      if (!apiKey) {
+        console.warn('[Webhooks] WARNING: neither webhook_secret nor api_key configured — accepting all inbound webhooks without any authentication. Set webhook_secret or api_key in channel config to secure this endpoint.');
+        return { valid: true };
+      }
       const authHeader = headers['authorization'] || headers['Authorization'];
       if (authHeader) {
         const token = authHeader.replace(/^Bearer\s+/i, '');
