@@ -93,50 +93,53 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     },
   );
 
-  // Reports metrics
+  // Reports metrics (cached 10s in Redis)
   app.get(
     '/api/v1/admin/reports/metrics',
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
-      const [
-        agents, executions,
-        userCount, activeUsers, newUsers,
-        ticketCount, openTickets,
-      ] = await Promise.all([
-        query<Record<string, unknown>>('SELECT id, status FROM forge_agents'),
-        query<Record<string, unknown>>('SELECT id, status FROM forge_executions ORDER BY created_at DESC LIMIT 200'),
-        substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM users'),
-        substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE last_login_at > NOW() - INTERVAL '24 hours'`),
-        substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE created_at > NOW() - INTERVAL '7 days'`),
-        substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM agent_tickets WHERE deleted_at IS NULL'),
-        substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM agent_tickets WHERE deleted_at IS NULL AND status IN ('open', 'in_progress')`),
-      ]);
+      const { getCached } = await import('../../orchestration/event-bus.js');
+      return getCached('reports:metrics', 10, async () => {
+        const [
+          agents, executions,
+          userCount, activeUsers, newUsers,
+          ticketCount, openTickets,
+        ] = await Promise.all([
+          query<Record<string, unknown>>('SELECT id, status FROM forge_agents'),
+          query<Record<string, unknown>>('SELECT id, status FROM forge_executions ORDER BY created_at DESC LIMIT 200'),
+          substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM users'),
+          substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE last_login_at > NOW() - INTERVAL '24 hours'`),
+          substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE created_at > NOW() - INTERVAL '7 days'`),
+          substrateQueryOne<{ count: string }>('SELECT COUNT(*) as count FROM agent_tickets WHERE deleted_at IS NULL'),
+          substrateQueryOne<{ count: string }>(`SELECT COUNT(*) as count FROM agent_tickets WHERE deleted_at IS NULL AND status IN ('open', 'in_progress')`),
+        ]);
 
-      return {
-        users: {
-          total: parseInt(userCount?.count || '0'),
-          active_24h: parseInt(activeUsers?.count || '0'),
-          new_7d: parseInt(newUsers?.count || '0'),
-        },
-        agents: {
-          total: agents.length,
-          active: agents.filter((a) => a['status'] === 'active').length,
-          tasks_today: executions.filter((e) => {
-            const d = new Date(e['created_at'] as string);
-            return d.toDateString() === new Date().toDateString();
-          }).length,
-        },
-        executions: {
-          total: executions.length,
-          completed: executions.filter((e) => e['status'] === 'completed').length,
-          failed: executions.filter((e) => e['status'] === 'failed').length,
-          running: executions.filter((e) => e['status'] === 'running' || e['status'] === 'pending').length,
-        },
-        tickets: {
-          total: parseInt(ticketCount?.count || '0'),
-          open: parseInt(openTickets?.count || '0'),
-        },
-      };
+        return {
+          users: {
+            total: parseInt(userCount?.count || '0'),
+            active_24h: parseInt(activeUsers?.count || '0'),
+            new_7d: parseInt(newUsers?.count || '0'),
+          },
+          agents: {
+            total: agents.length,
+            active: agents.filter((a) => a['status'] === 'active').length,
+            tasks_today: executions.filter((e) => {
+              const d = new Date(e['created_at'] as string);
+              return d.toDateString() === new Date().toDateString();
+            }).length,
+          },
+          executions: {
+            total: executions.length,
+            completed: executions.filter((e) => e['status'] === 'completed').length,
+            failed: executions.filter((e) => e['status'] === 'failed').length,
+            running: executions.filter((e) => e['status'] === 'running' || e['status'] === 'pending').length,
+          },
+          tickets: {
+            total: parseInt(ticketCount?.count || '0'),
+            open: parseInt(openTickets?.count || '0'),
+          },
+        };
+      });
     },
   );
 
@@ -256,14 +259,16 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     },
   );
 
-  // Execution timeline — last 24 hours of executions for timeline visualization
+  // Execution timeline — last 24 hours of executions for timeline visualization (cached 10s)
   app.get(
     '/api/v1/admin/executions/timeline',
     { preHandler: [authMiddleware, requireAdmin] },
     async (request: FastifyRequest) => {
       const { hours = '24' } = request.query as { hours?: string };
       const hoursNum = Math.min(Math.max(parseInt(hours) || 24, 1), 72);
+      const { getCached } = await import('../../orchestration/event-bus.js');
 
+      return getCached(`timeline:${hoursNum}`, 10, async () => {
       const executions = await query<Record<string, unknown>>(
         `SELECT
           e.id, e.agent_id, e.status, e.started_at, e.completed_at,
@@ -278,7 +283,6 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
         [hoursNum],
       );
 
-      // Derive model tier from model name for color coding
       const items = executions.map((e) => {
         const modelName = String(e['model_name'] || 'unknown').toLowerCase();
         let modelTier: 'opus' | 'sonnet' | 'haiku' | 'unknown' = 'unknown';
@@ -302,6 +306,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
       });
 
       return { executions: items, hours: hoursNum };
+      });
     },
   );
 
