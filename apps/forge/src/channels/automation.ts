@@ -6,6 +6,7 @@
 
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { ChannelProvider, ChannelConfig, ChannelInboundMessage, ChannelOutboundMessage, ChannelVerifyResult } from './types.js';
+import { isAllowedUrl } from './webhooks.js';
 
 /**
  * Base class for webhook-based automation platforms.
@@ -72,6 +73,11 @@ class WebhookAutomationProvider implements ChannelProvider {
     const webhookUrl = config.config['webhook_url'] as string | undefined;
     if (!webhookUrl) {
       console.warn(`[${this.platformName}] sendReply skipped: no webhook_url configured`);
+      return;
+    }
+
+    if (!isAllowedUrl(webhookUrl)) {
+      console.warn(`[${this.platformName}] sendReply blocked: webhook_url failed SSRF validation`);
       return;
     }
 
