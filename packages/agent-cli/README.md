@@ -136,9 +136,9 @@ Runs anywhere Node.js runs — Linux, macOS, Windows, Raspberry Pi, cloud VMs, C
 
 ## Related
 
-- [AskAlf Platform](https://github.com/SprayberryLabs/askalf) — the full platform
-- [Wiki](https://github.com/SprayberryLabs/askalf/wiki) — installation, configuration, FAQ
-- [Architecture Docs](https://github.com/SprayberryLabs/askalf/blob/main/docs/ARCHITECTURE.md) — system internals
+- [AskAlf Platform](https://github.com/askalf/askalf) — the full platform
+- [Wiki](https://github.com/askalf/askalf/wiki) — installation, configuration, FAQ
+- [Architecture Docs](https://github.com/askalf/askalf/blob/main/docs/ARCHITECTURE.md) — system internals
 - [Discord](https://discord.gg/fENVZpdYcX) — community support
 
 ## License

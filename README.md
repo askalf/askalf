@@ -6,7 +6,7 @@
 
 Other tools give you a chatbot. AskAlf gives you a workforce.
 
-**[askalf.org](https://askalf.org)** · **[Wiki](https://github.com/SprayberryLabs/askalf/wiki)** · **[Discord](https://discord.gg/fENVZpdYcX)** · **[@ask_alf](https://x.com/ask_alf)**
+**[askalf.org](https://askalf.org)** · **[Wiki](https://github.com/askalf/askalf/wiki)** · **[Discord](https://discord.gg/fENVZpdYcX)** · **[@ask_alf](https://x.com/ask_alf)**
 
 ---
 
@@ -24,7 +24,7 @@ Runs on **Linux, macOS, and Windows WSL2** — anything with Docker.
 <summary>Manual install</summary>
 
 ```bash
-git clone https://github.com/SprayberryLabs/askalf.git
+git clone https://github.com/askalf/askalf.git
 cd askalf/substrate && ./setup.sh
 docker compose -f docker-compose.selfhosted.yml up -d
 ```
@@ -241,4 +241,4 @@ MIT — see [LICENSE](LICENSE)
 
 ---
 
-Built by [SprayberryLabs](https://github.com/SprayberryLabs) · [askalf.org](https://askalf.org) · [support@askalf.org](mailto:support@askalf.org)
+Built by [askalf](https://github.com/askalf) · [askalf.org](https://askalf.org) · [support@askalf.org](mailto:support@askalf.org)
