@@ -14796,7 +14796,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
         action: 'boost_important',
         result: `Boosted: "${String(mem['content']).slice(0, 50)}" → importance=${mem['importance']}`,
         quality: 0.7,
-        mutated: true,
+        mutated: false,
       };
     }
     return { action: 'boost_important', result: 'Nothing to boost', quality: 0.3, mutated: false };
@@ -14844,7 +14844,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       action: 'decay_old_episodes',
       result: `Decayed ${decayed.rows.length} old low-quality episodes`,
       quality: decayed.rows.length > 0 ? 0.6 : 0.4,
-      mutated: decayed.rows.length > 0,
+      mutated: false,
     };
   }
 
@@ -14970,7 +14970,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
           `SELECT id FROM agent_tickets WHERE category = 'execution_health' AND status IN ('open', 'in_progress') LIMIT 1`,
         );
         if (existingHealthTicket.rows.length > 0) {
-          return { action: 'execution_health_debounce', result: `Execution health ticket already open`, quality: 0.6, mutated: true };
+          return { action: 'execution_health_debounce', result: `Execution health ticket already open`, quality: 0.6, mutated: false };
         }
         const ticketId = `tkt_core_${Date.now()}`;
         await p.query(
