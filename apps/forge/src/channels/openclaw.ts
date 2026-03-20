@@ -1,39 +1,49 @@
 /**
  * OpenClaw Channel Provider
- * Connects to OpenClaw's WebSocket Gateway to bridge messages from
- * OpenClaw-connected platforms (WhatsApp, Telegram, Discord, etc.)
- * into the AskAlf agent fleet.
+ * Connects to OpenClaw's WebSocket Gateway (protocol v3) to bridge messages
+ * from OpenClaw-connected platforms into the AskAlf agent fleet.
+ *
+ * Protocol: JSON-RPC over WebSocket
+ * Frame types: req (client→server), res (server→client), event (server→client)
+ * Auth: token-based via connect handshake
  */
 
 import type { ChannelProvider, ChannelConfig, ChannelInboundMessage, ChannelOutboundMessage, ChannelVerifyResult } from './types.js';
 
-// Node 22+ has global WebSocket; declare for TypeScript
-declare const WebSocket: {
-  new(url: string): WebSocket;
-  readonly OPEN: number;
-  readonly CLOSED: number;
-};
-interface WebSocket {
-  readonly readyState: number;
-  send(data: string): void;
-  close(code?: number, reason?: string): void;
-  addEventListener(type: string, listener: (event: { data: string }) => void): void;
-  removeEventListener(type: string, listener: (event: { data: string }) => void): void;
-  onopen: ((event: unknown) => void) | null;
-  onclose: ((event: { code: number; reason: string }) => void) | null;
-  onerror: ((event: { message?: string }) => void) | null;
-  onmessage: ((event: { data: string }) => void) | null;
+const log = (msg: string) => console.log(`[OpenClaw] ${new Date().toISOString()} ${msg}`);
+
+// ── Protocol v3 Frame Types ──────────────────────────
+
+interface RequestFrame {
+  type: 'req';
+  id: string;
+  method: string;
+  params?: Record<string, unknown>;
 }
 
-const log = (msg: string) => console.log(`[OpenClaw] ${new Date().toISOString()} ${msg}`);
+interface ResponseFrame {
+  type: 'res';
+  id: string;
+  ok: boolean;
+  payload?: Record<string, unknown>;
+  error?: { code: string; message: string; retryable?: boolean; retryAfterMs?: number };
+}
+
+interface EventFrame {
+  type: 'event';
+  event: string;
+  payload?: Record<string, unknown>;
+  seq?: number;
+}
+
+type GatewayFrame = RequestFrame | ResponseFrame | EventFrame;
 
 // ── Provider (for result-handler reply routing) ──────────────
 
 export class OpenClawProvider implements ChannelProvider {
   type = 'openclaw' as const;
 
-  verifyWebhook(_headers: Record<string, string>, _body: unknown, _config: ChannelConfig): ChannelVerifyResult {
-    // OpenClaw uses WebSocket, not webhooks — always valid if we get here
+  verifyWebhook(): ChannelVerifyResult {
     return { valid: true };
   }
 
@@ -45,36 +55,30 @@ export class OpenClawProvider implements ChannelProvider {
     return {
       text: content.trim(),
       externalMessageId: msg['id'] as string,
-      externalChannelId: msg['channel_id'] as string,
-      externalUserId: msg['author_id'] as string || msg['user_id'] as string,
+      externalChannelId: msg['channel_id'] as string || msg['sessionKey'] as string,
+      externalUserId: msg['author_id'] as string || msg['senderId'] as string,
       metadata: {
         source: 'openclaw',
         platform: msg['platform'] as string,
-        session_id: msg['session_id'] as string,
+        sessionKey: msg['sessionKey'] as string,
       },
     };
   }
 
   async sendReply(config: ChannelConfig, message: ChannelOutboundMessage): Promise<void> {
-    // Route reply through the active gateway client
     const client = OpenClawGatewayClient.getInstance();
     if (!client?.isConnected()) {
       log('Cannot send reply: gateway not connected');
       return;
     }
-
-    const channelId = config.metadata?.['reply_channel_id'] as string;
-    client.sendMessage(channelId || 'default', message.text);
+    const sessionKey = config.metadata?.['reply_session_key'] as string;
+    if (sessionKey) {
+      await client.sendMessage(sessionKey, message.text);
+    }
   }
 }
 
-// ── WebSocket Gateway Client ────────────────────────────────
-
-interface GatewayMessage {
-  op: string;
-  d?: Record<string, unknown>;
-  t?: string;  // event type
-}
+// ── WebSocket Gateway Client (Protocol v3) ────────────────────
 
 export class OpenClawGatewayClient {
   private static instance: OpenClawGatewayClient | null = null;
@@ -82,12 +86,13 @@ export class OpenClawGatewayClient {
   private ws: WebSocket | null = null;
   private url: string;
   private token: string;
-  private sessionId: string | null = null;
+  private connected = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-  private connected = false;
+  private requestId = 0;
+  private pendingRequests = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private onMessage: ((msg: ChannelInboundMessage, platform: string) => void) | null = null;
 
   constructor(url: string, token: string) {
@@ -112,7 +117,7 @@ export class OpenClawGatewayClient {
   }
 
   isConnected(): boolean {
-    return this.connected && this.ws?.readyState === WebSocket.OPEN;
+    return this.connected;
   }
 
   connect(): void {
@@ -124,7 +129,7 @@ export class OpenClawGatewayClient {
       this.ws.close();
     }
 
-    log(`Connecting to gateway: ${this.url}`);
+    log(`Connecting to Gateway: ${this.url}`);
 
     try {
       this.ws = new WebSocket(this.url);
@@ -135,25 +140,16 @@ export class OpenClawGatewayClient {
     }
 
     this.ws.onopen = () => {
-      log('WebSocket connected, identifying...');
+      log('WebSocket connected, waiting for challenge...');
       this.reconnectAttempts = 0;
-      this.send({
-        op: 'identify',
-        d: {
-          token: this.token,
-          client: 'askalf-bridge',
-          version: '1.0.0',
-          intents: ['messages', 'sessions'],
-        },
-      });
     };
 
     this.ws.onmessage = (event: { data: string }) => {
       try {
-        const msg: GatewayMessage = JSON.parse(String(event.data));
-        this.handleGatewayMessage(msg);
+        const frame: GatewayFrame = JSON.parse(String(event.data));
+        this.handleFrame(frame);
       } catch (err) {
-        log(`Failed to parse message: ${err}`);
+        log(`Failed to parse frame: ${err}`);
       }
     };
 
@@ -184,88 +180,158 @@ export class OpenClawGatewayClient {
       this.ws.close(1000, 'AskAlf bridge shutting down');
       this.ws = null;
     }
+    this.pendingRequests.clear();
     OpenClawGatewayClient.instance = null;
-    log('Disconnected from gateway');
+    log('Disconnected');
   }
 
-  sendMessage(channelId: string, content: string): void {
-    this.send({
-      op: 'message_send',
-      d: {
-        channel_id: channelId,
-        content,
-        session_id: this.sessionId,
-      },
-    });
+  async sendMessage(sessionKey: string, content: string): Promise<void> {
+    await this.request('send', { sessionKey, text: content });
   }
 
-  // ── Internal ──────────────────────────────────────────
+  // ── Protocol Handling ──────────────────────────────
 
-  private handleGatewayMessage(msg: GatewayMessage): void {
-    switch (msg.op) {
-      case 'ready': {
-        this.connected = true;
-        this.sessionId = msg.d?.['session_id'] as string || null;
-        log(`Identified. Session: ${this.sessionId}`);
-        this.startHeartbeat();
+  private handleFrame(frame: GatewayFrame): void {
+    switch (frame.type) {
+      case 'event':
+        this.handleEvent(frame as EventFrame);
+        break;
+      case 'res':
+        this.handleResponse(frame as ResponseFrame);
+        break;
+      default:
+        break;
+    }
+  }
+
+  private handleEvent(frame: EventFrame): void {
+    switch (frame.event) {
+      case 'connect.challenge': {
+        // Server sends challenge — respond with connect request
+        log('Received challenge, sending connect...');
+        this.sendConnect();
         break;
       }
 
-      case 'message_create': {
-        const data = msg.d;
-        if (!data) break;
-
-        const content = data['content'] as string;
-        if (!content?.trim()) break;
-
-        const platform = (data['platform'] as string) || 'unknown';
-        const parsed: ChannelInboundMessage = {
-          text: content.trim(),
-          externalMessageId: data['id'] as string,
-          externalChannelId: data['channel_id'] as string,
-          externalUserId: (data['author'] as Record<string, unknown>)?.['id'] as string
-            || data['user_id'] as string,
-          metadata: {
-            source: 'openclaw',
-            platform,
-            session_id: data['session_id'] as string,
-            raw: data,
-          },
-        };
-
-        log(`Message from ${platform}: "${content.slice(0, 80)}"`);
-        this.onMessage?.(parsed, platform);
+      case 'agent': {
+        // Agent execution event — check if it's a message we should bridge
+        const payload = frame.payload || {};
+        const text = payload['text'] as string;
+        if (text && this.onMessage) {
+          const parsed: ChannelInboundMessage = {
+            text: text.trim(),
+            externalMessageId: payload['id'] as string || `oc-${Date.now()}`,
+            externalChannelId: payload['sessionKey'] as string || 'openclaw',
+            externalUserId: payload['senderId'] as string || 'openclaw-user',
+            metadata: {
+              source: 'openclaw',
+              platform: payload['channel'] as string || payload['platform'] as string || 'openclaw',
+              sessionKey: payload['sessionKey'] as string,
+              raw: payload,
+            },
+          };
+          const platform = (payload['channel'] as string) || 'openclaw';
+          log(`Message from ${platform}: "${text.slice(0, 80)}"`);
+          this.onMessage(parsed, platform);
+        }
         break;
       }
 
-      case 'heartbeat_ack':
+      case 'tick':
+        // Heartbeat — server is alive
         break;
 
-      case 'error': {
-        const error = msg.d?.['message'] || JSON.stringify(msg.d);
-        log(`Gateway error: ${error}`);
+      case 'presence':
+        log(`Presence update: ${JSON.stringify(frame.payload || {}).slice(0, 100)}`);
         break;
-      }
+
+      case 'shutdown':
+        log('Gateway shutting down');
+        this.connected = false;
+        break;
 
       default:
-        // Log unknown opcodes for future extension
-        if (msg.op !== 'heartbeat') {
-          log(`Unknown op: ${msg.op}`);
+        // Log unknown events for debugging
+        if (frame.event !== 'health') {
+          log(`Event: ${frame.event}`);
         }
     }
   }
 
-  private send(msg: GatewayMessage): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
+  private handleResponse(frame: ResponseFrame): void {
+    const pending = this.pendingRequests.get(frame.id);
+    if (pending) {
+      this.pendingRequests.delete(frame.id);
+      if (frame.ok) {
+        pending.resolve(frame.payload || {});
+      } else {
+        pending.reject(new Error(frame.error?.message || 'Request failed'));
+      }
+      return;
+    }
+
+    // Connect response (hello)
+    if (frame.ok && frame.id === 'connect-init') {
+      this.connected = true;
+      const server = (frame.payload as Record<string, unknown>)?.['server'] as Record<string, unknown>;
+      log(`Connected to OpenClaw ${server?.['version'] || 'unknown'} (protocol v3)`);
+      this.startHeartbeat();
+    } else if (!frame.ok && frame.id === 'connect-init') {
+      log(`Connect failed: ${frame.error?.message || 'unknown'}`);
+    }
+  }
+
+  private sendConnect(): void {
+    const connectFrame: RequestFrame = {
+      type: 'req',
+      id: 'connect-init',
+      method: 'connect',
+      params: {
+        minProtocol: 3,
+        maxProtocol: 3,
+        client: { name: 'askalf-bridge', version: '1.1.0', platform: 'docker' },
+        role: 'operator',
+        scopes: ['operator.read', 'operator.write'],
+        auth: { token: this.token },
+      },
+    };
+    this.send(connectFrame);
+  }
+
+  private async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
+    const id = `req-${++this.requestId}`;
+    const frame: RequestFrame = { type: 'req', id, method, params };
+
+    return new Promise((resolve, reject) => {
+      this.pendingRequests.set(id, { resolve, reject });
+      this.send(frame);
+
+      // Timeout after 30s
+      setTimeout(() => {
+        if (this.pendingRequests.has(id)) {
+          this.pendingRequests.delete(id);
+          reject(new Error(`Request ${method} timed out`));
+        }
+      }, 30_000);
+    });
+  }
+
+  private send(frame: RequestFrame): void {
+    if (this.ws?.readyState === 1) { // WebSocket.OPEN = 1
+      this.ws.send(JSON.stringify(frame));
     }
   }
 
   private startHeartbeat(): void {
     this.stopHeartbeat();
+    // OpenClaw sends tick events every 5s — we just need to detect disconnects
     this.heartbeatTimer = setInterval(() => {
-      this.send({ op: 'heartbeat', d: { session_id: this.sessionId } });
-    }, 30_000);
+      if (this.ws?.readyState !== 1) {
+        this.connected = false;
+        this.stopHeartbeat();
+        this.scheduleReconnect();
+      }
+    }, 15_000);
   }
 
   private stopHeartbeat(): void {
@@ -277,16 +343,12 @@ export class OpenClawGatewayClient {
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      log(`Max reconnect attempts (${this.maxReconnectAttempts}) reached. Giving up.`);
+      log(`Max reconnect attempts (${this.maxReconnectAttempts}) reached`);
       return;
     }
-
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 60_000);
     this.reconnectAttempts++;
     log(`Reconnecting in ${delay / 1000}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-
-    this.reconnectTimer = setTimeout(() => {
-      this.connect();
-    }, delay);
+    this.reconnectTimer = setTimeout(() => this.connect(), delay);
   }
 }
