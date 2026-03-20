@@ -17,7 +17,7 @@ Docker infrastructure for AskAlf — self-hosted AI agent fleet platform.
 ## Quick Start
 
 ```bash
-git clone https://github.com/SprayberryLabs/askalf.git
+git clone https://github.com/askalf/askalf.git
 cd askalf && ./setup.sh
 docker compose -f docker-compose.selfhosted.yml up -d
 ```
