@@ -1,6 +1,6 @@
 # AskAlf Dashboard - Optimized production build
 # Base image pinned to SHA-256 digest for reproducible builds
-FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS builder
+FROM node:25-alpine@sha256:5209bcaca9836eb3448b650396213dbe9d9a34d31840c2ae1f206cb2986a8543 AS builder
 
 # Install build dependencies for native modules
 RUN apk add --no-cache python3 make g++ linux-headers
@@ -79,7 +79,7 @@ ARG INSTALL_CLAUDE=true
 ARG INSTALL_CODEX=true
 
 # Claude Code CLI stage - install in isolation, extract only the binary
-FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS claude-installer
+FROM node:25-alpine@sha256:5209bcaca9836eb3448b650396213dbe9d9a34d31840c2ae1f206cb2986a8543 AS claude-installer
 ARG INSTALL_CLAUDE
 RUN if [ "$INSTALL_CLAUDE" = "true" ]; then \
       apk add --no-cache bash curl python3 make g++ && \
@@ -93,7 +93,7 @@ RUN if [ "$INSTALL_CLAUDE" = "true" ]; then \
     fi
 
 # Codex CLI stage - install with platform-specific native binary
-FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS codex-installer
+FROM node:25-alpine@sha256:5209bcaca9836eb3448b650396213dbe9d9a34d31840c2ae1f206cb2986a8543 AS codex-installer
 ARG INSTALL_CODEX
 ARG CODEX_VERSION=latest
 RUN if [ "$INSTALL_CODEX" = "true" ]; then \
@@ -107,7 +107,7 @@ RUN if [ "$INSTALL_CODEX" = "true" ]; then \
     fi
 
 # Production stage - minimal Alpine
-FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
+FROM node:25-alpine@sha256:5209bcaca9836eb3448b650396213dbe9d9a34d31840c2ae1f206cb2986a8543 AS runner
 
 # Runtime deps only: bash (node-pty), git (claude/codex), curl (healthchecks)
 RUN apk add --no-cache bash git curl
