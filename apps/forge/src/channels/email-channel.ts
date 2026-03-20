@@ -9,11 +9,38 @@ import type { ChannelProvider, ChannelConfig, ChannelInboundMessage, ChannelOutb
 export class EmailProvider implements ChannelProvider {
   type = 'email' as const;
 
-  verifyWebhook(headers: Record<string, string>, _body: unknown, _config: ChannelConfig): ChannelVerifyResult {
-    // Email webhooks come from configured email services
-    const contentType = headers['content-type'] || '';
-    if (contentType.includes('json') || contentType.includes('form')) {
-      return { valid: true };
+  verifyWebhook(headers: Record<string, string>, _body: unknown, config: ChannelConfig): ChannelVerifyResult {
+    // If an API key or webhook secret is configured, require it on inbound requests
+    const apiKey = config.config['api_key'] as string | undefined;
+    const webhookSecret = config.config['webhook_secret'] as string | undefined;
+
+    if (apiKey) {
+      const authHeader = headers['authorization'] || headers['Authorization'];
+      if (authHeader) {
+        const token = authHeader.replace(/^Bearer\s+/i, '');
+        if (token === apiKey) return { valid: true };
+      }
+      const xApiKey = headers['x-api-key'] || headers['X-API-Key'];
+      if (xApiKey === apiKey) return { valid: true };
+      // API key configured but not provided or mismatch
+      return { valid: false };
+    }
+
+    if (webhookSecret) {
+      const authHeader = headers['authorization'] || headers['Authorization'];
+      if (authHeader) {
+        const token = authHeader.replace(/^Bearer\s+/i, '');
+        if (token === webhookSecret) return { valid: true };
+      }
+      // Also accept as X-Webhook-Secret header
+      const xSecret = headers['x-webhook-secret'] || headers['X-Webhook-Secret'];
+      if (xSecret === webhookSecret) return { valid: true };
+      return { valid: false };
+    }
+
+    // No credentials configured — accept (but log a warning in production)
+    if (process.env['NODE_ENV'] === 'production') {
+      console.warn('[Email] verifyWebhook: no api_key or webhook_secret configured — accepting unauthenticated webhook');
     }
     return { valid: true };
   }
@@ -81,9 +108,9 @@ export class EmailProvider implements ChannelProvider {
       });
 
       await transporter.sendMail({
-        from: fromEmail,
-        to: replyTo,
-        subject: `Re: ${config.metadata?.['subject'] || 'Agent Response'}`,
+        from: fromEmail.replace(/[\r\n]/g, ''),
+        to: replyTo.replace(/[\r\n]/g, ''),
+        subject: `Re: ${String(config.metadata?.['subject'] || 'Agent Response').replace(/[\r\n]/g, ' ')}`,
         text: message.text,
       });
       return;
@@ -111,10 +138,10 @@ export class EmailProvider implements ChannelProvider {
           `AUTH LOGIN\r\n`,
           `${Buffer.from(smtpUser).toString('base64')}\r\n`,
           `${Buffer.from(smtpPass).toString('base64')}\r\n`,
-          `MAIL FROM:<${fromEmail}>\r\n`,
-          `RCPT TO:<${replyTo}>\r\n`,
+          `MAIL FROM:<${fromEmail.replace(/[\r\n<>]/g, '')}>\r\n`,
+          `RCPT TO:<${replyTo.replace(/[\r\n<>]/g, '')}>\r\n`,
           `DATA\r\n`,
-          `From: ${fromEmail}\r\nTo: ${replyTo}\r\nSubject: Re: ${config.metadata?.['subject'] || 'Agent Response'}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${message.text}\r\n.\r\n`,
+          `From: ${fromEmail.replace(/[\r\n]/g, '')}\r\nTo: ${replyTo.replace(/[\r\n]/g, '')}\r\nSubject: Re: ${String(config.metadata?.['subject'] || 'Agent Response').replace(/[\r\n]/g, ' ')}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${message.text.replace(/\r\n\.\r\n/g, '\r\n..\r\n')}\r\n.\r\n`,
           `QUIT\r\n`,
         ];
 

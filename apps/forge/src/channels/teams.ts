@@ -3,7 +3,6 @@
  * Handles Bot Framework webhook verification and message parsing.
  */
 
-import { createHmac } from 'crypto';
 import type { ChannelProvider, ChannelConfig, ChannelInboundMessage, ChannelOutboundMessage, ChannelVerifyResult } from './types.js';
 
 export class TeamsProvider implements ChannelProvider {
@@ -12,10 +11,43 @@ export class TeamsProvider implements ChannelProvider {
   verifyWebhook(headers: Record<string, string>, body: unknown, config: ChannelConfig): ChannelVerifyResult {
     // Bot Framework uses Bearer token auth via Azure AD
     const authHeader = headers['authorization'] || headers['Authorization'];
+    const appPassword = config.config['app_password'] as string | undefined;
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // In self-hosted mode, we trust internal routing if no auth header
+      // No auth header present — only allow if the channel has no app_password configured
+      // (i.e. unconfigured/development channel). If app_password is set, auth is required.
+      if (appPassword) {
+        return { valid: false, error: 'Missing Authorization header; authentication is required when app_password is configured' };
+      }
       return { valid: true };
     }
+
+    // Validate Bearer token structure.
+    // Azure AD JWT tokens are three Base64url-encoded segments separated by dots.
+    const token = authHeader.slice('Bearer '.length).trim();
+
+    if (!token) {
+      return { valid: false, error: 'Empty Bearer token' };
+    }
+
+    // JWT format: header.payload.signature — each segment is non-empty Base64url
+    const jwtSegments = token.split('.');
+    if (jwtSegments.length !== 3) {
+      return { valid: false, error: 'Bearer token is not a valid JWT (expected 3 segments)' };
+    }
+
+    const base64urlPattern = /^[A-Za-z0-9_-]+$/;
+    for (const segment of jwtSegments) {
+      if (!segment || !base64urlPattern.test(segment)) {
+        return { valid: false, error: 'Bearer token contains invalid JWT segment' };
+      }
+    }
+
+    // Reject suspiciously short tokens — real Azure AD JWTs are typically 800+ chars
+    if (token.length < 100) {
+      return { valid: false, error: 'Bearer token is too short to be a valid Azure AD JWT' };
+    }
+
     return { valid: true };
   }
 
