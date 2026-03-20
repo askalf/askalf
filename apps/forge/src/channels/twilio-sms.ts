@@ -39,12 +39,7 @@ export class TwilioSmsProvider implements ChannelProvider {
       .digest('base64');
 
     if (computed !== signature) {
-      // Signature mismatch — but allow if the URL might differ (dev vs prod)
-      // Log and accept in development, reject in production
-      if (process.env['NODE_ENV'] === 'production') {
-        return { valid: false };
-      }
-      console.warn('[TwilioSMS] Signature mismatch (dev mode, allowing)');
+      return { valid: false };
     }
 
     return { valid: true };
