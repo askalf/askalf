@@ -4,7 +4,7 @@
 
 **Title:** Show HN: AskAlf — Self-hosted AI agent fleet that works while you sleep
 
-**URL:** https://github.com/SprayberryLabs/askalf
+**URL:** https://github.com/askalf/askalf
 
 **Comment (post immediately after submission):**
 
@@ -28,7 +28,7 @@ Stack: TypeScript, Node 22, React 19, Fastify 5, PostgreSQL 17 + pgvector, Redis
 
 Discord: https://discord.gg/fENVZpdYcX
 
-Happy to answer questions about the architecture. Full docs: https://github.com/SprayberryLabs/askalf/blob/main/docs/ARCHITECTURE.md
+Happy to answer questions about the architecture. Full docs: https://github.com/askalf/askalf/blob/main/docs/ARCHITECTURE.md
 
 ---
 
@@ -60,8 +60,8 @@ curl -fsSL https://get.askalf.org | bash
 
 **Cost:** ~$0.43/night for 18 agent executions. Built-in per-agent budgets.
 
-GitHub: https://github.com/SprayberryLabs/askalf
-Docs: https://github.com/SprayberryLabs/askalf/blob/main/docs/ARCHITECTURE.md
+GitHub: https://github.com/askalf/askalf
+Docs: https://github.com/askalf/askalf/blob/main/docs/ARCHITECTURE.md
 Website: https://askalf.org
 
 Discord: https://discord.gg/fENVZpdYcX
@@ -88,7 +88,7 @@ Key tech: TypeScript, PostgreSQL + pgvector, Redis, Docker, MCP Protocol.
 
 `curl -fsSL https://get.askalf.org | bash`
 
-GitHub: https://github.com/SprayberryLabs/askalf
+GitHub: https://github.com/askalf/askalf
 
 ---
 
@@ -111,7 +111,7 @@ Self-hosted, Docker Compose, one command to install. Optional VPN tunneling for 
 
 `curl -fsSL https://get.askalf.org | bash`
 
-GitHub: https://github.com/SprayberryLabs/askalf
+GitHub: https://github.com/askalf/askalf
 
 ---
 
@@ -153,7 +153,7 @@ One-click install from the dashboard.
 
 Self-hosted. MIT licensed. Your data stays yours.
 
-GitHub: github.com/SprayberryLabs/askalf
+GitHub: github.com/askalf/askalf
 Docs: ARCHITECTURE.md
 
 Discord: discord.gg/fENVZpdYcX
