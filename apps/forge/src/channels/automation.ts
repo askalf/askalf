@@ -25,6 +25,7 @@ class WebhookAutomationProvider implements ChannelProvider {
     const apiKey = config.config['api_key'] as string | undefined;
     if (!apiKey) {
       // No API key configured — accept all (for development/testing)
+      console.warn(`[${this.platformName}] WARNING: api_key not configured — accepting all inbound webhooks without authentication. Set api_key in channel config to secure this endpoint.`);
       return { valid: true };
     }
 
