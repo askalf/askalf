@@ -73,6 +73,23 @@ export async function matchAgentsToTasks(
   );
 
   for (const task of tasks) {
+    // Direct name match: if suggestedAgentType exactly matches an agent name, use it
+    const directMatch = agents.find(a =>
+      a.name.toLowerCase() === task.suggestedAgentType.toLowerCase() ||
+      a.name.toLowerCase().replace(/\s+/g, '') === task.suggestedAgentType.toLowerCase().replace(/\s+/g, '')
+    );
+    if (directMatch) {
+      assignedAgentIds.add(directMatch.id);
+      results.push({
+        taskTitle: task.title,
+        agentId: directMatch.id,
+        agentName: directMatch.name,
+        score: 100,
+        reasons: ['direct name match'],
+      });
+      continue;
+    }
+
     const scored = scoreAgents(task, agents, assignedAgentIds, capabilitiesMap);
 
     if (scored.length === 0) {
