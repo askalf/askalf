@@ -14,7 +14,10 @@ export class WhatsAppProvider implements ChannelProvider {
    */
   verifyWebhook(headers: Record<string, string>, body: unknown, config: ChannelConfig): ChannelVerifyResult {
     const appSecret = config.config['app_secret'] as string | undefined;
-    if (!appSecret) return { valid: true }; // Allow if no secret (development)
+    if (!appSecret) {
+      console.warn('[WhatsApp] WARNING: app_secret not configured — accepting all inbound webhooks without HMAC verification. Set app_secret in channel config to enable signature checks.');
+      return { valid: true }; // Allow if no secret (development)
+    }
 
     const signature = headers['x-hub-signature-256'];
     if (!signature) return { valid: false };
