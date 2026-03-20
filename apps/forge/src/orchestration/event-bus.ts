@@ -238,9 +238,49 @@ export async function initEventBus(redisUrl: string): Promise<ForgeEventBus> {
   if (instance) return instance;
   instance = new ForgeEventBus(redisUrl);
   await instance.connect();
+
+  // Initialize cache client
+  cacheClient = new Redis(redisUrl, { maxRetriesPerRequest: null, lazyConnect: true });
+  await cacheClient.connect();
+  console.log('[Cache] Redis query cache initialized');
+
   return instance;
 }
 
 export function getEventBus(): ForgeEventBus | null {
   return instance;
+}
+
+// ============================================
+// Redis Query Cache
+// ============================================
+
+let cacheClient: Redis | null = null;
+
+/**
+ * Get a value from cache or compute it. Results cached in Redis with TTL.
+ * Use for expensive dashboard queries that don't need real-time accuracy.
+ */
+export async function getCached<T>(key: string, ttlSeconds: number, fetchFn: () => Promise<T>): Promise<T> {
+  if (!cacheClient) return fetchFn();
+
+  const cacheKey = `forge:cache:${key}`;
+  try {
+    const cached = await cacheClient.get(cacheKey);
+    if (cached) return JSON.parse(cached) as T;
+  } catch { /* cache miss, compute fresh */ }
+
+  const result = await fetchFn();
+
+  try {
+    await cacheClient.setex(cacheKey, ttlSeconds, JSON.stringify(result));
+  } catch { /* cache write failed, not fatal */ }
+
+  return result;
+}
+
+/** Invalidate a specific cache key */
+export async function invalidateCache(key: string): Promise<void> {
+  if (!cacheClient) return;
+  try { await cacheClient.del(`forge:cache:${key}`); } catch { /* ignore */ }
 }
