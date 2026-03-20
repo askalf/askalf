@@ -4,8 +4,8 @@ contact_links:
     url: https://discord.gg/fENVZpdYcX
     about: Ask questions and get help from the community.
   - name: Documentation
-    url: https://github.com/SprayberryLabs/askalf/wiki
+    url: https://github.com/askalf/askalf/wiki
     about: Check the wiki before opening an issue.
   - name: Discussions
-    url: https://github.com/SprayberryLabs/askalf/discussions
+    url: https://github.com/askalf/askalf/discussions
     about: Feature ideas and general discussion.
