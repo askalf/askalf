@@ -180,6 +180,9 @@ export class OpenClawGatewayClient {
       this.ws.close(1000, 'AskAlf bridge shutting down');
       this.ws = null;
     }
+    for (const [, pending] of this.pendingRequests) {
+      pending.reject(new Error('Connection closed'));
+    }
     this.pendingRequests.clear();
     OpenClawGatewayClient.instance = null;
     log('Disconnected');
