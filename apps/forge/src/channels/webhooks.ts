@@ -7,6 +7,70 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import type { ChannelProvider, ChannelConfig, ChannelInboundMessage, ChannelOutboundMessage, ChannelVerifyResult } from './types.js';
 
+/**
+ * Validates that a URL is safe to make outbound requests to.
+ * Blocks private/internal IP ranges to prevent SSRF attacks.
+ * Allows HTTPS URLs and HTTP only for localhost in non-production environments.
+ */
+export function isAllowedUrl(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Only allow http and https schemes
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return false;
+  }
+
+  // Allow HTTP only for localhost in development
+  if (parsed.protocol === 'http:') {
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+    if (!isLocalhost) return false;
+    // In production, block even localhost HTTP
+    if (process.env['NODE_ENV'] === 'production') return false;
+  }
+
+  // Block IPv6 loopback and private ranges
+  if (hostname === '::1' || hostname === '[::1]') return false;
+  if (hostname.startsWith('fc00:') || hostname.startsWith('fd') || hostname.startsWith('fe80:')) return false;
+
+  // Block private IPv4 ranges
+  // Strip brackets for IPv6-mapped IPv4
+  const bare = hostname.replace(/^\[|\]$/g, '');
+  const ipv4Match = bare.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number) as [number, number, number, number, number];
+    // 10.0.0.0/8
+    if (a === 10) return false;
+    // 172.16.0.0/12
+    if (a === 172 && b! >= 16 && b! <= 31) return false;
+    // 192.168.0.0/16
+    if (a === 192 && b === 168) return false;
+    // 127.0.0.0/8 (loopback) — block in production
+    if (a === 127) {
+      if (process.env['NODE_ENV'] === 'production') return false;
+    }
+    // 169.254.0.0/16 (link-local)
+    if (a === 169 && b === 254) return false;
+    // 0.0.0.0
+    if (a === 0) return false;
+  }
+
+  // Block known internal hostnames
+  if (hostname === 'metadata.google.internal' || hostname === 'metadata.google.com') return false;
+  if (bare.endsWith('.internal') || bare.endsWith('.local')) {
+    // Allow localhost.local but block others in production
+    if (process.env['NODE_ENV'] === 'production') return false;
+  }
+
+  return true;
+}
+
 export class WebhooksProvider implements ChannelProvider {
   type = 'webhooks' as const;
 
@@ -77,6 +141,11 @@ export class WebhooksProvider implements ChannelProvider {
     const callbackUrl = config.config['callback_url'] as string | undefined;
     if (!callbackUrl) {
       console.warn('[Webhooks] sendReply skipped: no callback_url configured');
+      return;
+    }
+
+    if (!isAllowedUrl(callbackUrl)) {
+      console.warn('[Webhooks] sendReply blocked: callback_url failed SSRF validation');
       return;
     }
 
