@@ -1,8 +1,11 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
+  - name: Discord Community
+    url: https://discord.gg/fENVZpdYcX
+    about: Ask questions and get help from the community.
   - name: Documentation
-    url: https://askalf.org/docs
-    about: Check the docs before opening an issue.
-  - name: Support
-    url: mailto:support@askalf.org
-    about: For direct support, email us.
+    url: https://github.com/SprayberryLabs/askalf/wiki
+    about: Check the wiki before opening an issue.
+  - name: Discussions
+    url: https://github.com/SprayberryLabs/askalf/discussions
+    about: Feature ideas and general discussion.
