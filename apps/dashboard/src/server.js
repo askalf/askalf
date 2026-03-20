@@ -2582,6 +2582,212 @@ fastify.post('/api/v1/demo/chat', async (request, reply) => {
 });
 
 // ===========================================
+// OPENCLAW MIGRATION
+// ===========================================
+
+// Read an openclaw.json from a server-side path
+fastify.post('/api/v1/admin/migrate/openclaw/read-config', async (request, reply) => {
+  const user = await getAdminUser();
+  if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+
+  const { path: configPath } = request.body || {};
+  if (!configPath || typeof configPath !== 'string') {
+    return reply.code(400).send({ error: 'path is required' });
+  }
+
+  // Resolve ~ to home dir
+  const { readFile } = await import('fs/promises');
+  const { homedir } = await import('os');
+  const { resolve } = await import('path');
+  const resolvedPath = configPath.startsWith('~')
+    ? resolve(homedir(), configPath.slice(2))
+    : resolve(configPath);
+
+  // Basic path safety: must end with .json
+  if (!resolvedPath.endsWith('.json')) {
+    return reply.code(400).send({ error: 'Path must point to a .json file' });
+  }
+
+  try {
+    const content = await readFile(resolvedPath, 'utf-8');
+    // Validate it's parseable JSON
+    JSON.parse(content);
+    return { content };
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return reply.code(404).send({ error: `File not found: ${resolvedPath}` });
+    }
+    return reply.code(400).send({ error: `Failed to read config: ${err.message}` });
+  }
+});
+
+// Import openclaw.json configuration
+fastify.post('/api/v1/admin/migrate/openclaw', async (request, reply) => {
+  const user = await getAdminUser();
+  if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+
+  const { config } = request.body || {};
+  if (!config || typeof config !== 'object') {
+    return reply.code(400).send({ error: 'config object is required in the POST body' });
+  }
+
+  const errors = [];
+  let agentsImported = 0;
+  let channelsImported = 0;
+  let skillsMatched = 0;
+  let gatewayStored = false;
+
+  try {
+    // Get or create tenant
+    let tenant = await queryOne('SELECT id FROM tenants WHERE user_id = $1', [user.id]);
+    if (!tenant) {
+      tenant = await queryOne(
+        'INSERT INTO tenants (id, user_id, name) VALUES ($1, $2, $3) RETURNING id',
+        [crypto.randomUUID(), user.id, user.email || 'default']
+      );
+    }
+    const tenantId = tenant.id;
+
+    // 1) Import agents
+    const agents = Array.isArray(config.agents) ? config.agents : [];
+    for (const agent of agents) {
+      try {
+        const agentId = agent.id || crypto.randomUUID();
+        const name = agent.name || agent.id || 'openclaw-agent';
+        const model = agent.model || 'unknown';
+        const provider = agent.provider || 'unknown';
+        const skills = Array.isArray(agent.skills) ? agent.skills : [];
+        const workspace = agent.workspace || null;
+
+        await query(`
+          INSERT INTO agents (id, name, model, provider, status, config, tenant_id, is_decommissioned)
+          VALUES ($1, $2, $3, $4, 'idle', $5, $6, false)
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            model = EXCLUDED.model,
+            provider = EXCLUDED.provider,
+            config = EXCLUDED.config
+        `, [
+          agentId, name, model, provider,
+          JSON.stringify({ skills, workspace, source: 'openclaw-migration' }),
+          tenantId,
+        ]);
+        agentsImported++;
+      } catch (err) {
+        errors.push(`Agent "${agent.name || agent.id}": ${err.message}`);
+      }
+    }
+
+    // 2) Import channel configs
+    const channels = config.channels && typeof config.channels === 'object' ? config.channels : {};
+    for (const [channelType, creds] of Object.entries(channels)) {
+      if (!creds || typeof creds !== 'object' || Object.keys(creds).length === 0) continue;
+      try {
+        // Encrypt sensitive fields
+        const encryptedConfig = {};
+        for (const [key, value] of Object.entries(creds)) {
+          const isSensitive = /token|secret|key|password|api_key/i.test(key);
+          if (isSensitive && typeof value === 'string' && value.length > 0) {
+            encryptedConfig[key] = encryptApiKey(value);
+          } else {
+            encryptedConfig[key] = value;
+          }
+        }
+
+        const configId = crypto.randomUUID();
+        await query(`
+          INSERT INTO channel_configs (id, channel_type, name, config, is_active, tenant_id, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, true, $5, NOW(), NOW())
+          ON CONFLICT (tenant_id, channel_type) DO UPDATE SET
+            config = EXCLUDED.config,
+            is_active = true,
+            updated_at = NOW()
+        `, [
+          configId, channelType, channelType, JSON.stringify(encryptedConfig), tenantId,
+        ]);
+        channelsImported++;
+      } catch (err) {
+        errors.push(`Channel "${channelType}": ${err.message}`);
+      }
+    }
+
+    // 3) Match skills against marketplace packages
+    const skillsList = Array.isArray(config.skills) ? config.skills : [];
+    for (const skillName of skillsList) {
+      try {
+        const match = await queryOne(
+          `SELECT id FROM marketplace_packages WHERE name ILIKE $1 OR name ILIKE $2 LIMIT 1`,
+          [skillName, `%${skillName}%`]
+        );
+        if (match) {
+          skillsMatched++;
+        } else {
+          errors.push(`Skill "${skillName}": no matching marketplace package found`);
+        }
+      } catch {
+        // marketplace_packages table may not exist — not critical
+        errors.push(`Skill "${skillName}": could not query marketplace`);
+      }
+    }
+
+    // 4) Store gateway URL/token in platform_settings
+    if (config.gateway) {
+      try {
+        const gw = config.gateway;
+        const gwBind = gw.bind || 'localhost';
+        const gwPort = gw.port;
+        const gwUrl = gwPort ? `http://${gwBind}:${gwPort}` : null;
+        const gwToken = gw.auth?.token || null;
+
+        const settings = {
+          openclaw_gateway_url: gwUrl,
+          openclaw_gateway_token: gwToken ? encryptApiKey(gwToken) : null,
+          openclaw_imported_at: new Date().toISOString(),
+        };
+
+        // Upsert each setting
+        for (const [key, value] of Object.entries(settings)) {
+          if (value === null) continue;
+          await query(`
+            INSERT INTO platform_settings (id, key, value, tenant_id, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, NOW(), NOW())
+            ON CONFLICT (tenant_id, key) DO UPDATE SET
+              value = EXCLUDED.value,
+              updated_at = NOW()
+          `, [crypto.randomUUID(), key, value, tenantId]);
+        }
+        gatewayStored = true;
+      } catch (err) {
+        errors.push(`Gateway settings: ${err.message}`);
+      }
+    }
+
+    return {
+      success: true,
+      summary: {
+        agents_imported: agentsImported,
+        channels_imported: channelsImported,
+        skills_matched: skillsMatched,
+        gateway_stored: gatewayStored,
+      },
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  } catch (err) {
+    console.error('[Migration] OpenClaw import error:', err);
+    return reply.code(500).send({
+      success: false,
+      summary: {
+        agents_imported: agentsImported,
+        channels_imported: channelsImported,
+        skills_matched: skillsMatched,
+        gateway_stored: gatewayStored,
+      },
+      errors: [...errors, err.message],
+    });
+  }
+});
+
+// ===========================================
 // EVENT BRIDGE - Redis subscriber for forge events
 // ===========================================
 

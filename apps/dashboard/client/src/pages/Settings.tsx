@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import { relativeTime } from '../utils/format';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'providers' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices';
+type SettingsTab = 'profile' | 'appearance' | 'providers' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'migration';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'providers', 'api-keys', 'costs', 'integrations', 'channels', 'devices'];
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'providers', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'migration'];
 
 export default function SettingsPage({ embedded }: { embedded?: boolean }) {
   const [searchParams] = useSearchParams();
@@ -114,6 +114,17 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
             </svg>
             Devices
           </button>
+          <button
+            className={`settings-nav-item ${activeTab === 'migration' ? 'active' : ''}`}
+            onClick={() => setActiveTab('migration')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+            Migration
+          </button>
         </nav>
 
         <div className="settings-content">
@@ -125,6 +136,7 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
           {activeTab === 'integrations' && <IntegrationsTab />}
           {activeTab === 'channels' && <ChannelsTab />}
           {activeTab === 'devices' && <DevicesTab />}
+          {activeTab === 'migration' && <MigrationTab />}
         </div>
       </div>
     </div>
@@ -1460,16 +1472,77 @@ const CHANNEL_DEFS: ChannelDef[] = [
   },
 ];
 
+interface ChannelTestStatus {
+  status: 'connected' | 'unchecked' | 'failed';
+  lastChecked: string | null;
+  detail?: string;
+}
+
 function ChannelsTab() {
   const [configs, setConfigs] = useState<Record<string, { id?: string; webhookUrl?: string; isActive?: boolean }>>({});
   const [forms, setForms] = useState<Record<string, Record<string, string>>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [chMsg, setChMsg] = useState<{ type: string; channel: string; text: string } | null>(null);
+  const [testStatuses, setTestStatuses] = useState<Record<string, ChannelTestStatus>>({});
+  const [autoTest, setAutoTest] = useState<boolean>(() => {
+    try { return localStorage.getItem('askalf_channel_autotest') === 'true'; } catch { return false; }
+  });
+  const [autoTestRan, setAutoTestRan] = useState(false);
 
   useEffect(() => {
     loadConfigs();
   }, []);
+
+  const runTestForChannel = useCallback(async (channelType: string, configId: string): Promise<ChannelTestStatus> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/channels/configs/${configId}/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      const now = new Date().toISOString();
+      if (!res.ok) {
+        return { status: 'failed', lastChecked: now, detail: `HTTP ${res.status}` };
+      }
+      const data = await res.json() as {
+        success?: boolean; message?: string; error?: string;
+        bot_username?: string; workspace_name?: string; server_name?: string;
+        team_name?: string; guild_name?: string;
+      };
+      let detail: string | undefined;
+      if (channelType === 'telegram' && data.bot_username) {
+        detail = `@${data.bot_username}`;
+      } else if (channelType === 'slack' && (data.workspace_name ?? data.team_name)) {
+        detail = data.workspace_name ?? data.team_name;
+      } else if (channelType === 'discord' && (data.server_name ?? data.guild_name)) {
+        detail = data.server_name ?? data.guild_name;
+      }
+      return {
+        status: data.success ? 'connected' : 'failed',
+        lastChecked: now,
+        detail: detail ?? (data.message || undefined),
+      };
+    } catch {
+      return { status: 'failed', lastChecked: new Date().toISOString() };
+    }
+  }, []);
+
+  // Auto-test all connected channels on page load
+  useEffect(() => {
+    if (!autoTest || autoTestRan) return;
+    const configEntries = Object.entries(configs).filter(([, c]) => !!c.id);
+    if (configEntries.length === 0) return;
+    setAutoTestRan(true);
+    (async () => {
+      const results: Record<string, ChannelTestStatus> = {};
+      await Promise.all(configEntries.map(async ([channelType, c]) => {
+        results[channelType] = await runTestForChannel(channelType, c.id!);
+      }));
+      setTestStatuses(prev => ({ ...prev, ...results }));
+    })();
+  }, [autoTest, autoTestRan, configs, runTestForChannel]);
 
   const loadConfigs = async () => {
     try {
@@ -1500,6 +1573,7 @@ function ChannelsTab() {
         const data = await res.json() as { id: string; webhookUrl?: string };
         setConfigs(prev => ({ ...prev, [channelType]: { id: data.id, webhookUrl: data.webhookUrl, isActive: true } }));
         setChMsg({ type: 'success', channel: channelType, text: data.webhookUrl ? `Saved. Webhook URL: ${data.webhookUrl}` : 'Saved successfully.' });
+        setTestStatuses(prev => ({ ...prev, [channelType]: { status: 'unchecked', lastChecked: null } }));
         await loadConfigs();
       } else {
         const err = await res.json() as { error?: string; message?: string };
@@ -1518,19 +1592,16 @@ function ChannelsTab() {
     setTesting(channelType);
     setChMsg(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/forge/channels/configs/${configId}/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) {
-        setChMsg({ type: 'error', channel: channelType, text: `Test request failed: ${res.status}` });
-        return;
+      const result = await runTestForChannel(channelType, configId);
+      setTestStatuses(prev => ({ ...prev, [channelType]: result }));
+      if (result.status === 'connected') {
+        const detailSuffix = result.detail ? ` (${result.detail})` : '';
+        setChMsg({ type: 'success', channel: channelType, text: `Test passed${detailSuffix}` });
+      } else {
+        setChMsg({ type: 'error', channel: channelType, text: result.detail ?? 'Test failed' });
       }
-      const data = await res.json() as { success?: boolean; message?: string; error?: string };
-      setChMsg({ type: data.success ? 'success' : 'error', channel: channelType, text: data.message ?? data.error ?? (data.success ? 'Test passed' : 'Test failed') });
     } catch (err) {
+      setTestStatuses(prev => ({ ...prev, [channelType]: { status: 'failed', lastChecked: new Date().toISOString() } }));
       setChMsg({ type: 'error', channel: channelType, text: err instanceof Error ? err.message : 'Network error' });
     } finally {
       setTesting(null);
@@ -1548,6 +1619,7 @@ function ChannelsTab() {
       });
       if (res.ok) {
         setConfigs(prev => { const next = { ...prev }; delete next[channelType]; return next; });
+        setTestStatuses(prev => { const next = { ...prev }; delete next[channelType]; return next; });
         setChMsg({ type: 'success', channel: channelType, text: 'Disconnected' });
       } else {
         setChMsg({ type: 'error', channel: channelType, text: `Disconnect failed: ${res.status}` });
@@ -1561,9 +1633,28 @@ function ChannelsTab() {
     setForms(prev => ({ ...prev, [channelType]: { ...(prev[channelType] ?? {}), [key]: value } }));
   };
 
+  const toggleAutoTest = () => {
+    const next = !autoTest;
+    setAutoTest(next);
+    try { localStorage.setItem('askalf_channel_autotest', String(next)); } catch { /* ignore */ }
+    if (next) setAutoTestRan(false);
+  };
+
   // Channels with fields are "wired" (configurable now)
   const wiredChannels = new Set(['slack', 'discord', 'telegram', 'whatsapp', 'webhooks', 'teams', 'zapier', 'n8n', 'make', 'email', 'twilio', 'sendgrid', 'twilio_voice', 'zoom']);
   const [expandedChannel, setExpandedChannel] = useState<string | null>(null);
+
+  // Compute summary counts
+  const configuredCount = Object.keys(configs).filter(k => !!configs[k]?.id).length;
+  const connectedCount = Object.values(testStatuses).filter(s => s.status === 'connected').length;
+
+  const formatCheckedTime = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    return `${Math.floor(diff / 86400000)}d ago`;
+  };
 
   return (
     <div className="settings-section">
@@ -1571,6 +1662,35 @@ function ChannelsTab() {
       <p className="settings-section-desc">
         Connect platforms so your agents can receive messages and respond anywhere.
       </p>
+
+      {/* Status summary bar */}
+      <div className="settings-channel-summary-bar">
+        <div className="settings-channel-summary-stats">
+          <span className="settings-channel-summary-count">
+            {connectedCount}/{configuredCount} channels connected
+          </span>
+          {configuredCount > 0 && connectedCount === configuredCount && Object.keys(testStatuses).length > 0 && (
+            <span className="settings-channel-summary-badge all-good">All healthy</span>
+          )}
+          {configuredCount > 0 && connectedCount < configuredCount && connectedCount > 0 && (
+            <span className="settings-channel-summary-badge partial">Some issues</span>
+          )}
+          {configuredCount > 0 && connectedCount === 0 && Object.keys(testStatuses).length > 0 && (
+            <span className="settings-channel-summary-badge failing">Check connections</span>
+          )}
+        </div>
+        <label className="settings-channel-autotest-toggle" onClick={e => e.stopPropagation()}>
+          <span>Auto-test on load</span>
+          <button
+            className={`settings-channel-toggle-btn${autoTest ? ' active' : ''}`}
+            onClick={toggleAutoTest}
+            role="switch"
+            aria-checked={autoTest}
+          >
+            <span className="settings-channel-toggle-knob" />
+          </button>
+        </label>
+      </div>
 
       {CHANNEL_CATEGORIES.map(cat => {
         const channels = CHANNEL_DEFS.filter(c => c.category === cat.id);
@@ -1585,6 +1705,8 @@ function ChannelsTab() {
                 const isWired = wiredChannels.has(ch.type);
                 const isExpanded = expandedChannel === ch.type;
                 const msg = chMsg?.channel === ch.type ? chMsg : null;
+                const testStatus = testStatuses[ch.type];
+                const isTesting = testing === ch.type;
 
                 return (
                   <div
@@ -1612,6 +1734,28 @@ function ChannelsTab() {
                         )}
                       </div>
                     </div>
+
+                    {/* Live status indicator for configured channels */}
+                    {isConnected && (
+                      <div className="settings-channel-status-row">
+                        <div className="settings-channel-status-indicator">
+                          <span className={`settings-channel-status-dot${isTesting ? ' testing' : testStatus ? (testStatus.status === 'connected' ? ' connected' : testStatus.status === 'failed' ? ' failed' : ' unchecked') : ' unchecked'}`} />
+                          <span className="settings-channel-status-label">
+                            {isTesting ? 'Testing...' : testStatus ? (testStatus.status === 'connected' ? 'Connected' : testStatus.status === 'failed' ? 'Failed' : 'Unchecked') : 'Unchecked'}
+                          </span>
+                        </div>
+                        {testStatus?.detail && testStatus.status === 'connected' && (
+                          <span className="settings-channel-status-detail">
+                            {ch.type === 'telegram' ? `Bot: ${testStatus.detail}` : ch.type === 'slack' ? `Workspace: ${testStatus.detail}` : ch.type === 'discord' ? `Server: ${testStatus.detail}` : testStatus.detail}
+                          </span>
+                        )}
+                        {testStatus?.lastChecked && (
+                          <span className="settings-channel-status-time">
+                            Checked {formatCheckedTime(testStatus.lastChecked)}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Expanded config form */}
                     {isExpanded && isWired && ch.fields.length > 0 && (
@@ -2347,6 +2491,447 @@ function ForgeApiKeysTab() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// Migration Tab — OpenClaw Import Wizard
+// ============================================
+
+interface OpenClawConfig {
+  gateway?: {
+    port?: number;
+    bind?: string;
+    auth?: { token?: string };
+  };
+  agents?: Array<{
+    id?: string;
+    name?: string;
+    model?: string;
+    provider?: string;
+    skills?: string[];
+    workspace?: string;
+  }>;
+  channels?: {
+    whatsapp?: Record<string, unknown>;
+    telegram?: Record<string, unknown>;
+    discord?: Record<string, unknown>;
+    slack?: Record<string, unknown>;
+    [key: string]: Record<string, unknown> | undefined;
+  };
+  skills?: string[];
+  memory?: {
+    path?: string;
+  };
+}
+
+interface MigrationPreview {
+  agents: Array<{ name: string; model: string; provider: string; skills: string[] }>;
+  channels: Array<{ type: string; hasCredentials: boolean }>;
+  skills: string[];
+  gatewayToken: boolean;
+  gatewayUrl: string | null;
+}
+
+interface MigrationResult {
+  success: boolean;
+  summary: {
+    agents_imported: number;
+    channels_imported: number;
+    skills_matched: number;
+    gateway_stored: boolean;
+  };
+  errors?: string[];
+}
+
+function MigrationTab() {
+  const [configText, setConfigText] = useState('');
+  const [filePath, setFilePath] = useState('');
+  const [inputMode, setInputMode] = useState<'upload' | 'path'>('upload');
+  const [preview, setPreview] = useState<MigrationPreview | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult] = useState<MigrationResult | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const parseConfig = (text: string) => {
+    setParseError(null);
+    setPreview(null);
+    setResult(null);
+    setMessage(null);
+
+    if (!text.trim()) return;
+
+    try {
+      const config: OpenClawConfig = JSON.parse(text);
+
+      const agents = (config.agents ?? []).map(a => ({
+        name: a.name ?? a.id ?? 'unnamed',
+        model: a.model ?? 'unknown',
+        provider: a.provider ?? 'unknown',
+        skills: a.skills ?? [],
+      }));
+
+      const channels: MigrationPreview['channels'] = [];
+      if (config.channels) {
+        for (const [type, creds] of Object.entries(config.channels)) {
+          if (creds && typeof creds === 'object' && Object.keys(creds).length > 0) {
+            channels.push({ type, hasCredentials: true });
+          }
+        }
+      }
+
+      const skills = config.skills ?? [];
+      const gatewayToken = !!config.gateway?.auth?.token;
+      const gatewayBind = config.gateway?.bind ?? 'localhost';
+      const gatewayPort = config.gateway?.port;
+      const gatewayUrl = gatewayPort ? `http://${gatewayBind}:${gatewayPort}` : null;
+
+      setPreview({ agents, channels, skills, gatewayToken, gatewayUrl });
+      setConfigText(text);
+    } catch (e) {
+      setParseError(e instanceof Error ? e.message : 'Invalid JSON');
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      setConfigText(text);
+      parseConfig(text);
+    };
+    reader.onerror = () => setParseError('Failed to read file');
+    reader.readAsText(file);
+  };
+
+  const handlePathLoad = async () => {
+    if (!filePath.trim()) return;
+    setParseError(null);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/migrate/openclaw/read-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ path: filePath }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to read file' })) as { error?: string };
+        setParseError(err.error ?? `Failed to read file (${res.status})`);
+        return;
+      }
+      const data = await res.json() as { content: string };
+      setConfigText(data.content);
+      parseConfig(data.content);
+    } catch {
+      setParseError('Network error reading config file');
+    }
+  };
+
+  const handleImport = async () => {
+    if (!configText) return;
+    setImporting(true);
+    setMessage(null);
+    setResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/migrate/openclaw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ config: JSON.parse(configText) }),
+      });
+      const data = await res.json() as MigrationResult;
+      setResult(data);
+      if (data.success) {
+        setMessage({ type: 'success', text: 'OpenClaw configuration imported successfully.' });
+      } else {
+        setMessage({ type: 'error', text: data.errors?.join('; ') ?? 'Import failed' });
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Import request failed' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleReset = () => {
+    setConfigText('');
+    setFilePath('');
+    setPreview(null);
+    setParseError(null);
+    setResult(null);
+    setMessage(null);
+  };
+
+  return (
+    <div className="settings-section">
+      <h2>Migration</h2>
+      <p className="settings-section-desc">
+        Import your OpenClaw configuration into AskAlf. Upload your <code>openclaw.json</code> or provide its file path to migrate agents, channels, skills, and gateway settings.
+      </p>
+
+      {/* Input mode toggle */}
+      {!preview && !result && (
+        <div className="migration-input-area">
+          <div className="migration-mode-toggle">
+            <button
+              className={`migration-mode-btn ${inputMode === 'upload' ? 'active' : ''}`}
+              onClick={() => setInputMode('upload')}
+            >
+              Upload File
+            </button>
+            <button
+              className={`migration-mode-btn ${inputMode === 'path' ? 'active' : ''}`}
+              onClick={() => setInputMode('path')}
+            >
+              File Path
+            </button>
+          </div>
+
+          {inputMode === 'upload' ? (
+            <div className="migration-upload-zone">
+              <label className="migration-file-label">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17,8 12,3 7,8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <span>Choose <code>openclaw.json</code> or drop it here</span>
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={handleFileUpload}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+          ) : (
+            <div className="migration-path-input">
+              <div className="settings-field">
+                <label>Path to openclaw.json</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="~/.openclaw/openclaw.json"
+                    value={filePath}
+                    onChange={(e) => setFilePath(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handlePathLoad()}
+                  />
+                  <button className="settings-save-btn" onClick={handlePathLoad}>
+                    Load
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Paste JSON fallback */}
+          <div className="migration-paste-area">
+            <div className="settings-field">
+              <label>Or paste JSON directly</label>
+              <textarea
+                className="migration-textarea"
+                placeholder='{"gateway": {...}, "agents": [...], "channels": {...}}'
+                rows={6}
+                value={configText}
+                onChange={(e) => setConfigText(e.target.value)}
+              />
+            </div>
+            <button
+              className="settings-save-btn"
+              onClick={() => parseConfig(configText)}
+              disabled={!configText.trim()}
+            >
+              Parse Config
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Parse error */}
+      {parseError && (
+        <div className="settings-error" style={{ marginBottom: '16px' }}>
+          <strong>Parse Error:</strong> {parseError}
+        </div>
+      )}
+
+      {/* Preview */}
+      {preview && !result && (
+        <div className="migration-preview">
+          <h3>Import Preview</h3>
+          <div className="migration-preview-grid">
+            {/* Agents */}
+            <div className="migration-preview-card">
+              <div className="migration-preview-card-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <span className="migration-preview-card-title">Agents</span>
+                <span className="migration-preview-badge">{preview.agents.length}</span>
+              </div>
+              {preview.agents.length > 0 ? (
+                <ul className="migration-preview-list">
+                  {preview.agents.map((a, i) => (
+                    <li key={i}>
+                      <strong>{a.name}</strong>
+                      <span className="migration-preview-meta">{a.provider}/{a.model}</span>
+                      {a.skills.length > 0 && (
+                        <span className="migration-preview-meta">{a.skills.length} skill{a.skills.length > 1 ? 's' : ''}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="migration-preview-empty">No agents found</p>
+              )}
+            </div>
+
+            {/* Channels */}
+            <div className="migration-preview-card">
+              <div className="migration-preview-card-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+                <span className="migration-preview-card-title">Channels</span>
+                <span className="migration-preview-badge">{preview.channels.length}</span>
+              </div>
+              {preview.channels.length > 0 ? (
+                <ul className="migration-preview-list">
+                  {preview.channels.map((ch, i) => (
+                    <li key={i}>
+                      <strong>{ch.type}</strong>
+                      {ch.hasCredentials && <span className="migration-preview-tag">credentials</span>}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="migration-preview-empty">No channels configured</p>
+              )}
+            </div>
+
+            {/* Skills */}
+            <div className="migration-preview-card">
+              <div className="migration-preview-card-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                </svg>
+                <span className="migration-preview-card-title">Skills</span>
+                <span className="migration-preview-badge">{preview.skills.length}</span>
+              </div>
+              {preview.skills.length > 0 ? (
+                <ul className="migration-preview-list">
+                  {preview.skills.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="migration-preview-empty">No skills listed</p>
+              )}
+            </div>
+
+            {/* Gateway */}
+            <div className="migration-preview-card">
+              <div className="migration-preview-card-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+                  <line x1="6" y1="6" x2="6.01" y2="6" />
+                  <line x1="6" y1="18" x2="6.01" y2="18" />
+                </svg>
+                <span className="migration-preview-card-title">Gateway</span>
+              </div>
+              <ul className="migration-preview-list">
+                <li>
+                  <strong>URL:</strong> {preview.gatewayUrl ?? 'Not configured'}
+                </li>
+                <li>
+                  <strong>Auth Token:</strong> {preview.gatewayToken ? 'Present' : 'Not set'}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="migration-actions">
+            <button
+              className="settings-save-btn"
+              onClick={handleImport}
+              disabled={importing}
+            >
+              {importing ? 'Importing...' : 'Import to AskAlf'}
+            </button>
+            <button className="settings-btn-sm" onClick={handleReset}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Result */}
+      {result && (
+        <div className="migration-result">
+          {message && (
+            <div className={`migration-result-banner ${message.type}`}>
+              {message.type === 'success' ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22,4 12,14.01 9,11.01" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+              )}
+              <span>{message.text}</span>
+            </div>
+          )}
+
+          {result.summary && (
+            <div className="migration-summary-grid">
+              <div className="migration-summary-item">
+                <span className="migration-summary-count">{result.summary.agents_imported}</span>
+                <span className="migration-summary-label">Agents Imported</span>
+              </div>
+              <div className="migration-summary-item">
+                <span className="migration-summary-count">{result.summary.channels_imported}</span>
+                <span className="migration-summary-label">Channels Imported</span>
+              </div>
+              <div className="migration-summary-item">
+                <span className="migration-summary-count">{result.summary.skills_matched}</span>
+                <span className="migration-summary-label">Skills Matched</span>
+              </div>
+              <div className="migration-summary-item">
+                <span className="migration-summary-count">{result.summary.gateway_stored ? 'Yes' : 'No'}</span>
+                <span className="migration-summary-label">Gateway Stored</span>
+              </div>
+            </div>
+          )}
+
+          {result.errors && result.errors.length > 0 && (
+            <div className="settings-error" style={{ marginTop: '16px' }}>
+              <strong>Warnings:</strong>
+              <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
+                {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <div className="migration-actions" style={{ marginTop: '20px' }}>
+            <button className="settings-save-btn" onClick={handleReset}>
+              Import Another
+            </button>
+          </div>
         </div>
       )}
     </div>
