@@ -1,5 +1,5 @@
 # Agent Forge API Server
-FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS builder
+FROM node:25-alpine@sha256:5209bcaca9836eb3448b650396213dbe9d9a34d31840c2ae1f206cb2986a8543 AS builder
 
 # Install build dependencies for native modules (node-pty from workspace peers)
 RUN apk add --no-cache python3 make g++ linux-headers
@@ -53,7 +53,7 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
     rm -rf /app/deploy/node_modules/.cache 2>/dev/null || true
 
 # Production stage
-FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
+FROM node:25-alpine@sha256:5209bcaca9836eb3448b650396213dbe9d9a34d31840c2ae1f206cb2986a8543 AS runner
 
 # Install git for git_ops tool + procps for pgrep (process tree kill) + bash for Claude CLI shell
 RUN apk add --no-cache git procps bash
