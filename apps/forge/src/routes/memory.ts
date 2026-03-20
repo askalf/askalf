@@ -292,6 +292,8 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/forge/fleet/stats',
     { preHandler: [authMiddleware] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
+      const { getCached } = await import('../orchestration/event-bus.js');
+      return getCached('fleet:stats', 15, async () => {
       const [semCount, epiCount, procCount, sem24, epi24, proc24] = await Promise.all([
         queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_semantic_memories`),
         queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_episodic_memories`),
@@ -327,7 +329,7 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
         pausedAt: a.budget_paused_at,
       }));
 
-      return reply.send({
+      return {
         tiers: { semantic, episodic, procedural },
         total: semantic + episodic + procedural,
         recent24h: {
@@ -337,6 +339,7 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
         },
         recalls24h: 0,
         agentBudgets,
+      };
       });
     },
   );
