@@ -48,6 +48,40 @@ export class TeamsProvider implements ChannelProvider {
       return { valid: false, error: 'Bearer token is too short to be a valid Azure AD JWT' };
     }
 
+    // Decode and verify JWT claims (issuer + audience)
+    try {
+      const payloadB64 = jwtSegments[1]!;
+      const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString()) as Record<string, unknown>;
+
+      // Verify issuer — must be Microsoft Bot Framework or Azure AD
+      const iss = payload['iss'] as string || '';
+      const validIssuers = [
+        'https://api.botframework.com',
+        'https://sts.windows.net/',
+        'https://login.microsoftonline.com/',
+      ];
+      if (!validIssuers.some(vi => iss.startsWith(vi))) {
+        return { valid: false, error: `JWT issuer "${iss}" is not a recognized Microsoft issuer` };
+      }
+
+      // Verify audience — must match app ID if configured
+      const appId = config.config['app_id'] as string | undefined;
+      if (appId) {
+        const aud = payload['aud'] as string || '';
+        if (aud !== appId) {
+          return { valid: false, error: `JWT audience "${aud}" does not match configured app_id` };
+        }
+      }
+
+      // Verify token is not expired
+      const exp = payload['exp'] as number | undefined;
+      if (exp && exp * 1000 < Date.now()) {
+        return { valid: false, error: 'JWT token has expired' };
+      }
+    } catch {
+      return { valid: false, error: 'Failed to decode JWT payload' };
+    }
+
     return { valid: true };
   }
 
