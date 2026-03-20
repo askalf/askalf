@@ -20,7 +20,7 @@
   "dependencies": {
     "@askalf/core": "workspace:*",
     "@askalf/database": "workspace:*",
-    "zod": "^3.24.0",
+    "zod": "^4.3.6",
     "ulid": "^2.3.0"
   },
   "devDependencies": {
