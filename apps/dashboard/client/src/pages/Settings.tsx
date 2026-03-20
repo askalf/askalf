@@ -5,9 +5,9 @@ import { useThemeStore } from '../stores/theme';
 import { relativeTime } from '../utils/format';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'providers' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'migration';
+type SettingsTab = 'profile' | 'appearance' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'migration';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'providers', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'migration'];
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'migration'];
 
 export default function SettingsPage({ embedded }: { embedded?: boolean }) {
   const [searchParams] = useSearchParams();
@@ -58,15 +58,6 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
             Appearance
           </button>
           <button
-            className={`settings-nav-item ${activeTab === 'providers' ? 'active' : ''}`}
-            onClick={() => setActiveTab('providers')}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-            </svg>
-            Providers
-          </button>
-          <button
             className={`settings-nav-item ${activeTab === 'api-keys' ? 'active' : ''}`}
             onClick={() => setActiveTab('api-keys')}
           >
@@ -74,7 +65,7 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
-            API Keys
+            Keys &amp; Providers
           </button>
           <button
             className={`settings-nav-item ${activeTab === 'costs' ? 'active' : ''}`}
@@ -130,8 +121,7 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
         <div className="settings-content">
           {activeTab === 'profile' && <ProfileTab user={user} />}
           {activeTab === 'appearance' && <AppearanceTab />}
-          {activeTab === 'providers' && <AIKeysTab />}
-          {activeTab === 'api-keys' && <ForgeApiKeysTab />}
+          {activeTab === 'api-keys' && <><AIKeysTab /><ForgeApiKeysTab /></>}
           {activeTab === 'costs' && <CostControlsTab />}
           {activeTab === 'integrations' && <IntegrationsTab />}
           {activeTab === 'channels' && <ChannelsTab />}
