@@ -17,11 +17,11 @@
   },
   "dependencies": {
     "@askalf/core": "workspace:*",
-    "pg": "^8.13.0",
+    "pg": "^8.20.0",
     "postgres-migrations": "^5.3.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.0",
+    "@types/pg": "^8.18.0",
     "typescript": "^5.7.0",
     "ts-node": "^10.9.0"
   }

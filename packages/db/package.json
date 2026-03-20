@@ -14,11 +14,11 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "pg": "^8.11.3",
-    "ioredis": "^5.4.0"
+    "pg": "^8.20.0",
+    "ioredis": "^5.10.1"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.0",
+    "@types/pg": "^8.18.0",
     "typescript": "^5.7.0"
   }
 }
