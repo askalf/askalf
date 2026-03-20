@@ -8,6 +8,19 @@ import { query } from '../database.js';
 import { decryptConfigFields, SENSITIVE_KEYS } from './crypto.js';
 import type { ChannelConfig } from './types.js';
 
+/** Redact query-string parameters from a URL to prevent token exposure in logs. */
+function redactUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.search) {
+      parsed.search = '?[redacted]';
+    }
+    return parsed.toString();
+  } catch {
+    return '[invalid-url]';
+  }
+}
+
 const MAX_ATTEMPTS = 5;
 const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000]; // 1s, 2s, 4s, 8s, 16s (exponential backoff)
 const POLL_INTERVAL_MS = 15_000; // Check for pending deliveries every 15s
@@ -104,7 +117,7 @@ async function deliverWebhook(delivery: {
 
   const attempt = delivery.attempts + 1;
 
-  console.log(`[WebhookDelivery] Attempt ${attempt}/${MAX_ATTEMPTS} delivery=${delivery.id} event=${delivery.event_type} url=${webhookUrl}`);
+  console.log(`[WebhookDelivery] Attempt ${attempt}/${MAX_ATTEMPTS} delivery=${delivery.id} event=${delivery.event_type} url=${redactUrl(webhookUrl)}`);
 
   try {
     const response = await fetch(webhookUrl, {
