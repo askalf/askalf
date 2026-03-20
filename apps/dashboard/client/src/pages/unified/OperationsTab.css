@@ -13,6 +13,8 @@
   padding: var(--space-lg, 1.5rem) var(--space-lg, 1.5rem) var(--space-md, 1rem);
   border: 1px solid var(--border);
   flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.03) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.1);
 }
 
 .ops-title-row {
@@ -56,7 +58,21 @@
   backdrop-filter: blur(8px);
   padding: var(--space-md, 1rem);
   transition: transform 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
 }
+.ops-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+.ops-stat-card:nth-child(1)::before { background: #7c3aed; }
+.ops-stat-card:nth-child(2)::before { background: #f59e0b; }
+.ops-stat-card:nth-child(3)::before { background: #22c55e; }
+.ops-stat-card:nth-child(4)::before { background: #ef4444; }
 
 .ops-stat-card:hover {
   transform: translateY(-2px);
@@ -64,13 +80,18 @@
 }
 
 .ops-stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 2rem;
+  font-weight: 800;
   line-height: 1;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-family: var(--font-mono, monospace);
 }
+.ops-stat--tickets { text-shadow: 0 0 20px rgba(124, 58, 237, 0.2); }
+.ops-stat--interventions { text-shadow: 0 0 20px rgba(245, 158, 11, 0.2); }
+.ops-stat--content { text-shadow: 0 0 20px rgba(34, 197, 94, 0.2); }
+.ops-stat--critical { text-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
 
 .ops-stat--tickets {
   color: var(--crystal, #7c3aed);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { hubApi } from '../../hooks/useHubApi';
 import type { ForgeTool } from '../../hooks/useHubApi';
 import './BuilderTab.css';
@@ -23,8 +23,10 @@ interface AgentConfig {
   autonomyLevel: number;
   maxIterations: number;
   maxCostPerExecution: number;
-  scheduleType: 'none' | 'interval';
+  scheduleType: 'none' | 'interval' | 'cron';
   scheduleInterval: string;
+  cronExpression: string;
+  timezone: string;
 }
 
 const STEPS: { key: BuilderStep; label: string }[] = [
@@ -56,6 +58,8 @@ const DEFAULT_CONFIG: AgentConfig = {
   maxCostPerExecution: 1.0,
   scheduleType: 'none',
   scheduleInterval: '6h',
+  cronExpression: '',
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 };
 
 // ── Sub-components ──
@@ -377,6 +381,126 @@ function ModelStep({
   );
 }
 
+// ── Cron helpers (no external deps) ──
+
+const COMMON_TIMEZONES = [
+  'UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'America/Toronto', 'America/Sao_Paulo', 'Europe/London', 'Europe/Berlin', 'Europe/Paris',
+  'Europe/Moscow', 'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Kolkata', 'Asia/Dubai',
+  'Australia/Sydney', 'Pacific/Auckland',
+];
+
+interface CronPreset {
+  label: string;
+  cron: string;
+  desc: string;
+}
+const CRON_PRESETS: CronPreset[] = [
+  { label: 'Every 15 min',             cron: '*/15 * * * *',    desc: 'Runs at :00, :15, :30, :45' },
+  { label: 'Every 30 min',             cron: '*/30 * * * *',    desc: 'Runs at :00 and :30' },
+  { label: 'Hourly',                   cron: '0 * * * *',       desc: 'Top of every hour' },
+  { label: 'Every 6 hours',            cron: '0 */6 * * *',     desc: 'At 00:00, 06:00, 12:00, 18:00' },
+  { label: 'Daily at midnight',        cron: '0 0 * * *',       desc: 'Once a day at 00:00' },
+  { label: 'Daily at 9 AM',            cron: '0 9 * * *',       desc: 'Once a day at 09:00' },
+  { label: 'Weekly Monday 9 AM',       cron: '0 9 * * 1',       desc: 'Every Monday at 09:00' },
+  { label: 'Weekdays at 9 AM',         cron: '0 9 * * 1-5',     desc: 'Mon-Fri at 09:00' },
+];
+
+type FreqMode = 'minutes' | 'hours' | 'days';
+
+/** Build a cron expression from the visual frequency picker state */
+function buildCronFromFrequency(mode: FreqMode, every: number, atMinute: number, atHour: number): string {
+  switch (mode) {
+    case 'minutes': return `*/${Math.max(1, every)} * * * *`;
+    case 'hours':   return `${atMinute} */${Math.max(1, every)} * * *`;
+    case 'days':    return `${atMinute} ${atHour} */${Math.max(1, every)} * *`;
+    default:        return '0 * * * *';
+  }
+}
+
+/** Parse a cron expression into 5 fields, returns null on bad format */
+function parseCronFields(expr: string): string[] | null {
+  const parts = expr.trim().split(/\s+/);
+  return parts.length === 5 ? parts : null;
+}
+
+/** Compute next N run dates from a cron expression (simple client-side impl, no library).
+ *  Handles: * /step, exact values, ranges (1-5), and lists (1,3,5).
+ *  Good enough for a preview; the server is the source of truth. */
+function getNextRuns(cronExpr: string, count: number, tz: string): Date[] {
+  const fields = parseCronFields(cronExpr);
+  if (!fields) return [];
+
+  const matchField = (field: string, value: number, _max: number): boolean => {
+    if (field === '*') return true;
+    // */N step
+    const stepMatch = field.match(/^\*\/(\d+)$/);
+    if (stepMatch) return value % parseInt(stepMatch[1], 10) === 0;
+    // comma-separated list or ranges
+    return field.split(',').some(part => {
+      const rangeMatch = part.match(/^(\d+)-(\d+)$/);
+      if (rangeMatch) {
+        const lo = parseInt(rangeMatch[1], 10);
+        const hi = parseInt(rangeMatch[2], 10);
+        return value >= lo && value <= hi;
+      }
+      return parseInt(part, 10) === value;
+    });
+  };
+
+  const results: Date[] = [];
+  // Walk forward minute-by-minute from now, up to 30 days
+  const now = new Date();
+  const limit = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const cursor = new Date(now.getTime() + 60000); // start 1 min from now
+  cursor.setSeconds(0, 0);
+
+  while (cursor < limit && results.length < count) {
+    // Convert cursor to tz-local components
+    let m: number, h: number, dom: number, mon: number, dow: number;
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz, hour: 'numeric', minute: 'numeric', day: 'numeric',
+        month: 'numeric', weekday: 'short', hour12: false,
+      }).formatToParts(cursor);
+      const get = (t: string) => parts.find(p => p.type === t)?.value ?? '0';
+      h = parseInt(get('hour'), 10);
+      m = parseInt(get('minute'), 10);
+      dom = parseInt(get('day'), 10);
+      mon = parseInt(get('month'), 10);
+      const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+      dow = dayMap[get('weekday')] ?? cursor.getDay();
+    } catch {
+      // Fallback to UTC
+      h = cursor.getUTCHours(); m = cursor.getUTCMinutes();
+      dom = cursor.getUTCDate(); mon = cursor.getUTCMonth() + 1; dow = cursor.getUTCDay();
+    }
+
+    if (
+      matchField(fields[0], m, 59) &&
+      matchField(fields[1], h, 23) &&
+      matchField(fields[2], dom, 31) &&
+      matchField(fields[3], mon, 12) &&
+      matchField(fields[4], dow, 6)
+    ) {
+      results.push(new Date(cursor));
+    }
+    cursor.setTime(cursor.getTime() + 60000);
+  }
+  return results;
+}
+
+function formatRunDate(d: Date, tz: string): string {
+  try {
+    return d.toLocaleString('en-US', {
+      timeZone: tz, weekday: 'short', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+  } catch {
+    return d.toLocaleString();
+  }
+}
+
 function ScheduleStep({
   config,
   onChange,
@@ -384,15 +508,83 @@ function ScheduleStep({
   config: AgentConfig;
   onChange: (updates: Partial<AgentConfig>) => void;
 }) {
+  // Visual frequency picker state
+  const [freqMode, setFreqMode] = useState<FreqMode>('hours');
+  const [freqEvery, setFreqEvery] = useState(1);
+  const [freqAtMinute, setFreqAtMinute] = useState(0);
+  const [freqAtHour, setFreqAtHour] = useState(0);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [rawCron, setRawCron] = useState(config.cronExpression || '');
+
+  // When visual picker changes, update cron
+  const visualCron = useMemo(
+    () => buildCronFromFrequency(freqMode, freqEvery, freqAtMinute, freqAtHour),
+    [freqMode, freqEvery, freqAtMinute, freqAtHour],
+  );
+
+  // The "active" cron is either from visual picker or raw input
+  const activeCron = useMemo(
+    () => (config.scheduleType === 'cron' ? (showAdvanced ? rawCron : visualCron) : ''),
+    [config.scheduleType, showAdvanced, rawCron, visualCron],
+  );
+
+  // Sync cron expression to config
+  useEffect(() => {
+    if (config.scheduleType === 'cron' && activeCron && activeCron !== config.cronExpression) {
+      onChange({ cronExpression: activeCron });
+    }
+  }, [activeCron, config.scheduleType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Next runs preview
+  const nextRuns = useMemo(() => {
+    if (config.scheduleType !== 'cron' || !activeCron) return [];
+    return getNextRuns(activeCron, 5, config.timezone);
+  }, [activeCron, config.scheduleType, config.timezone]);
+
+  const cronValid = useMemo(() => !!parseCronFields(activeCron), [activeCron]);
+
+  const applyPreset = (preset: CronPreset) => {
+    setRawCron(preset.cron);
+    // Reverse-parse simple presets into visual picker
+    const f = parseCronFields(preset.cron);
+    if (f) {
+      const minField = f[0], hourField = f[1], domField = f[2];
+      const minStep = minField.match(/^\*\/(\d+)$/);
+      const hourStep = hourField.match(/^\*\/(\d+)$/);
+      const domStep = domField.match(/^\*\/(\d+)$/);
+      if (minStep && hourField === '*') {
+        setFreqMode('minutes'); setFreqEvery(parseInt(minStep[1], 10));
+      } else if (hourStep || hourField === '*') {
+        setFreqMode('hours');
+        setFreqEvery(hourStep ? parseInt(hourStep[1], 10) : 1);
+        setFreqAtMinute(minField === '0' || minField === '*' ? 0 : parseInt(minField, 10) || 0);
+      } else if (domStep || !isNaN(parseInt(hourField, 10))) {
+        setFreqMode('days');
+        setFreqEvery(domStep ? parseInt(domStep[1], 10) : 1);
+        setFreqAtMinute(parseInt(minField, 10) || 0);
+        setFreqAtHour(parseInt(hourField, 10) || 0);
+      }
+    }
+    setShowAdvanced(false);
+    onChange({ scheduleType: 'cron', cronExpression: preset.cron });
+  };
+
   return (
-    <div className="builder-form">
+    <div className="builder-form" style={{ maxWidth: 640 }}>
+      {/* Schedule Type */}
       <label className="builder-field">
         <span>Schedule Type</span>
-        <select value={config.scheduleType} onChange={e => onChange({ scheduleType: e.target.value as AgentConfig['scheduleType'] })}>
+        <select
+          value={config.scheduleType}
+          onChange={e => onChange({ scheduleType: e.target.value as AgentConfig['scheduleType'] })}
+        >
           <option value="none">One-shot (manual trigger)</option>
-          <option value="interval">Recurring interval</option>
+          <option value="interval">Simple interval</option>
+          <option value="cron">Cron schedule (advanced)</option>
         </select>
       </label>
+
+      {/* Simple interval (legacy) */}
       {config.scheduleType === 'interval' && (
         <label className="builder-field">
           <span>Interval</span>
@@ -406,6 +598,163 @@ function ScheduleStep({
           </select>
         </label>
       )}
+
+      {/* Cron editor */}
+      {config.scheduleType === 'cron' && (
+        <>
+          {/* Presets */}
+          <div className="builder-field">
+            <span>Quick Presets</span>
+            <div className="builder-cron-presets">
+              {CRON_PRESETS.map(p => (
+                <button
+                  key={p.cron}
+                  type="button"
+                  className={`builder-cron-preset-btn${activeCron === p.cron ? ' active' : ''}`}
+                  onClick={() => applyPreset(p)}
+                  title={p.desc}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Visual frequency picker */}
+          {!showAdvanced && (
+            <div className="builder-field">
+              <span>Frequency</span>
+              <div className="builder-cron-freq">
+                <span className="builder-cron-freq-label">Every</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={freqMode === 'minutes' ? 59 : freqMode === 'hours' ? 23 : 30}
+                  value={freqEvery}
+                  onChange={e => setFreqEvery(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="builder-cron-freq-input"
+                />
+                <select
+                  value={freqMode}
+                  onChange={e => { setFreqMode(e.target.value as FreqMode); setFreqEvery(1); }}
+                  className="builder-cron-freq-select"
+                >
+                  <option value="minutes">minute(s)</option>
+                  <option value="hours">hour(s)</option>
+                  <option value="days">day(s)</option>
+                </select>
+                {freqMode === 'hours' && (
+                  <>
+                    <span className="builder-cron-freq-label">at minute</span>
+                    <select
+                      value={freqAtMinute}
+                      onChange={e => setFreqAtMinute(parseInt(e.target.value, 10))}
+                      className="builder-cron-freq-select"
+                    >
+                      {[0, 5, 10, 15, 20, 30, 45].map(m => (
+                        <option key={m} value={m}>:{String(m).padStart(2, '0')}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+                {freqMode === 'days' && (
+                  <>
+                    <span className="builder-cron-freq-label">at</span>
+                    <select
+                      value={freqAtHour}
+                      onChange={e => setFreqAtHour(parseInt(e.target.value, 10))}
+                      className="builder-cron-freq-select"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>{String(i).padStart(2, '0')}</option>
+                      ))}
+                    </select>
+                    <span className="builder-cron-freq-label">:</span>
+                    <select
+                      value={freqAtMinute}
+                      onChange={e => setFreqAtMinute(parseInt(e.target.value, 10))}
+                      className="builder-cron-freq-select"
+                    >
+                      {[0, 15, 30, 45].map(m => (
+                        <option key={m} value={m}>{String(m).padStart(2, '0')}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Cron expression preview / raw editor */}
+          <div className="builder-field">
+            <span>
+              Cron Expression
+              <button
+                type="button"
+                className="builder-optimize-btn"
+                onClick={() => {
+                  if (!showAdvanced) setRawCron(visualCron);
+                  setShowAdvanced(v => !v);
+                }}
+              >
+                {showAdvanced ? 'Use Visual' : 'Edit Raw'}
+              </button>
+            </span>
+            {showAdvanced ? (
+              <input
+                type="text"
+                value={rawCron}
+                onChange={e => { setRawCron(e.target.value); onChange({ cronExpression: e.target.value }); }}
+                placeholder="* * * * *  (min hour dom mon dow)"
+                className={`builder-cron-raw${!cronValid && rawCron ? ' invalid' : ''}`}
+                spellCheck={false}
+              />
+            ) : (
+              <code className="builder-cron-display">{visualCron}</code>
+            )}
+            {showAdvanced && !cronValid && rawCron && (
+              <div className="builder-cron-error">Invalid cron expression. Expected 5 fields: minute hour day month weekday</div>
+            )}
+            <div className="builder-cron-hint">
+              Format: minute(0-59) hour(0-23) day(1-31) month(1-12) weekday(0-6, 0=Sun)
+            </div>
+          </div>
+
+          {/* Time zone selector */}
+          <label className="builder-field">
+            <span>Time Zone</span>
+            <select
+              value={config.timezone}
+              onChange={e => onChange({ timezone: e.target.value })}
+            >
+              {COMMON_TIMEZONES.map(tz => (
+                <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </label>
+
+          {/* Next 5 runs preview */}
+          {activeCron && cronValid && (
+            <div className="builder-field">
+              <span>Next 5 Runs</span>
+              <div className="builder-cron-next-runs">
+                {nextRuns.length > 0 ? nextRuns.map((d, i) => (
+                  <div key={i} className="builder-cron-run-item">
+                    <span className="builder-cron-run-idx">{i + 1}.</span>
+                    <span>{formatRunDate(d, config.timezone)}</span>
+                  </div>
+                )) : (
+                  <div className="builder-cron-run-item" style={{ color: 'var(--text-muted)' }}>
+                    No runs found in the next 30 days
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Cost & iteration limits (always shown) */}
       <label className="builder-field">
         <span>Max Cost per Execution ($)</span>
         <div className="builder-slider-row">
@@ -464,6 +813,8 @@ function ReviewStep({
             <strong>Schedule:</strong>{' '}
             {config.scheduleType === 'none'
               ? 'Manual'
+              : config.scheduleType === 'cron'
+              ? `Cron: ${config.cronExpression} (${config.timezone})`
               : `Every ${config.scheduleInterval}`}
           </div>
         </div>
@@ -584,15 +935,36 @@ export default function BuilderTab({
 
       // Wire schedule if not manual/one-shot
       if (config.scheduleType !== 'none' && agent.id) {
-        const intervalMap: Record<string, number> = {
-          '30m': 30, '1h': 60, '3h': 180, '6h': 360, '12h': 720, '24h': 1440,
-        };
-        const intervalMinutes = intervalMap[config.scheduleInterval] ?? 360;
         try {
-          await hubApi.agents.setSchedule(agent.id, {
-            schedule_type: 'scheduled',
-            interval_minutes: intervalMinutes,
-          });
+          if (config.scheduleType === 'cron') {
+            // Send cron expression + timezone
+            await hubApi.agents.setSchedule(agent.id, {
+              schedule_type: 'scheduled',
+              interval_minutes: undefined,
+              execution_mode: 'cron',
+            });
+            // Also POST the full cron config via the schedule endpoint
+            await fetch(`${window.location.origin}/api/v1/admin/agents/${agent.id}/schedule`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                schedule_type: 'scheduled',
+                cron_expression: config.cronExpression,
+                timezone: config.timezone,
+                is_continuous: true,
+              }),
+            });
+          } else {
+            const intervalMap: Record<string, number> = {
+              '30m': 30, '1h': 60, '3h': 180, '6h': 360, '12h': 720, '24h': 1440,
+            };
+            const intervalMinutes = intervalMap[config.scheduleInterval] ?? 360;
+            await hubApi.agents.setSchedule(agent.id, {
+              schedule_type: 'scheduled',
+              interval_minutes: intervalMinutes,
+            });
+          }
         } catch (schedErr) {
           console.error('Failed to set schedule:', schedErr);
         }
