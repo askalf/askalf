@@ -14904,32 +14904,9 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       }
     } catch { /* not fatal */ }
 
-    // ACTUATOR: Dispatch idle monitor agents that haven't run in Nx their interval
-    try {
-      const idleMultiplier = coreThresholds.get('idle_agent_multiplier');
-      const idle = await p.query(
-        `SELECT a.id, a.name, a.owner_id, a.dispatch_mode, a.schedule_interval_minutes
-         FROM forge_agents a
-         WHERE a.dispatch_enabled = true AND a.status = 'active'
-           AND a.dispatch_mode IN ('scheduled', 'both')
-           AND a.last_run_at < NOW() - (a.schedule_interval_minutes * $1 || ' minutes')::interval
-           AND NOT EXISTS (SELECT 1 FROM forge_executions e WHERE e.agent_id = a.id AND e.status IN ('pending', 'running'))
-         LIMIT 1`,
-        [idleMultiplier],
-      );
-      if (idle.rows.length > 0) {
-        const agent = idle.rows[0] as Record<string, unknown>;
-        const execId = `exec_core_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        await p.query(
-          `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, created_at)
-           VALUES ($1, $2, $3, 'Scheduled patrol run dispatched by core engine. Execute your standard patrol cycle.', 'pending', $4, NOW())`,
-          [execId, agent['id'], agent['owner_id'],
-           JSON.stringify({ source: 'core_engine', dispatch_reason: 'idle_too_long', interval_minutes: agent['schedule_interval_minutes'] })],
-        );
-        trackOutcome('dispatch_idle', String(agent['name']), 15 * 60 * 1000, 'check_dispatch');
-        return { action: 'fleet_dispatch_idle', result: `Dispatched idle "${agent['name']}" — missed ${agent['schedule_interval_minutes']}min schedule`, quality: 0.9, mutated: true };
-      }
-    } catch { /* not fatal */ }
+    // Idle agent dispatch disabled — the unified dispatcher in forge handles all scheduling.
+    // Having two dispatch systems (core engine + unified dispatcher) caused Watchdog to run
+    // every 3 minutes instead of on its configured schedule.
 
     return { action: 'fleet_observe', result: `Fleet health observed`, quality: 0.5, mutated: false };
   }
