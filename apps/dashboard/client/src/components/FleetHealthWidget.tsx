@@ -126,7 +126,7 @@ export default function FleetHealthWidget({
   if (!data.loaded && !data.error) {
     return (
       <div className={`fhw-root ${className || ''}`} style={rootStyle}>
-        <div style={loadingStyle}>Loading fleet health...</div>
+        <div style={loadingStyle}>Loading team health...</div>
       </div>
     );
   }
@@ -134,7 +134,7 @@ export default function FleetHealthWidget({
   if (data.error && !data.loaded) {
     return (
       <div className={`fhw-root ${className || ''}`} style={rootStyle}>
-        <div style={loadingStyle}>Fleet health unavailable</div>
+        <div style={loadingStyle}>Team health unavailable</div>
       </div>
     );
   }
@@ -145,7 +145,7 @@ export default function FleetHealthWidget({
     <div className={`fhw-root ${className || ''}`} style={rootStyle}>
       {/* Header */}
       <div style={headerStyle}>
-        <span style={headerTitleStyle}>FLEET HEALTH</span>
+        <span style={headerTitleStyle}>TEAM HEALTH</span>
         <span style={headerDotStyle(agents.error > 0 ? 'error' : agents.running > 0 ? 'healthy' : 'idle')} />
         <span style={headerStatusStyle}>
           {agents.error > 0 ? 'DEGRADED' : agents.running > 0 ? 'OPERATIONAL' : 'IDLE'}

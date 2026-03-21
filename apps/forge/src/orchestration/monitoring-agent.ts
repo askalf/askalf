@@ -108,13 +108,44 @@ async function sendExternalAlerts(alerts: Alert[]): Promise<void> {
   }
 }
 
-/** Map alert metrics to the agent responsible for handling them */
-const ALERT_ASSIGNMENT: Record<string, string> = {
-  execution_failure_rate: 'Backend Dev',
-  stuck_executions: 'Infra',
-  hourly_cost: 'Infra',
-  agents_in_error: 'Infra',
-};
+/**
+ * Dynamically resolve which agent should handle an alert.
+ * Queries the DB for the best match by type, falls back to any active agent.
+ */
+async function resolveAlertAssignment(metric: string): Promise<string> {
+  // Map alert metrics to preferred agent types
+  const preferredTypes: Record<string, string[]> = {
+    execution_failure_rate: ['dev', 'worker', 'custom'],
+    stuck_executions: ['monitor', 'dev', 'worker'],
+    hourly_cost: ['monitor', 'dev', 'worker'],
+    agents_in_error: ['monitor', 'dev', 'worker'],
+  };
+
+  const types = preferredTypes[metric] ?? ['monitor', 'dev'];
+
+  for (const type of types) {
+    const match = await substrateQuery<{ name: string }>(
+      `SELECT name FROM forge_agents
+       WHERE status = 'active' AND type = $1
+         AND (is_decommissioned IS NULL OR is_decommissioned = false)
+         AND (is_internal IS NULL OR is_internal = false)
+       ORDER BY tasks_completed DESC NULLS LAST LIMIT 1`,
+      [type],
+    ).catch(() => [] as { name: string }[]);
+    if (match.length > 0) return match[0]!.name;
+  }
+
+  // Fallback: any active non-internal agent
+  const fallback = await substrateQuery<{ name: string }>(
+    `SELECT name FROM forge_agents
+     WHERE status = 'active'
+       AND (is_decommissioned IS NULL OR is_decommissioned = false)
+       AND (is_internal IS NULL OR is_internal = false)
+     ORDER BY tasks_completed DESC NULLS LAST LIMIT 1`,
+  ).catch(() => [] as { name: string }[]);
+
+  return fallback[0]?.name ?? 'Alf';
+}
 
 /**
  * Create a ticket from a monitoring alert (with deduplication).
@@ -147,7 +178,7 @@ async function createAlertTicket(alert: Alert): Promise<void> {
     }
 
     const id = `MON-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
-    const assignedTo = ALERT_ASSIGNMENT[alert.metric] || 'Infra';
+    const assignedTo = await resolveAlertAssignment(alert.metric);
     const priority = alert.severity === 'critical' ? 'urgent' : 'high';
 
     await substrateQuery(

@@ -636,7 +636,7 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
         <div className="mc-gauges">
           <button className="mc-gauge" onClick={() => onNavigate?.('fleet')} type="button">
             <span className="mc-gauge-val green">{activeAgents}<span className="mc-gauge-of">/{totalAgents}</span></span>
-            <span className="mc-gauge-label">FLEET ACTIVE</span>
+            <span className="mc-gauge-label">TEAM ACTIVE</span>
           </button>
           <button className="mc-gauge" onClick={() => onNavigate?.('ops')} type="button">
             <span className="mc-gauge-val violet">{execToday}</span>

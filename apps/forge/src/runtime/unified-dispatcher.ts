@@ -57,7 +57,7 @@ const TICK_INTERVAL_MS = 30_000;
 const MAX_CONCURRENT_PER_AGENT = 3;
 const MAX_CONCURRENT_TOTAL = 8;
 const STAGGER_DELAY_MS = 1_000;
-const MONITOR_AGENTS = ['QA', 'Watchdog', 'Infra'];
+// Monitor agents are detected dynamically by type='monitor' in the DB
 const AUTH_FAILURE_THRESHOLD = 3; // consecutive auth failures before skipping dispatch
 const AUTH_COOLDOWN_MS = 30 * 60 * 1000; // 30 min cooldown after auth failures
 const DEFAULT_EXECUTION_TIMEOUT_MINUTES = 10;
@@ -372,7 +372,7 @@ Investigate and take appropriate action based on your system prompt.${fleetConte
       }
 
       const inFlight = (inFlightMap.get(agent.id) ?? 0) + (queuedThisTick.get(agent.id) ?? 0);
-      const isMonitor = MONITOR_AGENTS.includes(agent.name);
+      const isMonitor = agent.type === 'monitor';
 
       // Monitor agents: single instance
       if (isMonitor && inFlight >= 1) {
@@ -424,11 +424,8 @@ You are a MONITOR agent. Your job is to patrol the system, detect issues, and cr
 PATROL PROTOCOL:
 1. CHECK: Run your standard checks as defined in your system prompt.
 2. FINDINGS: Create findings (finding_ops) for any issues detected.
-3. TICKETS: For actionable issues, create tickets assigned to the correct agent:
-   - Security issues → Security
-   - Infrastructure/container issues → Infra
-   - Code bugs → Backend Dev
-   - UI/dashboard issues → Frontend Dev
+3. TICKETS: For actionable issues, create tickets assigned to a relevant team member.
+   Use the team member's exact name from the fleet awareness section below.
 4. DEDUP: Before creating any ticket, check for existing open tickets with similar title.
 5. SUMMARY: Create one summary finding with what you checked and found.
 
