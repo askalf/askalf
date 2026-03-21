@@ -7,12 +7,8 @@ const OperationsTab = lazy(() => import('./OperationsTab'));
 const CostDashboard = lazy(() => import('../forge/CostDashboard'));
 const ExecutionHistory = lazy(() => import('../hub/ExecutionHistory'));
 const AgentTimeline = lazy(() => import('../hub/AgentTimeline'));
-const ProviderHealthPage = lazy(() => import('../forge/ProviderHealth'));
-const GuardrailsManager = lazy(() => import('../forge/GuardrailsManager'));
 const AuditLog = lazy(() => import('../forge/AuditLog'));
 const CoordinatorTab = lazy(() => import('./CoordinatorTab'));
-const WorkflowBuilder = lazy(() => import('../forge/WorkflowBuilder'));
-const PushPanel = lazy(() => import('../forge/PushPanel'));
 const RevenueDashboard = lazy(() => import('../forge/RevenueDashboard'));
 
 type SubTab = 'tickets' | 'costs' | 'executions' | 'timeline' | 'orchestrator' | 'audit' | 'revenue';
