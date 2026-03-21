@@ -2,7 +2,7 @@
 
 **Connect any device to your AskAlf fleet.**
 
-WebSocket bridge that registers your machine as a device in the AskAlf platform. Once connected, the fleet's 7 core agents (Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer) can dispatch tasks to your device — executed via Claude CLI with full codebase access.
+WebSocket bridge that registers your machine as a device in the AskAlf platform. Once connected, Alf's specialist workers can dispatch tasks to your device — executed via Claude CLI with full codebase access.
 
 Part of [AskAlf](https://askalf.org) — the self-hosted autonomous AI agent fleet platform with multi-agent orchestration, persistent memory, 16 communication channels, and a 28-package marketplace.
 
