@@ -16,8 +16,8 @@ import './hub/hub-pages.css';
 import './hub/ContentFeed.css';
 import './forge/forge-theme.css';
 
-// Lazy-load tab panels — 7 top-level tabs
-const ChatTab = lazy(() => import('./unified/ChatTab'));
+// Lazy-load tab panels
+const HomeTab = lazy(() => import('./unified/HomeTab'));
 const TerminalTab = lazy(() => import('./unified/TerminalTab'));
 const OverviewTab = lazy(() => import('./unified/OverviewTab'));
 const FleetHubTab = lazy(() => import('./unified/FleetHubTab'));
@@ -27,16 +27,16 @@ const LiveFeedTab = lazy(() => import('./unified/LiveFeedTab'));
 const MarketplaceTab = lazy(() => import('./unified/MarketplaceTab'));
 const Settings = lazy(() => import('./Settings'));
 
-type TabKey = 'command' | 'code' | 'overview' | 'fleet' | 'ops' | 'brain' | 'live' | 'marketplace' | 'settings';
+type TabKey = 'home' | 'code' | 'overview' | 'fleet' | 'ops' | 'brain' | 'live' | 'marketplace' | 'settings';
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'command', label: 'Ask Alf' },
+  { key: 'home', label: 'Ask Alf' },
   { key: 'code', label: 'Code' },
   { key: 'fleet', label: 'Team' },
   { key: 'ops', label: 'Ops' },
   { key: 'live', label: 'Live' },
   { key: 'brain', label: 'Brain' },
+  { key: 'overview', label: 'Mission Control' },
   { key: 'marketplace', label: 'Marketplace' },
   { key: 'settings', label: 'Settings' },
 ];
@@ -47,7 +47,7 @@ export default function UnifiedDashboard() {
   const { tab } = useParams<{ tab?: string }>();
   const navigate = useNavigate();
 
-  const initialTab = (tab && TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'overview';
+  const initialTab = (tab && TAB_KEYS.includes(tab as TabKey)) ? tab as TabKey : 'home';
   const [activeTab, setActiveTabState] = useState<TabKey>(initialTab);
   const [helpOpen, setHelpOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -141,11 +141,11 @@ export default function UnifiedDashboard() {
 
   const tabContent = () => {
     switch (activeTab) {
-      case 'command':
+      case 'home':
         return (
-          <ErrorBoundary inline key="command">
-            <Suspense fallback={<div className="ud-loading">Loading Command...</div>}>
-              <ChatTab onNavigate={(t) => setActiveTab(t as TabKey)} />
+          <ErrorBoundary inline key="home">
+            <Suspense fallback={<div className="ud-loading">Loading...</div>}>
+              <HomeTab wsEvents={wsEvents} onNavigate={(t) => setActiveTab(t as TabKey)} />
             </Suspense>
           </ErrorBoundary>
         );
