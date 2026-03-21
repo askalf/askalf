@@ -63,6 +63,7 @@ import { fleetAnalyticsRoutes } from './routes/fleet-analytics.js';
 import { marketplaceRoutes } from './routes/marketplace.js';
 import { preferencesRoutes } from './routes/preferences.js';
 import { clientRoutes } from './routes/clients.js';
+import { chatRoutes } from './routes/chat.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution, getRunningExecutionCount, waitForRunningExecutions } from './runtime/worker.js';
 import { startTaskDispatcher, stopTaskDispatcher } from './runtime/task-dispatcher.js';
@@ -405,6 +406,7 @@ await fleetAnalyticsRoutes(app);
 await marketplaceRoutes(app);
 await preferencesRoutes(app);
 await clientRoutes(app);
+await chatRoutes(app);
 await registerMCPRoutes(app);
 await registerAgentBridge(app);
 
