@@ -36,7 +36,7 @@ interface TicketRow {
   priority: string;
   source: string | null;
   created_at: string;
-  resolved_at: string | null;
+  updated_at: string | null;
 }
 
 interface FindingRow {
@@ -116,7 +116,7 @@ async function loadBriefingData() {
 
     // Tickets created in last 24h
     substrateQuery<TicketRow>(
-      `SELECT id, title, status, priority, source, created_at::text, resolved_at::text
+      `SELECT id, title, status, priority, source, created_at::text, updated_at::text
        FROM agent_tickets
        WHERE deleted_at IS NULL AND created_at > NOW() - INTERVAL '24 hours'
        ORDER BY created_at DESC`,
@@ -125,7 +125,7 @@ async function loadBriefingData() {
     // Tickets resolved in last 24h
     substrateQueryOne<MemoryCountRow>(
       `SELECT COUNT(*)::text AS count FROM agent_tickets
-       WHERE deleted_at IS NULL AND resolved_at > NOW() - INTERVAL '24 hours'`,
+       WHERE deleted_at IS NULL AND status = 'resolved' AND updated_at > NOW() - INTERVAL '24 hours'`,
     ),
 
     // Tickets still open
