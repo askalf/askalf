@@ -10,6 +10,9 @@ dist/
 build/
 *.tsbuildinfo
 
+# Screenshots & recordings (generated at runtime)
+screenshots/
+
 # Vite build output (rebuilt in Docker, never serve from git)
 apps/dashboard/public/app/
 
