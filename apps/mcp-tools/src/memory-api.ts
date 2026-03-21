@@ -14705,22 +14705,6 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
 }> {
   // Parse what kind of situation this is and take appropriate action
 
-  // ACTUATOR: Reviewing knowledge — evaluate if knowledge needs fleet investigation
-  if (situation.includes('Reviewing knowledge:') && situation.includes('What should I do')) {
-    // Knowledge review — bump access count only. Do NOT create tickets.
-    // Tickets should come from real-time observations (Watchdog, Security scans, QA failures),
-    // not from re-reading stored memories. Re-reading old notes about past incidents
-    // caused a feedback loop: memory → ticket → agent investigates → stores result → memory → ticket.
-    const knowledgeMatch = situation.match(/Reviewing knowledge: (.+)\. What should I do/);
-    const knowledge = knowledgeMatch?.[1] ?? situation.slice(0, 120);
-    await p.query(
-      `UPDATE forge_semantic_memories SET access_count = access_count + 1
-       WHERE id = (SELECT id FROM forge_semantic_memories WHERE agent_id = $1 AND content ILIKE $2 LIMIT 1)`,
-      [AGENT_ID, `%${knowledge.slice(0, 40)}%`],
-    ).catch(() => {});
-    return { action: 'knowledge_review_note', result: `Reviewed: "${knowledge.slice(0, 60)}" — access count bumped`, quality: 0.5, mutated: false };
-  }
-
   if (situation.includes('Consolidation candidate:')) {
     // Actually merge near-duplicate memories
     const before = await p.query(`SELECT COUNT(*)::int as c FROM forge_semantic_memories WHERE agent_id=$1`, [AGENT_ID]);
@@ -14734,92 +14718,6 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
       result: `Consolidated: ${beforeC}→${afterC} (merged ${merged})`,
       quality: merged > 0 ? 0.9 : 0.5,
       mutated: merged > 0,
-    };
-  }
-
-  if (situation.includes('Neglected memory:') || situation.includes('Low-importance knowledge:')) {
-    // Prune stale/low-importance memories
-    const pruned = await p.query(
-      `DELETE FROM forge_semantic_memories
-       WHERE agent_id = $1 AND access_count < 2 AND importance < 0.4
-         AND created_at < NOW() - INTERVAL '7 days'
-       RETURNING id`,
-      [AGENT_ID],
-    );
-    const count = pruned.rows.length;
-    return {
-      action: 'prune_stale',
-      result: `Pruned ${count} stale memories (low importance, rarely accessed, >7d old)`,
-      quality: count > 0 ? 0.8 : 0.4,
-      mutated: count > 0,
-    };
-  }
-
-  if (situation.includes('Weakest skill:') || situation.includes('Practicing procedure:')) {
-    // Boost access count on the weakest procedure to mark it as exercised
-    const r = await p.query(
-      `UPDATE forge_procedural_memories
-       SET success_count = success_count + 1,
-           confidence = LEAST(1.0, confidence + 0.02)
-       WHERE agent_id = $1 AND confidence = (
-         SELECT MIN(confidence) FROM forge_procedural_memories WHERE agent_id = $1
-       )
-       RETURNING trigger_pattern, confidence`,
-      [AGENT_ID],
-    );
-    if (r.rows.length > 0) {
-      const proc = r.rows[0] as Record<string, unknown>;
-      return {
-        action: 'reinforce_weak_procedure',
-        result: `Reinforced "${String(proc['trigger_pattern']).slice(0, 50)}" → conf=${proc['confidence']}`,
-        quality: 0.7,
-        mutated: false,
-      };
-    }
-    return { action: 'reinforce_weak_procedure', result: 'No weak procedures found', quality: 0.3, mutated: false };
-  }
-
-  if (situation.includes('Reinforcing success:') || situation.includes('Best procedure:')) {
-    // Boost importance of high-quality knowledge
-    const boosted = await p.query(
-      `UPDATE forge_semantic_memories
-       SET importance = LEAST(1.0, importance + 0.05),
-           access_count = access_count + 1
-       WHERE agent_id = $1 AND importance >= 0.8
-         AND id = (SELECT id FROM forge_semantic_memories WHERE agent_id = $1 AND importance >= 0.8 ORDER BY RANDOM() LIMIT 1)
-       RETURNING content, importance`,
-      [AGENT_ID],
-    );
-    if (boosted.rows.length > 0) {
-      const mem = boosted.rows[0] as Record<string, unknown>;
-      return {
-        action: 'boost_important',
-        result: `Boosted: "${String(mem['content']).slice(0, 50)}" → importance=${mem['importance']}`,
-        quality: 0.7,
-        mutated: false,
-      };
-    }
-    return { action: 'boost_important', result: 'Nothing to boost', quality: 0.3, mutated: false };
-  }
-
-  // Noise handlers removed: knowledge_review, reinforce_weak_procedure, boost_important,
-  // reinforce_identity, reinforce_patterns, access_random, cross_link, fleet_observe,
-  // agent_output_learn, brain_question — all generators deleted
-
-  if (situation.includes('Self-reflection on identity:') || situation.includes('Rule review:')) {
-    // Access-bump identity/rule memories to keep them reinforced
-    const prefix = situation.includes('IDENTITY:') ? 'IDENTITY:%' : 'RULE:%';
-    await p.query(
-      `UPDATE forge_semantic_memories
-       SET access_count = access_count + 1
-       WHERE agent_id = $1 AND content LIKE $2`,
-      [AGENT_ID, prefix],
-    );
-    return {
-      action: 'reinforce_identity',
-      result: `Reinforced ${prefix.replace('%', '')} memories`,
-      quality: 0.7,
-      mutated: false,
     };
   }
 
@@ -14847,68 +14745,12 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     };
   }
 
-  if (situation.includes('User behavior analysis:')) {
-    // Boost user-pattern memories
-    await p.query(
-      `UPDATE forge_semantic_memories
-       SET access_count = access_count + 1
-       WHERE agent_id = $1 AND content LIKE 'PATTERN:%'`,
-      [AGENT_ID],
-    );
-    return { action: 'reinforce_patterns', result: 'Reinforced PATTERN memories', quality: 0.6, mutated: false };
-  }
-
   // ============================================================================
   // SYSTEM-WIDE ACTIONS — the core engine acts on the entire platform
   // Each action type is tracked for the phi integration score.
   // ============================================================================
 
-  if (situation.includes('Fleet status:') || situation.includes('Agent performance') || situation.includes('No active agents') || situation.includes('No agent activity')) {
-    systemActionTypes.add('fleet_observe');
-
-    // ACTUATOR: Pause agents with >50% failure rate in 24h
-    const failAgentMatch = situation.match(/(\w[\w\s]*?)\(.*?\): (\d+)ok\/(\d+)fail/g);
-    if (failAgentMatch) {
-      for (const m of failAgentMatch) {
-        const parts = m.match(/^(.*?)\(.*?\): (\d+)ok\/(\d+)fail$/);
-        if (!parts) continue;
-        const ok = parseInt(parts[2]!), fail = parseInt(parts[3]!);
-        const total = ok + fail;
-        if (total >= 3 && fail / total > coreThresholds.get('failure_rate_pct') / 100) {
-          const agentName = parts[1]!.trim();
-          try {
-            await p.query(
-              `UPDATE forge_agents SET dispatch_enabled = false WHERE name = $1 AND dispatch_enabled = true`,
-              [agentName],
-            );
-            trackOutcome('fleet_pause', agentName, 60 * 60 * 1000, 'check_pause');
-            return { action: 'fleet_pause_agent', result: `Paused "${agentName}" — ${fail}/${total} failures (${Math.round(fail/total*100)}%)`, quality: 0.95, mutated: true };
-          } catch { /* not fatal */ }
-        }
-      }
-    }
-
-    // ACTUATOR: Re-enable agents that were paused but now have open tickets waiting
-    try {
-      const paused = await p.query(
-        `SELECT a.id, a.name FROM forge_agents a
-         WHERE a.dispatch_enabled = false AND a.status = 'active'
-           AND EXISTS (SELECT 1 FROM agent_tickets t WHERE t.agent_name = a.name AND t.status = 'open')
-         LIMIT 1`,
-      );
-      if (paused.rows.length > 0) {
-        const agent = paused.rows[0] as Record<string, unknown>;
-        await p.query(`UPDATE forge_agents SET dispatch_enabled = true WHERE id = $1`, [agent['id']]);
-        return { action: 'fleet_reenable_agent', result: `Re-enabled "${agent['name']}" — has open tickets waiting`, quality: 0.85, mutated: true };
-      }
-    } catch { /* not fatal */ }
-
-    // Idle agent dispatch disabled — the unified dispatcher in forge handles all scheduling.
-    // Having two dispatch systems (core engine + unified dispatcher) caused Watchdog to run
-    // every 3 minutes instead of on its configured schedule.
-
-    return { action: 'fleet_observe', result: `Fleet health observed`, quality: 0.5, mutated: false };
-  }
+  // fleet_observe handler removed — dispatcher handles agent pause/re-enable via its own circuit breaker
 
   if (situation.includes('Execution health') || situation.includes('No executions in the last')) {
     systemActionTypes.add('execution_health');
@@ -15779,12 +15621,7 @@ RULES:
     return { action: 'fleet_fitness', result: 'Spawn fitness evaluated — no actions needed', quality: 0.5, mutated: false };
   }
 
-  if (situation.includes('Agent output digest:') && situation.includes('actionable')) {
-    // Agent output learning disabled — was storing raw status confirmations and ticket
-    // resolution summaries as semantic memories, which then triggered false investigation tickets.
-    // Real knowledge from agent work is already captured through the ticket/finding system.
-    return { action: 'agent_output_learn', result: 'Agent output learning disabled — use tickets/findings instead', quality: 0.4, mutated: false };
-  }
+  // agent_output_learn handler removed — generator deleted, no longer reachable
 
   if (situation.includes('Agent findings digest:') && situation.includes('critical')) {
     systemActionTypes.add('agent_finding_act');
@@ -15824,12 +15661,7 @@ RULES:
     return { action: 'agent_finding_act', result: 'No unhandled critical findings', quality: 0.5, mutated: false };
   }
 
-  // Brain question dispatch — disabled. Same issue as knowledge review: creating tickets
-  // from stored memories causes feedback loops. Real monitoring (Watchdog, Security, QA)
-  // already creates tickets from live observations.
-  if (situation.includes('Brain questions:') && situation.includes('unticketed')) {
-    return { action: 'brain_question_skip', result: 'Brain question dispatch disabled — tickets come from real-time observations only', quality: 0.5, mutated: false };
-  }
+  // brain_question handler removed — generator deleted, no longer reachable
 
   // ACTUATOR: Dream insight validation — create ticket to verify dream insights against reality
   if (situation.includes('Dream insight needs validation:')) {
