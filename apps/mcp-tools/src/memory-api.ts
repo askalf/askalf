@@ -14802,7 +14802,9 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     return { action: 'boost_important', result: 'Nothing to boost', quality: 0.3, mutated: false };
   }
 
-  // Cross-links fully removed — situation generator deleted
+  // Noise handlers removed: knowledge_review, reinforce_weak_procedure, boost_important,
+  // reinforce_identity, reinforce_patterns, access_random, cross_link, fleet_observe,
+  // agent_output_learn, brain_question — all generators deleted
 
   if (situation.includes('Self-reflection on identity:') || situation.includes('Rule review:')) {
     // Access-bump identity/rule memories to keep them reinforced
@@ -16213,43 +16215,7 @@ export async function coreDecisionLoop(situation: string): Promise<CoreOutcome> 
  */
 const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise<string>> = [
 
-  // 0: Random semantic memory — "what do I know about X?"
-  async (p) => {
-    const r = await p.query(
-      `SELECT content FROM forge_semantic_memories
-       WHERE agent_id = $1 AND embedding IS NOT NULL
-       ORDER BY RANDOM() LIMIT 1`,
-      [AGENT_ID],
-    );
-    const fact = r.rows[0] ? String((r.rows[0] as Record<string, unknown>)['content']).slice(0, 100) : 'nothing';
-    return `Reviewing knowledge: ${fact}. What should I do with this information?`;
-  },
-
-  // 1: Random procedural memory — try to execute it
-  async (p) => {
-    const r = await p.query(
-      `SELECT trigger_pattern, confidence, success_count, failure_count
-       FROM forge_procedural_memories
-       WHERE agent_id = $1 ORDER BY RANDOM() LIMIT 1`,
-      [AGENT_ID],
-    );
-    if (r.rows.length === 0) return 'No procedures stored. Need to learn new skills.';
-    const proc = r.rows[0] as Record<string, unknown>;
-    return `Practicing procedure: "${proc['trigger_pattern']}". Confidence=${proc['confidence']}, wins=${proc['success_count']}, losses=${proc['failure_count']}`;
-  },
-
-  // 2: Weakest procedure — focus on improving it
-  async (p) => {
-    const r = await p.query(
-      `SELECT trigger_pattern, confidence, tool_sequence
-       FROM forge_procedural_memories
-       WHERE agent_id = $1 ORDER BY confidence ASC LIMIT 1`,
-      [AGENT_ID],
-    );
-    if (r.rows.length === 0) return 'No weak procedures — need to learn more.';
-    const proc = r.rows[0] as Record<string, unknown>;
-    return `Weakest skill: "${proc['trigger_pattern']}" at confidence ${proc['confidence']}. How can I improve this?`;
-  },
+  // 0-2: (removed — knowledge_review, random_procedure, reinforce_weak were noise generators)
 
   // 3: Recent failure — learn from mistakes
   async (p) => {
@@ -16265,83 +16231,8 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
     return `Learning from failure: "${ep['situation']}". Action was "${ep['action']}". Outcome: "${ep['outcome']}". What went wrong?`;
   },
 
-  // 4: Best success — reinforce what works
-  async (p) => {
-    const r = await p.query(
-      `SELECT situation, action, outcome
-       FROM forge_episodic_memories
-       WHERE agent_id = $1 AND outcome_quality >= 0.8
-       ORDER BY RANDOM() LIMIT 1`,
-      [AGENT_ID],
-    );
-    if (r.rows.length === 0) return 'No high-quality successes yet. Need to build expertise.';
-    const ep = r.rows[0] as Record<string, unknown>;
-    return `Reinforcing success: "${ep['situation']}". What made "${ep['action']}" work so well?`;
-  },
-
-  // 5: Knowledge gap — find what's missing
-  async (p) => {
-    const r = await p.query(
-      `SELECT content FROM forge_semantic_memories
-       WHERE agent_id = $1 AND importance < 0.5
-       ORDER BY RANDOM() LIMIT 1`,
-      [AGENT_ID],
-    );
-    const lowFact = r.rows[0] ? String((r.rows[0] as Record<string, unknown>)['content']).slice(0, 80) : 'gaps unknown';
-    return `Low-importance knowledge: "${lowFact}". Is this still relevant or should it be pruned?`;
-  },
-
-  // 6: (removed — cross-domain connection was generating noise)
-
-  // 7: Identity check — who am I right now?
-  async (p) => {
-    const r = await p.query(
-      `SELECT content FROM forge_semantic_memories
-       WHERE agent_id = $1 AND content LIKE 'IDENTITY:%'
-       ORDER BY RANDOM() LIMIT 1`,
-      [AGENT_ID],
-    );
-    const identity = r.rows[0] ? String((r.rows[0] as Record<string, unknown>)['content']).slice(0, 100) : 'undefined';
-    return `Self-reflection on identity: ${identity}. Does this still describe who I am?`;
-  },
-
-  // 8: Rule compliance — am I following my own rules?
-  async (p) => {
-    const r = await p.query(
-      `SELECT content FROM forge_semantic_memories
-       WHERE agent_id = $1 AND content LIKE 'RULE:%'
-       ORDER BY RANDOM() LIMIT 1`,
-      [AGENT_ID],
-    );
-    const rule = r.rows[0] ? String((r.rows[0] as Record<string, unknown>)['content']).slice(0, 100) : 'no rules found';
-    return `Rule review: ${rule}. Am I currently in compliance with this rule?`;
-  },
-
-  // 9: User pattern analysis — what does the user typically want?
-  async (p) => {
-    const r = await p.query(
-      `SELECT content FROM forge_semantic_memories
-       WHERE agent_id = $1 AND content LIKE 'PATTERN:%'
-       ORDER BY RANDOM() LIMIT 1`,
-      [AGENT_ID],
-    );
-    const pattern = r.rows[0] ? String((r.rows[0] as Record<string, unknown>)['content']).slice(0, 100) : 'no patterns detected';
-    return `User behavior analysis: ${pattern}. How should I adapt to this?`;
-  },
-
-  // 10: Stale memory check — find memories that haven't been accessed
-  async (p) => {
-    const r = await p.query(
-      `SELECT content, access_count, importance
-       FROM forge_semantic_memories
-       WHERE agent_id = $1 AND access_count < 2
-       ORDER BY created_at ASC LIMIT 1`,
-      [AGENT_ID],
-    );
-    if (r.rows.length === 0) return 'All memories are actively accessed. System is healthy.';
-    const mem = r.rows[0] as Record<string, unknown>;
-    return `Neglected memory: "${String(mem['content']).slice(0, 80)}" (accessed ${mem['access_count']} times, importance=${mem['importance']}). Should I reinforce or prune?`;
-  },
+  // 4-10: (removed — reinforce_success, knowledge_gap, cross_link, identity_check,
+  //         rule_compliance, pattern_analysis, stale_memory were all noise generators)
 
   // 11: Consolidation opportunity — find near-duplicate memories
   // Uses KNN per random sample instead of O(n²) full-table cross-join
@@ -16367,18 +16258,7 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
     return `Consolidation candidate: "${mem.content.slice(0, 50)}" ≈ "${n.content.slice(0, 50)}" (sim=${n.similarity.toFixed(3)}). Merge?`;
   },
 
-  // 12: Strongest procedure — can I make it even better?
-  async (p) => {
-    const r = await p.query(
-      `SELECT trigger_pattern, confidence, success_count, tool_sequence
-       FROM forge_procedural_memories
-       WHERE agent_id = $1 ORDER BY confidence DESC LIMIT 1`,
-      [AGENT_ID],
-    );
-    if (r.rows.length === 0) return 'No procedures to optimize.';
-    const proc = r.rows[0] as Record<string, unknown>;
-    return `Best procedure: "${proc['trigger_pattern']}" (conf=${proc['confidence']}, wins=${proc['success_count']}). Can the steps be refined?`;
-  },
+  // 12: (removed — strongest_procedure was noise)
 
   // 13: Episodic pattern — what keeps happening?
   async (p) => {
@@ -16417,21 +16297,7 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
   // SYSTEM-WIDE GENERATORS (15-23) — The core engine sees the ENTIRE platform
   // ============================================================================
 
-  // 15: Fleet status — what agents are running?
-  async (p) => {
-    const r = await p.query(
-      `SELECT a.name, a.type,
-              (SELECT COUNT(*)::int FROM forge_executions e WHERE e.agent_id = a.id AND e.status = 'completed' AND e.created_at > NOW() - INTERVAL '24 hours') as recent_completions,
-              (SELECT COUNT(*)::int FROM forge_executions e WHERE e.agent_id = a.id AND e.status = 'failed' AND e.created_at > NOW() - INTERVAL '24 hours') as recent_failures
-       FROM forge_agents a WHERE a.status = 'active'
-       ORDER BY recent_completions DESC LIMIT 5`,
-    );
-    if (r.rows.length === 0) return 'No active agents in fleet. System idle.';
-    const agents = (r.rows as Array<Record<string, unknown>>).map(a =>
-      `${a['name']}(${a['type']}): ${a['recent_completions']}ok/${a['recent_failures']}fail`
-    ).join(', ');
-    return `Fleet status: ${r.rows.length} active agents. ${agents}. Any agents struggling?`;
-  },
+  // 15: (removed — fleet_observe duplicated dispatcher monitoring)
 
   // 16: Execution health — recent failures and costs
   async (p) => {
@@ -16695,23 +16561,7 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
   // AGENT FEEDBACK GENERATORS (29-30) — Learn from what agents actually found
   // ============================================================================
 
-  // 29: Agent output digest — what did agents discover?
-  async (p) => {
-    const r = await p.query(
-      `SELECT a.name, substring(e.output from 1 for 300) as output, e.cost, e.iterations, e.status
-       FROM forge_executions e
-       JOIN forge_agents a ON a.id = e.agent_id
-       WHERE e.status IN ('completed', 'failed') AND e.output IS NOT NULL AND e.output != ''
-         AND e.created_at > NOW() - INTERVAL '6 hours'
-       ORDER BY e.created_at DESC
-       LIMIT 3`,
-    );
-    if (r.rows.length === 0) return 'Agent output digest: no recent outputs to analyze.';
-    const digests = (r.rows as Array<Record<string, unknown>>).map(e =>
-      `${e['name']}(${e['status']}, $${e['cost']}, ${e['iterations']}t): ${String(e['output']).replace(/\n/g, ' ').slice(0, 150)}`
-    ).join('; ');
-    return `Agent output digest: ${digests}. Should I extract actionable insights from these outputs?`;
-  },
+  // 29: (removed — agent_output_learn was already disabled, generator was still running)
 
   // 30: Agent findings digest — what issues are agents reporting?
   async (p) => {
@@ -16778,38 +16628,7 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
     return `Spawn fitness: ${fitness}. Should I decommission underperforming spawns or promote successful ones?`;
   },
 
-  // 33: Brain questions — curiosity/knowledge review questions that need real investigation
-  async (p) => {
-    // Find recent curiosity discoveries that mention "SHOULD be done" (needs real action, not just LLM reasoning)
-    const r = await p.query(
-      `SELECT content FROM forge_semantic_memories
-       WHERE agent_id = $1 AND metadata->>'source' = 'curiosity_act'
-         AND created_at > NOW() - INTERVAL '24 hours'
-       ORDER BY created_at DESC LIMIT 3`,
-      [AGENT_ID],
-    );
-    // Also find knowledge gaps — memories with low access and high importance
-    const gaps = await p.query(
-      `SELECT content FROM forge_semantic_memories
-       WHERE agent_id = $1 AND importance >= 0.7 AND access_count <= 1
-         AND created_at > NOW() - INTERVAL '7 days'
-         AND content NOT ILIKE 'IDENTITY:%' AND content NOT ILIKE 'RULE:%'
-       ORDER BY importance DESC LIMIT 3`,
-      [AGENT_ID],
-    );
-    const questions = (r.rows as Array<Record<string, unknown>>).map(row => String(row['content']).slice(0, 120));
-    const gapContents = (gaps.rows as Array<Record<string, unknown>>).map(row => String(row['content']).slice(0, 120));
-    const all = [...questions, ...gapContents];
-    if (all.length === 0) return 'Brain questions: no pending questions or knowledge gaps need investigation.';
-    // Check if any of these already have tickets
-    const existing = await p.query(
-      `SELECT title FROM agent_tickets WHERE source = 'brain_question' AND (status IN ('open','in_progress') OR (status = 'resolved' AND created_at > NOW() - INTERVAL '7 days')) AND created_at > NOW() - INTERVAL '7 days' LIMIT 20`,
-    );
-    const ticketed = (existing.rows as Array<Record<string, unknown>>).map(r => String(r['title']).toLowerCase());
-    const unticketedQuestions = all.filter(q => !ticketed.some(t => t.includes(q.slice(0, 30).toLowerCase())));
-    if (unticketedQuestions.length === 0) return 'Brain questions: all pending questions already have investigation tickets.';
-    return `Brain questions: ${unticketedQuestions.length} unticketed questions need fleet investigation. Top: "${unticketedQuestions[0]}". Route to agent for real investigation.`;
-  },
+  // 33: (removed — brain_question dispatch was already disabled, generator was still querying)
 
   // 34: Dream insight validation — dream insights that should be tested against reality
   async (p) => {
