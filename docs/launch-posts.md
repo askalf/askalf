@@ -38,7 +38,7 @@ Happy to answer questions about the architecture. Full docs: https://github.com/
 
 **Body:**
 
-After months of running single AI agents and manually shepherding them, I built AskAlf — a platform where 7 specialized agents work together without supervision.
+After months of running single AI agents and manually shepherding them, I built AskAlf — an AI workforce — you tell Alf what you need, Alf creates specialized workers and puts them to work.
 
 **What it does:** Backend Dev, Frontend Dev, QA, Security, Infra, Watchdog, and Writer agents coordinate through an autonomous ticket system. The brain creates investigation tickets, routes them to the right agent, tracks outcomes, and learns from every execution.
 
@@ -78,7 +78,7 @@ MIT licensed. Happy to answer any questions.
 
 Sharing AskAlf — an open-source multi-agent orchestration platform that runs on your own hardware.
 
-Unlike single-agent tools, AskAlf runs 7 specialized agents that coordinate through an autonomous brain with a 10-layer cognitive memory system (semantic + episodic + procedural memories stored in pgvector).
+Unlike single-agent tools, AskAlf creates specialized workers that coordinate through an autonomous brain with a 10-layer cognitive memory system (semantic + episodic + procedural memories stored in pgvector).
 
 The brain reviews its own knowledge, creates investigation tickets when it finds issues, dispatches them to the right fleet agent, and tracks resolution. It consolidates memories overnight — the 100th security scan knows exactly where to look.
 
