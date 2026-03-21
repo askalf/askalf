@@ -1,6 +1,6 @@
 /**
  * HomeTab — Unified home: mission control + Alf chat in one view.
- * Left: compact orbital fleet with key stats.
+ * Left: orbital fleet with heartbeat, grid background, key stats.
  * Right: conversational chat with Alf.
  */
 
@@ -16,6 +16,67 @@ const ChatTab = lazy(() => import('./ChatTab'));
 interface AgentInfo { id: string; name: string; status: string }
 interface ExecutionEntry { id: string; agent_name?: string; status: string; cost?: number; started_at: string }
 interface MetricsData { agents?: { total?: number; running?: number }; tickets?: { open?: number } }
+
+// Color palette for agents
+const PALETTE: [number, number, number][] = [
+  [96, 165, 250], [167, 139, 250], [52, 211, 153], [251, 146, 60],
+  [248, 113, 113], [232, 121, 249], [45, 212, 191], [59, 130, 246],
+];
+
+function agentColor(name: string): [number, number, number] {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  return PALETTE[Math.abs(hash) % PALETTE.length]!;
+}
+
+// ── Heartbeat Strip ──
+
+function HeartbeatStrip() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    let animId: number;
+    let offset = 0;
+    const draw = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      if (canvas.width !== rect.width * dpr) {
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      const w = rect.width; const h = rect.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.beginPath();
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 1;
+      ctx.shadowColor = '#10b981';
+      ctx.shadowBlur = 4;
+      const cycle = 80;
+      for (let x = 0; x < w + cycle; x++) {
+        const xp = (x + offset) % cycle;
+        let y = h / 2;
+        if (xp > 20 && xp < 25) y = h / 2 - 4;
+        else if (xp > 25 && xp < 30) y = h / 2 + 8;
+        else if (xp > 30 && xp < 36) y = h / 2 - 10;
+        else if (xp > 36 && xp < 40) y = h / 2 + 3;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      offset = (offset - 0.5 + cycle) % cycle;
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, []);
+  return <canvas ref={canvasRef} className="home-heartbeat-canvas" />;
+}
+
+// ── Main Component ──
 
 export default function HomeTab({ onNavigate }: { wsEvents?: ForgeEvent[]; onNavigate?: (tab: string) => void }) {
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
@@ -46,7 +107,7 @@ export default function HomeTab({ onNavigate }: { wsEvents?: ForgeEvent[]; onNav
   const running = executions.filter(e => e.status === 'running');
   const completed = executions.filter(e => e.status === 'completed').length;
 
-  // Mini orbital animation
+  // Orbital fleet animation
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -54,18 +115,6 @@ export default function HomeTab({ onNavigate }: { wsEvents?: ForgeEvent[]; onNav
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     let animId: number;
-
-    // Color palette for agents
-    const PALETTE: [number, number, number][] = [
-      [96, 165, 250], [167, 139, 250], [52, 211, 153], [251, 146, 60],
-      [248, 113, 113], [232, 121, 249], [45, 212, 191], [59, 130, 246],
-    ];
-
-    function agentColor(name: string): [number, number, number] {
-      let hash = 0;
-      for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
-      return PALETTE[Math.abs(hash) % PALETTE.length]!;
-    }
 
     const draw = (time: number) => {
       const dpr = window.devicePixelRatio || 1;
@@ -77,76 +126,111 @@ export default function HomeTab({ onNavigate }: { wsEvents?: ForgeEvent[]; onNav
       }
       ctx.clearRect(0, 0, w, h);
       const cx = w / 2; const cy = h / 2;
-      const maxR = Math.min(w, h) * 0.4;
+      const maxR = Math.min(w, h) * 0.42;
 
       // Orbital rings
       for (let ring = 1; ring <= 3; ring++) {
+        const r = maxR * (ring / 3);
         ctx.beginPath();
-        ctx.arc(cx, cy, maxR * (ring / 3), 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(124, 58, 237, ${0.04 + ring * 0.02})`;
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(124, 58, 237, ${0.04 + ring * 0.025})`;
         ctx.lineWidth = 0.6; ctx.setLineDash([4, 6]); ctx.stroke(); ctx.setLineDash([]);
       }
 
-      // Core
+      // Core — breathing
       const pulse = Math.sin(time * 0.002) * 0.3 + 0.7;
-      const coreR = 22 + pulse * 4;
-      const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 3);
-      coreGlow.addColorStop(0, `rgba(124, 58, 237, ${0.12 * pulse})`);
+      const coreR = 26 + pulse * 5;
+
+      // Core glow
+      const coreGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 4);
+      coreGlow.addColorStop(0, `rgba(124, 58, 237, ${0.14 * pulse})`);
+      coreGlow.addColorStop(0.4, `rgba(124, 58, 237, ${0.05 * pulse})`);
       coreGlow.addColorStop(1, 'rgba(124, 58, 237, 0)');
-      ctx.beginPath(); ctx.arc(cx, cy, coreR * 3, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.arc(cx, cy, coreR * 4, 0, Math.PI * 2);
       ctx.fillStyle = coreGlow; ctx.fill();
 
-      const coreGrad = ctx.createRadialGradient(cx - 3, cy - 3, 0, cx, cy, coreR);
+      // Core circle
+      const coreGrad = ctx.createRadialGradient(cx - 4, cy - 4, 0, cx, cy, coreR);
       coreGrad.addColorStop(0, 'rgba(167, 139, 250, 0.95)');
       coreGrad.addColorStop(1, 'rgba(124, 58, 237, 0.65)');
       ctx.beginPath(); ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
       ctx.fillStyle = coreGrad; ctx.fill();
 
-      ctx.font = `700 ${coreR * 0.7}px Satoshi, system-ui`;
+      // Core border
+      ctx.beginPath(); ctx.arc(cx, cy, coreR + 1, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(167, 139, 250, ${0.3 + pulse * 0.2})`;
+      ctx.lineWidth = 1; ctx.stroke();
+
+      // Core text
+      ctx.font = `700 ${coreR * 0.65}px Satoshi, system-ui`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.fillText(String(activeAgents), cx, cy - 2);
-      ctx.font = `500 ${coreR * 0.3}px Satoshi, system-ui`;
+      ctx.fillText(String(activeAgents), cx, cy - 3);
+      ctx.font = `500 ${coreR * 0.28}px Satoshi, system-ui`;
       ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.fillText(`of ${totalAgents}`, cx, cy + coreR * 0.45);
+      ctx.fillText(`of ${totalAgents} active`, cx, cy + coreR * 0.42);
 
-      // Agent nodes
+      // Agent nodes — bigger, with connection lines
       allAgents.forEach((agent, i) => {
-        const orbitR = maxR * 0.4 + (i % 3) * (maxR * 0.22);
-        const speed = 0.0002 + (i * 0.618 % 1) * 0.0003;
+        const orbitR = maxR * 0.42 + (i % 3) * (maxR * 0.2);
+        const speed = 0.00015 + (i * 0.618 % 1) * 0.00025;
         const angle = time * speed + (i * Math.PI * 2) / Math.max(allAgents.length, 1);
         const ax = cx + Math.cos(angle) * orbitR;
         const ay = cy + Math.sin(angle) * orbitR;
         const col = agentColor(agent.name);
         const isRunning = running.some(e => e.agent_name === agent.name);
-        const nodeR = isRunning ? 10 : 7;
+        const nodeR = isRunning ? 12 : 8;
 
-        // Glow
-        const glow = ctx.createRadialGradient(ax, ay, 0, ax, ay, nodeR * 3);
+        // Connection line to core
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ax, ay);
+        ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${isRunning ? 0.1 : 0.04})`;
+        ctx.lineWidth = isRunning ? 1 : 0.5; ctx.stroke();
+
+        // Data packet for running agents
+        if (isRunning) {
+          const t = (time * 0.001 + i) % 1;
+          const px = cx + (ax - cx) * t;
+          const py = cy + (ay - cy) * t;
+          ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.6)`; ctx.fill();
+        }
+
+        // Node glow
+        const glowR = isRunning ? nodeR * 4 : nodeR * 2.5;
+        const glow = ctx.createRadialGradient(ax, ay, 0, ax, ay, glowR);
         glow.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${isRunning ? 0.2 : 0.08})`);
+        glow.addColorStop(0.5, `rgba(${col[0]},${col[1]},${col[2]},${isRunning ? 0.06 : 0.02})`);
         glow.addColorStop(1, `rgba(${col[0]},${col[1]},${col[2]},0)`);
-        ctx.beginPath(); ctx.arc(ax, ay, nodeR * 3, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(ax, ay, glowR, 0, Math.PI * 2);
         ctx.fillStyle = glow; ctx.fill();
 
-        // Node
+        // Node circle
         ctx.beginPath(); ctx.arc(ax, ay, nodeR, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.85)`;
-        ctx.fill();
+        const nodeGrad = ctx.createRadialGradient(ax - 2, ay - 2, 0, ax, ay, nodeR);
+        nodeGrad.addColorStop(0, `rgba(${Math.min(255, col[0] + 40)},${Math.min(255, col[1] + 40)},${Math.min(255, col[2] + 40)},0.95)`);
+        nodeGrad.addColorStop(1, `rgba(${col[0]},${col[1]},${col[2]},0.75)`);
+        ctx.fillStyle = nodeGrad; ctx.fill();
 
-        // Spin ring for running
+        // Spinning arc for running
         if (isRunning) {
           ctx.beginPath();
           const spin = time * 0.003;
-          ctx.arc(ax, ay, nodeR + 2, spin, spin + Math.PI * 1.2);
+          ctx.arc(ax, ay, nodeR + 3, spin, spin + Math.PI * 1.2);
           ctx.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},0.6)`;
           ctx.lineWidth = 1.5; ctx.stroke();
         }
 
-        // Label
-        ctx.font = '600 10px Satoshi, system-ui';
+        // Agent name — bigger, clearer
+        ctx.font = '600 11px Satoshi, system-ui';
         ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-        ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.75)`;
-        ctx.fillText(agent.name, ax, ay + nodeR + 4);
+        ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.8)`;
+        ctx.fillText(agent.name, ax, ay + nodeR + 5);
+
+        // Status sub-label
+        const status = isRunning ? 'RUNNING' : 'IDLE';
+        ctx.font = '500 8px Satoshi, system-ui';
+        ctx.fillStyle = isRunning ? `rgba(${col[0]},${col[1]},${col[2]},0.5)` : `rgba(${col[0]},${col[1]},${col[2]},0.25)`;
+        ctx.fillText(status, ax, ay + nodeR + 17);
       });
 
       animId = requestAnimationFrame(draw);
@@ -159,6 +243,9 @@ export default function HomeTab({ onNavigate }: { wsEvents?: ForgeEvent[]; onNav
     <div className="home-tab">
       {/* Left: Mission Control */}
       <div className="home-mission">
+        <div className="home-heartbeat">
+          <HeartbeatStrip />
+        </div>
         <div className="home-orbital" ref={containerRef}>
           <canvas ref={canvasRef} className="home-orbital-canvas" />
         </div>
