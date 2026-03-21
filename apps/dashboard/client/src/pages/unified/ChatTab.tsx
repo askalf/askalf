@@ -29,7 +29,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
         '`/keys` — AI provider key status',
         '`/whoami` — Current user info',
         '`/settings [tab]` — Open settings',
-        '`/dispatch <task>` — Route a task to the right agent',
+        '`/dispatch <task>` — Route a task to the right worker',
         '`/connect` — Import Anthropic OAuth token',
         '`/clear` — Clear conversation',
         '',
@@ -62,7 +62,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
     case 'fleet':
     case 'agents': {
       const data = await cmdFetch<{ agents: { name: string; status: string; role: string }[] }>('/api/v1/forge/agents');
-      if (!data.agents.length) return { text: 'No agents found.' };
+      if (!data.agents.length) return { text: 'No workers yet. Tell Alf what you need and workers will be created.' };
       const rows = data.agents.map(a => `${a.status === 'active' ? '\u25CF' : '\u25CB'} **${a.name}** — ${a.role} (${a.status})`);
       return { text: `**Your Team** (${data.agents.length})\n${rows.join('\n')}` };
     }
@@ -70,11 +70,10 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
     case 'costs':
     case 'cost':
     case 'spend': {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = await cmdFetch<{ totals: { totalCost: number; executionCount: number }; byAgent?: { agentName: string; totalCost: number; eventCount: number }[] }>('/api/v1/admin/costs/summary').catch(() => ({ totals: { totalCost: 0, executionCount: 0 } } as any));
+      const data = await cmdFetch<{ totals: { totalCost: number; executionCount: number }; byAgent?: { agentName: string; totalCost: number; eventCount: number }[] }>('/api/v1/admin/costs/summary').catch(() => ({ totals: { totalCost: 0, executionCount: 0 } }) as { totals: { totalCost: number; executionCount: number }; byAgent?: { agentName: string; totalCost: number; eventCount: number }[] });
       const lines = [`**Cost Summary (30 days)**`, `Total: **$${data.totals.totalCost.toFixed(2)}** (${data.totals.executionCount} runs)`];
       if (data.byAgent?.length) {
-        lines.push('', '**By Agent:**');
+        lines.push('', '**By Worker:**');
         for (const a of data.byAgent.slice(0, 8)) {
           lines.push(`\`${a.agentName.padEnd(18)}\` $${a.totalCost.toFixed(2)} (${a.eventCount} runs)`);
         }
@@ -163,7 +162,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
     case 'dispatch':
     case 'task':
     case 'do': {
-      if (!args) return { text: '**Usage:** `/dispatch <description>`\nExample: `/dispatch fix the broken import in forge admin route`' };
+      if (!args) return { text: '**Usage:** `/dispatch <description>`\nExample: `/dispatch research competitors in my industry`' };
       const dispatchRes = await fetch(`${API_BASE}/api/v1/forge/dispatch`, {
         method: 'POST',
         credentials: 'include',
@@ -880,27 +879,27 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
               <div className="chat-suggestions">
                 <button onClick={() => handleSend('/briefing')}>
                   <span className="chat-sugg-icon">&#x2600;</span>
-                  What happened overnight?
+                  Catch me up
                 </button>
-                <button onClick={() => handleSend('Research my top 3 competitors and summarize their strengths')}>
+                <button onClick={() => handleSend('Research my top 3 competitors and summarize what they do better than me')}>
                   <span className="chat-sugg-icon">&#x1F50D;</span>
-                  Competitor research
+                  Who are my competitors?
                 </button>
-                <button onClick={() => handleSend('Write a weekly status report from this week\u2019s activity')}>
-                  <span className="chat-sugg-icon">&#x1F4DD;</span>
-                  Weekly status report
+                <button onClick={() => handleSend('Draft a professional email to follow up with a client who hasn\u2019t responded in a week')}>
+                  <span className="chat-sugg-icon">&#x2709;</span>
+                  Write an email for me
                 </button>
-                <button onClick={() => handleSend('Monitor my online reviews and alert me when something negative comes in')}>
-                  <span className="chat-sugg-icon">&#x1F514;</span>
-                  Monitor my reviews
+                <button onClick={() => handleSend('Summarize what my team accomplished this week and what\u2019s still open')}>
+                  <span className="chat-sugg-icon">&#x1F4CB;</span>
+                  Weekly summary
                 </button>
-                <button onClick={() => handleSend('Analyze my last 30 days of data and show me the trends')}>
-                  <span className="chat-sugg-icon">&#x1F4CA;</span>
-                  Analyze trends
+                <button onClick={() => handleSend('Find me the best flights and hotels for a trip to Austin next month')}>
+                  <span className="chat-sugg-icon">&#x2708;</span>
+                  Plan a trip
                 </button>
-                <button onClick={() => handleSend('Create a specialist to handle a task I do every week')}>
-                  <span className="chat-sugg-icon">&#x2B50;</span>
-                  Build a specialist
+                <button onClick={() => handleSend('I have a repetitive task I do every week — can you automate it?')}>
+                  <span className="chat-sugg-icon">&#x2699;</span>
+                  Automate something
                 </button>
               </div>
             </div>
