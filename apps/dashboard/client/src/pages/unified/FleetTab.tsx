@@ -575,7 +575,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
           <span className="fleet-icon">&#x2B21;</span>
           <h2 className="fleet-title">Your Team</h2>
         </div>
-        <p className="fleet-subtitle">Specialists &middot; Workers &middot; Monitors</p>
+        <p className="fleet-subtitle">Alf builds and manages your workers automatically</p>
       </div>
 
       {/* Scrollable content */}
