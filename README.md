@@ -1,8 +1,8 @@
 # AskAlf
 
-**Not one AI. An entire team.**
+**Tell Alf what you need. Alf builds the team.**
 
-7 core agents + unlimited custom specialists that write code, fix bugs, scan for vulnerabilities, monitor infrastructure, and coordinate autonomously. They work while you sleep. They learn from every execution. They never quit.
+One AI that creates specialized workers for any task — security, operations, research, support, development, whatever your business needs. Alf figures out who to hire, puts them to work, and reports back while you sleep. They learn from every task. They get faster every day.
 
 Other tools give you a chatbot. AskAlf gives you a workforce.
 

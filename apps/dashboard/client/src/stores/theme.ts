@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type Theme = 'dark' | 'light' | 'system';
+type Theme = 'dark' | 'light' | 'claw' | 'system';
 type FontSize = 'small' | 'medium' | 'large';
 type FontFamily = 'inter' | 'system' | 'mono';
 
