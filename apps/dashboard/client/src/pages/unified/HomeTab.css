@@ -1,0 +1,164 @@
+/* ============================================
+   HOME TAB — Mission Control + Alf Chat
+   ============================================ */
+
+.home-tab {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  overflow: hidden;
+  background: #04040a;
+}
+
+/* ── Left: Mission Control Panel ── */
+
+.home-mission {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(124, 58, 237, 0.1);
+  background: rgba(124, 58, 237, 0.02);
+  overflow: hidden;
+}
+
+.home-orbital {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  cursor: pointer;
+}
+
+.home-orbital::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(124, 58, 237, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 58, 237, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 75%);
+}
+
+.home-orbital-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  position: relative;
+  z-index: 2;
+}
+
+/* Stats Row */
+.home-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid rgba(124, 58, 237, 0.08);
+  flex-shrink: 0;
+}
+
+.home-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 4px;
+  background: none;
+  border: none;
+  border-right: 1px solid rgba(124, 58, 237, 0.05);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.home-stat:last-child { border-right: none; }
+.home-stat:hover { background: rgba(124, 58, 237, 0.06); }
+
+.home-stat-val {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: var(--text, #e2e8f0);
+  line-height: 1;
+}
+.home-stat-val.green { color: #10b981; }
+.home-stat-val.violet { color: #a78bfa; }
+.home-stat-val.amber { color: #f59e0b; }
+.home-stat-val.rose { color: #f87171; }
+
+.home-stat-label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #64748b);
+  margin-top: 3px;
+  text-transform: uppercase;
+}
+
+/* Running Workers */
+.home-running {
+  padding: 8px 12px;
+  border-top: 1px solid rgba(124, 58, 237, 0.08);
+  flex-shrink: 0;
+}
+
+.home-running-label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #10b981;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.home-running-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 0.75rem;
+}
+
+.home-running-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+  flex-shrink: 0;
+}
+
+.home-running-name {
+  color: var(--text, #e2e8f0);
+  font-weight: 600;
+}
+
+.home-running-time {
+  color: var(--text-muted, #64748b);
+  margin-left: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+}
+
+/* ── Right: Chat Panel ── */
+
+.home-chat {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Make the embedded ChatTab fill the space */
+.home-chat .chat-container {
+  height: 100%;
+}
+
+/* Responsive: stack on narrow screens */
+@media (max-width: 900px) {
+  .home-tab {
+    grid-template-columns: 1fr;
+    grid-template-rows: 280px 1fr;
+  }
+  .home-mission {
+    border-right: none;
+    border-bottom: 1px solid rgba(124, 58, 237, 0.1);
+  }
+}
