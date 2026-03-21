@@ -14802,10 +14802,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
     return { action: 'boost_important', result: 'Nothing to boost', quality: 0.3, mutated: false };
   }
 
-  if (situation.includes('Finding connections between:')) {
-    // Cross-links disabled — was generating noise by associating low-value memories
-    return { action: 'cross_link_skip', result: 'Cross-linking disabled — use knowledge graph instead', quality: 0.3, mutated: false };
-  }
+  // Cross-links fully removed — situation generator deleted
 
   if (situation.includes('Self-reflection on identity:') || situation.includes('Rule review:')) {
     // Access-bump identity/rule memories to keep them reinforced
@@ -16294,19 +16291,7 @@ const situationGenerators: Array<(p: ReturnType<typeof getForgePool>) => Promise
     return `Low-importance knowledge: "${lowFact}". Is this still relevant or should it be pruned?`;
   },
 
-  // 6: Cross-domain connection — link unrelated memories
-  async (p) => {
-    const r = await p.query(
-      `SELECT content FROM forge_semantic_memories
-       WHERE agent_id = $1 AND embedding IS NOT NULL
-       ORDER BY RANDOM() LIMIT 2`,
-      [AGENT_ID],
-    );
-    if (r.rows.length < 2) return 'Not enough memories to find cross-domain connections.';
-    const a = String((r.rows[0] as Record<string, unknown>)['content']).slice(0, 60);
-    const b = String((r.rows[1] as Record<string, unknown>)['content']).slice(0, 60);
-    return `Finding connections between: "${a}" AND "${b}". How are these related?`;
-  },
+  // 6: (removed — cross-domain connection was generating noise)
 
   // 7: Identity check — who am I right now?
   async (p) => {
