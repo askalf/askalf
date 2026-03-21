@@ -653,6 +653,13 @@ fastify.get('/api/v1/admin/projects', async (request, reply) => {
   return { projects };
 });
 
+// Client error reporting
+fastify.post('/api/v1/errors/report', async (request) => {
+  const { message, stack, componentStack, url } = request.body || {};
+  console.error(`[CLIENT ERROR] ${message}\n  URL: ${url}\n  Stack: ${String(stack).slice(0, 500)}\n  Component: ${String(componentStack).slice(0, 300)}`);
+  return { received: true };
+});
+
 // Clone a remote repo into the workspace
 const _cloneInFlight = new Set();
 fastify.post('/api/v1/admin/projects/clone', async (request, reply) => {
