@@ -13,8 +13,9 @@ type EventTypeFilter = 'all' | 'started' | 'completed' | 'failed' | 'progress';
 
 // ── Helpers ──
 
-function getEventTypeClass(type: string): string {
-  switch (type) {
+function getEventTypeClass(type: unknown): string {
+  const t = String(type || '');
+  switch (t) {
     case 'completed': return 'completed';
     case 'failed': return 'failed';
     case 'started': return 'started';
@@ -115,7 +116,7 @@ function EventRow({
   onToggle: () => void;
 }) {
   const typeClass = getEventTypeClass(event.type);
-  const agentLabel = event.agentName || event.agentId || 'System';
+  const agentLabel = String(event.agentName || event.agentId || 'System');
 
   return (
     <div
@@ -211,7 +212,7 @@ export default function LiveFeedTab({ wsEvents }: LiveFeedTabProps) {
     }
 
     if (typeFilter !== 'all') {
-      result = result.filter((ev) => ev.type === typeFilter);
+      result = result.filter((ev) => String(ev.type || '') === typeFilter);
     }
 
     return result;
