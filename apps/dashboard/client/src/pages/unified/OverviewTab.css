@@ -1,4 +1,174 @@
 /* ============================================
+   ALF GREETING — Personal Briefing Panel
+   ============================================ */
+
+.mc-greeting {
+  position: relative;
+  margin: 12px 16px 0;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(45, 212, 191, 0.04));
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 14px;
+  animation: mc-greeting-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+@keyframes mc-greeting-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mc-greeting-dismiss {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--text-muted, #64748b);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.mc-greeting-dismiss:hover { color: var(--text, #e2e8f0); background: rgba(255,255,255,0.05); }
+
+.mc-greeting-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.mc-greeting-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(167, 139, 250, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #a78bfa;
+}
+
+.mc-greeting-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text, #e2e8f0);
+  letter-spacing: -0.02em;
+}
+
+.mc-greeting-status {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.mc-greeting-briefing {
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.1);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.mc-greeting-briefing-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #7c3aed;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.mc-greeting-briefing-text {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: var(--text, #e2e8f0);
+  line-height: 1.5;
+}
+
+.mc-greeting-highlights {
+  margin: 0 0 10px;
+  padding: 0 0 0 16px;
+  list-style: none;
+}
+
+.mc-greeting-highlights li {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #94a3b8);
+  padding: 2px 0;
+  position: relative;
+}
+
+.mc-greeting-highlights li::before {
+  content: '›';
+  position: absolute;
+  left: -14px;
+  color: #7c3aed;
+  font-weight: 700;
+}
+
+.mc-greeting-briefing-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.mc-greeting-briefing-stats span {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+  font-family: var(--font-mono, monospace);
+}
+
+.mc-greeting-running {
+  margin-bottom: 12px;
+}
+
+.mc-greeting-running-item {
+  display: block;
+  font-size: 0.8rem;
+  color: #10b981;
+  padding: 2px 0;
+}
+
+.mc-greeting-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mc-greeting-action {
+  padding: 7px 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(124, 58, 237, 0.08);
+  color: #a78bfa;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mc-greeting-action:hover {
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.35);
+}
+
+.mc-greeting-action.primary {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  border-color: transparent;
+  color: #fff;
+}
+
+.mc-greeting-action.primary:hover {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+/* ============================================
    MISSION CONTROL — Command Bridge Emergence
    ============================================ */
 
