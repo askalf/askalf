@@ -878,17 +878,9 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
               <h2>{new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening'}. I'm Alf.</h2>
               <p>Tell me what you need — I'll figure out who to assign, what tools to use, and get it done. Ask me anything or pick a quick action below.</p>
               <div className="chat-suggestions">
-                <button onClick={() => handleSend('Scan my systems for security vulnerabilities')}>
-                  <span className="chat-sugg-icon">&#x1F6E1;</span>
-                  Run a security scan
-                </button>
                 <button onClick={() => handleSend('/briefing')}>
-                  <span className="chat-sugg-icon">&#x1F4CB;</span>
-                  Morning briefing
-                </button>
-                <button onClick={() => handleSend('Monitor my infrastructure and fix anything that looks wrong')}>
-                  <span className="chat-sugg-icon">&#x2764;</span>
-                  Health check + auto-fix
+                  <span className="chat-sugg-icon">&#x2600;</span>
+                  What happened overnight?
                 </button>
                 <button onClick={() => handleSend('Research my top 3 competitors and summarize their strengths')}>
                   <span className="chat-sugg-icon">&#x1F50D;</span>
@@ -896,11 +888,19 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
                 </button>
                 <button onClick={() => handleSend('Write a weekly status report from this week\u2019s activity')}>
                   <span className="chat-sugg-icon">&#x1F4DD;</span>
-                  Generate status report
+                  Weekly status report
                 </button>
-                <button onClick={() => handleSend('Create a specialist to monitor customer reviews on our site')}>
+                <button onClick={() => handleSend('Monitor my online reviews and alert me when something negative comes in')}>
+                  <span className="chat-sugg-icon">&#x1F514;</span>
+                  Monitor my reviews
+                </button>
+                <button onClick={() => handleSend('Analyze my last 30 days of data and show me the trends')}>
+                  <span className="chat-sugg-icon">&#x1F4CA;</span>
+                  Analyze trends
+                </button>
+                <button onClick={() => handleSend('Create a specialist to handle a task I do every week')}>
                   <span className="chat-sugg-icon">&#x2B50;</span>
-                  Build a new specialist
+                  Build a specialist
                 </button>
               </div>
             </div>

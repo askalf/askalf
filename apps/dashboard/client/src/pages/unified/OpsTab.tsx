@@ -15,7 +15,7 @@ const WorkflowBuilder = lazy(() => import('../forge/WorkflowBuilder'));
 const PushPanel = lazy(() => import('../forge/PushPanel'));
 const RevenueDashboard = lazy(() => import('../forge/RevenueDashboard'));
 
-type SubTab = 'tickets' | 'costs' | 'executions' | 'timeline' | 'providers' | 'guardrails' | 'audit' | 'orchestrator' | 'workflows' | 'automation' | 'revenue';
+type SubTab = 'tickets' | 'costs' | 'executions' | 'timeline' | 'orchestrator' | 'audit' | 'revenue';
 
 interface OpsTabProps {
   wsEvents?: ForgeEvent[];
@@ -33,11 +33,7 @@ export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
           { key: 'executions', label: 'Executions' },
           { key: 'timeline', label: 'Timeline' },
           { key: 'orchestrator', label: 'Orchestrator' },
-          { key: 'providers', label: 'Providers' },
-          { key: 'guardrails', label: 'Guardrails' },
           { key: 'audit', label: 'Audit' },
-          { key: 'workflows', label: 'Workflows' },
-          { key: 'automation', label: 'Automation' },
           { key: 'revenue', label: 'Revenue' },
         ]}
         active={sub}
@@ -53,11 +49,7 @@ export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
             {sub === 'executions' && <ExecutionHistory />}
             {sub === 'timeline' && <AgentTimeline />}
             {sub === 'orchestrator' && <CoordinatorTab wsEvents={wsEvents} />}
-            {sub === 'providers' && <ProviderHealthPage />}
-            {sub === 'guardrails' && <GuardrailsManager />}
             {sub === 'audit' && <AuditLog />}
-            {sub === 'workflows' && <WorkflowBuilder />}
-            {sub === 'automation' && <PushPanel wsEvents={wsEvents} />}
             {sub === 'revenue' && <RevenueDashboard />}
           </Suspense>
         </ErrorBoundary>
