@@ -176,7 +176,7 @@ export default function UnifiedDashboard() {
       case 'fleet':
         return (
           <ErrorBoundary inline key="fleet">
-            <Suspense fallback={<div className="ud-loading">Loading Fleet...</div>}>
+            <Suspense fallback={<div className="ud-loading">Loading Team...</div>}>
               <FleetHubTab wsEvents={wsEvents} />
             </Suspense>
           </ErrorBoundary>

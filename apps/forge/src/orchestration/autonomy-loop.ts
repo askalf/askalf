@@ -259,9 +259,9 @@ async function assignReview(
   if (risk.level === 'low') {
     // Auto-approve low risk — create self-review
     const reviewId = generateId();
-    // Find QA Engineer ID
-    const qaAgent = await query<{ id: string }>(`SELECT id FROM forge_agents WHERE name = 'QA Engineer' AND status = 'active' LIMIT 1`);
-    const reviewerId = qaAgent.length > 0 ? qaAgent[0]!.id : agentId;
+    // Find any active reviewer agent (prefer type='dev' or 'monitor')
+    const reviewerAgent = await query<{ id: string }>(`SELECT id FROM forge_agents WHERE status = 'active' AND type IN ('dev', 'monitor') AND (is_decommissioned IS NULL OR is_decommissioned = false) LIMIT 1`);
+    const reviewerId = reviewerAgent.length > 0 ? reviewerAgent[0]!.id : agentId;
 
     await query(
       `INSERT INTO forge_proposal_reviews (id, proposal_id, reviewer_agent_id, verdict, comment)
@@ -274,8 +274,8 @@ async function assignReview(
   } else {
     // Medium risk — auto-approve with logging (no human reviewer in selfhosted mode)
     const reviewId = generateId();
-    const qaAgent = await query<{ id: string }>(`SELECT id FROM forge_agents WHERE name IN ('QA', 'QA Engineer') AND status = 'active' LIMIT 1`);
-    const reviewerId = qaAgent.length > 0 ? qaAgent[0]!.id : agentId;
+    const reviewerAgent = await query<{ id: string }>(`SELECT id FROM forge_agents WHERE status = 'active' AND type IN ('dev', 'monitor') AND (is_decommissioned IS NULL OR is_decommissioned = false) LIMIT 1`);
+    const reviewerId = reviewerAgent.length > 0 ? reviewerAgent[0]!.id : agentId;
 
     await query(
       `INSERT INTO forge_proposal_reviews (id, proposal_id, reviewer_agent_id, verdict, comment)

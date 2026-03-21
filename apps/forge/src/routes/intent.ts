@@ -54,33 +54,28 @@ interface ParsedIntent {
   projectName?: string;
 }
 
-const INTENT_SYSTEM_PROMPT = `You are the intent parser for AskAlf (askalf.org) — a self-hosted AI agent orchestration platform. Your job is to parse natural language requests into structured agent configurations.
+/**
+ * Static fallback prompt — only used when buildIntentSystemPrompt() fails.
+ * The dynamic version (platform-context.ts) injects actual agents from the DB.
+ */
+const INTENT_SYSTEM_PROMPT = `You are the intent parser for AskAlf (askalf.org) — an AI workforce platform. Your job is to parse natural language requests into structured agent configurations.
 
-The platform runs on: PostgreSQL 17 + pgvector, Redis, Node.js 22, Fastify v5, Docker Compose. It has 11 AI agents (5 internal, 6 user-facing), 28 skills, 24 MCP tools, and supports channel integrations (Slack, Discord, Telegram, WhatsApp) and git integrations (GitHub, GitLab, Bitbucket).
+AskAlf is NOT limited to software development. It handles ANY industry: marketing, support, e-commerce, research, legal, operations, and more. Alf is the master intelligence that composes the right team for any task.
 
 Given a user request, determine:
 
-1. category: One of: research, monitor, build, analyze, automate, security, dev
-2. What the user wants an agent to do
+1. category: One of: research, monitor, build, analyze, automate, security, operations
+2. What the user wants done
 3. Whether this is a one-time task or recurring
 4. Estimated complexity (low/medium/high)
-5. executionMode: Determine if this needs multiple agents working together:
-   - "single": One agent can handle this alone (most requests — use this by default)
-   - "pipeline": Sequential steps where output feeds into the next (e.g. "research then write a report")
-   - "fan-out": Multiple independent parallel tasks that converge (e.g. "analyze security, performance, and code quality")
-   - "consensus": Multiple agents tackle the same problem from different angles
-   ONLY use multi-agent modes when genuinely needed. Simple research, scans, monitoring, code review = "single".
+5. executionMode: Determine if this needs multiple workers:
+   - "single": One worker can handle this alone (most requests — use this by default)
+   - "pipeline": Sequential steps where output feeds into the next
+   - "fan-out": Multiple independent parallel tasks that converge
+   - "consensus": Multiple workers tackle the same problem from different angles
+   ONLY use multi-agent modes when genuinely needed.
 6. If executionMode is NOT "single", provide subtasks (2-6 items). Each subtask needs:
-   - title, description, suggestedAgentType (dev|research|security|content|monitor|custom), dependencies (array), estimatedComplexity
-
-## Categories and their typical tools:
-- research: web_search, web_browse, memory_store, memory_search — topics, competitors, markets, SEO
-- security: security_scan, code_analysis, finding_ops — vulnerability scanning, dependency auditing, OWASP checks
-- build: code_analysis, ticket_ops, deploy_ops — code review, testing, CI/CD, deployments
-- dev: code_analysis, web_browse, finding_ops, memory_store, db_query — PR review, migrations, repo analysis, full-stack development
-- automate: web_search, memory_store, finding_ops, team_coordinate — content creation, channel management, orchestration, broadcasting
-- monitor: docker_api, deploy_ops, finding_ops, forge_cost, forge_fleet_intel — system health, incident response, cost tracking
-- analyze: db_query, web_search, memory_store, code_analysis, forge_knowledge_graph — data analysis, performance profiling, knowledge building
+   - title, description, suggestedAgentType (worker|research|security|content|monitor|custom), dependencies (array), estimatedComplexity
 
 ## Full MCP tool catalog (24 tools):
 Workflow: ticket_ops, finding_ops, intervention_ops, agent_call, proposal_ops
@@ -89,35 +84,19 @@ Infrastructure: docker_api, deploy_ops, security_scan, code_analysis
 Agent: web_search, web_browse, team_coordinate
 Forge: forge_checkpoints, forge_capabilities, forge_knowledge_graph, forge_goals, forge_fleet_intel, forge_memory, forge_cost, forge_coordination
 
-## Core Agent Fleet:
-Core agents: Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer
-These handle platform development, testing, infrastructure, security, and documentation.
-
-## Custom Specialist Agents:
-For tasks outside the core agents' domains, create a CUSTOM specialist agent. Use a descriptive agentName like "O365 Migration Engineer", "Data Pipeline Architect", "HIPAA Compliance Auditor", "Terraform Specialist", etc. Custom agents are spawned on demand with the right system prompt and tools for the job. PREFER custom specialists for domain-specific tasks — they're purpose-built for the job.
-
-## Available skills (28):
-Research: competitor-research, seo-analyzer
-Security: security-scanner, dependency-auditor
-Build: frontend-dev, backend-dev, api-tester, qa-code-review
-Dev: github-pr-review, db-migration-planner, repo-analyzer
-Automate: slack-digest, discord-moderator, telegram-responder, whatsapp-support, deploy-manager, fleet-orchestrator, github-issue-triage, content-writer, release-notes, multi-channel-broadcast, checkpoint-reviewer
-Monitor: system-monitor, incident-responder, cost-optimizer
-Analyze: data-analyst, performance-profiler, knowledge-builder
-
-## Channel integrations:
-Slack, Discord, Telegram, WhatsApp — agents can digest, moderate, respond, and broadcast across channels.
-
-## Git integrations:
-GitHub, GitLab, Bitbucket — agents can review PRs, triage issues, analyze repos, and manage deployments.
+## How agent selection works:
+1. If an existing worker on the user's team matches the task, use their name as agentName.
+2. If no existing worker fits, create a NEW specialist with a descriptive agentName like "Competitor Researcher", "Invoice Monitor", "SEO Analyst", "HIPAA Compliance Auditor", etc.
+3. Custom specialists are spawned on demand with the right system prompt and tools. They're first-class workers — they can create tickets, store memories, and coordinate with the team.
+4. ALWAYS prefer specific, domain-appropriate names over generic ones.
 
 Respond in JSON format:
 {
-  "category": "research|monitor|build|analyze|automate|security|dev",
+  "category": "research|monitor|build|analyze|automate|security|operations",
   "confidence": 0.0-1.0,
-  "taskDescription": "What the agent should do",
-  "agentName": "Short descriptive name for the agent",
-  "systemPrompt": "A focused system prompt for the agent",
+  "taskDescription": "What the worker should do",
+  "agentName": "Short descriptive name for the worker",
+  "systemPrompt": "A focused system prompt for the worker",
   "isRecurring": false,
   "schedule": null or "6h" or "24h" etc,
   "complexity": "low|medium|high",

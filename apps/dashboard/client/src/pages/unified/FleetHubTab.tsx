@@ -28,7 +28,7 @@ export default function FleetHubTab({ wsEvents = [] }: FleetHubTabProps) {
     <div className="ud-composite-tab">
       <TabBar
         tabs={[
-          { key: 'agents', label: 'Agents' },
+          { key: 'agents', label: 'Workers' },
           { key: 'builder', label: 'Builder' },
           { key: 'skills', label: 'Skills' },
           { key: 'delegation', label: 'Delegation' },
@@ -36,7 +36,7 @@ export default function FleetHubTab({ wsEvents = [] }: FleetHubTabProps) {
         active={sub}
         onChange={(k) => setSub(k as SubTab)}
         className="ud-sub-tabs"
-        ariaLabel="Fleet sub-navigation"
+        ariaLabel="Team sub-navigation"
       />
       <div className="ud-sub-content">
         <ErrorBoundary inline>
