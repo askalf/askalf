@@ -18,6 +18,7 @@ import { registerAnalyticsRoutes } from './analytics.js';
 import { registerExecutionCostRoutes } from './executions.js';
 import { registerTemplateAdminRoutes } from './templates.js';
 import { registerCostSummaryRoutes } from './costs.js';
+import { registerBriefingRoutes } from './briefing.js';
 
 export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
   await registerAgentRoutes(app);
@@ -34,4 +35,5 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
   await registerExecutionCostRoutes(app);
   await registerTemplateAdminRoutes(app);
   await registerCostSummaryRoutes(app);
+  await registerBriefingRoutes(app);
 }
