@@ -804,4 +804,35 @@ export async function registerProxyRoutes(fastify, requireAdmin, requireUser, qu
     return callForgeAdmin(`/prompt-revisions${qs}`);
   });
 
+  // ============================================
+  // DAILY BRIEFING
+  // ============================================
+
+  fastify.get('/api/v1/admin/briefing/daily', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    const res = await callForgeAdmin('/briefing/daily');
+    if (res.error) return reply.code(typeof res.status === 'number' ? res.status : 503).send({ error: 'Daily briefing unavailable', message: res.message });
+    return res;
+  });
+
+  fastify.get('/api/v1/admin/briefing/daily/html', async (request, reply) => {
+    const admin = await requireAdmin(request, reply);
+    if (!admin) return { error: 'Admin access required' };
+    try {
+      const url = `${FORGE_URL}/api/v1/admin/briefing/daily/html`;
+      const res = await fetch(url, {
+        headers: {
+          ...(FORGE_API_KEY ? { 'Authorization': `Bearer ${FORGE_API_KEY}` } : {}),
+          'x-user-id': admin.id || '',
+          'x-user-role': admin.role || '',
+        },
+      });
+      const html = await res.text();
+      return reply.type('text/html').send(html);
+    } catch (err) {
+      return reply.code(502).type('text/html').send('<h1>Briefing unavailable</h1>');
+    }
+  });
+
 }

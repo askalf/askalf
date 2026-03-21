@@ -6,13 +6,81 @@ import './Onboarding.css';
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:3001' : '';
 
-type Step = 'welcome' | 'ai-provider' | 'connect-claude' | 'theme' | 'complete';
+type Step = 'welcome' | 'ai-provider' | 'connect-claude' | 'theme' | 'use-case' | 'complete';
+
+interface UseCaseOption {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  specialists: string[];
+}
+
+const USE_CASE_OPTIONS: UseCaseOption[] = [
+  {
+    id: 'software-dev',
+    icon: '\u2699',
+    title: 'Software Development',
+    description: 'Build, test, and ship code with AI-powered dev specialists',
+    specialists: ['Backend Dev', 'Frontend Dev', 'QA', 'Security', 'Infra', 'Watchdog'],
+  },
+  {
+    id: 'devops',
+    icon: '\u2601',
+    title: 'DevOps & Infrastructure',
+    description: 'Automate deployments, monitor systems, and manage infrastructure',
+    specialists: ['Infra', 'Security', 'Watchdog', 'Deploy Specialist'],
+  },
+  {
+    id: 'marketing',
+    icon: '\u2606',
+    title: 'Marketing & Content',
+    description: 'Create content, track SEO, and monitor your brand presence',
+    specialists: ['Content Writer', 'SEO Analyst', 'Social Media Monitor', 'Competitor Researcher'],
+  },
+  {
+    id: 'support',
+    icon: '\u260E',
+    title: 'Customer Support',
+    description: 'Automate support workflows, triage tickets, and build knowledge bases',
+    specialists: ['Support Agent', 'Ticket Triager', 'FAQ Builder', 'Escalation Monitor'],
+  },
+  {
+    id: 'ecommerce',
+    icon: '\u2302',
+    title: 'E-Commerce',
+    description: 'Track inventory, respond to reviews, and analyze order data',
+    specialists: ['Inventory Monitor', 'Review Responder', 'Price Tracker', 'Order Analyst'],
+  },
+  {
+    id: 'research',
+    icon: '\u2318',
+    title: 'Research & Analysis',
+    description: 'Collect data, spot trends, and generate comprehensive reports',
+    specialists: ['Research Analyst', 'Data Collector', 'Report Writer', 'Trend Monitor'],
+  },
+  {
+    id: 'agency',
+    icon: '\u2692',
+    title: 'Agency / Freelancer',
+    description: 'Manage clients, track projects, and automate invoicing workflows',
+    specialists: ['Client Manager', 'Project Tracker', 'Invoice Monitor', 'Report Generator'],
+  },
+  {
+    id: 'custom',
+    icon: '\u271A',
+    title: 'Custom',
+    description: 'Start from scratch and handpick specialists for your unique workflow',
+    specialists: [],
+  },
+];
 
 const STEPS: { key: Step; label: string }[] = [
   { key: 'welcome', label: 'Workspace' },
   { key: 'ai-provider', label: 'AI Config' },
   { key: 'connect-claude', label: 'Connect Claude' },
   { key: 'theme', label: 'Appearance' },
+  { key: 'use-case', label: 'Use Case' },
   { key: 'complete', label: 'Launch' },
 ];
 
@@ -27,6 +95,7 @@ export default function Onboarding() {
   const [apiKey, setApiKey] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [selectedUseCase, setSelectedUseCase] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [keySaved, setKeySaved] = useState(false);
   const [openaiKey, setOpenaiKey] = useState('');
@@ -137,7 +206,7 @@ export default function Onboarding() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspace_name: workspaceName || 'AskAlf', theme }),
+        body: JSON.stringify({ workspace_name: workspaceName || 'AskAlf', theme, use_case: selectedUseCase }),
       });
       setOnboardingCompleted();
       navigate('/command-center', { replace: true });
@@ -457,12 +526,167 @@ export default function Onboarding() {
 
               <div className="ob-btn-row">
                 <button className="ob-btn-secondary" onClick={() => setStep('connect-claude')}>Back</button>
-                <button className="ob-btn-primary" onClick={() => setStep('complete')}>Continue</button>
+                <button className="ob-btn-primary" onClick={() => setStep('use-case')}>Continue</button>
               </div>
             </div>
           )}
 
-          {/* Step 4: Complete */}
+          {/* Step 5: Use Case */}
+          {step === 'use-case' && (
+            <div className="ob-step-content">
+              <h1 className="ob-title">What do you do?</h1>
+              <p className="ob-desc">
+                Pick the category that best describes your work. We'll pre-configure a team of
+                AI specialists tailored to your workflow.
+              </p>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                  gap: '12px',
+                  margin: '24px 0 16px',
+                }}
+              >
+                {USE_CASE_OPTIONS.map(uc => {
+                  const isSelected = selectedUseCase === uc.id;
+                  return (
+                    <button
+                      key={uc.id}
+                      onClick={() => setSelectedUseCase(uc.id)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        padding: '18px',
+                        background: isSelected
+                          ? 'rgba(99, 102, 241, 0.12)'
+                          : 'var(--surface, rgba(255,255,255,0.03))',
+                        border: isSelected
+                          ? '1.5px solid rgba(99, 102, 241, 0.5)'
+                          : '1px solid var(--border, rgba(255,255,255,0.08))',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        color: 'inherit',
+                        transition: 'all 0.2s ease',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        boxShadow: isSelected
+                          ? '0 0 20px rgba(99, 102, 241, 0.1)'
+                          : 'none',
+                      }}
+                      onMouseEnter={e => {
+                        if (!isSelected) {
+                          (e.currentTarget as HTMLButtonElement).style.background =
+                            'var(--crystal, rgba(255,255,255,0.06))';
+                          (e.currentTarget as HTMLButtonElement).style.borderColor =
+                            'rgba(255,255,255,0.15)';
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!isSelected) {
+                          (e.currentTarget as HTMLButtonElement).style.background =
+                            'var(--surface, rgba(255,255,255,0.03))';
+                          (e.currentTarget as HTMLButtonElement).style.borderColor =
+                            'var(--border, rgba(255,255,255,0.08))';
+                        }
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span
+                          style={{
+                            fontSize: '1.5rem',
+                            width: '36px',
+                            height: '36px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '8px',
+                            background: isSelected
+                              ? 'rgba(99, 102, 241, 0.2)'
+                              : 'rgba(255,255,255,0.05)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {uc.icon}
+                        </span>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            fontSize: '0.95rem',
+                            color: isSelected
+                              ? 'rgba(165, 168, 255, 1)'
+                              : 'rgba(255,255,255,0.9)',
+                          }}
+                        >
+                          {uc.title}
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.82rem',
+                          color: 'rgba(255,255,255,0.5)',
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        {uc.description}
+                      </span>
+                      {uc.specialists.length > 0 && (
+                        <span
+                          style={{
+                            fontSize: '0.75rem',
+                            color: isSelected
+                              ? 'rgba(165, 168, 255, 0.7)'
+                              : 'rgba(255,255,255,0.3)',
+                            marginTop: '2px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {uc.specialists.length} specialists included
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedUseCase(null);
+                  setStep('complete');
+                }}
+                style={{
+                  display: 'block',
+                  margin: '0 auto 20px',
+                  padding: '8px 16px',
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.35)',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'color 0.2s',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.6)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.35)'; }}
+              >
+                Skip — I'll build my own
+              </button>
+
+              <div className="ob-btn-row">
+                <button className="ob-btn-secondary" onClick={() => setStep('theme')}>Back</button>
+                <button
+                  className="ob-btn-primary"
+                  onClick={() => setStep('complete')}
+                  disabled={!selectedUseCase}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: Complete */}
           {step === 'complete' && (
             <div className="ob-step-content ob-complete">
               <div className="ob-complete-icon">&#10003;</div>
@@ -489,12 +713,20 @@ export default function Onboarding() {
                   <span>{oauthStatus === 'connected' ? 'Claude (OAuth)' : 'Not connected'}</span>
                 </div>
                 <div className="ob-summary-row">
+                  <span>Use Case</span>
+                  <span>
+                    {selectedUseCase
+                      ? USE_CASE_OPTIONS.find(u => u.id === selectedUseCase)?.title || selectedUseCase
+                      : 'Custom (build your own)'}
+                  </span>
+                </div>
+                <div className="ob-summary-row">
                   <span>Theme</span>
                   <span>{theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
                 </div>
               </div>
               <div className="ob-btn-row">
-                <button className="ob-btn-secondary" onClick={() => setStep('theme')}>Back</button>
+                <button className="ob-btn-secondary" onClick={() => setStep('use-case')}>Back</button>
                 <button className="ob-btn-primary ob-btn-launch" onClick={handleComplete} disabled={saving}>
                   {saving ? 'Launching...' : 'Launch Command Center'}
                 </button>

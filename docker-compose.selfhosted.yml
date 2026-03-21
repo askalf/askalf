@@ -252,9 +252,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1.5G
         reservations:
-          memory: 256M
+          memory: 512M
 
   mcp-tools:
     build:
