@@ -240,7 +240,7 @@ async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
       }
 
       const ALLOWED_EXEC_COMMANDS = ['ls', 'cat', 'head', 'tail', 'grep', 'find', 'ps', 'env', 'whoami', 'id', 'df', 'du', 'free', 'uptime', 'date', 'wc', 'echo', 'pwd', 'stat', 'file', 'which', 'printenv', 'hostname', 'uname', 'top', 'htop', 'npm', 'node', 'npx', 'yarn', 'pnpm'];
-      const baseCmd = command[0].replace(/^\/(?:usr\/(?:local\/)?)?(?:s?bin|bin)\//, '');
+      const baseCmd = (command[0] ?? '').replace(/^\/(?:usr\/(?:local\/)?)?(?:s?bin|bin)\//, '');
       if (!ALLOWED_EXEC_COMMANDS.includes(baseCmd)) {
         return JSON.stringify({ error: `Blocked: command '${baseCmd}' is not in the allowed list. Allowed: ${ALLOWED_EXEC_COMMANDS.join(', ')}` });
       }
