@@ -441,6 +441,7 @@ RULES:
 PATROL. Detect. Report. Stop.${fleetContext}`;
 
         await this.dispatchExecution(agent, input, 'system:dispatcher');
+        await this.advanceSchedule(agent);
         queuedThisTick.set(agent.id, (queuedThisTick.get(agent.id) ?? 0) + 1);
         dispatched.push({ name: agent.name });
       } else {
