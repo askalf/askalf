@@ -795,6 +795,56 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
       } catch { /* not valid JSON, fall through to normal send */ }
     }
 
+    // Two-path: try conversational chat first, fall back to intent dispatch
+    if (!activeConversationId) await createConversation();
+
+    // Show user message immediately
+    const now = new Date().toISOString();
+    const userMsg: ConversationMessage = {
+      id: `msg-${Date.now()}`,
+      conversation_id: activeConversationId ?? '',
+      role: 'user',
+      content,
+      execution_id: null,
+      intent: null,
+      metadata: {},
+      created_at: now,
+    };
+    useChatStore.setState(s => ({ messages: [...s.messages, userMsg], isProcessing: true }));
+
+    try {
+      const chatRes = await fetch(`${API_BASE}/api/v1/forge/chat`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: content }),
+      });
+
+      if (chatRes.ok) {
+        const data = await chatRes.json() as { mode: 'chat' | 'dispatch'; text?: string };
+
+        if (data.mode === 'chat' && data.text) {
+          // Alf answered directly — show the response
+          const alfMsg: ConversationMessage = {
+            id: `alf-${Date.now()}`,
+            conversation_id: activeConversationId ?? '',
+            role: 'assistant',
+            content: data.text,
+            execution_id: null,
+            intent: null,
+            metadata: {},
+            created_at: new Date().toISOString(),
+          };
+          useChatStore.setState(s => ({ messages: [...s.messages, alfMsg], isProcessing: false }));
+          return;
+        }
+      }
+    } catch {
+      // Chat endpoint failed — fall through to intent dispatch
+    }
+
+    // Dispatch mode — send to intent parser
+    useChatStore.setState(() => ({ isProcessing: false }));
     await sendMessage(content);
   }, [sendMessage, activeConversationId, createConversation, onNavigate]);
 
