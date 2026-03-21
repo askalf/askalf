@@ -7,37 +7,37 @@ const agents = [
     name: 'Researcher',
     slug: 'researcher',
     type: 'research',
-    desc: 'Web research, competitor analysis, SEO audits, market intelligence. Browses the web, compiles reports, extracts data from any site.',
+    desc: 'Web research, competitor analysis, market intelligence. Browses the web, compiles reports, extracts data from any site.',
   },
   {
     name: 'Sentinel',
     slug: 'sentinel',
     type: 'security',
-    desc: 'Security scanning, dependency auditing, CVE detection. SSHs into servers, scans codebases, identifies vulnerabilities before they ship.',
+    desc: 'Security scanning, vulnerability detection, compliance checks. Scans systems, identifies risks, and reports findings before they become problems.',
   },
   {
-    name: 'Developer',
-    slug: 'developer',
-    type: 'dev',
-    desc: 'Code review, testing, full-stack development. Opens your IDE, writes and commits code, runs test suites, debugs issues.',
+    name: 'Builder',
+    slug: 'builder',
+    type: 'worker',
+    desc: 'Executes tasks, builds deliverables, processes data. Uses tools and applications to get real work done — whatever the task requires.',
   },
   {
     name: 'Writer',
     slug: 'writer',
     type: 'content',
-    desc: 'Content creation, documentation, release notes, blog posts. Drafts in your tools, formats for your audience, maintains your voice.',
+    desc: 'Content creation, documentation, reports, communications. Drafts in your tools, formats for your audience, maintains your voice.',
   },
   {
-    name: 'Watchdog',
-    slug: 'watchdog',
+    name: 'Monitor',
+    slug: 'monitor',
     type: 'monitor',
-    desc: 'System monitoring, incident response, performance tracking. Watches dashboards, traces latency, alerts you before users notice.',
+    desc: 'System monitoring, incident response, performance tracking. Watches your operations, detects anomalies, alerts you before problems escalate.',
   },
   {
     name: 'Analyst',
     slug: 'analyst',
     type: 'research',
-    desc: 'Data analysis, performance profiling, trend detection. Queries databases, builds visualizations, surfaces insights from your data.',
+    desc: 'Data analysis, trend detection, reporting. Queries data sources, builds visualizations, surfaces insights from your information.',
   },
 ];
 
@@ -92,7 +92,7 @@ export default function DocsPage() {
           </p>
           <ul>
             <li>
-              <strong>Anthropic (required)</strong> &mdash; Powers all core agent functionality. Get an API key
+              <strong>Anthropic (required)</strong> &mdash; Powers all core AI functionality. Get an API key
               at <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>console.anthropic.com</a>.
               Paste it during onboarding and we&apos;ll verify it works.
             </li>
@@ -121,7 +121,7 @@ export default function DocsPage() {
 
           <h2 id="agents">Your Agents</h2>
           <p>
-            You have six agents available, each specialized for different types of work:
+            You start with six specialists, each designed for different types of work. You can create more at any time:
           </p>
 
           {agents.map((agent) => (
@@ -154,10 +154,10 @@ export default function DocsPage() {
             The Command Center is your home base. It has four main tabs:
           </p>
           <ul>
-            <li><strong>Chat</strong> &mdash; Talk to your agents in natural language. Describe a task, and the platform dispatches the right agent automatically.</li>
-            <li><strong>Templates</strong> &mdash; Pre-built task templates for common workflows &mdash; competitor research, security scans, code reviews, and more. One click to launch.</li>
-            <li><strong>Fleet</strong> &mdash; See all your agents at a glance. View their status, recent activity, and performance metrics.</li>
-            <li><strong>Costs</strong> &mdash; Track spending across all agents and providers. See costs by agent, by provider, and over time.</li>
+            <li><strong>Ask Alf</strong> &mdash; Describe what you need in plain English. Alf figures out who to assign and gets it done.</li>
+            <li><strong>Templates</strong> &mdash; Pre-built task templates for common workflows &mdash; research, monitoring, content, and more. One click to launch.</li>
+            <li><strong>Team</strong> &mdash; See all your workers at a glance. View their status, recent activity, and performance metrics.</li>
+            <li><strong>Costs</strong> &mdash; Track spending across all workers and providers. See costs by worker, by provider, and over time.</li>
           </ul>
           <p>
             You also have access to <strong>Executions</strong> (full execution history and logs) and
@@ -189,7 +189,7 @@ export default function DocsPage() {
 
           <h3>Multi-Provider</h3>
           <p>
-            Different agents can use different AI providers. Run your researcher on Claude, your developer
+            Different workers can use different AI providers. Run your researcher on Claude, your builder
             on GPT &mdash; each using the model best suited for the task. Connect providers during
             onboarding or add them later from Settings.
           </p>
@@ -198,7 +198,7 @@ export default function DocsPage() {
           <p>
             Agents have access to tools for database queries, Docker management, web search, code analysis,
             team coordination, and more &mdash; all via the Model Context Protocol (MCP). Tools are
-            automatically assigned based on the agent&apos;s role and your task requirements.
+            automatically assigned based on the worker&apos;s role and your task requirements.
           </p>
 
           <h2 id="channels">Channel Integrations</h2>

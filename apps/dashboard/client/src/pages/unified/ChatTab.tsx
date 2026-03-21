@@ -22,7 +22,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
         '`/help` — Show this help',
         '`/briefing` — Daily overnight report',
         '`/status` — System status overview',
-        '`/fleet` — Agent fleet overview',
+        '`/fleet` — Team overview',
         '`/costs` — Cost summary (30 days)',
         '`/logs [agent]` — Recent execution logs',
         '`/tickets` — Open ticket board',
@@ -64,7 +64,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
       const data = await cmdFetch<{ agents: { name: string; status: string; role: string }[] }>('/api/v1/forge/agents');
       if (!data.agents.length) return { text: 'No agents found.' };
       const rows = data.agents.map(a => `${a.status === 'active' ? '\u25CF' : '\u25CB'} **${a.name}** — ${a.role} (${a.status})`);
-      return { text: `**Agent Fleet** (${data.agents.length})\n${rows.join('\n')}` };
+      return { text: `**Your Team** (${data.agents.length})\n${rows.join('\n')}` };
     }
 
     case 'costs':
