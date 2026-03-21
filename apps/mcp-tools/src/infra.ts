@@ -4,9 +4,9 @@
  */
 
 import http from 'node:http';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { readdir, readFile, stat } from 'fs/promises';
-import { join, extname, relative } from 'path';
+import { join, extname, relative, resolve } from 'path';
 import {
   getSubstratePool,
   getForgePool,
@@ -14,6 +14,18 @@ import {
 } from '@askalf/db';
 
 const REPO_ROOT = process.env['REPO_ROOT'] ?? '/workspace';
+
+/**
+ * Validate that a resolved path is within REPO_ROOT (prevent path traversal).
+ * Returns the safe absolute path or throws.
+ */
+function safePath(userPath: string): string {
+  const resolved = resolve(REPO_ROOT, userPath);
+  if (!resolved.startsWith(resolve(REPO_ROOT))) {
+    throw new Error(`Path traversal blocked: ${userPath} resolves outside workspace`);
+  }
+  return resolved;
+}
 
 // Docker connection — uses DOCKER_HOST (tcp://host:port) when behind socket proxy, falls back to Unix socket
 const DOCKER_CONN: Record<string, unknown> = (() => {
@@ -502,9 +514,10 @@ async function handleDeployOps(args: Record<string, unknown>): Promise<string> {
       if (check.rows.length === 0) return JSON.stringify({ error: `Intervention not found: ${args['intervention_id']}` });
       if ((check.rows[0] as Record<string, unknown>)['status'] !== 'approved') return JSON.stringify({ approved: false, message: 'Not yet approved' });
 
-      // Approved — execute the auto-deploy pipeline
+      // Approved — execute the auto-deploy pipeline (sanitized — no shell interpolation)
+      const sanitizedService = String(service).replace(/[^a-zA-Z0-9_-]/g, '');
       const deployResult = await run(
-        `powershell.exe -NoProfile -File scripts/auto-deploy.ps1 ${service} --skip-typecheck`,
+        `powershell.exe -NoProfile -File scripts/auto-deploy.ps1 ${sanitizedService} --skip-typecheck`,
         REPO_ROOT,
         600000, // 10 min timeout
       );
@@ -555,7 +568,7 @@ async function handleSecurityScan(args: Record<string, unknown>): Promise<string
 
   switch (action) {
     case 'npm_audit': {
-      const pkgDir = args['package_dir'] ? join(REPO_ROOT, args['package_dir'] as string) : REPO_ROOT;
+      const pkgDir = args['package_dir'] ? safePath(args['package_dir'] as string) : REPO_ROOT;
       const res = await run('npm audit --json 2>/dev/null || true', pkgDir);
       let summary: Record<string, unknown> = { raw: res.stdout };
       try {
@@ -571,7 +584,7 @@ async function handleSecurityScan(args: Record<string, unknown>): Promise<string
     }
 
     case 'dependency_check': {
-      const pkgDir = args['package_dir'] ? join(REPO_ROOT, args['package_dir'] as string) : REPO_ROOT;
+      const pkgDir = args['package_dir'] ? safePath(args['package_dir'] as string) : REPO_ROOT;
       const res = await run('pnpm outdated --json 2>/dev/null || true', pkgDir);
       let outdated: unknown = res.stdout;
       try { outdated = JSON.parse(res.stdout); } catch { /* raw */ }
@@ -579,7 +592,7 @@ async function handleSecurityScan(args: Record<string, unknown>): Promise<string
     }
 
     case 'file_permissions': {
-      const scanPath = args['scan_path'] ? join(REPO_ROOT, args['scan_path'] as string) : REPO_ROOT;
+      const scanPath = args['scan_path'] ? safePath(args['scan_path'] as string) : REPO_ROOT;
       const issues: Array<{ file: string; mode: string; issue: string }> = [];
       const files = await walkFiles(scanPath, new Set([...SCAN_EXTENSIONS, '.sh', '.bash']), 200);
       for (const file of files) {
@@ -595,7 +608,7 @@ async function handleSecurityScan(args: Record<string, unknown>): Promise<string
     }
 
     case 'env_leak_check': {
-      const scanPath = args['scan_path'] ? join(REPO_ROOT, args['scan_path'] as string) : REPO_ROOT;
+      const scanPath = args['scan_path'] ? safePath(args['scan_path'] as string) : REPO_ROOT;
       const findings: Array<{ file: string; line: number; pattern: string; snippet: string }> = [];
       const files = await walkFiles(scanPath, SCAN_EXTENSIONS, 300);
       for (const file of files) {
@@ -654,14 +667,14 @@ async function handleCodeAnalysis(args: Record<string, unknown>): Promise<string
 
   switch (action) {
     case 'typecheck': {
-      const pkgDir = args['package_dir'] ? join(REPO_ROOT, args['package_dir'] as string) : REPO_ROOT;
+      const pkgDir = args['package_dir'] ? safePath(args['package_dir'] as string) : REPO_ROOT;
       const res = await run('npx tsc --noEmit --pretty 2>&1 || true', pkgDir, 120_000);
       const errorLines = res.stdout.split('\n').filter((l) => l.includes('error TS'));
       return JSON.stringify({ action: 'typecheck', package_dir: pkgDir, errorCount: errorLines.length, errors: errorLines.slice(0, 30), exitCode: res.exitCode });
     }
 
     case 'dead_code': {
-      const scanPath = args['scan_path'] ? join(REPO_ROOT, args['scan_path'] as string) : REPO_ROOT;
+      const scanPath = args['scan_path'] ? safePath(args['scan_path'] as string) : REPO_ROOT;
       const files = await walkFiles(scanPath, CODE_EXTENSIONS);
       const exports: Array<{ file: string; symbol: string; line: number }> = [];
       const importRefs = new Set<string>();
@@ -691,7 +704,7 @@ async function handleCodeAnalysis(args: Record<string, unknown>): Promise<string
     case 'import_analysis': {
       const filePath = args['file_path'] as string;
       if (!filePath) return JSON.stringify({ error: 'file_path is required for import_analysis' });
-      const targetFile = join(REPO_ROOT, filePath);
+      const targetFile = safePath(filePath);
       let content: string;
       try { content = await readFile(targetFile, 'utf-8'); } catch { return JSON.stringify({ error: `Cannot read file: ${filePath}` }); }
 
@@ -706,8 +719,8 @@ async function handleCodeAnalysis(args: Record<string, unknown>): Promise<string
     }
 
     case 'complexity': {
-      const scanPath = args['scan_path'] ? join(REPO_ROOT, args['scan_path'] as string) : args['file_path'] ? join(REPO_ROOT, args['file_path'] as string) : REPO_ROOT;
-      const files = args['file_path'] ? [join(REPO_ROOT, args['file_path'] as string)] : await walkFiles(scanPath, CODE_EXTENSIONS, 200);
+      const scanPath = args['scan_path'] ? safePath(args['scan_path'] as string) : args['file_path'] ? safePath(args['file_path'] as string) : REPO_ROOT;
+      const files = args['file_path'] ? [safePath(args['file_path'] as string)] : await walkFiles(scanPath, CODE_EXTENSIONS, 200);
       const allFunctions: Array<{ file: string; name: string; line: number; length: number; maxDepth: number; branches: number }> = [];
 
       for (const file of files) {
@@ -746,7 +759,7 @@ async function handleCodeAnalysis(args: Record<string, unknown>): Promise<string
     }
 
     case 'todo_scan': {
-      const scanPath = args['scan_path'] ? join(REPO_ROOT, args['scan_path'] as string) : REPO_ROOT;
+      const scanPath = args['scan_path'] ? safePath(args['scan_path'] as string) : REPO_ROOT;
       const files = await walkFiles(scanPath, CODE_EXTENSIONS, 500);
       const todos: Array<{ file: string; line: number; type: string; text: string }> = [];
       const todoPattern = /\b(TODO|FIXME|HACK|XXX|BUG|WARN)\b[:\s]*(.*)/i;
