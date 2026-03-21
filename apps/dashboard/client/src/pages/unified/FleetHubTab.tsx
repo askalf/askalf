@@ -29,9 +29,9 @@ export default function FleetHubTab({ wsEvents = [] }: FleetHubTabProps) {
       <TabBar
         tabs={[
           { key: 'agents', label: 'Workers' },
-          { key: 'builder', label: 'Builder' },
-          { key: 'skills', label: 'Skills' },
-          { key: 'delegation', label: 'Delegation' },
+          { key: 'delegation', label: 'Activity' },
+          { key: 'skills', label: 'Templates' },
+          { key: 'builder', label: 'Create Worker' },
         ]}
         active={sub}
         onChange={(k) => setSub(k as SubTab)}
