@@ -28,20 +28,22 @@ function getTools(agent: Agent): string[] {
 
 function FleetStats({ agents }: { agents: Agent[] }) {
   const active = agents.filter(a => a.status === 'running').length;
-  const idle = agents.filter(a => a.status === 'idle').length;
+  const idle = agents.filter(a => a.status === 'idle' || a.status === 'active').length;
   const errors = agents.filter(a => a.status === 'error').length;
   const tasksDone = agents.reduce((sum, a) => sum + a.tasks_completed, 0);
   const tasksFailed = agents.reduce((sum, a) => sum + a.tasks_failed, 0);
+  const totalTasks = tasksDone + tasksFailed;
+  const successRate = totalTasks > 0 ? Math.round((tasksDone / totalTasks) * 100) : 0;
 
   return (
     <div className="fleet-stats-grid">
       <div className="fleet-stat-card">
         <div className="fleet-stat-value green">{active}</div>
-        <div className="fleet-stat-label">Active</div>
+        <div className="fleet-stat-label">Running</div>
       </div>
       <div className="fleet-stat-card">
         <div className="fleet-stat-value muted">{idle}</div>
-        <div className="fleet-stat-label">Idle</div>
+        <div className="fleet-stat-label">Standing By</div>
       </div>
       <div className="fleet-stat-card">
         <div className="fleet-stat-value red">{errors}</div>
@@ -49,7 +51,15 @@ function FleetStats({ agents }: { agents: Agent[] }) {
       </div>
       <div className="fleet-stat-card">
         <div className="fleet-stat-value violet">{tasksDone}</div>
-        <div className="fleet-stat-label">Completed{tasksFailed > 0 ? ` / ${tasksFailed} failed` : ''}</div>
+        <div className="fleet-stat-label">Tasks Done</div>
+      </div>
+      <div className="fleet-stat-card">
+        <div className={`fleet-stat-value ${successRate >= 90 ? 'green' : successRate >= 70 ? 'amber' : 'red'}`}>{successRate}%</div>
+        <div className="fleet-stat-label">Success Rate</div>
+      </div>
+      <div className="fleet-stat-card">
+        <div className="fleet-stat-value muted">{agents.length}</div>
+        <div className="fleet-stat-label">Total Workers</div>
       </div>
     </div>
   );
@@ -84,10 +94,10 @@ function AgentList({
   });
 
   const cols: { key: SortColumn; label: string }[] = [
-    { key: 'name', label: 'NAME' },
+    { key: 'name', label: 'WORKER' },
     { key: 'status', label: 'STATUS' },
-    { key: 'tasks', label: 'DONE/TOTAL' },
-    { key: 'age', label: 'LAST RUN' },
+    { key: 'tasks', label: 'SUCCESS' },
+    { key: 'age', label: 'LAST ACTIVE' },
   ];
 
   return (
@@ -133,7 +143,14 @@ function AgentList({
                   {agent.status}
                 </span>
               </td>
-              <td>{agent.tasks_completed}/{agent.tasks_completed + agent.tasks_failed}</td>
+              <td>
+                {(() => {
+                  const total = agent.tasks_completed + agent.tasks_failed;
+                  if (total === 0) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+                  const rate = Math.round((agent.tasks_completed / total) * 100);
+                  return <><span className={rate >= 90 ? 'fleet-rate-good' : rate >= 70 ? 'fleet-rate-ok' : 'fleet-rate-bad'}>{rate}%</span> <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({total})</span></>;
+                })()}
+              </td>
               <td>{relativeTime(agent.last_run_at)}</td>
             </tr>
           ))}
@@ -599,8 +616,8 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
               <input
                 className="fleet-search"
                 type="search"
-                aria-label="Search agents"
-                placeholder="Search agents..."
+                aria-label="Search workers"
+                placeholder="Search workers..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -612,7 +629,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
             <div className="fleet-content">
               {filtered.length === 0 ? (
                 <div className="fleet-empty">
-                  {search ? 'No agents match your search' : 'No agents'}
+                  {search ? 'No workers match your search' : 'No workers yet — tell Alf what you need and workers will be created automatically'}
                 </div>
               ) : (
                 <AgentList

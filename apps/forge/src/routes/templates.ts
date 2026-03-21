@@ -57,7 +57,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, _reply: FastifyReply) => {
       const qs = request.query as { limit?: string; offset?: string };
-      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 200));
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '200', 10) || 200, 500));
       const offset = Math.max(0, parseInt(qs.offset ?? '0', 10) || 0);
 
       const [templates, countResult] = await Promise.all([
@@ -213,6 +213,60 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
         templateId: id,
         message: `Agent "${agentName}" created from template "${template.name}"`,
       });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/templates/import - Bulk import templates from JSON
+   */
+  app.post(
+    '/api/v1/forge/templates/import',
+    {
+      schema: {
+        tags: ['Templates'],
+        summary: 'Import templates from JSON',
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = (request.body ?? {}) as { templates?: Record<string, unknown>[] };
+      if (!body.templates?.length) {
+        return reply.status(400).send({ error: 'No templates provided' });
+      }
+
+      let imported = 0;
+      for (const t of body.templates) {
+        const name = t['name'] as string;
+        const slug = t['slug'] as string || name?.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        if (!name || !slug) continue;
+
+        const id = `tpl_import_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        try {
+          await query(
+            `INSERT INTO forge_agent_templates (id, name, slug, category, description, icon, required_tools, agent_config, schedule_config, estimated_cost_per_run, is_active, sort_order)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, $11)
+             ON CONFLICT DO NOTHING`,
+            [
+              id,
+              name,
+              slug,
+              (t['category'] as string) || 'custom',
+              (t['description'] as string) || '',
+              (t['icon'] as string) || null,
+              (t['required_tools'] as string[]) || [],
+              JSON.stringify(t['agent_config'] || {}),
+              t['schedule_config'] ? JSON.stringify(t['schedule_config']) : null,
+              (t['estimated_cost_per_run'] as string) || null,
+              (t['sort_order'] as number) || 100,
+            ],
+          );
+          imported++;
+        } catch (err) {
+          app.log.warn(`Failed to import template "${name}": ${err instanceof Error ? err.message : 'unknown'}`);
+        }
+      }
+
+      return { imported, total: body.templates.length };
     },
   );
 }

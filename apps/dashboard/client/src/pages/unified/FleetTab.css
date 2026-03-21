@@ -59,7 +59,7 @@
 /* ── Stats Grid ── */
 .fleet-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: var(--space-md, 1rem);
   margin-bottom: var(--space-lg, 1.5rem);
 }
@@ -877,3 +877,9 @@
 @media (max-width: 600px) {
   .fleet-stats-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* Success rate colors */
+.fleet-rate-good { color: #10b981; font-weight: 700; }
+.fleet-rate-ok { color: #f59e0b; font-weight: 700; }
+.fleet-rate-bad { color: #ef4444; font-weight: 700; }
+.fleet-stat-value.amber { color: #f59e0b; }
