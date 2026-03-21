@@ -124,7 +124,12 @@ export async function clientRoutes(app: FastifyInstance): Promise<void> {
     const markup = parseFloat(client.billing_markup) || 1.0;
 
     // Aggregate billable executions
-    const whereProject = body.project_id ? ` AND e.client_project_id = '${body.project_id}'` : '';
+    const params: unknown[] = [body.client_id, body.period_start, body.period_end];
+    let whereProject = '';
+    if (body.project_id) {
+      params.push(body.project_id);
+      whereProject = ` AND e.client_project_id = $${params.length}`;
+    }
     const executions = await query<{ agent_name: string; total_cost: string; exec_count: string }>(
       `SELECT a.name as agent_name, COALESCE(SUM(e.cost), 0)::text as total_cost, COUNT(*)::text as exec_count
        FROM forge_executions e
@@ -135,7 +140,7 @@ export async function clientRoutes(app: FastifyInstance): Promise<void> {
          ${whereProject}
        GROUP BY a.name
        ORDER BY total_cost DESC`,
-      [body.client_id, body.period_start, body.period_end],
+      params,
     );
 
     const totalAiCost = executions.reduce((s, e) => s + parseFloat(e.total_cost), 0);
