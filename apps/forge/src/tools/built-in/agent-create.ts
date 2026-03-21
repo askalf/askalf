@@ -20,7 +20,7 @@ export interface AgentCreateInput {
   name?: string;
   description?: string;
   system_prompt?: string;
-  type?: 'dev' | 'monitor' | 'research' | 'content' | 'custom';
+  type?: 'dev' | 'monitor' | 'research' | 'content' | 'worker' | 'support' | 'operations' | 'custom';
   enabled_tools?: string[];
   model_id?: string;
   autonomy_level?: number;

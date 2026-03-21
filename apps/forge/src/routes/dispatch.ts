@@ -1,6 +1,7 @@
 /**
  * Natural Language Task Dispatch Routes
- * Parses natural language input and dispatches to the appropriate agent.
+ * Parses natural language input and dispatches to the best-matching agent.
+ * Dynamic — queries actual agents from the database instead of hardcoded names.
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
@@ -12,32 +13,67 @@ interface DispatchBody {
   input: string;
 }
 
-const AGENT_KEYWORDS: Array<{ agent: string; keywords: string[] }> = [
-  { agent: 'Frontend Dev', keywords: ['frontend', 'ui', 'dashboard', 'component', 'css', 'react', 'tailwind', 'layout', 'style', 'widget'] },
-  { agent: 'Backend Dev', keywords: ['api', 'endpoint', 'database', 'migration', 'query', 'backend', 'server', 'route', 'schema', 'sql'] },
-  { agent: 'Infra', keywords: ['docker', 'container', 'deploy', 'nginx', 'infra', 'kubernetes', 'k8s', 'ci', 'cd', 'pipeline', 'terraform'] },
-  { agent: 'Security', keywords: ['security', 'vulnerability', 'cve', 'audit', 'auth', 'permission', 'xss', 'csrf', 'injection'] },
-  { agent: 'QA', keywords: ['test', 'bug', 'qa', 'validate', 'regression', 'e2e', 'unit test', 'coverage', 'fixture'] },
-  { agent: 'Writer', keywords: ['doc', 'readme', 'changelog', 'runbook', 'write', 'documentation', 'comment', 'jsdoc'] },
-];
+interface AgentCandidate {
+  name: string;
+  type: string | null;
+  description: string | null;
+  system_prompt: string | null;
+}
 
-const DEFAULT_AGENT = 'Backend Dev';
+/**
+ * Dynamically classify which agent should handle a task
+ * by scoring each active agent against the input text.
+ */
+async function classifyAgent(input: string): Promise<string> {
+  const agents = await query<AgentCandidate>(
+    `SELECT name, type, description, system_prompt
+     FROM forge_agents
+     WHERE status = 'active'
+       AND (is_decommissioned IS NULL OR is_decommissioned = false)
+       AND (is_internal IS NULL OR is_internal = false)
+     ORDER BY tasks_completed DESC NULLS LAST`,
+  );
 
-function classifyAgent(input: string): string {
+  if (agents.length === 0) return 'Alf';
+
   const lower = input.toLowerCase();
-  let bestAgent = DEFAULT_AGENT;
+  let bestAgent = agents[0]!.name;
   let bestScore = 0;
 
-  for (const { agent, keywords } of AGENT_KEYWORDS) {
+  for (const agent of agents) {
     let score = 0;
+
+    // Score by agent name match
+    if (lower.includes(agent.name.toLowerCase())) score += 5;
+
+    // Score by type keywords
+    const typeKeywords: Record<string, string[]> = {
+      research: ['research', 'find', 'search', 'look up', 'investigate', 'competitor', 'market', 'compare', 'explore', 'seo'],
+      security: ['security', 'vulnerability', 'cve', 'audit', 'auth', 'permission', 'xss', 'csrf', 'injection', 'scan'],
+      dev: ['code', 'build', 'develop', 'implement', 'fix', 'bug', 'api', 'endpoint', 'database', 'migration', 'test'],
+      content: ['write', 'doc', 'readme', 'blog', 'content', 'report', 'draft', 'release notes', 'changelog'],
+      monitor: ['monitor', 'health', 'alert', 'incident', 'performance', 'uptime', 'status', 'docker', 'container'],
+      custom: [],
+    };
+
+    const agentType = agent.type || 'custom';
+    const keywords = typeKeywords[agentType] ?? [];
     for (const kw of keywords) {
-      if (lower.includes(kw)) {
-        score++;
+      if (lower.includes(kw)) score++;
+    }
+
+    // Score by description match
+    if (agent.description) {
+      const descWords = agent.description.toLowerCase().split(/\s+/);
+      const inputWords = new Set(lower.split(/\s+/));
+      for (const word of descWords) {
+        if (word.length > 3 && inputWords.has(word)) score += 0.5;
       }
     }
+
     if (score > bestScore) {
       bestScore = score;
-      bestAgent = agent;
+      bestAgent = agent.name;
     }
   }
 
@@ -60,7 +96,7 @@ export async function dispatchRoutes(app: FastifyInstance): Promise<void> {
         }
 
         const input = body.input.trim();
-        const assignedTo = classifyAgent(input);
+        const assignedTo = await classifyAgent(input);
         const title = input.length > 100 ? input.substring(0, 100) : input;
         const ticketId = ulid();
 
