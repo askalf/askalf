@@ -21,15 +21,15 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     id: 'software-dev',
     icon: '\u2699',
     title: 'Software Development',
-    description: 'Build, test, and ship code with AI-powered dev specialists',
-    specialists: ['Backend Dev', 'Frontend Dev', 'QA', 'Security', 'Infra', 'Watchdog'],
+    description: 'Build, test, and ship code with AI-powered specialists',
+    specialists: ['Builder', 'Reviewer', 'Tester', 'Security', 'Ops', 'Monitor'],
   },
   {
     id: 'devops',
     icon: '\u2601',
     title: 'DevOps & Infrastructure',
     description: 'Automate deployments, monitor systems, and manage infrastructure',
-    specialists: ['Infra', 'Security', 'Watchdog', 'Deploy Specialist'],
+    specialists: ['Ops', 'Security', 'Monitor', 'Deploy'],
   },
   {
     id: 'marketing',

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 const features = [
-  { category: 'Architecture', feature: 'Multi-agent fleet orchestration', askalf: true, openclaw: false, detail: 'Specialized agents (Security, Backend Dev, Infra, QA) working autonomously' },
+  { category: 'Architecture', feature: 'Multi-agent team orchestration', askalf: true, openclaw: false, detail: 'Specialized workers for any industry — built and assigned automatically by Alf' },
   { category: 'Architecture', feature: 'Autonomous brain with memory', askalf: true, openclaw: false, detail: 'Semantic, episodic, and procedural memory with knowledge graph' },
   { category: 'Architecture', feature: 'Self-healing ticket system', askalf: true, openclaw: false, detail: 'Core engine creates, routes, and tracks investigation tickets' },
   { category: 'Security', feature: 'Internal API authentication', askalf: true, openclaw: false, detail: 'HMAC-signed inter-service communication' },
@@ -12,11 +12,11 @@ const features = [
   { category: 'Security', feature: 'Webhook signature verification', askalf: true, openclaw: true, detail: 'HMAC-SHA256 verification on all inbound webhooks' },
   { category: 'Security', feature: 'Security audit passed', askalf: true, openclaw: false, detail: 'OpenClaw had 512 vulnerabilities found in January 2026 audit' },
   { category: 'Operations', feature: 'Visual dashboard', askalf: true, openclaw: false, detail: 'Full web UI for agent management, executions, and monitoring' },
-  { category: 'Operations', feature: 'Fleet health monitoring', askalf: true, openclaw: false, detail: 'Watchdog agent with scheduled health checks' },
+  { category: 'Operations', feature: 'Team health monitoring', askalf: true, openclaw: false, detail: 'Automated monitoring with scheduled health checks' },
   { category: 'Operations', feature: 'Cost tracking & budgets', askalf: true, openclaw: false, detail: 'Per-agent cost tracking with configurable budget limits' },
   { category: 'Operations', feature: 'Execution audit trail', askalf: true, openclaw: false, detail: 'Full audit log of all agent actions and tool calls' },
   { category: 'Integration', feature: 'Chat platform channels', askalf: true, openclaw: true, detail: 'Slack, Discord, Telegram, WhatsApp, Teams, and more' },
-  { category: 'Integration', feature: 'OpenClaw bridge', askalf: true, openclaw: false, detail: 'Connect OpenClaw as a channel frontend to AskAlf fleet' },
+  { category: 'Integration', feature: 'OpenClaw bridge', askalf: true, openclaw: false, detail: 'Connect OpenClaw as a channel frontend to your AskAlf team' },
   { category: 'Integration', feature: 'MCP tool ecosystem', askalf: true, openclaw: false, detail: '26 built-in MCP tools with community marketplace' },
   { category: 'Integration', feature: 'Automation platforms', askalf: true, openclaw: true, detail: 'Zapier, n8n, Make webhooks' },
 ];
@@ -33,7 +33,7 @@ export default function SecurityComparison() {
           AskAlf vs OpenClaw
         </h1>
         <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary, #94a3b8)', maxWidth: 600, margin: '0 auto' }}>
-          OpenClaw is a personal assistant. AskAlf is your autonomous engineering team.
+          OpenClaw is a personal assistant. AskAlf is your autonomous AI workforce.
         </p>
       </div>
 
@@ -47,8 +47,8 @@ export default function SecurityComparison() {
         }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#a78bfa', marginBottom: 8 }}>AskAlf</h3>
           <p style={{ color: 'var(--text-secondary, #94a3b8)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-            Multi-agent fleet with autonomous brain, persistent memory, fleet orchestration,
-            and enterprise security. Agents investigate, coordinate, and resolve issues on their own.
+            Multi-agent workforce with autonomous brain, persistent memory, team orchestration,
+            and enterprise security. Workers investigate, coordinate, and resolve tasks on their own.
           </p>
         </div>
         <div style={{
@@ -103,7 +103,7 @@ export default function SecurityComparison() {
 
       <div style={{ textAlign: 'center', marginTop: 48, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <p style={{ color: 'var(--text-secondary, #94a3b8)', marginBottom: 16 }}>
-          Ready to deploy your autonomous agent fleet?
+          Ready to deploy your autonomous AI workforce?
         </p>
         <code style={{
           display: 'inline-block', padding: '12px 24px', borderRadius: 8,

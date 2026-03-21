@@ -54,7 +54,7 @@ const TAB_ITEMS = (onNavigate: (tab: string) => void, onClose: () => void): Pale
   { id: 'tab:overview',  kind: 'tab', label: 'Overview',  detail: 'System overview & health',       badge: 'Tab', action: () => { onNavigate('overview');  onClose(); } },
   { id: 'tab:command',   kind: 'tab', label: 'Command',   detail: 'Chat & AI command interface',     badge: 'Tab', action: () => { onNavigate('command');   onClose(); } },
   { id: 'tab:code',      kind: 'tab', label: 'Code',      detail: 'Terminal & code workspace',       badge: 'Tab', action: () => { onNavigate('code');      onClose(); } },
-  { id: 'tab:fleet',     kind: 'tab', label: 'Fleet',     detail: 'Agent fleet management',          badge: 'Tab', action: () => { onNavigate('fleet');     onClose(); } },
+  { id: 'tab:fleet',     kind: 'tab', label: 'Team',      detail: 'Team management',                 badge: 'Tab', action: () => { onNavigate('fleet');     onClose(); } },
   { id: 'tab:ops',       kind: 'tab', label: 'Ops',       detail: 'Tickets, interventions, costs',   badge: 'Tab', action: () => { onNavigate('ops');       onClose(); } },
   { id: 'tab:live',      kind: 'tab', label: 'Live',      detail: 'Real-time event feed',            badge: 'Tab', action: () => { onNavigate('live');      onClose(); } },
   { id: 'tab:brain',     kind: 'tab', label: 'Brain',     detail: 'Cognitive memory & analytics',    badge: 'Tab', action: () => { onNavigate('brain');     onClose(); } },
