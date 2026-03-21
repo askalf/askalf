@@ -66,10 +66,15 @@ export default function DocsPage() {
         <div className="legal-body">
           <h2>What is AskAlf?</h2>
           <p>
-            AskAlf is an AI agent platform where agents don&apos;t just chat &mdash; they use computers
-            like you do. They control mouse and keyboard, browse the web, SSH into servers, open
-            applications, read and write files, and execute shell commands. Think of them as digital
-            employees that sit at a virtual desk and do real work.
+            AskAlf is an AI workforce platform. Tell Alf what you need &mdash; Alf builds the team.
+            Workers don&apos;t just chat. They use computers like you do: browse the web, read and write files,
+            execute commands, and interact with applications. Think of them as digital employees
+            that sit at a virtual desk and do real work, in any industry.
+          </p>
+          <p>
+            Alf is the master intelligence. When you describe a task, Alf figures out what kind of
+            specialist is needed, creates one if it doesn&apos;t exist, configures the right tools,
+            and dispatches the work. Your team grows and adapts to whatever you throw at it.
           </p>
 
           <h2>Quick Start</h2>
@@ -107,10 +112,10 @@ export default function DocsPage() {
             update or rotate them anytime from <strong>Settings</strong>.
           </p>
 
-          <h3>3. Run Your First Agent</h3>
+          <h3>3. Give Alf Your First Task</h3>
           <p>
-            From the <strong>Chat</strong> tab, describe what you need done. The platform matches your request
-            to the right agent and executes it. Try something simple:
+            From the <strong>Ask Alf</strong> tab, describe what you need done. Alf matches your request
+            to the right worker &mdash; or creates a new specialist &mdash; and executes it. Try something simple:
           </p>
           <ul>
             <li>&ldquo;Research the top 5 competitors in [your space]&rdquo;</li>
@@ -119,7 +124,7 @@ export default function DocsPage() {
             <li>&ldquo;Monitor our API response times and flag anything slow&rdquo;</li>
           </ul>
 
-          <h2 id="agents">Your Agents</h2>
+          <h2 id="agents">Your Team</h2>
           <p>
             You start with six specialists, each designed for different types of work. You can create more at any time:
           </p>
