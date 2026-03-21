@@ -1,13 +1,82 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import { useThemeStore } from '../stores/theme';
 import { relativeTime } from '../utils/format';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'migration';
+type SettingsTab = 'profile' | 'appearance' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'preferences' | 'migration';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'migration'];
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'preferences', 'migration'];
+
+// ── Natural Language Settings Assistant ──
+
+const NL_PATTERNS: Array<{ pattern: RegExp; tab: SettingsTab; message: string }> = [
+  { pattern: /slack/i, tab: 'channels', message: 'Opening Channels — configure your Slack connection there.' },
+  { pattern: /discord/i, tab: 'channels', message: 'Opening Channels — set up your Discord bot there.' },
+  { pattern: /telegram/i, tab: 'channels', message: 'Opening Channels — configure Telegram bot there.' },
+  { pattern: /whatsapp/i, tab: 'channels', message: 'Opening Channels — set up WhatsApp there.' },
+  { pattern: /channel/i, tab: 'channels', message: 'Opening Channels settings.' },
+  { pattern: /anthropic|claude.*key|api.*key/i, tab: 'api-keys', message: 'Opening Keys & Providers — add or update your API keys there.' },
+  { pattern: /openai|gpt.*key/i, tab: 'api-keys', message: 'Opening Keys & Providers — configure your OpenAI key there.' },
+  { pattern: /key|provider/i, tab: 'api-keys', message: 'Opening Keys & Providers.' },
+  { pattern: /theme|dark.*mode|light.*mode|appearance|color/i, tab: 'appearance', message: 'Opening Appearance — pick your theme.' },
+  { pattern: /budget|cost|limit|spend/i, tab: 'costs', message: 'Opening Cost Controls — set budgets and limits there.' },
+  { pattern: /github|gitlab|bitbucket|repo/i, tab: 'integrations', message: 'Opening Integrations — connect your source control there.' },
+  { pattern: /integrat/i, tab: 'integrations', message: 'Opening Integrations.' },
+  { pattern: /profile|name|email|password/i, tab: 'profile', message: 'Opening Profile settings.' },
+  { pattern: /device|session/i, tab: 'devices', message: 'Opening Devices — manage active sessions there.' },
+  { pattern: /migrat|openclaw|import/i, tab: 'migration', message: 'Opening Migration — import from OpenClaw there.' },
+];
+
+function SettingsAssistant({ onNavigateTab }: { onNavigateTab: (tab: SettingsTab) => void }) {
+  const [input, setInput] = useState('');
+  const [response, setResponse] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = useCallback(() => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    for (const { pattern, tab, message } of NL_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        setResponse(message);
+        onNavigateTab(tab);
+        setInput('');
+        setTimeout(() => setResponse(null), 4000);
+        return;
+      }
+    }
+
+    setResponse("I'm not sure what setting you need. Try something like \"connect Slack\" or \"update my API key\".");
+    setTimeout(() => setResponse(null), 4000);
+    setInput('');
+  }, [input, onNavigateTab]);
+
+  return (
+    <div className="settings-assistant">
+      <div className="settings-assistant-inner">
+        <svg className="settings-assistant-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="18" height="18">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+        <input
+          ref={inputRef}
+          className="settings-assistant-input"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+          placeholder='Tell Alf what you need... "connect Slack", "set my API key", "change theme"'
+        />
+        {input.trim() && (
+          <button className="settings-assistant-go" onClick={handleSubmit}>Go</button>
+        )}
+      </div>
+      {response && (
+        <div className="settings-assistant-response">{response}</div>
+      )}
+    </div>
+  );
+}
 
 export default function SettingsPage({ embedded }: { embedded?: boolean }) {
   const [searchParams] = useSearchParams();
@@ -34,6 +103,8 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
           <p>Manage your account and preferences</p>
         </div>
       )}
+
+      <SettingsAssistant onNavigateTab={setActiveTab} />
 
       <div className="settings-layout">
         <nav className="settings-nav">
@@ -106,6 +177,15 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
             Devices
           </button>
           <button
+            className={`settings-nav-item ${activeTab === 'preferences' ? 'active' : ''}`}
+            onClick={() => setActiveTab('preferences')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            Alf Learns
+          </button>
+          <button
             className={`settings-nav-item ${activeTab === 'migration' ? 'active' : ''}`}
             onClick={() => setActiveTab('migration')}
           >
@@ -126,6 +206,7 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
           {activeTab === 'integrations' && <IntegrationsTab />}
           {activeTab === 'channels' && <ChannelsTab />}
           {activeTab === 'devices' && <DevicesTab />}
+          {activeTab === 'preferences' && <PreferencesTab />}
           {activeTab === 'migration' && <MigrationTab />}
         </div>
       </div>
@@ -2929,6 +3010,161 @@ function MigrationTab() {
             </button>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// PREFERENCES TAB — Alf Learns Your Style
+// ============================================
+
+interface UserPreference {
+  id: string;
+  category: string;
+  key: string;
+  value: string;
+  confidence: number;
+  source: string;
+  created_at: string;
+}
+
+function PreferencesTab() {
+  const [prefs, setPrefs] = useState<UserPreference[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newCategory, setNewCategory] = useState('general');
+  const [newKey, setNewKey] = useState('');
+  const [newValue, setNewValue] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const fetchPrefs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/preferences`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { preferences: UserPreference[] };
+        setPrefs(data.preferences ?? []);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchPrefs(); }, [fetchPrefs]);
+
+  const handleAdd = async () => {
+    if (!newKey.trim() || !newValue.trim()) return;
+    setSaving(true);
+    try {
+      await fetch(`${API_BASE}/api/v1/forge/preferences`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: newCategory, key: newKey.trim(), value: newValue.trim() }),
+      });
+      setNewKey('');
+      setNewValue('');
+      await fetchPrefs();
+    } catch { /* ignore */ }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    await fetch(`${API_BASE}/api/v1/forge/preferences/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }).catch(() => {});
+    setPrefs(p => p.filter(x => x.id !== id));
+  };
+
+  const categories = [...new Set(prefs.map(p => p.category))];
+
+  return (
+    <div className="settings-section">
+      <div className="settings-section-header">
+        <h2>Alf Learns Your Style</h2>
+        <p className="settings-section-desc">
+          Alf remembers your preferences and applies them to every task. Explicit preferences
+          (set by you) always override observed ones (learned from your behavior).
+        </p>
+      </div>
+
+      <div className="settings-card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '12px', color: 'var(--text)' }}>
+          Teach Alf a preference
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr auto', gap: '8px', alignItems: 'end' }}>
+          <div>
+            <label className="settings-label" style={{ fontSize: '0.7rem' }}>Category</label>
+            <select className="settings-input" value={newCategory} onChange={e => setNewCategory(e.target.value)} style={{ fontSize: '0.8rem' }}>
+              <option value="general">General</option>
+              <option value="model">Model</option>
+              <option value="tone">Tone & Voice</option>
+              <option value="coding_style">Coding Style</option>
+              <option value="schedule">Schedule</option>
+              <option value="budget">Budget</option>
+            </select>
+          </div>
+          <div>
+            <label className="settings-label" style={{ fontSize: '0.7rem' }}>Preference</label>
+            <input className="settings-input" value={newKey} onChange={e => setNewKey(e.target.value)}
+              placeholder="e.g. preferred_model" style={{ fontSize: '0.8rem' }} />
+          </div>
+          <div>
+            <label className="settings-label" style={{ fontSize: '0.7rem' }}>Value</label>
+            <input className="settings-input" value={newValue} onChange={e => setNewValue(e.target.value)}
+              placeholder="e.g. claude-opus-4-6" style={{ fontSize: '0.8rem' }}
+              onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }} />
+          </div>
+          <button className="settings-btn-primary" onClick={handleAdd} disabled={saving || !newKey.trim() || !newValue.trim()}
+            style={{ fontSize: '0.8rem', padding: '8px 16px' }}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: '2rem', color: 'var(--text-muted)', textAlign: 'center' }}>Loading preferences...</div>
+      ) : prefs.length === 0 ? (
+        <div style={{ padding: '2rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+          No preferences yet. Alf will learn your style as you use the platform, or teach Alf directly above.
+        </div>
+      ) : (
+        categories.map(cat => (
+          <div key={cat} style={{ marginBottom: '1rem' }}>
+            <h4 style={{
+              fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em',
+              color: 'var(--text-muted)', marginBottom: '8px', paddingLeft: '2px',
+            }}>
+              {cat}
+            </h4>
+            {prefs.filter(p => p.category === cat).map(p => (
+              <div key={p.id} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '8px 12px', background: 'var(--surface)', border: '1px solid var(--border)',
+                borderRadius: '8px', marginBottom: '4px', fontSize: '0.82rem',
+              }}>
+                <span style={{ fontWeight: 600, color: 'var(--text)', minWidth: '140px' }}>{p.key}</span>
+                <span style={{ flex: 1, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{p.value}</span>
+                <span style={{
+                  fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px',
+                  background: p.source === 'explicit' ? 'rgba(124,58,237,0.12)' : 'rgba(16,185,129,0.12)',
+                  color: p.source === 'explicit' ? '#a78bfa' : '#10b981',
+                }}>
+                  {p.source === 'explicit' ? 'you set this' : 'learned'}
+                </span>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                  {Math.round(p.confidence * 100)}%
+                </span>
+                <button onClick={() => handleDelete(p.id)} style={{
+                  background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
+                  fontSize: '0.9rem', padding: '2px 6px',
+                }} title="Remove">
+                  &times;
+                </button>
+              </div>
+            ))}
+          </div>
+        ))
       )}
     </div>
   );
