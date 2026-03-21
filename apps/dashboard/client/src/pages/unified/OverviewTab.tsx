@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { usePolling } from '../../hooks/usePolling';
 import { formatCost, formatCount, relativeTime, todayDateStr } from '../../utils/format';
 import { apiFetchSafe } from '../../utils/api';
@@ -6,6 +6,15 @@ import type { ForgeEvent } from '../../constants/status';
 import './OverviewTab.css';
 
 // ── Types ──
+
+interface BriefingData {
+  summary: string;
+  highlights: string[];
+  cost: { total: number };
+  tickets: { resolved: number; opened: number; stillOpen: number };
+  findings: { total: number };
+  period: { start: string; end: string };
+}
 
 interface OverviewTabProps {
   wsEvents: ForgeEvent[];
@@ -556,6 +565,114 @@ function EventTicker({ events }: { events: ForgeEvent[] }) {
   );
 }
 
+// ── Alf Greeting ──
+
+function AlfGreeting({
+  activeAgents, completed24h, failed24h, openTickets,
+  running, onNavigate,
+}: {
+  activeAgents: number; completed24h: number; failed24h: number; openTickets: number;
+  running: ExecutionEntry[];
+  onNavigate?: (tab: string) => void;
+}) {
+  const [briefing, setBriefing] = useState<BriefingData | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    apiFetchSafe<BriefingData>('/api/v1/admin/briefing/daily')
+      .then(d => { if (d) setBriefing(d); })
+      .catch(() => {});
+  }, []);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
+
+  const statusLine = useMemo(() => {
+    const parts: string[] = [];
+    if (running.length > 0) {
+      parts.push(`${running.length} worker${running.length > 1 ? 's' : ''} running right now`);
+    } else if (activeAgents > 0) {
+      parts.push(`${activeAgents} worker${activeAgents > 1 ? 's' : ''} standing by`);
+    } else {
+      parts.push('All systems idle');
+    }
+    if (completed24h > 0) parts.push(`${completed24h} task${completed24h > 1 ? 's' : ''} completed today`);
+    if (failed24h > 0) parts.push(`${failed24h} failed`);
+    if (openTickets > 0) parts.push(`${openTickets} ticket${openTickets > 1 ? 's' : ''} open`);
+    return parts.join(' · ');
+  }, [running, activeAgents, completed24h, failed24h, openTickets]);
+
+  if (dismissed) return null;
+
+  return (
+    <div className="mc-greeting">
+      <button className="mc-greeting-dismiss" onClick={() => setDismissed(true)} title="Dismiss">&times;</button>
+      <div className="mc-greeting-header">
+        <div className="mc-greeting-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="28" height="28">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div>
+          <h2 className="mc-greeting-title">{greeting}.</h2>
+          <p className="mc-greeting-status">{statusLine}</p>
+        </div>
+      </div>
+
+      {briefing && briefing.summary && (
+        <div className="mc-greeting-briefing">
+          <div className="mc-greeting-briefing-label">OVERNIGHT BRIEFING</div>
+          <p className="mc-greeting-briefing-text">{briefing.summary}</p>
+          {briefing.highlights.length > 0 && (
+            <ul className="mc-greeting-highlights">
+              {briefing.highlights.slice(0, 3).map((h, i) => (
+                <li key={i}>{h}</li>
+              ))}
+            </ul>
+          )}
+          <div className="mc-greeting-briefing-stats">
+            <span>${briefing.cost.total.toFixed(2)} spent</span>
+            <span>{briefing.tickets.resolved} resolved</span>
+            <span>{briefing.tickets.stillOpen} still open</span>
+            {briefing.findings.total > 0 && <span>{briefing.findings.total} findings</span>}
+          </div>
+        </div>
+      )}
+
+      {running.length > 0 && (
+        <div className="mc-greeting-running">
+          <div className="mc-greeting-briefing-label">WORKING NOW</div>
+          {running.slice(0, 3).map(e => (
+            <span key={e.id} className="mc-greeting-running-item">
+              {e.agent_name || 'Worker'} — {relativeTime(e.started_at)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="mc-greeting-actions">
+        <button className="mc-greeting-action primary" onClick={() => onNavigate?.('command')}>
+          Ask Alf something
+        </button>
+        {openTickets > 0 && (
+          <button className="mc-greeting-action" onClick={() => onNavigate?.('ops')}>
+            View {openTickets} open ticket{openTickets > 1 ? 's' : ''}
+          </button>
+        )}
+        {briefing && (
+          <button className="mc-greeting-action" onClick={() => onNavigate?.('ops')}>
+            Full report
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ──
 
 export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) {
@@ -609,6 +726,13 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
 
   return (
     <div className="mc-root">
+      {/* ── Alf Greeting ── */}
+      <AlfGreeting
+        activeAgents={activeAgents}
+        completed24h={completed24h} failed24h={failed24h} openTickets={openTickets}
+        running={running} onNavigate={onNavigate}
+      />
+
       {/* ── Status Bar ── */}
       <div className="mc-status-bar">
         <div className={`mc-status-core ${statusClass}`}>
