@@ -13,7 +13,7 @@ interface BriefingData {
   cost: { total: number };
   tickets: { resolved: number; opened: number; stillOpen: number };
   findings: { total: number };
-  period: { start: string; end: string };
+  period: { start?: string; end?: string; from?: string; to?: string };
 }
 
 interface OverviewTabProps {

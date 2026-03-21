@@ -128,10 +128,10 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
     case 'report':
     case 'overnight': {
       try {
-        const data = await cmdFetch<{ summary: string; highlights: string[]; cost: { total: number }; tickets: { resolved: number; opened: number; stillOpen: number }; findings: { total: number }; period: { start: string; end: string } }>('/api/v1/admin/briefing/daily');
+        const data = await cmdFetch<{ summary: string; highlights: string[]; cost: { total: number }; tickets: { resolved: number; opened: number; stillOpen: number }; findings: { total: number }; period: { start?: string; end?: string; from?: string; to?: string } }>('/api/v1/admin/briefing/daily');
         const lines = [
           `**Daily Briefing**`,
-          `*${new Date(data.period.start).toLocaleDateString()} — ${new Date(data.period.end).toLocaleDateString()}*`,
+          `*${new Date(data.period.start || data.period.from || '').toLocaleDateString()} — ${new Date(data.period.end || data.period.to || '').toLocaleDateString()}*`,
           '',
           data.summary,
           '',

@@ -26,7 +26,7 @@ interface BriefingData {
   tickets: { resolved: number; opened: number; stillOpen: number };
   findings: { total: number; critical: number; warning: number };
   memory: { semantic: number; episodic: number; procedural: number };
-  period: { start: string; end: string };
+  period: { start?: string; end?: string; from?: string; to?: string };
   generatedAt: string;
 }
 
@@ -54,7 +54,7 @@ function ReportsPanel() {
         <div>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text)' }}>Daily Briefing</h3>
           <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            {new Date(briefing.period.start).toLocaleDateString()} — {new Date(briefing.period.end).toLocaleDateString()}
+            {new Date(briefing.period.start || briefing.period.from || '').toLocaleDateString()} — {new Date(briefing.period.end || briefing.period.to || '').toLocaleDateString()}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
