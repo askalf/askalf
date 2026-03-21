@@ -20,22 +20,22 @@ interface Template {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  research: 'Research',
-  security: 'Security',
-  build: 'Build',
-  automate: 'Automate',
-  monitor: 'Monitor',
-  analyze: 'Analyze',
-  dev: 'Development',
+  personal: 'Personal',
+  content: 'Content',
   marketing: 'Marketing',
   support: 'Support',
   ecommerce: 'E-Commerce',
-  content: 'Content',
   finance: 'Finance',
-  legal: 'Legal & Compliance',
-  hr: 'People & HR',
   operations: 'Operations',
-  personal: 'Personal',
+  hr: 'People & HR',
+  legal: 'Legal & Compliance',
+  research: 'Research',
+  analyze: 'Analyze',
+  automate: 'Automate',
+  monitor: 'Monitor',
+  build: 'Build',
+  dev: 'Development',
+  security: 'Security',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
