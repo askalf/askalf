@@ -858,14 +858,16 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
 
   return (
     <div className="chat-container">
-      <ConversationList
-        conversations={conversations}
-        activeId={activeConversationId}
-        onSelect={selectConversation}
-        onCreate={handleNewChat}
-        onRename={renameConversation}
-        onDelete={deleteConversation}
-      />
+      {conversations.length > 1 && (
+        <ConversationList
+          conversations={conversations}
+          activeId={activeConversationId}
+          onSelect={selectConversation}
+          onCreate={handleNewChat}
+          onRename={renameConversation}
+          onDelete={deleteConversation}
+        />
+      )}
       <div className="chat-main">
         <div className="chat-messages">
           {messages.length === 0 && (
@@ -873,8 +875,8 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
               <div className="chat-welcome-beacon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
               </div>
-              <h2>What do you need done?</h2>
-              <p>Tell Alf in plain English. Alf will figure out who to assign, what tools to use, and get it done. Or use <code>/help</code> for slash commands.</p>
+              <h2>{new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening'}. I'm Alf.</h2>
+              <p>Tell me what you need — I'll figure out who to assign, what tools to use, and get it done. Ask me anything or pick a quick action below.</p>
               <div className="chat-suggestions">
                 <button onClick={() => handleSend('Scan my systems for security vulnerabilities')}>
                   <span className="chat-sugg-icon">&#x1F6E1;</span>

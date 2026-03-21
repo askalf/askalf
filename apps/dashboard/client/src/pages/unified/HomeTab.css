@@ -5,7 +5,7 @@
 .home-tab {
   height: 100%;
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 420px 1fr;
   overflow: hidden;
   background: #04040a;
 }
@@ -18,6 +18,22 @@
   border-right: 1px solid rgba(124, 58, 237, 0.1);
   background: rgba(124, 58, 237, 0.02);
   overflow: hidden;
+  position: relative;
+}
+
+/* Heartbeat strip at top */
+.home-heartbeat {
+  height: 28px;
+  flex-shrink: 0;
+  position: relative;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.06);
+  overflow: hidden;
+}
+
+.home-heartbeat-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .home-orbital {
@@ -25,8 +41,12 @@
   min-height: 0;
   position: relative;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* Grid background for orbital */
 .home-orbital::before {
   content: '';
   position: absolute;
@@ -38,6 +58,23 @@
   background-size: 40px 40px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 75%);
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 75%);
+}
+
+/* Scanline */
+.home-orbital::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.12), transparent);
+  animation: home-scanline 8s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes home-scanline {
+  0% { top: 0%; }
+  100% { top: 100%; }
 }
 
 .home-orbital-canvas {
@@ -60,7 +97,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 4px;
+  padding: 12px 4px;
   background: none;
   border: none;
   border-right: 1px solid rgba(124, 58, 237, 0.05);
@@ -72,7 +109,7 @@
 .home-stat:hover { background: rgba(124, 58, 237, 0.06); }
 
 .home-stat-val {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 800;
   font-family: var(--font-mono, monospace);
   color: var(--text, #e2e8f0);
@@ -84,17 +121,17 @@
 .home-stat-val.rose { color: #f87171; }
 
 .home-stat-label {
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-muted, #64748b);
-  margin-top: 3px;
+  margin-top: 4px;
   text-transform: uppercase;
 }
 
 /* Running Workers */
 .home-running {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-top: 1px solid rgba(124, 58, 237, 0.08);
   flex-shrink: 0;
 }
@@ -113,15 +150,15 @@
   align-items: center;
   gap: 6px;
   padding: 3px 0;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
 }
 
 .home-running-dot {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
   flex-shrink: 0;
 }
 
@@ -146,12 +183,11 @@
   min-height: 0;
 }
 
-/* Make the embedded ChatTab fill the space */
 .home-chat .chat-container {
   height: 100%;
 }
 
-/* Responsive: stack on narrow screens */
+/* Responsive */
 @media (max-width: 900px) {
   .home-tab {
     grid-template-columns: 1fr;
