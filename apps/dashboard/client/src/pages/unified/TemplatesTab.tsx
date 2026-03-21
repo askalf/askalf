@@ -69,7 +69,7 @@ const TOOL_LABELS: Record<string, string> = {
   forge_capabilities: 'Capabilities',
   forge_knowledge_graph: 'Knowledge Graph',
   forge_goals: 'Goals',
-  forge_fleet_intel: 'Fleet Intel',
+  forge_fleet_intel: 'Team Intel',
   forge_memory: 'Memory',
   forge_cost: 'Costs',
   forge_coordination: 'Coordination',
@@ -239,7 +239,7 @@ export default function TemplatesTab({
       throw new Error('Failed to create agent');
     }
     await hubApi.agents.run(agentId, prompt);
-    setRunMessage({ type: 'success', text: `Dispatched "${template.name}" — check Fleet for progress` });
+    setRunMessage({ type: 'success', text: `Dispatched "${template.name}" — check Team for progress` });
     setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, usage_count: t.usage_count + 1 } : t));
     setTimeout(() => setRunMessage(null), 4000);
   }, []);

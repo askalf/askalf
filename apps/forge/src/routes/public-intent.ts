@@ -42,48 +42,34 @@ setInterval(() => {
   }
 }, 300_000);
 
-const DEMO_SYSTEM_PROMPT = `You are the intent parser for AskAlf — an AI agent fleet platform with 7 core agents and the ability to spawn unlimited custom specialists on demand.
+const DEMO_SYSTEM_PROMPT = `You are the intent parser for AskAlf — an AI workforce platform where Alf is the master intelligence that composes the right team for ANY task.
+
+AskAlf is NOT just for software. It handles marketing, support, e-commerce, research, legal, operations, finance — any industry. Alf spawns purpose-built specialists on demand.
 
 Given a user's task request, respond with JSON only:
 {
-  "category": "dev|security|monitor|deploy|docs|frontend|testing|custom",
+  "category": "research|security|monitor|build|analyze|automate|operations|custom",
   "agents": [
-    { "name": "Agent Name", "role": "What this agent would do", "custom": false }
+    { "name": "Worker Name", "role": "What this worker would do", "custom": true }
   ],
   "summary": "One sentence explaining the routing decision"
 }
 
-CORE AGENTS (always available):
-- Backend Dev: API routes, database, server logic, bug fixes, migrations
-- Frontend Dev: React components, UI, CSS, dashboard features
-- QA: Tests, validation, quality assurance, coverage
-- Infra: Docker, deploys, infrastructure, Kubernetes, CI/CD
-- Security: Vulnerability scanning, dependency audits, secret detection, CVEs
-- Watchdog: Health checks, monitoring, incident detection, performance
-- Writer: Documentation, changelogs, runbooks, technical writing
-
-CUSTOM SPECIALISTS: For ANY task outside basic web dev and infra, spin up a custom specialist. Set "custom": true and give it a precise name that describes the expertise: "O365 Migration Engineer", "Data Pipeline Architect", "HIPAA Compliance Auditor", "ML Ops Specialist", "Salesforce Integration Dev", "Terraform Specialist", "iOS Build Engineer", etc.
-
-Custom agents are created on the fly with the exact tools, system prompt, and domain knowledge needed for the job. They're first-class agents — they can create tickets, store memories, and coordinate with core agents.
+HOW IT WORKS:
+- Alf analyzes the request and creates the RIGHT specialist(s) for the job
+- Each specialist gets a precise name: "Competitor Researcher", "Invoice Monitor", "SEO Analyst", "Security Scanner", "Content Writer", "Customer Support Agent", "Data Pipeline Builder", etc.
+- Specialists are first-class workers — they use tools, store memories, create tickets, and coordinate with each other
+- Workers are spawned on demand with the exact system prompt and domain knowledge needed
 
 Rules:
-- Assign 1-4 agents maximum
-- First agent is the PRIMARY handler
-- PREFER custom specialists for domain-specific tasks — they're purpose-built
-- Only use core agents (Backend Dev, Frontend Dev, QA, etc.) for generic web dev, testing, monitoring, or documentation tasks
-- Core agents are best for tasks involving the AskAlf platform itself
-- Be specific about what each agent would do — include the domain expertise
-- Keep summary under 20 words`;
+- Assign 1-4 workers maximum
+- First worker is the PRIMARY handler
+- Give each worker a specific, descriptive name that reflects the DOMAIN expertise
+- Be specific about what each worker would do — include the domain expertise
+- Keep summary under 20 words
+- NEVER use generic names like "Agent 1" — always use descriptive role names`;
 
-const agents: Record<string, string> = {
-  'Backend Dev': '#60a5fa',
-  'Frontend Dev': '#a78bfa',
-  'QA': '#34d399',
-  'Infra': '#fb923c',
-  'Security': '#f87171',
-  'Watchdog': '#2dd4bf',
-  'Writer': '#e879f9',
-};
+// No hardcoded agent color map — colors are assigned dynamically on the frontend
 
 export async function publicIntentRoutes(app: FastifyInstance): Promise<void> {
   // Only enable on the hosted instance — not in self-hosted open-source deployments
@@ -163,16 +149,17 @@ export async function publicIntentRoutes(app: FastifyInstance): Promise<void> {
           summary?: string;
         };
 
-        // Map to response format with colors
+        // Map to response format with dynamic colors
+        const PALETTE = ['#60a5fa', '#a78bfa', '#34d399', '#fb923c', '#f87171', '#e879f9', '#2dd4bf', '#3b82f6'];
         const result = {
           enhanced: true,
-          category: parsed.category || 'dev',
+          category: parsed.category || 'operations',
           summary: parsed.summary || '',
           agents: (parsed.agents || []).map((a, i) => ({
             name: a.name,
-            custom: a.custom || !agents[a.name],
+            custom: a.custom ?? true,
             role: a.role,
-            color: agents[a.name] || '#94a3b8',
+            color: PALETTE[i % PALETTE.length],
             primary: i === 0,
           })),
         };
@@ -189,7 +176,7 @@ function keywordFallback(message: string): {
   enhanced: boolean;
   category: string;
   summary: string;
-  agents: Array<{ name: string; role: string; color: string; primary: boolean }>;
+  agents: Array<{ name: string; role: string; color: string; primary: boolean; custom: boolean }>;
 } {
   const msg = message.toLowerCase();
 
@@ -198,14 +185,15 @@ function keywordFallback(message: string): {
     category: string;
     agents: Array<{ name: string; role: string }>;
   }> = [
-    { kw: ['security', 'vuln', 'cve', 'scan', 'audit', 'secret', 'leak'], category: 'security', agents: [{ name: 'Security', role: 'Run vulnerability scan' }] },
-    { kw: ['monitor', 'health', 'alert', 'down', 'slow', 'memory', 'cpu', 'redis'], category: 'monitor', agents: [{ name: 'Watchdog', role: 'Run diagnostics' }, { name: 'Infra', role: 'Apply fix if needed' }] },
-    { kw: ['deploy', 'ship', 'release', 'push', 'production'], category: 'deploy', agents: [{ name: 'Infra', role: 'Run deploy pipeline' }] },
-    { kw: ['doc', 'readme', 'changelog', 'write', 'blog'], category: 'docs', agents: [{ name: 'Writer', role: 'Draft documentation' }] },
-    { kw: ['ui', 'frontend', 'css', 'style', 'component', 'page', 'button', 'modal'], category: 'frontend', agents: [{ name: 'Frontend Dev', role: 'Build UI component' }] },
-    { kw: ['test', 'coverage', 'validate', 'spec', 'regression'], category: 'testing', agents: [{ name: 'QA', role: 'Write and run tests' }] },
-    { kw: ['api', 'route', 'endpoint', 'database', 'query', 'migration'], category: 'dev', agents: [{ name: 'Backend Dev', role: 'Implement backend logic' }] },
-    { kw: ['fix', 'bug', 'error', 'broken', 'crash'], category: 'dev', agents: [{ name: 'Backend Dev', role: 'Trace and fix bug' }, { name: 'QA', role: 'Verify fix' }] },
+    { kw: ['security', 'vuln', 'cve', 'scan', 'audit', 'secret', 'leak'], category: 'security', agents: [{ name: 'Security Scanner', role: 'Run vulnerability scan' }] },
+    { kw: ['monitor', 'health', 'alert', 'down', 'slow', 'memory', 'cpu'], category: 'monitor', agents: [{ name: 'System Monitor', role: 'Run diagnostics' }] },
+    { kw: ['deploy', 'ship', 'release', 'push', 'production'], category: 'operations', agents: [{ name: 'Deploy Manager', role: 'Run deploy pipeline' }] },
+    { kw: ['doc', 'readme', 'changelog', 'write', 'blog', 'content'], category: 'automate', agents: [{ name: 'Content Writer', role: 'Draft content' }] },
+    { kw: ['research', 'competitor', 'market', 'find', 'search', 'seo'], category: 'research', agents: [{ name: 'Researcher', role: 'Investigate and compile findings' }] },
+    { kw: ['support', 'customer', 'ticket', 'help desk'], category: 'operations', agents: [{ name: 'Support Agent', role: 'Handle support request' }] },
+    { kw: ['invoice', 'billing', 'payment', 'accounting'], category: 'operations', agents: [{ name: 'Finance Monitor', role: 'Process financial task' }] },
+    { kw: ['code', 'build', 'develop', 'api', 'database', 'bug', 'fix'], category: 'build', agents: [{ name: 'Builder', role: 'Implement and build' }] },
+    { kw: ['analyze', 'data', 'report', 'metrics', 'trend'], category: 'analyze', agents: [{ name: 'Analyst', role: 'Analyze data and report' }] },
   ];
 
   for (const r of routes) {
@@ -213,16 +201,16 @@ function keywordFallback(message: string): {
       return {
         enhanced: false,
         category: r.category,
-        summary: `Routed to ${r.agents[0]!.name} (keyword match)`,
-        agents: r.agents.map((a, i) => ({ ...a, color: agents[a.name] || '#94a3b8', primary: i === 0 })),
+        summary: `Alf assigns ${r.agents[0]!.name}`,
+        agents: r.agents.map((a, i) => ({ ...a, color: ['#a78bfa', '#60a5fa', '#34d399'][i] ?? '#94a3b8', primary: i === 0, custom: true })),
       };
     }
   }
 
   return {
     enhanced: false,
-    category: 'dev',
-    summary: 'General task — routed to Backend Dev',
-    agents: [{ name: 'Backend Dev', role: 'Analyze request', color: '#60a5fa', primary: true }],
+    category: 'operations',
+    summary: 'Alf assigns a specialist for this task',
+    agents: [{ name: 'Task Specialist', role: 'Analyze and execute request', color: '#a78bfa', primary: true, custom: true }],
   };
 }

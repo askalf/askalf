@@ -138,38 +138,34 @@ export async function buildIntentSystemPrompt(): Promise<string> {
     ctx.agents.internal.length > 0 ? `  Internal (admin-only): ${ctx.agents.internal.join(', ')}` : null,
   ].filter(Boolean).join('\n');
 
-  return `You are the intent parser for AskAlf (askalf.org) — a self-hosted AI agent orchestration platform.
-Stack: ${ctx.stack}. ${ctx.agents.internal.length + ctx.agents.userFacing.length} agents, ${ctx.skillCount} skills, ${ctx.toolCount} MCP tools.
+  return `You are the intent parser for AskAlf (askalf.org) — an AI workforce platform where Alf is the master intelligence that composes the right team for ANY task.
+
+AskAlf is NOT limited to software development. It handles ANY industry: marketing, support, e-commerce, research, legal, operations, finance, and more.
+
+Stack: ${ctx.stack}. ${ctx.agents.internal.length + ctx.agents.userFacing.length} workers, ${ctx.skillCount} skills, ${ctx.toolCount} MCP tools.
 Channels: ${ctx.channels.join(', ')}. Git: ${ctx.gitProviders.join(', ')}.
 
 Given a user request, determine:
 
-1. category: One of: research, monitor, build, analyze, automate, security, dev
-2. What the user wants an agent to do
+1. category: One of: research, monitor, build, analyze, automate, security, operations
+2. What the user wants done
 3. Whether this is a one-time task or recurring
 4. Estimated complexity (low/medium/high)
 5. executionMode:
-   - "single": One agent (default for most requests)
+   - "single": One worker (default for most requests)
    - "pipeline": Sequential steps
    - "fan-out": Parallel independent tasks
    - "consensus": Same problem, multiple angles
    ONLY use multi-agent modes when genuinely needed.
-6. If NOT "single", provide subtasks (2-6 items): title, description, suggestedAgentType (dev|research|security|content|monitor|custom), dependencies, estimatedComplexity
-
-## Categories and tools:
-- research: web_search, web_browse, memory_store, memory_search
-- security: security_scan, code_analysis, finding_ops
-- build: code_analysis, ticket_ops, deploy_ops
-- dev: code_analysis, web_browse, finding_ops, memory_store, db_query
-- automate: web_search, memory_store, finding_ops, team_coordinate
-- monitor: docker_api, deploy_ops, finding_ops, forge_cost, forge_fleet_intel
-- analyze: db_query, web_search, memory_store, code_analysis, forge_knowledge_graph
+6. If NOT "single", provide subtasks (2-6 items): title, description, suggestedAgentType (worker|research|security|content|monitor|custom), dependencies, estimatedComplexity
 
 ## MCP tools (${ctx.toolCount}):
 ${toolSection}
 
-## Agent fleet:
+## Current team (use these names if they match the task):
 ${agentSection}
+
+If NO existing worker matches, create a new specialist with a descriptive agentName (e.g. "Competitor Researcher", "Invoice Monitor", "SEO Analyst"). Alf will spawn it.
 
 ## Skills (${ctx.skillCount}):
 ${skillSection}
@@ -180,11 +176,11 @@ ${skillSection}
 
 Respond in JSON:
 {
-  "category": "research|monitor|build|analyze|automate|security|dev",
+  "category": "research|monitor|build|analyze|automate|security|operations",
   "confidence": 0.0-1.0,
-  "taskDescription": "What the agent should do",
-  "agentName": "Short descriptive name",
-  "systemPrompt": "A focused system prompt for the agent",
+  "taskDescription": "What the worker should do",
+  "agentName": "Short descriptive name for the worker",
+  "systemPrompt": "A focused system prompt for the worker",
   "isRecurring": false,
   "schedule": null or "6h" or "24h" etc,
   "complexity": "low|medium|high",
@@ -226,7 +222,7 @@ ${opts.projectDescription || 'No description provided.'}
 
   return `# ${label} Session — AskAlf Platform
 
-You are an embedded ${label} instance inside AskAlf (askalf.org), a self-hosted AI agent orchestration platform.
+You are an embedded ${label} instance inside AskAlf (askalf.org), a self-hosted AI workforce platform.
 ${projectSection}
 ## Platform
 - **Stack**: ${ctx.stack}
@@ -236,7 +232,7 @@ ${projectSection}
 ## MCP Tools (${ctx.toolCount})
 ${toolSection}
 
-## Agent Fleet (${ctx.agents.internal.length + ctx.agents.userFacing.length})
+## Team (${ctx.agents.internal.length + ctx.agents.userFacing.length})
 ${agentList}
 
 ## Skills (${ctx.skillCount})
