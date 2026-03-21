@@ -2,7 +2,7 @@
 
 **Tell Alf what you need. Alf builds the team.**
 
-One AI that creates specialized workers for any task — security, operations, research, support, development, whatever your business needs. Alf figures out who to hire, puts them to work, and reports back while you sleep. They learn from every task. They get faster every day.
+One AI that creates specialized workers for any task — marketing, support, e-commerce, research, finance, operations, personal productivity, development, whatever you need. Alf figures out who to hire, puts them to work, and reports back while you sleep. They learn from every task. They get faster every day.
 
 Other tools give you a chatbot. AskAlf gives you a workforce.
 
@@ -16,7 +16,7 @@ Other tools give you a chatbot. AskAlf gives you a workforce.
 curl -fsSL https://get.askalf.org | bash
 ```
 
-That's it. Checks prerequisites, generates secrets, pulls images, and starts your fleet at `http://localhost:3001`.
+That's it. Checks prerequisites, generates secrets, pulls images, and starts your team at `http://localhost:3001`.
 
 Runs on **Linux, macOS, and Windows WSL2** — anything with Docker.
 
@@ -62,11 +62,21 @@ Tell Alf what you need. Alf creates the right specialist — for any industry, a
 4. The specialist executes with the right tools, system prompt, and domain knowledge
 5. Results are stored in memory — next time is faster
 
-### Any Industry
+### Any Industry. Any Task. Personal Too.
 
-*Competitor Researcher · SEO Analyst · Customer Support Agent · Invoice Monitor · Content Writer · Security Scanner · Data Analyst · Compliance Auditor · Social Media Monitor · Review Responder · Report Generator · and any specialist you need*
+*Competitor Researcher · SEO Analyst · Customer Support Agent · Invoice Monitor · Content Writer · Security Scanner · Data Analyst · Compliance Auditor · Social Media Monitor · Review Responder · Report Generator · Meal Planner · Travel Researcher · Habit Tracker · Budget Coach · Pet Care Scheduler · and any specialist you need*
 
-Workers are first-class — they create tickets, store memories, learn from experience, and coordinate with each other.
+109 built-in templates across 16 categories. Workers are first-class — they create tickets, store memories, learn from experience, and coordinate with each other.
+
+### Community Skills Library
+
+Browse, share, and install worker templates from the community:
+
+- **Submit** your custom templates to the public library
+- **Install** community-created skills with one click
+- **Rate** and review templates to surface the best ones
+- **Import/Export** skill bundles as JSON — share entire packs with your team
+- **Alf-curated** featured skills reviewed and approved by the platform
 
 ---
 
@@ -82,7 +92,7 @@ Full Claude Code and OpenAI Codex terminal sessions **embedded directly in the d
 
 ## The Brain — 10-Layer Cognitive Memory
 
-Every fix, every failure, every deployment is stored in a cognitive memory system that grows with every execution.
+Every task, every outcome, every interaction is stored in a cognitive memory system that grows with every execution.
 
 - **Semantic Memory** — Facts, concepts, system architecture (pgvector embeddings)
 - **Episodic Memory** — What happened, what worked, what failed
@@ -90,7 +100,7 @@ Every fix, every failure, every deployment is stored in a cognitive memory syste
 - **Knowledge Graph** — 1,500+ nodes with automatic cross-agent connection discovery
 - **Metabolic Consolidation** — Overnight cycles that strengthen useful memories and decay noise
 
-The 10th deploy is faster than the 1st. The 100th security scan knows exactly where to look.
+The 10th task is faster than the 1st. The 100th research report knows exactly where to look.
 
 ---
 
@@ -98,7 +108,7 @@ The 10th deploy is faster than the 1st. The 100th security scan knows exactly wh
 
 ### 12 Device Adapters
 
-Your agents don't just run in the cloud — they control real machines.
+Your workers don't just run in the cloud — they control real machines.
 
 | Category | Devices |
 |----------|---------|
@@ -123,14 +133,14 @@ GitHub · GitLab · Bitbucket · AWS · GCP · Azure · Vercel · Netlify · Rai
 | | AskAlf | OpenClaw | Frameworks (CrewAI, AutoGen, LangGraph) |
 |---|--------|---------|------------------------------------------|
 | **Multi-specialist teams** | Unlimited, built on demand | Single agent | You build it |
-| **Dashboard** | Mission control with fleet viz | CLI/chat only | You build it |
+| **Dashboard** | Mission control + Alf chat | CLI/chat only | You build it |
 | **Memory** | 10-layer cognitive brain with pgvector | 24h context window | You build it |
 | **Deployment** | `curl \| bash`, 60 seconds | `npm install -g` | You build it |
 | **Orchestration** | Autonomous ticket dispatch | Reactive only | You build it |
 | **Security** | AES-256, sandboxed, VPN, audited | 512 vulnerabilities found | You build it |
 | **Cost tracking** | Per-agent budgets + audit log | Token estimates | You build it |
 | **Channels** | 16 built in (inc. OpenClaw) | 19 chat platforms | You build it |
-| **Marketplace** | MCP tools + skill templates | ClawHub skills | You build it |
+| **Marketplace** | 109 templates + community library | ClawHub skills | You build it |
 | **AI terminals** | Embedded Claude CLI + Codex | Not available | Not available |
 | **VPN tunneling** | Built-in Gluetun + Proton VPN | Not available | Not available |
 | **Auto-recovery** | Autoheal container self-healing | Not available | Not available |
@@ -142,8 +152,8 @@ GitHub · GitLab · Bitbucket · AWS · GCP · Azure · Vercel · Netlify · Rai
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    Dashboard                         │
-│     Mission Control · Claude CLI · Codex CLI         │
-│      Fleet · Ops · Brain · Builder · Live            │
+│     Ask Alf · Mission Control · Claude CLI · Codex    │
+│      Team · Ops · Live · Brain · Workspace           │
 ├───────────────┬───────────────┬──────────────────────┤
 │     Forge     │   MCP Tools   │      SearXNG         │
 │   API Server  │  Agent Tools  │    Web Search        │
@@ -177,16 +187,13 @@ docker compose -f docker-compose.selfhosted.yml --profile vpn up -d
 
 Supports 30+ providers — ProtonVPN, Mullvad, NordVPN, Surfshark, and [more](https://github.com/qdm12/gluetun-wiki/tree/main/setup/providers). Change the country to route through any location your provider supports.
 
-## Marketplace
+## Marketplace & Community
 
-Browse, install, and publish tools and skills from the community marketplace — built into the dashboard.
+Two ecosystems built into the dashboard:
 
-- **26 built-in MCP tools** — tickets, findings, Docker, deploy, security scan, code analysis, knowledge graph, fleet intel, and more
-- **Community packages** — publish your own tools and skill templates
-- **One-click install** — add tools to your agents directly from the marketplace
-- **Ratings and reviews** — community-driven quality signals
+**MCP Tool Marketplace** — 26 built-in tools (tickets, findings, Docker, deploy, security scan, code analysis, knowledge graph, and more). Install community-published tools with one click.
 
-Visit `/command-center/marketplace` in your dashboard.
+**Community Skills Library** — 109 built-in templates across 16 categories (Personal, Marketing, Support, E-Commerce, Content, Finance, Legal, HR, Operations, Research, and more). Submit your own skills, browse community submissions, import/export bundles, and install Alf-curated featured templates.
 
 ---
 

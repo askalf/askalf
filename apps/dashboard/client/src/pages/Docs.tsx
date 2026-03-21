@@ -156,17 +156,18 @@ export default function DocsPage() {
 
           <h2>The Dashboard</h2>
           <p>
-            The Command Center is your home base. It has four main tabs:
+            Your home base has these tabs:
           </p>
           <ul>
-            <li><strong>Ask Alf</strong> &mdash; Describe what you need in plain English. Alf figures out who to assign and gets it done.</li>
-            <li><strong>Templates</strong> &mdash; Pre-built task templates for common workflows &mdash; research, monitoring, content, and more. One click to launch.</li>
-            <li><strong>Team</strong> &mdash; See all your workers at a glance. View their status, recent activity, and performance metrics.</li>
-            <li><strong>Costs</strong> &mdash; Track spending across all workers and providers. See costs by worker, by provider, and over time.</li>
+            <li><strong>Ask Alf</strong> &mdash; Chat with Alf + mission control in one view. Ask questions, dispatch tasks, or just say hello.</li>
+            <li><strong>Team</strong> &mdash; See all your workers, browse 109 templates across 16 categories, or create a custom worker.</li>
+            <li><strong>Ops</strong> &mdash; Tickets, costs, executions, timeline, audit log, and revenue tracking.</li>
+            <li><strong>Live</strong> &mdash; Real-time event feed from all workers.</li>
+            <li><strong>Brain</strong> &mdash; Memory browser, knowledge graph, and analytics.</li>
+            <li><strong>Workspace</strong> &mdash; Embedded Claude Code and Codex terminals.</li>
           </ul>
           <p>
-            You also have access to <strong>Executions</strong> (full execution history and logs) and
-            an in-app <strong>Docs</strong> reference.
+            The <strong>Mission Control</strong> tab gives you the full-screen orbital fleet visualization with detailed telemetry.
           </p>
 
           <h2>Key Concepts</h2>
