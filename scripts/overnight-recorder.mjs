@@ -48,16 +48,21 @@ console.log();
 
 async function run() {
   const browser = await puppeteer.launch({
-    headless: 'new',
+    headless: true,
     defaultViewport: { width: 1920, height: 1080 },
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    timeout: 60000,
+    protocolTimeout: 60000,
   });
 
   const page = await browser.newPage();
 
   // Login if needed — try to access dashboard
   console.log('[Recorder] Navigating to dashboard...');
-  await page.goto(`${DASHBOARD_URL}/command-center/overview`, { waitUntil: 'networkidle2', timeout: 30000 });
+  await page.goto(`${DASHBOARD_URL}/command-center/overview`, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {
+    console.log('[Recorder] Initial navigation slow — retrying...');
+    return page.goto(`${DASHBOARD_URL}/command-center/overview`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  });
 
   // Check if we got redirected to login
   const url = page.url();
@@ -89,8 +94,8 @@ async function run() {
 
     try {
       // Navigate to tab
-      await page.goto(`${DASHBOARD_URL}${tab.path}`, { waitUntil: 'networkidle2', timeout: 15000 });
-      await new Promise(r => setTimeout(r, 2000)); // let animations settle
+      await page.goto(`${DASHBOARD_URL}${tab.path}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await new Promise(r => setTimeout(r, 3000)); // let animations and data load
 
       // Take screenshot
       await page.screenshot({
