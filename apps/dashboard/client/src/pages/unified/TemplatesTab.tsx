@@ -272,6 +272,22 @@ export default function TemplatesTab({
     setTimeout(() => setRunMessage(null), 4000);
   }, []);
 
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 24;
+
+  const filteredTemplates = templates.filter(t => {
+    if (filter !== 'all' && t.category !== filter) return false;
+    if (search && !t.name.toLowerCase().includes(search.toLowerCase()) &&
+        !t.description.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  // Reset page when filter/search changes
+  useEffect(() => { setPage(0); }, [filter, search]);
+
+  const totalPages = Math.ceil(filteredTemplates.length / PAGE_SIZE);
+  const pagedTemplates = filteredTemplates.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   const handleExport = useCallback((scope: 'all' | 'filtered') => {
     const source = scope === 'filtered' ? filteredTemplates : templates;
     const exportData = source.map(t => ({
@@ -335,22 +351,6 @@ export default function TemplatesTab({
     setTimeout(() => setRunMessage(null), 4000);
     if (importRef.current) importRef.current.value = '';
   }, []);
-
-  const [page, setPage] = useState(0);
-  const PAGE_SIZE = 24;
-
-  const filteredTemplates = templates.filter(t => {
-    if (filter !== 'all' && t.category !== filter) return false;
-    if (search && !t.name.toLowerCase().includes(search.toLowerCase()) &&
-        !t.description.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
-
-  // Reset page when filter/search changes
-  useEffect(() => { setPage(0); }, [filter, search]);
-
-  const totalPages = Math.ceil(filteredTemplates.length / PAGE_SIZE);
-  const pagedTemplates = filteredTemplates.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const categoryKeys = Object.keys(categories);
 
