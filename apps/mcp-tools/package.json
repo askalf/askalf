@@ -14,7 +14,7 @@
     "@askalf/db": "workspace:*",
     "express": "^5.1.0",
     "cors": "^2.8.6",
-    "openai": "^4.77.0",
+    "openai": "^6.32.0",
     "@askalf/observability": "workspace:*"
   },
   "devDependencies": {
