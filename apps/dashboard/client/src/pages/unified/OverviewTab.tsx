@@ -576,12 +576,24 @@ function AlfGreeting({
   onNavigate?: (tab: string) => void;
 }) {
   const [briefing, setBriefing] = useState<BriefingData | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [phase, setPhase] = useState<'visible' | 'fading' | 'gone'>('visible');
 
   useEffect(() => {
     apiFetchSafe<BriefingData>('/api/v1/admin/briefing/daily')
       .then(d => { if (d) setBriefing(d); })
       .catch(() => {});
+  }, []);
+
+  // Auto-fade after 10 seconds
+  useEffect(() => {
+    const fadeTimer = setTimeout(() => setPhase('fading'), 10000);
+    const goneTimer = setTimeout(() => setPhase('gone'), 11500);
+    return () => { clearTimeout(fadeTimer); clearTimeout(goneTimer); };
+  }, []);
+
+  const dismiss = useCallback(() => {
+    setPhase('fading');
+    setTimeout(() => setPhase('gone'), 500);
   }, []);
 
   const greeting = useMemo(() => {
@@ -594,80 +606,83 @@ function AlfGreeting({
   const statusLine = useMemo(() => {
     const parts: string[] = [];
     if (running.length > 0) {
-      parts.push(`${running.length} worker${running.length > 1 ? 's' : ''} running right now`);
+      parts.push(`${running.length} worker${running.length > 1 ? 's' : ''} active`);
     } else if (activeAgents > 0) {
-      parts.push(`${activeAgents} worker${activeAgents > 1 ? 's' : ''} standing by`);
-    } else {
-      parts.push('All systems idle');
+      parts.push(`${activeAgents} standing by`);
     }
-    if (completed24h > 0) parts.push(`${completed24h} task${completed24h > 1 ? 's' : ''} completed today`);
+    if (completed24h > 0) parts.push(`${completed24h} completed`);
     if (failed24h > 0) parts.push(`${failed24h} failed`);
-    if (openTickets > 0) parts.push(`${openTickets} ticket${openTickets > 1 ? 's' : ''} open`);
+    if (openTickets > 0) parts.push(`${openTickets} open`);
     return parts.join(' · ');
   }, [running, activeAgents, completed24h, failed24h, openTickets]);
 
-  if (dismissed) return null;
+  if (phase === 'gone') return null;
 
   return (
-    <div className="mc-greeting">
-      <button className="mc-greeting-dismiss" onClick={() => setDismissed(true)} title="Dismiss">&times;</button>
-      <div className="mc-greeting-header">
-        <div className="mc-greeting-avatar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="28" height="28">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-          </svg>
-        </div>
-        <div>
-          <h2 className="mc-greeting-title">{greeting}.</h2>
-          <p className="mc-greeting-status">{statusLine}</p>
-        </div>
-      </div>
-
-      {briefing && briefing.summary && (
-        <div className="mc-greeting-briefing">
-          <div className="mc-greeting-briefing-label">OVERNIGHT BRIEFING</div>
-          <p className="mc-greeting-briefing-text">{briefing.summary}</p>
-          {briefing.highlights.length > 0 && (
-            <ul className="mc-greeting-highlights">
-              {briefing.highlights.slice(0, 3).map((h, i) => (
-                <li key={i}>{h}</li>
-              ))}
-            </ul>
-          )}
-          <div className="mc-greeting-briefing-stats">
-            <span>${briefing.cost.total.toFixed(2)} spent</span>
-            <span>{briefing.tickets.resolved} resolved</span>
-            <span>{briefing.tickets.stillOpen} still open</span>
-            {briefing.findings.total > 0 && <span>{briefing.findings.total} findings</span>}
+    <div className={`mc-greeting-overlay ${phase === 'fading' ? 'mc-greeting-fade' : ''}`} onClick={dismiss}>
+      <div className="mc-greeting-card" onClick={e => e.stopPropagation()}>
+        <div className="mc-greeting-header">
+          <div className="mc-greeting-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
           </div>
+          <div>
+            <h2 className="mc-greeting-title">{greeting}.</h2>
+            <p className="mc-greeting-status">{statusLine}</p>
+          </div>
+          <button className="mc-greeting-dismiss" onClick={dismiss}>&times;</button>
         </div>
-      )}
 
-      {running.length > 0 && (
-        <div className="mc-greeting-running">
-          <div className="mc-greeting-briefing-label">WORKING NOW</div>
-          {running.slice(0, 3).map(e => (
-            <span key={e.id} className="mc-greeting-running-item">
-              {e.agent_name || 'Worker'} — {relativeTime(e.started_at)}
-            </span>
-          ))}
+        {briefing && briefing.summary && (
+          <div className="mc-greeting-briefing">
+            <div className="mc-greeting-briefing-label">OVERNIGHT BRIEFING</div>
+            <p className="mc-greeting-briefing-text">{briefing.summary}</p>
+            {briefing.highlights.length > 0 && (
+              <ul className="mc-greeting-highlights">
+                {briefing.highlights.slice(0, 3).map((h, i) => (
+                  <li key={i}>{h}</li>
+                ))}
+              </ul>
+            )}
+            <div className="mc-greeting-briefing-stats">
+              <span>${briefing.cost.total.toFixed(2)} spent</span>
+              <span>{briefing.tickets.resolved} resolved</span>
+              <span>{briefing.tickets.stillOpen} still open</span>
+              {briefing.findings.total > 0 && <span>{briefing.findings.total} findings</span>}
+            </div>
+          </div>
+        )}
+
+        {running.length > 0 && (
+          <div className="mc-greeting-running">
+            <div className="mc-greeting-briefing-label">WORKING NOW</div>
+            {running.slice(0, 3).map(e => (
+              <span key={e.id} className="mc-greeting-running-item">
+                {e.agent_name || 'Worker'} — {relativeTime(e.started_at)}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="mc-greeting-actions">
+          <button className="mc-greeting-action primary" onClick={() => { dismiss(); onNavigate?.('command'); }}>
+            Ask Alf
+          </button>
+          {openTickets > 0 && (
+            <button className="mc-greeting-action" onClick={() => { dismiss(); onNavigate?.('ops'); }}>
+              {openTickets} ticket{openTickets > 1 ? 's' : ''}
+            </button>
+          )}
+          {briefing && (
+            <button className="mc-greeting-action" onClick={() => { dismiss(); onNavigate?.('ops'); }}>
+              Full report
+            </button>
+          )}
+          <button className="mc-greeting-action" onClick={dismiss}>
+            Dismiss
+          </button>
         </div>
-      )}
-
-      <div className="mc-greeting-actions">
-        <button className="mc-greeting-action primary" onClick={() => onNavigate?.('command')}>
-          Ask Alf something
-        </button>
-        {openTickets > 0 && (
-          <button className="mc-greeting-action" onClick={() => onNavigate?.('ops')}>
-            View {openTickets} open ticket{openTickets > 1 ? 's' : ''}
-          </button>
-        )}
-        {briefing && (
-          <button className="mc-greeting-action" onClick={() => onNavigate?.('ops')}>
-            Full report
-          </button>
-        )}
       </div>
     </div>
   );
