@@ -586,7 +586,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
         {/* Agent panel */}
         <div className="fleet-panel">
           <div className="fleet-panel-header">
-            <span className="fleet-section-title">Agents</span>
+            <span className="fleet-section-title">Workers</span>
             <div className="fleet-panel-meta">
               <label className="fleet-toggle-label">
                 <input

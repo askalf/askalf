@@ -33,7 +33,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
         '`/connect` — Import Anthropic OAuth token',
         '`/clear` — Clear conversation',
         '',
-        'Type naturally to dispatch an agent.',
+        'Type naturally to get things done.',
       ].join('\n') };
 
     case 'status':
@@ -49,7 +49,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
         `**System Status**`,
         `Platform: **${health.status.toUpperCase()}**`,
         `Database: ${dbOk ? 'connected' : '**DOWN**'}`,
-        `Agents: ${active}/${agents.agents.length} active`,
+        `Workers: ${active}/${agents.agents.length} active`,
       ];
       if (health.uptime) {
         const h = Math.floor(health.uptime / 3600);
