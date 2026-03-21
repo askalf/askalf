@@ -36,6 +36,7 @@ export interface ChannelOutboundMessage {
 
 export interface ChannelVerifyResult {
   valid: boolean;
+  error?: string;
   challengeResponse?: string | Record<string, unknown>;
 }
 
