@@ -239,10 +239,16 @@ async function handleDockerApi(args: Record<string, unknown>): Promise<string> {
         return JSON.stringify({ error: `Blocked: exec into production container '${container}' is not allowed` });
       }
 
-      const cmdStr = command.join(' ').toLowerCase();
-      const blocked = ['rm -rf /', 'mkfs', 'dd if=/dev', 'shutdown', 'reboot', 'docker restart', 'docker stop', 'docker kill'];
-      for (const b of blocked) {
-        if (cmdStr.includes(b)) return JSON.stringify({ error: `Blocked: dangerous command pattern '${b}'` });
+      const ALLOWED_EXEC_COMMANDS = ['ls', 'cat', 'head', 'tail', 'grep', 'find', 'ps', 'env', 'whoami', 'id', 'df', 'du', 'free', 'uptime', 'date', 'wc', 'echo', 'pwd', 'stat', 'file', 'which', 'printenv', 'hostname', 'uname', 'top', 'htop', 'npm', 'node', 'npx', 'yarn', 'pnpm'];
+      const baseCmd = command[0].replace(/^\/(?:usr\/(?:local\/)?)?(?:s?bin|bin)\//, '');
+      if (!ALLOWED_EXEC_COMMANDS.includes(baseCmd)) {
+        return JSON.stringify({ error: `Blocked: command '${baseCmd}' is not in the allowed list. Allowed: ${ALLOWED_EXEC_COMMANDS.join(', ')}` });
+      }
+
+      for (const arg of command) {
+        if (/[;&|`$()]/.test(arg)) {
+          return JSON.stringify({ error: `Blocked: shell metacharacters are not allowed in command arguments` });
+        }
       }
 
       const createRes = await dockerRequest('POST', `/v1.44/containers/${container}/exec`, { AttachStdout: true, AttachStderr: true, Cmd: command });
