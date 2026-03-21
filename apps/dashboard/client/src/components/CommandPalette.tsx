@@ -51,13 +51,13 @@ function fuzzyScore(query: string, text: string): number {
 // ── Static items ───────────────────────────────────────────────────────────
 
 const TAB_ITEMS = (onNavigate: (tab: string) => void, onClose: () => void): PaletteItem[] => [
-  { id: 'tab:overview',  kind: 'tab', label: 'Overview',  detail: 'System overview & health',       badge: 'Tab', action: () => { onNavigate('overview');  onClose(); } },
-  { id: 'tab:command',   kind: 'tab', label: 'Command',   detail: 'Chat & AI command interface',     badge: 'Tab', action: () => { onNavigate('command');   onClose(); } },
-  { id: 'tab:code',      kind: 'tab', label: 'Code',      detail: 'Terminal & code workspace',       badge: 'Tab', action: () => { onNavigate('code');      onClose(); } },
+  { id: 'tab:home',      kind: 'tab', label: 'Ask Alf',   detail: 'Chat with Alf + mission control', badge: 'Tab', action: () => { onNavigate('home');      onClose(); } },
   { id: 'tab:fleet',     kind: 'tab', label: 'Team',      detail: 'Team management',                 badge: 'Tab', action: () => { onNavigate('fleet');     onClose(); } },
   { id: 'tab:ops',       kind: 'tab', label: 'Ops',       detail: 'Tickets, interventions, costs',   badge: 'Tab', action: () => { onNavigate('ops');       onClose(); } },
   { id: 'tab:live',      kind: 'tab', label: 'Live',      detail: 'Real-time event feed',            badge: 'Tab', action: () => { onNavigate('live');      onClose(); } },
   { id: 'tab:brain',     kind: 'tab', label: 'Brain',     detail: 'Cognitive memory & analytics',    badge: 'Tab', action: () => { onNavigate('brain');     onClose(); } },
+  { id: 'tab:code',      kind: 'tab', label: 'Workspace', detail: 'Terminal & code workspace',       badge: 'Tab', action: () => { onNavigate('code');      onClose(); } },
+  { id: 'tab:overview',  kind: 'tab', label: 'Mission Control', detail: 'Full system overview',      badge: 'Tab', action: () => { onNavigate('overview');  onClose(); } },
   { id: 'tab:settings',  kind: 'tab', label: 'Settings',  detail: 'System configuration',            badge: 'Tab', action: () => { onNavigate('settings');  onClose(); } },
 ];
 
