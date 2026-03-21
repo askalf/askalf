@@ -121,7 +121,7 @@ function TemplateCard({
   const budgetCap = (template.agent_config as Record<string, unknown>)?.maxCostPerExecution;
   const budgetLabel = typeof budgetCap === 'number' ? `$${budgetCap.toFixed(2)} cap` : null;
   const model = (template.agent_config as Record<string, unknown>)?.model as string | undefined;
-  const modelShort = model?.replace('claude-', '').replace('gpt-', '').split('-').slice(0, 2).join('-') ?? null;
+  const modelShort = model ?? null;
   const catColor = CATEGORY_COLORS[template.category] ?? '#666';
   const catIcon = CATEGORY_ICONS[template.category] ?? '\u{2B22}';
 
@@ -234,6 +234,7 @@ export default function TemplatesTab({
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [runMessage, setRunMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -271,12 +272,85 @@ export default function TemplatesTab({
     setTimeout(() => setRunMessage(null), 4000);
   }, []);
 
+  const handleExport = useCallback((scope: 'all' | 'filtered') => {
+    const source = scope === 'filtered' ? filteredTemplates : templates;
+    const exportData = source.map(t => ({
+      name: t.name,
+      slug: t.slug,
+      category: t.category,
+      description: t.description,
+      icon: t.icon,
+      agent_config: t.agent_config,
+      schedule_config: t.schedule_config,
+      estimated_cost_per_run: t.estimated_cost_per_run,
+      required_tools: t.required_tools,
+      sort_order: t.sort_order,
+    }));
+    const bundle = {
+      version: 1,
+      type: 'bundle' as const,
+      name: scope === 'filtered' && filter !== 'all' ? `${CATEGORY_LABELS[filter] ?? filter} Bundle` : 'All Templates',
+      exported_at: new Date().toISOString(),
+      templates: exportData,
+    };
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `askalf-${scope === 'filtered' && filter !== 'all' ? filter : 'templates'}-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setRunMessage({ type: 'success', text: `Exported ${exportData.length} templates as bundle` });
+    setTimeout(() => setRunMessage(null), 3000);
+  }, [templates, filteredTemplates, filter]);
+
+  const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as { version?: number; templates?: Record<string, unknown>[] };
+      if (!data.templates?.length) {
+        setRunMessage({ type: 'error', text: 'Invalid file — no templates found' });
+        setTimeout(() => setRunMessage(null), 4000);
+        return;
+      }
+      const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001' : '';
+      const res = await fetch(`${API_BASE}/api/v1/forge/templates/import`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templates: data.templates }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const result = await res.json() as { imported: number };
+      setRunMessage({ type: 'success', text: `Imported ${result.imported} templates` });
+      // Reload
+      const freshData = await hubApi.templates.list();
+      setTemplates(freshData.templates as Template[]);
+      setCategories(freshData.categories as Record<string, Template[]>);
+    } catch (err) {
+      setRunMessage({ type: 'error', text: `Import failed: ${err instanceof Error ? err.message : 'unknown error'}` });
+    }
+    setTimeout(() => setRunMessage(null), 4000);
+    if (importRef.current) importRef.current.value = '';
+  }, []);
+
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 24;
+
   const filteredTemplates = templates.filter(t => {
     if (filter !== 'all' && t.category !== filter) return false;
     if (search && !t.name.toLowerCase().includes(search.toLowerCase()) &&
         !t.description.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  // Reset page when filter/search changes
+  useEffect(() => { setPage(0); }, [filter, search]);
+
+  const totalPages = Math.ceil(filteredTemplates.length / PAGE_SIZE);
+  const pagedTemplates = filteredTemplates.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const categoryKeys = Object.keys(categories);
 
@@ -289,9 +363,23 @@ export default function TemplatesTab({
       <div className="tmpl-header">
         <div className="tmpl-title-row">
           <span className="tmpl-icon">&#x2B22;</span>
-          <h2>Skills</h2>
+          <h2>Templates</h2>
+          <div className="tmpl-header-actions">
+            <button className="tmpl-export-btn" onClick={() => handleExport('all')} title="Export all templates as bundle">
+              Export All
+            </button>
+            {filter !== 'all' && (
+              <button className="tmpl-export-btn" onClick={() => handleExport('filtered')} title={`Export ${CATEGORY_LABELS[filter] ?? filter} templates`}>
+                Export {CATEGORY_LABELS[filter] ?? filter}
+              </button>
+            )}
+            <button className="tmpl-import-btn" onClick={() => importRef.current?.click()} title="Import template bundle (.json)">
+              Import Bundle
+            </button>
+            <input ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+          </div>
         </div>
-        <p>Agent skills — deploy pre-configured capabilities or create your own</p>
+        <p>Pre-built worker templates — run instantly or customize for your needs</p>
       </div>
 
       <div className="tmpl-filters">
@@ -332,13 +420,27 @@ export default function TemplatesTab({
       )}
 
       <div className="tmpl-grid">
-        {filteredTemplates.map(t => (
+        {pagedTemplates.map(t => (
           <TemplateCard key={t.id} template={t} onUse={handleUse} onQuickRun={handleQuickRun} />
         ))}
         {filteredTemplates.length === 0 && (
           <div className="tmpl-empty">No skills match your search</div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="tmpl-pagination">
+          <button className="tmpl-page-btn" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+            &larr; Prev
+          </button>
+          <span className="tmpl-page-info">
+            {page * PAGE_SIZE + 1}&ndash;{Math.min((page + 1) * PAGE_SIZE, filteredTemplates.length)} of {filteredTemplates.length}
+          </span>
+          <button className="tmpl-page-btn" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+            Next &rarr;
+          </button>
+        </div>
+      )}
     </div>
   );
 }
