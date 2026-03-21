@@ -126,7 +126,7 @@ GitHub · GitLab · Bitbucket · AWS · GCP · Azure · Vercel · Netlify · Rai
 
 | | AskAlf | OpenClaw | Frameworks (CrewAI, AutoGen, LangGraph) |
 |---|--------|---------|------------------------------------------|
-| **Multi-agent fleet** | 7 core + unlimited custom | Single agent | You build it |
+| **Multi-specialist teams** | Unlimited, built on demand | Single agent | You build it |
 | **Dashboard** | Mission control with fleet viz | CLI/chat only | You build it |
 | **Memory** | 10-layer cognitive brain with pgvector | 24h context window | You build it |
 | **Deployment** | `curl \| bash`, 60 seconds | `npm install -g` | You build it |
