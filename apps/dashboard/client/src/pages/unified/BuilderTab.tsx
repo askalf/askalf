@@ -830,7 +830,7 @@ function ReviewStep({
         onClick={onSubmit}
         disabled={submitting || !config.name.trim()}
       >
-        {submitting ? 'Creating...' : 'Create Agent'}
+        {submitting ? 'Creating...' : 'Create Worker'}
       </button>
     </div>
   );
