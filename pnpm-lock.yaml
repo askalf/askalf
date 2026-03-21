@@ -51,6 +51,27 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
 
+  apps/admin-console:
+    dependencies:
+      '@fastify/cookie':
+        specifier: ^11.0.1
+        version: 11.0.2
+      '@fastify/cors':
+        specifier: ^10.0.0
+        version: 10.1.0
+      '@fastify/websocket':
+        specifier: ^11.2.0
+        version: 11.2.0
+      fastify:
+        specifier: '>=5.8.1'
+        version: 5.8.2
+      node-pty:
+        specifier: ^1.0.0
+        version: 1.1.0
+      pg:
+        specifier: ^8.13.1
+        version: 8.20.0
+
   apps/dashboard:
     dependencies:
       '@askalf/auth':
@@ -3937,14 +3958,6 @@ snapshots:
     optionalDependencies:
       vite: 5.4.21(@types/node@20.19.27)
 
-  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@25.5.0))':
-    dependencies:
-      '@vitest/spy': 2.1.9
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 5.4.21(@types/node@25.5.0)
-
   '@vitest/pretty-format@2.1.9':
     dependencies:
       tinyrainbow: 1.2.0
@@ -5509,7 +5522,7 @@ snapshots:
   vitest@2.1.9(@types/node@25.5.0)(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@25.5.0))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@20.19.27))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
