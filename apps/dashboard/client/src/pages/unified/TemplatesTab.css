@@ -449,3 +449,73 @@
     padding: var(--space-md, 1rem);
   }
 }
+
+/* Pagination */
+.tmpl-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border, rgba(255,255,255,0.06));
+}
+
+.tmpl-page-btn {
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(124, 58, 237, 0.08);
+  color: #a78bfa;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tmpl-page-btn:hover:not(:disabled) {
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.35);
+}
+
+.tmpl-page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tmpl-page-info {
+  font-size: 0.78rem;
+  color: var(--text-muted, #64748b);
+  font-family: var(--font-mono, monospace);
+}
+
+/* Header actions */
+.tmpl-header-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.tmpl-export-btn, .tmpl-import-btn {
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(124, 58, 237, 0.06);
+  color: #a78bfa;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tmpl-export-btn:hover, .tmpl-import-btn:hover {
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.35);
+}
+
+.tmpl-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}

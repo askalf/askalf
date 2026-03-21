@@ -75,8 +75,10 @@ interface TemplateItem {
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
-  research: '\u{1F50D}', security: '\u{1F6E1}', build: '\u{1F528}', automate: '\u{2699}',
-  monitor: '\u{1F4E1}', analyze: '\u{1F4CA}', dev: '\u{1F4BB}', content: '\u{270F}',
+  personal: '\u{1F3E0}', content: '\u{270F}', marketing: '\u{1F4E3}', support: '\u{1F3E7}',
+  ecommerce: '\u{1F6D2}', finance: '\u{1F4B0}', operations: '\u{1F3ED}', hr: '\u{1F465}',
+  legal: '\u{2696}', research: '\u{1F50D}', analyze: '\u{1F4CA}', automate: '\u{2699}',
+  monitor: '\u{1F4E1}', build: '\u{1F528}', dev: '\u{1F4BB}', security: '\u{1F6E1}',
 };
 
 function TemplatePickerStep({ onSelect, onSkip }: { onSelect: (tmpl: Record<string, unknown>) => void; onSkip: () => void }) {
@@ -210,7 +212,7 @@ function ConfigureStep({
   return (
     <div className="builder-form">
       <label className="builder-field">
-        <span>Agent Name</span>
+        <span>Worker Name</span>
         <input
           type="text"
           value={config.name}
@@ -224,7 +226,7 @@ function ConfigureStep({
           type="text"
           value={config.description}
           onChange={e => onChange({ description: e.target.value })}
-          placeholder="What does this agent do?"
+          placeholder="What does this worker do?"
         />
       </label>
       <label className="builder-field">
@@ -241,7 +243,7 @@ function ConfigureStep({
         <textarea
           value={config.systemPrompt}
           onChange={e => onChange({ systemPrompt: e.target.value })}
-          placeholder="Instructions for the agent..."
+          placeholder="Instructions for the worker..."
           rows={8}
         />
       </label>
