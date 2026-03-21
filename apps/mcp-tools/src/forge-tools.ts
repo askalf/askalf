@@ -273,7 +273,7 @@ async function handleCheckpoints(args: Record<string, unknown>): Promise<string>
     }
     case 'get': {
       if (!args['checkpoint_id']) return JSON.stringify({ error: 'checkpoint_id is required' });
-      const result = await forgeAdmin(`/checkpoints/${args['checkpoint_id']}`);
+      const result = await forgeAdmin(`/checkpoints/${encodeURIComponent(String(args['checkpoint_id']))}`);
       return JSON.stringify(result);
     }
     case 'respond': {
@@ -281,7 +281,7 @@ async function handleCheckpoints(args: Record<string, unknown>): Promise<string>
       const body: Record<string, unknown> = {};
       if (args['response']) body['response'] = args['response'];
       if (args['status']) body['status'] = args['status'];
-      const result = await forgeAdmin(`/checkpoints/${args['checkpoint_id']}/respond`, { method: 'POST', body });
+      const result = await forgeAdmin(`/checkpoints/${encodeURIComponent(String(args['checkpoint_id']))}/respond`, { method: 'POST', body });
       return JSON.stringify(result);
     }
     default:
@@ -310,7 +310,7 @@ async function handleCapabilities(args: Record<string, unknown>): Promise<string
     }
     case 'agent_profile': {
       if (!args['agent_id']) return JSON.stringify({ error: 'agent_id is required' });
-      const result = await forgeAdmin(`/agents/${args['agent_id']}/capabilities`);
+      const result = await forgeAdmin(`/agents/${encodeURIComponent(String(args['agent_id']))}/capabilities`);
       return JSON.stringify(result);
     }
     default:
@@ -329,7 +329,7 @@ async function handleKnowledgeGraph(args: Record<string, unknown>): Promise<stri
   switch (action) {
     case 'traverse': {
       if (!args['node_id']) return JSON.stringify({ error: 'node_id is required' });
-      const result = await forgeAdmin(`/knowledge/nodes/${args['node_id']}/neighborhood`);
+      const result = await forgeAdmin(`/knowledge/nodes/${encodeURIComponent(String(args['node_id']))}/neighborhood`);
       return JSON.stringify(result);
     }
     case 'stats': {
@@ -366,17 +366,17 @@ async function handleGoals(args: Record<string, unknown>): Promise<string> {
     }
     case 'get': {
       if (!args['goal_id']) return JSON.stringify({ error: 'goal_id is required' });
-      const result = await forgeAdmin(`/goals/${args['goal_id']}`);
+      const result = await forgeAdmin(`/goals/${encodeURIComponent(String(args['goal_id']))}`);
       return JSON.stringify(result);
     }
     case 'approve': {
       if (!args['goal_id']) return JSON.stringify({ error: 'goal_id is required' });
-      const result = await forgeAdmin(`/goals/${args['goal_id']}/approve`, { method: 'POST', body: {} });
+      const result = await forgeAdmin(`/goals/${encodeURIComponent(String(args['goal_id']))}/approve`, { method: 'POST', body: {} });
       return JSON.stringify(result);
     }
     case 'reject': {
       if (!args['goal_id']) return JSON.stringify({ error: 'goal_id is required' });
-      const result = await forgeAdmin(`/goals/${args['goal_id']}/reject`, { method: 'POST', body: {} });
+      const result = await forgeAdmin(`/goals/${encodeURIComponent(String(args['goal_id']))}/reject`, { method: 'POST', body: {} });
       return JSON.stringify(result);
     }
     default:
@@ -495,7 +495,7 @@ async function handleCoordination(args: Record<string, unknown>): Promise<string
     }
     case 'get': {
       if (!args['session_id']) return JSON.stringify({ error: 'session_id is required' });
-      const result = await forgeAdmin(`/coordination/sessions/${args['session_id']}`);
+      const result = await forgeAdmin(`/coordination/sessions/${encodeURIComponent(String(args['session_id']))}`);
       return JSON.stringify(result);
     }
     case 'stats': {
@@ -504,7 +504,7 @@ async function handleCoordination(args: Record<string, unknown>): Promise<string
     }
     case 'cancel': {
       if (!args['session_id']) return JSON.stringify({ error: 'session_id is required' });
-      const result = await forgeAdmin(`/coordination/sessions/${args['session_id']}/cancel`, { method: 'POST', body: {} });
+      const result = await forgeAdmin(`/coordination/sessions/${encodeURIComponent(String(args['session_id']))}/cancel`, { method: 'POST', body: {} });
       return JSON.stringify(result);
     }
     default:
