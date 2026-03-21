@@ -37,49 +37,45 @@ docker compose -f docker-compose.selfhosted.yml up -d
 
 You close your laptop at 10:47 PM. Here's what happens next:
 
-- **10:49 PM** — QA catches a regression in your last commit. Creates a ticket.
-- **10:51 PM** — Backend Dev claims it, traces the root cause, writes the fix. *12 minutes after you went to bed.*
-- **11:03 PM** — QA re-runs 42 tests. All pass. Ticket resolved.
+- **10:49 PM** — Your monitor catches a regression. Creates a ticket.
+- **10:51 PM** — A builder claims it, traces the root cause, writes the fix. *12 minutes after you went to bed.*
+- **11:03 PM** — Tests re-run. All pass. Ticket resolved.
 - **11:14 PM** — Security scans 847 dependencies. Finds 2 CVEs. Patches both.
-- **01:15 AM** — Frontend Dev detects an API contract break from the fix. Updates the component.
-- **02:04 AM** — Watchdog flags Redis at 91%. Infra consults the Brain for past fixes. Applies it. Redis drops to 52%.
-- **03:12 AM** — A **Terraform Specialist** is spawned on demand to audit infrastructure drift. Cost: **$0.04**.
-- **04:30 AM** — Writer generates a changelog for your morning standup.
-- **06:47 AM** — Fleet goes quiet. 7 agents, 18 executions, 8 hours. Total cost: **$0.43**.
-- **09:00 AM** — You open your laptop. Everything is done.
+- **01:15 AM** — Another worker detects an API contract break from the fix. Updates it.
+- **02:04 AM** — Monitor flags Redis at 91%. Consults the Brain for past fixes. Applies it. Redis drops to 52%.
+- **03:12 AM** — A **Compliance Auditor** is spawned on demand to check regulatory drift. Cost: **$0.04**.
+- **04:30 AM** — Writer generates a report for your morning briefing.
+- **06:47 AM** — Team goes quiet. 6 workers, 18 executions, 8 hours. Total cost: **$0.43**.
+- **09:00 AM** — You open your laptop. Alf greets you with a briefing. Everything is done.
 
 ---
 
-## The Fleet
+## Your Team
 
-### 7 Core Agents
+Tell Alf what you need. Alf creates the right specialist — for any industry, any task.
 
-| Agent | Role |
-|-------|------|
-| **Backend Dev** | API routes, database, server-side logic, bug fixes |
-| **Frontend Dev** | React components, UI, CSS, dashboard features |
-| **QA** | Tests, validation, regression detection, coverage |
-| **Infra** | Docker, deploys, infrastructure, CI/CD |
-| **Security** | Vulnerability scanning, dependency audits, secret detection |
-| **Watchdog** | Health checks, monitoring, incident detection, alerting |
-| **Writer** | Documentation, changelogs, runbooks, technical writing |
+### How It Works
 
-### Unlimited Custom Specialists
+1. You describe what you need in plain English
+2. Alf figures out what kind of specialist is required
+3. If one exists on your team, Alf assigns them. If not, Alf **creates one**.
+4. The specialist executes with the right tools, system prompt, and domain knowledge
+5. Results are stored in memory — next time is faster
 
-For any task outside generic web dev, AskAlf spawns a **custom specialist** on demand with the exact tools, system prompt, and domain knowledge needed:
+### Any Industry
 
-*Terraform Specialist · ML Ops Engineer · Data Pipeline Architect · HIPAA Compliance Auditor · iOS Build Engineer · Salesforce Integration Dev · K8s Migration Specialist · API Gateway Architect*
+*Competitor Researcher · SEO Analyst · Customer Support Agent · Invoice Monitor · Content Writer · Security Scanner · Data Analyst · Compliance Auditor · Social Media Monitor · Review Responder · Report Generator · and any specialist you need*
 
-Custom agents are first-class — they create tickets, store memories, and coordinate with core agents. They're destroyed when done.
+Workers are first-class — they create tickets, store memories, learn from experience, and coordinate with each other.
 
 ---
 
-## Embedded Claude CLI + OpenAI Codex
+## Workspace — Embedded Terminals
 
-Full Claude Code and OpenAI Codex terminal sessions **embedded directly in the dashboard**. Not wrappers — real PTY sessions via xterm.js with your full codebase available.
+Full Claude Code and OpenAI Codex terminal sessions **embedded directly in the dashboard**. Not wrappers — real PTY sessions via xterm.js with your full project available.
 
-- **Claude Code** — `claude --dangerously-skip-permissions` with MCP tools, your knowledge graph, and agent context
-- **OpenAI Codex** — `codex --full-auto` with dynamic instructions injected from the platform
+- **Claude Code** — with MCP tools, your knowledge graph, and full platform context
+- **OpenAI Codex** — with dynamic instructions injected from the platform
 - Switch between them with a tab. Same toolbar. Same workspace.
 
 ---
