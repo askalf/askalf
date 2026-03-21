@@ -20,6 +20,7 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
       return { text: [
         '**Available Commands**',
         '`/help` — Show this help',
+        '`/briefing` — Daily overnight report',
         '`/status` — System status overview',
         '`/fleet` — Agent fleet overview',
         '`/costs` — Cost summary (30 days)',
@@ -121,6 +122,30 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
       const tab = args.trim() || 'profile';
       onNavigate?.(`settings-${tab}`);
       return { text: `Opening settings: **${tab}**` };
+    }
+
+    case 'briefing':
+    case 'report':
+    case 'overnight': {
+      try {
+        const data = await cmdFetch<{ summary: string; highlights: string[]; cost: { total: number }; tickets: { resolved: number; opened: number; stillOpen: number }; findings: { total: number }; period: { start: string; end: string } }>('/api/v1/admin/briefing/daily');
+        const lines = [
+          `**Daily Briefing**`,
+          `*${new Date(data.period.start).toLocaleDateString()} — ${new Date(data.period.end).toLocaleDateString()}*`,
+          '',
+          data.summary,
+          '',
+          '**Highlights:**',
+          ...data.highlights.map(h => `- ${h}`),
+          '',
+          `**Cost:** $${data.cost.total.toFixed(2)} | **Tickets:** ${data.tickets.resolved} resolved, ${data.tickets.stillOpen} open | **Findings:** ${data.findings.total}`,
+          '',
+          `[Open full report](${API_BASE}/api/v1/admin/briefing/daily/html) | Print or save as PDF from your browser`,
+        ];
+        return { text: lines.join('\n') };
+      } catch {
+        return { text: 'Briefing unavailable — no data in the last 24 hours.' };
+      }
     }
 
     case 'connect': {
@@ -805,7 +830,7 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
                   <span className="chat-sugg-icon">&#x1F6E1;</span>
                   Run a security scan
                 </button>
-                <button onClick={() => handleSend('What happened overnight? Give me a briefing.')}>
+                <button onClick={() => handleSend('/briefing')}>
                   <span className="chat-sugg-icon">&#x1F4CB;</span>
                   Morning briefing
                 </button>
