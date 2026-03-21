@@ -27,6 +27,15 @@ const CATEGORY_LABELS: Record<string, string> = {
   monitor: 'Monitor',
   analyze: 'Analyze',
   dev: 'Development',
+  marketing: 'Marketing',
+  support: 'Support',
+  ecommerce: 'E-Commerce',
+  content: 'Content',
+  finance: 'Finance',
+  legal: 'Legal & Compliance',
+  hr: 'People & HR',
+  operations: 'Operations',
+  personal: 'Personal',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -37,16 +46,34 @@ const CATEGORY_COLORS: Record<string, string> = {
   monitor: '#3b82f6',
   analyze: '#8b5cf6',
   dev: '#14b8a6',
+  marketing: '#ec4899',
+  support: '#06b6d4',
+  ecommerce: '#f97316',
+  content: '#a855f7',
+  finance: '#10b981',
+  legal: '#64748b',
+  hr: '#f43f5e',
+  operations: '#0ea5e9',
+  personal: '#f472b6',
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
-  research: '\u{1F50D}',  // magnifying glass
-  security: '\u{1F6E1}',  // shield
-  build: '\u{1F528}',     // hammer
-  automate: '\u{2699}',   // gear
-  monitor: '\u{1F4CA}',   // bar chart
-  analyze: '\u{1F9EA}',   // test tube
-  dev: '\u{1F4BB}',       // laptop
+  research: '\u{1F50D}',
+  security: '\u{1F6E1}',
+  build: '\u{1F528}',
+  automate: '\u{2699}',
+  monitor: '\u{1F4CA}',
+  analyze: '\u{1F9EA}',
+  dev: '\u{1F4BB}',
+  marketing: '\u{1F4E3}',
+  support: '\u{1F3E7}',
+  ecommerce: '\u{1F6D2}',
+  content: '\u{270F}',
+  finance: '\u{1F4B0}',
+  legal: '\u{2696}',
+  hr: '\u{1F465}',
+  operations: '\u{1F3ED}',
+  personal: '\u{1F3E0}',
 };
 
 const TOOL_LABELS: Record<string, string> = {
