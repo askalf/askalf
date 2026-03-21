@@ -77,16 +77,21 @@ function useClock() {
   return now;
 }
 
-const AGENT_COLORS: Record<string, [number, number, number]> = {
-  'Backend Dev': [96, 165, 250], 'Frontend Dev': [167, 139, 250],
-  'QA': [52, 211, 153], 'Infra': [251, 146, 60],
-  'Security': [248, 113, 113], 'Writer': [232, 121, 249],
-  'Watchdog': [45, 212, 191], 'Alf': [245, 158, 11],
-  'System': [148, 163, 184], 'core_engine': [245, 158, 11],
+// Dynamic color palette — deterministic hash based on agent name
+const COLOR_PALETTE: [number, number, number][] = [
+  [96, 165, 250], [167, 139, 250], [52, 211, 153], [251, 146, 60],
+  [248, 113, 113], [232, 121, 249], [45, 212, 191], [59, 130, 246],
+  [16, 185, 129], [244, 114, 182], [251, 191, 36], [139, 92, 246],
+];
+const SPECIAL_COLORS: Record<string, [number, number, number]> = {
+  'Alf': [245, 158, 11], 'System': [148, 163, 184], 'core_engine': [245, 158, 11],
 };
 
 function agentColor(name: string): [number, number, number] {
-  return AGENT_COLORS[name] || [148, 163, 184];
+  if (SPECIAL_COLORS[name]) return SPECIAL_COLORS[name];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length]!;
 }
 
 function rgba(c: [number, number, number], a: number): string {

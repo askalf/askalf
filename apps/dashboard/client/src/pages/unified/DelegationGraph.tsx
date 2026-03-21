@@ -18,14 +18,22 @@ interface SynapticPulse {
   color: [number, number, number]; size: number;
 }
 
-const AGENT_COLORS: Record<string, [number, number, number]> = {
+// Dynamic color palette — deterministic hash based on agent name
+const COLOR_PALETTE: [number, number, number][] = [
+  [96, 165, 250], [167, 139, 250], [52, 211, 153], [251, 146, 60],
+  [248, 113, 113], [232, 121, 249], [45, 212, 191], [59, 130, 246],
+  [16, 185, 129], [244, 114, 182], [251, 191, 36], [139, 92, 246],
+];
+const SPECIAL_COLORS: Record<string, [number, number, number]> = {
   'Alf': [245, 158, 11], 'System': [245, 158, 11], 'core_engine': [245, 158, 11],
-  'Backend Dev': [96, 165, 250], 'Frontend Dev': [167, 139, 250],
-  'QA': [52, 211, 153], 'Infra': [251, 146, 60],
-  'Security': [248, 113, 113], 'Writer': [232, 121, 249], 'Watchdog': [45, 212, 191],
 };
 const DEFAULT_COLOR: [number, number, number] = [148, 163, 184];
-function agentColor(name: string): [number, number, number] { return AGENT_COLORS[name] || DEFAULT_COLOR; }
+function agentColor(name: string): [number, number, number] {
+  if (SPECIAL_COLORS[name]) return SPECIAL_COLORS[name];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+  return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length] ?? DEFAULT_COLOR;
+}
 function rgba(c: [number, number, number], a: number): string { return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
 function rgb(c: [number, number, number]): string { return `rgb(${c[0]},${c[1]},${c[2]})`; }
 
@@ -364,8 +372,8 @@ export default function DelegationGraph() {
     <div className="deleg-graph">
       <div className="deleg-header">
         <div className="deleg-title">
-          <h2>Agent Delegation Graph</h2>
-          <span className="deleg-subtitle">Ticket flow between agents — node size = involvement</span>
+          <h2>Team Delegation Graph</h2>
+          <span className="deleg-subtitle">Task flow between workers — node size = involvement</span>
         </div>
         <div className="deleg-legend">
           {nodes.map(n => (
