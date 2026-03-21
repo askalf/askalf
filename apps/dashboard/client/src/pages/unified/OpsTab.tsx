@@ -13,8 +13,9 @@ const AuditLog = lazy(() => import('../forge/AuditLog'));
 const CoordinatorTab = lazy(() => import('./CoordinatorTab'));
 const WorkflowBuilder = lazy(() => import('../forge/WorkflowBuilder'));
 const PushPanel = lazy(() => import('../forge/PushPanel'));
+const RevenueDashboard = lazy(() => import('../forge/RevenueDashboard'));
 
-type SubTab = 'tickets' | 'costs' | 'executions' | 'timeline' | 'providers' | 'guardrails' | 'audit' | 'orchestrator' | 'workflows' | 'automation';
+type SubTab = 'tickets' | 'costs' | 'executions' | 'timeline' | 'providers' | 'guardrails' | 'audit' | 'orchestrator' | 'workflows' | 'automation' | 'revenue';
 
 interface OpsTabProps {
   wsEvents?: ForgeEvent[];
@@ -37,6 +38,7 @@ export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
           { key: 'audit', label: 'Audit' },
           { key: 'workflows', label: 'Workflows' },
           { key: 'automation', label: 'Automation' },
+          { key: 'revenue', label: 'Revenue' },
         ]}
         active={sub}
         onChange={(k) => setSub(k as SubTab)}
@@ -56,6 +58,7 @@ export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
             {sub === 'audit' && <AuditLog />}
             {sub === 'workflows' && <WorkflowBuilder />}
             {sub === 'automation' && <PushPanel wsEvents={wsEvents} />}
+            {sub === 'revenue' && <RevenueDashboard />}
           </Suspense>
         </ErrorBoundary>
       </div>
