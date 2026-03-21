@@ -258,11 +258,11 @@ function ConfigureStep({
           <span className="builder-slider-val">{config.autonomyLevel}</span>
         </div>
         <div className="builder-autonomy-desc">
-          {config.autonomyLevel === 1 && <span><strong>Manual</strong> — Agent proposes actions, waits for your approval before doing anything</span>}
-          {config.autonomyLevel === 2 && <span><strong>Guided</strong> — Agent handles routine tasks, asks before anything risky or destructive</span>}
-          {config.autonomyLevel === 3 && <span><strong>Balanced</strong> — Agent works independently on most tasks, checks in on major decisions</span>}
-          {config.autonomyLevel === 4 && <span><strong>Autonomous</strong> — Agent operates freely, only alerts you on errors or cost thresholds</span>}
-          {config.autonomyLevel === 5 && <span><strong>Full Auto</strong> — Agent runs end-to-end without interruption, including deploys and git pushes</span>}
+          {config.autonomyLevel === 1 && <span><strong>Manual</strong> — Proposes actions, waits for your approval before doing anything</span>}
+          {config.autonomyLevel === 2 && <span><strong>Guided</strong> — Handles routine tasks, asks before anything risky</span>}
+          {config.autonomyLevel === 3 && <span><strong>Balanced</strong> — Works independently on most tasks, checks in on major decisions</span>}
+          {config.autonomyLevel === 4 && <span><strong>Autonomous</strong> — Operates freely, only alerts you on errors or cost thresholds</span>}
+          {config.autonomyLevel === 5 && <span><strong>Full Auto</strong> — Runs end-to-end without interruption, handles all actions autonomously</span>}
         </div>
       </label>
     </div>

@@ -31,9 +31,9 @@ type TabKey = 'command' | 'code' | 'overview' | 'fleet' | 'ops' | 'brain' | 'liv
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
-  { key: 'command', label: 'Command' },
+  { key: 'command', label: 'Ask Alf' },
   { key: 'code', label: 'Code' },
-  { key: 'fleet', label: 'Fleet' },
+  { key: 'fleet', label: 'Team' },
   { key: 'ops', label: 'Ops' },
   { key: 'live', label: 'Live' },
   { key: 'brain', label: 'Brain' },
