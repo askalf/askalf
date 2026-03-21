@@ -59,7 +59,7 @@ const TOOL_LABELS: Record<string, string> = {
   ticket_ops: 'Tickets',
   finding_ops: 'Findings',
   intervention_ops: 'Interventions',
-  agent_call: 'Agent Call',
+  agent_call: 'Worker Call',
   docker_api: 'Docker',
   deploy_ops: 'Deploy',
   security_scan: 'Security Scan',
