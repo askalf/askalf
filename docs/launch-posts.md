@@ -8,9 +8,9 @@
 
 **Comment (post immediately after submission):**
 
-I built AskAlf because I was tired of babysitting AI agents one at a time.
+I built AskAlf because I was tired of babysitting one AI agent trying to do everything.
 
-AskAlf is a self-hosted platform with 7 specialized agents (Backend Dev, Frontend Dev, QA, Security, Infra, Watchdog, Writer) that coordinate autonomously. They create investigation tickets, dispatch work to each other, and learn from every execution through a persistent memory system.
+AskAlf is a self-hosted AI workforce. You tell Alf what you need — security scan, competitor research, infrastructure monitoring, customer review tracking — and Alf creates specialized workers, puts them to work, and reports back. They coordinate autonomously, learn from every task, and get faster every day.
 
 What happens overnight: QA catches a regression, Backend Dev writes the fix, QA re-runs tests, Security patches 2 CVEs, Watchdog monitors Redis. Total cost: ~$0.43.
 
