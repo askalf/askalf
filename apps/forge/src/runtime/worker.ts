@@ -1532,6 +1532,7 @@ async function setupCliEnvironment(): Promise<void> {
         'Bash(*)', 'Read(*)', 'Write(*)', 'Edit(*)',
         'Glob(*)', 'Grep(*)', 'WebFetch(*)', 'WebSearch(*)',
         'NotebookEdit(*)', 'Task(*)',
+        'mcp__mcp-tools__*',
       ],
       deny: [],
     },
