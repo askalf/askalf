@@ -1190,6 +1190,116 @@
   min-height: 0;
 }
 
+/* ============================================
+   OpenClaw Theme Overrides
+   ============================================ */
+
+/* Top bar glow - coral instead of violet */
+[data-theme="claw"] .ud-topbar::after {
+  background: linear-gradient(90deg, transparent 5%, rgba(255,92,92,0.12) 30%, rgba(20,184,166,0.08) 70%, transparent 95%);
+}
+
+/* Active tab - coral accent */
+[data-theme="claw"] .ud-tab.active {
+  color: #ff8a8a;
+  border-bottom-color: #ff5c5c;
+  text-shadow: 0 0 16px rgba(255,92,92,0.35);
+}
+
+[data-theme="claw"] .ud-tab.active::after {
+  background: radial-gradient(ellipse at center, rgba(255,92,92,0.25), transparent);
+}
+
+/* Sidebar count badge */
+[data-theme="claw"] .ud-sidebar-count {
+  background: rgba(255, 92, 92, 0.15);
+  color: #ff7070;
+}
+
+/* Agent abbreviation chip */
+[data-theme="claw"] .ud-agent-abbr {
+  background: rgba(255, 92, 92, 0.1);
+  color: #ff7070;
+}
+
+/* Scroll button */
+[data-theme="claw"] .ud-scroll-btn {
+  color: #ff7070;
+}
+
+/* Active project item */
+[data-theme="claw"] .ud-project-item.active {
+  background: rgba(255, 92, 92, 0.15);
+  color: #ff8a8a;
+}
+
+/* Master overlay */
+[data-theme="claw"] .ud-master-overlay {
+  color: #ff7070;
+}
+
+/* Account button */
+[data-theme="claw"] .ud-account-btn {
+  background: rgba(255, 92, 92, 0.15);
+  color: #ff7070;
+  border-color: rgba(255, 92, 92, 0.2);
+}
+
+[data-theme="claw"] .ud-account-btn:hover {
+  border-color: rgba(255, 92, 92, 0.4);
+  background: rgba(255, 92, 92, 0.25);
+}
+
+/* Account role text */
+[data-theme="claw"] .ud-account-role {
+  color: #ff7070;
+}
+
+/* Notification clear button */
+[data-theme="claw"] .ud-notification-clear {
+  color: #ff7070;
+}
+
+[data-theme="claw"] .ud-notification-clear:hover {
+  background: rgba(255, 92, 92, 0.1);
+  border-color: rgba(255, 92, 92, 0.3);
+}
+
+/* Unread notification highlight */
+[data-theme="claw"] .ud-notification-item.ud-notification-unread {
+  background: rgba(255, 92, 92, 0.08);
+}
+
+/* Workspace label in topbar */
+[data-theme="claw"] .ud-topbar-workspace {
+  color: #ff5c5c;
+}
+
+/* Notification dropdown background */
+[data-theme="claw"] .ud-notification-dropdown {
+  background: #161920;
+  border-color: #2e3040;
+}
+
+/* Account dropdown background */
+[data-theme="claw"] .ud-account-dropdown {
+  background: #161920;
+  border-color: #2e3040;
+}
+
+/* Project dropdown background */
+[data-theme="claw"] .ud-project-dropdown {
+  background: #161920;
+  border-color: #2e3040;
+}
+
+/* Heartbeat panel */
+[data-theme="claw"] .hb-panel {
+  background: #0e1015;
+  border-color: #2e3040;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 900px) {

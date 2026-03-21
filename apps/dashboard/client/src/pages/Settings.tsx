@@ -275,6 +275,12 @@ function AppearanceTab() {
               ☀️ Light
             </button>
             <button
+              className={`settings-toggle ${theme === 'claw' ? 'active' : ''}`}
+              onClick={() => setTheme('claw')}
+            >
+              🦀 Claw
+            </button>
+            <button
               className={`settings-toggle ${theme === 'system' ? 'active' : ''}`}
               onClick={() => setTheme('system')}
             >
