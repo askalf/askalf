@@ -327,8 +327,12 @@ services:
     environment:
       SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
       SEARXNG_SECRET: ${SEARXNG_SECRET_KEY}
+      HTTP_PROXY: http://gluetun:8888
+      HTTPS_PROXY: http://gluetun:8888
     depends_on:
       redis:
+        condition: service_healthy
+      gluetun:
         condition: service_healthy
     volumes:
       - ./infrastructure/searxng/settings.yml:/etc/searxng/settings.yml:ro
@@ -373,20 +377,14 @@ services:
   gluetun:
     image: qmcgaw/gluetun:v3.40.0@sha256:2b42bfa046757145a5155acece417b65b4443c8033fb88661a8e9dcf7fda5a00
     container_name: askalf-gluetun
-    profiles:
-      - vpn
     environment:
-      VPN_SERVICE_PROVIDER: ${VPN_SERVICE_PROVIDER:-protonvpn}
-      VPN_TYPE: ${VPN_TYPE:-wireguard}
-      WIREGUARD_PRIVATE_KEY: ${WIREGUARD_PRIVATE_KEY:-}
-      OPENVPN_USER: ${OPENVPN_USER:-}
-      OPENVPN_PASSWORD: ${OPENVPN_PASSWORD:-}
-      SERVER_COUNTRIES: ${VPN_SERVER_COUNTRIES:-Switzerland}
-      # HTTP proxy for other containers to route through
+      VPN_SERVICE_PROVIDER: protonvpn
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${PROTON_WIREGUARD_PRIVATE_KEY}
+      SERVER_COUNTRIES: ${PROTON_SERVER_COUNTRIES:-United States}
       HTTPPROXY: "on"
       HTTPPROXY_LISTENING_ADDRESS: ":8888"
       HTTPPROXY_STEALTH: "on"
-      # DNS over TLS + malware blocking
       BLOCK_MALICIOUS: "on"
       DOT: "on"
       DOT_PROVIDERS: cloudflare
@@ -399,13 +397,13 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     tmpfs:
-      - /tmp/gluetun:uid=1000,gid=1000
+      - /tmp:mode=1777,size=16m
     healthcheck:
       test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
-      interval: 60s
-      timeout: 15s
-      retries: 3
-      start_period: 45s
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - askalf-net
     restart: unless-stopped
