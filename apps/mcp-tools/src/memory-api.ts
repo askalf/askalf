@@ -2660,8 +2660,8 @@ Return ONLY the JSON.`,
 
 // In-memory LRU for hot-path embeddings (avoids Redis roundtrip for repeated text)
 const embeddingLRU = new Map<string, { vec: number[]; ts: number }>();
-const LRU_MAX = 500;
-const LRU_TTL_MS = 3600_000; // 1 hour in-memory
+const LRU_MAX = 1000;
+const LRU_TTL_MS = 14400_000; // 4 hours in-memory — embeddings are deterministic
 
 // Cache hit/miss counters
 const cacheStats = { embedHits: 0, embedMisses: 0, llmHits: 0, llmMisses: 0, contextHits: 0, contextMisses: 0 };
@@ -2730,7 +2730,7 @@ async function embed(text: string): Promise<number[]> {
 
   try {
     const redis = getRedis();
-    await redis.set(cacheKey, JSON.stringify(vec), 'EX', 86400); // 24h TTL (29KB per vector — 7d was filling Redis)
+    await redis.set(cacheKey, JSON.stringify(vec), 'EX', 604800); // 7d TTL — embeddings are deterministic, volatile-lru handles eviction
   } catch { /* Redis write fail — non-fatal */ }
 
   return vec;

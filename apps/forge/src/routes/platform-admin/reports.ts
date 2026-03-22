@@ -99,7 +99,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
     { preHandler: [authMiddleware, requireAdmin] },
     async () => {
       const { getCached } = await import('../../orchestration/event-bus.js');
-      return getCached('reports:metrics', 10, async () => {
+      return getCached('reports:metrics', 30, async () => {
         const [
           agents, executions,
           userCount, activeUsers, newUsers,
@@ -268,7 +268,7 @@ export async function registerReportRoutes(app: FastifyInstance): Promise<void> 
       const hoursNum = Math.min(Math.max(parseInt(hours) || 24, 1), 72);
       const { getCached } = await import('../../orchestration/event-bus.js');
 
-      return getCached(`timeline:${hoursNum}`, 10, async () => {
+      return getCached(`timeline:${hoursNum}`, 30, async () => {
       const executions = await query<Record<string, unknown>>(
         `SELECT
           e.id, e.agent_id, e.status, e.started_at, e.completed_at,
