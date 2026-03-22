@@ -7,7 +7,7 @@ const GraphTab = lazy(() => import('./GraphTab'));
 
 // ── Types ──
 
-type SubTab = 'memory' | 'graph' | 'analytics';
+type SubTab = 'search' | 'teach' | 'browse' | 'graph' | 'analytics';
 
 interface BrainCycle {
   cycle: string;
@@ -247,15 +247,15 @@ function BrainAnalytics() {
           </span>
         </div>
         <div className="brain-card">
-          <span className="brain-card-label">Semantic</span>
+          <span className="brain-card-label">Facts</span>
           <span className="brain-card-value">{stats.semantic.toLocaleString()}</span>
         </div>
         <div className="brain-card">
-          <span className="brain-card-label">Episodic</span>
+          <span className="brain-card-label">Experiences</span>
           <span className="brain-card-value">{stats.episodic.toLocaleString()}</span>
         </div>
         <div className="brain-card">
-          <span className="brain-card-label">Procedural</span>
+          <span className="brain-card-label">Patterns</span>
           <span className="brain-card-value">{stats.procedural.toLocaleString()}</span>
         </div>
       </div>
@@ -287,9 +287,9 @@ function BrainAnalytics() {
           )}
         </div>
         <div className="brain-bar-legend">
-          <span className="brain-legend-item"><span className="brain-legend-dot brain-bar-semantic" /> Semantic</span>
-          <span className="brain-legend-item"><span className="brain-legend-dot brain-bar-episodic" /> Episodic</span>
-          <span className="brain-legend-item"><span className="brain-legend-dot brain-bar-procedural" /> Procedural</span>
+          <span className="brain-legend-item"><span className="brain-legend-dot brain-bar-semantic" /> Facts</span>
+          <span className="brain-legend-item"><span className="brain-legend-dot brain-bar-episodic" /> Experiences</span>
+          <span className="brain-legend-item"><span className="brain-legend-dot brain-bar-procedural" /> Patterns</span>
         </div>
       </div>
 
@@ -322,27 +322,165 @@ function BrainAnalytics() {
   );
 }
 
+// ── Ask Alf's Memory ──
+
+function MemorySearch() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Array<{ content: string; similarity: number; tier: string }>>([]);
+  const [searching, setSearching] = useState(false);
+
+  const handleSearch = useCallback(async () => {
+    if (!query.trim()) return;
+    setSearching(true);
+    try {
+      const res = await fetch('/api/v1/forge/memory/search', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query.trim(), limit: 20 }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { results?: Array<{ content: string; similarity: number; tier: string }> };
+        setResults(data.results ?? []);
+      }
+    } catch { /* ignore */ }
+    setSearching(false);
+  }, [query]);
+
+  const tierLabel = (t: string) => t === 'semantic' ? 'Fact' : t === 'episodic' ? 'Experience' : t === 'procedural' ? 'Pattern' : t;
+
+  return (
+    <div style={{ padding: '1.5rem' }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>What does Alf know?</h3>
+      <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Search Alf's memory in plain English</p>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
+          placeholder="e.g. What do you know about our competitors?"
+          style={{ flex: 1, padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '0.85rem' }}
+        />
+        <button onClick={handleSearch} disabled={searching || !query.trim()}
+          style={{ padding: '10px 20px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+          {searching ? 'Searching...' : 'Search'}
+        </button>
+      </div>
+      {results.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {results.map((r, i) => (
+            <div key={i} style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7c3aed' }}>{tierLabel(r.tier)}</span>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{(r.similarity * 100).toFixed(0)}% match</span>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.5 }}>{r.content}</p>
+            </div>
+          ))}
+        </div>
+      ) : query && !searching ? (
+        <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No memories match that query</p>
+      ) : null}
+    </div>
+  );
+}
+
+// ── Teach Alf ──
+
+function TeachAlf() {
+  const [category, setCategory] = useState('fact');
+  const [content, setContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const handleSave = useCallback(async () => {
+    if (!content.trim()) return;
+    setSaving(true);
+    try {
+      const tier = category === 'fact' ? 'semantic' : category === 'pattern' ? 'procedural' : 'semantic';
+      const res = await fetch('/api/v1/forge/memory/store', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content.trim(), tier, importance: 0.8, source: 'user_taught' }),
+      });
+      if (res.ok) {
+        setMessage('Saved! Alf will remember this.');
+        setContent('');
+        setTimeout(() => setMessage(null), 3000);
+      }
+    } catch { /* ignore */ }
+    setSaving(false);
+  }, [content, category]);
+
+  return (
+    <div style={{ padding: '1.5rem' }}>
+      <h3 style={{ margin: '0 0 4px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>Teach Alf</h3>
+      <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        Add knowledge directly — things Alf should always know about you, your business, or your preferences
+      </p>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        {[
+          { id: 'fact', label: 'Fact', desc: 'Something true about your business' },
+          { id: 'preference', label: 'Preference', desc: 'How you like things done' },
+          { id: 'pattern', label: 'Rule', desc: 'A rule to always follow' },
+        ].map(c => (
+          <button key={c.id} onClick={() => setCategory(c.id)}
+            style={{
+              padding: '8px 16px', fontSize: '0.82rem', fontWeight: 600, borderRadius: '8px', cursor: 'pointer',
+              border: category === c.id ? '1px solid rgba(124,58,237,0.4)' : '1px solid var(--border)',
+              background: category === c.id ? 'rgba(124,58,237,0.12)' : 'var(--surface)',
+              color: category === c.id ? '#a78bfa' : 'var(--text-muted)',
+            }}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={content}
+        onChange={e => setContent(e.target.value)}
+        placeholder={category === 'fact' ? 'e.g. Our company name is Acme Corp. We sell widgets. Our support hours are 9-5 EST.'
+          : category === 'preference' ? 'e.g. Always use formal language in client emails. I prefer bullet points over paragraphs.'
+          : 'e.g. Never contact clients on weekends. Always include pricing in proposals.'}
+        rows={4}
+        style={{ width: '100%', padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit' }}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+        <button onClick={handleSave} disabled={saving || !content.trim()}
+          style={{ padding: '8px 20px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+          {saving ? 'Saving...' : 'Teach Alf'}
+        </button>
+        {message && <span style={{ fontSize: '0.82rem', color: '#10b981' }}>{message}</span>}
+      </div>
+    </div>
+  );
+}
+
 // ── Main BrainTab ──
 
 export default function BrainTab() {
-  const [subTab, setSubTab] = useState<SubTab>('memory');
+  const [subTab, setSubTab] = useState<SubTab>('search');
 
   return (
     <div className="ud-composite-tab brain-container">
       <TabBar
         tabs={[
-          { key: 'memory', label: 'Memory' },
+          { key: 'search', label: 'Ask' },
+          { key: 'teach', label: 'Teach Alf' },
+          { key: 'browse', label: 'Browse' },
           { key: 'graph', label: 'Graph' },
           { key: 'analytics', label: 'Analytics' },
         ]}
         active={subTab}
         onChange={(k) => setSubTab(k as SubTab)}
         className="ud-sub-tabs"
-        ariaLabel="Brain sections"
+        ariaLabel="Memory sections"
       />
       <div className="ud-sub-content brain-content">
         <Suspense fallback={<div className="brain-loading">Loading...</div>}>
-          {subTab === 'memory' && <MemoryBrowserTab />}
+          {subTab === 'search' && <MemorySearch />}
+          {subTab === 'teach' && <TeachAlf />}
+          {subTab === 'browse' && <MemoryBrowserTab />}
           {subTab === 'graph' && <GraphTab />}
           {subTab === 'analytics' && <BrainAnalytics />}
         </Suspense>

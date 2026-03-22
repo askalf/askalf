@@ -19,24 +19,20 @@ import './forge/forge-theme.css';
 // Lazy-load tab panels
 const HomeTab = lazy(() => import('./unified/HomeTab'));
 const TerminalTab = lazy(() => import('./unified/TerminalTab'));
-const OverviewTab = lazy(() => import('./unified/OverviewTab'));
 const FleetHubTab = lazy(() => import('./unified/FleetHubTab'));
 const OpsTab = lazy(() => import('./unified/OpsTab'));
 const BrainTab = lazy(() => import('./unified/BrainTab'));
-const LiveFeedTab = lazy(() => import('./unified/LiveFeedTab'));
 const MarketplaceTab = lazy(() => import('./unified/MarketplaceTab'));
 const Settings = lazy(() => import('./Settings'));
 
-type TabKey = 'home' | 'code' | 'overview' | 'fleet' | 'ops' | 'brain' | 'live' | 'marketplace' | 'settings';
+type TabKey = 'home' | 'code' | 'fleet' | 'ops' | 'brain' | 'marketplace' | 'settings';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'home', label: 'Ask Alf' },
   { key: 'fleet', label: 'Team' },
   { key: 'ops', label: 'Ops' },
-  { key: 'live', label: 'Live' },
-  { key: 'brain', label: 'Brain' },
+  { key: 'brain', label: 'Memory' },
   { key: 'code', label: 'Workspace' },
-  { key: 'overview', label: 'Mission Control' },
   { key: 'marketplace', label: 'Marketplace' },
   { key: 'settings', label: 'Settings' },
 ];
@@ -154,22 +150,6 @@ export default function UnifiedDashboard() {
           <ErrorBoundary inline key="code">
             <Suspense fallback={<div className="ud-loading">Initializing terminal...</div>}>
               <TerminalTab onNavigate={(t) => setActiveTab(t as TabKey)} />
-            </Suspense>
-          </ErrorBoundary>
-        );
-      case 'overview':
-        return (
-          <ErrorBoundary inline key="overview">
-            <Suspense fallback={<div className="ud-loading">Loading Overview...</div>}>
-              <OverviewTab wsEvents={wsEvents} onNavigate={(t) => setActiveTab(t as TabKey)} />
-            </Suspense>
-          </ErrorBoundary>
-        );
-      case 'live':
-        return (
-          <ErrorBoundary inline key="live">
-            <Suspense fallback={<div className="ud-loading">Loading Live Feed...</div>}>
-              <LiveFeedTab wsEvents={wsEvents} />
             </Suspense>
           </ErrorBoundary>
         );

@@ -841,7 +841,7 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
                     return (
                       <div key={e.id} className="mc-running-item">
                         <span className="mc-running-dot" style={{ background: rgba(col, 0.8), boxShadow: `0 0 8px ${rgba(col, 0.4)}` }} />
-                        <span className="mc-running-name">{e.agent_name || 'Agent'}</span>
+                        <span className="mc-running-name">{e.agent_name || 'Worker'}</span>
                         {e.cost != null && e.cost > 0 && (
                           <span className="mc-running-task">${e.cost.toFixed(4)}</span>
                         )}
@@ -867,7 +867,7 @@ export default function OverviewTab({ wsEvents, onNavigate }: OverviewTabProps) 
                 {executions.filter(e => e.status === 'failed').slice(0, 4).map(e => (
                   <button key={e.id} className="mc-fail-item" onClick={() => onNavigate?.('ops')} type="button">
                     <span className="mc-fail-dot" />
-                    <span className="mc-fail-agent">{e.agent_name || 'Agent'}</span>
+                    <span className="mc-fail-agent">{e.agent_name || 'Worker'}</span>
                     <span className="mc-fail-time">{relativeTime(e.started_at)}</span>
                   </button>
                 ))}
