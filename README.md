@@ -140,9 +140,23 @@ Your workers don't just run in the cloud — they control real machines.
 
 Slack · Discord · Telegram · WhatsApp · Teams · **OpenClaw** · REST API · Webhooks · Zapier · n8n · Make · Email · SMS · SendGrid · Twilio · Zoom
 
-### 22 Integration Providers
+### 47 Integration Providers across 13 Categories
 
-GitHub · GitLab · Bitbucket · AWS · GCP · Azure · Vercel · Netlify · Railway · Fly.io · Jira · Linear · Notion · Asana · Datadog · Sentry · PagerDuty · Grafana · Cloudflare · S3 · Supabase · and more
+| Category | Providers |
+|----------|-----------|
+| **Source Control** | GitHub · GitLab · Bitbucket |
+| **Cloud & Hosting** | AWS · GCP · Azure · Vercel · Netlify · Railway · Fly.io · DigitalOcean · Render · Heroku |
+| **Project Management** | Jira · Linear · Notion · Asana · Trello · Monday · ClickUp |
+| **Monitoring & Observability** | Datadog · Sentry · PagerDuty · Grafana · New Relic · Splunk |
+| **CDN & Edge** | Cloudflare · Fastly · Akamai |
+| **Storage & Database** | S3 · Supabase · Firebase · MongoDB Atlas · PlanetScale |
+| **CI/CD** | CircleCI · GitHub Actions · GitLab CI · Jenkins |
+| **Auth & Identity** | Auth0 · Okta · Clerk |
+| **Payments** | Stripe · PayPal |
+| **Analytics** | Mixpanel · Amplitude · PostHog |
+| **CRM** | HubSpot · Salesforce |
+| **Social Media** | Twitter/X · LinkedIn |
+| **AI Providers** | Anthropic · OpenAI |
 
 ---
 
@@ -211,7 +225,7 @@ Supports 30+ providers — ProtonVPN, Mullvad, NordVPN, Surfshark, and [more](ht
 
 Two ecosystems built into the dashboard:
 
-**MCP Tool Marketplace** — 26 built-in tools (tickets, findings, Docker, deploy, security scan, code analysis, knowledge graph, and more). Install community-published tools with one click.
+**MCP Tool Marketplace** — 27 built-in tools (tickets, findings, Docker, deploy, security scan, code analysis, knowledge graph, twitter_ops, and more). Install community-published tools with one click.
 
 **Community Skills Library** — 109 built-in templates across 16 categories (Personal, Marketing, Support, E-Commerce, Content, Finance, Legal, HR, Operations, Research, and more). Submit your own skills, browse community submissions, import/export bundles, and install Alf-curated featured templates.
 
