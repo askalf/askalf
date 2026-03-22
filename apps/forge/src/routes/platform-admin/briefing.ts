@@ -691,8 +691,8 @@ export async function registerBriefingRoutes(app: FastifyInstance): Promise<void
     { preHandler: [authMiddleware, requireAdmin] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const data = await loadBriefingData();
-        return data;
+        const { getCached } = await import('../../orchestration/event-bus.js');
+        return getCached('briefing:daily', 120, () => loadBriefingData());
       } catch (err) {
         app.log.error(err, 'Failed to generate daily briefing');
         return reply.code(500).send({ error: 'Failed to generate daily briefing' });

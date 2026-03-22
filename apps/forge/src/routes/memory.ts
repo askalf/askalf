@@ -293,7 +293,7 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [authMiddleware] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       const { getCached } = await import('../orchestration/event-bus.js');
-      return getCached('fleet:stats', 15, async () => {
+      return getCached('fleet:stats', 30, async () => {
       const [semCount, epiCount, procCount, sem24, epi24, proc24] = await Promise.all([
         queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_semantic_memories`),
         queryOne<{ count: string }>(`SELECT COUNT(*) as count FROM forge_episodic_memories`),
