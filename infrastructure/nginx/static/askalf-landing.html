@@ -532,8 +532,8 @@
   <!-- Interactive Dispatch Simulator -->
   <section class="dispatch-section">
     <div class="sl rv">TRY IT</div>
-    <h2 class="st rv" style="text-align:center">Tell them what you need.<br>They figure out the rest.</h2>
-    <p class="sd rv" style="text-align:center;margin-left:auto;margin-right:auto">The intent parser analyzes your request and routes it to the right agent(s). Type anything.</p>
+    <h2 class="st rv" style="text-align:center">Tell Alf what you need.<br>Alf figures out the rest.</h2>
+    <p class="sd rv" style="text-align:center;margin-left:auto;margin-right:auto">Alf analyzes your request, creates the right specialist(s), and gets to work. Try anything.</p>
 
     <div class="dispatch-box rv">
       <input type="text" class="dispatch-input" id="dispatch-in" placeholder="Type a task and press Enter..." autocomplete="off">
@@ -858,7 +858,7 @@
       </div>
       <div class="faq-item rv">
         <h3>What AI providers does it support?</h3>
-        <p>Anthropic (Claude) and OpenAI for agent execution. OpenAI also handles embeddings. Google AI optional. The intent parser works with Anthropic or in basic keyword mode with no API key at all.</p>
+        <p>Anthropic (Claude) and OpenAI for worker execution. OpenAI also handles embeddings. Google AI optional. Alf's intent parser works with Anthropic or in basic keyword mode without an API key.</p>
       </div>
       <div class="faq-item rv">
         <h3>Can the agents modify production code?</h3>
@@ -1387,7 +1387,7 @@
 
       function renderAgents(agents,enhanced){
         dispatching=true;
-        let html='<div class="dispatch-routing">'+(enhanced?'ENHANCED NL PARSER — ':'')+'ROUTING TO '+agents.length+' AGENT'+(agents.length>1?'S':'')+'</div>';
+        let html='<div class="dispatch-routing">'+(enhanced?'ALF ASSIGNS ':'ROUTING TO ')+agents.length+' WORKER'+(agents.length>1?'S':'')+'</div>';
         agents.forEach((a,i)=>{
           const isCustom=a.custom;
           const color=isCustom?'#f59e0b':a.color||'#94a3b8';
