@@ -45,20 +45,20 @@ docker compose -f docker-compose.selfhosted.yml up -d
 
 ---
 
-## What Happens While You Sleep
+## What Happens While You're Away
 
-You close your laptop at 10:47 PM. Here's what happens next:
+Your team runs 24/7. Here's a real cycle:
 
-- **10:49 PM** — Your monitor catches a regression. Creates a ticket.
-- **10:51 PM** — A builder claims it, traces the root cause, writes the fix. *12 minutes after you went to bed.*
+- **10:49 PM** — A monitor catches a regression. Creates a ticket.
+- **10:51 PM** — A builder claims it, traces the root cause, writes the fix. *12 minutes later.*
 - **11:03 PM** — Tests re-run. All pass. Ticket resolved.
 - **11:14 PM** — Security scans 847 dependencies. Finds 2 CVEs. Patches both.
 - **01:15 AM** — Another worker detects an API contract break from the fix. Updates it.
-- **02:04 AM** — Monitor flags Redis at 91%. Consults the Brain for past fixes. Applies it. Redis drops to 52%.
+- **02:04 AM** — Monitor flags Redis at 91%. Consults memory for past fixes. Applies it. Redis drops to 52%.
 - **03:12 AM** — A **Compliance Auditor** is spawned on demand to check regulatory drift. Cost: **$0.04**.
-- **04:30 AM** — Writer generates a report for your morning briefing.
-- **06:47 AM** — Team goes quiet. 6 workers, 18 executions, 8 hours. Total cost: **$0.43**.
-- **09:00 AM** — You open your laptop. Alf greets you with a briefing. Everything is done.
+- **04:30 AM** — Writer generates a status report.
+- **06:47 AM** — Cycle complete. 6 workers, 18 executions, 8 hours. Total cost: **$0.43**.
+- **Next cycle begins automatically.** Alf briefs you whenever you check in.
 
 ---
 
