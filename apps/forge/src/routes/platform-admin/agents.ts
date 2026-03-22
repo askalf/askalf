@@ -16,7 +16,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
   // List all agents with stats (optimized — SQL aggregation, no full execution rows)
   // In-memory cache to avoid hammering DB on 15s dashboard polls
   let agentsCache: { data: unknown; ts: number } | null = null;
-  const AGENTS_CACHE_TTL = 10_000; // 10s — dashboard polls every 15s
+  const AGENTS_CACHE_TTL = 30_000; // 30s — dashboard polls every 30s
 
   app.get(
     '/api/v1/admin/agents',
