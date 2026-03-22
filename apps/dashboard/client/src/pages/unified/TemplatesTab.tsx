@@ -17,6 +17,12 @@ interface Template {
   required_tools: string[];
   usage_count: number;
   sort_order: number;
+  source?: string;
+  featured?: boolean;
+  downloads?: number;
+  author_name?: string;
+  rating_count?: number;
+  rating_sum?: number;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -157,6 +163,10 @@ function TemplateCard({
       <h3 className="tmpl-card-name">{template.name}</h3>
       <p className="tmpl-card-desc">{template.description}</p>
       <div className="tmpl-card-meta">
+        {template.featured && <span className="tmpl-card-badge tmpl-badge-featured">Featured</span>}
+        {template.source === 'community' && <span className="tmpl-card-badge tmpl-badge-community">Community</span>}
+        {template.source === 'alf' && <span className="tmpl-card-badge tmpl-badge-alf">Alf</span>}
+        {(template.downloads ?? 0) > 0 && <span className="tmpl-card-downloads">{template.downloads} installs</span>}
         {budgetLabel && <span className="tmpl-card-cost">{budgetLabel}</span>}
         {modelShort && <span className="tmpl-card-model">{modelShort}</span>}
         <button
@@ -325,8 +335,15 @@ export default function TemplatesTab({
     if (!file) return;
     try {
       const text = await file.text();
-      const data = JSON.parse(text) as { version?: number; templates?: Record<string, unknown>[] };
-      if (!data.templates?.length) {
+      const raw = JSON.parse(text) as Record<string, unknown>;
+      // Support both single template and bundle format
+      let templatesToImport: Record<string, unknown>[];
+      if (Array.isArray(raw.templates)) {
+        templatesToImport = raw.templates as Record<string, unknown>[];
+      } else if (raw.name && raw.category) {
+        // Single template file
+        templatesToImport = [raw];
+      } else {
         setRunMessage({ type: 'error', text: 'Invalid file — no templates found' });
         setTimeout(() => setRunMessage(null), 4000);
         return;
@@ -336,7 +353,7 @@ export default function TemplatesTab({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templates: data.templates }),
+        body: JSON.stringify({ templates: templatesToImport }),
       });
       if (!res.ok) throw new Error(await res.text());
       const result = await res.json() as { imported: number };
@@ -381,6 +398,25 @@ export default function TemplatesTab({
         </div>
         <p>Pre-built worker templates — run instantly or customize for your needs</p>
       </div>
+
+      {/* Recently Used */}
+      {templates.filter(t => t.usage_count > 0).length > 0 && filter === 'all' && !search && (
+        <div className="tmpl-recent">
+          <div className="tmpl-recent-label">RECENTLY USED</div>
+          <div className="tmpl-recent-row">
+            {templates
+              .filter(t => t.usage_count > 0)
+              .sort((a, b) => b.usage_count - a.usage_count)
+              .slice(0, 5)
+              .map(t => (
+                <button key={t.id} className="tmpl-recent-chip" onClick={() => onUseTemplate?.(t)}>
+                  {CATEGORY_ICONS[t.category] ?? ''} {t.name}
+                  <span className="tmpl-recent-count">{t.usage_count}x</span>
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
 
       <div className="tmpl-filters">
         <input

@@ -184,31 +184,108 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
 
 // ── Sub-components ──
 
-// Simple markdown renderer — handles **bold**, `code`, and \n
+// Markdown renderer — handles **bold**, `inline code`, ```code blocks```, [links](url), - lists, headers
 function renderMarkdown(text: string): React.ReactNode[] {
-  const lines = text.split('\n');
   const result: React.ReactNode[] = [];
+  const lines = text.split('\n');
+  let inCodeBlock = false;
+  let codeBlockLines: string[] = [];
+  let codeBlockLang = '';
 
-  lines.forEach((line, li) => {
-    if (li > 0) result.push(<br key={`br-${li}`} />);
-
-    // Split by **bold** and `code` patterns
-    const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  function renderInline(line: string, keyPrefix: string): React.ReactNode[] {
+    const nodes: React.ReactNode[] = [];
+    // Split by **bold**, `code`, and [text](url) patterns
+    const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
     parts.forEach((part, pi) => {
       if (part.startsWith('**') && part.endsWith('**')) {
-        result.push(<strong key={`${li}-${pi}`}>{part.slice(2, -2)}</strong>);
+        nodes.push(<strong key={`${keyPrefix}-${pi}`}>{part.slice(2, -2)}</strong>);
       } else if (part.startsWith('`') && part.endsWith('`')) {
-        result.push(<code key={`${li}-${pi}`} className="chat-inline-code">{part.slice(1, -1)}</code>);
+        nodes.push(<code key={`${keyPrefix}-${pi}`} className="chat-inline-code">{part.slice(1, -1)}</code>);
+      } else if (part.startsWith('[')) {
+        const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+        if (match) {
+          nodes.push(<a key={`${keyPrefix}-${pi}`} href={match[2]} target="_blank" rel="noopener noreferrer" className="chat-link">{match[1]}</a>);
+        } else {
+          nodes.push(part);
+        }
       } else {
-        result.push(part);
+        nodes.push(part);
       }
     });
+    return nodes;
+  }
+
+  lines.forEach((line, li) => {
+    // Code block toggle
+    if (line.startsWith('```')) {
+      if (inCodeBlock) {
+        result.push(
+          <pre key={`cb-${li}`} className="chat-code-block">
+            <div className="chat-code-lang">{codeBlockLang || 'code'}</div>
+            <code>{codeBlockLines.join('\n')}</code>
+          </pre>
+        );
+        codeBlockLines = [];
+        codeBlockLang = '';
+        inCodeBlock = false;
+      } else {
+        inCodeBlock = true;
+        codeBlockLang = line.slice(3).trim();
+      }
+      return;
+    }
+
+    if (inCodeBlock) {
+      codeBlockLines.push(line);
+      return;
+    }
+
+    // Headers
+    if (line.startsWith('### ')) {
+      result.push(<h4 key={`h-${li}`} className="chat-md-h4">{...renderInline(line.slice(4), `h${li}`)}</h4>);
+      return;
+    }
+    if (line.startsWith('## ')) {
+      result.push(<h3 key={`h-${li}`} className="chat-md-h3">{...renderInline(line.slice(3), `h${li}`)}</h3>);
+      return;
+    }
+
+    // Bullet lists
+    if (line.startsWith('- ') || line.startsWith('* ')) {
+      result.push(<div key={`li-${li}`} className="chat-md-li">{...renderInline(line.slice(2), `li${li}`)}</div>);
+      return;
+    }
+
+    // Numbered lists
+    const numMatch = line.match(/^(\d+)\.\s/);
+    if (numMatch) {
+      result.push(<div key={`ol-${li}`} className="chat-md-li"><span className="chat-md-num">{numMatch[1]}.</span>{...renderInline(line.slice(numMatch[0].length), `ol${li}`)}</div>);
+      return;
+    }
+
+    // Empty line = paragraph break
+    if (line.trim() === '') {
+      result.push(<div key={`br-${li}`} className="chat-md-break" />);
+      return;
+    }
+
+    // Regular text
+    result.push(<div key={`p-${li}`}>{...renderInline(line, `p${li}`)}</div>);
   });
+
+  // Close unclosed code block
+  if (inCodeBlock && codeBlockLines.length > 0) {
+    result.push(
+      <pre key="cb-end" className="chat-code-block">
+        <code>{codeBlockLines.join('\n')}</code>
+      </pre>
+    );
+  }
 
   return result;
 }
 
-function ChatMessage({ message }: { message: ConversationMessage }) {
+function ChatMessage({ message, onFollowUp }: { message: ConversationMessage; onFollowUp?: (text: string) => void }) {
   const isUser = message.role === 'user';
   const isCmd = message.id.startsWith('cmd-') || message.id.startsWith('oauth-');
   const [copied, setCopied] = useState(false);
@@ -235,6 +312,13 @@ function ChatMessage({ message }: { message: ConversationMessage }) {
             </button>
           )}
         </div>
+        {!isUser && message.metadata && Array.isArray((message.metadata as Record<string, unknown>).suggestions) && (
+          <div className="chat-followups">
+            {((message.metadata as Record<string, unknown>).suggestions as string[]).map((s, i) => (
+              <button key={i} className="chat-followup-btn" onClick={() => onFollowUp?.(s)}>{s}</button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -707,10 +791,16 @@ function ChatInput({
         ref={inputRef}
         className="chat-input"
         value={input}
-        onChange={e => setInput(e.target.value)}
+        onChange={e => {
+          setInput(e.target.value);
+          // Auto-resize
+          const el = e.target;
+          el.style.height = 'auto';
+          el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+        }}
         onKeyDown={handleKeyDown}
         placeholder="Ask anything or type / for commands..."
-        rows={2}
+        rows={1}
         disabled={disabled}
       />
       <button
@@ -856,25 +946,85 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
     useChatStore.setState(s => ({ messages: [...s.messages, userMsg], isProcessing: true }));
 
     try {
-      // Send recent message history for context
+      // Send full conversation history — backend handles compaction
       const currentMessages = useChatStore.getState().messages;
-      const recentHistory = currentMessages.slice(-10).map(m => ({
+      const recentHistory = currentMessages.map(m => ({
         role: m.role,
         content: m.content,
       }));
 
+      // Try streaming first
       const chatRes = await fetch(`${API_BASE}/api/v1/forge/chat`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content, history: recentHistory }),
+        body: JSON.stringify({ message: content, history: recentHistory, stream: true }),
       });
 
+      if (chatRes.ok && chatRes.headers.get('content-type')?.includes('text/event-stream')) {
+        // Streaming response — render text as it arrives
+        const alfMsgId = `alf-${Date.now()}`;
+        let fullText = '';
+        let suggestions: string[] = [];
+
+        // Add placeholder message
+        const alfMsg: ConversationMessage = {
+          id: alfMsgId,
+          conversation_id: activeConversationId ?? '',
+          role: 'assistant',
+          content: '',
+          execution_id: null,
+          intent: null,
+          metadata: {},
+          created_at: new Date().toISOString(),
+        };
+        useChatStore.setState(s => ({ messages: [...s.messages, alfMsg], isProcessing: false }));
+
+        const reader = chatRes.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (reader) {
+          let buffer = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue;
+              try {
+                const data = JSON.parse(line.slice(6)) as { type: string; text?: string; suggestions?: string[] };
+                if (data.type === 'text' && data.text) {
+                  fullText += data.text;
+                  // Update the message in place
+                  useChatStore.setState(s => ({
+                    messages: s.messages.map(m => m.id === alfMsgId ? { ...m, content: fullText } : m),
+                  }));
+                } else if (data.type === 'suggestions' && data.suggestions) {
+                  suggestions = data.suggestions;
+                }
+              } catch { /* skip malformed SSE */ }
+            }
+          }
+        }
+
+        // Store suggestions for display
+        if (suggestions.length > 0) {
+          useChatStore.setState(s => ({
+            messages: s.messages.map(m => m.id === alfMsgId ? { ...m, metadata: { suggestions } } : m),
+          }));
+        }
+        return;
+      }
+
+      // Non-streaming fallback
       if (chatRes.ok) {
-        const data = await chatRes.json() as { mode: 'chat' | 'dispatch'; text?: string };
+        const data = await chatRes.json() as { mode: 'chat' | 'dispatch'; text?: string; suggestions?: string[] };
 
         if (data.mode === 'chat' && data.text) {
-          // Alf answered directly — show the response
           const alfMsg: ConversationMessage = {
             id: `alf-${Date.now()}`,
             conversation_id: activeConversationId ?? '',
@@ -882,7 +1032,7 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
             content: data.text,
             execution_id: null,
             intent: null,
-            metadata: {},
+            metadata: { suggestions: data.suggestions },
             created_at: new Date().toISOString(),
           };
           useChatStore.setState(s => ({ messages: [...s.messages, alfMsg], isProcessing: false }));
@@ -947,7 +1097,7 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
           )}
 
           {messages.map(msg => (
-            <ChatMessage key={msg.id} message={msg} />
+            <ChatMessage key={msg.id} message={msg} onFollowUp={handleSend} />
           ))}
 
           {isProcessing && !pendingIntent && (
