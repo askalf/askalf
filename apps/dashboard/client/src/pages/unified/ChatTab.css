@@ -996,3 +996,110 @@
   0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
   40% { opacity: 1; transform: scale(1.1); }
 }
+
+/* ── Markdown Rendering ── */
+
+.chat-code-block {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 8px 0;
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #e2e8f0;
+}
+
+.chat-code-lang {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7c3aed;
+  margin-bottom: 6px;
+}
+
+.chat-link {
+  color: #a78bfa;
+  text-decoration: underline;
+  text-decoration-color: rgba(167, 139, 250, 0.3);
+}
+.chat-link:hover { text-decoration-color: #a78bfa; }
+
+.chat-md-h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text, #e2e8f0);
+  margin: 10px 0 4px;
+}
+
+.chat-md-h4 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text, #e2e8f0);
+  margin: 8px 0 4px;
+}
+
+.chat-md-li {
+  padding-left: 16px;
+  position: relative;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.chat-md-li::before {
+  content: '•';
+  position: absolute;
+  left: 4px;
+  color: #7c3aed;
+  font-weight: 700;
+}
+
+.chat-md-num {
+  color: #7c3aed;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.chat-md-li .chat-md-num ~ .chat-md-li::before { content: none; }
+
+.chat-md-break {
+  height: 8px;
+}
+
+/* ── Follow-up Suggestions ── */
+
+.chat-followups {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.chat-followup-btn {
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 16px;
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(124, 58, 237, 0.06);
+  color: #a78bfa;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chat-followup-btn:hover {
+  background: rgba(124, 58, 237, 0.15);
+  border-color: rgba(124, 58, 237, 0.4);
+}
+
+/* ── Auto-resize Input ── */
+
+.chat-input {
+  resize: none;
+  overflow-y: auto;
+  min-height: 36px;
+  max-height: 200px;
+}

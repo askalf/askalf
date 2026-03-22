@@ -74,6 +74,7 @@ function AgentList({
   sortDir,
   onSort,
   onSelect,
+  onQuickRun,
 }: {
   agents: Agent[];
   selectedId: string | null;
@@ -81,6 +82,7 @@ function AgentList({
   sortDir: SortDir;
   onSort: (col: SortColumn) => void;
   onSelect: (id: string) => void;
+  onQuickRun?: (id: string) => void;
 }) {
   const sorted = [...agents].sort((a, b) => {
     let cmp = 0;
@@ -99,6 +101,8 @@ function AgentList({
     { key: 'tasks', label: 'SUCCESS' },
     { key: 'age', label: 'LAST ACTIVE' },
   ];
+  // placeholder for actions column header
+  const hasQuickRun = !!onQuickRun;
 
   return (
     <div className="fleet-table-wrap">
@@ -119,6 +123,7 @@ function AgentList({
                 )}
               </th>
             ))}
+            {hasQuickRun && <th style={{ width: '60px' }}></th>}
           </tr>
         </thead>
         <tbody>
@@ -152,6 +157,18 @@ function AgentList({
                 })()}
               </td>
               <td>{relativeTime(agent.last_run_at)}</td>
+              {hasQuickRun && (
+                <td>
+                  <button
+                    className="fleet-quick-run"
+                    onClick={(e) => { e.stopPropagation(); onQuickRun!(agent.id); }}
+                    title="Quick run"
+                    disabled={agent.status === 'error'}
+                  >
+                    Run
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -638,6 +655,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
                   sortColumn={sortColumn}
                   sortDir={sortDir}
                   onSort={handleSort}
+                  onQuickRun={(id) => handleRun(id, 'Run your standard task based on your system prompt.')}
                   onSelect={(id) => {
                     setSelectedAgentId(selectedAgentId === id ? null : id);
                     setDetailTab('overview');
