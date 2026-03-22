@@ -328,10 +328,21 @@ function MemorySearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Array<{ content: string; similarity: number; tier: string }>>([]);
   const [searching, setSearching] = useState(false);
+  const [stats, setStats] = useState<{ total: number; semantic: number; episodic: number; procedural: number } | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // Load memory stats on mount
+  useEffect(() => {
+    fetch('/api/v1/forge/memory/stats', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setStats(data); })
+      .catch(() => {});
+  }, []);
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
     setSearching(true);
+    setHasSearched(true);
     try {
       const res = await fetch('/api/v1/forge/memory/search', {
         method: 'POST',
@@ -348,38 +359,85 @@ function MemorySearch() {
   }, [query]);
 
   const tierLabel = (t: string) => t === 'semantic' ? 'Fact' : t === 'episodic' ? 'Experience' : t === 'procedural' ? 'Pattern' : t;
+  const tierColor = (t: string) => t === 'semantic' ? '#7c3aed' : t === 'episodic' ? '#3b82f6' : t === 'procedural' ? '#10b981' : '#6b7280';
+
+  const suggestions = [
+    'What do you know about our competitors?',
+    'What patterns have you learned?',
+    'What went wrong recently?',
+    'What are our team preferences?',
+    'Show me everything about security',
+  ];
 
   return (
     <div style={{ padding: '1.5rem' }}>
+      {/* Stats bar */}
+      {stats && (
+        <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', padding: '14px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text)' }}>{stats.total.toLocaleString()}</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total Memories</div>
+          </div>
+          {[
+            { label: 'Facts', count: stats.semantic, color: '#7c3aed' },
+            { label: 'Experiences', count: stats.episodic, color: '#3b82f6' },
+            { label: 'Patterns', count: stats.procedural, color: '#10b981' },
+          ].map(s => (
+            <div key={s.label} style={{ flex: 1, borderLeft: '1px solid var(--border)', paddingLeft: '16px' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: s.color }}>{s.count.toLocaleString()}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <h3 style={{ margin: '0 0 4px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>What does Alf know?</h3>
-      <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Search Alf's memory in plain English</p>
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+      <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Search Alf's memory using natural language — powered by semantic vector search</p>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
-          placeholder="e.g. What do you know about our competitors?"
-          style={{ flex: 1, padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '0.85rem' }}
+          placeholder="Ask Alf anything..."
+          style={{ flex: 1, padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', color: 'var(--text)', fontSize: '0.9rem' }}
         />
         <button onClick={handleSearch} disabled={searching || !query.trim()}
-          style={{ padding: '10px 20px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+          style={{ padding: '12px 24px', background: searching ? '#6d28d9' : '#7c3aed', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s', opacity: !query.trim() ? 0.5 : 1 }}>
           {searching ? 'Searching...' : 'Search'}
         </button>
       </div>
+
+      {/* Suggestion chips when no search yet */}
+      {!hasSearched && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+          {suggestions.map(s => (
+            <button key={s} onClick={() => { setQuery(s); }}
+              style={{ padding: '6px 12px', fontSize: '0.75rem', background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: '16px', color: '#a78bfa', cursor: 'pointer', transition: 'all 0.15s' }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
       {results.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>{results.length} memories found</div>
           {results.map((r, i) => (
-            <div key={i} style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#7c3aed' }}>{tierLabel(r.tier)}</span>
+            <div key={i} style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', borderLeft: `3px solid ${tierColor(r.tier)}`, transition: 'border-color 0.2s' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: tierColor(r.tier) }}>{tierLabel(r.tier)}</span>
                 <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{(r.similarity * 100).toFixed(0)}% match</span>
               </div>
-              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.5 }}>{r.content}</p>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.6 }}>{r.content}</p>
             </div>
           ))}
         </div>
-      ) : query && !searching ? (
-        <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No memories match that query</p>
+      ) : hasSearched && !searching ? (
+        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '8px', opacity: 0.4 }}>?</div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>No memories match that query</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '4px 0 0', opacity: 0.7 }}>Try different keywords or teach Alf something new</p>
+        </div>
       ) : null}
     </div>
   );
@@ -392,6 +450,18 @@ function TeachAlf() {
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [recentlyTaught, setRecentlyTaught] = useState<Array<{ content: string; category: string; time: string }>>([]);
+
+  const categories = [
+    { id: 'fact', label: 'Fact', icon: '\u{1F4D6}', desc: 'Things true about you or your business', color: '#7c3aed',
+      examples: ['Our company name is Acme Corp', 'We use Stripe for payments', 'Our main competitor is WidgetCo', 'Support hours are 9-5 EST'] },
+    { id: 'preference', label: 'Preference', icon: '\u{2728}', desc: 'How you like things done', color: '#3b82f6',
+      examples: ['Use formal language in client emails', 'I prefer bullet points over paragraphs', 'Always include timestamps in reports', 'Use metric units'] },
+    { id: 'pattern', label: 'Rule', icon: '\u{1F6E1}\u{FE0F}', desc: 'Rules to always follow', color: '#10b981',
+      examples: ['Never contact clients on weekends', 'Always include pricing in proposals', 'Escalate billing issues to finance team', 'Back up data before any migration'] },
+  ];
+
+  const activeCategory = categories.find(c => c.id === category) || categories[0];
 
   const handleSave = useCallback(async () => {
     if (!content.trim()) return;
@@ -406,6 +476,7 @@ function TeachAlf() {
       });
       if (res.ok) {
         setMessage('Saved! Alf will remember this.');
+        setRecentlyTaught(prev => [{ content: content.trim(), category, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 5));
         setContent('');
         setTimeout(() => setMessage(null), 3000);
       }
@@ -416,42 +487,75 @@ function TeachAlf() {
   return (
     <div style={{ padding: '1.5rem' }}>
       <h3 style={{ margin: '0 0 4px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>Teach Alf</h3>
-      <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-        Add knowledge directly — things Alf should always know about you, your business, or your preferences
+      <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        Add knowledge directly. Everything you teach here is embedded into Alf's memory and available to all workers.
       </p>
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-        {[
-          { id: 'fact', label: 'Fact', desc: 'Something true about your business' },
-          { id: 'preference', label: 'Preference', desc: 'How you like things done' },
-          { id: 'pattern', label: 'Rule', desc: 'A rule to always follow' },
-        ].map(c => (
+
+      {/* Category cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
+        {categories.map(c => (
           <button key={c.id} onClick={() => setCategory(c.id)}
             style={{
-              padding: '8px 16px', fontSize: '0.82rem', fontWeight: 600, borderRadius: '8px', cursor: 'pointer',
-              border: category === c.id ? '1px solid rgba(124,58,237,0.4)' : '1px solid var(--border)',
-              background: category === c.id ? 'rgba(124,58,237,0.12)' : 'var(--surface)',
-              color: category === c.id ? '#a78bfa' : 'var(--text-muted)',
+              padding: '14px 16px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s',
+              border: category === c.id ? `1px solid ${c.color}40` : '1px solid var(--border)',
+              background: category === c.id ? `${c.color}12` : 'var(--surface)',
             }}>
-            {c.label}
+            <div style={{ fontSize: '1.1rem', marginBottom: '4px' }}>{c.icon}</div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: category === c.id ? c.color : 'var(--text)', marginBottom: '2px' }}>{c.label}</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>{c.desc}</div>
           </button>
         ))}
       </div>
+
+      {/* Input area */}
       <textarea
         value={content}
         onChange={e => setContent(e.target.value)}
-        placeholder={category === 'fact' ? 'e.g. Our company name is Acme Corp. We sell widgets. Our support hours are 9-5 EST.'
-          : category === 'preference' ? 'e.g. Always use formal language in client emails. I prefer bullet points over paragraphs.'
-          : 'e.g. Never contact clients on weekends. Always include pricing in proposals.'}
-        rows={4}
-        style={{ width: '100%', padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text)', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit' }}
+        onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave(); }}
+        placeholder={`Type a ${activeCategory.label.toLowerCase()} to teach Alf...`}
+        rows={3}
+        style={{ width: '100%', padding: '12px 16px', background: 'var(--surface)', border: `1px solid ${content ? activeCategory.color + '40' : 'var(--border)'}`, borderRadius: '10px', color: 'var(--text)', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit', transition: 'border-color 0.2s' }}
       />
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+
+      {/* Quick examples */}
+      {!content && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginRight: '4px', lineHeight: '26px' }}>Try:</span>
+          {activeCategory.examples.map(ex => (
+            <button key={ex} onClick={() => setContent(ex)}
+              style={{ padding: '4px 10px', fontSize: '0.72rem', background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: '14px', color: '#a78bfa', cursor: 'pointer' }}>
+              {ex}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '14px' }}>
         <button onClick={handleSave} disabled={saving || !content.trim()}
-          style={{ padding: '8px 20px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+          style={{ padding: '10px 24px', background: !content.trim() ? '#4c1d95' : '#7c3aed', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', opacity: !content.trim() ? 0.4 : 1, transition: 'all 0.2s' }}>
           {saving ? 'Saving...' : 'Teach Alf'}
         </button>
-        {message && <span style={{ fontSize: '0.82rem', color: '#10b981' }}>{message}</span>}
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Ctrl+Enter to save</span>
+        {message && <span style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: 600 }}>{message}</span>}
       </div>
+
+      {/* Recently taught */}
+      {recentlyTaught.length > 0 && (
+        <div style={{ marginTop: '24px' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Recently Taught</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {recentlyTaught.map((item, i) => {
+              const cat = categories.find(c => c.id === item.category);
+              return (
+                <div key={i} style={{ padding: '8px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', borderLeft: `3px solid ${cat?.color || '#7c3aed'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text)' }}>{item.content.length > 80 ? item.content.slice(0, 80) + '...' : item.content}</span>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '12px' }}>{item.time}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

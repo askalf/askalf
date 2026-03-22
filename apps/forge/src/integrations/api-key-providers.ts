@@ -9,7 +9,21 @@ export type ApiKeyProvider =
   | 'vercel' | 'netlify' | 'railway' | 'flyio'
   | 'jira' | 'linear' | 'notion' | 'asana'
   | 'datadog' | 'sentry' | 'pagerduty' | 'grafana'
-  | 'cloudflare' | 's3' | 'supabase';
+  | 'cloudflare' | 's3' | 'supabase'
+  // CRM & Sales
+  | 'salesforce' | 'hubspot' | 'pipedrive'
+  // E-Commerce & Payments
+  | 'shopify' | 'stripe' | 'woocommerce' | 'square'
+  // Marketing & Ads
+  | 'mailchimp' | 'google_ads' | 'meta_ads' | 'sendgrid'
+  // Social Media
+  | 'twitter' | 'instagram' | 'linkedin' | 'buffer'
+  // Productivity & Docs
+  | 'google_workspace' | 'microsoft365' | 'airtable' | 'google_sheets'
+  // Analytics
+  | 'google_analytics' | 'mixpanel' | 'plausible'
+  // Finance & HR
+  | 'quickbooks' | 'xero' | 'gusto' | 'wise';
 
 export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
   'aws', 'gcp', 'azure', 'digitalocean',
@@ -17,6 +31,13 @@ export const API_KEY_PROVIDERS: ApiKeyProvider[] = [
   'jira', 'linear', 'notion', 'asana',
   'datadog', 'sentry', 'pagerduty', 'grafana',
   'cloudflare', 's3', 'supabase',
+  'salesforce', 'hubspot', 'pipedrive',
+  'shopify', 'stripe', 'woocommerce', 'square',
+  'mailchimp', 'google_ads', 'meta_ads', 'sendgrid',
+  'twitter', 'instagram', 'linkedin', 'buffer',
+  'google_workspace', 'microsoft365', 'airtable', 'google_sheets',
+  'google_analytics', 'mixpanel', 'plausible',
+  'quickbooks', 'xero', 'gusto', 'wise',
 ];
 
 export interface ApiKeyProviderConfig {
@@ -219,6 +240,250 @@ export const PROVIDER_CONFIGS: Record<ApiKeyProvider, ApiKeyProviderConfig> = {
       'apikey': c['anon_key'],
       'Authorization': `Bearer ${c['anon_key']}`,
     }),
+  },
+
+  // ── CRM & Sales ──
+  salesforce: {
+    name: 'Salesforce',
+    category: 'crm',
+    requiredFields: [
+      { key: 'client_id', label: 'Client ID' },
+      { key: 'client_secret', label: 'Client Secret', sensitive: true },
+      { key: 'instance_url', label: 'Instance URL' },
+    ],
+  },
+  hubspot: {
+    name: 'HubSpot',
+    category: 'crm',
+    requiredFields: [
+      { key: 'api_key', label: 'Private App Token', sensitive: true },
+    ],
+    testEndpoint: 'https://api.hubapi.com/crm/v3/objects/contacts?limit=1',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['api_key']}` }),
+  },
+  pipedrive: {
+    name: 'Pipedrive',
+    category: 'crm',
+    requiredFields: [
+      { key: 'api_token', label: 'API Token', sensitive: true },
+      { key: 'domain', label: 'Company Domain' },
+    ],
+  },
+
+  // ── E-Commerce & Payments ──
+  shopify: {
+    name: 'Shopify',
+    category: 'ecommerce',
+    requiredFields: [
+      { key: 'store_url', label: 'Store URL' },
+      { key: 'api_key', label: 'Admin API Access Token', sensitive: true },
+    ],
+    testHeaders: (c) => ({ 'X-Shopify-Access-Token': c['api_key'] }),
+  },
+  stripe: {
+    name: 'Stripe',
+    category: 'ecommerce',
+    requiredFields: [
+      { key: 'secret_key', label: 'Secret Key', sensitive: true },
+    ],
+    testEndpoint: 'https://api.stripe.com/v1/balance',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['secret_key']}` }),
+  },
+  woocommerce: {
+    name: 'WooCommerce',
+    category: 'ecommerce',
+    requiredFields: [
+      { key: 'url', label: 'Store URL' },
+      { key: 'consumer_key', label: 'Consumer Key' },
+      { key: 'consumer_secret', label: 'Consumer Secret', sensitive: true },
+    ],
+  },
+  square: {
+    name: 'Square',
+    category: 'ecommerce',
+    requiredFields: [
+      { key: 'access_token', label: 'Access Token', sensitive: true },
+      { key: 'environment', label: 'Environment' },
+    ],
+    testEndpoint: 'https://connect.squareup.com/v2/locations',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['access_token']}` }),
+  },
+
+  // ── Marketing & Ads ──
+  mailchimp: {
+    name: 'Mailchimp',
+    category: 'marketing',
+    requiredFields: [
+      { key: 'api_key', label: 'API Key', sensitive: true },
+      { key: 'server_prefix', label: 'Server Prefix' },
+    ],
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['api_key']}` }),
+  },
+  google_ads: {
+    name: 'Google Ads',
+    category: 'marketing',
+    requiredFields: [
+      { key: 'developer_token', label: 'Developer Token', sensitive: true },
+      { key: 'client_id', label: 'Client ID' },
+      { key: 'client_secret', label: 'Client Secret', sensitive: true },
+    ],
+  },
+  meta_ads: {
+    name: 'Meta Ads',
+    category: 'marketing',
+    requiredFields: [
+      { key: 'access_token', label: 'Long-Lived Access Token', sensitive: true },
+      { key: 'ad_account_id', label: 'Ad Account ID' },
+    ],
+    testEndpoint: 'https://graph.facebook.com/v18.0/me',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['access_token']}` }),
+  },
+  sendgrid: {
+    name: 'SendGrid',
+    category: 'marketing',
+    requiredFields: [
+      { key: 'api_key', label: 'API Key', sensitive: true },
+    ],
+    testEndpoint: 'https://api.sendgrid.com/v3/user/profile',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['api_key']}` }),
+  },
+
+  // ── Social Media ──
+  twitter: {
+    name: 'X / Twitter',
+    category: 'social',
+    requiredFields: [
+      { key: 'api_key', label: 'API Key (Consumer Key)' },
+      { key: 'api_secret', label: 'API Secret (Consumer Secret)', sensitive: true },
+      { key: 'bearer_token', label: 'Bearer Token', sensitive: true },
+      { key: 'access_token', label: 'Access Token' },
+      { key: 'access_token_secret', label: 'Access Token Secret', sensitive: true },
+    ],
+    testEndpoint: 'https://api.twitter.com/2/users/me',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['bearer_token']}` }),
+  },
+  instagram: {
+    name: 'Instagram',
+    category: 'social',
+    requiredFields: [
+      { key: 'access_token', label: 'Long-Lived Access Token', sensitive: true },
+    ],
+  },
+  linkedin: {
+    name: 'LinkedIn',
+    category: 'social',
+    requiredFields: [
+      { key: 'access_token', label: 'Access Token', sensitive: true },
+    ],
+    testEndpoint: 'https://api.linkedin.com/v2/me',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['access_token']}` }),
+  },
+  buffer: {
+    name: 'Buffer',
+    category: 'social',
+    requiredFields: [
+      { key: 'access_token', label: 'Access Token', sensitive: true },
+    ],
+    testEndpoint: 'https://api.bufferapp.com/1/user.json',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['access_token']}` }),
+  },
+
+  // ── Productivity & Docs ──
+  google_workspace: {
+    name: 'Google Workspace',
+    category: 'productivity',
+    requiredFields: [
+      { key: 'service_account_json', label: 'Service Account JSON', sensitive: true },
+    ],
+  },
+  microsoft365: {
+    name: 'Microsoft 365',
+    category: 'productivity',
+    requiredFields: [
+      { key: 'tenant_id', label: 'Tenant ID' },
+      { key: 'client_id', label: 'Client ID' },
+      { key: 'client_secret', label: 'Client Secret', sensitive: true },
+    ],
+  },
+  airtable: {
+    name: 'Airtable',
+    category: 'productivity',
+    requiredFields: [
+      { key: 'api_key', label: 'Personal Access Token', sensitive: true },
+    ],
+    testEndpoint: 'https://api.airtable.com/v0/meta/whoami',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['api_key']}` }),
+  },
+  google_sheets: {
+    name: 'Google Sheets',
+    category: 'productivity',
+    requiredFields: [
+      { key: 'service_account_json', label: 'Service Account JSON', sensitive: true },
+    ],
+  },
+
+  // ── Analytics ──
+  google_analytics: {
+    name: 'Google Analytics',
+    category: 'analytics',
+    requiredFields: [
+      { key: 'property_id', label: 'Property ID' },
+      { key: 'service_account_json', label: 'Service Account JSON', sensitive: true },
+    ],
+  },
+  mixpanel: {
+    name: 'Mixpanel',
+    category: 'analytics',
+    requiredFields: [
+      { key: 'project_token', label: 'Project Token' },
+      { key: 'api_secret', label: 'API Secret', sensitive: true },
+    ],
+  },
+  plausible: {
+    name: 'Plausible',
+    category: 'analytics',
+    requiredFields: [
+      { key: 'api_key', label: 'API Key', sensitive: true },
+      { key: 'site_id', label: 'Site ID' },
+    ],
+    testEndpoint: 'https://plausible.io/api/v1/stats/realtime/visitors',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['api_key']}` }),
+  },
+
+  // ── Finance & HR ──
+  quickbooks: {
+    name: 'QuickBooks',
+    category: 'finance',
+    requiredFields: [
+      { key: 'client_id', label: 'Client ID' },
+      { key: 'client_secret', label: 'Client Secret', sensitive: true },
+      { key: 'realm_id', label: 'Company ID' },
+    ],
+  },
+  xero: {
+    name: 'Xero',
+    category: 'finance',
+    requiredFields: [
+      { key: 'client_id', label: 'Client ID' },
+      { key: 'client_secret', label: 'Client Secret', sensitive: true },
+    ],
+  },
+  gusto: {
+    name: 'Gusto',
+    category: 'finance',
+    requiredFields: [
+      { key: 'api_token', label: 'API Token', sensitive: true },
+    ],
+  },
+  wise: {
+    name: 'Wise',
+    category: 'finance',
+    requiredFields: [
+      { key: 'api_token', label: 'API Token', sensitive: true },
+      { key: 'profile_id', label: 'Profile ID' },
+    ],
+    testEndpoint: 'https://api.wise.com/v1/profiles',
+    testHeaders: (c) => ({ 'Authorization': `Bearer ${c['api_token']}` }),
   },
 };
 

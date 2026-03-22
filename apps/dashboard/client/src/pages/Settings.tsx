@@ -5,9 +5,9 @@ import { useThemeStore } from '../stores/theme';
 import { relativeTime } from '../utils/format';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'preferences' | 'migration';
+type SettingsTab = 'profile' | 'appearance' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'preferences' | 'infrastructure' | 'migration';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'preferences', 'migration'];
+const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'preferences', 'infrastructure', 'migration'];
 
 // ── Natural Language Settings Assistant ──
 
@@ -186,6 +186,18 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
             Alf Learns
           </button>
           <button
+            className={`settings-nav-item ${activeTab === 'infrastructure' ? 'active' : ''}`}
+            onClick={() => setActiveTab('infrastructure')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+              <line x1="6" y1="6" x2="6.01" y2="6" />
+              <line x1="6" y1="18" x2="6.01" y2="18" />
+            </svg>
+            Infrastructure
+          </button>
+          <button
             className={`settings-nav-item ${activeTab === 'migration' ? 'active' : ''}`}
             onClick={() => setActiveTab('migration')}
           >
@@ -207,6 +219,7 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
           {activeTab === 'channels' && <ChannelsTab />}
           {activeTab === 'devices' && <DevicesTab />}
           {activeTab === 'preferences' && <PreferencesTab />}
+          {activeTab === 'infrastructure' && <InfrastructureTab />}
           {activeTab === 'migration' && <MigrationTab />}
         </div>
       </div>
@@ -446,35 +459,74 @@ interface ProviderKeyInfo {
   last_used_at: string | null;
 }
 
+interface SystemProvider {
+  id: string;
+  name: string;
+  type: string;
+  is_enabled: boolean;
+  health_status: string;
+  auth_source: 'db' | 'env' | 'oauth' | 'none';
+  has_key: boolean;
+  key_hint: string | null;
+}
+
+interface OAuthHealth {
+  status: 'healthy' | 'expiring' | 'expired' | 'unknown';
+  expiresAt: number | null;
+  expiresIn: string | null;
+}
+
 const AI_PROVIDERS = [
-  { type: 'anthropic', name: 'Anthropic', desc: 'Claude models', prefix: 'sk-ant-' },
-  { type: 'openai', name: 'OpenAI', desc: 'GPT models', prefix: 'sk-' },
+  { type: 'anthropic', name: 'Anthropic', desc: 'Claude models — powers Claude Code terminal + agent executions', prefix: 'sk-ant-' },
+  { type: 'openai', name: 'OpenAI', desc: 'GPT models — powers Codex terminal + chat fallback', prefix: 'sk-' },
   { type: 'xai', name: 'xAI', desc: 'Grok models', prefix: '' },
   { type: 'deepseek', name: 'DeepSeek', desc: 'DeepSeek models', prefix: '' },
 ];
 
+const AUTH_SOURCE_LABELS: Record<string, { label: string; color: string }> = {
+  oauth: { label: 'OAuth Token', color: '#22c55e' },
+  env: { label: 'System (.env)', color: '#3b82f6' },
+  db: { label: 'API Key', color: '#a78bfa' },
+  none: { label: 'Not configured', color: '#6b7280' },
+};
+
 function AIKeysTab() {
-  const [keys, setKeys] = useState<ProviderKeyInfo[]>([]);
+  const [userKeys, setUserKeys] = useState<ProviderKeyInfo[]>([]);
+  const [systemProviders, setSystemProviders] = useState<SystemProvider[]>([]);
+  const [oauthHealth, setOauthHealth] = useState<OAuthHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
   const [keyInput, setKeyInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState<string | null>(null);
   const [verifyResults, setVerifyResults] = useState<Record<string, 'success' | 'error'>>({});
+  const [refreshingOAuth, setRefreshingOAuth] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => { fetchKeys(); }, []);
-
-  const fetchKeys = async () => {
+  const fetchAll = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/forge/user-providers`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json() as { keys: ProviderKeyInfo[] };
-        setKeys(data.keys);
+      const [userRes, sysRes, oauthRes] = await Promise.all([
+        fetch(`${API_BASE}/api/v1/forge/user-providers`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/v1/forge/providers`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/v1/forge/credentials/health`, { credentials: 'include' }),
+      ]);
+      if (userRes.ok) {
+        const data = await userRes.json() as { keys: ProviderKeyInfo[] };
+        setUserKeys(data.keys);
+      }
+      if (sysRes.ok) {
+        const data = await sysRes.json() as { providers: SystemProvider[] };
+        setSystemProviders(data.providers);
+      }
+      if (oauthRes.ok) {
+        const data = await oauthRes.json() as OAuthHealth;
+        setOauthHealth(data);
       }
     } catch { /* ignore */ }
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const handleSaveKey = async (providerType: string) => {
     if (!keyInput.trim()) return;
@@ -494,7 +546,7 @@ function AIKeysTab() {
       setEditingProvider(null);
       setKeyInput('');
       setMessage({ type: 'success', text: `${providerType} key saved` });
-      fetchKeys();
+      fetchAll();
     } catch (err) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save' });
     } finally {
@@ -511,7 +563,7 @@ function AIKeysTab() {
       });
       if (!res.ok) throw new Error('Failed to remove key');
       setMessage({ type: 'success', text: `${providerType} key removed` });
-      fetchKeys();
+      fetchAll();
     } catch {
       setMessage({ type: 'error', text: 'Failed to remove key' });
     }
@@ -536,7 +588,7 @@ function AIKeysTab() {
       if (data.status === 'valid') {
         setMessage({ type: 'success', text: `${providerType} key verified` });
         setVerifyResults(prev => ({ ...prev, [providerType]: 'success' }));
-        fetchKeys();
+        fetchAll();
       } else {
         setMessage({ type: 'error', text: `Key invalid: ${data.error || 'verification failed'}` });
         setVerifyResults(prev => ({ ...prev, [providerType]: 'error' }));
@@ -549,49 +601,311 @@ function AIKeysTab() {
     }
   };
 
-  const getKeyInfo = (type: string) => keys.find((k) => k.provider_type === type);
+  const [oauthConnecting, setOauthConnecting] = useState(false);
+  const [oauthCode, setOauthCode] = useState('');
+  const [oauthState, setOauthState] = useState<string | null>(null);
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [exchanging, setExchanging] = useState(false);
+  // Codex OAuth
+  const [codexConnecting, setCodexConnecting] = useState(false);
+  const [codexUserCode, setCodexUserCode] = useState<string | null>(null);
+  const [codexVerifyUrl, setCodexVerifyUrl] = useState<string | null>(null);
+  const [codexPolling, setCodexPolling] = useState(false);
+  const [codexStatus, setCodexStatus] = useState<'unknown' | 'healthy' | 'no_credentials'>('unknown');
+
+  const handleOAuthConnect = async () => {
+    setOauthConnecting(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/oauth/start`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to start OAuth flow');
+      const data = await res.json() as { authUrl: string; state: string };
+      setOauthState(data.state);
+      setShowCodeInput(true);
+      // Open auth URL in new tab
+      window.open(data.authUrl, '_blank', 'noopener,noreferrer');
+      setMessage({ type: 'success', text: 'Authorization page opened — authorize and paste the code below' });
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to start OAuth' });
+    } finally {
+      setOauthConnecting(false);
+    }
+  };
+
+  const handleOAuthExchange = async () => {
+    if (!oauthCode.trim() || !oauthState) return;
+    setExchanging(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/oauth/exchange`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: oauthCode.trim(), state: oauthState }),
+      });
+      const data = await res.json() as { success?: boolean; error?: string };
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Claude OAuth connected successfully!' });
+        setOauthHealth({ status: 'healthy', expiresAt: null, expiresIn: null });
+        setShowCodeInput(false);
+        setOauthCode('');
+        setOauthState(null);
+        fetchAll();
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Token exchange failed' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to exchange code' });
+    } finally {
+      setExchanging(false);
+    }
+  };
+
+  // Codex OAuth device flow
+  const handleCodexConnect = async () => {
+    setCodexConnecting(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/oauth/codex/start`, { method: 'POST', credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to start Codex auth');
+      const data = await res.json() as { userCode: string; verificationUrl: string };
+      setCodexUserCode(data.userCode);
+      setCodexVerifyUrl(data.verificationUrl);
+      window.open(data.verificationUrl, '_blank', 'noopener,noreferrer');
+      setMessage({ type: 'success', text: 'Authorization page opened — sign in with your OpenAI account' });
+      // Start polling
+      setCodexPolling(true);
+      const poll = async () => {
+        for (let i = 0; i < 60; i++) { // 5 min max
+          await new Promise(r => setTimeout(r, 5000));
+          try {
+            const pollRes = await fetch(`${API_BASE}/api/v1/forge/oauth/codex/poll`, {
+              method: 'POST', credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userCode: data.userCode }),
+            });
+            const pollData = await pollRes.json() as { status: string; message?: string; error?: string };
+            if (pollData.status === 'authorized') {
+              setMessage({ type: 'success', text: 'Codex connected!' });
+              setCodexStatus('healthy');
+              setCodexUserCode(null);
+              setCodexVerifyUrl(null);
+              setCodexPolling(false);
+              return;
+            }
+            if (pollData.error) {
+              setMessage({ type: 'error', text: pollData.error });
+              setCodexPolling(false);
+              return;
+            }
+          } catch { /* keep polling */ }
+        }
+        setMessage({ type: 'error', text: 'Authorization timed out' });
+        setCodexPolling(false);
+      };
+      poll();
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed' });
+    } finally {
+      setCodexConnecting(false);
+    }
+  };
+
+  // Check Codex status on load
+  useEffect(() => {
+    fetch(`${API_BASE}/api/v1/forge/oauth/codex/status`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.status) setCodexStatus(data.status); })
+      .catch(() => {});
+  }, []);
+
+  const handleRefreshOAuth = async () => {
+    setRefreshingOAuth(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/credentials/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json() as { refreshed: boolean; error?: string };
+      if (data.refreshed) {
+        setMessage({ type: 'success', text: 'OAuth token refreshed' });
+        setOauthHealth({ status: 'healthy', expiresAt: null, expiresIn: null });
+        fetchAll();
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Refresh failed' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to refresh OAuth token' });
+    } finally {
+      setRefreshingOAuth(false);
+    }
+  };
+
+  const getUserKeyInfo = (type: string) => userKeys.find((k) => k.provider_type === type);
+  const getSystemProvider = (type: string) => systemProviders.find((p) => p.type === type);
 
   if (loading) {
     return (
       <div className="settings-section">
-        <h2>AI Provider Keys</h2>
+        <h2>Keys & Providers</h2>
         <p className="settings-section-desc">Loading...</p>
       </div>
     );
   }
 
+  const oauthColor = oauthHealth?.status === 'healthy' ? '#22c55e' : oauthHealth?.status === 'expiring' ? '#f59e0b' : oauthHealth?.status === 'expired' ? '#ef4444' : '#6b7280';
+  const oauthLabel = oauthHealth?.status === 'healthy' ? 'Healthy' : oauthHealth?.status === 'expiring' ? 'Expiring Soon' : oauthHealth?.status === 'expired' ? 'Expired' : 'Not Connected';
+
   return (
     <div className="settings-section">
-      <h2>AI Provider Keys</h2>
+      <h2>Keys & Providers</h2>
       <p className="settings-section-desc">
-        Add your own API keys to power agent executions. Your keys are encrypted at rest
-        and only used when you run agents.
+        Manage how AskAlf authenticates with AI providers. OAuth is primary, API keys are fallback.
+        Priority: User Key &gt; System Key (.env) &gt; OAuth Token.
       </p>
 
-      <div className="settings-oauth-banner">
-        <div className="settings-oauth-banner-icon">🔗</div>
-        <div className="settings-oauth-banner-content">
-          <span className="settings-oauth-banner-title">OAuth Connect</span>
-          <span className="settings-oauth-banner-desc">
-            Import your Anthropic OAuth token via the Terminal tab — run <code>/connect</code> for instructions.
-          </span>
+      {/* OAuth Section */}
+      <div className="settings-provider-card" style={{ borderLeft: `3px solid ${oauthColor}` }}>
+        <div className="settings-provider-header">
+          <div className="settings-provider-info">
+            <span className="settings-provider-name">Anthropic OAuth</span>
+            <span className="settings-provider-desc">Primary authentication — Claude CLI token shared with the platform</span>
+          </div>
+          <div className="settings-provider-status">
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: oauthColor, marginRight: 6 }} />
+            <span className={`settings-provider-badge ${oauthHealth?.status === 'healthy' ? 'settings-provider-active' : 'settings-provider-inactive'}`}>
+              {oauthLabel}
+            </span>
+          </div>
         </div>
-        <span className="settings-oauth-banner-badge" style={{ background: '#059669' }}>Available</span>
+        {oauthHealth?.expiresIn && (
+          <div className="settings-provider-meta">Expires in: {oauthHealth.expiresIn}</div>
+        )}
+        <div className="settings-provider-actions">
+          {oauthHealth?.status === 'healthy' || oauthHealth?.status === 'expiring' ? (
+            <button
+              className="settings-btn-sm"
+              onClick={handleRefreshOAuth}
+              disabled={refreshingOAuth}
+            >
+              {refreshingOAuth ? 'Refreshing...' : 'Refresh Token'}
+            </button>
+          ) : (
+            <button
+              className="settings-save-btn"
+              onClick={handleOAuthConnect}
+              disabled={oauthConnecting}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10,17 15,12 10,7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              {oauthConnecting ? 'Opening...' : 'Connect with Claude'}
+            </button>
+          )}
+        </div>
+
+        {/* Code input after OAuth redirect */}
+        {showCodeInput && (
+          <div style={{ marginTop: 12, padding: '12px 16px', background: 'var(--surface)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 10 }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
+              Authorize on claude.ai, then paste the code from the redirect URL below:
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                value={oauthCode}
+                onChange={(e) => setOauthCode(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleOAuthExchange(); }}
+                placeholder="Paste authorization code here..."
+                autoFocus
+                style={{ flex: 1, padding: '8px 12px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}
+              />
+              <button
+                className="settings-save-btn"
+                onClick={handleOAuthExchange}
+                disabled={exchanging || !oauthCode.trim()}
+                style={{ padding: '8px 16px' }}
+              >
+                {exchanging ? 'Connecting...' : 'Connect'}
+              </button>
+              <button
+                className="settings-btn-sm"
+                onClick={() => { setShowCodeInput(false); setOauthCode(''); setOauthState(null); }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {message && (
         <div className={`settings-message settings-message-${message.type}`}>
           {message.text}
-          <button className="settings-message-dismiss" onClick={() => setMessage(null)}>
-            &times;
-          </button>
+          <button className="settings-message-dismiss" onClick={() => setMessage(null)}>&times;</button>
         </div>
       )}
 
+      {/* Codex / OpenAI OAuth Section */}
+      <div className="settings-provider-card" style={{ borderLeft: `3px solid ${codexStatus === 'healthy' ? '#22c55e' : '#6b7280'}` }}>
+        <div className="settings-provider-header">
+          <div className="settings-provider-info">
+            <span className="settings-provider-name">OpenAI Codex</span>
+            <span className="settings-provider-desc">ChatGPT OAuth — powers Codex terminal sessions via device authorization</span>
+          </div>
+          <div className="settings-provider-status">
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: codexStatus === 'healthy' ? '#22c55e' : '#6b7280', marginRight: 6 }} />
+            <span className={`settings-provider-badge ${codexStatus === 'healthy' ? 'settings-provider-active' : 'settings-provider-inactive'}`}>
+              {codexStatus === 'healthy' ? 'Connected' : 'Not Connected'}
+            </span>
+          </div>
+        </div>
+        <div className="settings-provider-actions">
+          {codexStatus !== 'healthy' && !codexPolling && (
+            <button
+              className="settings-save-btn"
+              onClick={handleCodexConnect}
+              disabled={codexConnecting}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10,17 15,12 10,7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              {codexConnecting ? 'Starting...' : 'Connect with OpenAI'}
+            </button>
+          )}
+          {codexPolling && (
+            <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 600 }}>
+              Waiting for authorization... (code: {codexUserCode})
+            </span>
+          )}
+        </div>
+        {codexUserCode && codexVerifyUrl && !codexPolling && (
+          <div style={{ marginTop: 10, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Visit <a href={codexVerifyUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#7c3aed' }}>{codexVerifyUrl}</a> and enter code: <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{codexUserCode}</strong>
+          </div>
+        )}
+      </div>
+
+      {/* Provider Cards */}
       <div className="settings-form">
         {AI_PROVIDERS.map((provider) => {
-          const info = getKeyInfo(provider.type);
+          const userInfo = getUserKeyInfo(provider.type);
+          const sysInfo = getSystemProvider(provider.type);
           const isEditing = editingProvider === provider.type;
+          const authSource = sysInfo?.auth_source || 'none';
+          const sourceInfo = AUTH_SOURCE_LABELS[authSource] || AUTH_SOURCE_LABELS.none;
+
+          // Determine effective status
+          const hasUserKey = !!userInfo;
+          const hasSystemKey = sysInfo?.has_key || false;
+          const isConnected = hasUserKey || hasSystemKey || (provider.type === 'anthropic' && oauthHealth?.status === 'healthy');
 
           return (
             <div key={provider.type} className="settings-provider-card">
@@ -601,15 +915,34 @@ function AIKeysTab() {
                   <span className="settings-provider-desc">{provider.desc}</span>
                 </div>
                 <div className="settings-provider-status">
-                  {info ? (
+                  {isConnected ? (
                     <>
-                      <span className="settings-provider-hint">{info.key_hint}</span>
+                      {sysInfo?.key_hint && <span className="settings-provider-hint">{sysInfo.key_hint}</span>}
                       <span className="settings-provider-badge settings-provider-active">Connected</span>
                     </>
                   ) : (
                     <span className="settings-provider-badge settings-provider-inactive">Not set</span>
                   )}
                 </div>
+              </div>
+
+              {/* Auth source indicator */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                {provider.type === 'anthropic' && oauthHealth?.status === 'healthy' && (
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)' }}>OAuth Active</span>
+                )}
+                {hasSystemKey && authSource === 'env' && (
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)' }}>System .env</span>
+                )}
+                {hasSystemKey && authSource === 'db' && (
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(167,139,250,0.1)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.2)' }}>System DB Key</span>
+                )}
+                {hasUserKey && (
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(251,146,60,0.1)', color: '#fb923c', border: '1px solid rgba(251,146,60,0.2)' }}>User Override</span>
+                )}
+                {!isConnected && (
+                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(107,114,128,0.1)', color: '#6b7280', border: '1px solid rgba(107,114,128,0.2)' }}>{sourceInfo.label}</span>
+                )}
               </div>
 
               {isEditing ? (
@@ -643,9 +976,9 @@ function AIKeysTab() {
                     className="settings-btn-sm"
                     onClick={() => { setEditingProvider(provider.type); setKeyInput(''); }}
                   >
-                    {info ? 'Update Key' : 'Add Key'}
+                    {hasUserKey ? 'Update Key' : 'Add Key'}
                   </button>
-                  {info && (
+                  {hasUserKey && (
                     <>
                       <button
                         className="settings-btn-sm"
@@ -656,7 +989,7 @@ function AIKeysTab() {
                       </button>
                       {verifyResults[provider.type] && (
                         <span className={`settings-test-result settings-test-result-${verifyResults[provider.type]}`}>
-                          {verifyResults[provider.type] === 'success' ? '✓' : '✗'}
+                          {verifyResults[provider.type] === 'success' ? '\u2713' : '\u2717'}
                         </span>
                       )}
                       <button
@@ -670,9 +1003,9 @@ function AIKeysTab() {
                 </div>
               )}
 
-              {info?.last_verified_at && (
+              {userInfo?.last_verified_at && (
                 <div className="settings-provider-meta">
-                  Last verified: {new Date(info.last_verified_at).toLocaleDateString()}
+                  Last verified: {new Date(userInfo.last_verified_at).toLocaleDateString()}
                 </div>
               )}
             </div>
@@ -715,10 +1048,17 @@ interface ProviderDef {
 
 const PROVIDER_CATEGORIES = [
   { id: 'source', label: 'Source Control' },
+  { id: 'crm', label: 'CRM & Sales' },
+  { id: 'ecommerce', label: 'E-Commerce & Payments' },
+  { id: 'marketing', label: 'Marketing & Ads' },
+  { id: 'social', label: 'Social Media' },
+  { id: 'productivity', label: 'Productivity & Docs' },
   { id: 'cloud', label: 'Cloud & Infrastructure' },
   { id: 'cicd', label: 'CI/CD & Deploy' },
   { id: 'pm', label: 'Project Management' },
   { id: 'monitoring', label: 'Monitoring & Observability' },
+  { id: 'analytics', label: 'Analytics' },
+  { id: 'finance', label: 'Finance & HR' },
   { id: 'storage', label: 'Storage & CDN' },
 ];
 
@@ -756,6 +1096,46 @@ const ALL_PROVIDERS: ProviderDef[] = [
   { id: 'cloudflare', name: 'Cloudflare', description: 'R2 storage, Workers, DNS, CDN', category: 'storage', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16.509 16.516c.204-.578.118-.789-.21-.986-.306-.183-.616-.276-1.727-.309l-8.669.028c-.098 0-.2-.044-.252-.132a.29.29 0 0 1-.024-.28l.212-.605c.104-.296.392-.502.708-.516l9.107-.044c1.441-.068 2.986-.976 3.524-2.586l.675-2.018a.313.313 0 0 0 .012-.136C18.96 4.99 15.714 2 11.769 2 8.332 2 5.413 4.196 4.503 7.205c-.71-.533-1.608-.803-2.558-.708-1.748.176-3.14 1.603-3.282 3.356a3.456 3.456 0 0 0 .1 1.18C-1.1 12.751.283 14.473 2.16 14.473l.6-.002c.097 0 .18-.064.208-.152l.58-1.65c.204-.577.118-.789-.21-.985-.306-.184-.616-.277-1.727-.31l-.285.005c-.68.004-1.19-.58-.99-1.226a1.86 1.86 0 0 1 1.781-1.252c.326 0 .637.085.907.237a.27.27 0 0 0 .376-.132c.558-1.285 1.25-2.326 2.327-3.1A6.387 6.387 0 0 1 9.465 4.47a6.4 6.4 0 0 1 6.07 3.02c.1.16.324.216.5.136.524-.244 1.124-.332 1.764-.225 1.274.214 2.305 1.2 2.567 2.464.104.496.1.98-.002 1.426-.04.16.048.324.2.384.89.35 1.552 1.14 1.652 2.09.146 1.392-.887 2.575-2.253 2.69H5.097c-.098 0-.2.044-.252.132a.29.29 0 0 0-.024.28l.3.853c.104.296.392.502.708.516h14.03c1.703-.107 3.097-1.402 3.297-3.098a3.247 3.247 0 0 0-1.447-3.153c-.304-.204-.66-.356-1.04-.44a.282.282 0 0 0-.32.192l-.84 2.369z"/></svg> },
   { id: 's3', name: 'Amazon S3', description: 'Object storage, buckets, file hosting', category: 'storage', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0L1.608 6v12L12 24l10.392-6V6L12 0zm-1.073 1.445h.001a1.8 1.8 0 0 1 2.138 0l7.534 4.35a1.794 1.794 0 0 1 .9 1.556v8.652a1.794 1.794 0 0 1-.9 1.556l-7.534 4.35a1.8 1.8 0 0 1-2.138 0l-7.534-4.35A1.794 1.794 0 0 1 2.5 16.003V7.35c0-.641.341-1.234.893-1.555l7.534-4.35zM12 7.2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6z"/></svg> },
   { id: 'supabase', name: 'Supabase', description: 'Database, auth, storage, functions', category: 'storage', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13.7 21.794c-.485.607-1.478.222-1.5-.582l-.315-10.86h7.818c1.246 0 1.928 1.447 1.13 2.395l-7.134 9.047zM10.3 2.206c.485-.607 1.478-.222 1.5.582l.1 10.86H4.2c-1.246 0-1.928-1.447-1.13-2.395L10.3 2.206z"/></svg> },
+
+  // CRM & Sales
+  { id: 'salesforce', name: 'Salesforce', description: 'Leads, contacts, opportunities, reports', category: 'crm', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M10.006 5.415a4.195 4.195 0 0 1 3.045-1.312c1.56 0 2.954.9 3.69 2.258a4.97 4.97 0 0 1 2.091-.46c2.766 0 5.008 2.24 5.008 5.004 0 2.763-2.242 5.003-5.008 5.003a5.02 5.02 0 0 1-1.31-.176 3.7 3.7 0 0 1-3.293 2.023 3.69 3.69 0 0 1-1.907-.53A4.41 4.41 0 0 1 8.24 19.77a4.14 4.14 0 0 1-.544.037c-1.278 0-2.42-.586-3.168-1.504A4.584 4.584 0 0 1 3.2 18.56c-2.53 0-4.58-2.048-4.58-4.575 0-1.73.966-3.236 2.39-4.01a4.053 4.053 0 0 1-.2-1.258c0-2.244 1.82-4.063 4.065-4.063 1.217 0 2.31.536 3.054 1.383a4.15 4.15 0 0 1 2.077-1.622z"/></svg> },
+  { id: 'hubspot', name: 'HubSpot', description: 'Contacts, deals, tickets, marketing', category: 'crm', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18.164 7.93V5.084a2.198 2.198 0 0 0 1.267-1.984v-.066A2.2 2.2 0 0 0 17.231.834h-.066a2.2 2.2 0 0 0-2.2 2.2v.066c0 .862.5 1.608 1.227 1.966v2.862a5.94 5.94 0 0 0-2.878 1.45l-7.654-5.964a2.582 2.582 0 0 0 .072-.588 2.553 2.553 0 1 0-2.553 2.553c.462 0 .893-.128 1.268-.342l7.532 5.87a5.965 5.965 0 0 0-.535 2.472 5.965 5.965 0 0 0 .602 2.613l-2.36 2.36a2.07 2.07 0 0 0-.623-.103 2.09 2.09 0 1 0 2.09 2.09c0-.222-.037-.435-.098-.637l2.296-2.296a5.98 5.98 0 1 0 3.565-9.478z"/></svg> },
+  { id: 'pipedrive', name: 'Pipedrive', description: 'Deals, contacts, activities, pipelines', category: 'crm', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg> },
+
+  // E-Commerce & Payments
+  { id: 'shopify', name: 'Shopify', description: 'Products, orders, customers, inventory', category: 'ecommerce', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M15.337 23.979l7.216-1.561s-2.604-17.613-2.625-17.73c-.018-.116-.114-.192-.209-.192s-1.929-.136-1.929-.136-1.275-1.274-1.439-1.411c-.045-.037-.075-.057-.121-.074l-.914 21.104zm-1.332-17.94a3.147 3.147 0 0 0-.439-.021c-.377 0-.754.037-1.123.112.235-.954.651-1.903 1.325-2.443.282-.226.667-.452 1.105-.548a4.674 4.674 0 0 0-.868 2.9zm-1.584.39c-1.199.35-2.505.732-3.793 1.11.367-1.4 1.07-2.768 2.42-3.422a1.983 1.983 0 0 1 .282-.125c.322.67.469 1.605.469 1.605l.622.832zm-1.665-3.413c.183 0 .354.024.519.07-1.618.762-2.362 2.678-2.7 4.044l-2.455.718c.001 0 1.273-4.832 4.636-4.832z"/></svg> },
+  { id: 'stripe', name: 'Stripe', description: 'Payments, subscriptions, invoices', category: 'ecommerce', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.594-7.305z"/></svg> },
+  { id: 'woocommerce', name: 'WooCommerce', description: 'Products, orders, coupons, reports', category: 'ecommerce', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2.227 4.857A2.228 2.228 0 0 0 0 7.094v7.457c0 1.236 1.001 2.237 2.237 2.237h4.261l-1.003 3.401 4.608-3.401h11.66A2.237 2.237 0 0 0 24 14.551V7.094a2.228 2.228 0 0 0-2.227-2.237H2.227z"/></svg> },
+  { id: 'square', name: 'Square', description: 'Payments, catalog, customers, orders', category: 'ecommerce', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M4.01 0A4.01 4.01 0 0 0 0 4.01v15.98A4.01 4.01 0 0 0 4.01 24h15.98A4.01 4.01 0 0 0 24 19.99V4.01A4.01 4.01 0 0 0 19.99 0zm2.186 5.079h11.608A1.117 1.117 0 0 1 18.92 6.2v11.6a1.117 1.117 0 0 1-1.116 1.121H6.196a1.117 1.117 0 0 1-1.116-1.121V6.2a1.117 1.117 0 0 1 1.116-1.121z"/></svg> },
+
+  // Marketing & Ads
+  { id: 'mailchimp', name: 'Mailchimp', description: 'Email campaigns, audiences, automations', category: 'marketing', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 17.08c-.744.904-2.059 1.246-3.122 1.246-1.41 0-2.435-.53-3.082-1.323-.667.545-1.566.843-2.63.843-2.1 0-3.487-1.178-3.487-3.287 0-2.04 1.504-3.4 3.72-3.4.476 0 .942.058 1.387.173v-.34c0-.97-.523-1.496-1.636-1.496-.81 0-1.46.285-2.088.76l-1.053-1.453c.93-.72 2.11-1.126 3.44-1.126 2.494 0 3.77 1.2 3.77 3.44v3.48c0 .63.202.88.643.88.16 0 .34-.04.52-.12l.48 1.34a4.62 4.62 0 0 1-1.562.383z"/></svg> },
+  { id: 'google_ads', name: 'Google Ads', description: 'Campaigns, keywords, conversions', category: 'marketing', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3.654 17.28l7.14-12.36 4.157 2.4-7.14 12.36zM20.346 17.28L13.2 4.92l4.16-2.4 7.14 12.36zM7.5 20.4a3.6 3.6 0 1 1 0-7.2 3.6 3.6 0 0 1 0 7.2z"/></svg> },
+  { id: 'meta_ads', name: 'Meta Ads', description: 'Facebook & Instagram ads, audiences', category: 'marketing', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2.04c-5.5 0-10 4.49-10 10.02 0 5 3.66 9.15 8.44 9.9v-7H7.9v-2.9h2.54V9.85c0-2.52 1.49-3.93 3.78-3.93 1.09 0 2.23.19 2.23.19v2.47h-1.26c-1.24 0-1.63.77-1.63 1.56v1.88h2.78l-.45 2.9h-2.33v7a10 10 0 0 0 8.44-9.9c0-5.53-4.5-10.02-10-10.02z"/></svg> },
+  { id: 'sendgrid', name: 'SendGrid', description: 'Transactional email, templates, analytics', category: 'marketing', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M7.96 16.053h8.093v7.947H7.96zM16.053.013H7.96v8.093h8.093zm7.934 8.08h-7.934v8.106h7.934zM.013 8.106v8.054h7.947V8.106z"/></svg> },
+
+  // Social Media
+  { id: 'twitter', name: 'X / Twitter', description: 'Posts, mentions, DMs, analytics', category: 'social', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg> },
+  { id: 'instagram', name: 'Instagram', description: 'Posts, stories, comments, insights', category: 'social', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg> },
+  { id: 'linkedin', name: 'LinkedIn', description: 'Posts, company pages, analytics', category: 'social', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> },
+  { id: 'buffer', name: 'Buffer', description: 'Schedule posts, manage channels, analytics', category: 'social', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M23.784 18.24c.287.142.287.267 0 .374l-11.357 5.223c-.287.144-.573.144-.86 0L.24 18.614c-.287-.107-.287-.232 0-.374l2.722-1.31c.287-.107.573-.107.86 0l7.748 3.56c.287.143.573.143.86 0l7.748-3.56c.287-.107.573-.107.86 0l2.746 1.31zm0-6.12c.287.143.287.268 0 .375l-11.357 5.223c-.287.143-.573.143-.86 0L.24 12.495c-.287-.107-.287-.232 0-.375l2.722-1.31c.287-.106.573-.106.86 0l7.748 3.562c.287.142.573.142.86 0l7.748-3.562c.287-.106.573-.106.86 0l2.746 1.31zm-11.784-.852L.24 6.046C-.048 5.903-.048 5.778.24 5.67L11.573.448c.287-.143.573-.143.86 0L23.784 5.67c.287.107.287.232 0 .375L12.427 11.27c-.287.106-.573.106-.86 0l.433-.002z"/></svg> },
+
+  // Productivity & Docs
+  { id: 'google_workspace', name: 'Google Workspace', description: 'Gmail, Drive, Calendar, Sheets', category: 'productivity', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> },
+  { id: 'microsoft365', name: 'Microsoft 365', description: 'Outlook, OneDrive, Teams, Excel', category: 'productivity', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M0 0v11.408h11.408V0zm12.594 0v11.408H24V0zM0 12.594V24h11.408V12.594zm12.594 0V24H24V12.594z"/></svg> },
+  { id: 'airtable', name: 'Airtable', description: 'Bases, records, automations, views', category: 'productivity', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M11.505 2.143L2.198 5.63c-.269.1-.27.47-.002.572l9.35 3.545c.283.107.6.107.883 0l9.349-3.545c.268-.101.267-.471-.002-.572l-9.307-3.487a1.15 1.15 0 0 0-.964 0zM2.05 8.502v8.07c0 .274.2.507.47.606l8.928 3.268a.71.71 0 0 0 .532 0c.013-.005.025-.013.038-.018V11.74L2.53 8.327c-.297-.113-.48.009-.48.175zm10.975 3.238v8.688c.013.005.025.013.038.018a.71.71 0 0 0 .531 0l8.929-3.268c.27-.099.47-.332.47-.606v-8.07c0-.166-.183-.288-.48-.175l-9.488 3.413z"/></svg> },
+  { id: 'google_sheets', name: 'Google Sheets', description: 'Spreadsheets, formulas, data sync', category: 'productivity', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M14.727 6.727H14V0H4.91c-.905 0-1.637.732-1.637 1.636v20.728c0 .904.732 1.636 1.636 1.636h14.182c.904 0 1.636-.732 1.636-1.636V6.727h-6zM10 18h-3v-1.5h3V18zm0-3h-3v-1.5h3V15zm0-3h-3v-1.5h3V12zm7 6h-5v-1.5h5V18zm0-3h-5v-1.5h5V15zm0-3h-5v-1.5h5V12zm-2.273-6V.545L20.182 6h-5.455z"/></svg> },
+
+  // Analytics
+  { id: 'google_analytics', name: 'Google Analytics', description: 'Traffic, conversions, audiences, reports', category: 'analytics', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M22.84 2.998v17.958c.003 1.738-1.412 3.147-3.15 3.15a3.14 3.14 0 0 1-3.15-3.15v-17.96A3.143 3.143 0 0 1 19.688-.15c1.74-.004 3.153 1.408 3.153 3.148zM14.318 8.973v11.983c.003 1.738-1.412 3.147-3.15 3.15a3.14 3.14 0 0 1-3.15-3.15V8.973a3.143 3.143 0 0 1 3.148-3.148c1.74-.004 3.153 1.408 3.153 3.148zM5.826 18.168a3.14 3.14 0 0 1-3.15 3.15A3.143 3.143 0 0 1-.47 18.168a3.143 3.143 0 0 1 3.147-3.148c1.74-.004 3.153 1.408 3.15 3.148z"/></svg> },
+  { id: 'mixpanel', name: 'Mixpanel', description: 'Events, funnels, retention, cohorts', category: 'analytics', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-2 17a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm4-4a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm0-6a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg> },
+  { id: 'plausible', name: 'Plausible', description: 'Privacy-friendly web analytics', category: 'analytics', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12.078.016a11.985 11.985 0 0 0-8.955 4.535L12 12l8.877-7.449A11.985 11.985 0 0 0 12.078.016zM3.123 4.551A11.985 11.985 0 0 0 .016 12.078 11.985 11.985 0 0 0 4.551 20.96L12 12 3.123 4.551zm17.754 0L12 12l7.449 8.877a11.985 11.985 0 0 0 4.535-8.955 11.985 11.985 0 0 0-3.107-7.371zM4.551 20.96a11.985 11.985 0 0 0 7.527 3.024 11.985 11.985 0 0 0 8.799-4.861L12 12l-7.449 8.96z"/></svg> },
+
+  // Finance & HR
+  { id: 'quickbooks', name: 'QuickBooks', description: 'Invoices, expenses, reports, payroll', category: 'finance', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.108 18.214H8.766V5.786h3.255c2.655 0 4.593 1.643 4.593 4.317 0 2.657-1.938 4.298-4.593 4.298h-1.13v3.813zm1.13-5.707c1.45 0 2.327-.906 2.327-2.404s-.877-2.423-2.327-2.423h-1.13v4.827h1.13z"/></svg> },
+  { id: 'xero', name: 'Xero', description: 'Accounting, invoicing, bank feeds', category: 'finance', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm4.243 16.243L12 12l-4.243 4.243-1.414-1.414L10.586 12 6.343 7.757l1.414-1.414L12 10.586l4.243-4.243 1.414 1.414L13.414 12l4.243 4.243-1.414 1.414z"/></svg> },
+  { id: 'gusto', name: 'Gusto', description: 'Payroll, benefits, HR, compliance', category: 'finance', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg> },
+  { id: 'wise', name: 'Wise', description: 'International transfers, multi-currency', category: 'finance', icon: <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12.477.517L4.89 23.483h4.04l2.543-7.697h5.049l2.588 7.697h4.001L15.477.517h-3zm1.527 4.84l1.91 5.794h-3.828l1.918-5.794z"/></svg> },
 ];
 
 const PROVIDER_LABELS: Record<string, string> = Object.fromEntries(ALL_PROVIDERS.map(p => [p.id, p.name]));
@@ -782,6 +1162,39 @@ const API_KEY_FIELDS: Record<string, { key: string; label: string; placeholder?:
   cloudflare: [{ key: 'api_token', label: 'API Token', sensitive: true }, { key: 'account_id', label: 'Account ID' }],
   s3: [{ key: 'access_key_id', label: 'Access Key ID' }, { key: 'secret_access_key', label: 'Secret Access Key', sensitive: true }, { key: 'region', label: 'Region' }, { key: 'bucket', label: 'Bucket' }],
   supabase: [{ key: 'url', label: 'Project URL', placeholder: 'https://xxx.supabase.co' }, { key: 'anon_key', label: 'Anon Key' }, { key: 'service_role_key', label: 'Service Role Key', sensitive: true }],
+  // CRM
+  salesforce: [{ key: 'client_id', label: 'Client ID' }, { key: 'client_secret', label: 'Client Secret', sensitive: true }, { key: 'instance_url', label: 'Instance URL', placeholder: 'https://yourorg.my.salesforce.com' }],
+  hubspot: [{ key: 'api_key', label: 'Private App Token', sensitive: true }],
+  pipedrive: [{ key: 'api_token', label: 'API Token', sensitive: true }, { key: 'domain', label: 'Company Domain', placeholder: 'yourcompany' }],
+  // E-Commerce
+  shopify: [{ key: 'store_url', label: 'Store URL', placeholder: 'yourstore.myshopify.com' }, { key: 'api_key', label: 'Admin API Access Token', sensitive: true }],
+  stripe: [{ key: 'secret_key', label: 'Secret Key', sensitive: true, placeholder: 'sk_live_...' }],
+  woocommerce: [{ key: 'url', label: 'Store URL', placeholder: 'https://yourstore.com' }, { key: 'consumer_key', label: 'Consumer Key' }, { key: 'consumer_secret', label: 'Consumer Secret', sensitive: true }],
+  square: [{ key: 'access_token', label: 'Access Token', sensitive: true }, { key: 'environment', label: 'Environment', placeholder: 'production' }],
+  // Marketing
+  mailchimp: [{ key: 'api_key', label: 'API Key', sensitive: true }, { key: 'server_prefix', label: 'Server Prefix', placeholder: 'us1' }],
+  google_ads: [{ key: 'developer_token', label: 'Developer Token', sensitive: true }, { key: 'client_id', label: 'Client ID' }, { key: 'client_secret', label: 'Client Secret', sensitive: true }],
+  meta_ads: [{ key: 'access_token', label: 'Long-Lived Access Token', sensitive: true }, { key: 'ad_account_id', label: 'Ad Account ID' }],
+  sendgrid: [{ key: 'api_key', label: 'API Key', sensitive: true }],
+  // Social
+  twitter: [{ key: 'api_key', label: 'API Key (Consumer Key)' }, { key: 'api_secret', label: 'API Secret (Consumer Secret)', sensitive: true }, { key: 'bearer_token', label: 'Bearer Token', sensitive: true }, { key: 'access_token', label: 'Access Token' }, { key: 'access_token_secret', label: 'Access Token Secret', sensitive: true }],
+  instagram: [{ key: 'access_token', label: 'Long-Lived Access Token', sensitive: true }],
+  linkedin: [{ key: 'access_token', label: 'Access Token', sensitive: true }],
+  buffer: [{ key: 'access_token', label: 'Access Token', sensitive: true }],
+  // Productivity
+  google_workspace: [{ key: 'service_account_json', label: 'Service Account JSON', sensitive: true }],
+  microsoft365: [{ key: 'tenant_id', label: 'Tenant ID' }, { key: 'client_id', label: 'Client ID' }, { key: 'client_secret', label: 'Client Secret', sensitive: true }],
+  airtable: [{ key: 'api_key', label: 'Personal Access Token', sensitive: true }],
+  google_sheets: [{ key: 'service_account_json', label: 'Service Account JSON', sensitive: true }],
+  // Analytics
+  google_analytics: [{ key: 'property_id', label: 'Property ID' }, { key: 'service_account_json', label: 'Service Account JSON', sensitive: true }],
+  mixpanel: [{ key: 'project_token', label: 'Project Token' }, { key: 'api_secret', label: 'API Secret', sensitive: true }],
+  plausible: [{ key: 'api_key', label: 'API Key', sensitive: true }, { key: 'site_id', label: 'Site ID', placeholder: 'yoursite.com' }],
+  // Finance
+  quickbooks: [{ key: 'client_id', label: 'Client ID' }, { key: 'client_secret', label: 'Client Secret', sensitive: true }, { key: 'realm_id', label: 'Company ID' }],
+  xero: [{ key: 'client_id', label: 'Client ID' }, { key: 'client_secret', label: 'Client Secret', sensitive: true }],
+  gusto: [{ key: 'api_token', label: 'API Token', sensitive: true }],
+  wise: [{ key: 'api_token', label: 'API Token', sensitive: true }, { key: 'profile_id', label: 'Profile ID' }],
 };
 
 function getApiKeyFields(providerId: string) {
@@ -1166,24 +1579,48 @@ function CostControlsTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [advanced, setAdvanced] = useState(() => localStorage.getItem('askalf-cost-advanced') === 'true');
   const [dailyLimit, setDailyLimit] = useState('');
   const [monthlyLimit, setMonthlyLimit] = useState('');
+  const [perExecutionLimit, setPerExecutionLimit] = useState('');
+  const [alertThreshold, setAlertThreshold] = useState('80');
+  const [autoPause, setAutoPause] = useState(true);
   const [spentToday, setSpentToday] = useState(0);
   const [spentThisMonth, setSpentThisMonth] = useState(0);
+  const [topWorkers, setTopWorkers] = useState<Array<{ name: string; cost: number; executions: number }>>([]);
+  const [workerBudgets, setWorkerBudgets] = useState<Record<string, string>>({});
+  const [agents, setAgents] = useState<Array<{ id: string; name: string; budget_limit: number | null }>>([]);
 
   useEffect(() => {
-    fetchBudget();
+    fetchAll();
   }, []);
 
-  const fetchBudget = async () => {
+  const fetchAll = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/forge/user-budget`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json() as BudgetData;
+      const [budgetRes, costRes, agentRes] = await Promise.all([
+        fetch(`${API_BASE}/api/v1/forge/user-budget`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/v1/forge/costs/summary`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/v1/forge/agents`, { credentials: 'include' }),
+      ]);
+      if (budgetRes.ok) {
+        const data = await budgetRes.json() as BudgetData;
         setDailyLimit(data.budgetLimitDaily !== null ? String(data.budgetLimitDaily) : '');
         setMonthlyLimit(data.budgetLimitMonthly !== null ? String(data.budgetLimitMonthly) : '');
         setSpentToday(data.spentToday);
         setSpentThisMonth(data.spentThisMonth);
+      }
+      if (costRes.ok) {
+        const data = await costRes.json() as { byAgent?: Array<{ name: string; cost: number; executions: number }> };
+        setTopWorkers((data.byAgent || []).sort((a, b) => b.cost - a.cost).slice(0, 10));
+      }
+      if (agentRes.ok) {
+        const data = await agentRes.json() as { agents: Array<{ id: string; name: string; budget_limit: number | null }> };
+        setAgents(data.agents || []);
+        const budgets: Record<string, string> = {};
+        for (const a of (data.agents || [])) {
+          if (a.budget_limit !== null) budgets[a.id] = String(a.budget_limit);
+        }
+        setWorkerBudgets(budgets);
       }
     } catch { /* ignore */ }
     setLoading(false);
@@ -1250,6 +1687,28 @@ function CostControlsTab() {
     setSaving(false);
   };
 
+  const handleSaveWorkerBudget = async (agentId: string) => {
+    const val = workerBudgets[agentId];
+    const limit = val?.trim() ? parseFloat(val) : null;
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/agents/${agentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ budget_limit: limit }),
+      });
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Worker budget updated' });
+      }
+    } catch { /* ignore */ }
+  };
+
+  const toggleAdvanced = () => {
+    const next = !advanced;
+    setAdvanced(next);
+    localStorage.setItem('askalf-cost-advanced', String(next));
+  };
+
   if (loading) {
     return (
       <div className="settings-section">
@@ -1259,11 +1718,29 @@ function CostControlsTab() {
     );
   }
 
+  const dailyPct = dailyLimit ? Math.min(100, (spentToday / parseFloat(dailyLimit)) * 100) : 0;
+  const monthlyPct = monthlyLimit ? Math.min(100, (spentThisMonth / parseFloat(monthlyLimit)) * 100) : 0;
+
   return (
     <div className="settings-section">
-      <h2>Cost Controls</h2>
-      <p className="settings-section-desc">
-        Set spending limits to prevent unexpected costs. Agents are blocked when limits are reached.
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <h2 style={{ margin: 0 }}>Cost Controls</h2>
+        <button
+          onClick={toggleAdvanced}
+          style={{
+            position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+            background: advanced ? '#7c3aed' : 'var(--border)',
+            transition: 'background 0.2s',
+          }}
+        >
+          <span style={{
+            position: 'absolute', top: 2, left: advanced ? 22 : 2, width: 20, height: 20, borderRadius: '50%',
+            background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          }} />
+        </button>
+      </div>
+      <p className="settings-section-desc" style={{ marginBottom: 16 }}>
+        {advanced ? 'Advanced cost controls — per-worker budgets, alert thresholds, and spending breakdown.' : 'Set spending limits to prevent unexpected costs. Workers are blocked when limits are reached.'}
       </p>
 
       {message && (
@@ -1273,60 +1750,145 @@ function CostControlsTab() {
         </div>
       )}
 
-      {/* Current spend (compact) */}
-      <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: 'var(--space-lg)' }}>
-        Current spend: <span style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>${spentToday.toFixed(2)}</span> today
-        {' / '}
-        <span style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>${spentThisMonth.toFixed(2)}</span> this month
+      {/* Spend overview */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+        <div style={{ padding: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 6 }}>Today</div>
+          <div style={{ fontSize: '1.3rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: dailyPct > 90 ? '#ef4444' : dailyPct > 70 ? '#f59e0b' : 'var(--text)' }}>
+            ${spentToday.toFixed(2)}
+            {dailyLimit && <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}> / ${parseFloat(dailyLimit).toFixed(0)}</span>}
+          </div>
+          {dailyLimit && (
+            <div style={{ marginTop: 8, height: 4, borderRadius: 2, background: 'var(--border)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${dailyPct}%`, borderRadius: 2, background: dailyPct > 90 ? '#ef4444' : dailyPct > 70 ? '#f59e0b' : '#22c55e', transition: 'width 0.3s' }} />
+            </div>
+          )}
+        </div>
+        <div style={{ padding: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 6 }}>This Month</div>
+          <div style={{ fontSize: '1.3rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: monthlyPct > 90 ? '#ef4444' : monthlyPct > 70 ? '#f59e0b' : 'var(--text)' }}>
+            ${spentThisMonth.toFixed(2)}
+            {monthlyLimit && <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)' }}> / ${parseFloat(monthlyLimit).toFixed(0)}</span>}
+          </div>
+          {monthlyLimit && (
+            <div style={{ marginTop: 8, height: 4, borderRadius: 2, background: 'var(--border)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${monthlyPct}%`, borderRadius: 2, background: monthlyPct > 90 ? '#ef4444' : monthlyPct > 70 ? '#f59e0b' : '#22c55e', transition: 'width 0.3s' }} />
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Basic controls */}
       <div className="settings-form">
-        <div className="settings-field">
-          <label>Daily Budget Limit (USD)</label>
-          <input
-            type="number"
-            value={dailyLimit}
-            onChange={(e) => setDailyLimit(e.target.value)}
-            placeholder="No limit"
-            min="0"
-            step="0.5"
-          />
-          <p className="settings-field-hint">
-            Maximum spending per day across all agents. Leave empty for no limit.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="settings-field">
+            <label>Daily Limit (USD)</label>
+            <input type="number" value={dailyLimit} onChange={(e) => setDailyLimit(e.target.value)} placeholder="No limit" min="0" step="0.5" />
+          </div>
+          <div className="settings-field">
+            <label>Monthly Limit (USD)</label>
+            <input type="number" value={monthlyLimit} onChange={(e) => setMonthlyLimit(e.target.value)} placeholder="No limit" min="0" step="1" />
+          </div>
         </div>
 
-        <div className="settings-field">
-          <label>Monthly Budget Limit (USD)</label>
-          <input
-            type="number"
-            value={monthlyLimit}
-            onChange={(e) => setMonthlyLimit(e.target.value)}
-            placeholder="No limit"
-            min="0"
-            step="1"
-          />
-          <p className="settings-field-hint">
-            Maximum spending per calendar month. Leave empty for no limit.
-          </p>
-        </div>
+        {/* Advanced controls */}
+        {advanced && (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+              <div className="settings-field">
+                <label>Default Per-Execution Limit (USD)</label>
+                <input type="number" value={perExecutionLimit} onChange={(e) => setPerExecutionLimit(e.target.value)} placeholder="$1.00 (default)" min="0" step="0.25" />
+                <p className="settings-field-hint">Max cost per single worker execution</p>
+              </div>
+              <div className="settings-field">
+                <label>Alert Threshold (%)</label>
+                <input type="number" value={alertThreshold} onChange={(e) => setAlertThreshold(e.target.value)} placeholder="80" min="0" max="100" step="5" />
+                <p className="settings-field-hint">Warn when spend reaches this % of limit</p>
+              </div>
+            </div>
 
-        <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
-          <button
-            className="settings-save-btn"
-            onClick={handleSave}
-            disabled={saving}
-          >
+            <div className="settings-field" style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <label style={{ marginBottom: 0 }}>Auto-Pause Workers</label>
+                  <p className="settings-field-hint" style={{ margin: 0 }}>Pause all workers when budget limit is hit (vs. just blocking new executions)</p>
+                </div>
+                <button
+                  onClick={() => setAutoPause(!autoPause)}
+                  style={{
+                    position: 'relative', width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', flexShrink: 0,
+                    background: autoPause ? '#22c55e' : 'var(--border)', transition: 'background 0.2s',
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 2, left: autoPause ? 20 : 2, width: 18, height: 18, borderRadius: '50%',
+                    background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  }} />
+                </button>
+              </div>
+            </div>
+
+            {/* Top spenders */}
+            {topWorkers.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Top Spenders (This Period)</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {topWorkers.map((w, i) => {
+                    const maxCost = topWorkers[0]?.cost || 1;
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text)', minWidth: 120 }}>{w.name}</span>
+                        <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${(w.cost / maxCost) * 100}%`, borderRadius: 3, background: '#7c3aed' }} />
+                        </div>
+                        <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', minWidth: 55, textAlign: 'right' }}>${w.cost.toFixed(2)}</span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{w.executions} runs</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Per-worker budgets */}
+            {agents.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Per-Worker Budget Limits</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {agents.map(a => (
+                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text)', minWidth: 140 }}>{a.name}</span>
+                      <input
+                        type="number"
+                        value={workerBudgets[a.id] ?? ''}
+                        onChange={(e) => setWorkerBudgets(prev => ({ ...prev, [a.id]: e.target.value }))}
+                        placeholder="No limit"
+                        min="0"
+                        step="0.5"
+                        style={{ width: 100, padding: '4px 8px', fontSize: '0.8rem', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}
+                      />
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>$/day</span>
+                      <button
+                        className="settings-btn-sm"
+                        style={{ padding: '3px 10px', fontSize: '0.7rem' }}
+                        onClick={() => handleSaveWorkerBudget(a.id)}
+                      >
+                        Set
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: 'var(--space-md)', marginTop: 16 }}>
+          <button className="settings-save-btn" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save Limits'}
           </button>
           {(dailyLimit.trim() || monthlyLimit.trim()) && (
-            <button
-              className="settings-btn-sm"
-              onClick={handleClear}
-              disabled={saving}
-            >
-              Remove Limits
-            </button>
+            <button className="settings-btn-sm" onClick={handleClear} disabled={saving}>Remove Limits</button>
           )}
         </div>
       </div>
@@ -1334,11 +1896,12 @@ function CostControlsTab() {
       <div className="settings-cost-info">
         <div className="settings-cost-info-title">How cost controls work</div>
         <ul>
-          <li>Each agent execution has a per-execution limit (default $1, set per agent)</li>
-          <li>Daily and monthly limits apply across all your agents combined</li>
+          <li>Daily and monthly limits apply across all workers combined</li>
           <li>When a limit is reached, new executions are blocked until the period resets</li>
           <li>Cost tracking resets daily at midnight UTC and monthly on the 1st</li>
-          <li>For detailed spend breakdowns, agent costs, and forecasts, see the Costs tab in Operations</li>
+          {advanced && <li>Per-worker budgets override the global per-execution default for individual workers</li>}
+          {advanced && <li>Alert threshold triggers a notification before the hard limit blocks executions</li>}
+          <li>For detailed spend breakdowns and forecasts, see the Costs tab in Operations</li>
         </ul>
       </div>
     </div>
@@ -1372,7 +1935,7 @@ const CHANNEL_DEFS: ChannelDef[] = [
     name: 'Slack',
     icon: '\u{1F4AC}',
     category: 'messaging',
-    description: 'Agents respond directly in your Slack channels.',
+    description: 'Workers respond directly in your Slack channels.',
     fields: [
       { key: 'bot_token', label: 'Bot Token', placeholder: 'xoxb-...', sensitive: true },
       { key: 'signing_secret', label: 'Signing Secret', placeholder: 'From Slack app settings', sensitive: true },
@@ -1383,7 +1946,7 @@ const CHANNEL_DEFS: ChannelDef[] = [
     name: 'Discord',
     icon: '\u{1F3AE}',
     category: 'messaging',
-    description: 'Slash commands that dispatch agent tasks.',
+    description: 'Slash commands that dispatch worker tasks.',
     fields: [
       { key: 'bot_token', label: 'Bot Token', placeholder: 'Bot token from Discord Developer Portal', sensitive: true },
       { key: 'application_id', label: 'Application ID', placeholder: 'From Discord app settings' },
@@ -1562,6 +2125,8 @@ function ChannelsTab() {
   const [testing, setTesting] = useState<string | null>(null);
   const [chMsg, setChMsg] = useState<{ type: string; channel: string; text: string } | null>(null);
   const [testStatuses, setTestStatuses] = useState<Record<string, ChannelTestStatus>>({});
+  const [envChannels, setEnvChannels] = useState<Record<string, string[]>>({});
+  const [healthSummary, setHealthSummary] = useState<{ total: number; connected: number; active: number } | null>(null);
   const [autoTest, setAutoTest] = useState<boolean>(() => {
     try { return localStorage.getItem('askalf_channel_autotest') === 'true'; } catch { return false; }
   });
@@ -1569,6 +2134,7 @@ function ChannelsTab() {
 
   useEffect(() => {
     loadConfigs();
+    loadHealth();
   }, []);
 
   const runTestForChannel = useCallback(async (channelType: string, configId: string): Promise<ChannelTestStatus> => {
@@ -1706,6 +2272,24 @@ function ChannelsTab() {
     }
   };
 
+  const loadHealth = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/channels/health`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as {
+          summary: { total: number; connected: number; active: number };
+          channels: Array<{ type: string; source: string; envKeys: string[] }>;
+        };
+        setHealthSummary(data.summary);
+        const envMap: Record<string, string[]> = {};
+        for (const ch of data.channels) {
+          if (ch.envKeys.length > 0) envMap[ch.type] = ch.envKeys;
+        }
+        setEnvChannels(envMap);
+      }
+    } catch { /* ignore */ }
+  };
+
   const updateForm = (channelType: string, key: string, value: string) => {
     setForms(prev => ({ ...prev, [channelType]: { ...(prev[channelType] ?? {}), [key]: value } }));
   };
@@ -1737,8 +2321,26 @@ function ChannelsTab() {
     <div className="settings-section">
       <h2>Channels</h2>
       <p className="settings-section-desc">
-        Connect platforms so your agents can receive messages and respond anywhere.
+        Connect platforms so your workers can receive messages and respond anywhere.
       </p>
+
+      {/* Health summary */}
+      {healthSummary && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+          <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, textAlign: 'center' }}>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text)' }}>{healthSummary.total}</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Available</div>
+          </div>
+          <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, textAlign: 'center' }}>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#3b82f6' }}>{healthSummary.connected}</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Configured</div>
+          </div>
+          <div style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, textAlign: 'center' }}>
+            <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#22c55e' }}>{healthSummary.active}</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Active</div>
+          </div>
+        </div>
+      )}
 
       {/* Status summary bar */}
       <div className="settings-channel-summary-bar">
@@ -1779,6 +2381,7 @@ function ChannelsTab() {
               {channels.map(ch => {
                 const config = configs[ch.type];
                 const isConnected = !!config?.id;
+                const hasEnv = !!envChannels[ch.type]?.length;
                 const isWired = wiredChannels.has(ch.type);
                 const isExpanded = expandedChannel === ch.type;
                 const msg = chMsg?.channel === ch.type ? chMsg : null;
@@ -1788,7 +2391,7 @@ function ChannelsTab() {
                 return (
                   <div
                     key={ch.type}
-                    className={`settings-intg-provider-card settings-channel-card${isConnected ? ' connected' : ''}${!isWired ? ' upcoming' : ''}`}
+                    className={`settings-intg-provider-card settings-channel-card${isConnected || hasEnv ? ' connected' : ''}${!isWired ? ' upcoming' : ''}`}
                     style={{ cursor: isWired ? 'pointer' : 'default' }}
                     onClick={() => {
                       if (!isWired || ch.type === 'api') return;
@@ -1801,11 +2404,16 @@ function ChannelsTab() {
                         <div className="settings-intg-provider-name">{ch.name}</div>
                         <div className="settings-intg-provider-desc">{ch.description}</div>
                       </div>
-                      <div className="settings-intg-provider-action">
+                      <div className="settings-intg-provider-action" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        {hasEnv && (
+                          <span style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: 8, background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)' }}>.env</span>
+                        )}
                         {isConnected ? (
                           <span className="settings-intg-badge connected">Connected</span>
                         ) : ch.type === 'api' ? (
                           <span className="settings-intg-badge connected">Built-in</span>
+                        ) : hasEnv ? (
+                          <span className="settings-intg-badge connected">System</span>
                         ) : (
                           <span className="settings-intg-badge upcoming">Configure</span>
                         )}
@@ -2624,6 +3232,233 @@ interface MigrationResult {
   errors?: string[];
 }
 
+// ============================================
+// INFRASTRUCTURE TAB
+// ============================================
+
+interface InfraStatus {
+  vpn: { enabled: boolean; provider: string | null; type: string | null; countries: string | null; status: string; publicIp: string | null };
+  searxng: { enabled: boolean; url: string; vpnRouted: boolean; status: string; engineCount: number | null };
+  autoheal: { enabled: boolean; status: string; containersMonitored: number };
+  redis: { status: string; memory: string | null };
+  postgres: { status: string; size: string | null };
+}
+
+function InfrastructureTab() {
+  const [infra, setInfra] = useState<InfraStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // VPN config form
+  const [vpnProvider, setVpnProvider] = useState('protonvpn');
+  const [vpnType, setVpnType] = useState('wireguard');
+  const [vpnKey, setVpnKey] = useState('');
+  const [vpnCountries, setVpnCountries] = useState('Switzerland');
+  const [showVpnConfig, setShowVpnConfig] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/infrastructure/status`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as InfraStatus;
+        setInfra(data);
+        if (data.vpn.provider) setVpnProvider(data.vpn.provider);
+        if (data.vpn.type) setVpnType(data.vpn.type);
+        if (data.vpn.countries) setVpnCountries(data.vpn.countries);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  const statusColor = (s: string) => s === 'healthy' || s === 'connected' ? '#22c55e' : s === 'error' || s === 'unreachable' ? '#ef4444' : s === 'disabled' ? '#6b7280' : '#f59e0b';
+  const statusLabel = (s: string) => s === 'healthy' || s === 'connected' ? 'Healthy' : s === 'error' ? 'Error' : s === 'unreachable' ? 'Unreachable' : s === 'disabled' ? 'Disabled' : 'Unknown';
+
+  const handleSaveVpn = async () => {
+    setMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/infrastructure/vpn`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: vpnProvider, vpnType, wireguardKey: vpnKey, countries: vpnCountries, enabled: true }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { message: string; envVars: Record<string, string> };
+        setMessage({ type: 'success', text: `${data.message} Add to .env: ${Object.entries(data.envVars).filter(([,v]) => v).map(([k,v]) => `${k}=${v}`).join(', ')}` });
+        setShowVpnConfig(false);
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to update VPN config' });
+    }
+  };
+
+  if (loading) {
+    return <div className="settings-section"><h2>Infrastructure</h2><p className="settings-section-desc">Loading...</p></div>;
+  }
+
+  return (
+    <div className="settings-section">
+      <h2>Infrastructure</h2>
+      <p className="settings-section-desc">
+        System services powering your AskAlf instance — VPN tunneling, search engine, auto-recovery, database, and cache.
+      </p>
+
+      {message && (
+        <div className={`settings-message settings-message-${message.type}`}>
+          {message.text}
+          <button className="settings-message-dismiss" onClick={() => setMessage(null)}>&times;</button>
+        </div>
+      )}
+
+      {/* Service status grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 24 }}>
+        {[
+          { name: 'PostgreSQL', status: infra?.postgres.status || 'unknown', detail: infra?.postgres.size || 'Database', icon: '\u{1F4BE}' },
+          { name: 'Redis', status: infra?.redis.status || 'unknown', detail: 'Cache & Events', icon: '\u{26A1}' },
+          { name: 'SearXNG', status: infra?.searxng.status || 'unknown', detail: infra?.searxng.engineCount ? `${infra.searxng.engineCount} engines` : 'Search', icon: '\u{1F50D}' },
+          { name: 'Autoheal', status: infra?.autoheal.status || 'unknown', detail: infra?.autoheal.containersMonitored ? `${infra.autoheal.containersMonitored} containers` : 'Recovery', icon: '\u{1F3E5}' },
+          { name: 'VPN', status: infra?.vpn.status || 'disabled', detail: infra?.vpn.provider || 'Not configured', icon: '\u{1F510}' },
+        ].map(svc => (
+          <div key={svc.name} style={{ padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, borderLeft: `3px solid ${statusColor(svc.status)}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: '1.1rem' }}>{svc.icon}</span>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text)' }}>{svc.name}</span>
+              <span style={{ marginLeft: 'auto', display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: statusColor(svc.status) }} />
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{svc.detail}</div>
+            <div style={{ fontSize: '0.7rem', color: statusColor(svc.status), fontWeight: 600, marginTop: 2 }}>{statusLabel(svc.status)}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* VPN Section */}
+      <div className="settings-provider-card" style={{ borderLeft: `3px solid ${infra?.vpn.enabled ? '#22c55e' : '#6b7280'}` }}>
+        <div className="settings-provider-header">
+          <div className="settings-provider-info">
+            <span className="settings-provider-name">VPN Tunneling (Gluetun)</span>
+            <span className="settings-provider-desc">
+              Route all outbound worker traffic through an encrypted VPN tunnel.
+              {infra?.vpn.publicIp && <> Current IP: <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{infra.vpn.publicIp}</strong></>}
+            </span>
+          </div>
+          <div className="settings-provider-status">
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: statusColor(infra?.vpn.status || 'disabled'), marginRight: 6 }} />
+            <span className={`settings-provider-badge ${infra?.vpn.enabled ? 'settings-provider-active' : 'settings-provider-inactive'}`}>
+              {infra?.vpn.enabled ? (infra?.vpn.provider || 'Enabled') : 'Disabled'}
+            </span>
+          </div>
+        </div>
+        {infra?.vpn.enabled && infra?.vpn.countries && (
+          <div className="settings-provider-meta">
+            Provider: {infra.vpn.provider} &middot; Type: {infra.vpn.type} &middot; Countries: {infra.vpn.countries}
+          </div>
+        )}
+        <div className="settings-provider-actions">
+          <button className="settings-btn-sm" onClick={() => setShowVpnConfig(!showVpnConfig)}>
+            {showVpnConfig ? 'Cancel' : infra?.vpn.enabled ? 'Reconfigure' : 'Enable VPN'}
+          </button>
+          {infra?.vpn.enabled && (
+            <button className="settings-btn-sm" onClick={fetchStatus}>Check Status</button>
+          )}
+        </div>
+
+        {showVpnConfig && (
+          <div style={{ marginTop: 12, padding: '16px', background: 'var(--elevated)', borderRadius: 10, border: '1px solid var(--border)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              <div className="settings-field">
+                <label>VPN Provider</label>
+                <select className="settings-input" value={vpnProvider} onChange={e => setVpnProvider(e.target.value)} style={{ fontSize: '0.85rem' }}>
+                  <option value="protonvpn">ProtonVPN</option>
+                  <option value="mullvad">Mullvad</option>
+                  <option value="nordvpn">NordVPN</option>
+                  <option value="surfshark">Surfshark</option>
+                  <option value="expressvpn">ExpressVPN</option>
+                  <option value="windscribe">Windscribe</option>
+                  <option value="ivpn">IVPN</option>
+                  <option value="airvpn">AirVPN</option>
+                  <option value="custom">Custom / Other</option>
+                </select>
+              </div>
+              <div className="settings-field">
+                <label>Protocol</label>
+                <select className="settings-input" value={vpnType} onChange={e => setVpnType(e.target.value)} style={{ fontSize: '0.85rem' }}>
+                  <option value="wireguard">WireGuard</option>
+                  <option value="openvpn">OpenVPN</option>
+                </select>
+              </div>
+            </div>
+            <div className="settings-field" style={{ marginBottom: 12 }}>
+              <label>WireGuard Private Key</label>
+              <input type="password" value={vpnKey} onChange={e => setVpnKey(e.target.value)} placeholder="From your VPN provider dashboard" style={{ fontSize: '0.85rem' }} />
+            </div>
+            <div className="settings-field" style={{ marginBottom: 12 }}>
+              <label>Server Countries</label>
+              <input type="text" value={vpnCountries} onChange={e => setVpnCountries(e.target.value)} placeholder="Switzerland,Sweden,Netherlands" style={{ fontSize: '0.85rem' }} />
+              <p className="settings-field-hint">Comma-separated. Gluetun picks the best server from these countries.</p>
+            </div>
+            <button className="settings-save-btn" onClick={handleSaveVpn}>Save VPN Config</button>
+          </div>
+        )}
+      </div>
+
+      {/* SearXNG Section */}
+      <div className="settings-provider-card" style={{ borderLeft: `3px solid ${statusColor(infra?.searxng.status || 'unknown')}`, marginTop: 10 }}>
+        <div className="settings-provider-header">
+          <div className="settings-provider-info">
+            <span className="settings-provider-name">SearXNG Search Engine</span>
+            <span className="settings-provider-desc">Self-hosted meta search — aggregates Google, Bing, DuckDuckGo, and {infra?.searxng.engineCount ? `${infra.searxng.engineCount - 3}+ more` : 'many more'} engines</span>
+          </div>
+          <div className="settings-provider-status" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            {infra?.searxng.vpnRouted && (
+              <span style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: 8, background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)' }}>VPN Routed</span>
+            )}
+            <span className={`settings-provider-badge ${infra?.searxng.status === 'healthy' ? 'settings-provider-active' : 'settings-provider-inactive'}`}>
+              {infra?.searxng.engineCount ? `${infra.searxng.engineCount} engines` : statusLabel(infra?.searxng.status || 'unknown')}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Autoheal Section */}
+      <div className="settings-provider-card" style={{ borderLeft: `3px solid ${statusColor(infra?.autoheal.status || 'unknown')}`, marginTop: 10 }}>
+        <div className="settings-provider-header">
+          <div className="settings-provider-info">
+            <span className="settings-provider-name">Autoheal</span>
+            <span className="settings-provider-desc">Automatic container recovery — restarts failed containers when health checks fail</span>
+          </div>
+          <div className="settings-provider-status">
+            <span className={`settings-provider-badge ${infra?.autoheal.status === 'healthy' ? 'settings-provider-active' : 'settings-provider-inactive'}`}>
+              {infra?.autoheal.containersMonitored ? `${infra.autoheal.containersMonitored} monitored` : statusLabel(infra?.autoheal.status || 'unknown')}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Database & Cache */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+        <div className="settings-provider-card" style={{ borderLeft: `3px solid ${statusColor(infra?.postgres.status || 'unknown')}` }}>
+          <div className="settings-provider-header">
+            <div className="settings-provider-info">
+              <span className="settings-provider-name">PostgreSQL + pgvector</span>
+              <span className="settings-provider-desc">{infra?.postgres.size || 'Database'} &middot; Semantic vector search</span>
+            </div>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: statusColor(infra?.postgres.status || 'unknown') }} />
+          </div>
+        </div>
+        <div className="settings-provider-card" style={{ borderLeft: `3px solid ${statusColor(infra?.redis.status || 'unknown')}` }}>
+          <div className="settings-provider-header">
+            <div className="settings-provider-info">
+              <span className="settings-provider-name">Redis</span>
+              <span className="settings-provider-desc">Event bus, cache, pub/sub</span>
+            </div>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: statusColor(infra?.redis.status || 'unknown') }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MigrationTab() {
   const [configText, setConfigText] = useState('');
   const [filePath, setFilePath] = useState('');
@@ -3097,22 +3932,28 @@ function PreferencesTab() {
             <label className="settings-label" style={{ fontSize: '0.7rem' }}>Category</label>
             <select className="settings-input" value={newCategory} onChange={e => setNewCategory(e.target.value)} style={{ fontSize: '0.8rem' }}>
               <option value="general">General</option>
-              <option value="model">Model</option>
+              <option value="communication">Communication</option>
               <option value="tone">Tone & Voice</option>
+              <option value="model">AI Model</option>
+              <option value="schedule">Schedule & Timing</option>
+              <option value="budget">Budget & Spending</option>
+              <option value="content">Content & Writing</option>
+              <option value="brand">Brand & Identity</option>
+              <option value="workflow">Workflow & Process</option>
+              <option value="notifications">Notifications</option>
+              <option value="privacy">Privacy & Data</option>
               <option value="coding_style">Coding Style</option>
-              <option value="schedule">Schedule</option>
-              <option value="budget">Budget</option>
             </select>
           </div>
           <div>
             <label className="settings-label" style={{ fontSize: '0.7rem' }}>Preference</label>
             <input className="settings-input" value={newKey} onChange={e => setNewKey(e.target.value)}
-              placeholder="e.g. preferred_model" style={{ fontSize: '0.8rem' }} />
+              placeholder="e.g. language, timezone, format" style={{ fontSize: '0.8rem' }} />
           </div>
           <div>
             <label className="settings-label" style={{ fontSize: '0.7rem' }}>Value</label>
             <input className="settings-input" value={newValue} onChange={e => setNewValue(e.target.value)}
-              placeholder="e.g. claude-opus-4-6" style={{ fontSize: '0.8rem' }}
+              placeholder="e.g. English, America/New_York, bullet points" style={{ fontSize: '0.8rem' }}
               onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }} />
           </div>
           <button className="settings-btn-primary" onClick={handleAdd} disabled={saving || !newKey.trim() || !newValue.trim()}

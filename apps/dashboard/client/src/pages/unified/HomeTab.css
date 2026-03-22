@@ -7,7 +7,7 @@
   display: grid;
   grid-template-columns: 420px 1fr;
   overflow: hidden;
-  background: #04040a;
+  background: var(--void);
 }
 
 /* ── Left: Mission Control Panel ── */

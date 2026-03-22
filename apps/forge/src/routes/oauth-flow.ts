@@ -179,4 +179,160 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
       }
     },
   );
+
+  // ============================================
+  // CODEX / OPENAI OAUTH (Device Auth Flow)
+  // ============================================
+
+  const OPENAI_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
+  const OPENAI_DEVICE_AUTH_URL = 'https://auth.openai.com/oauth/device/code';
+  const OPENAI_TOKEN_URL = 'https://auth.openai.com/oauth/token';
+  const CODEX_AUTH_PATH = '/home/substrate/.codex-session/.codex/auth.json';
+
+  const pendingDeviceFlows = new Map<string, { deviceCode: string; interval: number; createdAt: number }>();
+
+  /**
+   * POST /api/v1/forge/oauth/codex/start
+   * Start the OpenAI device authorization flow for Codex.
+   * Returns a user_code and verification_uri for the user to visit.
+   */
+  app.post(
+    '/api/v1/forge/oauth/codex/start',
+    { preHandler: [authMiddleware] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const res = await fetch(OPENAI_DEVICE_AUTH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: OPENAI_CLIENT_ID,
+            scope: 'openid profile email offline_access',
+          }),
+        });
+
+        if (!res.ok) {
+          const err = await res.text().catch(() => 'Unknown');
+          return reply.code(400).send({ error: `Device auth request failed: ${err}` });
+        }
+
+        const data = await res.json() as {
+          device_code: string;
+          user_code: string;
+          verification_uri: string;
+          verification_uri_complete: string;
+          expires_in: number;
+          interval: number;
+        };
+
+        pendingDeviceFlows.set(data.user_code, {
+          deviceCode: data.device_code,
+          interval: data.interval || 5,
+          createdAt: Date.now(),
+        });
+
+        return {
+          userCode: data.user_code,
+          verificationUrl: data.verification_uri_complete || data.verification_uri,
+          expiresIn: data.expires_in,
+        };
+      } catch (err) {
+        return reply.code(500).send({ error: err instanceof Error ? err.message : 'Failed to start device auth' });
+      }
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/oauth/codex/poll
+   * Poll for device auth completion. Client calls this repeatedly until authorized.
+   */
+  app.post(
+    '/api/v1/forge/oauth/codex/poll',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { userCode } = request.body as { userCode?: string };
+      if (!userCode) return reply.code(400).send({ error: 'userCode is required' });
+
+      const pending = pendingDeviceFlows.get(userCode);
+      if (!pending) return reply.code(400).send({ error: 'No pending flow for this code' });
+
+      // Check expiry (10 min)
+      if (Date.now() - pending.createdAt > 600_000) {
+        pendingDeviceFlows.delete(userCode);
+        return reply.code(400).send({ error: 'Device code expired' });
+      }
+
+      try {
+        const res = await fetch(OPENAI_TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+            client_id: OPENAI_CLIENT_ID,
+            device_code: pending.deviceCode,
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: 'unknown' })) as { error?: string };
+          if (errData.error === 'authorization_pending') {
+            return { status: 'pending', message: 'Waiting for user to authorize...' };
+          }
+          if (errData.error === 'slow_down') {
+            return { status: 'pending', message: 'Waiting...' };
+          }
+          pendingDeviceFlows.delete(userCode);
+          return reply.code(400).send({ error: `Auth failed: ${errData.error}` });
+        }
+
+        const tokenData = await res.json() as {
+          access_token: string;
+          id_token?: string;
+          refresh_token?: string;
+          expires_in?: number;
+          token_type: string;
+        };
+
+        pendingDeviceFlows.delete(userCode);
+
+        // Write to Codex auth.json
+        const authData = {
+          OPENAI_API_KEY: null,
+          tokens: {
+            id_token: tokenData.id_token || null,
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token || null,
+            account_id: null,
+          },
+          last_refresh: new Date().toISOString(),
+        };
+
+        await mkdir(dirname(CODEX_AUTH_PATH), { recursive: true }).catch(() => {});
+        await writeFile(CODEX_AUTH_PATH, JSON.stringify(authData, null, 2), 'utf-8');
+
+        console.log('[OAuth] Codex credentials saved successfully');
+        return { status: 'authorized', message: 'Codex connected!' };
+      } catch (err) {
+        return reply.code(500).send({ error: err instanceof Error ? err.message : 'Poll failed' });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/oauth/codex/status
+   * Check if Codex OAuth credentials exist.
+   */
+  app.get(
+    '/api/v1/forge/oauth/codex/status',
+    { preHandler: [authMiddleware] },
+    async () => {
+      try {
+        const { readFile } = await import('node:fs/promises');
+        const raw = await readFile(CODEX_AUTH_PATH, 'utf-8');
+        const auth = JSON.parse(raw) as { tokens?: { access_token?: string } };
+        return { connected: !!auth.tokens?.access_token, status: auth.tokens?.access_token ? 'healthy' : 'no_token' };
+      } catch {
+        return { connected: false, status: 'no_credentials' };
+      }
+    },
+  );
 }

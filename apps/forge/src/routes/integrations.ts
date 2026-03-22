@@ -104,17 +104,37 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   // List which providers are configurable
   // ------------------------------------------
   app.get('/api/v1/integrations/available', async () => {
+    // .env detection for primary integrations
+    const ENV_KEYS: Record<string, string> = {
+      github: 'GITHUB_TOKEN',
+      gitlab: 'GITLAB_TOKEN',
+      shopify: 'SHOPIFY_ACCESS_TOKEN',
+      stripe: 'STRIPE_SECRET_KEY',
+      sendgrid: 'SENDGRID_API_KEY',
+      twitter: 'TWITTER_BEARER_TOKEN',
+      mailchimp: 'MAILCHIMP_API_KEY',
+      hubspot: 'HUBSPOT_API_KEY',
+      airtable: 'AIRTABLE_API_KEY',
+      linear: 'LINEAR_API_KEY',
+      notion: 'NOTION_API_KEY',
+      sentry: 'SENTRY_AUTH_TOKEN',
+      datadog: 'DATADOG_API_KEY',
+      cloudflare: 'CLOUDFLARE_API_TOKEN',
+    };
+
     const oauthProviders = (['github', 'gitlab', 'bitbucket'] as const).map((p) => ({
       provider: p,
-      configured: !!getOAuthConfig(p),
+      configured: !!getOAuthConfig(p) || !!process.env[ENV_KEYS[p] ?? ''],
       type: 'oauth' as const,
+      env_bound: !!process.env[ENV_KEYS[p] ?? ''],
     }));
 
-    // API key providers are always "available" — they just need configuration
+    // API key providers — detect .env bindings
     const apiKeyProviders = API_KEY_PROVIDERS.map((p) => ({
       provider: p,
-      configured: true, // Always available for API key entry
+      configured: true,
       type: 'api_key' as const,
+      env_bound: !!process.env[ENV_KEYS[p] ?? ''],
     }));
 
     return { providers: [...oauthProviders, ...apiKeyProviders] };
