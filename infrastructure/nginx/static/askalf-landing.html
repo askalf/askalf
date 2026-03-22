@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AskAlf — Tell Alf What You Need. Alf Builds the Team.</title>
-  <meta name="description" content="One AI that creates specialized workers for any task — security, operations, research, support, development. Self-hosted autonomous agent fleet. Tell Alf what you need and Alf builds the team.">
+  <meta name="description" content="One AI that creates specialized workers for any task — marketing, support, e-commerce, research, finance, personal productivity. Self-hosted AI workforce. Tell Alf what you need and Alf builds the team.">
   <meta property="og:title" content="AskAlf — Tell Alf What You Need. Alf Builds the Team.">
-  <meta property="og:description" content="One AI that creates specialized workers for any task. Security. Operations. Research. Support. Development. Self-hosted. Open source. Deploy in 60 seconds.">
+  <meta property="og:description" content="One AI that creates specialized workers for any task. Marketing. Support. E-commerce. Research. Finance. Personal. Self-hosted. Open source. Deploy in 60 seconds.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://askalf.org">
   <meta property="og:image" content="https://askalf.org/askalf-og.png">
@@ -15,7 +15,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@ask_alf">
   <meta name="twitter:title" content="AskAlf — Tell Alf What You Need. Alf Builds the Team.">
-  <meta name="twitter:description" content="One AI that creates specialized workers for any task. Security. Operations. Research. Support. Development. Self-hosted. Open source.">
+  <meta name="twitter:description" content="One AI that creates specialized workers for any task. Marketing. Support. E-commerce. Research. Finance. Personal. Self-hosted. Open source.">
   <meta name="twitter:image" content="https://askalf.org/askalf-og.png">
   <meta name="theme-color" content="#7c3aed">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -26,7 +26,7 @@
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "AskAlf",
-    "description": "One AI that creates specialized workers for any task. Security, operations, research, support, development. Self-hosted autonomous agent fleet.",
+    "description": "One AI that creates specialized workers for any task. Marketing, support, e-commerce, research, finance, personal productivity. Self-hosted AI workforce.",
     "url": "https://askalf.org",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Linux, macOS, Windows (WSL2)",
@@ -368,7 +368,7 @@
     <div class="hc">
       <div class="hb"><span class="hbd"></span>v1.0.0 &middot; OPEN SOURCE &middot; SELF-HOSTED</div>
       <h1><span class="h1-line">Tell Alf what you need.</span><span class="h1-line"><em>Alf builds the team.</em></span></h1>
-      <p class="hs">One AI that creates specialized workers for any task. Security. Operations. Research. Support. Development. Whatever your business needs — Alf figures out who to hire, puts them to work, and reports back. Self-hosted. Open source.</p>
+      <p class="hs">One AI that creates specialized workers for any task. Marketing. Support. E-commerce. Research. Finance. Personal productivity. Whatever you need — Alf figures out who to hire, puts them to work, and reports back while you sleep. Self-hosted. Open source.</p>
       <p class="hcmp"><strong>Other tools give you a chatbot.</strong> AskAlf gives you a workforce. Runs on anything with Docker.</p>
       <div class="ha">
         <a href="#install" class="bp">Deploy Now</a>
@@ -384,7 +384,7 @@
           <span class="cm">curl</span> <span class="fl">-fsSL</span> https://get.askalf.org | <span class="cm">bash</span><br>
           <br>
           <span class="co"># Checks Docker, generates secrets, pulls images,</span><br>
-          <span class="co"># starts your fleet at http://localhost:3001</span>
+          <span class="co"># starts your team at http://localhost:3001</span>
         </div>
       </div>
     </div>
@@ -397,20 +397,46 @@
     <p class="sd rv" style="text-align:center;margin-left:auto;margin-right:auto">Same platform. Different problems. Click a tab to see what AskAlf does for you.</p>
 
     <div class="rv" style="display:flex;gap:4px;justify-content:center;margin-bottom:32px;flex-wrap:wrap" id="scenario-tabs">
-      <button class="scenario-tab active" onclick="showScenario('dev')">Software Team</button>
+      <button class="scenario-tab active" onclick="showScenario('personal')">Personal</button>
+      <button class="scenario-tab" onclick="showScenario('marketing')">Marketing</button>
       <button class="scenario-tab" onclick="showScenario('ecommerce')">E-Commerce</button>
       <button class="scenario-tab" onclick="showScenario('agency')">Agency</button>
+      <button class="scenario-tab" onclick="showScenario('dev')">Software</button>
       <button class="scenario-tab" onclick="showScenario('ops')">Operations</button>
     </div>
 
-    <!-- SOFTWARE TEAM -->
-    <div class="scenario active" id="scenario-dev">
+    <!-- PERSONAL -->
+    <div class="scenario active" id="scenario-personal">
+      <div class="scenario-hook">You tell Alf what you need before bed. By morning, it's done.</div>
+      <div class="timeline"><div class="timeline-line"></div>
+        <div class="tl-entry"><div class="tl-time">09:15 PM</div><div class="tl-dot" style="background:#f472b6"></div><div class="tl-content"><div class="tl-agent" style="color:#f472b6">Travel Planner</div><div class="tl-text">You say: "Plan a trip to Austin next month." Alf spawns a Travel Planner. Researches flights, hotels, restaurants. <strong>Full itinerary by morning.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">09:22 PM</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Budget Coach</div><div class="tl-text">Analyzes your subscriptions. Finds 3 services you haven't used in months. <strong>$47/month in savings.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">10:00 PM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">Meal Planner</div><div class="tl-text">Generates next week's meal plan based on your preferences. Shopping list ready. <em>Accounts for leftovers.</em></div></div></div>
+        <div class="tl-entry"><div class="tl-time">07:00 AM</div><div class="tl-dot" style="background:#f59e0b"></div><div class="tl-content"><div class="tl-agent" style="color:#f59e0b">News Curator</div><div class="tl-text">Morning digest: 12 articles from your interests, zero noise. Competitors, industry trends, and one article that changes your mind about something.</div></div></div>
+      </div>
+      <div class="scenario-result"><strong>$0.18.</strong> Trip planned. Budget optimized. Meals sorted. News curated. You slept through all of it.</div>
+    </div>
+
+    <!-- MARKETING -->
+    <div class="scenario" id="scenario-marketing">
+      <div class="scenario-hook">Your competitors launched a new feature. By morning, you have the analysis, the counter-strategy, and the ad copy.</div>
+      <div class="timeline"><div class="timeline-line"></div>
+        <div class="tl-entry"><div class="tl-time">08:30 PM</div><div class="tl-dot" style="background:#ec4899"></div><div class="tl-content"><div class="tl-agent" style="color:#ec4899">Competitor Tracker</div><div class="tl-text">Detects your competitor updated their pricing page. Captures changes, compares to last snapshot. <strong>Full diff report.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">09:15 PM</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">SEO Analyst</div><div class="tl-text">Runs keyword gap analysis against competitor. Finds 14 high-intent keywords they rank for that you don't. <em>Content briefs generated.</em></div></div></div>
+        <div class="tl-entry"><div class="tl-time">11:00 PM</div><div class="tl-dot" style="background:#f59e0b"></div><div class="tl-content"><div class="tl-agent" style="color:#f59e0b">Ad Copy Generator</div><div class="tl-text">Drafts 6 ad variations for Google and Facebook targeting the competitor's weakness. <strong>A/B test ready.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">06:00 AM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">Social Monitor</div><div class="tl-text">Scanned Twitter, Reddit, LinkedIn for brand mentions overnight. 3 positive, 1 needs response. <strong>Draft reply waiting.</strong></div></div></div>
+      </div>
+      <div class="scenario-result"><strong>$0.37.</strong> Competitor analyzed. SEO gaps found. Ads drafted. Social monitored. Ready for your morning standup.</div>
+    </div>
+
+    <!-- SOFTWARE -->
+    <div class="scenario" id="scenario-dev">
       <div class="scenario-hook">Your team pushes code at 10:47 PM. By 9 AM, bugs are fixed, vulnerabilities are patched, and infrastructure is stable.</div>
       <div class="timeline"><div class="timeline-line"></div>
-        <div class="tl-entry"><div class="tl-time">10:49 PM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">Last commit touched the checkout flow. QA runs 42 regression tests. <strong>3 fail.</strong> Ticket created, assigned to Backend Dev. Nobody wakes up.</div></div></div>
-        <div class="tl-entry"><div class="tl-time">10:51 PM</div><div class="tl-dot" style="background:#60a5fa"></div><div class="tl-content"><div class="tl-agent" style="color:#60a5fa">Backend Dev</div><div class="tl-text">Traces it to a race condition on line 412. Writes the fix, commits, QA re-validates. <em>12 minutes after the team went home.</em></div></div></div>
-        <div class="tl-entry"><div class="tl-time">11:14 PM</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security</div><div class="tl-text">Scans 847 packages. Finds <code>CVE-2026-1847</code> in your payment library. <strong>Critical.</strong> Backend Dev patches it before midnight.</div></div></div>
-        <div class="tl-entry"><div class="tl-time">02:04 AM</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Redis at 91%. Creates ticket for Infra. Infra checks the Brain, finds a past fix, applies it. Redis drops to 52%. <strong>Zero downtime.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">10:49 PM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">Test Runner</div><div class="tl-text">Last commit touched the checkout flow. Runs 42 regression tests. <strong>3 fail.</strong> Ticket created, assigned to a builder. Nobody wakes up.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">10:51 PM</div><div class="tl-dot" style="background:#60a5fa"></div><div class="tl-content"><div class="tl-agent" style="color:#60a5fa">Builder</div><div class="tl-text">Traces it to a race condition on line 412. Writes the fix, commits, tests re-validate. <em>12 minutes after the team went home.</em></div></div></div>
+        <div class="tl-entry"><div class="tl-time">11:14 PM</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security Scanner</div><div class="tl-text">Scans 847 packages. Finds <code>CVE-2026-1847</code> in the payment library. <strong>Critical.</strong> Builder patches it before midnight.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">02:04 AM</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">System Monitor</div><div class="tl-text">Redis at 91%. Consults Alf's memory for past fixes, applies the solution. Redis drops to 52%. <strong>Zero downtime.</strong></div></div></div>
       </div>
       <div class="scenario-result"><strong>$0.43.</strong> 2 bugs fixed. 1 CVE patched. 1 outage prevented. Your team slept through all of it.</div>
     </div>
@@ -454,9 +480,9 @@
 
   <!-- Knowledge Graph / Brain -->
   <section id="brain">
-    <div class="sl rv">THE BRAIN</div>
-    <h2 class="st rv">Your agents never make<br>the same mistake twice.</h2>
-    <p class="sd rv">Every fix, every failure, every deployment is stored in a cognitive memory that grows with every execution. The more they work, the smarter they get.</p>
+    <div class="sl rv">MEMORY</div>
+    <h2 class="st rv">Alf never makes<br>the same mistake twice.</h2>
+    <p class="sd rv">Every task, every outcome, every interaction is stored in a cognitive memory that grows with every execution. The more Alf works, the smarter your team gets.</p>
 
     <div class="brain-layout rv">
       <div class="brain-canvas-wrap">
@@ -543,14 +569,14 @@
       <tbody>
         <tr>
           <td>Multi-specialist teams</td>
-          <td class="alf-col cmp-yes">&#x2713; 7 core + unlimited custom</td>
+          <td class="alf-col cmp-yes">&#x2713; 109 templates + unlimited custom</td>
           <td class="cmp-no">&#x2717; Single assistant</td>
           <td class="cmp-partial">~ Single agent</td>
           <td class="cmp-no">&#x2717; No agents</td>
         </tr>
         <tr>
           <td>Persistent memory</td>
-          <td class="alf-col cmp-yes">&#x2713; 10-layer knowledge graph</td>
+          <td class="alf-col cmp-yes">&#x2713; 3-tier memory + knowledge graph</td>
           <td class="cmp-partial">~ Per-conversation only</td>
           <td class="cmp-no">&#x2717; No memory</td>
           <td class="cmp-no">&#x2717; No memory</td>
@@ -611,8 +637,8 @@
   <!-- Marketplace -->
   <section style="text-align:center">
     <div class="sl rv">MARKETPLACE</div>
-    <h2 class="st rv">28 packages. One-click install.</h2>
-    <p class="sd rv">Browse, install, rate, and publish tools and skills from the community marketplace — built into the dashboard.</p>
+    <h2 class="st rv">109 templates. Community library. One-click install.</h2>
+    <p class="sd rv">Browse 16 categories of worker templates — Personal, Marketing, Support, E-Commerce, Finance, and more. Share skills with the community. Import/export bundles.</p>
     <div class="rv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;max-width:800px;margin:36px auto 0">
       <div style="padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:.75rem;font-weight:600;color:var(--crystal-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Tools</div>
@@ -632,13 +658,13 @@
   <!-- Dashboard Features -->
   <section style="text-align:center">
     <div class="sl rv">THE DASHBOARD</div>
-    <h2 class="st rv">Mission control. Not a chat window.</h2>
-    <p class="sd rv" style="margin-left:auto;margin-right:auto">Everything you need to run, monitor, and manage your agent fleet — in one place.</p>
+    <h2 class="st rv">Your command center. Not a chat window.</h2>
+    <p class="sd rv" style="margin-left:auto;margin-right:auto">Everything you need to run, monitor, and manage your AI workforce — in one place.</p>
     <div class="rv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;max-width:900px;margin:36px auto 0">
       <div style="padding:18px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:1.2rem;margin-bottom:6px">&#x1F6F0;</div>
-        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Mission Control Overview</div>
-        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">Orbital fleet visualization, real-time telemetry, execution stats, cost tracking, memory tiers — all on one screen.</div>
+        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Ask Alf + Fleet View</div>
+        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">Chat with Alf + orbital team visualization, execution stats, cost tracking — all on one screen. Alf greets you with an overnight briefing.</div>
       </div>
       <div style="padding:18px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:1.2rem;margin-bottom:6px">&#x1F4E1;</div>
@@ -647,18 +673,18 @@
       </div>
       <div style="padding:18px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:1.2rem;margin-bottom:6px">&#x23F0;</div>
-        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Visual Cron Editor</div>
-        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">Schedule agents with presets or custom cron. Timezone-aware. See next 5 runs before saving.</div>
+        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Simple Worker Builder</div>
+        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">3-step creation: describe the task, pick a schedule, done. Advanced mode for power users. Alf handles the rest.</div>
       </div>
       <div style="padding:18px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:1.2rem;margin-bottom:6px">&#x1F9E0;</div>
-        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Memory Browser</div>
-        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">Search and inspect semantic, episodic, and procedural memories. See what your agents know and how they learn.</div>
+        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Memory — Ask, Teach, Browse</div>
+        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">Search Alf's memory in plain English. Teach Alf facts, preferences, and rules. Browse what Alf knows and how it learns.</div>
       </div>
       <div style="padding:18px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:1.2rem;margin-bottom:6px">&#x1F6D2;</div>
-        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Marketplace</div>
-        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">28 packages. Browse, install, rate, publish. Tools and skill templates with one-click install.</div>
+        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Marketplace & Community</div>
+        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">109 templates across 16 categories. Community skills library. Import/export bundles. Rate and share.</div>
       </div>
       <div style="padding:18px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:1.2rem;margin-bottom:6px">&#x1F500;</div>
@@ -673,7 +699,7 @@
     <div style="padding:36px 32px;background:rgba(248,113,113,.03);border:1px solid rgba(248,113,113,.12);border-radius:16px">
       <div style="font-family:var(--font-mono);font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#fb923c;margin-bottom:14px">USING OPENCLAW?</div>
       <h3 style="font-size:1.4rem;font-weight:800;margin-bottom:12px">Migrate in 60 seconds. Or keep both.</h3>
-      <p style="color:var(--text-mid);font-size:.95rem;line-height:1.6;margin-bottom:20px">Upload your <code style="font-size:.85em">openclaw.json</code> in Settings &gt; Migration to import everything. Or connect OpenClaw as a channel frontend — its 19 chat platforms, your agent fleet.</p>
+      <p style="color:var(--text-mid);font-size:.95rem;line-height:1.6;margin-bottom:20px">Upload your <code style="font-size:.85em">openclaw.json</code> in Settings &gt; Migration to import everything. Or connect OpenClaw as a channel frontend — its 19 chat platforms, your AI workforce.</p>
       <pre style="text-align:left;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-family:var(--font-mono);font-size:.85rem;color:var(--text-mid);line-height:1.7;margin:0 auto;max-width:520px">OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789</pre>
       <p style="color:var(--text-dim);font-size:.85rem;margin-top:16px"><a href="/security" style="color:var(--crystal-light)">Feature comparison: AskAlf vs OpenClaw</a></p>
     </div>
@@ -683,7 +709,7 @@
   <div class="term-callout">
     <div class="sl rv">BUILT INTO THE DASHBOARD</div>
     <h2 class="st rv">Full Claude CLI and OpenAI Codex terminals.<br>Inside your dashboard. Not a wrapper.</h2>
-    <p class="sd rv">Open a terminal tab. You're in a live Claude or Codex session with full access to your codebase, your agents' context, and your knowledge graph. No copy-pasting. No context switching.</p>
+    <p class="sd rv">Open the Workspace tab. Full Claude Code or Codex session with access to your projects, your workers' context, and Alf's memory. No copy-pasting. No context switching.</p>
 
     <div class="term-grid rv">
       <!-- Claude Code -->
@@ -769,7 +795,7 @@
         <div class="device-list">
           <div class="device-item"><span class="device-icon">&#x1F4AC;</span><div><strong>Slack &middot; Discord &middot; Teams</strong><br><span class="device-desc">Bot tokens. Signature verification. Slash commands.</span></div></div>
           <div class="device-item"><span class="device-icon">&#x1F4AC;</span><div><strong>Telegram &middot; WhatsApp</strong><br><span class="device-desc">Webhook auto-registration. Platform-specific verification.</span></div></div>
-          <div class="device-item"><span class="device-icon">&#x1F99E;</span><div><strong>OpenClaw Bridge</strong><br><span class="device-desc">Connect OpenClaw as a frontend. Its 19 chat platforms, your agent fleet.</span></div></div>
+          <div class="device-item"><span class="device-icon">&#x1F99E;</span><div><strong>OpenClaw Bridge</strong><br><span class="device-desc">Connect OpenClaw as a frontend. Its 19 chat platforms, your AI workforce.</span></div></div>
           <div class="device-item"><span class="device-icon">&#x2699;&#xFE0F;</span><div><strong>Zapier &middot; n8n &middot; Make</strong><br><span class="device-desc">Webhook URLs. API key auth. Bi-directional automation.</span></div></div>
           <div class="device-item"><span class="device-icon">&#x1F4E7;</span><div><strong>Email &middot; SMS &middot; Voice &middot; Zoom</strong><br><span class="device-desc">SMTP, SendGrid, Twilio SMS, Twilio Voice.</span></div></div>
         </div>
@@ -820,7 +846,7 @@
     <div class="faq-grid">
       <div class="faq-item rv">
         <h3>Is this vaporware?</h3>
-        <p>No. It's running right now on real infrastructure. The agents that built this platform are the same agents that ship to you. The knowledge graph, the memory system, the orchestration — all production code.</p>
+        <p>No. It's running right now on real infrastructure. The workers that built this platform are the same workers that ship to you. The memory system, the orchestration, the community library — all production code.</p>
       </div>
       <div class="faq-item rv">
         <h3>How much does it cost to run?</h3>
@@ -855,7 +881,7 @@
 
   <!-- Share -->
   <div class="sb rv">
-    <a class="sbt tw" href="https://twitter.com/intent/tweet?text=Not%20one%20AI.%20An%20entire%20team.%207%20autonomous%20agents%20that%20code%2C%20debug%2C%20deploy%2C%20and%20monitor%20%E2%80%94%20while%20you%20sleep.%20Self-hosted.%20Open%20source.&url=https://askalf.org" target="_blank">Share on X</a>
+    <a class="sbt tw" href="https://twitter.com/intent/tweet?text=Not%20one%20AI.%20An%20entire%20workforce.%20Tell%20Alf%20what%20you%20need%20%E2%80%94%20marketing%2C%20research%2C%20support%2C%20anything%20%E2%80%94%20and%20Alf%20builds%20the%20team.%20Self-hosted.%20Open%20source.&url=https://askalf.org" target="_blank">Share on X</a>
     <button class="sbt hn" onclick="navigator.clipboard.writeText('AskAlf \u2013 Not one AI, an entire team (self-hosted, open source)\nhttps://askalf.org\n\n7 core agents + unlimited custom specialists. Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer.\n\nMission control dashboard. 10-layer cognitive memory with pgvector. 28 marketplace packages. 16 channels including OpenClaw bridge. Multi-agent orchestration.\n\ncurl -fsSL https://get.askalf.org | bash\n\nGitHub: https://github.com/askalf/askalf\nDiscord: https://discord.gg/fENVZpdYcX');this.textContent='Copied!'">Copy HN Post</button>
     <button class="sbt cp" onclick="navigator.clipboard.writeText('https://askalf.org');this.textContent='Copied!'">Copy Link</button>
   </div>
