@@ -1,7 +1,7 @@
 # MCP Tools Reference
 
 **Audience:** Agents running inside AskAlf
-**Updated:** 2026-02-22
+**Updated:** 2026-03-22
 **Source:** `apps/mcp-tools/src/`
 
 All tools are exposed to agents via the MCP server at port 3010. Tool calls return JSON strings.
@@ -27,6 +27,7 @@ All tools are exposed to agents via the MCP server at port 3010. Tool calls retu
 | `code_analysis` | infra | Typecheck, dead code, complexity analysis |
 | `web_search` | agent | Search the web via SearXNG |
 | `web_browse` | agent | Fetch and extract text from a URL |
+| `twitter_ops` | agent | Post tweets, threads, reply, search, like, retweet on Twitter/X |
 | `team_coordinate` | agent | Spin up multi-agent teams |
 | `forge_checkpoints` | forge | Human approval checkpoints |
 | `forge_capabilities` | forge | Query agent capability catalog |
@@ -146,7 +147,7 @@ Create and manage work tickets tracked in the Substrate database.
   "action": "update",
   "ticket_id": "01ABC...",
   "status": "resolved",
-  "resolution": "Wrote docs/MCP_TOOLS_REFERENCE.md covering all 24 tools"
+  "resolution": "Wrote docs/MCP_TOOLS_REFERENCE.md covering all 27 tools"
 }
 
 // List assigned to me
@@ -437,6 +438,59 @@ Fetch a URL and extract its text content. HTML is stripped.
   "url": "https://node-postgres.com/apis/pool",
   "selector": "article",
   "max_length": 8000
+}
+```
+
+---
+
+### `twitter_ops`
+
+Post tweets, threads, reply to mentions, search hashtags, get profile info, like and retweet on Twitter/X. Requires `TWITTER_API_KEY`, `TWITTER_API_SECRET`, `TWITTER_ACCESS_TOKEN`, and `TWITTER_ACCESS_SECRET` env vars or integration credentials.
+
+**Actions:** `post_tweet`, `post_thread`, `reply`, `search`, `get_mentions`, `get_profile`, `delete_tweet`, `like`, `retweet`
+
+```json
+// Post a tweet
+{
+  "action": "post_tweet",
+  "text": "Deploying v2.1 — all checks green."
+}
+
+// Post a thread
+{
+  "action": "post_thread",
+  "thread": ["1/ Thread starts here", "2/ More context", "3/ Conclusion"]
+}
+
+// Reply to a tweet
+{
+  "action": "reply",
+  "text": "Thanks for the report, investigating now.",
+  "reply_to_id": "1234567890"
+}
+
+// Search tweets
+{
+  "action": "search",
+  "query": "#askalf",
+  "max_results": 10
+}
+
+// Get mentions
+{
+  "action": "get_mentions"
+}
+
+// Like a tweet
+{
+  "action": "like",
+  "tweet_id": "1234567890"
+}
+
+// Retweet
+{
+  "action": "retweet",
+  "tweet_id": "1234567890"
 }
 ```
 

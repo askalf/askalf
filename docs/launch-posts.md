@@ -50,7 +50,7 @@ curl -fsSL https://get.askalf.org | bash
 **What you get:**
 - Dashboard with team visualization and Alf chat
 - 109 worker templates across 16 categories (Personal, Marketing, Support, E-Commerce, Finance, and more)
-- 26 built-in MCP tools (Docker, deploy, security scan, code analysis, etc.)
+- 27 built-in MCP tools (Docker, deploy, security scan, code analysis, Twitter/X, etc.)
 - 16 channels (Slack, Discord, Telegram, WhatsApp, and more)
 - Persistent memory system with knowledge graph
 - Embedded Claude CLI + OpenAI Codex terminals
@@ -144,7 +144,7 @@ Knowledge graph (how things connect)
 
 The 100th task is faster than the 1st.
 
-4/ 109 templates. 16 categories. 16 channels. 26 MCP tools.
+4/ 109 templates. 16 categories. 16 channels. 27 MCP tools.
 
 Personal, Marketing, Support, E-Commerce, Finance, Security, Research, and more.
 

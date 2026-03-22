@@ -59,7 +59,7 @@ Your Machine                    AskAlf Platform
 │              │            │  Unified Dispatcher   │
 │ Claude CLI   │            │  Event Bus (Redis)    │
 │ Your Code    │            │  Memory System        │
-│              │            │  26 MCP Tools         │
+│              │            │  27 MCP Tools         │
 └──────────────┘            └──────────────────────┘
                                     │
                             ┌───────┴───────┐
