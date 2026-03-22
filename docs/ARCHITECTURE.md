@@ -505,7 +505,7 @@ The fleet coordinator (`apps/forge/src/runtime/fleet-coordinator.ts`) supports t
 ```mermaid
 graph LR
     subgraph Pipeline
-        A1[Architect] --> A2[Backend Dev] --> A3[QA]
+        A1[Planner] --> A2[Builder] --> A3[Reviewer]
     end
 
     subgraph FanOut["Fan-Out"]
@@ -522,7 +522,7 @@ graph LR
     end
 ```
 
-- **Pipeline**: Sequential handoff (e.g., Architect designs, Backend Dev implements, QA verifies)
+- **Pipeline**: Sequential handoff (e.g., Planner designs, Builder implements, Reviewer verifies)
 - **Fan-out**: Parallel dispatch (e.g., Sentinel runs multiple security scans concurrently)
 - **Consensus**: Multiple agents analyze independently, lead synthesizes results
 
@@ -534,17 +534,22 @@ Each coordination plan has:
 - Status tracking per task: `pending` | `running` | `completed` | `failed`
 - Result synthesis by the lead agent
 
-### 8.3 Fleet Agent Roles
+### 8.3 Dynamic Worker Roles
 
-| Agent | Role |
-|-------|------|
-| **Watchdog** | System health monitoring, alerting, auto-remediation |
-| **Security (Sentinel)** | Vulnerability scanning, dependency audits, threat detection |
-| **Backend Dev** | API implementation, database operations, service logic |
-| **Frontend Dev** | UI components, client-side logic, accessibility |
-| **Infra** | Docker, deployment pipelines, infrastructure configuration |
-| **QA** | Test generation, regression testing, quality verification |
-| **Writer (Doc Writer)** | Documentation generation and maintenance |
+Workers are created dynamically based on the task. Alf matches requests to the best specialist — from a library of 109 templates across 16 categories, or creates a new one on demand. Example roles:
+
+| Worker | Role |
+|--------|------|
+| **System Monitor** | Health monitoring, alerting, auto-remediation |
+| **Security Scanner** | Vulnerability scanning, dependency audits, threat detection |
+| **Builder** | Implementation, data operations, service logic |
+| **Designer** | UI components, client-side logic, accessibility |
+| **Ops Worker** | Deployment pipelines, infrastructure configuration |
+| **Tester** | Test generation, regression testing, quality verification |
+| **Content Writer** | Documentation, reports, and content generation |
+| **Researcher** | Market analysis, competitor tracking, data gathering |
+| **Analyst** | Data analysis, reporting, pattern detection |
+| **Scheduler** | Task planning, reminders, routine management |
 
 ### 8.4 Unified Dispatcher
 

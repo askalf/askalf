@@ -2,7 +2,7 @@
 
 ## Hacker News (Show HN)
 
-**Title:** Show HN: AskAlf — Self-hosted AI agent fleet that works while you sleep
+**Title:** Show HN: AskAlf — Self-hosted AI workforce that runs 24/7
 
 **URL:** https://github.com/askalf/askalf
 
@@ -10,17 +10,17 @@
 
 I built AskAlf because I was tired of babysitting one AI agent trying to do everything.
 
-AskAlf is a self-hosted AI workforce. You tell Alf what you need — security scan, competitor research, infrastructure monitoring, customer review tracking — and Alf creates specialized workers, puts them to work, and reports back. They coordinate autonomously, learn from every task, and get faster every day.
+AskAlf is a self-hosted AI workforce. You tell Alf what you need — security scan, competitor research, infrastructure monitoring, customer review tracking, meal planning — and Alf creates specialized workers, puts them to work, and reports back. They coordinate autonomously, learn from every task, and get faster every day.
 
-What happens overnight: QA catches a regression, Backend Dev writes the fix, QA re-runs tests, Security patches 2 CVEs, Watchdog monitors Redis. Total cost: ~$0.43.
+What happens while you're away: a Monitor detects a service at 91% memory, consults Alf's memory for past fixes, applies the solution. A Security Scanner finds 2 CVEs across 847 packages, a Patch Worker fixes them. A Researcher tracks your competitors and flags pricing changes. Total cost: ~$0.43.
 
 Technical highlights:
-- Multi-agent orchestration with autonomous ticket dispatch
+- Dynamic worker creation from 109 templates across 16 categories
 - 10-layer cognitive memory (semantic + episodic + procedural) with pgvector
-- 28-package marketplace for community tools and skills
+- 109 skill templates + community library for sharing custom workers
 - 16 communication channels (Slack, Discord, Telegram, WhatsApp, OpenClaw bridge)
 - Embedded Claude CLI + OpenAI Codex terminals in the dashboard
-- Optional VPN tunneling for all agent traffic
+- Optional VPN tunneling for all worker traffic
 
 One-line install: `curl -fsSL https://get.askalf.org | bash`
 
@@ -34,13 +34,13 @@ Happy to answer questions about the architecture. Full docs: https://github.com/
 
 ## Reddit — r/selfhosted
 
-**Title:** I built a self-hosted AI agent fleet that coordinates autonomously — AskAlf
+**Title:** I built a self-hosted AI workforce that coordinates autonomously — AskAlf
 
 **Body:**
 
-After months of running single AI agents and manually shepherding them, I built AskAlf — an AI workforce — you tell Alf what you need, Alf creates specialized workers and puts them to work.
+After months of running single AI agents and manually shepherding them, I built AskAlf — an AI workforce platform. You tell Alf what you need, Alf creates specialized workers and puts them to work.
 
-**What it does:** Backend Dev, Frontend Dev, QA, Security, Infra, Watchdog, and Writer agents coordinate through an autonomous ticket system. The brain creates investigation tickets, routes them to the right agent, tracks outcomes, and learns from every execution.
+**What it does:** Alf dynamically creates the right specialist for any task — research, monitoring, security, content, support, finance, personal productivity. Workers coordinate through an autonomous ticket system. The memory system tracks outcomes and learns from every execution.
 
 **Install:**
 ```
@@ -48,17 +48,18 @@ curl -fsSL https://get.askalf.org | bash
 ```
 
 **What you get:**
-- Mission control dashboard with fleet visualization
+- Dashboard with team visualization and Alf chat
+- 109 worker templates across 16 categories (Personal, Marketing, Support, E-Commerce, Finance, and more)
 - 26 built-in MCP tools (Docker, deploy, security scan, code analysis, etc.)
-- 28 marketplace packages (tools + skill templates)
 - 16 channels (Slack, Discord, Telegram, WhatsApp, and more)
 - Persistent memory system with knowledge graph
 - Embedded Claude CLI + OpenAI Codex terminals
+- Community skills library — share and install custom worker templates
 - Optional VPN tunneling via Gluetun
 
 **Requirements:** Docker, 4GB RAM, one AI provider API key (Anthropic recommended).
 
-**Cost:** ~$0.43/night for 18 agent executions. Built-in per-agent budgets.
+**Cost:** ~$0.43/day for typical workloads. Built-in per-worker budgets.
 
 GitHub: https://github.com/askalf/askalf
 Docs: https://github.com/askalf/askalf/blob/main/docs/ARCHITECTURE.md
@@ -72,15 +73,15 @@ MIT licensed. Happy to answer any questions.
 
 ## Reddit — r/LocalLLaMA
 
-**Title:** Self-hosted multi-agent fleet with persistent memory and autonomous coordination — AskAlf (open source)
+**Title:** Self-hosted AI workforce with persistent memory and autonomous coordination — AskAlf (open source)
 
 **Body:**
 
 Sharing AskAlf — an open-source multi-agent orchestration platform that runs on your own hardware.
 
-Unlike single-agent tools, AskAlf creates specialized workers that coordinate through an autonomous brain with a 10-layer cognitive memory system (semantic + episodic + procedural memories stored in pgvector).
+Unlike single-agent tools, AskAlf dynamically creates specialized workers that coordinate through an autonomous system with a 10-layer cognitive memory (semantic + episodic + procedural memories stored in pgvector).
 
-The brain reviews its own knowledge, creates investigation tickets when it finds issues, dispatches them to the right fleet agent, and tracks resolution. It consolidates memories overnight — the 100th security scan knows exactly where to look.
+The system reviews its own knowledge, creates investigation tickets when it finds issues, dispatches them to the right worker, and tracks resolution. Memory consolidation strengthens useful patterns — the 100th security scan knows exactly where to look.
 
 Currently uses Claude and OpenAI as providers. The architecture is model-agnostic — adding local model support (Ollama, vLLM) is on the roadmap.
 
@@ -94,20 +95,20 @@ GitHub: https://github.com/askalf/askalf
 
 ## Reddit — r/devops
 
-**Title:** Open-source AI agent fleet for automated ops — monitors infra, patches CVEs, resolves incidents autonomously
+**Title:** Open-source AI workforce for automated ops — monitors infra, patches CVEs, resolves incidents autonomously
 
 **Body:**
 
-Built an open-source platform called AskAlf that runs specialized AI agents for DevOps tasks:
+Built an open-source platform called AskAlf that creates specialized AI workers for ops tasks:
 
-- **Watchdog** — scheduled health checks every 15 min, creates tickets on anomalies
-- **Security** — dependency audits, vulnerability scanning, secret detection
-- **Infra** — Docker management, deploy ops, infrastructure fixes
-- **QA** — test execution, regression detection, code review
+- **System Monitor** — continuous health checks, creates tickets on anomalies
+- **Security Scanner** — dependency audits, vulnerability scanning, secret detection
+- **Ops Worker** — Docker management, deploy ops, infrastructure fixes
+- **Tester** — test execution, regression detection, validation
 
-The agents coordinate through an autonomous ticket system — Watchdog detects high Redis memory, creates a ticket, Infra agent claims it, checks past fixes in the knowledge graph, applies the solution.
+Workers coordinate through an autonomous ticket system — a Monitor detects high memory usage, creates a ticket, an Ops Worker claims it, checks past fixes in the knowledge graph, applies the solution.
 
-Self-hosted, Docker Compose, one command to install. Optional VPN tunneling for all agent traffic.
+Self-hosted, Docker Compose, one command to install. Optional VPN tunneling for all worker traffic.
 
 `curl -fsSL https://get.askalf.org | bash`
 
@@ -119,42 +120,44 @@ GitHub: https://github.com/askalf/askalf
 
 **Thread:**
 
-1/ We just open-sourced AskAlf — a self-hosted AI agent fleet that works while you sleep.
+1/ We just open-sourced AskAlf — a self-hosted AI workforce that runs 24/7.
 
-Not one agent. Seven. They coordinate, investigate, and fix things autonomously.
+Not one agent. A full team. Tell Alf what you need — Alf creates the right specialist and puts them to work.
 
 curl -fsSL https://get.askalf.org | bash
 
-2/ What happens overnight:
+2/ What Alf does while you're away:
 
-10:49 PM — QA catches a regression
-10:51 PM — Backend Dev traces and fixes it
-11:14 PM — Security patches 2 CVEs
-2:04 AM — Watchdog fixes Redis at 91%
-6:47 AM — Fleet goes quiet. Cost: $0.43.
+A Monitor catches a service at 91% memory — fixes it.
+A Security Scanner finds 2 CVEs — patches them.
+A Researcher tracks competitors — flags changes.
+A Writer generates your morning report.
 
-3/ The brain has a 10-layer cognitive memory system.
+Cost: $0.43.
+
+3/ The memory system has 10 cognitive layers.
 
 Semantic memory (what it knows)
 Episodic memory (what happened)
 Procedural memory (what works)
 Knowledge graph (how things connect)
 
-The 100th deploy is faster than the 1st.
+The 100th task is faster than the 1st.
 
-4/ 28 marketplace packages. 16 channels. 26 MCP tools.
+4/ 109 templates. 16 categories. 16 channels. 26 MCP tools.
+
+Personal, Marketing, Support, E-Commerce, Finance, Security, Research, and more.
 
 Slack, Discord, Telegram, WhatsApp, OpenClaw bridge.
-Docker, deploy, security scan, code analysis, fleet coordination.
 
-One-click install from the dashboard.
+Community skills library — share your custom workers.
 
 5/ TypeScript. PostgreSQL + pgvector. Redis. Docker.
 
 Self-hosted. MIT licensed. Your data stays yours.
 
 GitHub: github.com/askalf/askalf
-Docs: ARCHITECTURE.md
+Website: askalf.org
 
 Discord: discord.gg/fENVZpdYcX
 

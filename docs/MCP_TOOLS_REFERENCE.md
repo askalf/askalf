@@ -219,7 +219,7 @@ Delegate a task to another agent by ID. Runs the agent synchronously and returns
 {
   "agent_id": "01ANVIL0000000000000000000",
   "input": "Review the schema migration for correctness and flag any issues",
-  "caller_agent_name": "Backend Dev"
+  "caller_agent_name": "Builder"
 }
 ```
 
@@ -325,10 +325,10 @@ draft → pending_review → approved → applied
 
 | Proposal type | Assigned reviewers |
 |---------------|--------------------|
-| `prompt_revision` | Meta, Architect |
-| `code_change` | QA Engineer, Architect |
-| `config_change` | QA Engineer, Architect |
-| `schema_change` | QA Engineer, Architect |
+| `prompt_revision` | Meta, Planner |
+| `code_change` | Reviewer, Planner |
+| `config_change` | Reviewer, Planner |
+| `schema_change` | Reviewer, Planner |
 
 High/critical risk proposals also require a human checkpoint via `forge_checkpoints`.
 
@@ -620,12 +620,12 @@ View and manage multi-agent coordination sessions.
 
 ### When crossing domains
 ```
-- Security issues → ticket to Aegis
-- Infrastructure → ticket to DevOps
-- Backend/API code → ticket to Backend Dev
-- Frontend/UI → ticket to Frontend Dev
-- Architecture → ticket to Architect
-- Testing → ticket to QA Engineer
+- Security issues → ticket to Security Scanner
+- Infrastructure → ticket to Ops Worker
+- Implementation → ticket to Builder
+- UI/Design → ticket to Designer
+- Architecture → ticket to Planner
+- Testing → ticket to Tester
 ```
 
 ---
