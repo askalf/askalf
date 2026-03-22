@@ -6,6 +6,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { rateLimiter } from '../middleware/rate-limit.js';
 
 export async function communitySkillsRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -139,7 +140,7 @@ export async function communitySkillsRoutes(app: FastifyInstance): Promise<void>
   /**
    * GET /api/v1/forge/community/skills/pending — Admin: list pending submissions
    */
-  app.get('/api/v1/forge/community/skills/pending', { preHandler: [authMiddleware] }, async () => {
+  app.get('/api/v1/forge/community/skills/pending', { preHandler: [rateLimiter, authMiddleware] }, async () => {
     const pending = await query(
       `SELECT id, name, slug, category, description, author_name, tags, submitted_by, created_at
        FROM forge_agent_templates
