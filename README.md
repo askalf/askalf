@@ -4,7 +4,7 @@
 
 **Tell Alf what you need. Alf builds the team.**
 
-One AI that creates specialized workers for any task — marketing, support, e-commerce, research, finance, personal productivity, whatever you need. Alf figures out who to hire, puts them to work, and reports back while you sleep.
+One AI that creates specialized workers for any task — marketing, support, e-commerce, research, finance, personal productivity, whatever you need. Alf figures out who to hire, puts them to work, and keeps everything running 24/7.
 
 Other tools give you a chatbot. **AskAlf gives you a workforce.**
 
