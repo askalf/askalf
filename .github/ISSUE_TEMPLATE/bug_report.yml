@@ -43,13 +43,15 @@ body:
     attributes:
       label: Component
       options:
-        - Dashboard
+        - Ask Alf (Chat)
+        - Team (Workers)
+        - Ops (Tickets/Costs)
+        - Memory
+        - Templates & Skills
+        - Workspace (Terminals)
         - Forge (API/Runtime)
         - MCP Tools
-        - Agent Execution
-        - Memory/Brain
-        - Claude CLI Terminal
-        - Codex Terminal
+        - Worker Execution
         - Docker/Deployment
         - Other
     validations:

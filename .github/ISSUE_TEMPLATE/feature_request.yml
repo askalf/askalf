@@ -22,13 +22,14 @@ body:
     attributes:
       label: Component
       options:
-        - Dashboard
-        - Agent Fleet
-        - Memory/Brain
-        - Integrations
-        - Channels
-        - Devices
-        - CLI Agent
+        - Ask Alf (Chat)
+        - Team (Workers)
+        - Ops (Tickets/Costs)
+        - Memory
+        - Templates & Skills
+        - Marketplace
+        - Workspace (Terminals)
+        - Channels & Integrations
         - Docker/Deployment
         - Documentation
         - Other

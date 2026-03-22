@@ -159,15 +159,15 @@ export default function DocsPage() {
             Your home base has these tabs:
           </p>
           <ul>
-            <li><strong>Ask Alf</strong> &mdash; Chat with Alf + mission control in one view. Ask questions, dispatch tasks, or just say hello.</li>
+            <li><strong>Ask Alf</strong> &mdash; Chat with Alf + team visualization in one view. Ask questions, dispatch tasks, or just say hello.</li>
             <li><strong>Team</strong> &mdash; See all your workers, browse 109 templates across 16 categories, or create a custom worker.</li>
-            <li><strong>Ops</strong> &mdash; Tickets, costs, executions, timeline, audit log, and revenue tracking.</li>
-            <li><strong>Live</strong> &mdash; Real-time event feed from all workers.</li>
-            <li><strong>Brain</strong> &mdash; Memory browser, knowledge graph, and analytics.</li>
+            <li><strong>Ops</strong> &mdash; Tickets, costs, execution history, revenue tracking, and audit log.</li>
+            <li><strong>Memory</strong> &mdash; Search Alf&apos;s memory, teach Alf new facts, browse stored knowledge, and view analytics.</li>
             <li><strong>Workspace</strong> &mdash; Embedded Claude Code and Codex terminals.</li>
+            <li><strong>Marketplace</strong> &mdash; Browse and install tools and community skill templates.</li>
           </ul>
           <p>
-            The <strong>Mission Control</strong> tab gives you the full-screen orbital fleet visualization with detailed telemetry.
+            Seven tabs total, plus Settings. Everything you need in one place.
           </p>
 
           <h2>Key Concepts</h2>
