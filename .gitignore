@@ -139,13 +139,7 @@ infrastructure/cloudflare/
 infrastructure/postgres/postgresql.conf
 infrastructure/redis/redis.conf
 infrastructure/redis/docker-entrypoint.sh
-infrastructure/searxng/settings.yml
-infrastructure/searxng/settings-vpn.yml
-infrastructure/searxng/limiter.toml
-infrastructure/searxng/webhost-*.toml
-infrastructure/searxng/webhost-*.yml
 docker-compose.prod.yml
-docker-compose.webhost.yml
 docker-compose.vpn.yml
 
 # Internal ops scripts
