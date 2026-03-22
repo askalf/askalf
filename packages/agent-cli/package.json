@@ -1,7 +1,7 @@
 {
   "name": "@askalf/agent",
   "version": "1.0.1",
-  "description": "AskAlf Agent CLI — Connect local devices to your AskAlf fleet",
+  "description": "AskAlf Agent — Connect any device to your AskAlf workforce. Autonomous task execution with encrypted communication.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -15,7 +15,7 @@
     "dist",
     "README.md"
   ],
-  "keywords": ["askalf", "agent", "cli", "ai", "autonomous", "fleet", "self-hosted"],
+  "keywords": ["askalf", "agent", "cli", "ai", "autonomous", "workforce", "self-hosted", "multi-agent", "orchestration", "automation"],
   "license": "MIT",
   "repository": {
     "type": "git",
