@@ -1,12 +1,24 @@
+<div align="center">
+
 # AskAlf
 
 **Tell Alf what you need. Alf builds the team.**
 
-One AI that creates specialized workers for any task — marketing, support, e-commerce, research, finance, operations, personal productivity, development, whatever you need. Alf figures out who to hire, puts them to work, and reports back while you sleep. They learn from every task. They get faster every day.
+One AI that creates specialized workers for any task — marketing, support, e-commerce, research, finance, personal productivity, whatever you need. Alf figures out who to hire, puts them to work, and reports back while you sleep.
 
-Other tools give you a chatbot. AskAlf gives you a workforce.
+Other tools give you a chatbot. **AskAlf gives you a workforce.**
 
-**[askalf.org](https://askalf.org)** · **[Wiki](https://github.com/askalf/askalf/wiki)** · **[Discord](https://discord.gg/fENVZpdYcX)** · **[@ask_alf](https://x.com/ask_alf)**
+[![License](https://img.shields.io/badge/License-MIT-7c3aed?style=flat-square)](LICENSE)
+[![npm](https://img.shields.io/npm/v/@askalf/agent?style=flat-square&color=7c3aed&label=agent)](https://www.npmjs.com/package/@askalf/agent)
+[![Discord](https://img.shields.io/badge/Discord-Join-7c3aed?style=flat-square)](https://discord.gg/fENVZpdYcX)
+
+**[askalf.org](https://askalf.org)** · **[Discord](https://discord.gg/fENVZpdYcX)** · **[@ask_alf](https://x.com/ask_alf)**
+
+</div>
+
+<p align="center">
+  <img src="docs/images/home.png" alt="AskAlf Dashboard — Ask Alf + Team Visualization" width="100%">
+</p>
 
 ---
 
@@ -78,6 +90,10 @@ Browse, share, and install worker templates from the community:
 - **Import/Export** skill bundles as JSON — share entire packs with your team
 - **Alf-curated** featured skills reviewed and approved by the platform
 
+<p align="center">
+  <img src="docs/images/team.png" alt="Team — Workers + Create Worker" width="100%">
+</p>
+
 ---
 
 ## Workspace — Embedded Terminals
@@ -101,6 +117,10 @@ Every task, every outcome, every interaction is stored in a cognitive memory sys
 - **Metabolic Consolidation** — Overnight cycles that strengthen useful memories and decay noise
 
 The 10th task is faster than the 1st. The 100th research report knows exactly where to look.
+
+<p align="center">
+  <img src="docs/images/memory.png" alt="Memory — Ask, Teach, Browse, Graph, Analytics" width="100%">
+</p>
 
 ---
 
@@ -195,11 +215,15 @@ Two ecosystems built into the dashboard:
 
 **Community Skills Library** — 109 built-in templates across 16 categories (Personal, Marketing, Support, E-Commerce, Content, Finance, Legal, HR, Operations, Research, and more). Submit your own skills, browse community submissions, import/export bundles, and install Alf-curated featured templates.
 
+<p align="center">
+  <img src="docs/images/marketplace.png" alt="Marketplace — Templates, Tool Bundles, MCP Servers" width="100%">
+</p>
+
 ---
 
 ## OpenClaw Bridge
 
-Already running OpenClaw? Connect it as a channel frontend to AskAlf. Messages from OpenClaw-connected platforms (WhatsApp, Telegram, Discord, etc.) route through AskAlf's agent fleet with full memory, orchestration, and multi-agent coordination.
+Already running OpenClaw? Connect it as a channel frontend to AskAlf. Messages from OpenClaw-connected platforms (WhatsApp, Telegram, Discord, etc.) route through your AskAlf team with full memory, orchestration, and coordination.
 
 ```bash
 # Add to your .env
