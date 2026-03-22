@@ -51,27 +51,6 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
 
-  apps/admin-console:
-    dependencies:
-      '@fastify/cookie':
-        specifier: ^11.0.1
-        version: 11.0.2
-      '@fastify/cors':
-        specifier: ^10.0.0
-        version: 10.1.0
-      '@fastify/websocket':
-        specifier: ^11.2.0
-        version: 11.2.0
-      fastify:
-        specifier: '>=5.8.1'
-        version: 5.8.2
-      node-pty:
-        specifier: ^1.0.0
-        version: 1.1.0
-      pg:
-        specifier: ^8.13.1
-        version: 8.20.0
-
   apps/dashboard:
     dependencies:
       '@askalf/auth':
@@ -175,8 +154,8 @@ importers:
         specifier: ^2.4.6
         version: 2.4.6
       '@types/pg':
-        specifier: ^8.18.0
-        version: 8.18.0
+        specifier: ^8.20.0
+        version: 8.20.0
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
@@ -285,8 +264,8 @@ importers:
         version: 5.3.0
     devDependencies:
       '@types/pg':
-        specifier: ^8.18.0
-        version: 8.18.0
+        specifier: ^8.20.0
+        version: 8.20.0
       ts-node:
         specifier: ^10.9.0
         version: 10.9.2(@types/node@25.5.0)(typescript@5.9.3)
@@ -304,8 +283,8 @@ importers:
         version: 8.20.0
     devDependencies:
       '@types/pg':
-        specifier: ^8.18.0
-        version: 8.18.0
+        specifier: ^8.20.0
+        version: 8.20.0
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -1202,8 +1181,8 @@ packages:
   '@types/nodemailer@6.4.21':
     resolution: {integrity: sha512-Eix+sb/Nj28MNnWvO2X1OLrk5vuD4C9SMnb2Vf4itWnxphYeSceqkFX7IdmxTzn+dvmnNz7paMbg4Uc60wSfJg==}
 
-  '@types/pg@8.18.0':
-    resolution: {integrity: sha512-gT+oueVQkqnj6ajGJXblFR4iavIXWsGAFCk3dP4Kki5+a9R4NMt0JARdk6s8cUKcfUoqP5dAtDSLU8xYUTFV+Q==}
+  '@types/pg@8.20.0':
+    resolution: {integrity: sha512-bEPFOaMAHTEP1EzpvHTbmwR8UsFyHSKsRisLIHVMXnpNefSbGA1bD6CVy+qKjGSqmZqNqBDV2azOBo8TgkcVow==}
 
   '@types/qs@6.15.0':
     resolution: {integrity: sha512-JawvT8iBVWpzTrz3EGw9BTQFg3BQNmwERdKE22vlTxawwtbyUSlMppvZYKLZzB5zgACXdXxbD3m1bXaMqP/9ow==}
@@ -3920,7 +3899,7 @@ snapshots:
     transitivePeerDependencies:
       - aws-crt
 
-  '@types/pg@8.18.0':
+  '@types/pg@8.20.0':
     dependencies:
       '@types/node': 20.19.27
       pg-protocol: 1.13.0
@@ -3957,6 +3936,14 @@ snapshots:
       magic-string: 0.30.21
     optionalDependencies:
       vite: 5.4.21(@types/node@20.19.27)
+
+  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@25.5.0))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 5.4.21(@types/node@25.5.0)
 
   '@vitest/pretty-format@2.1.9':
     dependencies:
@@ -5522,7 +5509,7 @@ snapshots:
   vitest@2.1.9(@types/node@25.5.0)(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@20.19.27))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@25.5.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
