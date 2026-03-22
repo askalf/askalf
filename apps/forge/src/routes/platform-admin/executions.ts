@@ -70,7 +70,7 @@ export async function registerExecutionCostRoutes(app: FastifyInstance): Promise
       };
 
       const page = Math.max(parseInt(qs.page ?? '1', 10) || 1, 1);
-      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 100));
+      const limit = Math.max(1, Math.min(parseInt(qs.limit ?? '50', 10) || 50, 500));
       const offset = (page - 1) * limit;
       const days = Math.max(1, Math.min(parseInt(qs.days ?? '30', 10) || 30, 90));
 
