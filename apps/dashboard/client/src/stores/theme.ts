@@ -22,7 +22,7 @@ export const useThemeStore = create<ThemeState>()(
     (set, get) => ({
       theme: 'dark',
       fontSize: 'medium',
-      fontFamily: 'system',
+      fontFamily: 'inter',
       reducedMotion: false,
 
       setTheme: (theme) => {

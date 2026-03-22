@@ -33,7 +33,7 @@
   background: none;
   border: none;
   outline: none;
-  color: var(--text, #e2e8f0);
+  color: var(--text);
   font-size: 0.85rem;
   font-family: inherit;
 }
@@ -2470,7 +2470,7 @@ textarea.settings-input {
   padding: 4px 12px;
   border-radius: var(--radius-md, 8px);
   background: var(--crystal, #7c3aed);
-  color: var(--void, #0a0a0f);
+  color: var(--void);
   text-decoration: none;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -2872,7 +2872,7 @@ textarea.settings-input {
 .settings-channel-field input {
   width: 100%;
   padding: 0.4rem 0.6rem;
-  background: var(--void, #0a0a0f);
+  background: var(--void);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
@@ -3394,4 +3394,18 @@ textarea.settings-input {
   .migration-summary-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* ── Light mode ── */
+
+[data-theme="light"] .settings-mfa-section {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .settings-danger-zone {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .settings-data-section {
+  border-top-color: rgba(0, 0, 0, 0.08);
 }

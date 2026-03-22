@@ -204,7 +204,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #04040a;
+  background: var(--void);
   overflow: hidden;
   position: relative;
   animation: mc-bridge-boot 1.2s cubic-bezier(0.16, 1, 0.3, 1);

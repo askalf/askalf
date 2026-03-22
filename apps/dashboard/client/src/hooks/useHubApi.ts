@@ -1234,21 +1234,21 @@ export const hubApi = {
   marketplace: {
     list: (params: { type?: string; tag?: string; search?: string; sort?: string; featured?: boolean } = {}) =>
       apiFetch<{ packages: MarketplacePackage[] }>(
-        `/api/v1/admin/marketplace/packages?${buildParams({ type: params.type, tag: params.tag, search: params.search, sort: params.sort, featured: params.featured })}`,
+        `/api/v1/forge/marketplace/packages?${buildParams({ type: params.type, tag: params.tag, search: params.search, sort: params.sort, featured: params.featured })}`,
       ),
 
     detail: (slug: string) =>
-      apiFetch<{ package: MarketplacePackage }>(`/api/v1/admin/marketplace/packages/${encodeURIComponent(slug)}`),
+      apiFetch<{ package: MarketplacePackage }>(`/api/v1/forge/marketplace/packages/${encodeURIComponent(slug)}`),
 
     install: (slug: string) =>
       apiFetch<{ success: boolean; message: string }>(
-        `/api/v1/admin/marketplace/packages/${encodeURIComponent(slug)}/install`,
+        `/api/v1/forge/marketplace/packages/${encodeURIComponent(slug)}/install`,
         { method: 'POST', body: JSON.stringify({}) },
       ),
 
     rate: (slug: string, body: { rating: number; review?: string }) =>
       apiFetch<{ success: boolean }>(
-        `/api/v1/admin/marketplace/packages/${encodeURIComponent(slug)}/rate`,
+        `/api/v1/forge/marketplace/packages/${encodeURIComponent(slug)}/rate`,
         { method: 'POST', body: JSON.stringify(body) },
       ),
   },
