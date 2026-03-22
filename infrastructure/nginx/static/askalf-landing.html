@@ -99,7 +99,7 @@
     .st{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-bottom:16px}
     .sd{font-size:1.05rem;color:var(--text-mid);max-width:600px;line-height:1.7;margin-bottom:48px}
 
-    /* Overnight Timeline */
+    /* Scenario Timeline */
     .timeline-section{max-width:800px}
     .timeline-intro{text-align:center;margin-bottom:48px}
     .timeline{position:relative;padding:0 0 0 120px}
@@ -424,7 +424,7 @@
         <div class="tl-entry"><div class="tl-time">08:30 PM</div><div class="tl-dot" style="background:#ec4899"></div><div class="tl-content"><div class="tl-agent" style="color:#ec4899">Competitor Tracker</div><div class="tl-text">Detects your competitor updated their pricing page. Captures changes, compares to last snapshot. <strong>Full diff report.</strong></div></div></div>
         <div class="tl-entry"><div class="tl-time">09:15 PM</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">SEO Analyst</div><div class="tl-text">Runs keyword gap analysis against competitor. Finds 14 high-intent keywords they rank for that you don't. <em>Content briefs generated.</em></div></div></div>
         <div class="tl-entry"><div class="tl-time">11:00 PM</div><div class="tl-dot" style="background:#f59e0b"></div><div class="tl-content"><div class="tl-agent" style="color:#f59e0b">Ad Copy Generator</div><div class="tl-text">Drafts 6 ad variations for Google and Facebook targeting the competitor's weakness. <strong>A/B test ready.</strong></div></div></div>
-        <div class="tl-entry"><div class="tl-time">06:00 AM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">Social Monitor</div><div class="tl-text">Scanned Twitter, Reddit, LinkedIn for brand mentions overnight. 3 positive, 1 needs response. <strong>Draft reply waiting.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">06:00 AM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">Social Monitor</div><div class="tl-text">Scanned Twitter, Reddit, LinkedIn for brand mentions. 3 positive, 1 needs response. <strong>Draft reply waiting.</strong></div></div></div>
       </div>
       <div class="scenario-result"><strong>$0.37.</strong> Competitor analyzed. SEO gaps found. Ads drafted. Social monitored. Ready for your morning standup.</div>
     </div>
@@ -450,28 +450,28 @@
         <div class="tl-entry"><div class="tl-time">06:00 AM</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">Sales Analyst</div><div class="tl-text">Weekly report generated: revenue up 12%, cart abandonment spiked on mobile, discount code <code>SPRING20</code> drove 34% of conversions. <strong>Formatted and waiting in Slack.</strong></div></div></div>
         <div class="tl-entry"><div class="tl-time">08:00 AM</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Support Agent</div><div class="tl-text">Drafts a personalized response to the 1-star review with a replacement offer. Queued for your approval. <em>Response time: under 9 hours instead of 2 days.</em></div></div></div>
       </div>
-      <div class="scenario-result">Reviews caught overnight. Inventory managed. Sales analyzed. <strong>~$0.38/night.</strong> Your store never sleeps — and now neither does your team.</div>
+      <div class="scenario-result">Reviews caught. Inventory managed. Sales analyzed. <strong>~$0.38/day.</strong> Your store runs 24/7 — and now so does your team.</div>
     </div>
 
     <!-- AGENCY -->
     <div class="scenario" id="scenario-agency">
-      <div class="scenario-hook">You manage 8 client projects. Each one gets its own Alf fleet. Monday morning, all 8 have overnight reports waiting.</div>
+      <div class="scenario-hook">You manage 8 client projects. Each one gets its own Alf team. Reports, monitoring, and maintenance — running continuously across all 8.</div>
       <div class="timeline"><div class="timeline-line"></div>
-        <div class="tl-entry"><div class="tl-time">Client A</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Their landing page went down at 1 AM. Watchdog detected it, Infra restarted the container, <strong>posted in your Slack channel.</strong> Client never knew. Uptime: 99.98%.</div></div></div>
-        <div class="tl-entry"><div class="tl-time">Client B</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">QA</div><div class="tl-text">Their developer pushed a breaking change to the API. QA caught it in staging before it hit production. Ticket created, fix deployed. <strong>Client's users never saw the bug.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">Client A</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Monitor</div><div class="tl-text">Their landing page went down at 1 AM. Monitor detected it, restarted the container, <strong>posted in your Slack channel.</strong> Client never knew. Uptime: 99.98%.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">Client B</div><div class="tl-dot" style="background:#34d399"></div><div class="tl-content"><div class="tl-agent" style="color:#34d399">Tester</div><div class="tl-text">Their developer pushed a breaking change. Tester caught it in staging before production. Ticket created, fix deployed. <strong>Client's users never saw the bug.</strong></div></div></div>
         <div class="tl-entry"><div class="tl-time">Client C</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Security</div><div class="tl-text">Their WordPress plugin has a known XSS vulnerability. Security finds it, patches it, verifies the fix. You invoice them for "proactive security maintenance." <strong>They love you for it.</strong></div></div></div>
-        <div class="tl-entry"><div class="tl-time">Monday 9 AM</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Writer</div><div class="tl-text">Overnight reports generated for all 8 projects. Formatted, filed, ready to forward. Your Monday standup takes 5 minutes instead of 45.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">Monday 9 AM</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Writer</div><div class="tl-text">Status reports generated for all 8 projects automatically. Formatted, filed, ready to forward. Your Monday standup takes 5 minutes instead of 45.</div></div></div>
       </div>
-      <div class="scenario-result">8 projects. 7 agents each. <strong>~$3.50/night total.</strong> You bill each client for managed services and pocket the difference.</div>
+      <div class="scenario-result">8 projects. Alf manages them all. <strong>~$3.50/day total.</strong> You bill each client for managed services and pocket the difference.</div>
     </div>
 
     <!-- OPERATIONS -->
     <div class="scenario" id="scenario-ops">
-      <div class="scenario-hook">Watchdog monitors your infrastructure 24/7. Known issues get fixed automatically. Unknown issues get escalated immediately.</div>
+      <div class="scenario-hook">Alf monitors your infrastructure 24/7. Known issues get fixed automatically. Unknown issues get escalated immediately.</div>
       <div class="timeline"><div class="timeline-line"></div>
-        <div class="tl-entry"><div class="tl-time">Every 15m</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">Watchdog</div><div class="tl-text">Health checks across all services. Container status, memory, disk, API latency, error rates. Doesn't just alert — <strong>creates actionable tickets</strong> with context from past incidents.</div></div></div>
-        <div class="tl-entry"><div class="tl-time">2:04 AM</div><div class="tl-dot" style="background:#fb923c"></div><div class="tl-content"><div class="tl-agent" style="color:#fb923c">Infra</div><div class="tl-text">Redis memory creeping. Infra checks the Brain for what worked before. Finds: <em>"volatile-lru eviction policy resolved this in 4 minutes."</em> Applies it. <strong>Zero downtime. No human involved.</strong></div></div></div>
-        <div class="tl-entry"><div class="tl-time">3:47 AM</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">Watchdog</div><div class="tl-text">Unknown error pattern in the auth service. No match in the Brain. <strong>Escalates to Slack and PagerDuty</strong> with full diagnostic context: logs, metrics, recent deploys, and suggested investigation paths.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">Continuous</div><div class="tl-dot" style="background:#2dd4bf"></div><div class="tl-content"><div class="tl-agent" style="color:#2dd4bf">System Monitor</div><div class="tl-text">Health checks across all services. Container status, memory, disk, API latency, error rates. Doesn't just alert — <strong>creates actionable tickets</strong> with context from past incidents.</div></div></div>
+        <div class="tl-entry"><div class="tl-time">Auto-detected</div><div class="tl-dot" style="background:#fb923c"></div><div class="tl-content"><div class="tl-agent" style="color:#fb923c">Ops Worker</div><div class="tl-text">Redis memory creeping. Checks Alf's memory for what worked before. Finds: <em>"volatile-lru eviction policy resolved this in 4 minutes."</em> Applies it. <strong>Zero downtime. No human involved.</strong></div></div></div>
+        <div class="tl-entry"><div class="tl-time">Escalation</div><div class="tl-dot" style="background:#f87171"></div><div class="tl-content"><div class="tl-agent" style="color:#f87171">System Monitor</div><div class="tl-text">Unknown error pattern in the auth service. No match in memory. <strong>Escalates to Slack and PagerDuty</strong> with full diagnostic context: logs, metrics, recent events, and suggested investigation paths.</div></div></div>
         <div class="tl-entry"><div class="tl-time">Weekly</div><div class="tl-dot" style="background:#a78bfa"></div><div class="tl-content"><div class="tl-agent" style="color:#a78bfa">Brain</div><div class="tl-text">Correlates incidents: "Redis memory spikes happen every Tuesday after the batch job runs." Creates a proactive ticket to reschedule it. <em>Pattern detection no dashboard can do.</em></div></div></div>
       </div>
       <div class="scenario-result"><strong>$0.43/night</strong> instead of $4,000/month for an on-call engineer. Known issues auto-remediated. Unknown issues escalated with full context.</div>
@@ -523,8 +523,8 @@
     <div class="honesty rv">
       <div class="honesty-label">Full transparency</div>
       <h3>The agents don't always get it right on the first try.</h3>
-      <p>An agent once committed a fix that broke a different feature. QA caught it in 14 minutes, created a new ticket, and Backend Dev rolled it back. The system self-corrected — but the first fix was wrong.</p>
-      <p>We're telling you this because every other AI product pretends to be perfect. We'd rather show you how the system <em>recovers</em> from mistakes than pretend it never makes them. The ticket system, the patrol cycles, the QA verification — they exist because agents are powerful but not infallible.</p>
+      <p>A worker once committed a fix that broke a different feature. A tester caught it in 14 minutes, created a new ticket, and another worker rolled it back. The system self-corrected — but the first fix was wrong.</p>
+      <p>We're telling you this because every other AI product pretends to be perfect. We'd rather show you how the system <em>recovers</em> from mistakes than pretend it never makes them. The ticket system, the monitoring, the verification — they exist because workers are powerful but not infallible.</p>
       <p><strong>The value isn't perfection. It's that problems get found and fixed at 2am instead of discovered at 2pm.</strong></p>
     </div>
   </section>
@@ -603,7 +603,7 @@
           <td class="cmp-partial">~ Task-level billing</td>
         </tr>
         <tr>
-          <td>Fleet coordination</td>
+          <td>Team coordination</td>
           <td class="alf-col cmp-yes">&#x2713; Ticket dispatch + escalation</td>
           <td class="cmp-no">&#x2717; No coordination</td>
           <td class="cmp-no">&#x2717; No coordination</td>
@@ -611,7 +611,7 @@
         </tr>
         <tr>
           <td>Mission control dashboard</td>
-          <td class="alf-col cmp-yes">&#x2713; Full fleet visualization</td>
+          <td class="alf-col cmp-yes">&#x2713; Full team visualization</td>
           <td class="cmp-no">&#x2717; Chat window</td>
           <td class="cmp-no">&#x2717; CLI only</td>
           <td class="cmp-partial">~ Workflow editor</td>
@@ -642,7 +642,7 @@
     <div class="rv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;max-width:800px;margin:36px auto 0">
       <div style="padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:.75rem;font-weight:600;color:var(--crystal-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Tools</div>
-        <div style="color:var(--text-mid);font-size:.85rem;line-height:1.7">Docker API &middot; Security Scan &middot; Code Analysis &middot; Deploy Ops &middot; Fleet Intel &middot; Web Search &middot; DB Query &middot; Knowledge Graph</div>
+        <div style="color:var(--text-mid);font-size:.85rem;line-height:1.7">Docker API &middot; Security Scan &middot; Code Analysis &middot; Deploy Ops &middot; Team Intel &middot; Web Search &middot; DB Query &middot; Knowledge Graph</div>
       </div>
       <div style="padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:.75rem;font-weight:600;color:var(--green);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Skills</div>
@@ -663,8 +663,8 @@
     <div class="rv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;max-width:900px;margin:36px auto 0">
       <div style="padding:18px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:1.2rem;margin-bottom:6px">&#x1F6F0;</div>
-        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Ask Alf + Fleet View</div>
-        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">Chat with Alf + orbital team visualization, execution stats, cost tracking — all on one screen. Alf greets you with an overnight briefing.</div>
+        <div style="font-weight:700;font-size:.9rem;color:var(--text);margin-bottom:4px">Ask Alf + Team View</div>
+        <div style="color:var(--text-dim);font-size:.8rem;line-height:1.6">Chat with Alf + team visualization, execution stats, cost tracking — all on one screen. Alf greets you with a real-time briefing.</div>
       </div>
       <div style="padding:18px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:10px;text-align:left">
         <div style="font-size:1.2rem;margin-bottom:6px">&#x1F4E1;</div>
@@ -776,7 +776,7 @@
   <!-- The Ecosystem — Devices, Integrations, Channels, Stack -->
   <section id="devices">
     <div class="sl rv">THE ECOSYSTEM</div>
-    <h2 class="st rv">12 device adapters. 22 integrations. 16 channels. 28 marketplace packages.</h2>
+    <h2 class="st rv">12 device adapters. 22 integrations. 16 channels. 109 templates.</h2>
     <p class="sd rv">Your agents don't just run in the cloud — they control real machines, talk to your tools, and reach you anywhere. Encrypted credentials. Signature verification. Test-before-deploy.</p>
 
     <div class="device-grid rv">
@@ -866,7 +866,7 @@
       </div>
       <div class="faq-item rv">
         <h3>What if something goes wrong?</h3>
-        <p>Monitors detect issues automatically. The ticket system creates a paper trail. Cost guardrails cap spending. Approval gates catch risky actions. You get a morning briefing of everything that happened overnight.</p>
+        <p>Monitors detect issues automatically. The ticket system creates a paper trail. Cost guardrails cap spending. Approval gates catch risky actions. You get continuous briefings of everything happening across your team.</p>
       </div>
       <div class="faq-item rv">
         <h3>Is my data safe?</h3>
@@ -918,17 +918,17 @@
       event.target.classList.add('active');
     }
 
-    // Hero Canvas — Agent Fleet Emergence
+    // Hero Canvas — Worker Team Emergence
     (function(){const c=document.getElementById('hc'),x=c.getContext('2d');let w,h,m={x:-1e3,y:-1e3};
-    // 7 core agents with colors
+    // Workers across industries
     const agents=[
-      {n:'Backend Dev',c:[96,165,250],born:400},
-      {n:'Frontend Dev',c:[167,139,250],born:600},
-      {n:'QA',c:[52,211,153],born:800},
-      {n:'Infra',c:[251,146,60],born:1000},
-      {n:'Security',c:[248,113,113],born:1200},
-      {n:'Watchdog',c:[45,212,191],born:1400},
-      {n:'Writer',c:[232,121,249],born:1600}
+      {n:'Researcher',c:[96,165,250],born:400},
+      {n:'Analyst',c:[167,139,250],born:600},
+      {n:'Monitor',c:[52,211,153],born:800},
+      {n:'Scheduler',c:[251,146,60],born:1000},
+      {n:'Scanner',c:[248,113,113],born:1200},
+      {n:'Writer',c:[45,212,191],born:1400},
+      {n:'Coordinator',c:[232,121,249],born:1600}
     ];
     // Background stars
     const stars=[];const NSTARS=120;
@@ -1138,7 +1138,7 @@
         'fan-out','pipeline','consensus','DAG','event-bus','dispatcher',
         'SearXNG','Cloudflare','Slack','Discord','Telegram','MCP-tools',
         'node-pty','Claude CLI','intent-parser','executor','worker',
-        'orbital-fleet','sparkline','canal','queue','pub-sub'];
+        'team-view','sparkline','canal','queue','pub-sub'];
       const nodes=[];const edges=[];const N=50;
       let visibleNodes=0;const growRate=0.4;// nodes per second
       let started=false;
@@ -1308,7 +1308,7 @@
       const input=document.getElementById('dispatch-in');
       const auto=document.getElementById('dispatch-auto');
       if(!input||!auto)return;
-      const examples=['fix the broken login page','scan all dependencies for CVEs','deploy the latest build to production','add rate limiting to the API','write tests for the checkout flow','monitor Redis memory and fix if critical'];
+      const examples=['research my top 5 competitors and summarize findings','scan all dependencies for security vulnerabilities','plan my meals for the week with a grocery list','respond to all pending customer reviews','create a monthly expense report with insights','monitor my website uptime and alert if it drops'];
       let ei=0,ci=0,typing=true,timeout=null;
       function tick(){
         if(input===document.activeElement||input.value){auto.style.display='none';return;}
@@ -1339,47 +1339,49 @@
 
       const routes=[
         {kw:['security','vuln','cve','scan','audit','secret','leak','password','credential','exposure'],agents:[
-          {name:'Security',color:'#f87171',task:'Run full dependency + secret scan across 847 packages'},
-          {name:'Backend Dev',color:'#60a5fa',task:'Patch any CVEs found — upgrade libraries, verify fix'},
+          {name:'Security Scanner',color:'#f87171',task:'Run full dependency + secret scan across all packages'},
+          {name:'Patch Worker',color:'#60a5fa',task:'Fix any vulnerabilities found — upgrade, verify, report'},
         ]},
-        {kw:['monitor','health','alert','down','slow','performance','memory','cpu','redis','postgres','latency'],agents:[
-          {name:'Watchdog',color:'#2dd4bf',task:'Run diagnostics — container health, latency, memory'},
-          {name:'Infra',color:'#fb923c',task:'Apply fix if threshold breached — consult Brain for past solutions'},
+        {kw:['monitor','health','alert','down','slow','performance','memory','cpu','latency','uptime'],agents:[
+          {name:'System Monitor',color:'#2dd4bf',task:'Run diagnostics — service health, latency, resource usage'},
+          {name:'Ops Worker',color:'#fb923c',task:'Apply fix if threshold breached — consult memory for past solutions'},
         ]},
-        {kw:['deploy','ship','release','push','ci','cd','production','staging'],agents:[
-          {name:'QA',color:'#34d399',task:'Run full regression suite before deploy'},
-          {name:'Infra',color:'#fb923c',task:'Build containers, push to registry, rolling deploy'},
-          {name:'Watchdog',color:'#2dd4bf',task:'Monitor health post-deploy — rollback if degraded'},
+        {kw:['deploy','ship','release','push','ci','cd','production','staging','launch'],agents:[
+          {name:'Tester',color:'#34d399',task:'Run full validation suite before deploy'},
+          {name:'Ops Worker',color:'#fb923c',task:'Build, push, and deploy with rolling strategy'},
+          {name:'System Monitor',color:'#2dd4bf',task:'Monitor health post-deploy — rollback if degraded'},
         ]},
-        {kw:['doc','readme','changelog','write','blog','runbook','guide'],agents:[
-          {name:'Writer',color:'#e879f9',task:'Draft documentation from codebase analysis'},
+        {kw:['doc','readme','changelog','write','blog','runbook','guide','report','content'],agents:[
+          {name:'Content Writer',color:'#e879f9',task:'Draft content from analysis and research'},
         ]},
-        {kw:['ui','frontend','css','style','component','page','dark mode','button','modal','layout','responsive'],agents:[
-          {name:'Frontend Dev',color:'#a78bfa',task:'Build React component, wire up state and styling'},
-          {name:'QA',color:'#34d399',task:'Write visual regression tests'},
+        {kw:['research','competitor','market','trend','seo','keyword','analyze','compare','benchmark'],agents:[
+          {name:'Researcher',color:'#60a5fa',task:'Deep research with web search and data analysis'},
+          {name:'Data Analyst',color:'#a78bfa',task:'Compile findings into actionable insights'},
         ]},
-        {kw:['test','coverage','validate','spec','unit','integration','regression'],agents:[
-          {name:'QA',color:'#34d399',task:'Write test suite, validate edge cases, measure coverage'},
-          {name:'Backend Dev',color:'#60a5fa',task:'Fix any failures found during test run'},
+        {kw:['schedule','remind','plan','calendar','meal','habit','routine','organize','task'],agents:[
+          {name:'Scheduler',color:'#fb923c',task:'Create schedule, set reminders, organize tasks'},
+          {name:'Coordinator',color:'#2dd4bf',task:'Track progress and follow up on deadlines'},
         ]},
-        {kw:['docker','container','kubernetes','k8s','infra','nginx','ssl','dns','tunnel'],agents:[
-          {name:'Infra',color:'#fb923c',task:'Configure infrastructure, manage containers'},
+        {kw:['email','support','customer','ticket','reply','respond','complaint','review'],agents:[
+          {name:'Support Agent',color:'#34d399',task:'Draft response, resolve issue, update ticket'},
+          {name:'Analyst',color:'#a78bfa',task:'Identify patterns and suggest process improvements'},
         ]},
-        {kw:['api','route','endpoint','database','query','migration','schema','model'],agents:[
-          {name:'Backend Dev',color:'#60a5fa',task:'Implement endpoint, write migration, add validation'},
-          {name:'QA',color:'#34d399',task:'Generate test suite for new endpoint'},
-          {name:'Writer',color:'#e879f9',task:'Update API documentation'},
+        {kw:['social','post','tweet','instagram','marketing','campaign','ad','promote','brand'],agents:[
+          {name:'Social Media Manager',color:'#e879f9',task:'Create content, schedule posts, track engagement'},
+          {name:'Content Writer',color:'#60a5fa',task:'Write copy aligned with brand voice'},
         ]},
-        {kw:['fix','bug','error','broken','crash','fail','issue','regression','race'],agents:[
-          {name:'Backend Dev',color:'#60a5fa',task:'Trace root cause from logs and code — write fix'},
-          {name:'QA',color:'#34d399',task:'Write regression test to prevent recurrence'},
-          {name:'Frontend Dev',color:'#a78bfa',task:'Verify no UI contract break from fix'},
+        {kw:['budget','invoice','expense','finance','cost','revenue','profit','billing','payment'],agents:[
+          {name:'Finance Analyst',color:'#fb923c',task:'Track expenses, generate reports, flag anomalies'},
+          {name:'Invoice Monitor',color:'#f87171',task:'Process invoices and reconcile payments'},
         ]},
-        {kw:['add','build','create','implement','feature','new'],agents:[
-          {name:'Backend Dev',color:'#60a5fa',task:'Implement backend logic and data layer'},
-          {name:'Frontend Dev',color:'#a78bfa',task:'Build user interface components'},
-          {name:'QA',color:'#34d399',task:'Write tests for new feature'},
-          {name:'Writer',color:'#e879f9',task:'Update docs and changelog'},
+        {kw:['fix','bug','error','broken','crash','fail','issue','regression','problem','wrong'],agents:[
+          {name:'Troubleshooter',color:'#60a5fa',task:'Trace root cause from logs and data — write fix'},
+          {name:'Tester',color:'#34d399',task:'Write regression test to prevent recurrence'},
+        ]},
+        {kw:['add','build','create','implement','feature','new','setup','configure','make'],agents:[
+          {name:'Builder',color:'#60a5fa',task:'Implement the solution end to end'},
+          {name:'Tester',color:'#34d399',task:'Validate the work meets requirements'},
+          {name:'Content Writer',color:'#e879f9',task:'Update documentation and changelog'},
         ]},
       ];
 
@@ -1442,8 +1444,8 @@
           if(r.kw.some(k=>low.includes(k))){matched=r.agents;break;}
         }
         if(!matched){matched=[
-          {name:'Backend Dev',color:'#60a5fa',task:'Analyze request and implement solution'},
-          {name:'QA',color:'#34d399',task:'Validate implementation'},
+          {name:'Specialist',color:'#60a5fa',task:'Analyze request and implement solution'},
+          {name:'Reviewer',color:'#34d399',task:'Validate results and ensure quality'},
         ];}
         renderAgents(matched.map((a,i)=>({...a,role:a.task,primary:i===0})),false);
       }
