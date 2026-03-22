@@ -87,9 +87,9 @@ pnpm --filter forge dev
 ```
 substrate/
   apps/
-    forge/            # Agent runtime and API server (Fastify)
+    forge/            # Worker runtime and API server (Fastify)
     dashboard/        # React SPA with Express server
-    mcp-tools/        # MCP tool server for agent capabilities (port 3010)
+    mcp-tools/        # MCP tool server for worker capabilities (port 3010)
     admin-console/    # Admin management interface
   packages/
     core/             # Shared types, constants, and utilities
@@ -353,7 +353,7 @@ The repository includes a PR template at `.github/PULL_REQUEST_TEMPLATE.md`. Fil
 
 - **What does this PR do** -- brief description
 - **Type of change** -- bug fix, feature, refactor, docs, infra
-- **Component(s) affected** -- dashboard, forge, MCP tools, agent execution, etc.
+- **Component(s) affected** -- dashboard, forge, MCP tools, worker execution, etc.
 - **Testing** -- how you tested, whether existing tests pass, whether new tests were added
 - **Checklist** -- code style, no secrets, no console.log, migrations included, docs updated
 
