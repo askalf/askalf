@@ -980,7 +980,16 @@ export default function BuilderTab({
     }
   }, [config]);
 
-  const [advanced, setAdvanced] = useState(false);
+  const [advanced, setAdvanced] = useState(() => {
+    try { return localStorage.getItem('askalf_builder_advanced') === 'true'; } catch { return false; }
+  });
+  const toggleAdvanced = useCallback(() => {
+    setAdvanced(v => {
+      const next = !v;
+      try { localStorage.setItem('askalf_builder_advanced', String(next)); } catch { /* noop */ }
+      return next;
+    });
+  }, []);
   const [simpleSchedule, setSimpleSchedule] = useState<'once' | 'daily' | 'weekly' | 'always'>('once');
 
   // Apply simple schedule to config
@@ -1013,8 +1022,11 @@ export default function BuilderTab({
       <div className="builder-container">
         <div className="builder-simple-header">
           <h3>Create a Worker</h3>
-          <button className="builder-advanced-toggle" onClick={() => { setAdvanced(true); setStep('template'); }}>
-            Advanced Mode
+          <button className={`builder-mode-switch ${advanced ? 'on' : ''}`} onClick={() => { toggleAdvanced(); setStep('template'); }} type="button">
+            <span className="builder-mode-track">
+              <span className="builder-mode-thumb" />
+            </span>
+            <span className="builder-mode-label">{advanced ? 'Advanced' : 'Simple'}</span>
           </button>
         </div>
 
@@ -1076,8 +1088,11 @@ export default function BuilderTab({
     <div className="builder-container">
       <div className="builder-simple-header">
         <StepNav current={step} onNav={setStep} />
-        <button className="builder-advanced-toggle" onClick={() => setAdvanced(false)}>
-          Simple Mode
+        <button className={`builder-mode-switch ${advanced ? 'on' : ''}`} onClick={toggleAdvanced} type="button">
+          <span className="builder-mode-track">
+            <span className="builder-mode-thumb" />
+          </span>
+          <span className="builder-mode-label">{advanced ? 'Advanced' : 'Simple'}</span>
         </button>
       </div>
 
