@@ -64,7 +64,7 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
   };
 
   const oauthColor = oauthStatus === 'healthy' ? '#22c55e' : oauthStatus === 'expiring' ? '#f59e0b' : oauthStatus === 'expired' ? '#ef4444' : '#6b7280';
-  const oauthLabel = oauthStatus === 'healthy' ? 'Token OK' : oauthStatus === 'expiring' ? 'Token Expiring' : oauthStatus === 'expired' ? 'Token Expired' : 'Token ?';
+  const oauthLabel = oauthStatus === 'healthy' ? 'Token OK' : oauthStatus === 'expiring' ? 'Token Expiring' : oauthStatus === 'expired' ? 'Token Expired' : null;
 
   // Close menu on outside click
   useEffect(() => {
@@ -107,15 +107,17 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
           <span style={{ opacity: 0.5 }}> today</span>
         </span>
         <span className="ud-topbar-divider" />
-        <span
-          className="ud-topbar-stat"
-          style={{ cursor: oauthStatus !== 'healthy' ? 'pointer' : 'default' }}
-          onClick={oauthStatus !== 'healthy' ? handleOAuthRefresh : undefined}
-          title={oauthStatus !== 'healthy' ? 'Click to refresh token' : 'OAuth token is healthy'}
-        >
-          <span className="ud-health-dot" style={{ background: oauthColor, marginRight: 4 }} aria-hidden="true" />
-          {oauthRefreshing ? 'Refreshing...' : oauthLabel}
-        </span>
+        {oauthLabel && (
+          <span
+            className="ud-topbar-stat"
+            style={{ cursor: oauthStatus !== 'healthy' ? 'pointer' : 'default' }}
+            onClick={oauthStatus !== 'healthy' ? handleOAuthRefresh : undefined}
+            title={oauthStatus !== 'healthy' ? 'Click to refresh token' : 'OAuth token is healthy'}
+          >
+            <span className="ud-health-dot" style={{ background: oauthColor, marginRight: 4 }} aria-hidden="true" />
+            {oauthRefreshing ? 'Refreshing...' : oauthLabel}
+          </span>
+        )}
       </div>
       <div className="ud-topbar-right">
         <NotificationCenter />
