@@ -6,7 +6,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { rateLimiter } from '../middleware/rate-limit.js';
+import { rateLimitHook as rateLimiter } from '../middleware/rate-limit.js';
 
 export async function communitySkillsRoutes(app: FastifyInstance): Promise<void> {
   /**
