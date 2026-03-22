@@ -23,6 +23,12 @@
     "directory": "packages/agent-cli"
   },
   "homepage": "https://askalf.org",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "ws": "^8.16.0"
   },
