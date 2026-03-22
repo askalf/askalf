@@ -221,7 +221,7 @@ function SubmitPackage() {
     setSubmitting(true);
     try {
       const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001' : '';
-      const res = await fetch(`${API_BASE}/api/v1/forge/marketplace/publish`, {
+      const res = await fetch(`${API_BASE}/api/v1/forge/marketplace/packages`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

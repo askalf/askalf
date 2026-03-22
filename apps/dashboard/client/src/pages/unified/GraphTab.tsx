@@ -74,7 +74,7 @@ function runForceSimulation(nodes: GNode[], links: GLink[], width: number, heigh
     if (alpha < 0.001) break;
     const repK = 900;
 
-    if (nodes.length > 500) {
+    if (nodes.length > 150) {
       const cellSize = 80;
       const grid = new Map<string, GNode[]>();
       for (const n of nodes) {
@@ -440,7 +440,7 @@ export default function GraphTab() {
     setLoading(true);
     try {
       const [graphRes, statsRes, typesRes, agentsRes, topRes] = await Promise.all([
-        hubApi.knowledgeGraph.graph({ limit: 1000, type: typeFilter || undefined, agent_id: agentFilter || undefined }),
+        hubApi.knowledgeGraph.graph({ limit: 300, type: typeFilter || undefined, agent_id: agentFilter || undefined }),
         hubApi.knowledgeGraph.stats(),
         hubApi.knowledgeGraph.entityTypes(),
         hubApi.knowledgeGraph.agents(),
@@ -465,7 +465,7 @@ export default function GraphTab() {
           pulseOffset: (i * 0.381) % 1,
         }));
 
-      runForceSimulation(gNodes, gLinks, dimensions.width || 800, dimensions.height || 600, Math.min(250, 60 + gNodes.length / 4));
+      runForceSimulation(gNodes, gLinks, dimensions.width || 800, dimensions.height || 600, Math.min(120, 50 + gNodes.length / 8));
 
       setNodes(gNodes);
       setLinks(gLinks);

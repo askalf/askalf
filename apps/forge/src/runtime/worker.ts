@@ -76,6 +76,7 @@ import { messaging } from '../tools/built-in/messaging.js';
 import { budgetCheck } from '../tools/built-in/budget-check.js';
 import { proposalOps } from '../tools/built-in/proposal-ops.js';
 import { webSearch } from '../tools/built-in/web-search.js';
+import { twitterOps } from '../tools/built-in/twitter-ops.js';
 import { economyOps } from '../tools/built-in/economy-ops.js';
 import { getMemoryManager } from '../memory/singleton.js';
 import { getExecutionContext, executionStore } from './execution-context.js';
@@ -1416,6 +1417,29 @@ function registerBuiltInTools(reg: ToolRegistry): void {
       required: ['query'],
     },
     execute: (input) => webSearch(input as unknown as Parameters<typeof webSearch>[0]),
+  });
+
+  reg.register({
+    name: 'twitter_ops',
+    displayName: 'Twitter / X',
+    description: 'Post tweets, threads, reply to mentions, search hashtags, get profile info, like and retweet. Requires Twitter API credentials.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['post_tweet', 'post_thread', 'reply', 'search', 'get_mentions', 'get_profile', 'delete_tweet', 'like', 'retweet'], description: 'Action to perform' },
+        text: { type: 'string', description: 'Tweet text (max 280 chars). Required for post_tweet and reply.' },
+        thread: { type: 'array', items: { type: 'string' }, description: 'Array of tweet texts for post_thread.' },
+        reply_to_id: { type: 'string', description: 'Tweet ID to reply to.' },
+        tweet_id: { type: 'string', description: 'Tweet ID for delete, like, or retweet.' },
+        query: { type: 'string', description: 'Search query for finding tweets.' },
+        max_results: { type: 'number', description: 'Max results for search/mentions (default 10).' },
+        username: { type: 'string', description: 'Username for get_profile (omit for own profile).' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => twitterOps(input as unknown as Parameters<typeof twitterOps>[0]),
   });
 }
 
