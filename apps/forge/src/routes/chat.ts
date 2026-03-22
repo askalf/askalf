@@ -58,16 +58,20 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/forge/chat',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const body = (request.body ?? {}) as { message?: string };
+      const body = (request.body ?? {}) as { message?: string; history?: Array<{ role: string; content: string }> };
       if (!body.message?.trim()) {
         return reply.status(400).send({ error: 'message is required' });
       }
 
       const message = body.message.trim();
+      const history = (body.history ?? [])
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .slice(-8)
+        .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, 500) }));
+
       const apiKey = process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
 
       if (!apiKey) {
-        // No API key — can't chat, fall back to dispatch mode
         return { mode: 'dispatch' as const };
       }
 
@@ -75,12 +79,17 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         const { default: Anthropic } = await import('@anthropic-ai/sdk');
         const client = new Anthropic({ apiKey });
 
+        // Build context summary from history for the router
+        const historyContext = history.length > 0
+          ? `\n\nRecent conversation:\n${history.map(m => `${m.role}: ${m.content}`).join('\n')}\n\nNew message:`
+          : '';
+
         // Step 1: Route — is this chat or dispatch?
         const routeResponse = await client.messages.create({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 50,
           system: ROUTER_PROMPT,
-          messages: [{ role: 'user', content: message }],
+          messages: [{ role: 'user', content: historyContext + message }],
         });
 
         const routeText = routeResponse.content
@@ -121,11 +130,17 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
         const systemWithContext = `${CHAT_SYSTEM_PROMPT}\n\nCurrent platform state:\n${contextLines}`;
 
+        // Build messages with conversation history for context
+        const chatMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [
+          ...history,
+          { role: 'user' as const, content: message },
+        ];
+
         const chatResponse = await client.messages.create({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 512,
           system: systemWithContext,
-          messages: [{ role: 'user', content: message }],
+          messages: chatMessages,
         });
 
         const text = chatResponse.content
