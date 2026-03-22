@@ -2593,7 +2593,7 @@ fastify.post('/api/v1/demo/chat', async (request, reply) => {
 // ===========================================
 
 // Read an openclaw.json from a server-side path
-fastify.post('/api/v1/admin/migrate/openclaw/read-config', async (request, reply) => {
+fastify.post('/api/v1/admin/migrate/openclaw/read-config', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => { // rate-limited
   const user = await getAdminUser();
   if (!user) return reply.code(401).send({ error: 'Not authenticated' });
 
