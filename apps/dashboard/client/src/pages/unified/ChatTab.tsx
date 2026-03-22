@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useChatStore } from '../../stores/chat';
-import type { ConversationMessage, ParsedIntent, IntentSubtask, Conversation } from '../../stores/chat';
+import type { ConversationMessage, ParsedIntent, IntentSubtask } from '../../stores/chat';
 import { useAuthStore } from '../../stores/auth';
 import { integrationApi } from '../../hooks/useHubApi';
 import type { UserRepo } from '../../hooks/useHubApi';
@@ -184,87 +184,6 @@ async function executeSlashCommand(cmd: string, args: string, onNavigate?: (tab:
 
 // ── Sub-components ──
 
-function ConversationList({
-  conversations,
-  activeId,
-  onSelect,
-  onCreate,
-  onRename,
-  onDelete,
-}: {
-  conversations: Conversation[];
-  activeId: string | null;
-  onSelect: (id: string) => void;
-  onCreate: () => void;
-  onRename: (id: string, title: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const editRef = useRef<HTMLInputElement>(null);
-
-  const startRename = (e: React.MouseEvent, c: Conversation) => {
-    e.stopPropagation();
-    setEditingId(c.id);
-    setEditTitle(c.title ?? '');
-  };
-
-  const commitRename = (id: string) => {
-    const trimmed = editTitle.trim();
-    if (trimmed) onRename(id, trimmed);
-    setEditingId(null);
-  };
-
-  useEffect(() => {
-    if (editingId) editRef.current?.focus();
-  }, [editingId]);
-
-  return (
-    <div className="chat-sidebar">
-      <button className="chat-new-btn" onClick={onCreate}>+ New Chat</button>
-      <div className="chat-conv-list">
-        {conversations.map(c => (
-          <div
-            key={c.id}
-            className={`chat-conv-item ${c.id === activeId ? 'active' : ''}`}
-            onClick={() => { if (editingId !== c.id) onSelect(c.id); }}
-            title={c.title ?? 'Untitled'}
-          >
-            {editingId === c.id ? (
-              <input
-                ref={editRef}
-                className="chat-conv-rename-input"
-                value={editTitle}
-                onChange={e => setEditTitle(e.target.value)}
-                onBlur={() => commitRename(c.id)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') commitRename(c.id);
-                  if (e.key === 'Escape') setEditingId(null);
-                }}
-                onClick={e => e.stopPropagation()}
-              />
-            ) : (
-              <>
-                <span className="chat-conv-title">{c.title ?? 'Untitled'}</span>
-                <div className="chat-conv-row">
-                  <span className="chat-conv-date">{new Date(c.updated_at).toLocaleDateString()}</span>
-                  <span className="chat-conv-actions">
-                    <button className="chat-conv-action" onClick={e => startRename(e, c)} title="Rename">R</button>
-                    <button className="chat-conv-action chat-conv-action-delete" onClick={e => { e.stopPropagation(); onDelete(c.id); }} title="Delete">X</button>
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-        {conversations.length === 0 && (
-          <div className="chat-conv-empty">No conversations yet</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // Simple markdown renderer — handles **bold**, `code`, and \n
 function renderMarkdown(text: string): React.ReactNode[] {
   const lines = text.split('\n');
@@ -292,16 +211,29 @@ function renderMarkdown(text: string): React.ReactNode[] {
 function ChatMessage({ message }: { message: ConversationMessage }) {
   const isUser = message.role === 'user';
   const isCmd = message.id.startsWith('cmd-') || message.id.startsWith('oauth-');
-  const avatarLabel = isUser ? 'You' : isCmd ? '\u{2699}' : 'AI';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(message.content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  }, [message.content]);
+
   return (
     <div className={`chat-msg ${isUser ? 'chat-msg-user' : 'chat-msg-assistant'}${isCmd && !isUser ? ' chat-msg-system' : ''}`}>
-      <div className="chat-msg-avatar">{avatarLabel}</div>
+      <div className="chat-msg-label">{isUser ? 'you' : 'alf'}</div>
       <div className="chat-msg-content">
         <div className="chat-msg-text">
           {isUser ? message.content : renderMarkdown(message.content)}
         </div>
-        <div className="chat-msg-time">
-          {new Date(message.created_at).toLocaleTimeString()}
+        <div className="chat-msg-meta">
+          <span className="chat-msg-time">{new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          {!isUser && (
+            <button className="chat-msg-copy" onClick={handleCopy} title="Copy response">
+              {copied ? '\u2713' : '\u2398'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -628,6 +560,22 @@ function IntentPreview({
   );
 }
 
+const SLASH_COMMANDS = [
+  { cmd: '/briefing', desc: 'Daily overnight report' },
+  { cmd: '/status', desc: 'System status overview' },
+  { cmd: '/fleet', desc: 'Team overview' },
+  { cmd: '/costs', desc: 'Cost summary (30 days)' },
+  { cmd: '/logs', desc: 'Recent execution logs' },
+  { cmd: '/tickets', desc: 'Open tickets' },
+  { cmd: '/keys', desc: 'AI provider status' },
+  { cmd: '/dispatch', desc: 'Route a task to a worker' },
+  { cmd: '/whoami', desc: 'Current user info' },
+  { cmd: '/settings', desc: 'Open settings' },
+  { cmd: '/connect', desc: 'Import OAuth token' },
+  { cmd: '/clear', desc: 'Clear conversation' },
+  { cmd: '/help', desc: 'Show all commands' },
+];
+
 function ChatInput({
   onSend,
   disabled,
@@ -636,21 +584,102 @@ function ChatInput({
   disabled: boolean;
 }) {
   const [input, setInput] = useState('');
+  const [slashIdx, setSlashIdx] = useState(-1);
+  const [history] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('askalf_chat_history') || '[]') as string[]; } catch { return []; }
+  });
+  const [historyIdx, setHistoryIdx] = useState(-1);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const showSlash = input.startsWith('/') && !input.includes(' ');
+  const slashFilter = input.slice(1).toLowerCase();
+  const filtered = showSlash
+    ? SLASH_COMMANDS.filter(c => c.cmd.slice(1).startsWith(slashFilter))
+    : [];
+
+  // Reset selection when filter changes
+  useEffect(() => { setSlashIdx(0); }, [slashFilter]);
+
+  const acceptSlash = useCallback((cmd: string) => {
+    setInput(cmd + (cmd === '/clear' || cmd === '/help' || cmd === '/briefing' || cmd === '/status' || cmd === '/fleet' || cmd === '/costs' || cmd === '/tickets' || cmd === '/keys' || cmd === '/whoami' || cmd === '/connect' ? '' : ' '));
+    setSlashIdx(-1);
+    inputRef.current?.focus();
+  }, []);
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed || disabled) return;
+    // Save to history
+    history.unshift(trimmed);
+    if (history.length > 50) history.length = 50;
+    try { localStorage.setItem('askalf_chat_history', JSON.stringify(history)); } catch { /* noop */ }
+    setHistoryIdx(-1);
     onSend(trimmed);
     setInput('');
-  }, [input, disabled, onSend]);
+    setSlashIdx(-1);
+  }, [input, disabled, onSend, history]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Ctrl+K — clear conversation
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      useChatStore.setState({ messages: [] });
+      setInput('');
+      return;
+    }
+
+    // Slash command autocomplete
+    if (showSlash && filtered.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSlashIdx(i => (i + 1) % filtered.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSlashIdx(i => (i - 1 + filtered.length) % filtered.length);
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        acceptSlash(filtered[slashIdx >= 0 ? slashIdx : 0]!.cmd);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setInput('');
+        setSlashIdx(-1);
+        return;
+      }
+    }
+
+    // Up arrow — recall history (only when input is empty or at start)
+    if (e.key === 'ArrowUp' && !showSlash && (!input || historyIdx >= 0)) {
+      e.preventDefault();
+      const nextIdx = Math.min(historyIdx + 1, history.length - 1);
+      if (history[nextIdx]) {
+        setHistoryIdx(nextIdx);
+        setInput(history[nextIdx]!);
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown' && !showSlash && historyIdx >= 0) {
+      e.preventDefault();
+      const nextIdx = historyIdx - 1;
+      if (nextIdx < 0) {
+        setHistoryIdx(-1);
+        setInput('');
+      } else {
+        setHistoryIdx(nextIdx);
+        setInput(history[nextIdx] ?? '');
+      }
+      return;
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  }, [handleSend]);
+  }, [handleSend, showSlash, filtered, slashIdx, acceptSlash, input, history, historyIdx]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -658,6 +687,22 @@ function ChatInput({
 
   return (
     <div className="chat-input-area">
+      {showSlash && filtered.length > 0 && (
+        <div className="chat-slash-menu">
+          {filtered.map((c, i) => (
+            <button
+              key={c.cmd}
+              className={`chat-slash-item ${i === slashIdx ? 'active' : ''}`}
+              onClick={() => acceptSlash(c.cmd)}
+              onMouseEnter={() => setSlashIdx(i)}
+              type="button"
+            >
+              <span className="chat-slash-cmd">{c.cmd}</span>
+              <span className="chat-slash-desc">{c.desc}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <textarea
         ref={inputRef}
         className="chat-input"
@@ -683,27 +728,27 @@ function ChatInput({
 
 export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const {
-    conversations, activeConversationId, messages, isProcessing,
+    activeConversationId, messages, isProcessing,
     pendingIntent, error,
-    fetchConversations, createConversation, selectConversation,
-    renameConversation, deleteConversation,
+    fetchConversations, createConversation,
     sendMessage, confirmIntent, cancelIntent, clearError,
   } = useChatStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Auto-ensure one conversation exists
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    fetchConversations().then(() => {
+      if (!useChatStore.getState().activeConversationId) {
+        createConversation();
+      }
+    });
+  }, [fetchConversations, createConversation]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, pendingIntent]);
-
-  const handleNewChat = useCallback(async () => {
-    await createConversation();
-  }, [createConversation]);
 
   const handleSend = useCallback(async (content: string) => {
     // Slash command interception
@@ -712,10 +757,9 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
       const cmd = (spaceIdx > 0 ? content.slice(1, spaceIdx) : content.slice(1)).toLowerCase();
       const args = spaceIdx > 0 ? content.slice(spaceIdx + 1).trim() : '';
 
-      // /clear — reset conversation messages locally
+      // /clear — wipe visible messages
       if (cmd === 'clear') {
-        // Add the command as a user message, then create a fresh conversation
-        await createConversation();
+        useChatStore.setState({ messages: [] });
         return;
       }
 
@@ -857,16 +901,6 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
 
   return (
     <div className="chat-container">
-      {conversations.length > 1 && (
-        <ConversationList
-          conversations={conversations}
-          activeId={activeConversationId}
-          onSelect={selectConversation}
-          onCreate={handleNewChat}
-          onRename={renameConversation}
-          onDelete={deleteConversation}
-        />
-      )}
       <div className="chat-main">
         <div className="chat-messages">
           {messages.length === 0 && (
@@ -911,9 +945,13 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
 
           {isProcessing && !pendingIntent && (
             <div className="chat-msg chat-msg-assistant">
-              <div className="chat-msg-avatar">AI</div>
+              <div className="chat-msg-label">alf</div>
               <div className="chat-msg-content">
-                <div className="chat-msg-text chat-thinking">Thinking...</div>
+                <div className="chat-msg-text chat-thinking">
+                  <span className="chat-thinking-dot" />
+                  <span className="chat-thinking-dot" />
+                  <span className="chat-thinking-dot" />
+                </div>
               </div>
             </div>
           )}
@@ -936,7 +974,7 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="chat-input-hint">Enter to send &middot; Shift+Enter for new line &middot; /help for commands</div>
+        <div className="chat-input-hint">Enter to send &middot; &uarr; history &middot; Ctrl+K clear &middot; / commands</div>
         <ChatInput onSend={handleSend} disabled={isProcessing} />
       </div>
     </div>

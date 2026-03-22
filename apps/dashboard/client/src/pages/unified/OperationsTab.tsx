@@ -14,9 +14,9 @@ type Sub = 'tickets' | 'interventions' | 'content' | 'reports';
 
 const SUB_TABS: { key: Sub; label: string }[] = [
   { key: 'tickets', label: 'Tickets' },
-  { key: 'interventions', label: 'Interventions' },
-  { key: 'content', label: 'Content' },
+  { key: 'interventions', label: 'Approvals' },
   { key: 'reports', label: 'Reports' },
+  { key: 'content', label: 'Content' },
 ];
 
 interface BriefingData {
@@ -147,9 +147,9 @@ export default function OperationsTab() {
       <div className="ops-header">
         <div className="ops-title-row">
           <span className="ops-icon">&#x2699;</span>
-          <h2 className="ops-title">Operations</h2>
+          <h2 className="ops-title">Tickets & Approvals</h2>
         </div>
-        <p className="ops-subtitle">Tickets · Interventions · Content</p>
+        <p className="ops-subtitle">Work items, approvals, and reports</p>
       </div>
 
       <div className="ops-stats-grid">
