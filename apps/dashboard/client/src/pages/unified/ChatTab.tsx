@@ -856,11 +856,18 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
     useChatStore.setState(s => ({ messages: [...s.messages, userMsg], isProcessing: true }));
 
     try {
+      // Send recent message history for context
+      const currentMessages = useChatStore.getState().messages;
+      const recentHistory = currentMessages.slice(-10).map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
       const chatRes = await fetch(`${API_BASE}/api/v1/forge/chat`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: content }),
+        body: JSON.stringify({ message: content, history: recentHistory }),
       });
 
       if (chatRes.ok) {
