@@ -90,7 +90,7 @@ Full Claude Code and OpenAI Codex terminal sessions **embedded directly in the d
 
 ---
 
-## The Brain — 10-Layer Cognitive Memory
+## Memory — Cognitive Learning System
 
 Every task, every outcome, every interaction is stored in a cognitive memory system that grows with every execution.
 
@@ -152,8 +152,8 @@ GitHub · GitLab · Bitbucket · AWS · GCP · Azure · Vercel · Netlify · Rai
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    Dashboard                         │
-│     Ask Alf · Mission Control · Claude CLI · Codex    │
-│      Team · Ops · Live · Brain · Workspace           │
+│   Ask Alf · Team · Ops · Memory · Workspace · Marketplace │
+│          Claude Code · Codex · Settings                    │
 ├───────────────┬───────────────┬──────────────────────┤
 │     Forge     │   MCP Tools   │      SearXNG         │
 │   API Server  │  Agent Tools  │    Web Search        │
