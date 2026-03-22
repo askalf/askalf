@@ -1,0 +1,40 @@
+# SearXNG Rate Limiter Configuration
+# Docs: https://docs.searxng.org/admin/limiter.html
+# Uses Redis for rate counting (SEARXNG_VALKEY_URL)
+
+[botdetection]
+
+ipv4_prefix = 32
+ipv6_prefix = 48
+
+# Trust nginx reverse proxy for real IP extraction
+trusted_proxies = [
+  '127.0.0.0/8',
+  '::1',
+  '172.16.0.0/12',
+  '10.0.0.0/8',
+  '192.168.0.0/16',
+]
+
+[botdetection.ip_limit]
+
+filter_link_local = false
+
+# Disable link token — causes silent failures on JSON/API searches
+link_token = false
+
+[botdetection.ip_lists]
+
+block_ip = []
+
+# Allow all internal/private networks unrestricted
+# (forge agents, mcp-tools, dev stack, LAN)
+pass_ip = [
+  '127.0.0.0/8',
+  '172.16.0.0/12',
+  '10.0.0.0/8',
+  '192.168.0.0/16',
+]
+
+# Don't fetch external blocklists
+pass_searxng_org = false
