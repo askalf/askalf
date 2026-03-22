@@ -7,7 +7,12 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readFile, writeFile } from 'node:fs/promises';
 import { authMiddleware } from '../middleware/auth.js';
 
-const CREDENTIALS_PATH = '/tmp/claude-home/.claude/.credentials.json';
+// Check multiple possible credential locations
+const CREDENTIAL_PATHS = [
+  '/tmp/claude-credentials/.credentials.json',
+  '/tmp/claude-home/.claude/.credentials.json',
+  '/home/substrate/.claude-session/.claude/.credentials.json',
+];
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const OAUTH_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
 
@@ -56,12 +61,15 @@ function computeStatus(expiresAt: number | null | undefined): {
 }
 
 async function readCredentials(): Promise<CredentialsFile | null> {
-  try {
-    const raw = await readFile(CREDENTIALS_PATH, 'utf-8');
-    return JSON.parse(raw) as CredentialsFile;
-  } catch {
-    return null;
+  for (const path of CREDENTIAL_PATHS) {
+    try {
+      const raw = await readFile(path, 'utf-8');
+      return JSON.parse(raw) as CredentialsFile;
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 export async function credentialsHealthRoutes(app: FastifyInstance): Promise<void> {
@@ -144,7 +152,14 @@ export async function credentialsHealthRoutes(app: FastifyInstance): Promise<voi
           creds.claudeAiOauth.expiresAt = newExpiresAt;
         }
 
-        await writeFile(CREDENTIALS_PATH, JSON.stringify(creds, null, 2), 'utf-8');
+        // Write back to the first path that exists
+        for (const path of CREDENTIAL_PATHS) {
+          try {
+            await readFile(path);
+            await writeFile(path, JSON.stringify(creds, null, 2), 'utf-8');
+            break;
+          } catch { continue; }
+        }
 
         return reply.send({
           refreshed: true,
