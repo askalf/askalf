@@ -166,7 +166,7 @@ GET /forge/agents
   "agents": [
     {
       "id": "01AGENT123",
-      "name": "Backend Dev",
+      "name": "Builder",
       "description": "Works on API and database tasks",
       "status": "active",
       "model": "claude-sonnet-4-6",
@@ -225,7 +225,7 @@ GET /forge/agents/:id
 {
   "agent": {
     "id": "01AGENT123",
-    "name": "Backend Dev",
+    "name": "Builder",
     "description": "...",
     "systemPrompt": "...",
     "model": "claude-sonnet-4-6",
@@ -322,7 +322,7 @@ Uses LLM to improve an agent's system prompt for clarity and effectiveness.
 ```json
 {
   "prompt": "You do stuff with code",
-  "agentName": "Backend Dev",
+  "agentName": "Builder",
   "context": "TypeScript, Fastify, PostgreSQL"
 }
 ```
@@ -607,7 +607,7 @@ Accepts a natural language input, classifies intent, creates a ticket, and assig
 ```json
 {
   "ticketId": "tkt_abc123",
-  "assignedTo": "Backend Dev",
+  "assignedTo": "Builder",
   "title": "Fix login failure after password reset"
 }
 ```
@@ -625,7 +625,7 @@ Uses LLM to parse natural language into structured agent configuration.
 ```json
 {
   "message": "Set up a daily report agent that summarizes costs",
-  "context": { "existingAgents": ["Backend Dev", "QA"] }
+  "context": { "existingAgents": ["Builder", "Tester"] }
 }
 ```
 
@@ -1410,7 +1410,7 @@ Returns aggregate memory stats across all agents (cached 15 seconds).
   "recent24h": 48,
   "recalls24h": 124,
   "agentBudgets": [
-    { "agentId": "01AGENT123", "name": "Backend Dev", "memories": 245 }
+    { "agentId": "01AGENT123", "name": "Builder", "memories": 245 }
   ]
 }
 ```
@@ -1675,7 +1675,7 @@ GET /forge/economy/wallets
   "wallets": [
     {
       "agentId": "01AGENT123",
-      "agentName": "Backend Dev",
+      "agentName": "Builder",
       "balance": 10.00,
       "daily_spend_limit": 2.50,
       "spent_today": 0.45
@@ -1798,7 +1798,7 @@ GET /forge/fleet/analytics
     { "date": "2026-03-21", "hour": 6, "count": 12, "cost": 0.45 }
   ],
   "agents": [
-    { "id": "01AGENT123", "name": "Backend Dev", "executions": 45, "cost": 4.32 }
+    { "id": "01AGENT123", "name": "Builder", "executions": 45, "cost": 4.32 }
   ]
 }
 ```
@@ -2678,7 +2678,7 @@ GET /forge/daemons
   "daemons": [
     {
       "agentId": "01AGENT123",
-      "name": "Watchdog",
+      "name": "System Monitor",
       "status": "active",
       "dispatchEnabled": true
     }
