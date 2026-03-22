@@ -3,10 +3,10 @@
  * Unlike /api/v1/forge/admin/costs (user-scoped), these endpoints show ALL cost data.
  */
 
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query } from '../../database.js';
-import { authMiddleware } from '../../middleware/auth.js';
-import { requireAdmin } from '../../middleware/auth.js';
+import { authMiddleware, requireAdmin } from '../../middleware/auth.js';
+import { rateLimiter } from '../../middleware/rate-limit.js';
 
 // CLI events have metadata->>'runtime_mode' = 'cli'. Everything else is API.
 const IS_CLI = `metadata->>'runtime_mode' = 'cli'`;
@@ -294,7 +294,7 @@ export async function registerAnalyticsRoutes(app: FastifyInstance): Promise<voi
   // Model pricing — list all pricing (defaults + overrides)
   app.get(
     '/api/v1/admin/costs/pricing',
-    { preHandler: [authMiddleware, requireAdmin] },
+    { preHandler: [rateLimiter, authMiddleware, requireAdmin] },
     async () => {
       const { getAllPricing } = await import('../../runtime/token-counter.js');
       return { pricing: await getAllPricing() };
