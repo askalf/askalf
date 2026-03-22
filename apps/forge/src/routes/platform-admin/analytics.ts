@@ -6,7 +6,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query } from '../../database.js';
 import { authMiddleware, requireAdmin } from '../../middleware/auth.js';
-import { rateLimiter } from '../../middleware/rate-limit.js';
+import { rateLimitHook as rateLimiter } from '../../middleware/rate-limit.js';
 
 // CLI events have metadata->>'runtime_mode' = 'cli'. Everything else is API.
 const IS_CLI = `metadata->>'runtime_mode' = 'cli'`;
