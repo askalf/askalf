@@ -846,35 +846,35 @@
     <div class="faq-grid">
       <div class="faq-item rv">
         <h3>Is this vaporware?</h3>
-        <p>No. It's running right now on real infrastructure. The workers that built this platform are the same workers that ship to you. The memory system, the orchestration, the community library — all production code.</p>
+        <p>No. It's running right now on real infrastructure serving real users. 109 worker templates, 16 categories, community skills library, streaming AI chat — all production code. Open source, MIT licensed.</p>
       </div>
       <div class="faq-item rv">
         <h3>How much does it cost to run?</h3>
-        <p>Infrastructure: free if you run it on hardware you already own — a laptop, a desktop, a home server. Or ~$5/month on a small VPS. AI costs depend on usage. Our fleet runs 18 executions overnight for ~$0.43. Cost guardrails prevent runaway spending.</p>
+        <p>Infrastructure: free on hardware you own. Or ~$5/month on a VPS. AI costs depend on usage — simple tasks cost $0.01-0.05, complex ones $0.10-0.50. Default budget: $15/day with guardrails that prevent runaway spending.</p>
       </div>
       <div class="faq-item rv">
-        <h3>Do I need all the core agents?</h3>
-        <p>No. Disable any agent you don't need. Create custom agents with the Builder. Each agent is independently configurable with its own model, budget, and schedule.</p>
+        <h3>Do I need to set up workers manually?</h3>
+        <p>No. Tell Alf what you need and the right specialist is created automatically. Or browse 109 pre-built templates. Or create custom workers with the 3-step builder. Your choice.</p>
       </div>
       <div class="faq-item rv">
         <h3>What AI providers does it support?</h3>
-        <p>Anthropic (Claude) and OpenAI for worker execution. OpenAI also handles embeddings. Google AI optional. Alf's intent parser works with Anthropic or in basic keyword mode without an API key.</p>
+        <p>Anthropic (Claude Opus, Sonnet, Haiku), OpenAI (GPT-5.4, GPT-4o), Google (Gemini), DeepSeek. Workers auto-select the best model for each task. Your API keys, encrypted at rest.</p>
       </div>
       <div class="faq-item rv">
-        <h3>Can the agents modify production code?</h3>
-        <p>Yes — that's the point. They create branches, commit code, and deploy. You set the autonomy level. Full auto, human-in-the-loop approval, or manual dispatch only.</p>
+        <h3>Can workers take real actions?</h3>
+        <p>Yes — that's the point. They browse the web, write files, run commands, create tickets, send emails, and more. You set the autonomy level: full auto, approval required, or manual dispatch only.</p>
       </div>
       <div class="faq-item rv">
-        <h3>What happens if an agent breaks something?</h3>
-        <p>Watchdog detects it. QA validates it. Infra rolls it back. The ticket system creates a paper trail. Cost guardrails cap spending. You get a morning briefing of everything that happened.</p>
+        <h3>What if something goes wrong?</h3>
+        <p>Monitors detect issues automatically. The ticket system creates a paper trail. Cost guardrails cap spending. Approval gates catch risky actions. You get a morning briefing of everything that happened overnight.</p>
       </div>
       <div class="faq-item rv">
         <h3>Is my data safe?</h3>
-        <p>Your data never leaves your infrastructure. No telemetry, no analytics, no phone-home. Everything runs in your Docker containers on your hardware. Optional Proton VPN integration routes all outbound agent traffic through an encrypted tunnel. Open source — audit every line.</p>
+        <p>Your data never leaves your infrastructure. No telemetry, no analytics, no phone-home. Everything runs in Docker on your hardware. Optional VPN routes all outbound traffic through an encrypted tunnel. Open source — audit every line.</p>
       </div>
       <div class="faq-item rv">
         <h3>How is this different from ChatGPT/Claude?</h3>
-        <p>Those are one mind answering one question. This is seven specialists who coordinate, delegate work to each other, share memory, learn from outcomes, and operate 24/7 without prompting.</p>
+        <p>Those are one mind answering one question. This is an entire team that coordinates, delegates, shares memory, learns from outcomes, and operates 24/7 without prompting. For any industry — not just dev.</p>
       </div>
     </div>
   </section>
@@ -882,7 +882,7 @@
   <!-- Share -->
   <div class="sb rv">
     <a class="sbt tw" href="https://twitter.com/intent/tweet?text=Not%20one%20AI.%20An%20entire%20workforce.%20Tell%20Alf%20what%20you%20need%20%E2%80%94%20marketing%2C%20research%2C%20support%2C%20anything%20%E2%80%94%20and%20Alf%20builds%20the%20team.%20Self-hosted.%20Open%20source.&url=https://askalf.org" target="_blank">Share on X</a>
-    <button class="sbt hn" onclick="navigator.clipboard.writeText('AskAlf \u2013 Not one AI, an entire team (self-hosted, open source)\nhttps://askalf.org\n\n7 core agents + unlimited custom specialists. Backend Dev, Frontend Dev, QA, Infra, Security, Watchdog, Writer.\n\nMission control dashboard. 10-layer cognitive memory with pgvector. 28 marketplace packages. 16 channels including OpenClaw bridge. Multi-agent orchestration.\n\ncurl -fsSL https://get.askalf.org | bash\n\nGitHub: https://github.com/askalf/askalf\nDiscord: https://discord.gg/fENVZpdYcX');this.textContent='Copied!'">Copy HN Post</button>
+    <button class="sbt hn" onclick="navigator.clipboard.writeText('AskAlf \u2013 Tell Alf what you need. Alf builds the team. (self-hosted, open source)\nhttps://askalf.org\n\nAI workforce platform \u2014 not just for dev. 109 templates across 16 categories: marketing, support, e-commerce, research, finance, personal productivity.\n\nAlf creates specialized workers on demand. They coordinate, share memory, learn from outcomes, and work 24/7.\n\ncurl -fsSL https://get.askalf.org | bash\n\nGitHub: https://github.com/askalf/askalf');this.textContent='Copied!'">Copy HN Post</button>
     <button class="sbt cp" onclick="navigator.clipboard.writeText('https://askalf.org');this.textContent='Copied!'">Copy Link</button>
   </div>
 
