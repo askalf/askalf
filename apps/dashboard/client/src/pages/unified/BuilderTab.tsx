@@ -980,23 +980,106 @@ export default function BuilderTab({
     }
   }, [config]);
 
+  const [advanced, setAdvanced] = useState(false);
+  const [simpleSchedule, setSimpleSchedule] = useState<'once' | 'daily' | 'weekly' | 'always'>('once');
+
+  // Apply simple schedule to config
+  useEffect(() => {
+    if (advanced) return;
+    const schedMap: Record<string, Partial<AgentConfig>> = {
+      once: { scheduleType: 'none' },
+      daily: { scheduleType: 'interval', scheduleInterval: '24h' },
+      weekly: { scheduleType: 'cron', cronExpression: '0 9 * * 1' },
+      always: { scheduleType: 'interval', scheduleInterval: '1h' },
+    };
+    updateConfig(schedMap[simpleSchedule] ?? {});
+  }, [simpleSchedule, advanced, updateConfig]);
+
   if (result) {
     return (
       <div className="builder-success">
-        <h2>Agent Created!</h2>
-        <p>"{result.name}" is ready. You can find it in the Fleet tab.</p>
-        <button className="builder-create-btn" onClick={() => { setResult(null); setConfig({ ...DEFAULT_CONFIG }); setStep('template'); }}>
+        <h2>Worker Created!</h2>
+        <p>&ldquo;{result.name}&rdquo; is ready. You can find it in the Workers tab.</p>
+        <button className="builder-create-btn" onClick={() => { setResult(null); setConfig({ ...DEFAULT_CONFIG }); setStep('template'); setAdvanced(false); }}>
           Create Another
         </button>
       </div>
     );
   }
 
+  // ── Simple Mode (3 steps) ──
+  if (!advanced) {
+    return (
+      <div className="builder-container">
+        <div className="builder-simple-header">
+          <h3>Create a Worker</h3>
+          <button className="builder-advanced-toggle" onClick={() => { setAdvanced(true); setStep('template'); }}>
+            Advanced Mode
+          </button>
+        </div>
+
+        <div className="builder-content">
+          <div className="builder-form">
+            <label className="builder-field">
+              <span>What should this worker do?</span>
+              <input
+                type="text"
+                value={config.name}
+                onChange={e => updateConfig({ name: e.target.value })}
+                placeholder="e.g. Competitor Researcher, Invoice Monitor, Blog Writer"
+              />
+            </label>
+            <label className="builder-field">
+              <span>Describe the task in detail</span>
+              <textarea
+                value={config.description}
+                onChange={e => updateConfig({ description: e.target.value, systemPrompt: e.target.value })}
+                placeholder="What should this worker do? What should it look for? How should it report results?"
+                rows={4}
+              />
+            </label>
+            <div className="builder-field">
+              <span>How often?</span>
+              <div className="builder-simple-schedule">
+                {(['once', 'daily', 'weekly', 'always'] as const).map(opt => (
+                  <button
+                    key={opt}
+                    className={`builder-schedule-pill ${simpleSchedule === opt ? 'active' : ''}`}
+                    onClick={() => setSimpleSchedule(opt)}
+                    type="button"
+                  >
+                    {opt === 'once' ? 'One time' : opt === 'daily' ? 'Every day' : opt === 'weekly' ? 'Every week' : 'Always running'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="builder-nav">
+          <button
+            className="builder-create-btn"
+            onClick={handleSubmit}
+            disabled={submitting || !config.name.trim()}
+          >
+            {submitting ? 'Creating...' : 'Create Worker'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Advanced Mode (6 steps) ──
   const currentIdx = STEPS.findIndex(s => s.key === step);
 
   return (
     <div className="builder-container">
-      <StepNav current={step} onNav={setStep} />
+      <div className="builder-simple-header">
+        <StepNav current={step} onNav={setStep} />
+        <button className="builder-advanced-toggle" onClick={() => setAdvanced(false)}>
+          Simple Mode
+        </button>
+      </div>
 
       <div className="builder-content">
         {step === 'template' && (

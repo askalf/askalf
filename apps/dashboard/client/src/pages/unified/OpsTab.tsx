@@ -6,18 +6,16 @@ import type { ForgeEvent } from '../../constants/status';
 const OperationsTab = lazy(() => import('./OperationsTab'));
 const CostDashboard = lazy(() => import('../forge/CostDashboard'));
 const ExecutionHistory = lazy(() => import('../hub/ExecutionHistory'));
-const AgentTimeline = lazy(() => import('../hub/AgentTimeline'));
-const AuditLog = lazy(() => import('../forge/AuditLog'));
-const CoordinatorTab = lazy(() => import('./CoordinatorTab'));
 const RevenueDashboard = lazy(() => import('../forge/RevenueDashboard'));
+const AuditLog = lazy(() => import('../forge/AuditLog'));
 
-type SubTab = 'tickets' | 'costs' | 'executions' | 'timeline' | 'orchestrator' | 'audit' | 'revenue';
+type SubTab = 'tickets' | 'costs' | 'history' | 'revenue' | 'audit';
 
 interface OpsTabProps {
   wsEvents?: ForgeEvent[];
 }
 
-export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
+export default function OpsTab({ wsEvents: _wsEvents = [] }: OpsTabProps) {
   const [sub, setSub] = useState<SubTab>('tickets');
 
   return (
@@ -26,11 +24,9 @@ export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
         tabs={[
           { key: 'tickets', label: 'Tickets' },
           { key: 'costs', label: 'Costs' },
-          { key: 'executions', label: 'Executions' },
-          { key: 'timeline', label: 'Timeline' },
-          { key: 'orchestrator', label: 'Orchestrator' },
-          { key: 'audit', label: 'Audit' },
+          { key: 'history', label: 'History' },
           { key: 'revenue', label: 'Revenue' },
+          { key: 'audit', label: 'Audit' },
         ]}
         active={sub}
         onChange={(k) => setSub(k as SubTab)}
@@ -42,11 +38,9 @@ export default function OpsTab({ wsEvents = [] }: OpsTabProps) {
           <Suspense fallback={<div className="ud-loading">Loading...</div>}>
             {sub === 'tickets' && <OperationsTab />}
             {sub === 'costs' && <CostDashboard />}
-            {sub === 'executions' && <ExecutionHistory />}
-            {sub === 'timeline' && <AgentTimeline />}
-            {sub === 'orchestrator' && <CoordinatorTab wsEvents={wsEvents} />}
-            {sub === 'audit' && <AuditLog />}
+            {sub === 'history' && <ExecutionHistory />}
             {sub === 'revenue' && <RevenueDashboard />}
+            {sub === 'audit' && <AuditLog />}
           </Suspense>
         </ErrorBoundary>
       </div>
