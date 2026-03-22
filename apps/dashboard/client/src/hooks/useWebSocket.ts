@@ -42,6 +42,9 @@ export function useWebSocket(): UseWebSocketReturn {
           const event: ForgeEvent = msg.data;
           setLastEvent(event);
           setEvents((prev) => {
+            // Dedup by event ID — skip if already in the list
+            const eventId = event.id ?? `${event.agentId}-${event.type}-${event.receivedAt}`;
+            if (prev.some(e => (e.id ?? `${e.agentId}-${e.type}-${e.receivedAt}`) === eventId)) return prev;
             const next = [event, ...prev];
             return next.length > MAX_EVENTS ? next.slice(0, MAX_EVENTS) : next;
           });
