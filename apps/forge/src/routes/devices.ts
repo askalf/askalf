@@ -18,6 +18,25 @@ import {
   type DeviceType,
 } from '../runtime/device-registry.js';
 import { getAdapter } from '../runtime/adapters/adapter-registry.js';
+import { encryptConfigFields, decryptConfigFields } from '../channels/crypto.js';
+
+/** Sensitive config keys per device type — encrypted at rest */
+const DEVICE_SENSITIVE_KEYS: Record<string, string[]> = {
+  docker: ['tls_key', 'tls_cert', 'tls_ca'],
+  ssh: ['private_key', 'passphrase', 'password'],
+  k8s: ['kubeconfig', 'token', 'client_key'],
+  homeassistant: ['ha_token'],
+  browser: ['auth_token'],
+  desktop: ['auth_token'],
+};
+
+/** .env variable mappings for auto-detection */
+const DEVICE_ENV_KEYS: Record<string, Record<string, string>> = {
+  docker: { socket_path: 'DOCKER_HOST', tls_cert: 'DOCKER_TLS_CERTDIR' },
+  ssh: { host: 'SSH_HOST', username: 'SSH_USER', private_key_path: 'SSH_PRIVATE_KEY_PATH', port: 'SSH_PORT' },
+  k8s: { kubeconfig: 'KUBECONFIG', namespace: 'K8S_NAMESPACE' },
+  homeassistant: { ha_url: 'HOME_ASSISTANT_URL', ha_token: 'HOME_ASSISTANT_TOKEN' },
+};
 
 export async function deviceRoutes(app: FastifyInstance): Promise<void> {
   /**
@@ -86,6 +105,12 @@ export async function deviceRoutes(app: FastifyInstance): Promise<void> {
       };
 
       try {
+        // Encrypt sensitive fields before storing
+        const sensitiveKeys = DEVICE_SENSITIVE_KEYS[body.deviceType] || [];
+        const encryptedConfig = sensitiveKeys.length > 0 && body.connectionConfig
+          ? encryptConfigFields(body.connectionConfig, sensitiveKeys)
+          : body.connectionConfig;
+
         const device = await registerServerDevice({
           userId,
           tenantId,
@@ -94,7 +119,7 @@ export async function deviceRoutes(app: FastifyInstance): Promise<void> {
           hostname: body.hostname,
           deviceType: body.deviceType,
           deviceCategory: (categoryMap[body.deviceType] || 'compute') as 'compute',
-          connectionConfig: body.connectionConfig,
+          connectionConfig: encryptedConfig,
           maxConcurrentTasks: adapter.maxConcurrency,
           protocol: adapter.protocol,
           capabilities: adapter.defaultCapabilities(),
@@ -121,7 +146,17 @@ export async function deviceRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(400).send({ error: 'connectionConfig is required' });
       }
 
-      const device = await updateDeviceConfig(id, userId, body.connectionConfig);
+      // Get device type to determine which fields to encrypt
+      const existing = await getDevice(id);
+      if (!existing || existing.user_id !== userId) {
+        return reply.code(404).send({ error: 'Device not found' });
+      }
+      const sensitiveKeys = DEVICE_SENSITIVE_KEYS[existing.device_type] || [];
+      const encryptedConfig = sensitiveKeys.length > 0
+        ? encryptConfigFields(body.connectionConfig, sensitiveKeys)
+        : body.connectionConfig;
+
+      const device = await updateDeviceConfig(id, userId, encryptedConfig);
       if (!device) {
         return reply.code(404).send({ error: 'Device not found' });
       }
@@ -149,7 +184,13 @@ export async function deviceRoutes(app: FastifyInstance): Promise<void> {
         return reply.code(400).send({ error: `No adapter for device type: ${device.device_type}` });
       }
 
-      const result = await adapter.testConnection(device.connection_config as Record<string, unknown>);
+      // Decrypt sensitive fields before passing to adapter
+      const sensitiveKeys = DEVICE_SENSITIVE_KEYS[device.device_type] || [];
+      const decryptedConfig = sensitiveKeys.length > 0
+        ? decryptConfigFields(device.connection_config as Record<string, unknown>, sensitiveKeys)
+        : device.connection_config as Record<string, unknown>;
+
+      const result = await adapter.testConnection(decryptedConfig);
       return result;
     },
   );
@@ -220,6 +261,31 @@ export async function deviceRoutes(app: FastifyInstance): Promise<void> {
         byType[t] = (byType[t] || 0) + 1;
       }
       return { total: devices.length, online, busy, offline, byType };
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/devices/env-status - Detect .env-configured device credentials
+   */
+  app.get(
+    '/api/v1/forge/devices/env-status',
+    { preHandler: [authMiddleware] },
+    async () => {
+      const envDevices: Array<{ type: string; envKeys: string[]; configured: boolean }> = [];
+
+      for (const [deviceType, envMap] of Object.entries(DEVICE_ENV_KEYS)) {
+        const foundKeys: string[] = [];
+        for (const [, envVar] of Object.entries(envMap)) {
+          if (process.env[envVar]) foundKeys.push(envVar);
+        }
+        envDevices.push({
+          type: deviceType,
+          envKeys: foundKeys,
+          configured: foundKeys.length > 0,
+        });
+      }
+
+      return { devices: envDevices };
     },
   );
 }

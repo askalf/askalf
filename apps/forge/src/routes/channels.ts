@@ -680,6 +680,99 @@ export async function channelRoutes(app: FastifyInstance): Promise<void> {
       }
     },
   );
+
+  // ============================================
+  // CHANNEL HEALTH DASHBOARD
+  // ============================================
+
+  // .env variable mappings for auto-detection
+  const CHANNEL_ENV_KEYS: Record<string, Record<string, string>> = {
+    slack: { bot_token: 'SLACK_BOT_TOKEN', signing_secret: 'SLACK_SIGNING_SECRET' },
+    discord: { bot_token: 'DISCORD_BOT_TOKEN', application_id: 'DISCORD_APPLICATION_ID', public_key: 'DISCORD_PUBLIC_KEY' },
+    telegram: { bot_token: 'TELEGRAM_BOT_TOKEN' },
+    whatsapp: { access_token: 'WHATSAPP_ACCESS_TOKEN', phone_number_id: 'WHATSAPP_PHONE_NUMBER_ID' },
+    teams: { app_id: 'TEAMS_APP_ID', app_password: 'TEAMS_APP_PASSWORD' },
+    twilio: { account_sid: 'TWILIO_ACCOUNT_SID', auth_token: 'TWILIO_AUTH_TOKEN', phone_number: 'TWILIO_PHONE_NUMBER' },
+    sendgrid: { api_key: 'SENDGRID_API_KEY', from_email: 'SENDGRID_FROM_EMAIL' },
+  };
+
+  /**
+   * GET /api/v1/forge/channels/health
+   * Health dashboard — status of all configured channels + env detection.
+   */
+  app.get(
+    '/api/v1/forge/channels/health',
+    {
+      schema: { tags: ['Channels'], summary: 'Channel health dashboard' },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest) => {
+      const userId = request.userId!;
+
+      // Get all user-configured channels
+      const configs = await query<ChannelConfig>(
+        `SELECT id, channel_type, name, is_active, metadata, created_at, updated_at
+         FROM channel_configs WHERE user_id = $1 ORDER BY channel_type ASC`,
+        [userId],
+      );
+
+      // Build health status per channel type
+      const channels: Array<{
+        type: string;
+        name: string;
+        source: 'config' | 'env' | 'both' | 'none';
+        configured: boolean;
+        active: boolean;
+        configId: string | null;
+        envKeys: string[];
+        lastTested: string | null;
+      }> = [];
+
+      // All known channel types
+      const allTypes = CHANNEL_TYPES;
+
+      for (const channelType of allTypes) {
+        const config = configs.find(c => c.channel_type === channelType);
+        const envMap = CHANNEL_ENV_KEYS[channelType];
+        const envKeys: string[] = [];
+        let hasEnv = false;
+
+        if (envMap) {
+          for (const [, envVar] of Object.entries(envMap)) {
+            if (process.env[envVar]) {
+              envKeys.push(envVar);
+              hasEnv = true;
+            }
+          }
+        }
+
+        const hasConfig = !!config;
+        let source: 'config' | 'env' | 'both' | 'none' = 'none';
+        if (hasConfig && hasEnv) source = 'both';
+        else if (hasConfig) source = 'config';
+        else if (hasEnv) source = 'env';
+
+        channels.push({
+          type: channelType,
+          name: channelType.charAt(0).toUpperCase() + channelType.slice(1).replace(/_/g, ' '),
+          source,
+          configured: hasConfig || hasEnv,
+          active: config?.is_active ?? false,
+          configId: config?.id ?? null,
+          envKeys,
+          lastTested: null,
+        });
+      }
+
+      const connected = channels.filter(c => c.configured).length;
+      const active = channels.filter(c => c.active).length;
+
+      return {
+        summary: { total: channels.length, connected, active },
+        channels,
+      };
+    },
+  );
 }
 
 /**
