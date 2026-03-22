@@ -291,4 +291,33 @@ export async function registerAnalyticsRoutes(app: FastifyInstance): Promise<voi
     },
   );
 
+  // Model pricing — list all pricing (defaults + overrides)
+  app.get(
+    '/api/v1/admin/costs/pricing',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async () => {
+      const { getAllPricing } = await import('../../runtime/token-counter.js');
+      return { pricing: await getAllPricing() };
+    },
+  );
+
+  // Model pricing — set/update a price override
+  app.put(
+    '/api/v1/admin/costs/pricing',
+    { preHandler: [authMiddleware, requireAdmin] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as { model_id?: string; provider?: string; display_name?: string; input_per_1k?: number; output_per_1k?: number };
+      if (!body.model_id || body.input_per_1k == null || body.output_per_1k == null) {
+        return reply.status(400).send({ error: 'model_id, input_per_1k, and output_per_1k required' });
+      }
+      await query(
+        `INSERT INTO forge_model_pricing (model_id, provider, display_name, input_per_1k, output_per_1k, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())
+         ON CONFLICT (model_id) DO UPDATE SET input_per_1k = $4, output_per_1k = $5, display_name = $3, updated_at = NOW()`,
+        [body.model_id, body.provider ?? 'unknown', body.display_name ?? body.model_id, body.input_per_1k, body.output_per_1k],
+      );
+      return { ok: true };
+    },
+  );
+
 }
