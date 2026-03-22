@@ -1,0 +1,627 @@
+# SearXNG Settings — Full engine configuration with VPN
+# All engines enabled — routed through Gluetun VPN proxy
+
+use_default_settings:
+  engines:
+    remove:
+      - ahmia
+      - torch
+
+general:
+  instance_name: "askalf-search"
+  debug: false
+
+search:
+  safe_search: 0
+  autocomplete: "google"
+  default_lang: "en"
+  formats:
+    - html
+    - json
+  suspended_times:
+    SearxEngineAccessDenied: 300
+    SearxEngineCaptcha: 600
+    SearxEngineTooManyRequests: 300
+
+server:
+  bind_address: "0.0.0.0"
+  port: 8080
+  secret_key: "${SEARXNG_SECRET}"
+  limiter: true
+  image_proxy: true
+  base_url: false
+  real_ip:
+    x_for: 1
+    ipv4_prefix: 32
+    ipv6_prefix: 48
+
+ui:
+  static_use_hash: true
+  default_theme: simple
+  results_on_new_tab: false
+  infinite_scroll: true
+  query_in_title: true
+
+valkey:
+  url: false
+
+outgoing:
+  request_timeout: 8.0
+  max_request_timeout: 15.0
+  useragent_suffix: ""
+  pool_connections: 100
+  pool_maxsize: 20
+  enable_http2: true
+
+engines:
+  # ============================================
+  # WEB SEARCH — all major engines
+  # ============================================
+  - name: google
+    disabled: false
+    weight: 2.5
+    timeout: 8.0
+    use_mobile_ui: true
+
+  - name: brave
+    disabled: false
+    weight: 2.0
+    timeout: 6.0
+
+  - name: duckduckgo
+    disabled: false
+    weight: 1.5
+    timeout: 6.0
+
+  - name: bing
+    disabled: false
+    weight: 1.5
+    timeout: 6.0
+
+  - name: startpage
+    disabled: false
+    weight: 1.5
+    timeout: 8.0
+
+  - name: mojeek
+    disabled: false
+    weight: 1.0
+    timeout: 8.0
+
+  - name: qwant
+    disabled: false
+    weight: 1.0
+    timeout: 8.0
+
+  - name: yahoo
+    disabled: false
+    weight: 1.0
+    timeout: 8.0
+
+  - name: yandex
+    disabled: false
+    weight: 0.8
+    timeout: 8.0
+
+  - name: yep
+    disabled: false
+    weight: 0.8
+    timeout: 8.0
+
+  - name: presearch
+    disabled: false
+    weight: 0.8
+    timeout: 8.0
+
+  - name: wiby
+    disabled: false
+    weight: 0.5
+    timeout: 6.0
+
+  - name: mwmbl
+    disabled: false
+    weight: 0.5
+
+  - name: crowdview
+    disabled: false
+    weight: 0.5
+
+  - name: ask
+    disabled: false
+    weight: 0.5
+    timeout: 8.0
+
+  - name: searchmysite
+    disabled: false
+    weight: 0.3
+
+  # ============================================
+  # REFERENCE & KNOWLEDGE
+  # ============================================
+  - name: wikipedia
+    disabled: false
+    weight: 1.5
+
+  - name: wikidata
+    disabled: false
+
+  - name: wolframalpha
+    disabled: false
+    timeout: 8.0
+
+  - name: currency
+    disabled: false
+
+  - name: dictzone
+    disabled: false
+
+  - name: lingva
+    disabled: false
+
+  - name: mymemory translated
+    disabled: false
+
+  - name: openlibrary
+    disabled: false
+
+  - name: wikibooks
+    disabled: false
+
+  - name: wikiquote
+    disabled: false
+
+  - name: wikisource
+    disabled: false
+
+  - name: wikiversity
+    disabled: false
+
+  - name: wikivoyage
+    disabled: false
+
+  - name: ddg definitions
+    disabled: false
+
+  # ============================================
+  # NEWS
+  # ============================================
+  - name: google news
+    disabled: false
+    weight: 2.0
+    timeout: 8.0
+
+  - name: brave.news
+    disabled: false
+    weight: 1.5
+    timeout: 6.0
+
+  - name: bing news
+    disabled: false
+    weight: 1.0
+    timeout: 6.0
+
+  - name: duckduckgo news
+    disabled: false
+    timeout: 6.0
+
+  - name: yahoo news
+    disabled: false
+    timeout: 8.0
+
+  - name: mojeek news
+    disabled: false
+
+  - name: qwant news
+    disabled: false
+
+  - name: startpage news
+    disabled: false
+
+  - name: presearch news
+    disabled: false
+
+  - name: wikinews
+    disabled: false
+
+  - name: yep news
+    disabled: false
+
+  # ============================================
+  # IMAGES
+  # ============================================
+  - name: google images
+    disabled: false
+    weight: 2.0
+    timeout: 8.0
+
+  - name: brave.images
+    disabled: false
+    weight: 1.5
+    timeout: 8.0
+
+  - name: bing images
+    disabled: false
+    timeout: 8.0
+
+  - name: duckduckgo images
+    disabled: false
+    timeout: 8.0
+
+  - name: qwant images
+    disabled: false
+    timeout: 8.0
+
+  - name: startpage images
+    disabled: false
+    timeout: 8.0
+
+  - name: mojeek images
+    disabled: false
+    timeout: 8.0
+
+  - name: unsplash
+    disabled: false
+    timeout: 8.0
+
+  - name: pexels
+    disabled: false
+    timeout: 8.0
+
+  - name: pixabay images
+    disabled: false
+    timeout: 8.0
+
+  - name: flickr
+    disabled: false
+    timeout: 8.0
+
+  - name: deviantart
+    disabled: false
+    timeout: 8.0
+
+  - name: openverse
+    disabled: false
+
+  - name: artic
+    disabled: false
+
+  - name: adobe stock
+    disabled: false
+    timeout: 8.0
+
+  - name: artstation
+    disabled: false
+
+  - name: wikicommons.images
+    disabled: false
+
+  - name: yandex images
+    disabled: false
+    timeout: 8.0
+
+  - name: pinterest
+    disabled: false
+    timeout: 8.0
+
+  - name: imgur
+    disabled: false
+
+  - name: 1x
+    disabled: false
+
+  - name: library of congress
+    disabled: false
+
+  # ============================================
+  # VIDEOS
+  # ============================================
+  - name: google videos
+    disabled: false
+    weight: 2.0
+    timeout: 8.0
+
+  - name: brave.videos
+    disabled: false
+    weight: 1.5
+    timeout: 8.0
+
+  - name: bing videos
+    disabled: false
+    timeout: 8.0
+
+  - name: duckduckgo videos
+    disabled: false
+    timeout: 8.0
+
+  - name: qwant videos
+    disabled: false
+    timeout: 8.0
+
+  - name: youtube
+    disabled: false
+    timeout: 8.0
+
+  - name: dailymotion
+    disabled: false
+    timeout: 8.0
+
+  - name: vimeo
+    disabled: false
+    timeout: 8.0
+
+  - name: odysee
+    disabled: false
+
+  - name: rumble
+    disabled: false
+    timeout: 8.0
+
+  - name: peertube
+    disabled: false
+
+  - name: sepiasearch
+    disabled: false
+
+  - name: bitchute
+    disabled: false
+
+  - name: piped
+    disabled: false
+    timeout: 8.0
+
+  - name: pixabay videos
+    disabled: false
+
+  - name: media.ccc.de
+    disabled: false
+
+  - name: bilibili
+    disabled: false
+
+  - name: wikicommons.videos
+    disabled: false
+
+  - name: adobe stock video
+    disabled: false
+
+  # ============================================
+  # IT / DEV
+  # ============================================
+  - name: github
+    disabled: false
+
+  - name: gitlab
+    disabled: false
+
+  - name: codeberg
+    disabled: false
+
+  - name: bitbucket
+    disabled: false
+
+  - name: sourcehut
+    disabled: false
+
+  - name: stackoverflow
+    disabled: false
+    timeout: 6.0
+
+  - name: superuser
+    disabled: false
+
+  - name: npm
+    disabled: false
+
+  - name: pypi
+    disabled: false
+
+  - name: docker hub
+    disabled: false
+
+  - name: crates.io
+    disabled: false
+
+  - name: packagist
+    disabled: false
+
+  - name: pkg.go.dev
+    disabled: false
+
+  - name: pub.dev
+    disabled: false
+
+  - name: rubygems
+    disabled: false
+
+  - name: hex
+    disabled: false
+
+  - name: lib.rs
+    disabled: false
+
+  - name: hoogle
+    disabled: false
+
+  - name: metacpan
+    disabled: false
+
+  - name: mdn
+    disabled: false
+
+  - name: microsoft learn
+    disabled: false
+
+  - name: hackernews
+    disabled: false
+
+  - name: lobste.rs
+    disabled: false
+
+  - name: mankier
+    disabled: false
+
+  - name: arch linux wiki
+    disabled: false
+
+  - name: gentoo
+    disabled: false
+
+  - name: nixos wiki
+    disabled: false
+
+  - name: anaconda
+    disabled: false
+
+  - name: huggingface
+    disabled: false
+
+  - name: ollama
+    disabled: false
+
+  - name: national vulnerability database
+    disabled: false
+
+  - name: alpine linux packages
+    disabled: false
+
+  # ============================================
+  # SCIENCE / ACADEMIC
+  # ============================================
+  - name: arxiv
+    disabled: false
+
+  - name: crossref
+    disabled: false
+
+  - name: semantic scholar
+    disabled: false
+
+  - name: pubmed
+    disabled: false
+
+  - name: google scholar
+    disabled: false
+    weight: 2.0
+    timeout: 10.0
+
+  - name: openalex
+    disabled: false
+
+  - name: pdbe
+    disabled: false
+
+  - name: openairedatasets
+    disabled: false
+
+  - name: openairepublications
+    disabled: false
+
+  # ============================================
+  # SOCIAL
+  # ============================================
+  - name: reddit
+    disabled: false
+    timeout: 8.0
+
+  - name: lemmy communities
+    disabled: false
+
+  - name: lemmy posts
+    disabled: false
+
+  - name: lemmy comments
+    disabled: false
+
+  - name: lemmy users
+    disabled: false
+
+  - name: mastodon hashtags
+    disabled: false
+
+  - name: mastodon users
+    disabled: false
+
+  - name: tootfinder
+    disabled: false
+
+  - name: 9gag
+    disabled: false
+
+  # ============================================
+  # MUSIC
+  # ============================================
+  - name: genius
+    disabled: false
+
+  - name: bandcamp
+    disabled: false
+
+  - name: mixcloud
+    disabled: false
+
+  - name: soundcloud
+    disabled: false
+
+  - name: deezer
+    disabled: false
+
+  - name: wikicommons.audio
+    disabled: false
+
+  - name: adobe stock audio
+    disabled: false
+
+  # ============================================
+  # FILES & APPS
+  # ============================================
+  - name: 1337x
+    disabled: false
+    timeout: 8.0
+
+  - name: nyaa
+    disabled: false
+
+  - name: piratebay
+    disabled: false
+
+  - name: kickass
+    disabled: false
+
+  - name: solidtorrents
+    disabled: false
+
+  - name: bt4g
+    disabled: false
+
+  - name: annas archive
+    disabled: false
+
+  - name: library genesis
+    disabled: false
+
+  - name: fdroid
+    disabled: false
+
+  - name: google play apps
+    disabled: false
+
+  - name: apple app store
+    disabled: false
+
+  - name: apk mirror
+    disabled: false
+
+  - name: wikicommons.files
+    disabled: false
+
+  # ============================================
+  # MAPS
+  # ============================================
+  - name: apple maps
+    disabled: false
+
+  - name: openstreetmap
+    disabled: false
+
+  - name: photon
+    disabled: false
