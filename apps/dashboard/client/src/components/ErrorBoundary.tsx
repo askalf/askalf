@@ -36,10 +36,7 @@ class ErrorBoundary extends Component<Props, State> {
     const nextRetry = this.state.retryCount + 1;
     this.setState({ errorInfo, retryCount: nextRetry });
 
-    // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
-    }
+    console.error('[ErrorBoundary]', error.message, error.stack, errorInfo.componentStack);
 
     // Send error to API for logging in production
     this.reportError(error, errorInfo);
@@ -112,10 +109,22 @@ class ErrorBoundary extends Component<Props, State> {
             borderRadius: '8px',
             border: '1px solid rgba(255, 107, 107, 0.2)',
             color: '#e0e0e0',
-            textAlign: 'center',
           }}>
             <p style={{ margin: '0 0 0.5rem', color: '#ff6b6b', fontWeight: 500 }}>This panel failed to load</p>
             <p style={{ margin: '0 0 0.75rem', color: '#a0a0a0', fontSize: '0.8rem' }}>{statusMessage}</p>
+            {this.state.error && (
+              <details style={{
+                marginBottom: '0.75rem', textAlign: 'left', padding: '0.75rem',
+                background: 'rgba(0,0,0,0.3)', borderRadius: '6px', fontSize: '0.7rem',
+              }}>
+                <summary style={{ cursor: 'pointer', color: '#ff6b6b', marginBottom: '0.4rem' }}>
+                  {this.state.error.message}
+                </summary>
+                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#999', margin: 0 }}>
+                  {this.state.error.stack?.split('\n').slice(0, 8).join('\n')}
+                </pre>
+              </details>
+            )}
             <button
               onClick={this.handleRetry}
               style={{
@@ -164,7 +173,7 @@ class ErrorBoundary extends Component<Props, State> {
               {statusMessage}
             </p>
 
-            {this.state.error && import.meta.env.DEV && (
+            {this.state.error && (
               <details style={{
                 marginBottom: '1.5rem',
                 textAlign: 'left',
@@ -173,14 +182,19 @@ class ErrorBoundary extends Component<Props, State> {
                 borderRadius: '8px',
                 fontSize: '0.75rem',
                 overflow: 'auto',
+                maxHeight: '300px',
               }}>
-                <summary style={{ cursor: 'pointer', marginBottom: '0.5rem' }}>
-                  Error Details (dev only)
+                <summary style={{ cursor: 'pointer', marginBottom: '0.5rem', color: '#ff6b6b' }}>
+                  {this.state.error.message}
                 </summary>
-                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {this.state.error.toString()}
-                  {this.state.errorInfo?.componentStack}
+                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#999', margin: '0 0 0.5rem' }}>
+                  {this.state.error.stack?.split('\n').slice(0, 10).join('\n')}
                 </pre>
+                {this.state.errorInfo?.componentStack && (
+                  <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#666', margin: 0, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}>
+                    {this.state.errorInfo.componentStack.split('\n').slice(0, 8).join('\n')}
+                  </pre>
+                )}
               </details>
             )}
 
