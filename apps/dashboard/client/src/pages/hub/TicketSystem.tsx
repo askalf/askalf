@@ -39,7 +39,7 @@ export default function TicketSystem() {
   const agents = useHubStore((s) => s.agents);
   const fetchAgents = useHubStore((s) => s.fetchAgents);
 
-  const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium', category: 'bug', assigned_to: '' });
+  const [newTicket, setNewTicket] = useState({ title: '', description: '', priority: 'medium', category: 'task', assigned_to: '' });
   const [formErrors, setFormErrors] = useState<{ title?: string; description?: string }>({});
   const [creating, setCreating] = useState(false);
   const [searchDebounce, setSearchDebounce] = useState('');
@@ -100,7 +100,7 @@ export default function TicketSystem() {
     const ok = await createTicket(body);
     if (ok) {
       setShowCreateTicket(false);
-      setNewTicket({ title: '', description: '', priority: 'medium', category: 'bug', assigned_to: '' });
+      setNewTicket({ title: '', description: '', priority: 'medium', category: 'task', assigned_to: '' });
       setFormErrors({});
     }
     setCreating(false);
@@ -138,7 +138,7 @@ export default function TicketSystem() {
         <EmptyState
           icon="✅"
           title="No tickets found"
-          message="Create a new ticket to track tasks, bugs, or feature requests."
+          message="Create a ticket to track tasks, requests, or issues for your workers."
           action={{ label: 'New Ticket', onClick: handleOpenCreate }}
         />
       ) : (
@@ -152,7 +152,7 @@ export default function TicketSystem() {
               <div className="hub-ticket-header">
                 <span className="hub-ticket-id">#{ticket.id.slice(0, 8)}</span>
                 {ticket.is_agent_ticket && (
-                  <span className="hub-ticket-source">{ticket.agent_name || 'Agent'}</span>
+                  <span className="hub-ticket-source">{ticket.agent_name || 'Worker'}</span>
                 )}
                 <span className="hub-ticket-category">{ticket.category}</span>
                 <span className="hub-ticket-priority" style={{ background: PRIORITY_COLORS[ticket.priority] }}>
@@ -192,7 +192,7 @@ export default function TicketSystem() {
 
       {/* Create Ticket Modal */}
       {showCreateTicket && (
-        <Modal title="Create Ticket" onClose={() => { setShowCreateTicket(false); setFormErrors({}); setNewTicket({ title: '', description: '', priority: 'medium', category: 'bug', assigned_to: '' }); }}>
+        <Modal title="Create Ticket" onClose={() => { setShowCreateTicket(false); setFormErrors({}); setNewTicket({ title: '', description: '', priority: 'medium', category: 'task', assigned_to: '' }); }}>
           <div className="hub-form-group">
             <label>Title</label>
             <input
@@ -220,10 +220,12 @@ export default function TicketSystem() {
             <div className="hub-form-group">
               <label>Category</label>
               <select value={newTicket.category} onChange={(e) => setNewTicket({ ...newTicket, category: e.target.value })}>
-                <option value="bug">Bug</option>
-                <option value="feature">Feature Request</option>
-                <option value="improvement">Improvement</option>
                 <option value="task">Task</option>
+                <option value="research">Research</option>
+                <option value="issue">Issue</option>
+                <option value="request">Request</option>
+                <option value="improvement">Improvement</option>
+                <option value="monitoring">Monitoring</option>
                 <option value="question">Question</option>
               </select>
             </div>
@@ -247,7 +249,7 @@ export default function TicketSystem() {
             </select>
           </div>
           <div className="hub-modal-actions">
-            <button className="hub-btn" onClick={() => { setShowCreateTicket(false); setFormErrors({}); setNewTicket({ title: '', description: '', priority: 'medium', category: 'bug', assigned_to: '' }); }}>Cancel</button>
+            <button className="hub-btn" onClick={() => { setShowCreateTicket(false); setFormErrors({}); setNewTicket({ title: '', description: '', priority: 'medium', category: 'task', assigned_to: '' }); }}>Cancel</button>
             <button className="hub-btn hub-btn--primary" onClick={handleCreate} disabled={creating}>
               {creating ? 'Creating...' : 'Create Ticket'}
             </button>
@@ -353,7 +355,7 @@ function TicketDetailModal({
 
       {ticket.task && (
         <div className="hub-ticket-task-info">
-          <h3>Linked Agent Task</h3>
+          <h3>Linked Task</h3>
           <div className="hub-ticket-task-grid">
             <div><label>Task ID</label><div>#{ticket.task.id.slice(0, 8)}</div></div>
             <div><label>Type</label><div>{ticket.task.type}</div></div>
