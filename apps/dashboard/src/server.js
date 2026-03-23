@@ -2615,9 +2615,9 @@ fastify.get('/api/v1/admin/infrastructure/status', async (request, reply) => {
   const user = await getAdminUser();
   if (!user) return reply.code(401).send({ error: 'Not authenticated' });
 
-  // VPN / Gluetun
+  // VPN / Gluetun — detect by actually checking gluetun, not env vars
   const vpn = {
-    enabled: !!(process.env['VPN_SERVICE_PROVIDER'] || process.env['WIREGUARD_PRIVATE_KEY']),
+    enabled: false,
     provider: process.env['VPN_SERVICE_PROVIDER'] || null,
     type: process.env['VPN_TYPE'] || null,
     countries: process.env['VPN_SERVER_COUNTRIES'] || null,
@@ -2625,19 +2625,29 @@ fastify.get('/api/v1/admin/infrastructure/status', async (request, reply) => {
     publicIp: null,
   };
 
-  // Try to check Gluetun health
+  // Try to check Gluetun health — if it responds, VPN is enabled
   try {
     const gluetunUrl = process.env['GLUETUN_URL'] || 'http://gluetun:8000';
     const res = await fetch(`${gluetunUrl}/v1/publicip/ip`, { signal: AbortSignal.timeout(5000) });
     if (res.ok) {
       const data = await res.json();
+      vpn.enabled = true;
       vpn.status = 'connected';
       vpn.publicIp = data.public_ip || data.ip || null;
     } else {
       vpn.status = 'error';
     }
+    // Also try to get provider info from gluetun
+    try {
+      const settingsRes = await fetch(`${gluetunUrl}/v1/openvpn/settings`, { signal: AbortSignal.timeout(3000) });
+      if (settingsRes.ok) {
+        const settings = await settingsRes.json();
+        if (settings.provider) vpn.provider = settings.provider;
+        if (settings.country) vpn.countries = settings.country;
+      }
+    } catch { /* optional */ }
   } catch {
-    vpn.status = vpn.enabled ? 'unreachable' : 'disabled';
+    vpn.status = 'disabled';
   }
 
   // SearXNG
