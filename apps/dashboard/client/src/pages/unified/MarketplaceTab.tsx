@@ -12,7 +12,6 @@ import './MarketplaceTab.css';
 
 // Lazy-load the templates tab (already built with 109 templates, pagination, import/export)
 const TemplatesTab = lazy(() => import('./TemplatesTab'));
-
 // ── Types ──
 
 type MarketSection = 'templates' | 'tools' | 'servers' | 'submit';
