@@ -12,7 +12,7 @@
   "dependencies": {
     "@askalf/core": "workspace:*",
     "@askalf/observability": "workspace:*",
-    "nodemailer": "^7.0.0"
+    "nodemailer": "^8.0.3"
   },
   "devDependencies": {
     "@types/nodemailer": "^6.4.17",
