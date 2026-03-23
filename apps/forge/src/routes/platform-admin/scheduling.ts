@@ -81,15 +81,18 @@ export async function registerSchedulingRoutes(app: FastifyInstance): Promise<vo
       const limit = Math.min(parseInt(qs.limit ?? '50'), 100);
       const offset = parseInt(qs.offset ?? '0') || 0;
 
+      // Read from forge_audit_log (primary audit table) with column aliases for frontend compatibility
+      const auditWhere = where.replace(/entity_type/g, 'resource_type').replace(/entity_id/g, 'resource_id').replace(/\bactor\b/g, 'owner_id');
       const [entries, countResult] = await Promise.all([
         substrateQuery(
-          `SELECT id, entity_type, entity_id, action, actor, actor_id, old_value, new_value, execution_id, created_at
-           FROM agent_audit_log ${where}
+          `SELECT id, resource_type as entity_type, resource_id as entity_id, action,
+                  owner_id as actor, owner_id as actor_id, details as new_value, created_at
+           FROM forge_audit_log ${auditWhere}
            ORDER BY created_at DESC
            LIMIT ${limit} OFFSET ${offset}`,
           params,
         ),
-        substrateQueryOne<{ total: number }>(`SELECT COUNT(*)::int as total FROM agent_audit_log ${where}`, params),
+        substrateQueryOne<{ total: number }>(`SELECT COUNT(*)::int as total FROM forge_audit_log ${auditWhere}`, params),
       ]);
 
       return { audit_trail: entries, total: countResult?.total || 0, limit, offset };
