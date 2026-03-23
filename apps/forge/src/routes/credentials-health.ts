@@ -72,7 +72,70 @@ async function readCredentials(): Promise<CredentialsFile | null> {
   return null;
 }
 
+// Auto-refresh timer — refreshes token when within 30 min of expiry
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+const AUTO_REFRESH_THRESHOLD_MS = 30 * 60_000; // 30 minutes before expiry
+const AUTO_REFRESH_CHECK_INTERVAL_MS = 5 * 60_000; // Check every 5 minutes
+
+async function autoRefreshIfNeeded(): Promise<void> {
+  try {
+    const creds = await readCredentials();
+    if (!creds?.claudeAiOauth?.refreshToken || !creds?.claudeAiOauth?.expiresAt) return;
+
+    const timeLeft = creds.claudeAiOauth.expiresAt - Date.now();
+    if (timeLeft > AUTO_REFRESH_THRESHOLD_MS) return; // Still healthy
+
+    console.log(`[OAuth] Token expires in ${Math.round(timeLeft / 60_000)}m — auto-refreshing`);
+
+    const response = await fetch(OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: OAUTH_CLIENT_ID,
+        refresh_token: creds.claudeAiOauth.refreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[OAuth] Auto-refresh failed: ${response.status}`);
+      return;
+    }
+
+    const tokenData = await response.json() as {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+    };
+
+    creds.claudeAiOauth.accessToken = tokenData.access_token ?? creds.claudeAiOauth.accessToken;
+    creds.claudeAiOauth.refreshToken = tokenData.refresh_token ?? creds.claudeAiOauth.refreshToken;
+    if (tokenData.expires_in) {
+      creds.claudeAiOauth.expiresAt = Date.now() + tokenData.expires_in * 1000;
+    }
+
+    // Write back to the first path that exists
+    for (const path of CREDENTIAL_PATHS) {
+      try {
+        await readFile(path);
+        await writeFile(path, JSON.stringify(creds, null, 2), 'utf-8');
+        console.log(`[OAuth] Token auto-refreshed — expires in ${Math.round((creds.claudeAiOauth.expiresAt - Date.now()) / 60_000)}m`);
+        break;
+      } catch { continue; }
+    }
+  } catch (err) {
+    console.error('[OAuth] Auto-refresh error:', err instanceof Error ? err.message : err);
+  }
+}
+
 export async function credentialsHealthRoutes(app: FastifyInstance): Promise<void> {
+  // Start auto-refresh timer
+  if (!autoRefreshTimer) {
+    autoRefreshTimer = setInterval(autoRefreshIfNeeded, AUTO_REFRESH_CHECK_INTERVAL_MS);
+    // Also check immediately on startup
+    setTimeout(autoRefreshIfNeeded, 10_000);
+    console.log('[OAuth] Auto-refresh enabled — checking every 5 minutes, refreshing 30 min before expiry');
+  }
   /**
    * GET /api/v1/forge/credentials/health — check OAuth token status
    */
