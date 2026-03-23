@@ -225,6 +225,15 @@ function TemplateCard({
           <button className="tmpl-card-use" onClick={() => onUse(template)}>
             Customize
           </button>
+          <button className="tmpl-card-export" onClick={(e) => {
+            e.stopPropagation();
+            const data = { name: template.name, slug: template.slug, category: template.category, description: template.description, icon: template.icon, agent_config: template.agent_config, schedule_config: template.schedule_config, estimated_cost_per_run: template.estimated_cost_per_run, required_tools: template.required_tools };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `${template.slug}.json`; a.click(); URL.revokeObjectURL(url);
+          }} title="Export this template as JSON">
+            Export
+          </button>
         </div>
       )}
     </div>
@@ -382,16 +391,16 @@ export default function TemplatesTab({
           <span className="tmpl-icon">&#x2B22;</span>
           <h2>Templates</h2>
           <div className="tmpl-header-actions">
-            <button className="tmpl-export-btn" onClick={() => handleExport('all')} title="Export all templates as bundle">
+            <button className="tmpl-export-btn" onClick={() => handleExport('all')} title="Export all 109 templates as a JSON bundle">
               Export All
             </button>
             {filter !== 'all' && (
-              <button className="tmpl-export-btn" onClick={() => handleExport('filtered')} title={`Export ${CATEGORY_LABELS[filter] ?? filter} templates`}>
+              <button className="tmpl-export-btn" onClick={() => handleExport('filtered')} title={`Export ${CATEGORY_LABELS[filter] ?? filter} category as bundle`}>
                 Export {CATEGORY_LABELS[filter] ?? filter}
               </button>
             )}
-            <button className="tmpl-import-btn" onClick={() => importRef.current?.click()} title="Import template bundle (.json)">
-              Import Bundle
+            <button className="tmpl-import-btn" onClick={() => importRef.current?.click()} title="Import a single template or a bundle (.json)">
+              Import
             </button>
             <input ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
           </div>

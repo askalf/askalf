@@ -336,6 +336,23 @@
   transform: none;
 }
 
+.tmpl-card-export {
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-muted, rgba(255, 255, 255, 0.3));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tmpl-card-export:hover {
+  background: var(--surface);
+  color: var(--text, #e4e4e7);
+}
+
 /* ── Inline Prompt ── */
 
 .tmpl-card-prompt {
