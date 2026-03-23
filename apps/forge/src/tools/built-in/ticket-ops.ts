@@ -183,6 +183,10 @@ export async function ticketOps(input: TicketOpsInput): Promise<ToolResult> {
           return { output: null, error: 'ticket_id is required for update', durationMs: 0 };
         }
 
+        // Whitelist of allowed update fields — only these column names may appear in the SET clause.
+        // All column names below are hardcoded strings, never derived from user input.
+        const allowedUpdateFields = ['status', 'priority', 'title', 'description', 'category', 'resolution'] as const;
+
         // Snapshot the old state first
         const oldResult = await p.query(
           `SELECT id, title, status, priority, category, description, assigned_to, agent_name, metadata FROM agent_tickets WHERE id = $1`,
@@ -221,32 +225,19 @@ export async function ticketOps(input: TicketOpsInput): Promise<ToolResult> {
           }
         }
 
-        if (input.status) {
-          params.push(input.status);
-          setClauses.push(`status = $${params.length}`);
-          changes['status'] = input.status;
+        // Build SET clause using only whitelisted column names (parameterized values)
+        const simpleFields = ['status', 'priority', 'title', 'description', 'category'] as const;
+        for (const field of simpleFields) {
+          if (!allowedUpdateFields.includes(field)) continue; // safety: skip if not in whitelist
+          const value = input[field];
+          if (value) {
+            params.push(value);
+            setClauses.push(`${field} = $${params.length}`);
+            changes[field] = value;
+          }
         }
-        if (input.priority) {
-          params.push(input.priority);
-          setClauses.push(`priority = $${params.length}`);
-          changes['priority'] = input.priority;
-        }
-        if (input.title) {
-          params.push(input.title);
-          setClauses.push(`title = $${params.length}`);
-          changes['title'] = input.title;
-        }
-        if (input.description) {
-          params.push(input.description);
-          setClauses.push(`description = $${params.length}`);
-          changes['description'] = input.description;
-        }
-        if (input.category) {
-          params.push(input.category);
-          setClauses.push(`category = $${params.length}`);
-          changes['category'] = input.category;
-        }
-        if (input.resolution) {
+        // Resolution is special — stored in JSONB metadata, not a plain column
+        if (input.resolution && allowedUpdateFields.includes('resolution')) {
           params.push(input.resolution);
           setClauses.push(`metadata = metadata || jsonb_build_object('resolution', $${params.length}, 'resolved_at', NOW()::text, 'resolved_by', COALESCE(assigned_to, 'unknown'))`);
           changes['resolution'] = input.resolution;
