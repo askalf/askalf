@@ -3456,6 +3456,146 @@ function InfrastructureTab() {
           </div>
         </div>
       </div>
+
+      {/* Ollama Management */}
+      <OllamaManager />
+    </div>
+  );
+}
+
+function OllamaManager() {
+  const [data, setData] = useState<{ connected: boolean; url: string; models: Array<{ name: string; size: string | null; parameterSize: string | null; quantization: string | null; family: string | null }>; version: string | null; error: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [pullModel, setPullModel] = useState('');
+  const [pulling, setPulling] = useState(false);
+  const [pullMsg, setPullMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchOllama = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/infrastructure/ollama`, { credentials: 'include' });
+      if (res.ok) setData(await res.json());
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchOllama(); }, [fetchOllama]);
+
+  const handlePull = async () => {
+    if (!pullModel.trim()) return;
+    setPulling(true);
+    setPullMsg(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/infrastructure/ollama/pull`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: pullModel.trim() }),
+      });
+      if (res.ok) {
+        setPullMsg({ type: 'success', text: `Pulled ${pullModel.trim()}` });
+        setPullModel('');
+        fetchOllama();
+      } else {
+        const err = await res.json().catch(() => ({ error: 'Pull failed' })) as { error?: string };
+        setPullMsg({ type: 'error', text: err.error || 'Pull failed' });
+      }
+    } catch {
+      setPullMsg({ type: 'error', text: 'Network error' });
+    }
+    setPulling(false);
+  };
+
+  const handleDelete = async (name: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/admin/infrastructure/ollama/models/${encodeURIComponent(name)}`, {
+        method: 'DELETE', credentials: 'include',
+      });
+      if (res.ok) fetchOllama();
+    } catch { /* ignore */ }
+  };
+
+  if (loading) return null;
+  if (!data) return null;
+
+  const popularModels = ['llama3:8b', 'llama3:70b', 'mistral:7b', 'mixtral:8x7b', 'codellama:13b', 'phi3:mini', 'qwen2:7b', 'gemma2:9b'];
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="settings-provider-card" style={{ borderLeft: `3px solid ${data.connected ? '#22c55e' : '#6b7280'}` }}>
+        <div className="settings-provider-header">
+          <div className="settings-provider-info">
+            <span className="settings-provider-name">Ollama — Local Models</span>
+            <span className="settings-provider-desc">
+              {data.connected ? `Connected to ${data.url}` : `Not connected (${data.url})`}
+              {data.version && ` — v${data.version}`}
+            </span>
+          </div>
+          <div className="settings-provider-status">
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: data.connected ? '#22c55e' : '#6b7280', marginRight: 6 }} />
+            <span className={`settings-provider-badge ${data.connected ? 'settings-provider-active' : 'settings-provider-inactive'}`}>
+              {data.connected ? `${data.models.length} models` : 'Offline'}
+            </span>
+          </div>
+        </div>
+
+        {data.connected && (
+          <>
+            {/* Pull model */}
+            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+              <input value={pullModel} onChange={e => setPullModel(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handlePull(); }}
+                placeholder="Model name (e.g., llama3:8b)"
+                style={{ flex: 1, padding: '8px 12px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }} />
+              <button onClick={handlePull} disabled={pulling || !pullModel.trim()}
+                style={{ padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: !pullModel.trim() ? 0.4 : 1 }}>
+                {pulling ? 'Pulling...' : 'Pull Model'}
+              </button>
+            </div>
+
+            {/* Quick pull chips */}
+            {!pullModel && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                {popularModels.filter(m => !data.models.some(dm => dm.name === m)).map(m => (
+                  <button key={m} onClick={() => setPullModel(m)}
+                    style={{ padding: '3px 8px', fontSize: '0.7rem', background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 12, color: '#a78bfa', cursor: 'pointer' }}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {pullMsg && (
+              <div style={{ marginTop: 6, fontSize: '0.8rem', color: pullMsg.type === 'success' ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{pullMsg.text}</div>
+            )}
+
+            {/* Installed models */}
+            {data.models.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Installed Models</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {data.models.map(m => (
+                    <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)', flex: 1, fontFamily: 'var(--font-mono)' }}>{m.name}</span>
+                      {m.parameterSize && <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: 8, background: 'rgba(124,58,237,0.08)', color: '#a78bfa', border: '1px solid rgba(124,58,237,0.15)' }}>{m.parameterSize}</span>}
+                      {m.quantization && <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: 8, background: 'rgba(59,130,246,0.08)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.15)' }}>{m.quantization}</span>}
+                      {m.size && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{m.size}</span>}
+                      <button onClick={() => handleDelete(m.name)}
+                        style={{ padding: '3px 8px', fontSize: '0.65rem', background: 'transparent', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, color: '#ef4444', cursor: 'pointer', opacity: 0.6 }}>
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {!data.connected && (
+          <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Install Ollama at <a href="https://ollama.com" target="_blank" rel="noopener noreferrer" style={{ color: '#7c3aed' }}>ollama.com</a>, then set <code style={{ background: 'var(--elevated)', padding: '2px 6px', borderRadius: 4 }}>OLLAMA_BASE_URL=http://host.docker.internal:11434</code> in your .env file.
+          </div>
+        )}
+      </div>
     </div>
   );
 }

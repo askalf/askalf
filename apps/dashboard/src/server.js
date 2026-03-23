@@ -2727,6 +2727,102 @@ fastify.put('/api/v1/admin/infrastructure/vpn', async (request, reply) => {
   };
 });
 
+// ============================================
+// Ollama Management
+// ============================================
+
+const OLLAMA_URL = process.env['OLLAMA_BASE_URL'] || 'http://host.docker.internal:11434';
+
+fastify.get('/api/v1/admin/infrastructure/ollama', async (request, reply) => {
+  const user = await getAdminUser();
+  if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+
+  const result = { connected: false, url: OLLAMA_URL, models: [], version: null, error: null };
+
+  try {
+    // Check version
+    const verRes = await fetch(`${OLLAMA_URL}/api/version`, { signal: AbortSignal.timeout(5000) });
+    if (verRes.ok) {
+      const verData = await verRes.json();
+      result.version = verData.version || null;
+      result.connected = true;
+    }
+
+    // List models
+    const modelsRes = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(5000) });
+    if (modelsRes.ok) {
+      const modelsData = await modelsRes.json();
+      result.models = (modelsData.models || []).map(m => ({
+        name: m.name,
+        size: m.size ? `${(m.size / 1024 / 1024 / 1024).toFixed(1)} GB` : null,
+        modified: m.modified_at,
+        parameterSize: m.details?.parameter_size || null,
+        quantization: m.details?.quantization_level || null,
+        family: m.details?.family || null,
+      }));
+    }
+  } catch (err) {
+    result.error = err.message || 'Cannot connect to Ollama';
+  }
+
+  return result;
+});
+
+fastify.post('/api/v1/admin/infrastructure/ollama/pull', async (request, reply) => {
+  const user = await getAdminUser();
+  if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+
+  const { model } = request.body || {};
+  if (!model || typeof model !== 'string') return reply.code(400).send({ error: 'model name required' });
+
+  // Validate model name (alphanumeric, colons, dashes, dots, slashes)
+  if (!/^[a-zA-Z0-9._:/-]+$/.test(model)) return reply.code(400).send({ error: 'Invalid model name' });
+
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: model, stream: false }),
+      signal: AbortSignal.timeout(600000), // 10 min timeout for large models
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, status: data.status || 'downloaded' };
+    } else {
+      const err = await res.text().catch(() => 'Pull failed');
+      return reply.code(502).send({ error: `Ollama pull failed: ${err}` });
+    }
+  } catch (err) {
+    return reply.code(502).send({ error: err.message || 'Pull request failed' });
+  }
+});
+
+fastify.delete('/api/v1/admin/infrastructure/ollama/models/:name', async (request, reply) => {
+  const user = await getAdminUser();
+  if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+
+  const { name } = request.params;
+  if (!name) return reply.code(400).send({ error: 'model name required' });
+
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/delete`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (res.ok) {
+      return { deleted: true };
+    } else {
+      return reply.code(502).send({ error: 'Failed to delete model' });
+    }
+  } catch (err) {
+    return reply.code(502).send({ error: err.message || 'Delete failed' });
+  }
+});
+
 fastify.post('/api/v1/admin/migrate/openclaw/read-config', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => { // rate-limited
   const user = await getAdminUser();
   if (!user) return reply.code(401).send({ error: 'Not authenticated' });
