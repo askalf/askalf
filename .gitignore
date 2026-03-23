@@ -136,6 +136,11 @@ scripts/rollback.sh
 # Internal marketing docs
 docs/launch-posts.md
 
+# Central marketplace (private — hosted separately, not part of self-hosted)
+infrastructure/marketplace/
+apps/forge/src/routes/marketplace-central.ts
+apps/dashboard/client/src/pages/forge/MarketplaceReview.tsx
+
 # Webhost stack (not part of self-hosted deployment)
 infrastructure/nginx/
 infrastructure/cloudflare/
