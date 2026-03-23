@@ -133,6 +133,9 @@ scripts/schedule-backup-verify.sh
 scripts/verify-backup.sh
 scripts/rollback.sh
 
+# Internal marketing docs
+docs/launch-posts.md
+
 # Webhost stack (not part of self-hosted deployment)
 infrastructure/nginx/
 infrastructure/cloudflare/
