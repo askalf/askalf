@@ -346,7 +346,7 @@ const SCHEDULE_PRESETS: { label: string; cron: string; intervalMin: number }[] =
 function ScheduleEditor({
   agentId,
   currentSchedule,
-  currentInterval,
+  currentInterval: _currentInterval,
   onScheduleSaved,
 }: {
   agentId: string;

@@ -232,7 +232,7 @@ export default function OutputsPanel() {
             {branches.slice(0, 10).map(b => {
               const parts = b.name.split('/');
               const agentName = parts[1] || 'unknown';
-              const _execId = parts[2]?.slice(0, 8) || '';
+              void parts[2]; // execution ID available in branch name
               return (
                 <div key={b.name} style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, borderLeft: '3px solid #fb923c' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
