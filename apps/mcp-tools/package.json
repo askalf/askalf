@@ -15,7 +15,8 @@
     "express": "^5.1.0",
     "cors": "^2.8.6",
     "openai": "^4.77.0",
-    "@askalf/observability": "workspace:*"
+    "@askalf/observability": "workspace:*",
+    "agent-twitter-client": "^0.0.18"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -337,41 +337,51 @@ async function handleTeamCoordinate(args: Record<string, unknown>): Promise<stri
 }
 
 // ============================================
-// twitter_ops — Twitter/X API v2
+// twitter_ops — Cookie-based X/Twitter via agent-twitter-client
+// Routes through Gluetun VPN proxy when available.
+// No paid API tier needed — uses same endpoints as the web browser.
 // ============================================
 
-import { createHmac, randomBytes } from 'crypto';
+let _scraper: unknown = null;
+let _scraperReady = false;
 
-const TWITTER_API = 'https://api.twitter.com/2';
+async function getScraper(): Promise<unknown> {
+  if (_scraperReady && _scraper) return _scraper;
 
-function getTwitterCreds() {
-  const api_key = process.env['TWITTER_API_KEY'] || '';
-  const api_secret = process.env['TWITTER_API_SECRET'] || '';
-  const access_token = process.env['TWITTER_ACCESS_TOKEN'] || '';
-  const access_token_secret = process.env['TWITTER_ACCESS_TOKEN_SECRET'] || '';
-  const bearer_token = process.env['TWITTER_BEARER_TOKEN'] || '';
-  if (!api_key || !access_token) throw new Error('Twitter credentials not configured. Set TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET, TWITTER_BEARER_TOKEN in .env');
-  return { api_key, api_secret, access_token, access_token_secret, bearer_token };
+  const username = process.env['TWITTER_USERNAME'] || '';
+  const password = process.env['TWITTER_PASSWORD'] || '';
+  const email = process.env['TWITTER_EMAIL'] || '';
+
+  if (!username || !password) {
+    throw new Error('Twitter credentials not configured. Set TWITTER_USERNAME, TWITTER_PASSWORD, and optionally TWITTER_EMAIL in .env');
+  }
+
+  try {
+    const { Scraper } = await import('agent-twitter-client');
+    const scraper = new Scraper();
+
+    // Configure proxy if Gluetun VPN is available
+    const proxy = process.env['HTTPS_PROXY'] || process.env['HTTP_PROXY'];
+    if (proxy) {
+      log(`twitter_ops: routing through VPN proxy ${proxy}`);
+    }
+
+    await scraper.login(username, password, email || undefined);
+    _scraper = scraper;
+    _scraperReady = true;
+    log(`twitter_ops: logged in as @${username} (cookie-based)`);
+    return scraper;
+  } catch (err) {
+    _scraperReady = false;
+    _scraper = null;
+    throw new Error(`Twitter login failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  }
 }
 
-function pctEncode(s: string): string { return encodeURIComponent(s).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase()); }
-
-function oauthHeader(method: string, url: string, creds: ReturnType<typeof getTwitterCreds>): string {
-  const nonce = randomBytes(16).toString('hex');
-  const ts = Math.floor(Date.now() / 1000).toString();
-  const params: Record<string, string> = {
-    oauth_consumer_key: creds.api_key, oauth_nonce: nonce,
-    oauth_signature_method: 'HMAC-SHA1', oauth_timestamp: ts,
-    oauth_token: creds.access_token, oauth_version: '1.0',
-  };
-  const sorted = Object.entries(params).sort(([a], [b]) => a.localeCompare(b));
-  const paramStr = sorted.map(([k, v]) => `${pctEncode(k)}=${pctEncode(v)}`).join('&');
-  const base = `${method.toUpperCase()}&${pctEncode(url)}&${pctEncode(paramStr)}`;
-  const key = `${pctEncode(creds.api_secret)}&${pctEncode(creds.access_token_secret)}`;
-  params['oauth_signature'] = createHmac('sha1', key).update(base).digest('base64');
-  const header = Object.entries(params).filter(([k]) => k.startsWith('oauth_')).sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${pctEncode(k)}="${pctEncode(v)}"`).join(', ');
-  return `OAuth ${header}`;
+// Human-like delay between actions (2-5 seconds)
+function humanDelay(): Promise<void> {
+  const ms = 2000 + Math.random() * 3000;
+  return new Promise(r => setTimeout(r, ms));
 }
 
 async function handleTwitterOps(args: Record<string, unknown>): Promise<string> {
@@ -379,22 +389,26 @@ async function handleTwitterOps(args: Record<string, unknown>): Promise<string> 
   if (!action) return JSON.stringify({ error: 'action is required' });
 
   try {
-    const creds = getTwitterCreds();
+    const scraper = await getScraper() as {
+      sendTweet: (text: string, replyTo?: string) => Promise<{ id_str?: string; text?: string } | { rest_id?: string }>;
+      getTweets: (username: string, count: number) => AsyncGenerator<{ id?: string; text?: string; username?: string; likes?: number; retweets?: number; timeParsed?: Date }>;
+      getProfile: (username: string) => Promise<Record<string, unknown>>;
+      searchTweets: (query: string, count: number, mode: number) => AsyncGenerator<{ id?: string; text?: string; username?: string }>;
+      likeTweet: (tweetId: string) => Promise<void>;
+      retweet: (tweetId: string) => Promise<void>;
+      isLoggedIn: () => Promise<boolean>;
+    };
 
     switch (action) {
       case 'post_tweet': {
         const text = args['text'] as string;
         if (!text) return JSON.stringify({ error: 'text is required' });
         if (text.length > 280) return JSON.stringify({ error: `Tweet too long (${text.length}/280)` });
-        const url = `${TWITTER_API}/tweets`;
-        const body: Record<string, unknown> = { text };
-        if (args['reply_to_id']) body['reply'] = { in_reply_to_tweet_id: args['reply_to_id'] };
-        const auth = oauthHeader('POST', url, creds);
-        const res = await fetch(url, { method: 'POST', headers: { 'Authorization': auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
-        if (!res.ok) { const e = await res.text().catch(() => ''); return JSON.stringify({ error: `Twitter ${res.status}: ${e.slice(0, 300)}` }); }
-        const data = await res.json() as { data: { id: string; text: string } };
-        log(`twitter_ops: posted tweet ${data.data.id}`);
-        return JSON.stringify({ posted: true, id: data.data.id, text: data.data.text, url: `https://x.com/i/status/${data.data.id}` });
+        await humanDelay();
+        const result = await scraper.sendTweet(text, args['reply_to_id'] as string | undefined);
+        const id = (result as Record<string, unknown>)?.rest_id || (result as Record<string, unknown>)?.id_str || '';
+        log(`twitter_ops: posted tweet ${id}`);
+        return JSON.stringify({ posted: true, id, text, url: id ? `https://x.com/i/status/${id}` : null });
       }
 
       case 'post_thread': {
@@ -404,102 +418,84 @@ async function handleTwitterOps(args: Record<string, unknown>): Promise<string> 
         let replyTo: string | undefined;
         for (const text of thread) {
           if (text.length > 280) return JSON.stringify({ error: `Tweet "${text.slice(0, 30)}..." too long (${text.length}/280)` });
-          const url = `${TWITTER_API}/tweets`;
-          const body: Record<string, unknown> = { text };
-          if (replyTo) body['reply'] = { in_reply_to_tweet_id: replyTo };
-          const auth = oauthHeader('POST', url, creds);
-          const res = await fetch(url, { method: 'POST', headers: { 'Authorization': auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
-          if (!res.ok) { const e = await res.text().catch(() => ''); return JSON.stringify({ error: `Twitter ${res.status}: ${e.slice(0, 300)}` }); }
-          const data = await res.json() as { data: { id: string; text: string } };
-          results.push(data.data);
-          replyTo = data.data.id;
+          await humanDelay();
+          const result = await scraper.sendTweet(text, replyTo);
+          const id = String((result as Record<string, unknown>)?.rest_id || (result as Record<string, unknown>)?.id_str || '');
+          results.push({ id, text });
+          replyTo = id;
         }
         log(`twitter_ops: posted thread (${results.length} tweets)`);
-        return JSON.stringify({ posted: true, tweets: results.length, thread: results, url: `https://x.com/i/status/${results[0]!.id}` });
+        return JSON.stringify({ posted: true, tweets: results.length, thread: results, url: results[0]?.id ? `https://x.com/i/status/${results[0].id}` : null });
       }
 
       case 'reply': {
         const text = args['text'] as string;
         const replyId = args['reply_to_id'] as string;
         if (!text || !replyId) return JSON.stringify({ error: 'text and reply_to_id required' });
-        const url = `${TWITTER_API}/tweets`;
-        const auth = oauthHeader('POST', url, creds);
-        const res = await fetch(url, { method: 'POST', headers: { 'Authorization': auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ text, reply: { in_reply_to_tweet_id: replyId } }), signal: AbortSignal.timeout(15000) });
-        if (!res.ok) { const e = await res.text().catch(() => ''); return JSON.stringify({ error: `Twitter ${res.status}: ${e.slice(0, 300)}` }); }
-        const data = await res.json() as { data: { id: string; text: string } };
-        return JSON.stringify({ replied: true, id: data.data.id, text: data.data.text });
+        await humanDelay();
+        const result = await scraper.sendTweet(text, replyId);
+        const id = String((result as Record<string, unknown>)?.rest_id || (result as Record<string, unknown>)?.id_str || '');
+        return JSON.stringify({ replied: true, id, text });
       }
 
       case 'search': {
         const query = args['query'] as string;
         if (!query) return JSON.stringify({ error: 'query is required' });
-        const max = Math.min((args['max_results'] as number) || 10, 100);
-        const params = new URLSearchParams({ query, max_results: String(max), 'tweet.fields': 'created_at,public_metrics,author_id' });
-        const res = await fetch(`${TWITTER_API}/tweets/search/recent?${params}`, { headers: { 'Authorization': `Bearer ${creds.bearer_token}` }, signal: AbortSignal.timeout(15000) });
-        if (!res.ok) { const e = await res.text().catch(() => ''); return JSON.stringify({ error: `Search ${res.status}: ${e.slice(0, 300)}` }); }
-        const data = await res.json() as { data?: unknown[]; meta?: unknown };
-        return JSON.stringify({ count: data.data?.length || 0, tweets: data.data || [] });
+        const max = Math.min((args['max_results'] as number) || 10, 50);
+        const tweets: Array<Record<string, unknown>> = [];
+        const gen = scraper.searchTweets(query, max, 1); // mode 1 = Latest
+        for await (const tweet of gen) {
+          tweets.push({ id: tweet.id, text: tweet.text, username: tweet.username });
+          if (tweets.length >= max) break;
+        }
+        return JSON.stringify({ count: tweets.length, tweets });
       }
 
       case 'get_mentions': {
-        const meRes = await fetch(`${TWITTER_API}/users/me`, { headers: { 'Authorization': `Bearer ${creds.bearer_token}` }, signal: AbortSignal.timeout(10000) });
-        if (!meRes.ok) return JSON.stringify({ error: 'Failed to get user info' });
-        const me = await meRes.json() as { data: { id: string } };
-        const max = Math.min((args['max_results'] as number) || 20, 100);
-        const res = await fetch(`${TWITTER_API}/users/${me.data.id}/mentions?max_results=${max}&tweet.fields=created_at,public_metrics,author_id`, { headers: { 'Authorization': `Bearer ${creds.bearer_token}` }, signal: AbortSignal.timeout(15000) });
-        if (!res.ok) return JSON.stringify({ error: `Mentions ${res.status}` });
-        const data = await res.json() as { data?: unknown[] };
-        return JSON.stringify({ count: data.data?.length || 0, mentions: data.data || [] });
+        const username = process.env['TWITTER_USERNAME'] || '';
+        const max = Math.min((args['max_results'] as number) || 20, 50);
+        const mentions: Array<Record<string, unknown>> = [];
+        // Search for @mentions
+        const gen = scraper.searchTweets(`@${username}`, max, 1);
+        for await (const tweet of gen) {
+          mentions.push({ id: tweet.id, text: tweet.text, username: tweet.username });
+          if (mentions.length >= max) break;
+        }
+        return JSON.stringify({ count: mentions.length, mentions });
       }
 
       case 'get_profile': {
-        const username = args['username'] as string;
-        const endpoint = username
-          ? `${TWITTER_API}/users/by/username/${username}?user.fields=description,public_metrics,created_at`
-          : `${TWITTER_API}/users/me?user.fields=description,public_metrics,created_at`;
-        const res = await fetch(endpoint, { headers: { 'Authorization': `Bearer ${creds.bearer_token}` }, signal: AbortSignal.timeout(10000) });
-        if (!res.ok) return JSON.stringify({ error: `Profile ${res.status}` });
-        const data = await res.json() as { data: unknown };
-        return JSON.stringify(data.data);
-      }
-
-      case 'delete_tweet': {
-        const tweetId = args['tweet_id'] as string;
-        if (!tweetId) return JSON.stringify({ error: 'tweet_id required' });
-        const url = `${TWITTER_API}/tweets/${tweetId}`;
-        const auth = oauthHeader('DELETE', url, creds);
-        const res = await fetch(url, { method: 'DELETE', headers: { 'Authorization': auth }, signal: AbortSignal.timeout(10000) });
-        return JSON.stringify({ deleted: res.ok });
+        const username = (args['username'] as string) || process.env['TWITTER_USERNAME'] || '';
+        if (!username) return JSON.stringify({ error: 'username required' });
+        const profile = await scraper.getProfile(username);
+        return JSON.stringify(profile);
       }
 
       case 'like': {
         const tweetId = args['tweet_id'] as string;
         if (!tweetId) return JSON.stringify({ error: 'tweet_id required' });
-        const meRes = await fetch(`${TWITTER_API}/users/me`, { headers: { 'Authorization': `Bearer ${creds.bearer_token}` }, signal: AbortSignal.timeout(10000) });
-        if (!meRes.ok) return JSON.stringify({ error: 'Failed to get user info' });
-        const me = await meRes.json() as { data: { id: string } };
-        const url = `${TWITTER_API}/users/${me.data.id}/likes`;
-        const auth = oauthHeader('POST', url, creds);
-        const res = await fetch(url, { method: 'POST', headers: { 'Authorization': auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ tweet_id: tweetId }), signal: AbortSignal.timeout(10000) });
-        return JSON.stringify({ liked: res.ok });
+        await humanDelay();
+        await scraper.likeTweet(tweetId);
+        return JSON.stringify({ liked: true });
       }
 
       case 'retweet': {
         const tweetId = args['tweet_id'] as string;
         if (!tweetId) return JSON.stringify({ error: 'tweet_id required' });
-        const meRes = await fetch(`${TWITTER_API}/users/me`, { headers: { 'Authorization': `Bearer ${creds.bearer_token}` }, signal: AbortSignal.timeout(10000) });
-        if (!meRes.ok) return JSON.stringify({ error: 'Failed to get user info' });
-        const me = await meRes.json() as { data: { id: string } };
-        const url = `${TWITTER_API}/users/${me.data.id}/retweets`;
-        const auth = oauthHeader('POST', url, creds);
-        const res = await fetch(url, { method: 'POST', headers: { 'Authorization': auth, 'Content-Type': 'application/json' }, body: JSON.stringify({ tweet_id: tweetId }), signal: AbortSignal.timeout(10000) });
-        return JSON.stringify({ retweeted: res.ok });
+        await humanDelay();
+        await scraper.retweet(tweetId);
+        return JSON.stringify({ retweeted: true });
       }
 
       default:
-        return JSON.stringify({ error: `Unknown action: ${action}` });
+        return JSON.stringify({ error: `Unknown action: ${action}. Valid: post_tweet, post_thread, reply, search, get_mentions, get_profile, like, retweet` });
     }
   } catch (err) {
+    // Reset scraper on auth failure so next call re-logs in
+    if (err instanceof Error && /login|auth|403|401/i.test(err.message)) {
+      _scraperReady = false;
+      _scraper = null;
+    }
     return JSON.stringify({ error: err instanceof Error ? err.message : 'Twitter operation failed' });
   }
 }
