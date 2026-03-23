@@ -291,7 +291,7 @@ function ToolsStep({
   }, [config.tools, onChange]);
 
   const filtered = filter
-    ? tools.filter(t => t.name.toLowerCase().includes(filter.toLowerCase()) || t.desc.toLowerCase().includes(filter.toLowerCase()))
+    ? tools.filter(t => (t.name || '').toLowerCase().includes(filter.toLowerCase()) || (t.desc || '').toLowerCase().includes(filter.toLowerCase()))
     : tools;
 
   return (

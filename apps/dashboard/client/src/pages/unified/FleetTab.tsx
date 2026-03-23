@@ -549,7 +549,7 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
   );
   const filtered = useMemo(() =>
     search
-      ? activeAgents.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
+      ? activeAgents.filter((a) => (a.name || '').toLowerCase().includes(search.toLowerCase()))
       : activeAgents,
     [activeAgents, search]
   );
