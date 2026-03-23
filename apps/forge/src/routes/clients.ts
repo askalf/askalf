@@ -40,6 +40,12 @@ export async function clientRoutes(app: FastifyInstance): Promise<void> {
     const body = request.body as Record<string, unknown>;
 
     const allowed = ['name', 'email', 'company', 'billing_rate_hourly', 'billing_markup', 'notes', 'status'];
+    // Reject any keys not in the whitelist to prevent SQL injection via dynamic column names
+    const bodyKeys = Object.keys(body);
+    const disallowed = bodyKeys.filter(k => !allowed.includes(k));
+    if (disallowed.length > 0) {
+      return reply.status(400).send({ error: `Unrecognized fields: ${disallowed.join(', ')}` });
+    }
     const sets: string[] = [];
     const vals: unknown[] = [];
     let idx = 1;
