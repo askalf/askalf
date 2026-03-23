@@ -6,8 +6,9 @@ import type { ForgeEvent } from '../../constants/status';
 const FleetTab = lazy(() => import('./FleetTab'));
 const BuilderTab = lazy(() => import('./BuilderTab'));
 const DevicesPanel = lazy(() => import('./DevicesPanel'));
+const OutputsPanel = lazy(() => import('./OutputsPanel'));
 
-type SubTab = 'agents' | 'builder' | 'devices';
+type SubTab = 'agents' | 'builder' | 'devices' | 'outputs';
 
 interface FleetHubTabProps {
   wsEvents?: ForgeEvent[];
@@ -21,6 +22,7 @@ export default function FleetHubTab({ wsEvents = [] }: FleetHubTabProps) {
       <TabBar
         tabs={[
           { key: 'agents', label: 'Workers' },
+          { key: 'outputs', label: 'Outputs' },
           { key: 'builder', label: 'Create Worker' },
           { key: 'devices', label: 'Devices' },
         ]}
@@ -33,6 +35,7 @@ export default function FleetHubTab({ wsEvents = [] }: FleetHubTabProps) {
         <ErrorBoundary inline>
           <Suspense fallback={<div className="ud-loading">Loading...</div>}>
             {sub === 'agents' && <FleetTab wsEvents={wsEvents} />}
+            {sub === 'outputs' && <OutputsPanel />}
             {sub === 'builder' && <BuilderTab prefilledTemplate={null} />}
             {sub === 'devices' && <DevicesPanel />}
           </Suspense>
