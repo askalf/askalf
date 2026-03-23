@@ -45,6 +45,10 @@ function FilesPanel() {
   const [cloneUrl, setCloneUrl] = useState('');
   const [cloneName, setCloneName] = useState('');
   const [cloning, setCloning] = useState(false);
+  const [newRepoName, setNewRepoName] = useState('');
+  const [newRepoDesc, setNewRepoDesc] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -94,6 +98,32 @@ function FilesPanel() {
     setCloning(false);
   };
 
+  const handleCreate = async () => {
+    if (!newRepoName.trim()) return;
+    setCreating(true);
+    setMessage(null);
+    try {
+      const res = await fetch(`${getApiBase()}/api/v1/admin/projects/create`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newRepoName.trim(), description: newRepoDesc.trim() }),
+      });
+      if (res.ok) {
+        setMessage({ type: 'success', text: `Created ${newRepoName.trim()}` });
+        setNewRepoName('');
+        setNewRepoDesc('');
+        setShowCreate(false);
+        fetchData();
+      } else {
+        const err = await res.json().catch(() => ({ error: 'Create failed' })) as { error?: string };
+        setMessage({ type: 'error', text: err.error || 'Create failed' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Network error' });
+    }
+    setCreating(false);
+  };
+
   if (loading) return <div style={{ padding: '2rem', color: 'var(--text-muted)', textAlign: 'center' }}>Loading...</div>;
 
   return (
@@ -122,6 +152,33 @@ function FilesPanel() {
             {cloning ? 'Cloning...' : 'Clone'}
           </button>
         </div>
+      </div>
+
+      {/* Create local repo */}
+      <div style={{ padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showCreate ? 8 : 0 }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)' }}>Create Local Repo</div>
+          <button onClick={() => setShowCreate(!showCreate)}
+            style={{ padding: '4px 12px', fontSize: '0.7rem', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer' }}>
+            {showCreate ? 'Cancel' : 'New Repo'}
+          </button>
+        </div>
+        {showCreate && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <input value={newRepoName} onChange={e => setNewRepoName(e.target.value)} placeholder="my-project"
+              onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
+              style={{ padding: '8px 12px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }} />
+            <input value={newRepoDesc} onChange={e => setNewRepoDesc(e.target.value)} placeholder="Description (optional)"
+              style={{ padding: '8px 12px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button onClick={handleCreate} disabled={creating || !newRepoName.trim()}
+                style={{ padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: !newRepoName.trim() ? 0.4 : 1 }}>
+                {creating ? 'Creating...' : 'Create'}
+              </button>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Initializes a git repo with README. Push to GitHub/GitLab from the terminal.</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Connected repos from source control */}
