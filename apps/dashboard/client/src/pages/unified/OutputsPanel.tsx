@@ -53,12 +53,26 @@ export default function OutputsPanel() {
   const fetchOutputs = useCallback(async () => {
     try {
       const [execRes, branchRes] = await Promise.all([
-        fetch(`${API_BASE}/api/v1/forge/executions?limit=50&sort=desc`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/v1/admin/executions?limit=50`, { credentials: 'include' }).catch(() =>
+          fetch(`${API_BASE}/api/v1/forge/executions?limit=50&sort=desc`, { credentials: 'include' })
+        ),
         fetch(`${API_BASE}/api/v1/forge/git/branches`, { credentials: 'include' }),
       ]);
       if (execRes.ok) {
         const data = await execRes.json() as { executions: ExecutionOutput[] };
-        setOutputs(data.executions || []);
+        // Admin endpoint doesn't join agent names — fetch agent list to map
+        const agentRes = await fetch(`${API_BASE}/api/v1/admin/agents`, { credentials: 'include' }).catch(() => null);
+        const agentMap: Record<string, { name: string; type: string }> = {};
+        if (agentRes?.ok) {
+          const agentData = await agentRes.json() as { agents: Array<{ id: string; name: string; type: string }> };
+          for (const a of (agentData.agents || [])) agentMap[a.id] = { name: a.name, type: a.type };
+        }
+        const enriched = (data.executions || []).map(e => ({
+          ...e,
+          agent_name: e.agent_name || agentMap[e.agent_id]?.name || 'Unknown',
+          agent_type: e.agent_type || agentMap[e.agent_id]?.type || 'worker',
+        }));
+        setOutputs(enriched);
       }
       if (branchRes.ok) {
         const data = await branchRes.json() as { branches: Array<{ name: string; lastCommit: string; agent?: string; hasChanges?: boolean }> };
