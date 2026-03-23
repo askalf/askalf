@@ -664,14 +664,8 @@ app.listen(PORT, '0.0.0.0', () => {
   log(`  POST /message - Message endpoint`);
   log(`  POST /mcp     - Streamable HTTP endpoint`);
 
-  // START THE HEARTBEAT — Alf comes alive
-  log(`[Heartbeat] Alf is waking up...`);
-  heartbeat.running = true;
-  heartbeat.alive_since = Date.now();
-
-  // First beat after 3 seconds (let the server stabilize)
-  setTimeout(() => {
-    log(`[Heartbeat] First beat. Alf is alive. Resting BPM: ${heartbeat.current_bpm}`);
-    beat();
-  }, 3000);
+  // Core decision loop heartbeat DISABLED — generates noise without actionable outcomes.
+  // Workers handle their own scheduling via the unified dispatcher.
+  // The heartbeat API endpoint (/api/memory/heartbeat) still works for status checks.
+  log(`[Heartbeat] Core decision loop disabled — workers use scheduled dispatch instead`);
 });
