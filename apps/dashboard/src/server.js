@@ -618,6 +618,46 @@ fastify.post('/api/v1/errors/report', async (request) => {
   return { received: true };
 });
 
+// Create a new local repo in the workspace
+fastify.post('/api/v1/admin/projects/create', async (request, reply) => {
+  const { name, description } = request.body || {};
+  if (!name || typeof name !== 'string') return reply.code(400).send({ error: 'name is required' });
+
+  const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, '-').slice(0, 100);
+  const { resolve } = await import('path');
+  const reposDir = resolve(workspaceDir, 'repos');
+  const targetPath = resolve(reposDir, safeName);
+
+  if (!targetPath.startsWith(reposDir)) {
+    return reply.code(400).send({ error: 'Invalid repo name' });
+  }
+
+  try {
+    const { existsSync, mkdirSync } = await import('fs');
+    if (!existsSync(reposDir)) mkdirSync(reposDir, { recursive: true });
+    if (existsSync(targetPath)) {
+      return reply.code(409).send({ error: `Repo "${safeName}" already exists` });
+    }
+
+    mkdirSync(targetPath, { recursive: true });
+
+    // Initialize git repo
+    execSync('git init', { cwd: targetPath, timeout: 10000 });
+
+    // Create initial README
+    const readmeContent = `# ${name}\n\n${description || 'Created by AskAlf'}\n`;
+    const { writeFileSync } = await import('fs');
+    writeFileSync(resolve(targetPath, 'README.md'), readmeContent);
+
+    // Initial commit
+    execSync('git add -A && git commit -m "Initial commit"', { cwd: targetPath, timeout: 10000 });
+
+    return { path: targetPath, name: safeName };
+  } catch (err) {
+    return reply.code(500).send({ error: `Failed to create repo: ${err.message}` });
+  }
+});
+
 // Clone a remote repo into the workspace
 const _cloneInFlight = new Set();
 fastify.post('/api/v1/admin/projects/clone', async (request, reply) => {
