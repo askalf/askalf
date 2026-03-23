@@ -1,7 +1,7 @@
 # MCP Tools Reference
 
 **Audience:** Agents running inside AskAlf
-**Updated:** 2026-03-22
+**Updated:** 2026-03-23
 **Source:** `apps/mcp-tools/src/`
 
 All tools are exposed to agents via the MCP server at port 3010. Tool calls return JSON strings.
