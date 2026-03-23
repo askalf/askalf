@@ -471,3 +471,105 @@
 [data-theme="light"] .mp-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
+
+/* ── Community Skills Toggle Bar ── */
+
+.mp-community-toggle-bar {
+  display: flex;
+  gap: 0;
+  padding: 10px 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.mp-community-toggle-btn {
+  padding: 8px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mp-community-toggle-btn:hover {
+  color: var(--text);
+}
+
+.mp-community-toggle-btn.active {
+  color: var(--crystal, #7c3aed);
+  border-bottom-color: var(--crystal, #7c3aed);
+  font-weight: 600;
+}
+
+/* ── Community Featured Badge ── */
+
+.mp-community-featured-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+/* ── Community Pagination ── */
+
+.mp-community-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px 0 8px;
+}
+
+.mp-community-page-btn {
+  padding: 6px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mp-community-page-btn:hover:not(:disabled) {
+  border-color: var(--crystal, #7c3aed);
+  color: var(--text);
+}
+
+.mp-community-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mp-community-page-info {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Community card verified badge ── */
+
+.mp-card-verified {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}

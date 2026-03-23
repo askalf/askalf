@@ -1252,6 +1252,38 @@ export const hubApi = {
         { method: 'POST', body: JSON.stringify(body) },
       ),
   },
+
+  // Community Skills Library
+  communitySkills: {
+    list: (params: { category?: string; search?: string; sort?: string; limit?: number; offset?: number } = {}) =>
+      apiFetch<{ skills: CommunitySkill[]; total: number; limit: number; offset: number }>(
+        `/api/v1/forge/community/skills?${buildParams({
+          category: params.category,
+          search: params.search,
+          sort: params.sort,
+          limit: params.limit,
+          offset: params.offset,
+        })}`,
+      ),
+
+    install: (id: string) =>
+      apiFetch<{ installed: boolean; skill: { name: string; category: string } }>(
+        `/api/v1/forge/community/skills/${encodeURIComponent(id)}/install`,
+        { method: 'POST', body: JSON.stringify({}) },
+      ),
+
+    rate: (id: string, rating: number) =>
+      apiFetch<{ ok: boolean; rating: number }>(
+        `/api/v1/forge/community/skills/${encodeURIComponent(id)}/rate`,
+        { method: 'POST', body: JSON.stringify({ rating }) },
+      ),
+
+    submit: (body: { name: string; description: string; category: string; agent_config?: Record<string, unknown>; required_tools?: string[]; tags?: string[]; author_name?: string }) =>
+      apiFetch<{ id: string; slug: string; status: string; message: string }>(
+        `/api/v1/forge/community/skills/submit`,
+        { method: 'POST', body: JSON.stringify(body) },
+      ),
+  },
 };
 
 // Marketplace types
@@ -1269,6 +1301,26 @@ export interface MarketplacePackage {
   repo_url?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CommunitySkill {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  description: string;
+  icon: string | null;
+  required_tools: string[];
+  agent_config: Record<string, unknown> | string;
+  downloads: number;
+  rating_sum: number;
+  rating_count: number;
+  featured: boolean;
+  author_name: string;
+  tags: string[];
+  source: string;
+  created_at: string;
+  avg_rating: number;
 }
 
 export interface DeploymentLog {
