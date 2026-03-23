@@ -16,6 +16,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authMiddleware } from '../middleware/auth.js';
+import { rateLimitHook } from '../middleware/rate-limit.js';
 
 // Claude CLI's public OAuth client (PKCE, no secret needed)
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
@@ -198,7 +199,7 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/oauth/codex/start',
-    { preHandler: [authMiddleware], config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
+    { preHandler: [rateLimitHook, authMiddleware] },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
         const res = await fetch(OPENAI_DEVICE_AUTH_URL, {
@@ -247,7 +248,7 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/oauth/codex/poll',
-    { preHandler: [authMiddleware], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    { preHandler: [rateLimitHook, authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { userCode } = request.body as { userCode?: string };
       if (!userCode) return reply.code(400).send({ error: 'userCode is required' });
