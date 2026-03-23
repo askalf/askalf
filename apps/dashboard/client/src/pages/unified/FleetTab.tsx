@@ -186,88 +186,351 @@ interface LiveLogEntry {
   message: string;
 }
 
+// ── Cron Helpers ──
+
+/** Convert a cron expression to a human-readable string. */
+function cronToHuman(cron: string): string {
+  if (!cron || cron === 'manual') return 'Manual (no schedule)';
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return cron;
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+
+  // Every N minutes: */N * * * *
+  if (minute.startsWith('*/') && hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+    const n = parseInt(minute.slice(2), 10);
+    if (n === 1) return 'Every minute';
+    return `Every ${n} minutes`;
+  }
+
+  // Every N hours: 0 */N * * *
+  if (minute === '0' && hour.startsWith('*/') && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+    const n = parseInt(hour.slice(2), 10);
+    if (n === 1) return 'Every hour';
+    return `Every ${n} hours`;
+  }
+
+  // Specific hours: 0 H,H,... * * *
+  if (/^\d+$/.test(minute) && /^[\d,]+$/.test(hour) && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+    const hours = hour.split(',').map(h => {
+      const hh = parseInt(h, 10);
+      if (hh === 0) return '12 AM';
+      if (hh === 12) return '12 PM';
+      return hh < 12 ? `${hh} AM` : `${hh - 12} PM`;
+    });
+    return `Daily at ${hours.join(', ')}`;
+  }
+
+  // Daily at specific time: M H * * *
+  if (/^\d+$/.test(minute) && /^\d+$/.test(hour) && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+    const hh = parseInt(hour, 10);
+    const mm = parseInt(minute, 10);
+    const period = hh >= 12 ? 'PM' : 'AM';
+    const displayH = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+    const displayM = mm > 0 ? `:${String(mm).padStart(2, '0')}` : '';
+    return `Daily at ${displayH}${displayM} ${period}`;
+  }
+
+  // Specific days of week: M H * * D,D,...
+  if (/^\d+$/.test(minute) && /^\d+$/.test(hour) && dayOfMonth === '*' && month === '*' && /^[\d,]+$/.test(dayOfWeek)) {
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days = dayOfWeek.split(',').map(d => dayNames[parseInt(d, 10)] || d);
+    const hh = parseInt(hour, 10);
+    const period = hh >= 12 ? 'PM' : 'AM';
+    const displayH = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+    return `${days.join(', ')} at ${displayH} ${period}`;
+  }
+
+  return cron;
+}
+
+/** Validate a cron expression. Returns null if valid, error string if not. */
+function validateCron(cron: string): string | null {
+  if (!cron.trim()) return 'Cron expression is required';
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return 'Must have exactly 5 fields (min hour day month weekday)';
+  const ranges = [
+    { name: 'minute', min: 0, max: 59 },
+    { name: 'hour', min: 0, max: 23 },
+    { name: 'day', min: 1, max: 31 },
+    { name: 'month', min: 1, max: 12 },
+    { name: 'weekday', min: 0, max: 7 },
+  ];
+  for (let i = 0; i < 5; i++) {
+    const field = parts[i];
+    const { name, min, max } = ranges[i];
+    // Allow *, */N, N, N-N, N,N,...
+    if (!/^(\*|\*\/\d+|\d+(-\d+)?(,\d+(-\d+)?)*)$/.test(field)) {
+      return `Invalid ${name} field: "${field}"`;
+    }
+    // Check numeric values are in range
+    const nums = field.replace(/\*\/?/g, '').split(/[,\-]/).filter(Boolean);
+    for (const n of nums) {
+      const val = parseInt(n, 10);
+      if (val < min || val > max) return `${name} value ${val} out of range (${min}-${max})`;
+    }
+  }
+  return null;
+}
+
+/** Convert a cron expression to the interval in minutes (approximate). */
+function cronToIntervalMinutes(cron: string): number {
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return 60;
+  const [minute, hour] = parts;
+  if (minute.startsWith('*/')) return parseInt(minute.slice(2), 10) || 60;
+  if (minute === '0' && hour.startsWith('*/')) return (parseInt(hour.slice(2), 10) || 1) * 60;
+  if (minute === '0' && hour === '*') return 60;
+  return 1440; // default to daily
+}
+
+/** Compute approximate next run time from a cron expression. */
+function getNextRunTime(cron: string): string {
+  if (!cron || cron === 'manual') return '--';
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return '--';
+  const [minuteF, hourF] = parts;
+
+  const now = new Date();
+  // Simple cases: */N minutes
+  if (minuteF.startsWith('*/') && hourF === '*') {
+    const n = parseInt(minuteF.slice(2), 10) || 60;
+    const currentMin = now.getMinutes();
+    const nextMin = Math.ceil((currentMin + 1) / n) * n;
+    const next = new Date(now);
+    next.setMinutes(nextMin, 0, 0);
+    if (next <= now) next.setMinutes(next.getMinutes() + n);
+    return next.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  // */N hours
+  if (minuteF === '0' && hourF.startsWith('*/')) {
+    const n = parseInt(hourF.slice(2), 10) || 1;
+    const currentH = now.getHours();
+    const nextH = Math.ceil((currentH + 1) / n) * n;
+    const next = new Date(now);
+    next.setHours(nextH, 0, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1);
+    if (next.getHours() >= 24) { next.setDate(next.getDate() + 1); next.setHours(0, 0, 0, 0); }
+    return next.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  // Specific hour(s)
+  if (/^\d+$/.test(minuteF) && /^[\d,]+$/.test(hourF)) {
+    const mm = parseInt(minuteF, 10);
+    const hours = hourF.split(',').map(h => parseInt(h, 10)).sort((a, b) => a - b);
+    for (const hh of hours) {
+      const next = new Date(now);
+      next.setHours(hh, mm, 0, 0);
+      if (next > now) return next.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    // Next day at first hour
+    const next = new Date(now);
+    next.setDate(next.getDate() + 1);
+    next.setHours(hours[0], mm, 0, 0);
+    return next.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  return '--';
+}
+
+// ── Schedule Presets ──
+const SCHEDULE_PRESETS: { label: string; cron: string; intervalMin: number }[] = [
+  { label: '30 min', cron: '*/30 * * * *', intervalMin: 30 },
+  { label: '1 hour', cron: '0 */1 * * *', intervalMin: 60 },
+  { label: '2 hours', cron: '0 */2 * * *', intervalMin: 120 },
+  { label: '4 hours', cron: '0 */4 * * *', intervalMin: 240 },
+  { label: '6 hours', cron: '0 */6 * * *', intervalMin: 360 },
+  { label: '12 hours', cron: '0 */12 * * *', intervalMin: 720 },
+  { label: '24 hours', cron: '0 0 * * *', intervalMin: 1440 },
+];
+
 // ── Schedule Editor ──
 
-function ScheduleEditor({ agentId, currentSchedule, currentInterval }: { agentId: string; currentSchedule: string; currentInterval?: number }) {
+function ScheduleEditor({
+  agentId,
+  currentSchedule,
+  currentInterval,
+  onScheduleSaved,
+}: {
+  agentId: string;
+  currentSchedule: string;
+  currentInterval?: number;
+  onScheduleSaved?: () => void;
+}) {
   const [editing, setEditing] = useState(false);
-  const [scheduleType, setScheduleType] = useState(currentSchedule === 'manual' ? 'manual' : 'continuous');
-  const [intervalMin, setIntervalMin] = useState(currentInterval || 60);
+  const [selectedCron, setSelectedCron] = useState(currentSchedule && currentSchedule !== 'manual' ? currentSchedule : '');
+  const [customCron, setCustomCron] = useState('');
+  const [isCustom, setIsCustom] = useState(false);
+  const [cronError, setCronError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { addToast } = useToast();
 
+  // Determine the active cron for display
+  const activeCron = currentSchedule && currentSchedule !== 'manual' ? currentSchedule : '';
+
+  // Check if current schedule matches a preset
+  const matchesPreset = (cron: string) => SCHEDULE_PRESETS.some(p => p.cron === cron);
+
   if (!editing) {
-    const label = currentSchedule === 'manual' || !currentSchedule
-      ? 'Manual'
-      : `Every ${currentInterval || '?'} min`;
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span className="fleet-overview-value">{label}</span>
-        <button
-          onClick={() => setEditing(true)}
-          style={{ background: 'none', border: '1px solid rgba(255,255,255,.1)', borderRadius: 4, color: 'rgba(255,255,255,.5)', fontSize: 11, padding: '2px 8px', cursor: 'pointer' }}
-        >
-          Edit
-        </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="fleet-overview-value" style={{ fontSize: 13 }}>
+            {activeCron ? cronToHuman(activeCron) : 'Manual (no schedule)'}
+          </span>
+          <button
+            onClick={() => {
+              setEditing(true);
+              setSelectedCron(activeCron);
+              setIsCustom(activeCron ? !matchesPreset(activeCron) : false);
+              setCustomCron(activeCron && !matchesPreset(activeCron) ? activeCron : '');
+              setCronError(null);
+            }}
+            className="fleet-schedule-edit-btn"
+          >
+            Edit
+          </button>
+        </div>
+        {activeCron && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Next run
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--crystal-lighter, #a78bfa)', fontFamily: 'var(--font-mono)' }}>
+              {getNextRunTime(activeCron)}
+            </span>
+          </div>
+        )}
+        {activeCron && (
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', fontFamily: 'var(--font-mono)' }}>
+            {activeCron}
+          </span>
+        )}
       </div>
     );
   }
 
+  const effectiveCron = isCustom ? customCron : selectedCron;
+
+  const handleSave = async () => {
+    const cronToSave = effectiveCron.trim();
+    const isManual = !cronToSave;
+
+    if (!isManual) {
+      const err = validateCron(cronToSave);
+      if (err) {
+        setCronError(err);
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      const intervalMin = isManual ? null : cronToIntervalMinutes(cronToSave);
+      await hubApi.agents.setSchedule(agentId, {
+        schedule_type: isManual ? 'manual' : 'scheduled',
+        interval_minutes: intervalMin ?? undefined,
+      });
+
+      // Also PATCH metadata with cron expression
+      if (!isManual) {
+        await hubApi.agents.updateSettings(agentId, {
+          metadata: {
+            schedule: cronToSave,
+            dispatch_interval_minutes: intervalMin,
+          },
+        });
+      }
+
+      addToast('Schedule updated', 'success');
+      setEditing(false);
+      onScheduleSaved?.();
+    } catch {
+      addToast('Failed to update schedule', 'error');
+    }
+    setSaving(false);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <select
-          value={scheduleType}
-          onChange={(e) => setScheduleType(e.target.value)}
-          style={{ padding: '4px 8px', background: 'var(--deep)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontSize: 12 }}
+    <div className="fleet-schedule-editor">
+      {/* Preset pills */}
+      <div className="fleet-schedule-presets">
+        <button
+          className={`fleet-schedule-pill ${!effectiveCron && !isCustom ? 'active' : ''}`}
+          onClick={() => { setSelectedCron(''); setIsCustom(false); setCronError(null); }}
         >
-          <option value="manual">Manual</option>
-          <option value="continuous">Continuous</option>
-        </select>
-        {scheduleType === 'continuous' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)' }}>every</span>
-            <input
-              type="number"
-              value={intervalMin}
-              onChange={(e) => setIntervalMin(Math.max(5, parseInt(e.target.value) || 30))}
-              min={5}
-              max={1440}
-              style={{ width: 60, padding: '4px 6px', background: 'var(--deep)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontSize: 12, textAlign: 'center' }}
-            />
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,.4)' }}>min</span>
-          </div>
-        )}
+          Manual
+        </button>
+        {SCHEDULE_PRESETS.map((preset) => (
+          <button
+            key={preset.cron}
+            className={`fleet-schedule-pill ${!isCustom && selectedCron === preset.cron ? 'active' : ''}`}
+            onClick={() => { setSelectedCron(preset.cron); setIsCustom(false); setCronError(null); }}
+          >
+            {preset.label}
+          </button>
+        ))}
+        <button
+          className={`fleet-schedule-pill ${isCustom ? 'active' : ''}`}
+          onClick={() => { setIsCustom(true); setCronError(null); }}
+        >
+          Custom
+        </button>
       </div>
-      <div style={{ display: 'flex', gap: 6 }}>
+
+      {/* Custom cron input */}
+      {isCustom && (
+        <div className="fleet-schedule-custom">
+          <input
+            type="text"
+            value={customCron}
+            onChange={(e) => { setCustomCron(e.target.value); setCronError(null); }}
+            placeholder="*/30 * * * *"
+            spellCheck={false}
+            className={`fleet-schedule-cron-input ${cronError ? 'has-error' : ''}`}
+          />
+          <span style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>
+            min hour day month weekday
+          </span>
+          {cronError && (
+            <span className="fleet-schedule-error">{cronError}</span>
+          )}
+        </div>
+      )}
+
+      {/* Preview */}
+      {effectiveCron && !cronError && (
+        <div className="fleet-schedule-preview">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Schedule
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>
+              {cronToHuman(effectiveCron)}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Next run
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--crystal-lighter, #a78bfa)', fontFamily: 'var(--font-mono)' }}>
+              {getNextRunTime(effectiveCron)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
         <button
           disabled={saving}
-          onClick={async () => {
-            setSaving(true);
-            try {
-              await fetch(`${window.location.origin}/api/v1/admin/agents/${agentId}/schedule`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  schedule_type: scheduleType === 'continuous' ? 'scheduled' : 'manual',
-                  schedule_interval_minutes: scheduleType === "continuous" ? intervalMin : null,
-                  is_continuous: scheduleType === 'continuous',
-                }),
-              });
-              addToast('Schedule updated', 'success');
-              setEditing(false);
-            } catch {
-              addToast('Failed to update schedule', 'error');
-            }
-            setSaving(false);
-          }}
-          style={{ padding: '3px 12px', background: 'rgba(124,58,237,.2)', border: '1px solid rgba(124,58,237,.3)', borderRadius: 4, color: '#c4b5fd', fontSize: 11, cursor: 'pointer' }}
+          onClick={handleSave}
+          className="fleet-btn primary"
+          style={{ fontSize: 11, padding: '4px 14px' }}
         >
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving...' : 'Save Schedule'}
         </button>
         <button
           onClick={() => setEditing(false)}
-          style={{ padding: '3px 12px', background: 'none', border: '1px solid rgba(255,255,255,.1)', borderRadius: 4, color: 'rgba(255,255,255,.4)', fontSize: 11, cursor: 'pointer' }}
+          className="fleet-btn"
+          style={{ fontSize: 11, padding: '4px 14px' }}
         >
           Cancel
         </button>
@@ -341,7 +604,7 @@ function AgentDetailPanel({
             </div>
             <div className="fleet-overview-row" style={{ flexDirection: 'column', gap: 8 }}>
               <span className="fleet-overview-label">Schedule</span>
-              <ScheduleEditor agentId={agent.id} currentSchedule={agent.schedule || 'manual'} currentInterval={agent.schedule_interval_minutes ?? undefined} />
+              <ScheduleEditor agentId={agent.id} currentSchedule={agent.schedule || 'manual'} currentInterval={agent.schedule_interval_minutes ?? undefined} onScheduleSaved={onConfigSaved} />
             </div>
             <div className="fleet-overview-row">
               <span className="fleet-overview-label">Tasks</span>
