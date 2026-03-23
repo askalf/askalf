@@ -12,6 +12,7 @@ export interface ForgeConfig {
   anthropicApiKeyFallback?: string;
   openaiApiKey?: string;
   googleAiKey?: string;
+  ollamaBaseUrl?: string;
   nodeEnv: string;
   maxExecutionIterations: number;
   maxTokensPerTurn: number;
@@ -59,6 +60,7 @@ export function loadConfig(): ForgeConfig {
     cliTimeout: parseInt(process.env['CLI_TIMEOUT'] ?? '900000', 10),
     cliMaxTurns: parseInt(process.env['CLI_MAX_TURNS'] ?? '30', 10),
     cliBudgetUsd: process.env['CLI_BUDGET_USD'] ?? '2.00',
+    ollamaBaseUrl: process.env['OLLAMA_BASE_URL'] || undefined,
     substrateDatabaseUrl: process.env['SUBSTRATE_DATABASE_URL'] || databaseUrl,
     channelEncryptionKey: process.env['CHANNEL_ENCRYPTION_KEY'],
   };

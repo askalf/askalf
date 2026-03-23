@@ -215,6 +215,20 @@ The adapter registry (`apps/forge/src/runtime/adapters/`) supports multiple exec
 - `rpi-adapter.ts` -- Raspberry Pi
 - `homeassistant-adapter.ts` -- Home Assistant IoT
 
+#### AI Providers (5)
+
+The platform supports 5 AI providers, configured via the Providers and User Providers routes:
+
+| Provider | Auth Method | Notes |
+|----------|-------------|-------|
+| **Anthropic (Claude)** | OAuth PKCE + API key | Primary recommended provider |
+| **OpenAI** | API key + Codex device auth | Full Codex terminal support |
+| **Ollama** | Local models, no API key | Llama 3, Mistral, Phi, Qwen, CodeLlama, Gemma, DeepSeek Coder, Nous Hermes (12 pre-seeded models) |
+| **xAI (Grok)** | API key | |
+| **DeepSeek** | API key | |
+
+Ollama enables fully local, zero-cost operation with no external API calls required. The platform pre-seeds 12 popular models: Llama 3 8B, Llama 3 70B, Llama 3.1 8B, Llama 3.2 3B, Mistral 7B, Mixtral 8x7B, Code Llama 13B, Phi-3 Mini, Qwen 2 7B, Gemma 2 9B, DeepSeek Coder V2 16B, and Nous Hermes 2 34B.
+
 ### 4.3 Orchestration
 
 The orchestration layer (`apps/forge/src/orchestration/`) coordinates agent fleet behavior:

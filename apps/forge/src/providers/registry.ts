@@ -32,8 +32,22 @@ interface ModelProviderEntry {
 }
 
 export class ProviderRegistry {
+  private static instance: ProviderRegistry | null = null;
   private readonly providers = new Map<string, IProviderAdapter>();
   private modelCache: ModelProviderEntry[] | null = null;
+
+  /** Get singleton instance. */
+  static getInstance(): ProviderRegistry {
+    if (!ProviderRegistry.instance) {
+      ProviderRegistry.instance = new ProviderRegistry();
+    }
+    return ProviderRegistry.instance;
+  }
+
+  /** List registered provider names. */
+  listProviders(): string[] {
+    return Array.from(this.providers.keys());
+  }
 
   /**
    * Register a provider adapter under a given name.
@@ -236,6 +250,33 @@ export class ProviderRegistry {
     // Google Gemini models
     if (lower.startsWith('gemini-')) {
       return 'google';
+    }
+
+    // Ollama / Local models — common model families
+    if (
+      lower.startsWith('llama') ||
+      lower.startsWith('mistral') ||
+      lower.startsWith('mixtral') ||
+      lower.startsWith('codellama') ||
+      lower.startsWith('deepseek') ||
+      lower.startsWith('phi') ||
+      lower.startsWith('qwen') ||
+      lower.startsWith('vicuna') ||
+      lower.startsWith('neural-chat') ||
+      lower.startsWith('starling') ||
+      lower.startsWith('orca') ||
+      lower.startsWith('dolphin') ||
+      lower.startsWith('yi') ||
+      lower.startsWith('gemma') ||
+      lower.startsWith('command-r') ||
+      lower.startsWith('nous-hermes') ||
+      lower.startsWith('wizardlm') ||
+      lower.startsWith('solar') ||
+      lower.startsWith('tinyllama') ||
+      lower.startsWith('starcoder') ||
+      lower.includes(':') // Ollama format: model:tag (e.g., llama3:70b)
+    ) {
+      return 'ollama';
     }
 
     return undefined;

@@ -138,25 +138,35 @@ Your workers don't just run in the cloud — they control real machines.
 
 ### 16 Communication Channels
 
-Slack · Discord · Telegram · WhatsApp · Teams · **OpenClaw** · REST API · Webhooks · Zapier · n8n · Make · Email · SMS · SendGrid · Twilio · Zoom
+Slack · Discord · Telegram · WhatsApp · Teams · **OpenClaw** · REST API · Webhooks · Zapier · n8n · Make · Email · Twilio SMS · SendGrid · Twilio Voice · Zoom
 
-### 47 Integration Providers across 13 Categories
+### 47 Integrations across 13 Categories
 
-| Category | Providers |
+| Category | Integrations |
 |----------|-----------|
 | **Source Control** | GitHub · GitLab · Bitbucket |
-| **Cloud & Hosting** | AWS · GCP · Azure · Vercel · Netlify · Railway · Fly.io · DigitalOcean · Render · Heroku |
-| **Project Management** | Jira · Linear · Notion · Asana · Trello · Monday · ClickUp |
-| **Monitoring & Observability** | Datadog · Sentry · PagerDuty · Grafana · New Relic · Splunk |
-| **CDN & Edge** | Cloudflare · Fastly · Akamai |
-| **Storage & Database** | S3 · Supabase · Firebase · MongoDB Atlas · PlanetScale |
-| **CI/CD** | CircleCI · GitHub Actions · GitLab CI · Jenkins |
-| **Auth & Identity** | Auth0 · Okta · Clerk |
-| **Payments** | Stripe · PayPal |
-| **Analytics** | Mixpanel · Amplitude · PostHog |
-| **CRM** | HubSpot · Salesforce |
-| **Social Media** | Twitter/X · LinkedIn |
-| **AI Providers** | Anthropic · OpenAI |
+| **CRM** | Salesforce · HubSpot · Pipedrive |
+| **E-Commerce** | Shopify · Stripe · WooCommerce · Square |
+| **Marketing** | Mailchimp · Google Ads · Meta Ads · SendGrid |
+| **Social** | Twitter/X · Instagram · LinkedIn · Buffer |
+| **Productivity** | Google Workspace · Microsoft 365 · Airtable · Google Sheets |
+| **Cloud** | AWS · GCP · Azure · DigitalOcean |
+| **CI/CD** | Vercel · Netlify · Railway · Fly.io |
+| **PM** | Jira · Linear · Notion · Asana |
+| **Monitoring** | Datadog · Sentry · PagerDuty · Grafana |
+| **Analytics** | Google Analytics · Mixpanel · Plausible |
+| **Finance** | QuickBooks · Xero · Gusto · Wise |
+| **Storage** | Cloudflare · S3 · Supabase |
+
+### 5 AI Providers
+
+| Provider | Auth |
+|----------|------|
+| **Anthropic (Claude)** | OAuth PKCE + API key |
+| **OpenAI** | API key + Codex device auth |
+| **Ollama** | Local models, no API key (Llama, Mistral, Phi, Qwen, CodeLlama, Gemma, etc.) |
+| **xAI (Grok)** | API key |
+| **DeepSeek** | API key |
 
 ---
 
@@ -200,7 +210,7 @@ Slack · Discord · Telegram · WhatsApp · Teams · **OpenClaw** · REST API ·
 
 ## Tech Stack
 
-TypeScript 5.4 · Node.js 22 · React 19 · Fastify 5 · PostgreSQL 17 · pgvector 0.8 · Redis 8 · Docker Compose · xterm.js · node-pty · WebSocket · MCP Protocol · PKCE OAuth · SearXNG · Gluetun VPN · Autoheal
+TypeScript 5.4 · Node.js 22 · React 19 · Fastify 5 · PostgreSQL 17 · pgvector 0.8 · Redis 8 · Docker Compose · xterm.js · node-pty · WebSocket · MCP Protocol · PKCE OAuth · SearXNG · Gluetun VPN · Autoheal · Ollama (local models)
 
 ---
 
@@ -273,7 +283,7 @@ Automatic container recovery — included by default. If any container fails its
 
 - Docker and Docker Compose
 - 4GB+ RAM (8GB recommended)
-- At least one AI provider API key (Anthropic recommended, OpenAI supported)
+- At least one AI provider: Anthropic (recommended), OpenAI, xAI, DeepSeek, or Ollama for fully local/free operation
 - Free to run on your own hardware — or ~$5/month on a VPS
 
 ## License
