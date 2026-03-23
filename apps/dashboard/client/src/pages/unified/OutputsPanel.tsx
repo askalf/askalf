@@ -41,22 +41,62 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function OutputsPanel() {
   const [outputs, setOutputs] = useState<ExecutionOutput[]>([]);
+  const [branches, setBranches] = useState<Array<{ name: string; lastCommit: string; agent?: string; hasChanges?: boolean }>>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'completed' | 'failed'>('all');
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const [reviewResult, setReviewResult] = useState<Record<string, string>>({});
 
   const fetchOutputs = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/forge/executions?limit=50&sort=desc`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json() as { executions: ExecutionOutput[] };
+      const [execRes, branchRes] = await Promise.all([
+        fetch(`${API_BASE}/api/v1/forge/executions?limit=50&sort=desc`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/v1/forge/git/branches`, { credentials: 'include' }),
+      ]);
+      if (execRes.ok) {
+        const data = await execRes.json() as { executions: ExecutionOutput[] };
         setOutputs(data.executions || []);
+      }
+      if (branchRes.ok) {
+        const data = await branchRes.json() as { branches: Array<{ name: string; lastCommit: string; agent?: string; hasChanges?: boolean }> };
+        // Filter to only agent branches
+        setBranches((data.branches || []).filter(b => b.name.startsWith('agent/')));
       }
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
+
+  const handleReview = async (branch: string) => {
+    setReviewing(branch);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/git-space/ai-review`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branch }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { id?: string; review?: string; summary?: string };
+        setReviewResult(prev => ({ ...prev, [branch]: data.summary || data.review || 'Review complete' }));
+      }
+    } catch { /* ignore */ }
+    setReviewing(null);
+  };
+
+  const handleMerge = async (branch: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/git/merge`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branch }),
+      });
+      if (res.ok) {
+        setBranches(prev => prev.filter(b => b.name !== branch));
+      }
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => { fetchOutputs(); }, [fetchOutputs]);
 
@@ -117,6 +157,58 @@ export default function OutputsPanel() {
           </button>
         ))}
       </div>
+
+      {/* Branch review queue */}
+      {branches.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Pending Branches
+            <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(251,146,60,0.1)', color: '#fb923c', border: '1px solid rgba(251,146,60,0.2)' }}>{branches.length}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {branches.slice(0, 10).map(b => {
+              const parts = b.name.split('/');
+              const agentName = parts[1] || 'unknown';
+              const execId = parts[2]?.slice(0, 8) || '';
+              return (
+                <div key={b.name} style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, borderLeft: '3px solid #fb923c' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>{agentName.replace(/-/g, ' ')}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{b.name} &middot; {b.lastCommit}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => handleReview(b.name)}
+                        disabled={reviewing === b.name}
+                        style={{ padding: '5px 12px', fontSize: '0.7rem', fontWeight: 600, borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(124,58,237,0.3)', background: 'rgba(124,58,237,0.08)', color: '#a78bfa' }}
+                      >
+                        {reviewing === b.name ? 'Reviewing...' : 'AI Review'}
+                      </button>
+                      <button
+                        onClick={() => handleMerge(b.name)}
+                        style={{ padding: '5px 12px', fontSize: '0.7rem', fontWeight: 600, borderRadius: 6, cursor: 'pointer', border: '1px solid rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.08)', color: '#22c55e' }}
+                      >
+                        Merge
+                      </button>
+                    </div>
+                  </div>
+                  {reviewResult[b.name] && (
+                    <div style={{ marginTop: 8, padding: '8px 10px', background: 'var(--elevated)', borderRadius: 6, fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto' }}>
+                      {reviewResult[b.name]}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {branches.length > 10 && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: 4 }}>
+                +{branches.length - 10} more branches
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Outputs list */}
       {filtered.length === 0 ? (
