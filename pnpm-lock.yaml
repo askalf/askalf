@@ -298,8 +298,8 @@ importers:
         specifier: workspace:*
         version: link:../observability
       nodemailer:
-        specifier: ^7.0.0
-        version: 7.0.12
+        specifier: ^8.0.3
+        version: 8.0.3
     devDependencies:
       '@types/nodemailer':
         specifier: ^6.4.17
@@ -2039,8 +2039,8 @@ packages:
   node-pty@1.1.0:
     resolution: {integrity: sha512-20JqtutY6JPXTUnL0ij1uad7Qe1baT46lyolh2sSENDd4sTzKZ4nmAFkeAARDKwmlLjPx6XKRlwRUxwjOy+lUg==}
 
-  nodemailer@7.0.12:
-    resolution: {integrity: sha512-H+rnK5bX2Pi/6ms3sN4/jRQvYSMltV6vqup/0SFOrxYYY/qoNvhXPlYq3e+Pm9RFJRwrMGbMIwi81M4dxpomhA==}
+  nodemailer@8.0.3:
+    resolution: {integrity: sha512-JQNBqvK+bj3NMhUFR3wmCl3SYcOeMotDiwDBvIoCuQdF0PvlIY0BH+FJ2CG7u4cXKPChplE78oowlH/Otsc4ZQ==}
     engines: {node: '>=6.0.0'}
 
   nwsapi@2.2.23:
@@ -4858,7 +4858,7 @@ snapshots:
     dependencies:
       node-addon-api: 7.1.1
 
-  nodemailer@7.0.12: {}
+  nodemailer@8.0.3: {}
 
   nwsapi@2.2.23:
     optional: true
