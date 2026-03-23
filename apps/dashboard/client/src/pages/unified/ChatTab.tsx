@@ -684,11 +684,22 @@ function ChatInput({
   // Reset selection when filter changes
   useEffect(() => { setSlashIdx(0); }, [slashFilter]);
 
+  // Commands that execute immediately (no args needed)
+  const AUTO_EXEC_CMDS = new Set(['/clear', '/help', '/briefing', '/status', '/fleet', '/costs', '/tickets', '/keys', '/whoami', '/connect']);
+
   const acceptSlash = useCallback((cmd: string) => {
-    setInput(cmd + (cmd === '/clear' || cmd === '/help' || cmd === '/briefing' || cmd === '/status' || cmd === '/fleet' || cmd === '/costs' || cmd === '/tickets' || cmd === '/keys' || cmd === '/whoami' || cmd === '/connect' ? '' : ' '));
-    setSlashIdx(-1);
-    inputRef.current?.focus();
-  }, []);
+    if (AUTO_EXEC_CMDS.has(cmd)) {
+      // Execute immediately
+      setInput('');
+      setSlashIdx(-1);
+      onSend(cmd);
+    } else {
+      // Insert with space for args
+      setInput(cmd + ' ');
+      setSlashIdx(-1);
+      inputRef.current?.focus();
+    }
+  }, [onSend]);
 
   const handleSend = useCallback(() => {
     const trimmed = input.trim();
@@ -704,13 +715,7 @@ function ChatInput({
   }, [input, disabled, onSend, history]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    // Ctrl+K — clear conversation
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      useChatStore.setState({ messages: [] });
-      setInput('');
-      return;
-    }
+    // Ctrl+K — let it bubble to Command Palette (don't intercept)
 
     // Slash command autocomplete
     if (showSlash && filtered.length > 0) {
@@ -1131,7 +1136,7 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="chat-input-hint">Enter to send &middot; &uarr; history &middot; Ctrl+K clear &middot; / commands</div>
+        <div className="chat-input-hint">Enter to send &middot; &uarr; history &middot; / commands &middot; /clear to reset</div>
         <ChatInput onSend={handleSend} disabled={isProcessing} />
       </div>
     </div>
