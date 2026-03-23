@@ -67,6 +67,20 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     specialists: ['Client Manager', 'Project Tracker', 'Invoice Monitor', 'Report Generator'],
   },
   {
+    id: 'personal',
+    icon: '\u2661',
+    title: 'Personal Productivity',
+    description: 'Meal planning, habit tracking, travel research, budget coaching',
+    specialists: ['Scheduler', 'Researcher', 'Budget Coach', 'Planner'],
+  },
+  {
+    id: 'finance',
+    icon: '\u2696',
+    title: 'Finance & Accounting',
+    description: 'Invoice tracking, expense reports, bookkeeping, financial analysis',
+    specialists: ['Finance Analyst', 'Invoice Monitor', 'Report Generator', 'Auditor'],
+  },
+  {
     id: 'custom',
     icon: '\u271A',
     title: 'Custom',
@@ -209,11 +223,11 @@ export default function Onboarding() {
         body: JSON.stringify({ workspace_name: workspaceName || 'AskAlf', theme, use_case: selectedUseCase }),
       });
       setOnboardingCompleted();
-      navigate('/command-center', { replace: true });
+      navigate('/', { replace: true });
     } catch {
       // Still navigate even if the API fails
       setOnboardingCompleted();
-      navigate('/command-center', { replace: true });
+      navigate('/', { replace: true });
     }
     setSaving(false);
   };
@@ -242,9 +256,9 @@ export default function Onboarding() {
           {step === 'welcome' && (
             <div className="ob-step-content">
               <div className="ob-brand">askalf</div>
-              <h1 className="ob-title">Welcome to your command center</h1>
+              <h1 className="ob-title">Welcome to AskAlf</h1>
               <p className="ob-desc">
-                Set up your self-hosted AskAlf instance. This will only take a minute.
+                Set up your AI workforce. This will only take a minute.
               </p>
               <div className="ob-field">
                 <label>Workspace Name</label>
@@ -266,9 +280,9 @@ export default function Onboarding() {
           {/* Step 2: AI Provider */}
           {step === 'ai-provider' && (
             <div className="ob-step-content">
-              <h1 className="ob-title">Intent Parser</h1>
+              <h1 className="ob-title">AI Providers</h1>
               <p className="ob-desc">
-                Choose how the command center interprets your natural language requests.
+                Configure your AI providers. You need at least one to power workers.
                 Agent execution uses Claude CLI separately — this is just for parsing commands.
               </p>
 
@@ -366,6 +380,10 @@ export default function Onboarding() {
                   </div>
                 )}
               </div>
+
+              <p className="ob-desc" style={{ marginTop: '16px', fontSize: '0.85rem', opacity: 0.7 }}>
+                Using Ollama for local models? Set OLLAMA_BASE_URL in your .env file — no API key needed.
+              </p>
 
               <div className="ob-btn-row">
                 <button className="ob-btn-secondary" onClick={() => setStep('welcome')}>Back</button>
@@ -484,6 +502,10 @@ export default function Onboarding() {
                   </>
                 )}
               </div>
+
+              <p className="ob-desc" style={{ marginTop: '16px', fontSize: '0.85rem', opacity: 0.7 }}>
+                OpenAI Codex terminal can be connected later in Settings &gt; Keys &amp; Providers.
+              </p>
 
               <div className="ob-btn-row">
                 <button className="ob-btn-secondary" onClick={() => setStep('ai-provider')}>Back</button>
@@ -728,7 +750,7 @@ export default function Onboarding() {
               <div className="ob-btn-row">
                 <button className="ob-btn-secondary" onClick={() => setStep('use-case')}>Back</button>
                 <button className="ob-btn-primary ob-btn-launch" onClick={handleComplete} disabled={saving}>
-                  {saving ? 'Launching...' : 'Launch Command Center'}
+                  {saving ? 'Launching...' : 'Launch Dashboard'}
                 </button>
               </div>
             </div>
