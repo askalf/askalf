@@ -83,7 +83,7 @@ export const TOOLS = [
             properties: {
               title: { type: 'string', description: 'Task title (used as dependency reference)' },
               description: { type: 'string', description: 'Detailed task description' },
-              agentName: { type: 'string', description: 'Agent name to assign (e.g. "Sentinel", "Backend Dev")' },
+              agentName: { type: 'string', description: 'Worker name to assign (e.g. "Security Scanner", "Builder", "Researcher")' },
               dependencies: { type: 'array', items: { type: 'string' }, description: 'Titles of prerequisite tasks' },
             },
             required: ['title', 'description', 'agentName'],

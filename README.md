@@ -114,7 +114,7 @@ Every task, every outcome, every interaction is stored in a cognitive memory sys
 - **Episodic Memory** — What happened, what worked, what failed
 - **Procedural Memory** — Successful patterns extracted into reusable templates
 - **Knowledge Graph** — 1,500+ nodes with automatic cross-agent connection discovery
-- **Metabolic Consolidation** — Overnight cycles that strengthen useful memories and decay noise
+- **Metabolic Consolidation** — Continuous cycles that strengthen useful memories and decay noise
 
 The 10th task is faster than the 1st. The 100th research report knows exactly where to look.
 
