@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { hubApi } from '../../hooks/useHubApi';
-import type { MarketplacePackage } from '../../hooks/useHubApi';
+import type { MarketplacePackage, CommunitySkill } from '../../hooks/useHubApi';
 import TabBar from '../../components/TabBar';
 import './MarketplaceTab.css';
 
@@ -280,6 +280,279 @@ function SubmitPackage() {
   );
 }
 
+// ── Community Skill Card ──
+
+const COMMUNITY_CATEGORIES: Record<string, string> = {
+  personal: 'Personal', content: 'Content', marketing: 'Marketing', support: 'Support',
+  ecommerce: 'E-Commerce', finance: 'Finance', operations: 'Operations', hr: 'People & HR',
+  legal: 'Legal', research: 'Research', analyze: 'Analyze', automate: 'Automate',
+  monitor: 'Monitor', build: 'Build', dev: 'Development', security: 'Security',
+};
+
+function CommunitySkillCard({ skill, onClick }: { skill: CommunitySkill; onClick: () => void }) {
+  return (
+    <button className="mp-card" onClick={onClick}>
+      <div className="mp-card-header">
+        <span className="mp-card-name">
+          {skill.icon ? `${skill.icon} ` : ''}{skill.name}
+        </span>
+        <span className="mp-card-type mp-card-type--skill_template">
+          {COMMUNITY_CATEGORIES[skill.category] ?? skill.category}
+        </span>
+      </div>
+      {skill.featured && (
+        <span className="mp-community-featured-badge">Featured</span>
+      )}
+      <div className="mp-card-desc">{skill.description}</div>
+      <div className="mp-card-meta">
+        <span className="mp-card-author">{skill.author_name}</span>
+        <span className="mp-card-stars">{renderStars(skill.avg_rating)} ({skill.avg_rating})</span>
+        <span className="mp-card-installs">{skill.downloads} installs</span>
+      </div>
+      {skill.tags && skill.tags.length > 0 && (
+        <div className="mp-card-tags">
+          {skill.tags.slice(0, 5).map(t => (
+            <span key={t} className="mp-tag">{t}</span>
+          ))}
+        </div>
+      )}
+    </button>
+  );
+}
+
+// ── Community Skill Detail Modal ──
+
+function CommunitySkillDetailModal({ skill, onClose, onInstalled }: {
+  skill: CommunitySkill;
+  onClose: () => void;
+  onInstalled: () => void;
+}) {
+  const [installing, setInstalling] = useState(false);
+  const [installResult, setInstallResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [starValue, setStarValue] = useState(0);
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [ratingResult, setRatingResult] = useState<string | null>(null);
+
+  const handleInstall = useCallback(async () => {
+    setInstalling(true);
+    try {
+      await hubApi.communitySkills.install(skill.id);
+      setInstallResult({ ok: true, message: `Installed "${skill.name}" successfully` });
+      onInstalled();
+    } catch (err) {
+      setInstallResult({ ok: false, message: err instanceof Error ? err.message : 'Install failed' });
+    } finally { setInstalling(false); }
+  }, [skill.id, skill.name, onInstalled]);
+
+  const handleRate = useCallback(async () => {
+    if (starValue < 1) return;
+    setSubmittingRating(true);
+    try {
+      await hubApi.communitySkills.rate(skill.id, starValue);
+      setRatingResult('Rating submitted — thank you!');
+      setStarValue(0);
+    } catch (err) {
+      setRatingResult(err instanceof Error ? err.message : 'Rating failed');
+    } finally { setSubmittingRating(false); }
+  }, [skill.id, starValue]);
+
+  return (
+    <div className="mp-modal-overlay" onClick={onClose}>
+      <div className="mp-modal" onClick={e => e.stopPropagation()}>
+        <div className="mp-modal-header">
+          <h3 className="mp-modal-title">
+            {skill.icon ? `${skill.icon} ` : ''}{skill.name}
+            {skill.featured && <span className="mp-community-featured-badge" style={{ marginLeft: 10, fontSize: 11 }}>Featured</span>}
+          </h3>
+          <button className="mp-modal-close" onClick={onClose}>&times;</button>
+        </div>
+
+        <div className="mp-modal-meta">
+          <span className="mp-card-type mp-card-type--skill_template">
+            {COMMUNITY_CATEGORIES[skill.category] ?? skill.category}
+          </span>
+          <span>by {skill.author_name}</span>
+          <span className="mp-card-stars">{renderStars(skill.avg_rating)} ({skill.avg_rating})</span>
+          <span>{skill.rating_count} ratings</span>
+          <span>{skill.downloads} installs</span>
+        </div>
+
+        <div className="mp-modal-body">{skill.description}</div>
+
+        {skill.required_tools && skill.required_tools.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Required tools: </span>
+            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{skill.required_tools.join(', ')}</span>
+          </div>
+        )}
+
+        {skill.tags?.length ? (
+          <div className="mp-card-tags" style={{ marginBottom: 16 }}>
+            {skill.tags.map(t => <span key={t} className="mp-tag">{t}</span>)}
+          </div>
+        ) : null}
+
+        <div className="mp-modal-actions">
+          <button className={`mp-install-btn ${installResult?.ok ? 'installed' : ''}`}
+            onClick={handleInstall} disabled={installing || installResult?.ok === true}>
+            {installing ? 'Installing...' : installResult?.ok ? 'Installed' : 'Install to My Library'}
+          </button>
+          {installResult && <span className={`mp-install-msg ${installResult.ok ? 'success' : 'error'}`}>{installResult.message}</span>}
+        </div>
+
+        <div className="mp-rating-section">
+          <h4>Rate this skill</h4>
+          <div className="mp-star-row">
+            {[1, 2, 3, 4, 5].map(n => (
+              <button key={n} className={`mp-star-btn ${n <= starValue ? 'filled' : 'empty'}`}
+                onClick={() => setStarValue(n)}>{n <= starValue ? '\u2605' : '\u2606'}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button className="mp-rate-btn" onClick={handleRate} disabled={submittingRating || starValue < 1}>
+              {submittingRating ? 'Submitting...' : 'Submit Rating'}
+            </button>
+            {ratingResult && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{ratingResult}</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Community Skills Browser ──
+
+function CommunitySkillsBrowser() {
+  const [skills, setSkills] = useState<CommunitySkill[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('popular');
+  const [category, setCategory] = useState('');
+  const [selectedSkill, setSelectedSkill] = useState<CommunitySkill | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 30;
+
+  const fetchSkills = useCallback(() => {
+    let cancelled = false;
+    setLoading(true);
+    hubApi.communitySkills.list({
+      search: search || undefined,
+      sort: sortBy,
+      category: category || undefined,
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE,
+    }).then(data => {
+      if (!cancelled) {
+        setSkills(data.skills ?? []);
+        setTotal(data.total ?? 0);
+      }
+    }).catch(() => {
+      if (!cancelled) { setSkills([]); setTotal(0); }
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [search, sortBy, category, page]);
+
+  useEffect(() => {
+    return fetchSkills();
+  }, [fetchSkills]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [search, sortBy, category]);
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+
+  return (
+    <div>
+      <div className="mp-toolbar">
+        <input type="text" className="mp-search" placeholder="Search community skills..."
+          value={search} onChange={e => setSearch(e.target.value)} />
+        <select className="mp-filter-select" value={category} onChange={e => setCategory(e.target.value)}>
+          <option value="">All Categories</option>
+          {Object.entries(COMMUNITY_CATEGORIES).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+        <select className="mp-filter-select" value={sortBy} onChange={e => setSortBy(e.target.value as SortOption)}>
+          <option value="popular">Most Popular</option>
+          <option value="rating">Highest Rated</option>
+          <option value="recent">Most Recent</option>
+        </select>
+        <span className="mp-result-count">{loading ? 'Loading...' : `${total} community skills`}</span>
+      </div>
+
+      <div className="mp-content">
+        {loading ? (
+          <div className="mp-loading">Loading community skills...</div>
+        ) : skills.length === 0 ? (
+          <div className="mp-empty">
+            No community skills found.{search && ' Try a different search.'}{category && ' Try clearing the category filter.'}
+          </div>
+        ) : (
+          <>
+            <div className="mp-grid">
+              {skills.map(skill => (
+                <CommunitySkillCard key={skill.id} skill={skill} onClick={() => setSelectedSkill(skill)} />
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div className="mp-community-pagination">
+                <button className="mp-community-page-btn" disabled={page === 0}
+                  onClick={() => setPage(p => p - 1)}>Previous</button>
+                <span className="mp-community-page-info">Page {page + 1} of {totalPages}</span>
+                <button className="mp-community-page-btn" disabled={page >= totalPages - 1}
+                  onClick={() => setPage(p => p + 1)}>Next</button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {selectedSkill && (
+        <CommunitySkillDetailModal
+          skill={selectedSkill}
+          onClose={() => setSelectedSkill(null)}
+          onInstalled={fetchSkills}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Templates Section (Built-in + Community toggle) ──
+
+type TemplateView = 'builtin' | 'community';
+
+function TemplatesSection() {
+  const [view, setView] = useState<TemplateView>('builtin');
+
+  return (
+    <div>
+      <div className="mp-community-toggle-bar">
+        <button
+          className={`mp-community-toggle-btn ${view === 'builtin' ? 'active' : ''}`}
+          onClick={() => setView('builtin')}
+        >
+          Built-in Templates
+        </button>
+        <button
+          className={`mp-community-toggle-btn ${view === 'community' ? 'active' : ''}`}
+          onClick={() => setView('community')}
+        >
+          Community Skills
+        </button>
+      </div>
+      <Suspense fallback={<div className="mp-loading">Loading...</div>}>
+        {view === 'builtin' ? <TemplatesTab /> : <CommunitySkillsBrowser />}
+      </Suspense>
+    </div>
+  );
+}
+
 // ── Main Marketplace ──
 
 export default function MarketplaceTab() {
@@ -301,7 +574,7 @@ export default function MarketplaceTab() {
       />
       <div className="ud-sub-content">
         <Suspense fallback={<div className="mp-loading">Loading...</div>}>
-          {section === 'templates' && <TemplatesTab />}
+          {section === 'templates' && <TemplatesSection />}
           {section === 'tools' && <PackageBrowser typeFilter="tool_bundle" />}
           {section === 'servers' && <PackageBrowser typeFilter="mcp_server" />}
           {section === 'submit' && <SubmitPackage />}
