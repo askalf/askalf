@@ -198,7 +198,7 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/oauth/codex/start',
-    { preHandler: [authMiddleware] },
+    { preHandler: [authMiddleware], config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
     async (_request: FastifyRequest, reply: FastifyReply) => {
       try {
         const res = await fetch(OPENAI_DEVICE_AUTH_URL, {
@@ -247,7 +247,7 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post(
     '/api/v1/forge/oauth/codex/poll',
-    { preHandler: [authMiddleware] },
+    { preHandler: [authMiddleware], config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { userCode } = request.body as { userCode?: string };
       if (!userCode) return reply.code(400).send({ error: 'userCode is required' });
