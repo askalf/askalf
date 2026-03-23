@@ -143,7 +143,7 @@ await fastify.register(fastifyCors, {
   origin: (origin, cb) => {
     // Allow requests with no origin (same-origin, curl, etc.)
     if (!origin) {
-      cb(null, true);
+      cb(null, process.env.NODE_ENV !== 'production');
       return;
     }
     if (ALLOWED_ORIGINS.includes(origin)) {
@@ -161,7 +161,7 @@ await fastify.register(fastifyCookie, {
   secret: (() => {
     const s = process.env['SESSION_SECRET'];
     if (!s && process.env['NODE_ENV'] === 'production') throw new Error('SESSION_SECRET must be set in production');
-    return s || 'dev-session-secret-not-for-production';
+    if (!s) throw new Error('SESSION_SECRET is required'); return s;
   })(),
   hook: 'onRequest',
   parseOptions: {
@@ -586,6 +586,7 @@ import { readdir, stat } from 'fs/promises';
 import { execSync } from 'child_process';
 
 fastify.get('/api/v1/admin/projects', async (request, reply) => {
+  const user = await getAdminUser(); if (!user) return reply.code(401).send({ error: 'Not authenticated' });
   const workspaceDir = process.env['WORKSPACE_DIR'] || '/workspace';
   const reposDir = `${workspaceDir}/repos`;
   const projects = [];
@@ -620,6 +621,7 @@ fastify.post('/api/v1/errors/report', async (request) => {
 
 // Create a new local repo in the workspace
 fastify.post('/api/v1/admin/projects/create', async (request, reply) => {
+  const user = await getAdminUser(); if (!user) return reply.code(401).send({ error: 'Not authenticated' });
   const { name, description } = request.body || {};
   if (!name || typeof name !== 'string') return reply.code(400).send({ error: 'name is required' });
 
@@ -650,7 +652,9 @@ fastify.post('/api/v1/admin/projects/create', async (request, reply) => {
     writeFileSync(resolve(targetPath, 'README.md'), readmeContent);
 
     // Initial commit
-    execSync('git add -A && git commit -m "Initial commit"', { cwd: targetPath, timeout: 10000 });
+    const { execFileSync } = await import('child_process');
+    execFileSync('git', ['add', '-A'], { cwd: targetPath, timeout: 10000 });
+    execFileSync('git', ['commit', '-m', 'Initial commit'], { cwd: targetPath, timeout: 10000 });
 
     return { path: targetPath, name: safeName };
   } catch (err) {
@@ -661,6 +665,7 @@ fastify.post('/api/v1/admin/projects/create', async (request, reply) => {
 // Clone a remote repo into the workspace
 const _cloneInFlight = new Set();
 fastify.post('/api/v1/admin/projects/clone', async (request, reply) => {
+  const user = await getAdminUser(); if (!user) return reply.code(401).send({ error: 'Not authenticated' });
   const { url, name } = request.body || {};
   if (!url || !name) return reply.code(400).send({ error: 'url and name required' });
 
@@ -1407,7 +1412,7 @@ const ENCRYPTION_KEY = (() => {
   if (!key && process.env['NODE_ENV'] === 'production') {
     throw new Error('ENCRYPTION_KEY or JWT_SECRET must be set in production');
   }
-  return key || 'dev-only-key-not-for-production';
+  if (!key) throw new Error('ENCRYPTION_KEY or JWT_SECRET is required'); return key;
 })();
 
 function encryptApiKey(apiKey) {
