@@ -857,6 +857,105 @@
   width: 35%;
 }
 
+/* ── Schedule Editor ── */
+.fleet-schedule-edit-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 4px;
+  color: rgba(255,255,255,.5);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.fleet-schedule-edit-btn:hover {
+  border-color: rgba(124,58,237,.3);
+  color: rgba(255,255,255,.7);
+}
+
+.fleet-schedule-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fleet-schedule-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fleet-schedule-pill {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.fleet-schedule-pill:hover {
+  background: rgba(124,58,237,.08);
+  border-color: rgba(124,58,237,.2);
+  color: var(--text);
+}
+
+.fleet-schedule-pill.active {
+  background: rgba(124,58,237,.15);
+  border-color: rgba(124,58,237,.4);
+  color: #c4b5fd;
+  box-shadow: 0 0 8px rgba(124,58,237,.15);
+}
+
+.fleet-schedule-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fleet-schedule-cron-input {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--deep);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.fleet-schedule-cron-input:focus {
+  border-color: rgba(124,58,237,.4);
+}
+
+.fleet-schedule-cron-input.has-error {
+  border-color: rgba(239,68,68,.5);
+}
+
+.fleet-schedule-error {
+  font-size: 10px;
+  color: #f87171;
+  padding: 2px 0;
+}
+
+.fleet-schedule-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: rgba(124,58,237,.04);
+  border: 1px solid rgba(124,58,237,.1);
+  border-radius: 6px;
+}
+
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .fleet-detail { width: 340px; }
@@ -942,6 +1041,31 @@
 
 [data-theme="light"] .fleet-btn {
   border-color: var(--border);
+}
+
+[data-theme="light"] .fleet-schedule-pill {
+  border-color: rgba(0,0,0,.1);
+  background: rgba(0,0,0,.02);
+}
+
+[data-theme="light"] .fleet-schedule-pill.active {
+  background: rgba(124,58,237,.1);
+  border-color: rgba(124,58,237,.3);
+}
+
+[data-theme="light"] .fleet-schedule-cron-input {
+  background: var(--deep);
+  border-color: var(--border);
+}
+
+[data-theme="light"] .fleet-schedule-preview {
+  background: rgba(124,58,237,.03);
+  border-color: rgba(124,58,237,.08);
+}
+
+[data-theme="light"] .fleet-schedule-edit-btn {
+  border-color: rgba(0,0,0,.15);
+  color: rgba(0,0,0,.5);
 }
 
 [data-theme="light"] .ace-diff-table th {
