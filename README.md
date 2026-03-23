@@ -196,7 +196,7 @@ Slack · Discord · Telegram · WhatsApp · Teams · **OpenClaw** · REST API ·
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    Dashboard                         │
-│   Ask Alf · Team · Ops · Memory · Workspace · Marketplace │
+│   Ask Alf · Team · Workspace · Ops · Memory · Marketplace │
 │          Claude Code · Codex · Settings                    │
 ├───────────────┬───────────────┬──────────────────────┤
 │     Forge     │   MCP Tools   │      SearXNG         │
@@ -235,7 +235,7 @@ Supports 30+ providers — ProtonVPN, Mullvad, NordVPN, Surfshark, and [more](ht
 
 Two ecosystems built into the dashboard:
 
-**MCP Tool Marketplace** — 27 built-in tools (tickets, findings, Docker, deploy, security scan, code analysis, knowledge graph, twitter_ops, and more). Install community-published tools with one click.
+**MCP Tool Marketplace** — 44 built-in tools (tickets, findings, Docker, deploy, security scan, code analysis, knowledge graph, twitter_ops, fleet health, git ops, and more). Install community-published tools with one click.
 
 **Community Skills Library** — 109 built-in templates across 16 categories (Personal, Marketing, Support, E-Commerce, Content, Finance, Legal, HR, Operations, Research, and more). Submit your own skills, browse community submissions, import/export bundles, and install Alf-curated featured templates.
 
