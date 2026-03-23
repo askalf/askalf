@@ -23,8 +23,8 @@ export default function FleetHubTab({ wsEvents = [] }: FleetHubTabProps) {
         tabs={[
           { key: 'agents', label: 'Workers' },
           { key: 'outputs', label: 'Outputs' },
-          { key: 'builder', label: 'Create Worker' },
           { key: 'devices', label: 'Devices' },
+          { key: 'builder', label: 'Create Worker' },
         ]}
         active={sub}
         onChange={(k) => setSub(k as SubTab)}
