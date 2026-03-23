@@ -3,7 +3,7 @@
  * Shows latest results from each worker with search, filter, and expand.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001' : '';
 
@@ -49,6 +49,10 @@ export default function OutputsPanel() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [reviewResult, setReviewResult] = useState<Record<string, string>>({});
+  const [streamingId, setStreamingId] = useState<string | null>(null);
+  const [streamOutput, setStreamOutput] = useState<string[]>([]);
+  const streamRef = useRef<EventSource | null>(null);
+  const streamEndRef = useRef<HTMLDivElement>(null);
 
   const fetchOutputs = useCallback(async () => {
     try {
@@ -113,6 +117,51 @@ export default function OutputsPanel() {
   };
 
   useEffect(() => { fetchOutputs(); }, [fetchOutputs]);
+
+  const startStream = useCallback((executionId: string) => {
+    if (streamRef.current) streamRef.current.close();
+    setStreamingId(executionId);
+    setStreamOutput([]);
+
+    const es = new EventSource(`${API_BASE}/api/v1/forge/executions/${executionId}/stream`);
+    streamRef.current = es;
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as { type: string; status?: string; output?: string; error?: string; message?: string };
+        if (data.type === 'status') {
+          setStreamOutput(prev => [...prev, `[${data.status}]`]);
+        } else if (data.type === 'output' || data.type === 'message') {
+          setStreamOutput(prev => [...prev, data.output || data.message || '']);
+        } else if (data.type === 'tool_call') {
+          setStreamOutput(prev => [...prev, `> Tool: ${data.message || ''}`]);
+        } else if (data.type === 'done') {
+          setStreamOutput(prev => [...prev, `\n--- ${data.status} ---`, data.output || data.error || '']);
+          es.close();
+          streamRef.current = null;
+          // Refresh outputs to get final result
+          setTimeout(fetchOutputs, 2000);
+        }
+        streamEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      } catch { /* ignore parse errors */ }
+    };
+
+    es.onerror = () => {
+      setStreamOutput(prev => [...prev, '[stream disconnected]']);
+      es.close();
+      streamRef.current = null;
+    };
+  }, [fetchOutputs]);
+
+  const stopStream = useCallback(() => {
+    if (streamRef.current) streamRef.current.close();
+    streamRef.current = null;
+    setStreamingId(null);
+    setStreamOutput([]);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => () => { if (streamRef.current) streamRef.current.close(); }, []);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -224,6 +273,38 @@ export default function OutputsPanel() {
         </div>
       )}
 
+      {/* Live stream viewer */}
+      {streamingId && (
+        <div style={{ marginBottom: 16, padding: '12px 16px', background: '#0a0a0f', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 10, borderLeft: '3px solid #22c55e' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#22c55e', animation: 'pulse 1.5s infinite' }} />
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#22c55e' }}>Live Stream</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{streamingId.slice(0, 12)}...</span>
+            </div>
+            <button onClick={stopStream}
+              style={{ padding: '3px 10px', fontSize: '0.65rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: '#ef4444', cursor: 'pointer' }}>
+              Stop
+            </button>
+          </div>
+          <div style={{
+            maxHeight: 300, overflow: 'auto', padding: '8px 12px', background: '#04040a', borderRadius: 8,
+            fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#d4d4d8', lineHeight: 1.6, whiteSpace: 'pre-wrap',
+          }}>
+            {streamOutput.length === 0 ? (
+              <span style={{ color: '#6b7280' }}>Connecting to execution stream...</span>
+            ) : (
+              streamOutput.map((line, i) => (
+                <div key={i} style={{ color: line.startsWith('>') ? '#a78bfa' : line.startsWith('[') ? '#f59e0b' : line.startsWith('---') ? '#22c55e' : '#d4d4d8' }}>
+                  {line}
+                </div>
+              ))
+            )}
+            <div ref={streamEndRef} />
+          </div>
+        </div>
+      )}
+
       {/* Outputs list */}
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
@@ -262,12 +343,28 @@ export default function OutputsPanel() {
                       {o.input?.slice(0, 100) || 'No input'}
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                      ${parseFloat(o.cost || '0').toFixed(2)}
-                    </div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                      {timeAgo(o.completed_at || o.started_at)}
+                  <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {(o.status === 'running' || o.status === 'pending') && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); streamingId === o.id ? stopStream() : startStream(o.id); }}
+                        style={{
+                          padding: '3px 10px', fontSize: '0.65rem', fontWeight: 600, borderRadius: 6, cursor: 'pointer',
+                          border: streamingId === o.id ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(34,197,94,0.3)',
+                          background: streamingId === o.id ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)',
+                          color: streamingId === o.id ? '#ef4444' : '#22c55e',
+                          animation: streamingId === o.id ? 'none' : 'pulse 2s infinite',
+                        }}
+                      >
+                        {streamingId === o.id ? 'Stop' : '\u{25CF} Live'}
+                      </button>
+                    )}
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                        ${parseFloat(o.cost || '0').toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                        {timeAgo(o.completed_at || o.started_at)}
+                      </div>
                     </div>
                   </div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>{'\u25BC'}</span>
