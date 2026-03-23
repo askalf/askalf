@@ -106,6 +106,9 @@ let initialized = false;
  */
 const runningCliProcesses = new Map<string, ChildProcess>();
 
+/** Tracked memory monitor intervals keyed by executionId. */
+const memoryMonitors = new Map<string, ReturnType<typeof setInterval>>();
+
 /**
  * Monitor memory usage and emit warnings when approaching container limits.
  * Helps diagnose OOM issues before they kill processes silently.
@@ -129,9 +132,8 @@ function monitorMemoryUsage(executionId: string): void {
     }
   }, 30000); // Check every 30 seconds
 
-  // Store interval ID so we can clear it later
-  const intervalKey = `memory_monitor_${executionId}`;
-  (globalThis as Record<string, unknown>)[intervalKey] = checkInterval;
+  // Store interval ID in a tracked Map so we can clean it up reliably
+  memoryMonitors.set(executionId, checkInterval);
 }
 
 /**
@@ -2711,6 +2713,13 @@ export async function runDirectCliExecution(
       [agentId],
     ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
   } finally {
+    // Clean up memory monitor for this execution
+    const memMonitor = memoryMonitors.get(executionId);
+    if (memMonitor) {
+      clearInterval(memMonitor);
+      memoryMonitors.delete(executionId);
+    }
+
     // Clean up git credential helper (contains sensitive token — must be removed)
     try {
       const credHelperPath = `/tmp/git-cred-${executionId}.sh`;
