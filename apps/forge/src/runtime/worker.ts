@@ -2497,6 +2497,41 @@ export async function runDirectCliExecution(
       [agentId, !parsed.isError],
     ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
+    // Auto-review: if the agent branch has changes vs main, queue for review
+    if (worktreeCreated && !parsed.isError && agentBranchName) {
+      void (async () => {
+        try {
+          const diffStat = execSync(
+            `git -C "${AGENT_REPO_ROOT}" diff main...${agentBranchName} --stat 2>/dev/null || echo ""`,
+            { timeout: 10_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
+          ).toString().trim();
+
+          if (diffStat && diffStat.length > 0) {
+            const filesChanged = (diffStat.match(/\d+ file/)?.[0] || '0 files');
+            // Store review request in DB for the review queue
+            await query(
+              `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details)
+               VALUES ($1, $2, 'branch.pending_review', 'branch', $3, $4)`,
+              [
+                `review_${Date.now().toString(36)}`,
+                userId,
+                agentBranchName,
+                JSON.stringify({
+                  agent_name: agentName,
+                  agent_id: agentId,
+                  execution_id: executionId,
+                  branch: agentBranchName,
+                  files_changed: filesChanged,
+                  diff_stat: diffStat.slice(0, 500),
+                }),
+              ],
+            ).catch(() => {});
+            logger.info(`[CLI] Branch ${agentBranchName} has changes (${filesChanged}) — queued for review`);
+          }
+        } catch { /* non-fatal */ }
+      })();
+    }
+
     // Auto-cleanup spawned specialists: if this agent was spawned on demand and has
     // no remaining open tickets, decommission it. Spawned agents use owner_id='system:core_engine'.
     void (async () => {
