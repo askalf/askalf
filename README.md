@@ -257,7 +257,7 @@ OPENCLAW_GATEWAY_TOKEN=your-gateway-token
 
 OpenClaw handles the chat. AskAlf handles the thinking.
 
-Compare features: [AskAlf vs OpenClaw Security](/security)
+Compare features: [AskAlf Security Policy](.github/SECURITY.md)
 
 ---
 
