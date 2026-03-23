@@ -63,7 +63,10 @@ async function resolveApiKey(provider: ProviderRow, userId?: string): Promise<st
     openai: 'OPENAI_API_KEY',
     xai: 'XAI_API_KEY',
     deepseek: 'DEEPSEEK_API_KEY',
+    ollama: 'OLLAMA_BASE_URL',
   };
+  // Ollama doesn't need an API key — just a base URL
+  if (provider.type === 'ollama') return process.env['OLLAMA_BASE_URL'] ?? provider.base_url ?? '';
   return process.env[ENV_KEYS[provider.type] ?? ''] ?? '';
 }
 
@@ -75,10 +78,13 @@ function getAuthSource(provider: ProviderRow): 'db' | 'env' | 'oauth' | 'none' {
     openai: 'OPENAI_API_KEY',
     xai: 'XAI_API_KEY',
     deepseek: 'DEEPSEEK_API_KEY',
+    ollama: 'OLLAMA_BASE_URL',
   };
   if (process.env[ENV_KEYS[provider.type] ?? '']) return 'env';
   // CLI/OAuth providers (anthropic) can work without a direct key
   if (provider.type === 'anthropic') return 'oauth';
+  // Ollama with base_url in DB
+  if (provider.type === 'ollama' && provider.base_url) return 'db';
   return 'none';
 }
 

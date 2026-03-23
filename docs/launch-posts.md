@@ -18,7 +18,10 @@ Technical highlights:
 - Dynamic worker creation from 109 templates across 16 categories
 - 10-layer cognitive memory (semantic + episodic + procedural) with pgvector
 - 109 skill templates + community library for sharing custom workers
+- 5 AI providers: Anthropic, OpenAI, Ollama (local), xAI, DeepSeek
+- 47 integrations across 13 categories
 - 16 communication channels (Slack, Discord, Telegram, WhatsApp, OpenClaw bridge)
+- 12 device adapters (CLI, Docker, SSH, K8s, Browser, Desktop, VS Code, Android, iOS, RPi, Arduino, Home Assistant)
 - Embedded Claude CLI + OpenAI Codex terminals in the dashboard
 - Optional VPN tunneling for all worker traffic
 
@@ -50,14 +53,17 @@ curl -fsSL https://get.askalf.org | bash
 **What you get:**
 - Dashboard with team visualization and Alf chat
 - 109 worker templates across 16 categories (Personal, Marketing, Support, E-Commerce, Finance, and more)
+- 5 AI providers (Anthropic, OpenAI, Ollama for local, xAI, DeepSeek)
+- 47 integrations across 13 categories
 - 27 built-in MCP tools (Docker, deploy, security scan, code analysis, Twitter/X, etc.)
 - 16 channels (Slack, Discord, Telegram, WhatsApp, and more)
+- 12 device adapters (CLI, Docker, SSH, K8s, and more)
 - Persistent memory system with knowledge graph
 - Embedded Claude CLI + OpenAI Codex terminals
 - Community skills library — share and install custom worker templates
 - Optional VPN tunneling via Gluetun
 
-**Requirements:** Docker, 4GB RAM, one AI provider API key (Anthropic recommended).
+**Requirements:** Docker, 4GB RAM, one AI provider (Anthropic recommended, or Ollama for fully local/free operation).
 
 **Cost:** ~$0.43/day for typical workloads. Built-in per-worker budgets.
 
@@ -83,7 +89,7 @@ Unlike single-agent tools, AskAlf dynamically creates specialized workers that c
 
 The system reviews its own knowledge, creates investigation tickets when it finds issues, dispatches them to the right worker, and tracks resolution. Memory consolidation strengthens useful patterns — the 100th security scan knows exactly where to look.
 
-Currently uses Claude and OpenAI as providers. The architecture is model-agnostic — adding local model support (Ollama, vLLM) is on the roadmap.
+Supports 5 AI providers: Anthropic (Claude), OpenAI, Ollama (local models — Llama, Mistral, Phi, Qwen, CodeLlama, Gemma, and more), xAI (Grok), and DeepSeek. Model-agnostic — run fully local with Ollama at zero cost, or use any cloud provider.
 
 Key tech: TypeScript, PostgreSQL + pgvector, Redis, Docker, MCP Protocol.
 
@@ -144,7 +150,7 @@ Knowledge graph (how things connect)
 
 The 100th task is faster than the 1st.
 
-4/ 109 templates. 16 categories. 16 channels. 27 MCP tools.
+4/ 109 templates. 16 categories. 16 channels. 27 MCP tools. 47 integrations. 12 devices. 5 AI providers.
 
 Personal, Marketing, Support, E-Commerce, Finance, Security, Research, and more.
 

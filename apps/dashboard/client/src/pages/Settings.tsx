@@ -479,6 +479,7 @@ interface OAuthHealth {
 const AI_PROVIDERS = [
   { type: 'anthropic', name: 'Anthropic', desc: 'Claude models — powers Claude Code terminal + agent executions', prefix: 'sk-ant-' },
   { type: 'openai', name: 'OpenAI', desc: 'GPT models — powers Codex terminal + chat fallback', prefix: 'sk-' },
+  { type: 'ollama', name: 'Ollama', desc: 'Local models — Llama, Mistral, Phi, Qwen, CodeLlama, and more. No API key needed.', prefix: '' },
   { type: 'xai', name: 'xAI', desc: 'Grok models', prefix: '' },
   { type: 'deepseek', name: 'DeepSeek', desc: 'DeepSeek models', prefix: '' },
 ];
@@ -951,7 +952,7 @@ function AIKeysTab() {
                     type="password"
                     value={keyInput}
                     onChange={(e) => setKeyInput(e.target.value)}
-                    placeholder={provider.prefix ? `${provider.prefix}...` : 'Paste your API key'}
+                    placeholder={provider.type === 'ollama' ? 'http://localhost:11434' : provider.prefix ? `${provider.prefix}...` : 'Paste your API key'}
                     autoFocus
                   />
                   <div className="settings-provider-edit-actions">

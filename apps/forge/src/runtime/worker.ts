@@ -12,6 +12,9 @@ import { initializeLogger } from '@askalf/observability';
 
 const logger = initializeLogger().child({ component: 'worker' });
 import { AnthropicAdapter } from '../providers/adapters/anthropic.js';
+import { OpenAIAdapter } from '../providers/adapters/openai.js';
+import { OllamaAdapter } from '../providers/adapters/ollama.js';
+import { ProviderRegistry } from '../providers/registry.js';
 import type { IProviderAdapter } from '../providers/interface.js';
 import { ToolRegistry } from '../tools/registry.js';
 import { executeTools, type ToolCall as ExecutorToolCall } from '../tools/executor.js';
@@ -186,12 +189,23 @@ export async function initializeWorker(): Promise<void> {
 
   config = loadConfig();
 
-  // Initialize Anthropic provider (primary provider with optional fallback key)
+  // Initialize primary provider (Anthropic)
   provider = new AnthropicAdapter();
   await provider.initialize({
     apiKey: config.anthropicApiKey,
     apiKeyFallback: config.anthropicApiKeyFallback,
   });
+
+  // Initialize provider registry with all available providers
+  const providerRegistry = ProviderRegistry.getInstance();
+  await providerRegistry.initializeDefaults({
+    anthropicApiKey: config.anthropicApiKey,
+    openaiApiKey: config.openaiApiKey,
+    googleAiKey: config.googleAiKey,
+    ollamaBaseUrl: config.ollamaBaseUrl,
+  });
+
+  logger.info(`[Worker] Provider registry initialized: ${Array.from(providerRegistry.listProviders()).join(', ')}`);
 
   // Initialize tool registry
   registry = new ToolRegistry();
