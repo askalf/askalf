@@ -149,7 +149,7 @@ Forge migrations live in `apps/forge/migrations/` and run automatically on start
 
 ### Current state
 
-Migrations are numbered sequentially from `001` through `055`. Check the directory for the latest number before adding a new one.
+Migrations are numbered sequentially from `001` through `065`. Check the directory for the latest number before adding a new one.
 
 ### Adding a new migration
 

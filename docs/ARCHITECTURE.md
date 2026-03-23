@@ -236,7 +236,7 @@ The orchestration layer (`apps/forge/src/orchestration/`) coordinates agent flee
 | File | Purpose |
 |---|---|
 | `event-bus.ts` | Redis pub/sub + in-memory EventEmitter. Channels: `forge:events:{type}` for lifecycle, `forge:agent:{id}:messages` for messaging. Event types: `ExecutionEvent`, `CoordinationEvent`. |
-| `autonomy-loop.ts` | CI/CD automation: branch detection, review assignment, approval, merge, deployment, health verification. Max 2 auto-deploys/hour. Blocked paths: `autonomy-loop.ts`, `scheduling.ts`, `index.ts`, `migrations/`, `.env`, `docker-compose`. |
+| `autonomy-loop.ts` | CI/CD automation: branch detection, review assignment, approval, merge, deployment, health verification. Max 2 auto-deploys/hour. Blocked paths: `autonomy-loop.ts`, `unified-dispatcher.ts`, `index.ts`, `migrations/`, `.env`, `docker-compose`. |
 | `knowledge-graph.ts` | Entity-relationship graph from agent executions. Nodes are concepts/entities, edges are relationships. Uses pgvector for semantic search on nodes. |
 | `capability-registry.ts` | Tracks what each agent can do based on historical execution data. |
 | `checkpoint.ts` | Human-in-the-loop approval gates for high-risk operations. |
@@ -590,6 +590,8 @@ The platform uses `pgvector/pgvector:0.8.1-pg17` for combined relational and vec
 ### 9.2 Migration Strategy
 
 Migrations live in `apps/forge/migrations/` as numbered SQL files, run automatically at Forge startup via `runForgeMigrations()`:
+
+> Full migration list (065 files) available in `apps/forge/migrations/`. Key migrations shown below.
 
 | Migration | Purpose |
 |-----------|---------|
