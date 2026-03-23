@@ -30,9 +30,9 @@ type TabKey = 'home' | 'code' | 'fleet' | 'ops' | 'brain' | 'marketplace' | 'set
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'home', label: 'Ask Alf' },
   { key: 'fleet', label: 'Team' },
+  { key: 'code', label: 'Workspace' },
   { key: 'ops', label: 'Ops' },
   { key: 'brain', label: 'Memory' },
-  { key: 'code', label: 'Workspace' },
   { key: 'marketplace', label: 'Marketplace' },
   { key: 'settings', label: 'Settings' },
 ];
