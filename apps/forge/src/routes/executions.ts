@@ -391,6 +391,8 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           }
         }, 15_000);
 
+        const streamTimeout = setTimeout(cleanup, 300_000);
+
         // Poll for status changes (in case events are missed)
         const pollInterval = setInterval(async () => {
           if (closed) return;
@@ -451,6 +453,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           closed = true;
           clearInterval(heartbeat);
           clearInterval(pollInterval);
+          clearTimeout(streamTimeout);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           if (eventBus) eventBus.off('execution', handler as any);
           try { reply.raw.end(); } catch { /* already closed */ }
