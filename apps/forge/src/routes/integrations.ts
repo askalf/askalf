@@ -9,6 +9,7 @@ import { ulid } from 'ulid';
 import { query, queryOne, transaction } from '../database.js';
 import { getProvider, getOAuthConfig, isValidProvider, type IntegrationProvider } from '../integrations/index.js';
 import { isApiKeyProvider, testApiKeyIntegration, PROVIDER_CONFIGS, API_KEY_PROVIDERS, type ApiKeyProvider } from '../integrations/api-key-providers.js';
+import { encrypt as encryptToken, decrypt as decryptToken } from '../channels/crypto.js';
 
 // ============================================
 // Auth helper (same pattern as auth.ts)
@@ -170,7 +171,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
       // Update existing
       await query(
         `UPDATE user_integrations SET access_token = $1, status = 'active', display_name = $2, updated_at = NOW() WHERE id = $3`,
-        [JSON.stringify(body.config), providerConfig?.name ?? provider, existing.id],
+        [encryptToken(JSON.stringify(body.config)), providerConfig?.name ?? provider, existing.id],
       );
       return { id: existing.id, updated: true };
     }
@@ -187,7 +188,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
         provider, // provider_user_id
         testResult.username ?? provider, // provider_username
         providerConfig?.name ?? provider, // display_name
-        JSON.stringify(body.config), // store config as JSON in access_token
+        encryptToken(JSON.stringify(body.config)), // AES-256-GCM encrypted
         testResult.success ? 'active' : 'pending', // status
         providerConfig?.requiredFields.map(f => f.key) ?? [], // scopes
       ],
@@ -222,7 +223,9 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
 
     let config: Record<string, string>;
     try {
-      config = JSON.parse(integration.access_token);
+      // Decrypt if AES-256-GCM encrypted, fallback to plaintext JSON
+      const raw = integration.access_token.includes(':') ? decryptToken(integration.access_token) : integration.access_token;
+      config = JSON.parse(raw);
     } catch {
       return reply.code(400).send({ error: 'Invalid config format' });
     }
@@ -365,7 +368,7 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
         [
           integrationId, userId, provider,
           userInfo.id, userInfo.username, userInfo.displayName,
-          tokens.access_token, tokens.refresh_token ?? null,
+          encryptToken(tokens.access_token), tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
           tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000) : null,
           config.scopes,
         ],
