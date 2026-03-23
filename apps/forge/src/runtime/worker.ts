@@ -2503,10 +2503,13 @@ export async function runDirectCliExecution(
     if (worktreeCreated && !parsed.isError && agentBranchName) {
       void (async () => {
         try {
-          const diffStat = execSync(
-            `git -C "${AGENT_REPO_ROOT}" diff main...${agentBranchName} --stat 2>/dev/null || echo ""`,
-            { timeout: 10_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
-          ).toString().trim();
+          let diffStat = '';
+          try {
+            diffStat = execSync(
+              `git -C "${AGENT_REPO_ROOT}" diff "main...${agentBranchName.replace(/[^a-zA-Z0-9/_.-]/g, '')}" --stat`,
+              { timeout: 10_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' }, stdio: ['pipe', 'pipe', 'pipe'] },
+            ).toString().trim();
+          } catch { /* no diff or git error */ }
 
           if (diffStat && diffStat.length > 0) {
             const filesChanged = (diffStat.match(/\d+ file/)?.[0] || '0 files');

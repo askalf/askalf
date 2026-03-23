@@ -585,7 +585,7 @@ fastify.get('/api/v1/admin/codex-session/status', async (request, reply) => {
 import { readdir, stat } from 'fs/promises';
 import { execSync } from 'child_process';
 
-fastify.get('/api/v1/admin/projects', async (request, reply) => {
+fastify.get('/api/v1/admin/projects', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (request, reply) => {
   const user = await getAdminUser(); if (!user) return reply.code(401).send({ error: 'Not authenticated' });
   const workspaceDir = process.env['WORKSPACE_DIR'] || '/workspace';
   const reposDir = `${workspaceDir}/repos`;
@@ -620,7 +620,7 @@ fastify.post('/api/v1/errors/report', async (request) => {
 });
 
 // Create a new local repo in the workspace
-fastify.post('/api/v1/admin/projects/create', async (request, reply) => {
+fastify.post('/api/v1/admin/projects/create', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (request, reply) => {
   const user = await getAdminUser(); if (!user) return reply.code(401).send({ error: 'Not authenticated' });
   const { name, description } = request.body || {};
   if (!name || typeof name !== 'string') return reply.code(400).send({ error: 'name is required' });
@@ -664,7 +664,7 @@ fastify.post('/api/v1/admin/projects/create', async (request, reply) => {
 
 // Clone a remote repo into the workspace
 const _cloneInFlight = new Set();
-fastify.post('/api/v1/admin/projects/clone', async (request, reply) => {
+fastify.post('/api/v1/admin/projects/clone', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } } }, async (request, reply) => {
   const user = await getAdminUser(); if (!user) return reply.code(401).send({ error: 'Not authenticated' });
   const { url, name } = request.body || {};
   if (!url || !name) return reply.code(400).send({ error: 'url and name required' });
