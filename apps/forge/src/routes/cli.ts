@@ -18,8 +18,8 @@ async function getAgentNames(): Promise<Map<string, string>> {
   if (agentNameCache) return agentNameCache;
   const agents = await query<{ id: string; name: string }>('SELECT id, name FROM forge_agents');
   agentNameCache = new Map(agents.map(a => [a.id, a.name]));
-  // Refresh every 5 minutes
-  setTimeout(() => { agentNameCache = null; }, 300_000);
+  // Refresh every 1 hour
+  setTimeout(() => { agentNameCache = null; }, 3600_000);
   return agentNameCache;
 }
 

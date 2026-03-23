@@ -78,7 +78,7 @@ const FALLBACK_PRICING: ModelPricing = { inputPer1k: 0.003, outputPer1k: 0.015 }
 // Dynamic pricing cache — loaded from DB on first use
 let dbPricingCache: Record<string, ModelPricing> | null = null;
 let dbPricingCacheAt = 0;
-const DB_PRICING_TTL_MS = 3600_000; // 1 hour
+const DB_PRICING_TTL_MS = 3600_000 * 6; // 6 hours
 
 async function loadDbPricing(): Promise<Record<string, ModelPricing>> {
   if (dbPricingCache && Date.now() - dbPricingCacheAt < DB_PRICING_TTL_MS) {
