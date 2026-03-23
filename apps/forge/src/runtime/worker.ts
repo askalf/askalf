@@ -2514,7 +2514,7 @@ export async function runDirectCliExecution(
                VALUES ($1, $2, 'branch.pending_review', 'branch', $3, $4)`,
               [
                 `review_${Date.now().toString(36)}`,
-                userId,
+                ownerId,
                 agentBranchName,
                 JSON.stringify({
                   agent_name: agentName,
