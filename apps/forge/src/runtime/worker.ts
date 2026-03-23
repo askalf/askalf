@@ -2227,22 +2227,31 @@ export async function runDirectCliExecution(
       `(schedule=${options?.scheduleIntervalMinutes ?? 'manual'}min)`,
     );
 
-    // --- Git worktree isolation: each agent gets its own branch + working tree ---
-    const agentSlug = agentName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    agentBranchName = `agent/${agentSlug}/${executionId}`;
-    agentWorktreeDir = `${AGENT_REPO_ROOT}/.worktrees/${agentSlug}-${executionId}`;
+    // --- Git worktree isolation: only for workers that need file access ---
+    // Workers that only use web_search, memory, tickets, findings, etc. skip worktree creation
+    const FILE_TOOLS = new Set(['file_ops', 'git_ops', 'shell_exec', 'code_exec', 'code_analysis', 'deploy_ops', 'docker_api']);
+    const agentTools = new Set(enabledTools);
+    const needsWorktree = [...agentTools].some(t => FILE_TOOLS.has(t));
 
-    try {
-      // Create worktree with a new branch based on main
-      execSync(`git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" -b "${agentBranchName}" main 2>/dev/null || git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" "${agentBranchName}"`, {
-        timeout: 60_000,
-        stdio: 'pipe',
-        env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
-      });
-      worktreeCreated = true;
-      logger.info(`[CLI] Created worktree for ${agentName}: ${agentWorktreeDir} (branch: ${agentBranchName})`);
-    } catch (wtErr) {
-      logger.error(`[CLI] Failed to create worktree, falling back to shared workspace: ${wtErr instanceof Error ? wtErr.message : wtErr}`);
+    const agentSlug = agentName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    if (needsWorktree) {
+      agentBranchName = `agent/${agentSlug}/${executionId}`;
+      agentWorktreeDir = `${AGENT_REPO_ROOT}/.worktrees/${agentSlug}-${executionId}`;
+
+      try {
+        execSync(`git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" -b "${agentBranchName}" main 2>/dev/null || git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" "${agentBranchName}"`, {
+          timeout: 60_000,
+          stdio: 'pipe',
+          env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
+        });
+        worktreeCreated = true;
+        logger.info(`[CLI] Created worktree for ${agentName}: ${agentWorktreeDir} (branch: ${agentBranchName})`);
+      } catch (wtErr) {
+        logger.error(`[CLI] Failed to create worktree, falling back to shared workspace: ${wtErr instanceof Error ? wtErr.message : wtErr}`);
+      }
+    } else {
+      logger.info(`[CLI] Skipping worktree for ${agentName} — no file tools enabled`);
     }
 
     const agentWorkDir = worktreeCreated ? agentWorktreeDir : WORKSPACE_DIR;
