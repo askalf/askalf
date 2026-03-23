@@ -51,6 +51,10 @@ export default function DevicesPanel() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [filter, setFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [envDevices, setEnvDevices] = useState<Record<string, string[]>>({});
+  const [dispatchId, setDispatchId] = useState<string | null>(null);
+  const [dispatchInput, setDispatchInput] = useState('');
+  const [dispatching, setDispatching] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -98,6 +102,46 @@ export default function DevicesPanel() {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const handleDispatch = async (deviceId: string) => {
+    if (!dispatchInput.trim()) return;
+    setDispatching(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/executions`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: dispatchInput.trim(), deviceId }),
+      });
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Task dispatched to device' });
+        setDispatchId(null);
+        setDispatchInput('');
+      } else {
+        setMessage({ type: 'error', text: 'Dispatch failed' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Dispatch failed' });
+    }
+    setDispatching(false);
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleRemove = async (id: string) => {
+    setActionLoading(id);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/devices/${id}`, {
+        method: 'DELETE', credentials: 'include',
+      });
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Device removed' });
+        fetchDevices();
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to remove' });
+    }
+    setActionLoading(null);
+    setTimeout(() => setMessage(null), 3000);
+  };
+
   const handleDisconnect = async (id: string) => {
     setActionLoading(id);
     try {
@@ -130,6 +174,38 @@ export default function DevicesPanel() {
 
   return (
     <div style={{ padding: '1.5rem' }}>
+      {/* Header with Add Device */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>Devices</h3>
+          <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Connected machines that workers can dispatch tasks to</p>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setShowAdd(!showAdd)}
+            style={{ padding: '6px 14px', fontSize: '0.75rem', fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(124,58,237,0.3)', background: 'rgba(124,58,237,0.08)', color: '#a78bfa' }}>
+            {showAdd ? 'Cancel' : '+ Add Device'}
+          </button>
+          <button onClick={() => fetchDevices()}
+            style={{ padding: '6px 14px', fontSize: '0.75rem', fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Add Device instructions */}
+      {showAdd && (
+        <div style={{ padding: '14px 16px', background: 'var(--surface)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 10, marginBottom: 14 }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Connect a Device</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 8px' }}><strong>CLI Agent</strong> (any machine with Node.js):</p>
+            <code style={{ display: 'block', padding: '8px 12px', background: 'var(--elevated)', borderRadius: 6, fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: '#a78bfa', marginBottom: 8 }}>
+              npm install -g @askalf/agent && askalf-agent connect YOUR_API_KEY
+            </code>
+            <p style={{ margin: '0 0 4px' }}><strong>Docker, SSH, K8s, Home Assistant</strong> — configure in Settings &gt; Devices</p>
+          </div>
+        </div>
+      )}
+
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
         <div style={{ padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, textAlign: 'center' }}>
@@ -245,7 +321,7 @@ export default function DevicesPanel() {
                     </div>
 
                     {/* Actions */}
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button
                         onClick={(e) => { e.stopPropagation(); handlePing(device.id); }}
                         disabled={actionLoading === device.id || device.status === 'offline'}
@@ -254,13 +330,49 @@ export default function DevicesPanel() {
                         {actionLoading === device.id ? '...' : 'Ping'}
                       </button>
                       <button
+                        onClick={(e) => { e.stopPropagation(); setDispatchId(dispatchId === device.id ? null : device.id); }}
+                        disabled={device.status === 'offline'}
+                        style={{ padding: '6px 14px', fontSize: '0.75rem', fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(124,58,237,0.3)', background: 'rgba(124,58,237,0.08)', color: '#a78bfa' }}
+                      >
+                        Dispatch Task
+                      </button>
+                      <button
                         onClick={(e) => { e.stopPropagation(); handleDisconnect(device.id); }}
                         disabled={actionLoading === device.id || device.status === 'offline'}
                         style={{ padding: '6px 14px', fontSize: '0.75rem', fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}
                       >
                         Disconnect
                       </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRemove(device.id); }}
+                        disabled={actionLoading === device.id}
+                        style={{ padding: '6px 14px', fontSize: '0.75rem', fontWeight: 600, borderRadius: 8, cursor: 'pointer', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: '#ef4444', opacity: 0.6 }}
+                      >
+                        Remove
+                      </button>
                     </div>
+
+                    {/* Dispatch input */}
+                    {dispatchId === device.id && (
+                      <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                        <input
+                          value={dispatchInput}
+                          onChange={e => setDispatchInput(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleDispatch(device.id); }}
+                          placeholder="Describe the task to run on this device..."
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                          style={{ flex: 1, padding: '8px 12px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.8rem' }}
+                        />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDispatch(device.id); }}
+                          disabled={dispatching || !dispatchInput.trim()}
+                          style={{ padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: !dispatchInput.trim() ? 0.4 : 1 }}
+                        >
+                          {dispatching ? 'Sending...' : 'Send'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
