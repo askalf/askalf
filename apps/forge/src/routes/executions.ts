@@ -480,24 +480,24 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
       const qs = request.query as Static<typeof ListExecutionsQuery>;
 
       try {
-        const conditions: string[] = ['owner_id = $1'];
+        const conditions: string[] = ['e.owner_id = $1'];
         const params: unknown[] = [userId];
         let paramIndex = 2;
 
         if (qs.agentId) {
-          conditions.push(`agent_id = $${paramIndex}`);
+          conditions.push(`e.agent_id = $${paramIndex}`);
           params.push(qs.agentId);
           paramIndex++;
         }
 
         if (qs.sessionId) {
-          conditions.push(`session_id = $${paramIndex}`);
+          conditions.push(`e.session_id = $${paramIndex}`);
           params.push(qs.sessionId);
           paramIndex++;
         }
 
         if (qs.status) {
-          conditions.push(`status = $${paramIndex}`);
+          conditions.push(`e.status = $${paramIndex}`);
           params.push(qs.status);
           paramIndex++;
         }
