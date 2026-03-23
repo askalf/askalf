@@ -21,11 +21,25 @@ interface ProviderRow {
   updated_at: string;
 }
 
-// Simple obfuscation for stored API keys (base64 — keeps out of plaintext logs/dumps)
+// AES-256-GCM encryption for stored API keys
+import { encrypt, decrypt } from '../channels/crypto.js';
+
 function encodeKey(key: string): string {
-  return Buffer.from(key).toString('base64');
+  try {
+    return encrypt(key);
+  } catch {
+    // Fallback to base64 if encryption key not set
+    return Buffer.from(key).toString('base64');
+  }
 }
 function decodeKey(encoded: string): string {
+  // AES-256-GCM format: iv:authTag:ciphertext (contains colons)
+  if (encoded.includes(':')) {
+    try {
+      return decrypt(encoded);
+    } catch { /* fall through to base64 */ }
+  }
+  // Legacy base64 fallback
   return Buffer.from(encoded, 'base64').toString('utf-8');
 }
 
