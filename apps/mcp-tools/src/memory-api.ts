@@ -15493,7 +15493,11 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
         const commonTask = String(fp['common_task']).slice(0, 200);
         const parentTools = (fp['enabled_tools'] as string[]) || [];
 
-        // Check fleet size limit
+        // Disabled: auto-spawning specialists creates noise. Workers should be created
+        // explicitly via templates or the Create Worker UI, not auto-spawned from failures.
+        return { action: 'fleet_replicate', result: 'Auto-spawn disabled — use Create Worker to add specialists', quality: 0.3, mutated: false };
+
+        // Check fleet size limit (unreachable — kept for reference)
         const fleetSize = await p.query(`SELECT COUNT(*)::int as c FROM forge_agents WHERE status = 'active' AND deleted_at IS NULL`);
         if (Number((fleetSize.rows[0] as Record<string, unknown>)['c']) >= 20) {
           return { action: 'fleet_replicate', result: 'Fleet at capacity (20) — cannot spawn', quality: 0.4, mutated: false };
