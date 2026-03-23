@@ -2161,9 +2161,10 @@ export async function runDirectCliExecution(
     );
 
     // Emit execution started event
-    const agentRow = await query<{ name: string; model_id: string }>(`SELECT name, model_id FROM forge_agents WHERE id = $1`, [agentId]);
+    const agentRow = await query<{ name: string; model_id: string; enabled_tools: string[] }>(`SELECT name, model_id, enabled_tools FROM forge_agents WHERE id = $1`, [agentId]);
     const agentName = agentRow[0]?.name ?? agentId;
     const agentModelId = agentRow[0]?.model_id ?? 'claude-sonnet-4-6';
+    const enabledTools: string[] = agentRow[0]?.enabled_tools ?? [];
     const eventBus = getEventBus();
     void eventBus?.emitExecution('started', executionId, agentId, agentName, {
       input: input.substring(0, 200),
