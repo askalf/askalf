@@ -22,11 +22,20 @@ interface UserProviderKeyRow {
   updated_at: string;
 }
 
-// Reuse same base64 obfuscation as forge_providers
+// AES-256-GCM encryption for stored API keys
+import { encrypt, decrypt } from '../channels/crypto.js';
+
 function encodeKey(key: string): string {
-  return Buffer.from(key).toString('base64');
+  try {
+    return encrypt(key);
+  } catch {
+    return Buffer.from(key).toString('base64');
+  }
 }
 function decodeKey(encoded: string): string {
+  if (encoded.includes(':')) {
+    try { return decrypt(encoded); } catch { /* fall through */ }
+  }
   return Buffer.from(encoded, 'base64').toString('utf-8');
 }
 
