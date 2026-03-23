@@ -110,6 +110,7 @@ export default function Onboarding() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [selectedUseCase, setSelectedUseCase] = useState<string | null>(null);
+  const [marketplaceEnabled, setMarketplaceEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [keySaved, setKeySaved] = useState(false);
   const [openaiKey, setOpenaiKey] = useState('');
@@ -220,7 +221,7 @@ export default function Onboarding() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspace_name: workspaceName || 'AskAlf', theme, use_case: selectedUseCase }),
+        body: JSON.stringify({ workspace_name: workspaceName || 'AskAlf', theme, use_case: selectedUseCase, marketplace_enabled: marketplaceEnabled }),
       });
       setOnboardingCompleted();
       navigate('/', { replace: true });
@@ -694,6 +695,33 @@ export default function Onboarding() {
               >
                 Skip — I'll build my own
               </button>
+
+              {/* Community Marketplace opt-in */}
+              <div style={{ margin: '16px 0', padding: '14px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border, rgba(255,255,255,0.08))', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text, #f4f4f5)' }}>Community Marketplace</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, rgba(255,255,255,0.4))', lineHeight: 1.5, marginTop: 2 }}>
+                      Connect to askalf.org to browse and install community-submitted worker templates.
+                      <strong style={{ color: 'var(--text-secondary, rgba(255,255,255,0.7))' }}> Off by default — no data leaves your server unless you enable this.</strong>
+                      <br />You can change this later in Settings &gt; Preferences.
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setMarketplaceEnabled(!marketplaceEnabled)}
+                    style={{
+                      position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', flexShrink: 0, marginLeft: 16,
+                      background: marketplaceEnabled ? '#7c3aed' : 'rgba(255,255,255,0.1)',
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute', top: 2, left: marketplaceEnabled ? 22 : 2, width: 20, height: 20, borderRadius: '50%',
+                      background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    }} />
+                  </button>
+                </div>
+              </div>
 
               <div className="ob-btn-row">
                 <button className="ob-btn-secondary" onClick={() => setStep('theme')}>Back</button>
