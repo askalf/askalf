@@ -152,7 +152,6 @@ function TemplateCard({
   return (
     <div className="tmpl-card">
       <div className="tmpl-card-header">
-        <span className="tmpl-card-icon" aria-hidden="true">{catIcon}</span>
         <span
           className="tmpl-card-category"
           style={{ backgroundColor: `${catColor}20`, color: catColor, borderColor: `${catColor}40` }}
