@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS marketplace_submissions (
   rating_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ,
-  approved_at TIMESTAMPTZ
+  approved_at TIMESTAMPTZ,
+  submission_type TEXT NOT NULL DEFAULT 'worker_template' CHECK (submission_type IN ('worker_template', 'tool_bundle', 'mcp_server'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_marketplace_submissions_status ON marketplace_submissions(status);
