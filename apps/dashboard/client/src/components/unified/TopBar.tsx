@@ -153,30 +153,7 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </button>
-        <div className="ud-account-menu" ref={menuRef}>
-          <button
-            className="ud-account-btn"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label={user?.email ?? 'Account menu'}
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-          >
-            {initials}
-          </button>
-          {menuOpen && (
-            <div className="ud-account-dropdown" role="menu" aria-label="Account options">
-              {user && (
-                <div className="ud-account-info" role="presentation">
-                  <div className="ud-account-name">{user.displayName || user.name || 'Admin'}</div>
-                  {user.role && <div className="ud-account-role">{user.role}</div>}
-                </div>
-              )}
-              <div className="ud-account-divider" role="separator" />
-              <button role="menuitem" className="ud-account-link" onClick={() => { setMenuOpen(false); onNavigate?.('settings'); }}>Settings</button>
-              <button role="menuitem" className="ud-account-link" style={{ color: '#ef4444' }} onClick={() => { setMenuOpen(false); fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' }).then(() => window.location.href = '/login').catch(() => window.location.href = '/login'); }}>Log Out</button>
-            </div>
-          )}
-        </div>
+        {/* Account menu removed — self-hosted single-user, Settings tab handles profile */}
       </div>
     </div>
   );
