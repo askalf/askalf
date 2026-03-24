@@ -1,7 +1,7 @@
 # AskAlf Self-Hosted — docker compose up
 # See .env.example for configuration options
 
-name: askalf-selfhosted
+name: askalf
 
 services:
   # ===========================================
@@ -12,6 +12,7 @@ services:
     container_name: askalf-postgres
     labels:
       - "autoheal-askalf=true"
+    stop_grace_period: 30s
     expose:
       - "5432"
     environment:
@@ -21,7 +22,7 @@ services:
       POSTGRES_INITDB_ARGS: "--data-checksums"
     shm_size: 256m
     volumes:
-      - askalf_postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./packages/database/src/migrations:/docker-entrypoint-initdb.d:ro
       - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
@@ -57,19 +58,21 @@ services:
       resources:
         limits:
           memory: 1G
+          cpus: '1.0'
         reservations:
           memory: 512M
 
   redis:
     image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
     container_name: askalf-redis
+    stop_grace_period: 10s
     labels:
       - "autoheal-askalf=true"
     command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
-      - askalf_redis:/data
+      - redis_data:/data
       - ./infrastructure/redis/redis-selfhosted.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
@@ -97,6 +100,7 @@ services:
       resources:
         limits:
           memory: 640M
+          cpus: '0.5'
         reservations:
           memory: 256M
 
@@ -151,9 +155,9 @@ services:
       ANTHROPIC_OAUTH_CLIENT_ID: ${ANTHROPIC_OAUTH_CLIENT_ID:-}
       ANTHROPIC_OAUTH_CLIENT_SECRET: ${ANTHROPIC_OAUTH_CLIENT_SECRET:-}
     volumes:
-      - .:/workspace
-      - claude_credentials:/tmp/claude-credentials
-      - ${CLAUDE_CREDENTIALS_FILE:-${HOME}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:rw
+      - .:/workspace:ro
+      - credentials:/tmp/claude-credentials:ro
+      - ${CLAUDE_CREDENTIALS_FILE:-${HOME}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     group_add:
       - "0"
@@ -219,10 +223,10 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       - .:/workspace:rw
-      - claude_credentials:/tmp/claude-credentials
+      - credentials:/tmp/claude-credentials:ro
       - ${CLAUDE_CREDENTIALS_FILE:-${HOME}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
-      - dashboard_claude_home:/home/substrate/.claude-session
-      - dashboard_codex_home:/home/substrate/.codex-session
+      - claude_home:/home/substrate/.claude-session
+      - codex_home:/home/substrate/.codex-session
     depends_on:
       postgres:
         condition: service_healthy
@@ -346,8 +350,7 @@ services:
       gluetun:
         condition: service_healthy
     volumes:
-      - ./infrastructure/searxng/settings.yml:/etc/searxng/settings.yml:ro
-      - ./infrastructure/searxng/limiter.toml:/etc/searxng/limiter.toml:ro
+      - ./infrastructure/searxng:/etc/searxng:ro
       - searxng_cache:/var/cache/searxng
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/healthz || exit 1"]
@@ -388,17 +391,29 @@ services:
   gluetun:
     image: qmcgaw/gluetun:v3.40.0@sha256:2b42bfa046757145a5155acece417b65b4443c8033fb88661a8e9dcf7fda5a00
     container_name: askalf-gluetun
+    labels:
+      - "autoheal-askalf=true"
     environment:
       VPN_SERVICE_PROVIDER: protonvpn
       VPN_TYPE: wireguard
       WIREGUARD_PRIVATE_KEY: ${PROTON_WIREGUARD_PRIVATE_KEY}
       SERVER_COUNTRIES: ${PROTON_SERVER_COUNTRIES:-United States}
+      # HTTP proxy for searxng and other services
       HTTPPROXY: "on"
       HTTPPROXY_LISTENING_ADDRESS: ":8888"
       HTTPPROXY_STEALTH: "on"
-      BLOCK_MALICIOUS: "on"
+      # DNS leak protection
       DOT: "on"
-      DOT_PROVIDERS: cloudflare
+      DOT_PROVIDERS: cloudflare,quad9
+      DNS_ADDRESS: 1.1.1.1
+      # Security
+      BLOCK_MALICIOUS: "on"
+      BLOCK_ADS: "on"
+      BLOCK_SURVEILLANCE: "on"
+      # Auto-refresh VPN server list daily
+      UPDATER_PERIOD: 24h
+      # Firewall — only allow HTTP proxy port internally
+      FIREWALL_VPN_INPUT_PORTS: ""
     cap_add:
       - NET_ADMIN
       - CHOWN
@@ -464,13 +479,26 @@ services:
           memory: 32M
 
 volumes:
-  askalf_postgres:
-  askalf_redis:
+  postgres_data:
+    name: askalf_postgres_data
+  redis_data:
+    name: askalf_redis_data
   searxng_cache:
-  claude_credentials:
-  dashboard_claude_home:
-  dashboard_codex_home:
+    name: askalf_searxng_cache
+  credentials:
+    name: askalf_credentials
+  claude_home:
+    name: askalf_claude_home
+  codex_home:
+    name: askalf_codex_home
 
 networks:
   askalf-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.name: "askalf-br0"

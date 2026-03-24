@@ -19,9 +19,9 @@ search:
     - html
     - json
   suspended_times:
-    SearxEngineAccessDenied: 300
-    SearxEngineCaptcha: 600
-    SearxEngineTooManyRequests: 300
+    SearxEngineAccessDenied: 60
+    SearxEngineCaptcha: 120
+    SearxEngineTooManyRequests: 60
 
 server:
   bind_address: "0.0.0.0"
@@ -49,59 +49,79 @@ outgoing:
   request_timeout: 8.0
   max_request_timeout: 15.0
   useragent_suffix: ""
-  pool_connections: 100
-  pool_maxsize: 20
+  pool_connections: 20
+  pool_maxsize: 10
   enable_http2: true
+  retries: 1
+  retry_on_http_error: false
+
+# Cache favicons via proxy to reduce external requests
+favicons:
+  cfg_schema: 1
+  cache:
+    db_url: "/var/cache/searxng/faviconcache.db"
+    LIMIT_TOTAL_BYTES: 52428800
+    HOLD_TIME: 5184000
+    BLOB_MAX_BYTES: 40960
+  proxy:
+    max_age: 5184000
 
 engines:
   # ============================================
   # WEB SEARCH — all major engines
   # ============================================
-  - name: google
-    disabled: false
-    weight: 2.5
-    timeout: 8.0
-    use_mobile_ui: true
-
+  # VPN-friendly engines (rarely block proxy IPs)
   - name: brave
     disabled: false
-    weight: 2.0
-    timeout: 6.0
-
-  - name: duckduckgo
-    disabled: false
-    weight: 1.5
+    weight: 2.5
     timeout: 6.0
 
   - name: bing
     disabled: false
-    weight: 1.5
+    weight: 2.0
     timeout: 6.0
 
   - name: startpage
     disabled: false
-    weight: 1.5
-    timeout: 8.0
-
-  - name: mojeek
-    disabled: false
-    weight: 1.0
-    timeout: 8.0
-
-  - name: qwant
-    disabled: false
-    weight: 1.0
+    weight: 2.0
     timeout: 8.0
 
   - name: yahoo
     disabled: false
+    weight: 1.5
+    timeout: 8.0
+
+  - name: ask
+    disabled: false
     weight: 1.0
     timeout: 8.0
 
-  - name: yandex
+  # Engines that may CAPTCHA through VPN — lower weight, shorter timeout
+  - name: google
+    disabled: false
+    weight: 1.5
+    timeout: 6.0
+    use_mobile_ui: true
+
+  - name: duckduckgo
+    disabled: false
+    weight: 1.0
+    timeout: 5.0
+
+  - name: mojeek
     disabled: false
     weight: 0.8
-    timeout: 8.0
+    timeout: 6.0
+
+  - name: qwant
+    disabled: false
+    weight: 0.8
+    timeout: 6.0
+
+  - name: yandex
+    disabled: false
+    weight: 0.5
+    timeout: 6.0
 
   - name: yep
     disabled: false
