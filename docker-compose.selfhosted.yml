@@ -287,6 +287,7 @@ services:
       TWITTER_USERNAME: ${TWITTER_USERNAME:-}
       TWITTER_PASSWORD: ${TWITTER_PASSWORD:-}
       TWITTER_EMAIL: ${TWITTER_EMAIL:-}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
       REPO_ROOT: /workspace
     group_add:
       - "0"
