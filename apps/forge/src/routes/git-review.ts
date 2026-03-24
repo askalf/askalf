@@ -107,7 +107,8 @@ export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
         return reply.send(branchCache.data);
       }
 
-      const branchRes = await git(['branch', '--list', 'agent/*', '--no-merged', 'main', '--format=%(refname:short)|%(committerdate:iso8601)|%(committername)']);
+      // List all non-main branches (agent/*, docs/*, feature/*, etc.)
+      const branchRes = await git(['branch', '--format=%(refname:short)|%(committerdate:iso8601)|%(committername)']);
       if (branchRes.exitCode !== 0) {
         request.log.error({ stderr: branchRes.stderr }, 'Failed to list branches');
         return reply.status(500).send({ error: 'Failed to list branches' });
