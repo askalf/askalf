@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS marketplace_submissions (
   author_name TEXT,
   author_email TEXT,
   instance_url TEXT,
-  status TEXT NOT NULL DEFAULT 'pending_review' CHECK (status IN ('pending_review', 'ai_reviewing', 'reviewed', 'approved', 'rejected')),
+  status TEXT NOT NULL DEFAULT 'pending_review' CHECK (status IN ('pending_review', 'ai_reviewing', 'reviewed', 'approved', 'rejected', 'quarantined')),
   ai_review JSONB,
   ai_review_score NUMERIC(3,1),
   reviewer_notes TEXT,
