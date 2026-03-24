@@ -62,6 +62,22 @@ export const TOOLS = [
     },
   },
   {
+    name: 'discord_ops',
+    description: 'Send messages, read channels, list members, and manage the AskAlf Discord server. Uses Discord REST API with bot token.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        action: { type: 'string', enum: ['send_message', 'read_messages', 'list_channels', 'list_members', 'add_reaction'], description: 'Action to perform' },
+        channel_id: { type: 'string', description: 'Discord channel ID. Required for send_message, read_messages, add_reaction.' },
+        message: { type: 'string', description: 'Message content for send_message.' },
+        message_id: { type: 'string', description: 'Message ID for add_reaction.' },
+        emoji: { type: 'string', description: 'Emoji for add_reaction (e.g., "👍").' },
+        limit: { type: 'number', description: 'Number of messages to fetch (default 10, max 50).' },
+      },
+      required: ['action'],
+    },
+  },
+  {
     name: 'team_coordinate',
     description: 'Create a multi-agent team to work on a complex task. Supports single (direct dispatch to one agent), pipeline (sequential A→B→C), fan-out (parallel dispatch), and consensus (parallel analysis + synthesizer). Returns session ID to track progress.',
     inputSchema: {
@@ -104,6 +120,7 @@ export async function handleTool(name: string, args: Record<string, unknown>): P
     case 'web_search': return handleWebSearch(args);
     case 'web_browse': return handleWebBrowse(args);
     case 'twitter_ops': return handleTwitterOps(args);
+    case 'discord_ops': return handleDiscordOps(args);
     case 'team_coordinate': return handleTeamCoordinate(args);
     default: throw new Error(`Unknown agent tool: ${name}`);
   }
@@ -497,5 +514,110 @@ async function handleTwitterOps(args: Record<string, unknown>): Promise<string> 
       _scraper = null;
     }
     return JSON.stringify({ error: err instanceof Error ? err.message : 'Twitter operation failed' });
+  }
+}
+
+// ============================================
+// discord_ops — Discord REST API
+// ============================================
+
+const DISCORD_API = 'https://discord.com/api/v10';
+const DISCORD_BOT_TOKEN = process.env['DISCORD_BOT_TOKEN'] || '';
+
+async function discordFetch(path: string, opts: RequestInit = {}): Promise<Response> {
+  if (!DISCORD_BOT_TOKEN) throw new Error('DISCORD_BOT_TOKEN not configured in .env');
+  return fetch(`${DISCORD_API}${path}`, {
+    ...opts,
+    headers: {
+      'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+      'Content-Type': 'application/json',
+      ...opts.headers,
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+}
+
+async function handleDiscordOps(args: Record<string, unknown>): Promise<string> {
+  const action = args['action'] as string;
+  if (!action) return JSON.stringify({ error: 'action is required' });
+
+  try {
+    switch (action) {
+      case 'send_message': {
+        const channelId = args['channel_id'] as string;
+        const message = args['message'] as string;
+        if (!channelId || !message) return JSON.stringify({ error: 'channel_id and message required' });
+        const res = await discordFetch(`/channels/${channelId}/messages`, {
+          method: 'POST',
+          body: JSON.stringify({ content: message }),
+        });
+        if (!res.ok) { const e = await res.text().catch(() => ''); return JSON.stringify({ error: `Discord ${res.status}: ${e.slice(0, 300)}` }); }
+        const data = await res.json() as { id: string; content: string };
+        log(`discord_ops: sent message ${data.id} to channel ${channelId}`);
+        return JSON.stringify({ sent: true, id: data.id, content: data.content });
+      }
+
+      case 'read_messages': {
+        const channelId = args['channel_id'] as string;
+        if (!channelId) return JSON.stringify({ error: 'channel_id required' });
+        const limit = Math.min((args['limit'] as number) || 10, 50);
+        const res = await discordFetch(`/channels/${channelId}/messages?limit=${limit}`);
+        if (!res.ok) return JSON.stringify({ error: `Discord ${res.status}` });
+        const messages = await res.json() as Array<{ id: string; content: string; author: { username: string }; timestamp: string }>;
+        return JSON.stringify({
+          count: messages.length,
+          messages: messages.map(m => ({ id: m.id, content: m.content, author: m.author.username, timestamp: m.timestamp })),
+        });
+      }
+
+      case 'list_channels': {
+        // Get guild ID from bot's guilds
+        const guildsRes = await discordFetch('/users/@me/guilds');
+        if (!guildsRes.ok) return JSON.stringify({ error: 'Failed to fetch guilds' });
+        const guilds = await guildsRes.json() as Array<{ id: string; name: string }>;
+        if (guilds.length === 0) return JSON.stringify({ error: 'Bot is not in any servers' });
+
+        const guildId = guilds[0]!.id;
+        const channelsRes = await discordFetch(`/guilds/${guildId}/channels`);
+        if (!channelsRes.ok) return JSON.stringify({ error: 'Failed to fetch channels' });
+        const channels = await channelsRes.json() as Array<{ id: string; name: string; type: number }>;
+        // Type 0 = text, 2 = voice, 5 = announcement
+        return JSON.stringify({
+          guild: guilds[0]!.name,
+          channels: channels.filter(c => c.type === 0 || c.type === 5).map(c => ({ id: c.id, name: c.name, type: c.type === 5 ? 'announcement' : 'text' })),
+        });
+      }
+
+      case 'list_members': {
+        const guildsRes = await discordFetch('/users/@me/guilds');
+        if (!guildsRes.ok) return JSON.stringify({ error: 'Failed to fetch guilds' });
+        const guilds = await guildsRes.json() as Array<{ id: string }>;
+        if (guilds.length === 0) return JSON.stringify({ error: 'No guilds' });
+
+        const limit = Math.min((args['limit'] as number) || 20, 100);
+        const membersRes = await discordFetch(`/guilds/${guilds[0]!.id}/members?limit=${limit}`);
+        if (!membersRes.ok) return JSON.stringify({ error: 'Failed to fetch members' });
+        const members = await membersRes.json() as Array<{ user: { id: string; username: string }; joined_at: string }>;
+        return JSON.stringify({
+          count: members.length,
+          members: members.map(m => ({ id: m.user.id, username: m.user.username, joined_at: m.joined_at })),
+        });
+      }
+
+      case 'add_reaction': {
+        const channelId = args['channel_id'] as string;
+        const messageId = args['message_id'] as string;
+        const emoji = args['emoji'] as string;
+        if (!channelId || !messageId || !emoji) return JSON.stringify({ error: 'channel_id, message_id, and emoji required' });
+        const encoded = encodeURIComponent(emoji);
+        const res = await discordFetch(`/channels/${channelId}/messages/${messageId}/reactions/${encoded}/@me`, { method: 'PUT' });
+        return JSON.stringify({ reacted: res.ok });
+      }
+
+      default:
+        return JSON.stringify({ error: `Unknown action: ${action}. Valid: send_message, read_messages, list_channels, list_members, add_reaction` });
+    }
+  } catch (err) {
+    return JSON.stringify({ error: err instanceof Error ? err.message : 'Discord operation failed' });
   }
 }
