@@ -90,16 +90,42 @@ export default function OutputsPanel() {
   const handleReview = async (branch: string) => {
     setReviewing(branch);
     try {
+      // Fetch diff first
+      const diffRes = await fetch(`${API_BASE}/api/v1/forge/git/diff/${encodeURIComponent(branch)}`, { credentials: 'include' });
+      if (!diffRes.ok) { setReviewResult(prev => ({ ...prev, [branch]: 'Failed to get diff' })); setReviewing(null); return; }
+      const diffData = await diffRes.json() as { diff?: string };
+      if (!diffData.diff) { setReviewResult(prev => ({ ...prev, [branch]: 'No changes vs main' })); setReviewing(null); return; }
+
+      // Send for AI review
       const res = await fetch(`${API_BASE}/api/v1/forge/git-space/ai-review`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ branch }),
+        body: JSON.stringify({ branch, diff: diffData.diff }),
       });
       if (res.ok) {
         const data = await res.json() as { id?: string; review?: string; summary?: string };
-        setReviewResult(prev => ({ ...prev, [branch]: data.summary || data.review || 'Review complete' }));
+        if (data.id) {
+          // Poll for async result
+          setReviewResult(prev => ({ ...prev, [branch]: 'Reviewing...' }));
+          for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            const poll = await fetch(`${API_BASE}/api/v1/forge/git-space/review-result/${data.id}`, { credentials: 'include' });
+            if (poll.ok) {
+              const result = await poll.json() as { status?: string; review?: string; summary?: string };
+              if (result.review || result.status === 'completed') {
+                setReviewResult(prev => ({ ...prev, [branch]: result.summary || result.review || 'Review complete' }));
+                break;
+              }
+            }
+          }
+        } else {
+          setReviewResult(prev => ({ ...prev, [branch]: data.summary || data.review || 'Review complete' }));
+        }
+      } else {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        setReviewResult(prev => ({ ...prev, [branch]: err.error || 'Review failed' }));
       }
-    } catch { /* ignore */ }
+    } catch { setReviewResult(prev => ({ ...prev, [branch]: 'Review failed' })); }
     setReviewing(null);
   };
 
