@@ -1,6 +1,6 @@
 {
   "name": "@askalf/mcp-tools",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Unified MCP server: workflow, data, infrastructure tools for agent fleet",
   "type": "module",
   "main": "dist/server.js",
