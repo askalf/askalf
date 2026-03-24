@@ -139,6 +139,7 @@ docs/launch-posts.md
 # Central marketplace (private — hosted separately, not part of self-hosted)
 infrastructure/marketplace/
 apps/forge/src/routes/marketplace-central.ts
+apps/forge/src/routes/marketplace-sync.ts
 apps/dashboard/client/src/pages/forge/MarketplaceReview.tsx
 
 # Webhost stack (private — not part of self-hosted deployment)
