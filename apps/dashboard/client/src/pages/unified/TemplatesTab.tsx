@@ -129,7 +129,7 @@ function TemplateCard({
   const model = (template.agent_config as Record<string, unknown>)?.model as string | undefined;
   const modelShort = model ?? null;
   const catColor = CATEGORY_COLORS[template.category] ?? '#666';
-  const catIcon = CATEGORY_ICONS[template.category] ?? '\u{2B22}';
+  void CATEGORY_ICONS; // Icons removed from cards, categories use color badges
 
   const handleRun = async () => {
     if (!prompt.trim() || runState === 'running') return;
