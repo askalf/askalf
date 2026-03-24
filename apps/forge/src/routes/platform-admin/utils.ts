@@ -17,8 +17,9 @@ export interface ForgeAgent {
   id: string; name: string; description: string | null; system_prompt: string | null;
   status: string; autonomy_level: number; metadata: Record<string, unknown> | null;
   provider_config: Record<string, unknown> | null; model_id: string | null;
-  enabled_tools: string[]; type: string;
+  enabled_tools: string[]; type: string; dispatch_mode: string | null;
   created_at: string; updated_at: string; deleted_at: string | null;
+  [key: string]: unknown;
 }
 
 export interface ForgeExecution {
