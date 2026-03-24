@@ -591,7 +591,7 @@ The platform uses `pgvector/pgvector:0.8.1-pg17` for combined relational and vec
 
 Migrations live in `apps/forge/migrations/` as numbered SQL files, run automatically at Forge startup via `runForgeMigrations()`:
 
-> Full migration list (065 files) available in `apps/forge/migrations/`. Key migrations shown below.
+> Full migration list (064 files) available in `apps/forge/migrations/`. Key migrations shown below.
 
 | Migration | Purpose |
 |-----------|---------|

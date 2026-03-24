@@ -28,6 +28,7 @@ All tools are exposed to agents via the MCP server at port 3010. Tool calls retu
 | `web_search` | agent | Search the web via SearXNG |
 | `web_browse` | agent | Fetch and extract text from a URL |
 | `twitter_ops` | agent | Post tweets, threads, reply, search, like, retweet on Twitter/X |
+| `discord_ops` | agent | Send messages, read messages, list channels, list members, add reactions on Discord |
 | `team_coordinate` | agent | Spin up multi-agent teams |
 | `forge_checkpoints` | forge | Human approval checkpoints |
 | `forge_capabilities` | forge | Query agent capability catalog |
@@ -147,7 +148,7 @@ Create and manage work tickets tracked in the Substrate database.
   "action": "update",
   "ticket_id": "01ABC...",
   "status": "resolved",
-  "resolution": "Wrote docs/MCP_TOOLS_REFERENCE.md covering all 27 tools"
+  "resolution": "Wrote docs/MCP_TOOLS_REFERENCE.md covering all 26 tools"
 }
 
 // List assigned to me
@@ -491,6 +492,51 @@ Post tweets, threads, reply to mentions, search hashtags, get profile info, like
 {
   "action": "retweet",
   "tweet_id": "1234567890"
+}
+```
+
+---
+
+### `discord_ops`
+
+Send messages, read messages, list channels, list members, and add reactions on Discord. Requires `DISCORD_BOT_TOKEN` env var or integration credentials.
+
+**Actions:** `send_message`, `read_messages`, `list_channels`, `list_members`, `add_reaction`
+
+```json
+// Send a message to a channel
+{
+  "action": "send_message",
+  "channel_id": "1234567890",
+  "text": "Deploying v2.1 — all checks green."
+}
+
+// Read recent messages from a channel
+{
+  "action": "read_messages",
+  "channel_id": "1234567890",
+  "limit": 10
+}
+
+// List all channels in a guild
+{
+  "action": "list_channels",
+  "guild_id": "9876543210"
+}
+
+// List members in a guild
+{
+  "action": "list_members",
+  "guild_id": "9876543210",
+  "limit": 50
+}
+
+// Add a reaction to a message
+{
+  "action": "add_reaction",
+  "channel_id": "1234567890",
+  "message_id": "1122334455",
+  "emoji": "thumbsup"
 }
 ```
 

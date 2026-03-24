@@ -59,7 +59,7 @@ Your Machine                    AskAlf Platform
 │              │            │  Unified Dispatcher   │
 │ Claude CLI   │            │  Event Bus (Redis)    │
 │ Your Code    │            │  Memory System        │
-│              │            │  44 Built-in Tools    │
+│              │            │  44 Forge + 26 MCP    │
 └──────────────┘            └──────────────────────┘
                                     │
                             ┌───────┴───────┐
