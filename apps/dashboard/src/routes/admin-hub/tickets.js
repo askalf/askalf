@@ -270,34 +270,7 @@ export async function registerTicketRoutes(fastify, requireAdmin, query, queryOn
     }
   });
 
-  // GET /api/v1/admin/audit - View audit trail
-  fastify.get('/api/v1/admin/audit', async (request, reply) => {
-    const admin = await requireAdmin(request, reply);
-    if (!admin) return { error: 'Admin access required' };
-
-    const { entity_type, entity_id, actor, action, limit = '50', offset = '0' } = request.query;
-    const conditions = [];
-    const params = [];
-
-    if (entity_type) { params.push(entity_type); conditions.push(`entity_type = $${params.length}`); }
-    if (entity_id) { params.push(entity_id); conditions.push(`entity_id = $${params.length}`); }
-    if (actor) { params.push(actor); conditions.push(`actor = $${params.length}`); }
-    if (action) { params.push(action); conditions.push(`action = $${params.length}`); }
-
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const lim = Math.min(parseInt(limit), 100);
-    const off = parseInt(offset) || 0;
-
-    const entries = await query(
-      `SELECT id, entity_type, entity_id, action, actor, actor_id, old_value, new_value, execution_id, created_at
-       FROM agent_audit_log ${where}
-       ORDER BY created_at DESC
-       LIMIT ${lim} OFFSET ${off}`,
-      params
-    );
-
-    const countResult = await queryOne(`SELECT COUNT(*)::int as total FROM agent_audit_log ${where}`, params);
-
-    return { audit_trail: entries, total: countResult?.total || 0, limit: lim, offset: off };
-  });
+  // GET /api/v1/admin/audit - Proxy to forge (forge owns the audit trail)
+  // Removed: local query against agent_audit_log was broken (missing execution_id column)
+  // The proxy at server.js catch-all now handles this route → forge
 }

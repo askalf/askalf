@@ -42,11 +42,12 @@ RUN pnpm --filter @askalf/core build && \
     pnpm --filter @askalf/auth build && \
     pnpm --filter @askalf/email build
 
-# Build React client
+# Build React client (CACHEBUST forces fresh build on each docker build)
 ARG SELFHOSTED=false
+ARG CACHEBUST=0
 ENV SELFHOSTED=${SELFHOSTED}
 WORKDIR /app/apps/dashboard/client
-RUN npm install && npm run build
+RUN echo "cache-bust: ${CACHEBUST}" && npm install && npm run build
 
 WORKDIR /app
 

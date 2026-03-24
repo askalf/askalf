@@ -32,9 +32,10 @@ export default function HeartbeatIndicator({ activeExecutions = 0, hourlyCost = 
     try {
       const res = await fetch('/api/v1/admin/monitoring/health', { credentials: 'include' });
       if (!res.ok) return;
-      const data: HealthData = await res.json();
+      const data = await res.json();
+      if (data?.error) return;
       const now = new Date();
-      setHealth(data);
+      setHealth(data as HealthData);
       setLastCheck(now);
       setHistory(prev => [{ time: now, health: data }, ...prev].slice(0, 5));
     } catch {
@@ -60,7 +61,7 @@ export default function HeartbeatIndicator({ activeExecutions = 0, hourlyCost = 
     return () => document.removeEventListener('mousedown', handler);
   }, [panelOpen]);
 
-  const rawStatus = health?.status?.toLowerCase() ?? health?.overall ?? null;
+  const rawStatus = (typeof health?.status === 'string' ? health.status.toLowerCase() : null) ?? health?.overall ?? null;
   const isHealthy = rawStatus === 'healthy' || rawStatus === 'healthy';
   const isDegraded = rawStatus === 'degraded' || rawStatus === 'warn';
   const isCritical = rawStatus === 'down' || rawStatus === 'critical' || rawStatus === 'fail';
