@@ -2372,6 +2372,7 @@ async function proxyToForge(request, reply, path) {
       'x-forwarded-for': request.ip || '',
       'user-agent': request.headers['user-agent'] || '',
     };
+    if (request.headers.authorization) headers.authorization = request.headers.authorization;
     if (request.headers.cookie) headers.cookie = request.headers.cookie;
     if (hasBody) headers['Content-Type'] = request.headers['content-type'] || 'application/json';
 
