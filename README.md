@@ -9,10 +9,12 @@ One AI that creates specialized workers for any task — marketing, support, e-c
 Other tools give you a chatbot. **AskAlf gives you a workforce.**
 
 [![License](https://img.shields.io/badge/License-MIT-7c3aed?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/v2.1.0-7c3aed?style=flat-square&label=version)](https://github.com/askalf/askalf/releases)
 [![npm](https://img.shields.io/npm/v/@askalf/agent?style=flat-square&color=7c3aed&label=agent)](https://www.npmjs.com/package/@askalf/agent)
 [![Discord](https://img.shields.io/badge/Discord-Join-7c3aed?style=flat-square)](https://discord.gg/fENVZpdYcX)
+[![CI](https://img.shields.io/github/actions/workflow/status/askalf/askalf/ci.yml?style=flat-square&label=CI)](https://github.com/askalf/askalf/actions)
 
-**[askalf.org](https://askalf.org)** · **[Discord](https://discord.gg/fENVZpdYcX)** · **[@ask_alf](https://x.com/ask_alf)**
+**[askalf.org](https://askalf.org)** · **[Discord](https://discord.gg/fENVZpdYcX)** · **[Discussions](https://github.com/askalf/askalf/discussions)** · **[@ask_alf](https://x.com/ask_alf)**
 
 </div>
 
@@ -37,7 +39,7 @@ Runs on **Linux, macOS, and Windows WSL2** — anything with Docker.
 
 ```bash
 git clone https://github.com/askalf/askalf.git
-cd askalf/substrate && ./setup.sh
+cd askalf && ./setup.sh
 docker compose -f docker-compose.selfhosted.yml up -d
 ```
 
@@ -220,13 +222,11 @@ Route all outbound agent traffic through an encrypted VPN tunnel via **Gluetun**
 
 ```bash
 # Add to your .env file
-VPN_SERVICE_PROVIDER=protonvpn
-VPN_TYPE=wireguard
-WIREGUARD_PRIVATE_KEY=your-key-from-protonvpn-dashboard
-VPN_SERVER_COUNTRIES=Switzerland
+PROTON_WIREGUARD_PRIVATE_KEY=your-key-from-protonvpn-dashboard
+PROTON_SERVER_COUNTRIES=United States
 
-# Start with VPN enabled
-docker compose -f docker-compose.selfhosted.yml --profile vpn up -d
+# VPN is included by default — all search and outbound traffic routes through Gluetun
+docker compose -f docker-compose.selfhosted.yml up -d
 ```
 
 Supports 30+ providers — ProtonVPN, Mullvad, NordVPN, Surfshark, and [more](https://github.com/qdm12/gluetun-wiki/tree/main/setup/providers). Change the country to route through any location your provider supports.
@@ -235,7 +235,7 @@ Supports 30+ providers — ProtonVPN, Mullvad, NordVPN, Surfshark, and [more](ht
 
 Two ecosystems built into the dashboard:
 
-**MCP Tool Marketplace** — 44 forge tools + 26 MCP tools (tickets, findings, Docker, deploy, security scan, code analysis, knowledge graph, twitter_ops, discord_ops, fleet health, git ops, and more). Install community-published tools with one click.
+**MCP Tool Marketplace** — 44 forge tools + 26 MCP tools = **70 tools** (tickets, findings, Docker, deploy, security scan, code analysis, knowledge graph, twitter_ops, discord_ops, fleet health, git ops, and more). Install community-published tools with one click.
 
 **Community Skills Library** — 109 built-in templates across 16 categories (Personal, Marketing, Support, E-Commerce, Content, Finance, Legal, HR, Operations, Research, and more). Submit your own skills, browse community submissions, import/export bundles, and install Alf-curated featured templates.
 
@@ -279,10 +279,46 @@ Automatic container recovery — included by default. If any container fails its
 
 ---
 
+## FAQ
+
+<details>
+<summary>How much does it cost to run?</summary>
+
+Free on your own hardware. AI provider costs depend on usage — typical 24/7 operation with 8 workers costs $0.30–$2.00/day with Claude. Use Ollama for fully free local operation.
+</details>
+
+<details>
+<summary>Can I run it without cloud AI providers?</summary>
+
+Yes. Configure Ollama as your provider and run Llama, Mistral, or any local model. No API keys needed.
+</details>
+
+<details>
+<summary>How is this different from CrewAI / AutoGen / LangGraph?</summary>
+
+Those are frameworks — you write code to wire agents together. AskAlf is a complete platform: dashboard, scheduler, memory, marketplace, and runtime. You describe what you need in plain English; Alf builds the team.
+</details>
+
+<details>
+<summary>Is my data safe?</summary>
+
+Everything runs on your hardware. AES-256-GCM encryption at rest, all credentials encrypted, VPN tunneling for outbound traffic, HSTS + CSP on all endpoints. Your data never leaves your infrastructure.
+</details>
+
+<details>
+<summary>What models does it support?</summary>
+
+Anthropic Claude (Opus, Sonnet, Haiku), OpenAI (GPT-4o, o3, Codex), xAI Grok, DeepSeek, and any Ollama-compatible model (Llama, Mistral, Phi, Qwen, CodeLlama, Gemma).
+</details>
+
+More questions? Ask in [GitHub Discussions](https://github.com/askalf/askalf/discussions).
+
+---
+
 ## Requirements
 
 - Docker and Docker Compose
-- 4GB+ RAM (8GB recommended)
+- 4GB+ RAM (8–12GB recommended for full fleet)
 - At least one AI provider: Anthropic (recommended), OpenAI, xAI, DeepSeek, or Ollama for fully local/free operation
 - Free to run on your own hardware — or ~$5/month on a VPS
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useThemeStore } from '../../stores/theme';
 import NotificationCenter from '../NotificationCenter';
 import HeartbeatIndicator from './HeartbeatIndicator';
@@ -24,10 +24,8 @@ interface AuthUser {
 
 export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCost, todayCliCost, budgetLimit, onNavigate }: TopBarProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [oauthStatus, setOauthStatus] = useState<'healthy' | 'expiring' | 'expired' | 'unknown'>('unknown');
   const [oauthRefreshing, setOauthRefreshing] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const { theme, setTheme } = useThemeStore();
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
@@ -66,20 +64,8 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
   const oauthColor = oauthStatus === 'healthy' ? '#22c55e' : oauthStatus === 'expiring' ? '#f59e0b' : oauthStatus === 'expired' ? '#ef4444' : '#6b7280';
   const oauthLabel = oauthStatus === 'healthy' ? 'Token OK' : oauthStatus === 'expiring' ? 'Token Expiring' : oauthStatus === 'expired' ? 'Token Expired' : null;
 
-  // Close menu on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [menuOpen]);
-
   const healthColor = wsConnected ? '#22c55e' : '#ef4444';
   const healthLabel = wsConnected ? 'Healthy' : 'Disconnected';
-  const userName = user?.displayName || user?.name;
-  const initials = userName ? userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : user?.email?.[0]?.toUpperCase() ?? '?';
 
   return (
     <div className="ud-topbar">

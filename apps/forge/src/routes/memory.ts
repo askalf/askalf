@@ -7,6 +7,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { query, queryOne, retryQuery } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { generateEmbedding } from '../memory/embeddings.js';
 
 interface SemanticMemoryRow {
   id: string;
@@ -735,6 +736,104 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
         }
         throw err;
       }
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/memory/stats - Fleet-wide memory statistics
+   * Used by Brain tab dashboard
+   */
+  app.get(
+    '/api/v1/forge/memory/stats',
+    { preHandler: [authMiddleware] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      const [semantic, episodic, procedural] = await Promise.all([
+        queryOne<{ count: number }>('SELECT COUNT(*)::int as count FROM forge_semantic_memories'),
+        queryOne<{ count: number }>('SELECT COUNT(*)::int as count FROM forge_episodic_memories'),
+        queryOne<{ count: number }>('SELECT COUNT(*)::int as count FROM forge_procedural_memories'),
+      ]);
+      const s = semantic?.count ?? 0;
+      const e = episodic?.count ?? 0;
+      const p = procedural?.count ?? 0;
+      return reply.send({ total: s + e + p, semantic: s, episodic: e, procedural: p });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/memory/search - Fleet-wide semantic memory search
+   * Uses pgvector cosine similarity for semantic memories, ILIKE fallback for episodic/procedural
+   * Used by Brain tab "Ask Alf" search box
+   */
+  app.post(
+    '/api/v1/forge/memory/search',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as { query?: string; limit?: number };
+      const q = body?.query?.trim();
+      if (!q) return reply.status(400).send({ error: 'query parameter required' });
+
+      const limit = Math.min(body?.limit ?? 20, 100);
+      const results: Array<{ content: string; similarity: number; tier: string }> = [];
+
+      // Semantic memories: vector similarity search via pgvector
+      const embedding = await generateEmbedding(q);
+      const isZero = embedding.every(v => v === 0);
+
+      if (!isZero) {
+        const vecLiteral = `[${embedding.join(',')}]`;
+        const semanticRows = await query<SemanticMemoryRow & { similarity: number }>(
+          `SELECT content, importance, 1 - (embedding <=> $1::vector) as similarity
+           FROM forge_semantic_memories
+           WHERE embedding IS NOT NULL
+           AND 1 - (embedding <=> $1::vector) > 0.3
+           ORDER BY embedding <=> $1::vector ASC
+           LIMIT $2`,
+          [vecLiteral, limit],
+        );
+        for (const r of semanticRows) {
+          results.push({
+            content: r.content,
+            similarity: parseFloat(String(r.similarity)) || 0.5,
+            tier: 'semantic',
+          });
+        }
+      } else {
+        // Fallback: text search if no embedding available
+        const searchTerm = `%${q}%`;
+        const semanticRows = await query<SemanticMemoryRow>(
+          `SELECT content, importance FROM forge_semantic_memories
+           WHERE content ILIKE $1 ORDER BY importance DESC LIMIT $2`,
+          [searchTerm, limit],
+        );
+        for (const r of semanticRows) {
+          results.push({ content: r.content, similarity: parseFloat(String(r.importance)) || 0.5, tier: 'semantic' });
+        }
+      }
+
+      // Episodic: text search (no embeddings on this table)
+      const searchTerm = `%${q}%`;
+      const episodicRows = await query<EpisodicMemoryRow>(
+        `SELECT situation, action, outcome, outcome_quality FROM forge_episodic_memories
+         WHERE (situation ILIKE $1 OR action ILIKE $1 OR outcome ILIKE $1)
+         ORDER BY outcome_quality DESC LIMIT $2`,
+        [searchTerm, Math.ceil(limit / 3)],
+      );
+      for (const r of episodicRows) {
+        results.push({ content: `${r.situation} → ${r.action} → ${r.outcome}`, similarity: parseFloat(String(r.outcome_quality)) || 0.5, tier: 'episodic' });
+      }
+
+      // Procedural: text search
+      const proceduralRows = await query<ProceduralMemoryRow>(
+        `SELECT trigger_pattern, tool_sequence, confidence FROM forge_procedural_memories
+         WHERE trigger_pattern ILIKE $1 ORDER BY confidence DESC LIMIT $2`,
+        [searchTerm, Math.ceil(limit / 3)],
+      );
+      for (const r of proceduralRows) {
+        results.push({ content: r.trigger_pattern, similarity: parseFloat(String(r.confidence)) || 0.5, tier: 'procedural' });
+      }
+
+      results.sort((a, b) => b.similarity - a.similarity);
+      return reply.send({ results: results.slice(0, limit) });
     },
   );
 }

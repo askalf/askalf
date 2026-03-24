@@ -19,6 +19,7 @@ services:
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infrastructure/nginx/conf.d/webhost.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./infrastructure/nginx/security-headers.conf:/etc/nginx/security-headers.conf:ro
       - ./infrastructure/nginx/static:/usr/share/nginx/static:ro
       - nginx_cache:/var/cache/nginx
       - nginx_logs:/var/log/nginx
@@ -60,7 +61,7 @@ services:
     container_name: webhost-cloudflared
     labels:
       - "autoheal-webhost=true"
-    command: tunnel --metrics localhost:2000 --protocol quic run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    command: tunnel --metrics localhost:2000 --protocol quic --no-autoupdate --edge-ip-version auto run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       nginx:
         condition: service_healthy
@@ -72,16 +73,22 @@ services:
       start_period: 15s
     networks:
       - webhost-net
-    restart: always
+    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     read_only: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           memory: 192M
+          cpus: '0.25'
 
   # ===========================================
   # REDIS — dedicated to webhost searxng only
@@ -102,8 +109,8 @@ services:
       - webhost-net
     restart: unless-stopped
     read_only: true
-    tmpfs:
-      - /data:mode=755,size=64m
+    volumes:
+      - redis_data:/data
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -111,10 +118,16 @@ services:
     cap_add:
       - SETUID
       - SETGID
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           memory: 96M
+          cpus: '0.25'
 
   # ===========================================
   # GLUETUN — VPN proxy for SearXNG outgoing requests
@@ -129,12 +142,21 @@ services:
       VPN_TYPE: wireguard
       WIREGUARD_PRIVATE_KEY: ${PROTON_WIREGUARD_PRIVATE_KEY}
       SERVER_COUNTRIES: ${PROTON_SERVER_COUNTRIES:-Switzerland}
+      # HTTP proxy for searxng
       HTTPPROXY: "on"
       HTTPPROXY_LISTENING_ADDRESS: ":8888"
       HTTPPROXY_STEALTH: "on"
-      BLOCK_MALICIOUS: "on"
+      # DNS leak protection
       DOT: "on"
-      DOT_PROVIDERS: cloudflare
+      DOT_PROVIDERS: cloudflare,quad9
+      DNS_ADDRESS: 1.1.1.1
+      # Security
+      BLOCK_MALICIOUS: "on"
+      BLOCK_ADS: "on"
+      BLOCK_SURVEILLANCE: "on"
+      # Auto-refresh VPN server list daily
+      UPDATER_PERIOD: 24h
+      FIREWALL_VPN_INPUT_PORTS: ""
     cap_add:
       - NET_ADMIN
       - CHOWN
@@ -151,15 +173,21 @@ services:
       start_period: 30s
     networks:
       - webhost-net
-    restart: always
+    restart: unless-stopped
     tmpfs:
       - /tmp:mode=1777,size=16m
     security_opt:
       - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           memory: 192M
+          cpus: '0.5'
 
   # ===========================================
   # SEARXNG — search backend for amnesia.tax
@@ -172,6 +200,8 @@ services:
     environment:
       SEARXNG_SECRET: ${SEARXNG_SECRET_KEY}
       SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      HTTP_PROXY: http://gluetun:8888
+      HTTPS_PROXY: http://gluetun:8888
     depends_on:
       redis:
         condition: service_healthy
@@ -190,7 +220,6 @@ services:
     networks:
       - webhost-net
     restart: unless-stopped
-    read_only: true
     tmpfs:
       - /tmp:mode=1777,size=32m
     security_opt:
@@ -200,10 +229,16 @@ services:
     cap_add:
       - SETGID
       - SETUID
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           memory: 384M
+          cpus: '0.5'
 
   # ===========================================
   # AUTOHEAL — webhost containers ONLY
@@ -216,7 +251,7 @@ services:
       AUTOHEAL_INTERVAL: 30
       AUTOHEAL_START_PERIOD: 60
       AUTOHEAL_DEFAULT_STOP_TIMEOUT: 10
-      AUTOHEAL_ONLY_MONITOR_RUNNING: "false"
+      AUTOHEAL_ONLY_MONITOR_RUNNING: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     network_mode: none
@@ -234,9 +269,17 @@ services:
 volumes:
   nginx_cache:
   nginx_logs:
+  redis_data:
   searxng_cache:
 
 networks:
   webhost-net:
     name: webhost-net
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.name: "webhost-br0"
