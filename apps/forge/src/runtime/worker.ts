@@ -2210,7 +2210,7 @@ export async function runDirectCliExecution(
 
     // --- Git worktree isolation: only for workers that need file access ---
     // Workers that only use web_search, memory, tickets, findings, etc. skip worktree creation
-    const FILE_TOOLS = new Set(['file_ops', 'git_ops', 'shell_exec', 'code_exec', 'code_analysis', 'deploy_ops', 'docker_api']);
+    const FILE_TOOLS = new Set(['file_ops', 'git_ops', 'shell_exec', 'code_exec', 'code_analysis', 'deploy_ops']);
     const agentTools = new Set(enabledTools);
     const needsWorktree = [...agentTools].some(t => FILE_TOOLS.has(t));
 
