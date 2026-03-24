@@ -91,15 +91,17 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
           const running = runningMap.get(a.id);
           const sched = schedMap.get(a.id);
           // Check agent_schedules first, then fall back to metadata.schedule
-          const metaSchedule = (a.metadata as Record<string, unknown>)?.schedule as string | undefined;
-          const metaInterval = (a.metadata as Record<string, unknown>)?.dispatch_interval_minutes as number | undefined;
+          const meta = (a.metadata || {}) as Record<string, unknown>;
+          const metaSchedule = meta['schedule'] as string | undefined;
+          const metaInterval = meta['dispatch_interval_minutes'] as number | undefined;
+          const dispatchMode = (a as Record<string, unknown>)['dispatch_mode'] as string | undefined;
           const scheduleLabel = sched
             ? (sched.schedule_type === 'scheduled' && sched.schedule_interval_minutes
               ? `every ${sched.schedule_interval_minutes}m`
               : sched.schedule_type)
             : metaSchedule
               ? metaSchedule
-              : (a.dispatch_mode === 'scheduled' ? 'scheduled' : null);
+              : (dispatchMode === 'scheduled' ? 'scheduled' : null);
           return {
             id: a.id,
             name: a.name,
@@ -109,8 +111,8 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
             system_prompt: a.system_prompt || '',
             schedule: scheduleLabel,
             schedule_interval_minutes: sched?.schedule_interval_minutes ?? metaInterval ?? null,
-            dispatch_mode: a.dispatch_mode || (metaSchedule ? 'scheduled' : 'manual'),
-            metadata: a.metadata || {},
+            dispatch_mode: dispatchMode || (metaSchedule ? 'scheduled' : 'manual'),
+            metadata: meta,
             config: a.provider_config || {},
             enabled_tools: a.enabled_tools || [],
             autonomy_level: a.autonomy_level ?? 2,
@@ -123,7 +125,6 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
             pending_interventions: iMap.get(a.id) || 0,
             created_at: a.created_at,
             updated_at: a.updated_at,
-            metadata: a.metadata || {},
             model_id: a.model_id || null,
             raw_status: a.status,
           };
