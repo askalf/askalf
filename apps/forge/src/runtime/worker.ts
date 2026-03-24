@@ -5,7 +5,7 @@
  * Also retains `runExecution()` for SDK-based execution as fallback.
  */
 
-import { spawn, exec, execSync, type ChildProcess } from 'child_process';
+import { spawn, exec, execSync, execFileSync, type ChildProcess } from 'child_process';
 import { readFile, writeFile, access, copyFile, mkdir, unlink, rm, chmod } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
 import { initializeLogger } from '@askalf/observability';
@@ -2221,11 +2221,16 @@ export async function runDirectCliExecution(
       agentWorktreeDir = `${AGENT_REPO_ROOT}/.worktrees/${agentSlug}-${executionId}`;
 
       try {
-        execSync(`git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" -b "${agentBranchName}" main 2>/dev/null || git -C "${AGENT_REPO_ROOT}" worktree add "${agentWorktreeDir}" "${agentBranchName}"`, {
-          timeout: 60_000,
-          stdio: 'pipe',
-          env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
-        });
+        const gitEnv = { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' };
+        try {
+          execFileSync('git', ['-C', AGENT_REPO_ROOT, 'worktree', 'add', agentWorktreeDir, '-b', agentBranchName, 'main'], {
+            timeout: 60_000, stdio: 'pipe', env: gitEnv,
+          });
+        } catch {
+          execFileSync('git', ['-C', AGENT_REPO_ROOT, 'worktree', 'add', agentWorktreeDir, agentBranchName], {
+            timeout: 60_000, stdio: 'pipe', env: gitEnv,
+          });
+        }
         worktreeCreated = true;
         logger.info(`[CLI] Created worktree for ${agentName}: ${agentWorktreeDir} (branch: ${agentBranchName})`);
       } catch (wtErr) {
@@ -2495,8 +2500,8 @@ export async function runDirectCliExecution(
         try {
           let diffStat = '';
           try {
-            diffStat = execSync(
-              `git -C "${AGENT_REPO_ROOT}" diff "main...${agentBranchName.replace(/[^a-zA-Z0-9/_.-]/g, '')}" --stat`,
+            const safeBranch = agentBranchName.replace(/[^a-zA-Z0-9/_.-]/g, '');
+            diffStat = execFileSync('git', ['-C', AGENT_REPO_ROOT, 'diff', `main...${safeBranch}`, '--stat'],
               { timeout: 10_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' }, stdio: ['pipe', 'pipe', 'pipe'] },
             ).toString().trim();
           } catch { /* no diff or git error */ }
