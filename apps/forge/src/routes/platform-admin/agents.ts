@@ -103,7 +103,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
           return {
             id: a.id,
             name: a.name,
-            type: a.type || mapAgentType(a.metadata),
+            type: a.type || mapAgentType(a.metadata) || 'worker',
             status: running ? 'running' : (a.status === 'paused' ? 'paused' : 'idle'),
             description: a.description || '',
             system_prompt: a.system_prompt || '',
