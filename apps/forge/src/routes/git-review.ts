@@ -73,10 +73,11 @@ function git(args: string[], timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: num
 }
 
 // Strict branch name validation — prevents command injection via shell metacharacters
-const SAFE_BRANCH_RE = /^agent\/[a-zA-Z0-9._\-/]+$/;
+const SAFE_BRANCH_RE = /^[a-zA-Z0-9._\-/]+$/;
+const ALLOWED_PREFIXES = ['agent/', 'docs/', 'feature/', 'fix/', 'chore/', 'refactor/'];
 function validateBranch(branch: string, reply: FastifyReply): boolean {
-  if (!branch.startsWith('agent/')) {
-    reply.status(400).send({ error: 'Only agent/* branches can be reviewed' });
+  if (branch === 'main' || branch === 'master') {
+    reply.status(400).send({ error: 'Cannot operate on main/master branch' });
     return false;
   }
   if (!SAFE_BRANCH_RE.test(branch)) {
