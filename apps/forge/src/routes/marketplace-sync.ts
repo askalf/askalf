@@ -57,7 +57,7 @@ async function syncFromCentral(): Promise<{ synced: number; error?: string }> {
           `UPDATE forge_agent_templates SET
            downloads = $1, rating_sum = $2, rating_count = $3, updated_at = NOW()
            WHERE id = $4`,
-          [skill.install_count, Math.round(skill.avg_rating * 10), 10, existing.id],
+          [skill.install_count, Math.round(skill.avg_rating * 10), 10, (existing as Record<string, unknown>)['id']],
         );
       } else {
         // Insert new skill from marketplace
