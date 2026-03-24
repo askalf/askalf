@@ -836,4 +836,50 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
       return reply.send({ results: results.slice(0, limit) });
     },
   );
+
+  /**
+   * POST /api/v1/forge/memory/store - Store a memory from the Brain tab "Teach Alf"
+   * Accepts: { content, tier, importance?, source? }
+   */
+  app.post(
+    '/api/v1/forge/memory/store',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as { content?: string; tier?: string; importance?: number; source?: string };
+      const content = body?.content?.trim();
+      if (!content) return reply.status(400).send({ error: 'content required' });
+
+      const tier = body.tier || 'semantic';
+      const importance = Math.min(Math.max(body.importance ?? 0.8, 0), 1);
+      const source = body.source || 'user_taught';
+      const id = ulid();
+
+      const embedding = await generateEmbedding(content);
+      const vecLiteral = `[${embedding.join(',')}]`;
+
+      if (tier === 'semantic') {
+        await query(
+          `INSERT INTO forge_semantic_memories (id, agent_id, owner_id, content, importance, source, embedding, metadata, created_at)
+           VALUES ($1, 'system', $2, $3, $4, $5, $6::vector, '{}', NOW())`,
+          [id, request.userId || 'admin', content, importance, source, vecLiteral],
+        );
+      } else if (tier === 'procedural') {
+        await query(
+          `INSERT INTO forge_procedural_memories (id, agent_id, owner_id, trigger_pattern, tool_sequence, confidence, source, metadata, created_at)
+           VALUES ($1, 'system', $2, $3, '[]', $4, $5, '{}', NOW())`,
+          [id, request.userId || 'admin', content, importance, source],
+        );
+      } else if (tier === 'episodic') {
+        await query(
+          `INSERT INTO forge_episodic_memories (id, agent_id, owner_id, situation, action, outcome, outcome_quality, source, metadata, created_at)
+           VALUES ($1, 'system', $2, $3, '', '', $4, $5, '{}', NOW())`,
+          [id, request.userId || 'admin', content, importance, source],
+        );
+      } else {
+        return reply.status(400).send({ error: 'Invalid tier. Must be semantic, episodic, or procedural' });
+      }
+
+      return reply.status(201).send({ id, tier, stored: true });
+    },
+  );
 }
