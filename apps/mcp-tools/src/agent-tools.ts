@@ -11,7 +11,7 @@ const FORGE_URL = process.env['FORGE_URL'] ?? 'http://forge:3005';
 const FORGE_API_KEY = process.env['FORGE_API_KEY'] ?? '';
 const SEARCH_TIMEOUT_MS = 15_000;
 const FETCH_TIMEOUT_MS = 15_000;
-const log = (msg: string) => console.log(`[mcp-tools:agent] ${new Date().toISOString()} ${msg}`);
+const log = (msg: string) => console.log(`[mcp-tools:agent] ${new Date().toISOString()} ${msg.replace(/Bearer [^\s]+/g, 'Bearer [REDACTED]').replace(/token[=:]\s*\S+/gi, 'token=[REDACTED]')}`);
 
 // ============================================
 // Tool Definitions

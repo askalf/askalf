@@ -246,7 +246,7 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
    * POST /api/v1/forge/oauth/codex/poll
    * Poll for device auth completion. Client calls this repeatedly until authorized.
    */
-  app.post(
+  app.post( // lgtm[js/missing-rate-limiting] — rate limited via rateLimitHook preHandler
     '/api/v1/forge/oauth/codex/poll',
     { preHandler: [rateLimitHook, authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
@@ -324,7 +324,7 @@ export async function oauthFlowRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get(
     '/api/v1/forge/oauth/codex/status',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimitHook, authMiddleware] },
     async () => {
       try {
         const { readFile } = await import('node:fs/promises');
