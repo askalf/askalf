@@ -85,14 +85,9 @@ let budgetResetTimer: ReturnType<typeof setInterval> | null = null;
  * Call once during server startup after database is initialized.
  */
 export function startMetabolicCycles(): void {
-  // Initialize status tracking
+  // Only essential cycles — promote, feedback, prompt-rewrite, autonomy-loop disabled
   initCycleStatus('decay', 12);
   initCycleStatus('lessons', 4);
-  initCycleStatus('promote', 2);
-  initCycleStatus('feedback', 0.5);
-  initCycleStatus('prompt-rewrite', 6);
-  initCycleStatus('autonomy-loop', 0.25);
-  initCycleStatus('worktree-cleanup', 6);
 
   // Run initial cycles 5 minutes after startup
   setTimeout(() => {
@@ -100,55 +95,25 @@ export function startMetabolicCycles(): void {
     void runLessonsCycle().catch(logErr('lessons'));
   }, 5 * 60 * 1000);
 
-  // Decay: every 12 hours
+  // Decay: every 12 hours — prune stale memories
   decayTimer = setInterval(() => {
     void runDecayCycle().catch(logErr('decay'));
   }, 12 * 60 * 60 * 1000);
 
-  // Lessons: every 4 hours
+  // Lessons: every 4 hours — learn from failures
   lessonsTimer = setInterval(() => {
     void runLessonsCycle().catch(logErr('lessons'));
   }, 4 * 60 * 60 * 1000);
 
-  // Promote: every 2 hours
-  promoteTimer = setInterval(() => {
-    void runPromoteCycle().catch(logErr('promote'));
-  }, 2 * 60 * 60 * 1000);
+  // Disabled cycles:
+  // promote — tied to evolution system, not in use
+  // feedback — no feedback UI
+  // prompt-rewrite — risky auto-modification
+  // autonomy-loop — no goal system active
+  // worktree-cleanup — handled in worker.ts
+  // budget-reset — not needed, cost events reset by date automatically
 
-  // Feedback processing: every 30 minutes
-  feedbackTimer = setInterval(() => {
-    void processUnprocessedFeedback().catch(logErr('feedback'));
-  }, 30 * 60 * 1000);
-
-  // Prompt rewrite proposals: every 6 hours (Phase 6)
-  promptRewriteTimer = setInterval(() => {
-    void proposeAllRevisions().catch(logErr('prompt-rewrite'));
-  }, 6 * 60 * 60 * 1000);
-
-  // Autonomy loop: every 15 minutes (Level 4)
-  // Auto-approves goals, converts to tickets, applies prompt revisions, optimizes models
-  autonomyLoopTimer = setInterval(() => {
-    void runAutonomyLoop().catch(logErr('autonomy-loop'));
-  }, 15 * 60 * 1000);
-
-  // Run autonomy loop 2 min after startup
-  setTimeout(() => {
-    void runAutonomyLoop().catch(logErr('autonomy-loop'));
-  }, 2 * 60 * 1000);
-
-  // Worktree/branch cleanup: every 6 hours
-  worktreeCleanupTimer = setInterval(() => {
-    void runWorktreeCleanup().catch(logErr('worktree-cleanup'));
-  }, 6 * 60 * 60 * 1000);
-
-  // Budget reset: every 1 hour — re-enables agents paused by daily cost budget
-  // Effective at midnight UTC when the new day begins (cost events reset by date)
-  initCycleStatus('budget-reset', 1);
-  budgetResetTimer = setInterval(() => {
-    void runBudgetResetCycle().catch(logErr('budget-reset'));
-  }, 60 * 60 * 1000);
-
-  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h), promote(2h), feedback(30m), prompt-rewrite(6h), autonomy(15m), worktree-cleanup(6h), budget-reset(1h)');
+  console.log('[Metabolic] Cycles started — decay(12h), lessons(4h). Other cycles disabled.');
 }
 
 /**
