@@ -94,7 +94,7 @@ export async function registerAgentRoutes(app: FastifyInstance): Promise<void> {
           const meta = (a.metadata || {}) as Record<string, unknown>;
           const metaSchedule = meta['schedule'] as string | undefined;
           const metaInterval = meta['dispatch_interval_minutes'] as number | undefined;
-          const dispatchMode = (a as Record<string, unknown>)['dispatch_mode'] as string | undefined;
+          const dispatchMode = a.dispatch_mode || undefined;
           const scheduleLabel = sched
             ? (sched.schedule_type === 'scheduled' && sched.schedule_interval_minutes
               ? `every ${sched.schedule_interval_minutes}m`
