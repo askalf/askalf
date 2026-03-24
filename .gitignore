@@ -141,12 +141,15 @@ infrastructure/marketplace/
 apps/forge/src/routes/marketplace-central.ts
 apps/dashboard/client/src/pages/forge/MarketplaceReview.tsx
 
-# Webhost stack (not part of self-hosted deployment)
+# Webhost stack (private — not part of self-hosted deployment)
+docker-compose.webhost.yml
 infrastructure/nginx/
 infrastructure/cloudflare/
 infrastructure/postgres/postgresql.conf
 infrastructure/redis/redis.conf
 infrastructure/redis/docker-entrypoint.sh
+infrastructure/searxng/webhost-*.yml
+infrastructure/searxng/webhost-*.toml
 docker-compose.prod.yml
 docker-compose.vpn.yml
 
