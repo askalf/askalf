@@ -13,6 +13,7 @@ const NOTIFICATION_CATEGORIES: Record<string, string[]> = {
   alert: ['deleted', 'auto_approved'],
   system: ['created', 'updated', 'resolved', 'assigned', 'closed', 'template.instantiate'],
   security: ['user.login', 'user.logout'],
+  marketplace: ['submission.pending_review', 'submission.approved', 'submission.rejected', 'submission.quarantined'],
 };
 
 const ALL_NOTIFICATION_ACTIONS = Object.values(NOTIFICATION_CATEGORIES).flat();
@@ -24,6 +25,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   alert: '#f59e0b',
   system: '#3b82f6',
   security: '#10b981',
+  marketplace: '#ec4899',
 };
 
 const ACTION_ICONS: Record<string, string> = {
