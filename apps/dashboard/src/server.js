@@ -2453,9 +2453,18 @@ for (const prefix of ['/api/v1/forge/', '/api/v1/integrations/', '/api/v1/termin
 // SPA FALLBACK - Serve index.html for client routes
 // ===========================================
 
+// Explicit proxy for admin API routes that forge handles
+for (const method of ['get', 'post', 'put', 'delete', 'patch']) {
+  for (const path of ['/api/v1/admin/audit', '/api/v1/admin/agents', '/api/v1/admin/agents/*', '/api/v1/admin/executions', '/api/v1/admin/executions/*', '/api/v1/admin/costs', '/api/v1/admin/costs/*', '/api/v1/admin/monitoring/*', '/api/v1/admin/retention-cleanup']) {
+    try {
+      fastify[method](path, (req, reply) => proxyToForge(req, reply, req.url));
+    } catch { /* route may already exist */ }
+  }
+}
+
 // Catch-all for React Router (must be after all API routes)
 fastify.setNotFoundHandler((request, reply) => {
-  // Proxy unhandled /api/v1/admin/ routes to forge (agents, tools, providers, costs, etc.)
+  // Proxy unhandled /api/v1/admin/ routes to forge
   if (request.url.startsWith('/api/v1/admin/')) {
     return proxyToForge(request, reply, request.url);
   }
