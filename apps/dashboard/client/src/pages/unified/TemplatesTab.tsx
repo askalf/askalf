@@ -295,8 +295,8 @@ export default function TemplatesTab({
 
   const filteredTemplates = templates.filter(t => {
     if (filter !== 'all' && t.category !== filter) return false;
-    if (search && !t.name.toLowerCase().includes(search.toLowerCase()) &&
-        !t.description.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !(t.name || '').toLowerCase().includes(search.toLowerCase()) &&
+        !(t.description || '').toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
