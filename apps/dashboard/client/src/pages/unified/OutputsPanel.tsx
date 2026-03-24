@@ -81,7 +81,7 @@ export default function OutputsPanel() {
       if (branchRes.ok) {
         const data = await branchRes.json() as { branches: Array<{ name: string; lastCommit: string; agent?: string; hasChanges?: boolean }> };
         // Filter to only agent branches
-        setBranches((data.branches || []).filter(b => b.name.startsWith('agent/')));
+        setBranches((data.branches || []).filter(b => b.name !== 'main'));
       }
     } catch { /* ignore */ }
     setLoading(false);
