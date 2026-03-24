@@ -173,6 +173,7 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
               )}
               <div className="ud-account-divider" role="separator" />
               <button role="menuitem" className="ud-account-link" onClick={() => { setMenuOpen(false); onNavigate?.('settings'); }}>Settings</button>
+              <button role="menuitem" className="ud-account-link" style={{ color: '#ef4444' }} onClick={() => { setMenuOpen(false); fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' }).then(() => window.location.href = '/login').catch(() => window.location.href = '/login'); }}>Log Out</button>
             </div>
           )}
         </div>
