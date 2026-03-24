@@ -85,14 +85,22 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
 
         const finalSlug = existing ? `${slug}-${id.slice(-6).toLowerCase()}` : slug;
 
+        // Determine scheduling from metadata
+        const meta = body.metadata ?? {};
+        const schedule = (meta as Record<string, unknown>)['schedule'] as string | undefined;
+        const intervalMin = (meta as Record<string, unknown>)['dispatch_interval_minutes'] as number | undefined;
+        const hasSchedule = !!schedule || !!intervalMin;
+
         const agent = await queryOne<AgentRow>(
           `INSERT INTO forge_agents (
             id, owner_id, name, slug, description, system_prompt, model_id,
             provider_config, autonomy_level, enabled_tools, mcp_servers,
             memory_config, max_iterations, max_tokens_per_turn,
-            max_cost_per_execution, is_public, is_template, metadata, status
+            max_cost_per_execution, is_public, is_template, metadata, status,
+            dispatch_enabled, is_internal, dispatch_mode, schedule_interval_minutes, next_run_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'draft'
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'active',
+            $19, true, $20, $21, $22
           ) RETURNING *`,
           [
             id,
@@ -112,7 +120,11 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
             body.maxCostPerExecution ?? 1.0,
             body.isPublic ?? false,
             body.isTemplate ?? false,
-            JSON.stringify(body.metadata ?? {}),
+            JSON.stringify(meta),
+            hasSchedule, // dispatch_enabled
+            hasSchedule ? 'scheduled' : 'manual', // dispatch_mode
+            intervalMin ?? null, // schedule_interval_minutes
+            hasSchedule ? new Date(Date.now() + (intervalMin || 60) * 60000) : null, // next_run_at
           ],
         );
 
