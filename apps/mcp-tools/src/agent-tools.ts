@@ -423,7 +423,7 @@ async function handleTwitterOps(args: Record<string, unknown>): Promise<string> 
         if (text.length > 280) return JSON.stringify({ error: `Tweet too long (${text.length}/280)` });
         await humanDelay();
         const result = await scraper.sendTweet(text, args['reply_to_id'] as string | undefined);
-        const id = (result as Record<string, unknown>)?.rest_id || (result as Record<string, unknown>)?.id_str || '';
+        const id = (result as Record<string, unknown>)?.['rest_id'] || (result as Record<string, unknown>)?.['id_str'] || '';
         log(`twitter_ops: posted tweet ${id}`);
         return JSON.stringify({ posted: true, id, text, url: id ? `https://x.com/i/status/${id}` : null });
       }
@@ -437,7 +437,7 @@ async function handleTwitterOps(args: Record<string, unknown>): Promise<string> 
           if (text.length > 280) return JSON.stringify({ error: `Tweet "${text.slice(0, 30)}..." too long (${text.length}/280)` });
           await humanDelay();
           const result = await scraper.sendTweet(text, replyTo);
-          const id = String((result as Record<string, unknown>)?.rest_id || (result as Record<string, unknown>)?.id_str || '');
+          const id = String((result as Record<string, unknown>)?.['rest_id'] || (result as Record<string, unknown>)?.['id_str'] || '');
           results.push({ id, text });
           replyTo = id;
         }
@@ -451,7 +451,7 @@ async function handleTwitterOps(args: Record<string, unknown>): Promise<string> 
         if (!text || !replyId) return JSON.stringify({ error: 'text and reply_to_id required' });
         await humanDelay();
         const result = await scraper.sendTweet(text, replyId);
-        const id = String((result as Record<string, unknown>)?.rest_id || (result as Record<string, unknown>)?.id_str || '');
+        const id = String((result as Record<string, unknown>)?.['rest_id'] || (result as Record<string, unknown>)?.['id_str'] || '');
         return JSON.stringify({ replied: true, id, text });
       }
 
