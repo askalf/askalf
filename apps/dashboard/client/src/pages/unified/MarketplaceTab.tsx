@@ -207,135 +207,78 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
 // ── Submit Package Form ──
 
 function SubmitPackage() {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [packageType, setPackageType] = useState('tool_bundle');
-  const [repoUrl, setRepoUrl] = useState('');
-  const [tags, setTags] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [category, setCategory] = useState('operations');
-  const [submitting, setSubmitting] = useState(false);
+  const [importJson, setImportJson] = useState('');
+  const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [centralEnabled, setCentralEnabled] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    fetch('/api/v1/forge/marketplace/central/status', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setCentralEnabled(d?.enabled ?? false))
-      .catch(() => setCentralEnabled(false));
-  }, []);
-
-  const handleSubmit = useCallback(async () => {
-    if (!name.trim() || !description.trim()) return;
-    setSubmitting(true);
+  const handleImport = useCallback(async () => {
+    if (!importJson.trim()) return;
+    setImporting(true);
     try {
-      // If central marketplace is enabled, submit there for community review
-      // Otherwise, save locally only
-      const endpoint = centralEnabled
-        ? '/api/v1/forge/marketplace/central/submit'
-        : '/api/v1/forge/marketplace/packages';
-
-      const payload = centralEnabled
-        ? {
-            name: name.trim(),
-            description: description.trim(),
-            category,
-            submission_type: packageType === 'skill_template' ? 'worker_template' : packageType,
-            system_prompt: packageType === 'skill_template' ? systemPrompt.trim() : undefined,
-            config: packageType !== 'skill_template' ? { description: description.trim() } : undefined,
-            repository_url: repoUrl.trim() || undefined,
-            tools: tags.split(',').map(t => t.trim()).filter(Boolean),
-          }
-        : {
-            name: name.trim(),
-            description: description.trim(),
-            package_type: packageType,
-            repository_url: repoUrl.trim() || undefined,
-            tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-          };
-
-      const res = await fetch(endpoint, {
+      const parsed = JSON.parse(importJson.trim());
+      const res = await fetch('/api/v1/forge/marketplace/import', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(parsed),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Submit failed' }));
-        throw new Error((err as Record<string, string>).error || 'Submit failed');
+        const err = await res.json().catch(() => ({ error: 'Import failed' }));
+        throw new Error((err as Record<string, string>).error || 'Import failed');
       }
       const data = await res.json() as Record<string, unknown>;
-      const msg = centralEnabled
-        ? `Submitted to community marketplace! Status: ${data.status || 'pending_review'}. AI security review will run automatically.`
-        : 'Package saved locally.';
-      setResult({ ok: true, message: msg });
-      setName(''); setDescription(''); setRepoUrl(''); setTags(''); setSystemPrompt('');
+      setResult({ ok: true, message: data.message as string || 'Imported successfully' });
+      setImportJson('');
     } catch (err) {
-      setResult({ ok: false, message: err instanceof Error ? err.message : 'Submit failed' });
-    } finally { setSubmitting(false); }
-  }, [name, description, packageType, repoUrl, tags, category, systemPrompt, centralEnabled]);
+      setResult({ ok: false, message: err instanceof Error ? err.message : 'Import failed — check JSON format' });
+    } finally { setImporting(false); }
+  }, [importJson]);
+
+  const handleFileImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImportJson(reader.result as string);
+    reader.readAsText(file);
+  }, []);
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: 600 }}>
       <h3 style={{ margin: '0 0 4px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
-        {centralEnabled ? 'Submit to Community Marketplace' : 'Submit a Package'}
+        Community Marketplace
       </h3>
       <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-        {centralEnabled
-          ? 'Share with the AskAlf community. Submissions go through AI security review before publishing.'
-          : 'Save packages locally. Enable community marketplace in Settings to share with others.'}
+        Browse and download templates, tool bundles, and MCP servers from the community. Import them here.
+      </p>
+
+      <a href="https://askalf.org/marketplace" target="_blank" rel="noopener noreferrer"
+        style={{ display: 'inline-block', padding: '10px 20px', background: '#7c3aed', color: '#fff', borderRadius: 8, fontWeight: 600, fontSize: '0.85rem', textDecoration: 'none', marginBottom: 20 }}>
+        Browse Marketplace ↗
+      </a>
+
+      <h4 style={{ margin: '16px 0 8px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)' }}>Import</h4>
+      <p style={{ margin: '0 0 12px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+        Paste JSON or upload a file downloaded from the marketplace.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Package name"
+        <input type="file" accept=".json" onChange={handleFileImport}
           style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }} />
 
-        <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description — what does this package do?"
-          rows={3} style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit' }} />
-
-        <select value={packageType} onChange={e => setPackageType(e.target.value)}
-          style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }}>
-          <option value="skill_template">Worker Template</option>
-          <option value="tool_bundle">Tool Bundle</option>
-          <option value="mcp_server">MCP Server</option>
-        </select>
-
-        {centralEnabled && (
-          <select value={category} onChange={e => setCategory(e.target.value)}
-            style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }}>
-            <option value="personal">Personal</option>
-            <option value="marketing">Marketing</option>
-            <option value="support">Support</option>
-            <option value="ecommerce">E-Commerce</option>
-            <option value="content">Content</option>
-            <option value="finance">Finance</option>
-            <option value="operations">Operations</option>
-            <option value="hr">People & HR</option>
-            <option value="research">Research</option>
-            <option value="security">Security</option>
-            <option value="development">Development</option>
-            <option value="analytics">Analytics</option>
-          </select>
-        )}
-
-        {packageType === 'skill_template' && (
-          <textarea value={systemPrompt} onChange={e => setSystemPrompt(e.target.value)} placeholder="System prompt — instructions for this worker"
-            rows={5} style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit' }} />
-        )}
-
-        <input value={repoUrl} onChange={e => setRepoUrl(e.target.value)} placeholder="Repository URL (optional)"
-          style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }} />
-
-        <input value={tags} onChange={e => setTags(e.target.value)} placeholder="Tools (comma-separated): web_search, memory_store, ticket_ops"
-          style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }} />
+        <textarea value={importJson} onChange={e => setImportJson(e.target.value)} placeholder='Paste JSON here, e.g.: {"type":"worker_template","name":"My Worker","system_prompt":"You are...","category":"operations","tools":["web_search"]}'
+          rows={6} style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.82rem', resize: 'vertical', fontFamily: 'monospace' }} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={handleSubmit} disabled={submitting || !name.trim() || !description.trim()}
+          <button onClick={handleImport} disabled={importing || !importJson.trim()}
             style={{ padding: '8px 20px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
-            {submitting ? 'Submitting...' : 'Submit for Review'}
+            {importing ? 'Importing...' : 'Import'}
           </button>
           {result && <span style={{ fontSize: '0.82rem', color: result.ok ? '#10b981' : '#ef4444' }}>{result.message}</span>}
         </div>
+
+        <p style={{ margin: '16px 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>
+          Want to share your own templates? <a href="https://askalf.org/marketplace" target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>Submit on askalf.org</a> — all submissions go through AI security review.
+        </p>
       </div>
     </div>
   );
