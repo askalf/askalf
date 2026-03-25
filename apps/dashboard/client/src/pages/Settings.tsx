@@ -5,9 +5,9 @@ import { useThemeStore } from '../stores/theme';
 import { relativeTime } from '../utils/format';
 import './Settings.css';
 
-type SettingsTab = 'profile' | 'appearance' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'preferences' | 'infrastructure' | 'migration';
+type SettingsTab = 'general' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'preferences' | 'infrastructure' | 'migration';
 
-const VALID_TABS: SettingsTab[] = ['profile', 'appearance', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'preferences', 'infrastructure', 'migration'];
+const VALID_TABS: SettingsTab[] = ['general', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'preferences', 'infrastructure', 'migration'];
 
 // ── Natural Language Settings Assistant ──
 
@@ -20,11 +20,11 @@ const NL_PATTERNS: Array<{ pattern: RegExp; tab: SettingsTab; message: string }>
   { pattern: /anthropic|claude.*key|api.*key/i, tab: 'api-keys', message: 'Opening Keys & Providers — add or update your API keys there.' },
   { pattern: /openai|gpt.*key/i, tab: 'api-keys', message: 'Opening Keys & Providers — configure your OpenAI key there.' },
   { pattern: /key|provider/i, tab: 'api-keys', message: 'Opening Keys & Providers.' },
-  { pattern: /theme|dark.*mode|light.*mode|appearance|color/i, tab: 'appearance', message: 'Opening Appearance — pick your theme.' },
+  { pattern: /theme|dark.*mode|light.*mode|appearance|color/i, tab: 'general', message: 'Opening Appearance — pick your theme.' },
   { pattern: /budget|cost|limit|spend/i, tab: 'costs', message: 'Opening Cost Controls — set budgets and limits there.' },
   { pattern: /github|gitlab|bitbucket|repo/i, tab: 'integrations', message: 'Opening Integrations — connect your source control there.' },
   { pattern: /integrat/i, tab: 'integrations', message: 'Opening Integrations.' },
-  { pattern: /profile|name|email|password/i, tab: 'profile', message: 'Opening Profile settings.' },
+  { pattern: /profile|name|email|password/i, tab: 'general', message: 'Opening Profile settings.' },
   { pattern: /device|session/i, tab: 'devices', message: 'Opening Devices — manage active sessions there.' },
   { pattern: /migrat|openclaw|import/i, tab: 'migration', message: 'Opening Migration — import from OpenClaw there.' },
 ];
@@ -80,9 +80,9 @@ function SettingsAssistant({ onNavigateTab }: { onNavigateTab: (tab: SettingsTab
 
 export default function SettingsPage({ embedded }: { embedded?: boolean }) {
   const [searchParams] = useSearchParams();
-  const initialTab = (searchParams.get('tab') as SettingsTab) || 'profile';
+  const initialTab = (searchParams.get('tab') as SettingsTab) || 'general';
   const [activeTab, setActiveTab] = useState<SettingsTab>(
-    VALID_TABS.includes(initialTab) ? initialTab : 'profile'
+    VALID_TABS.includes(initialTab) ? initialTab : 'general'
   );
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -109,24 +109,14 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
       <div className="settings-layout">
         <nav className="settings-nav">
           <button
-            className={`settings-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
+            className={`settings-nav-item ${activeTab === 'general' ? 'active' : ''}`}
+            onClick={() => setActiveTab('general')}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
-            Profile
-          </button>
-          <button
-            className={`settings-nav-item ${activeTab === 'appearance' ? 'active' : ''}`}
-            onClick={() => setActiveTab('appearance')}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="5" />
-              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-            </svg>
-            Appearance
+            General
           </button>
           <button
             className={`settings-nav-item ${activeTab === 'api-keys' ? 'active' : ''}`}
@@ -211,8 +201,7 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
         </nav>
 
         <div className="settings-content">
-          {activeTab === 'profile' && <ProfileTab user={user} />}
-          {activeTab === 'appearance' && <AppearanceTab />}
+          {activeTab === 'general' && <><ProfileTab user={user} /><AppearanceTab /></>}
           {activeTab === 'api-keys' && <><AIKeysTab /><ForgeApiKeysTab /></>}
           {activeTab === 'costs' && <CostControlsTab />}
           {activeTab === 'integrations' && <IntegrationsTab />}
