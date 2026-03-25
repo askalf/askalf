@@ -155,8 +155,17 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [selectedPkg, setSelectedPkg] = useState<MarketplacePackage | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [importJson, setImportJson] = useState('');
   const [importResult, setImportResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  // Create form state
+  const [createName, setCreateName] = useState('');
+  const [createDesc, setCreateDesc] = useState('');
+  const [createUrl, setCreateUrl] = useState('');
+  const [createAuth, setCreateAuth] = useState('');
+  const [createTransport, setCreateTransport] = useState('stdio');
+  const [createTools, setCreateTools] = useState('');
+  const [createResult, setCreateResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const fetchPackages = useCallback(() => {
     let cancelled = false;
@@ -228,6 +237,27 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
   }, []);
 
   const typeLabel = typeFilter === 'tool_bundle' ? 'Tool Bundle' : 'MCP Server';
+  const isMcp = typeFilter === 'mcp_server';
+
+  const handleCreate = useCallback(async () => {
+    if (!createName.trim()) return;
+    try {
+      const config = isMcp
+        ? { url: createUrl.trim(), transport: createTransport, auth_token: createAuth.trim() || undefined }
+        : { tools: createTools.split(',').map(t => t.trim()).filter(Boolean) };
+      const res = await fetch('/api/v1/forge/marketplace/packages', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: createName.trim(), description: createDesc.trim(), package_type: typeFilter, config, tags: [] }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error((e as Record<string,string>).error || 'Failed'); }
+      setCreateResult({ ok: true, msg: `${typeLabel} created` });
+      setCreateName(''); setCreateDesc(''); setCreateUrl(''); setCreateAuth(''); setCreateTools('');
+      setShowCreate(false); fetchPackages();
+    } catch (err) {
+      setCreateResult({ ok: false, msg: err instanceof Error ? err.message : 'Create failed' });
+    }
+  }, [createName, createDesc, createUrl, createAuth, createTransport, createTools, typeFilter, isMcp, typeLabel, fetchPackages]);
 
   return (
     <div>
@@ -239,11 +269,58 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
           <option value="recent">Most Recent</option>
         </select>
         <span className="mp-result-count">{loading ? 'Loading...' : `${packages.length} packages`}</span>
-        <button onClick={() => setShowImport(!showImport)}
-          style={{ marginLeft: 'auto', padding: '6px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.8rem', cursor: 'pointer' }}>
-          {showImport ? 'Cancel' : `Import ${typeLabel}`}
-        </button>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button onClick={() => { setShowCreate(!showCreate); setShowImport(false); }}
+            style={{ padding: '6px 14px', background: showCreate ? 'var(--surface)' : '#7c3aed', border: showCreate ? '1px solid var(--border)' : 'none', borderRadius: 8, color: showCreate ? 'var(--text)' : '#fff', fontSize: '.8rem', fontWeight: 600, cursor: 'pointer' }}>
+            {showCreate ? 'Cancel' : `+ ${typeLabel}`}
+          </button>
+          <button onClick={() => { setShowImport(!showImport); setShowCreate(false); }}
+            style={{ padding: '6px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.8rem', cursor: 'pointer' }}>
+            {showImport ? 'Cancel' : 'Import'}
+          </button>
+        </div>
       </div>
+
+      {showCreate && (
+        <div style={{ padding: '14px', margin: '0 0 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+          <div style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
+            {isMcp ? 'Add MCP Server' : 'Create Tool Bundle'}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <input value={createName} onChange={e => setCreateName(e.target.value)} placeholder="Name"
+              style={{ padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem' }} />
+            <input value={createDesc} onChange={e => setCreateDesc(e.target.value)} placeholder="Description"
+              style={{ padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem' }} />
+            {isMcp ? (
+              <>
+                <input value={createUrl} onChange={e => setCreateUrl(e.target.value)} placeholder="Server URL (e.g. http://localhost:8080)"
+                  style={{ padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem' }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select value={createTransport} onChange={e => setCreateTransport(e.target.value)}
+                    style={{ padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem', flex: 1 }}>
+                    <option value="stdio">stdio</option>
+                    <option value="sse">SSE (HTTP)</option>
+                    <option value="streamable-http">Streamable HTTP</option>
+                  </select>
+                  <input value={createAuth} onChange={e => setCreateAuth(e.target.value)} placeholder="Auth token (optional)"
+                    style={{ padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem', flex: 2 }} />
+                </div>
+              </>
+            ) : (
+              <input value={createTools} onChange={e => setCreateTools(e.target.value)}
+                placeholder="Tools (comma-separated): web_search, memory_store, ticket_ops"
+                style={{ padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem' }} />
+            )}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button onClick={handleCreate} disabled={!createName.trim()}
+                style={{ padding: '6px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: '.82rem', cursor: 'pointer' }}>
+                {isMcp ? 'Add Server' : 'Create Bundle'}
+              </button>
+              {createResult && <span style={{ fontSize: '.78rem', color: createResult.ok ? '#10b981' : '#ef4444' }}>{createResult.msg}</span>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showImport && (
         <div style={{ padding: '14px', margin: '0 0 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
