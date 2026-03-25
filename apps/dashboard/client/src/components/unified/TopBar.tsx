@@ -25,6 +25,7 @@ interface AuthUser {
 export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCost, todayCliCost, budgetLimit, onNavigate }: TopBarProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [oauthStatus, setOauthStatus] = useState<'healthy' | 'expiring' | 'expired' | 'unknown'>('unknown');
+  const [oauthProvider, setOauthProvider] = useState<string>('claude');
   const [oauthRefreshing, setOauthRefreshing] = useState(false);
   const { theme, setTheme } = useThemeStore();
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -43,7 +44,7 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
     const checkOAuth = () => {
       fetch('/api/v1/forge/credentials/health', { credentials: 'include' })
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data?.status) setOauthStatus(data.status); })
+        .then(data => { if (data?.status) { setOauthStatus(data.status); setOauthProvider(data.provider || 'claude'); } })
         .catch(() => {});
     };
     checkOAuth();
@@ -62,7 +63,8 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
   };
 
   const oauthColor = oauthStatus === 'healthy' ? '#22c55e' : oauthStatus === 'expiring' ? '#f59e0b' : oauthStatus === 'expired' ? '#ef4444' : '#6b7280';
-  const oauthLabel = oauthStatus === 'healthy' ? 'Token OK' : oauthStatus === 'expiring' ? 'Token Expiring' : oauthStatus === 'expired' ? 'Token Expired' : null;
+  const providerName = oauthProvider === 'codex' ? 'Codex' : oauthProvider === 'claude-api' ? 'API Key' : 'OAuth';
+  const oauthLabel = oauthStatus === 'healthy' ? `${providerName} OK` : oauthStatus === 'expiring' ? `${providerName} Expiring` : oauthStatus === 'expired' ? `${providerName} Expired` : null;
 
   const healthColor = wsConnected ? '#22c55e' : '#ef4444';
   const healthLabel = wsConnected ? 'Healthy' : 'Disconnected';

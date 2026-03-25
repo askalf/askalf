@@ -144,14 +144,36 @@ export async function credentialsHealthRoutes(app: FastifyInstance): Promise<voi
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
+        // Check Claude OAuth
         const creds = await readCredentials();
-        const expiresAt = creds?.claudeAiOauth?.expiresAt ?? null;
-        const { status, expiresIn } = computeStatus(expiresAt);
+        const claudeExpiresAt = creds?.claudeAiOauth?.expiresAt ?? null;
+        const claude = computeStatus(claudeExpiresAt);
+
+        // Check Codex OAuth
+        let codexStatus = 'no_credentials';
+        try {
+          const { readFile } = await import('node:fs/promises');
+          const raw = await readFile('/home/substrate/.codex-session/.codex-auth.json', 'utf-8');
+          const auth = JSON.parse(raw) as { tokens?: { access_token?: string } };
+          codexStatus = auth.tokens?.access_token ? 'healthy' : 'no_token';
+        } catch { /* no codex credentials */ }
+
+        // Return combined — pick the active provider's status for the badge
+        const hasClaudeKey = !!process.env['ANTHROPIC_API_KEY'] || claude.status !== 'unknown';
+        const hasClaude = claudeExpiresAt !== null;
+        const hasCodex = codexStatus === 'healthy';
+
+        // Primary status: whichever provider is configured
+        const primaryStatus = hasClaude ? claude.status : hasCodex ? 'healthy' : hasClaudeKey ? 'healthy' : 'unknown';
+        const primaryProvider = hasClaude ? 'claude' : hasCodex ? 'codex' : hasClaudeKey ? 'claude-api' : 'none';
 
         return reply.send({
-          status,
-          expiresAt,
-          expiresIn,
+          status: primaryStatus,
+          provider: primaryProvider,
+          expiresAt: claudeExpiresAt,
+          expiresIn: claude.expiresIn,
+          claude: { status: claude.status, expiresAt: claudeExpiresAt },
+          codex: { status: codexStatus },
         });
       } catch (err) {
         request.log.error(err, 'Failed to check credential health');
