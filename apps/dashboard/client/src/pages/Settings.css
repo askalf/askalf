@@ -2572,64 +2572,95 @@ textarea.settings-input {
 }
 
 .settings-provider-card {
-  padding: var(--space-lg);
+  padding: 20px 24px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-md);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.settings-provider-card:hover {
+  border-color: rgba(124, 58, 237, 0.2);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .settings-provider-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: var(--space-md);
+  margin-bottom: 14px;
 }
 
 .settings-provider-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .settings-provider-name {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
-  font-size: 0.9375rem;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
 }
 
 .settings-provider-desc {
-  font-size: 0.8125rem;
+  font-size: 0.78rem;
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  line-height: 1.4;
+  max-width: 420px;
 }
 
 .settings-provider-status {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .settings-provider-hint {
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  font-size: 0.78rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.35));
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border: 1px solid var(--border);
 }
 
 .settings-provider-badge {
-  font-size: 0.75rem;
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .settings-provider-active {
-  background: rgba(6, 214, 160, 0.15);
-  color: #06d6a0;
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
 }
 
 .settings-provider-inactive {
-  background: var(--elevated);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text-muted, rgba(255, 255, 255, 0.4));
+  border: 1px solid var(--border);
+}
+
+.settings-provider-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+}
+
+.settings-provider-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .settings-provider-edit {
