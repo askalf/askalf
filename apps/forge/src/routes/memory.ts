@@ -782,7 +782,7 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
       if (!isZero) {
         const vecLiteral = `[${embedding.join(',')}]`;
         const semanticRows = await query<SemanticMemoryRow & { similarity: number }>(
-          `SELECT content, importance, 1 - (embedding <=> $1::vector) as similarity
+          `SELECT id, content, importance, 1 - (embedding <=> $1::vector) as similarity
            FROM forge_semantic_memories
            WHERE embedding IS NOT NULL
            AND 1 - (embedding <=> $1::vector) > 0.3
@@ -791,45 +791,38 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
           [vecLiteral, limit],
         );
         for (const r of semanticRows) {
-          results.push({
-            content: r.content,
-            similarity: parseFloat(String(r.similarity)) || 0.5,
-            tier: 'semantic',
-          });
+          results.push({ id: r.id, content: r.content, similarity: parseFloat(String(r.similarity)) || 0.5, tier: 'semantic' });
         }
       } else {
-        // Fallback: text search if no embedding available
         const searchTerm = `%${q}%`;
         const semanticRows = await query<SemanticMemoryRow>(
-          `SELECT content, importance FROM forge_semantic_memories
+          `SELECT id, content, importance FROM forge_semantic_memories
            WHERE content ILIKE $1 ORDER BY importance DESC LIMIT $2`,
           [searchTerm, limit],
         );
         for (const r of semanticRows) {
-          results.push({ content: r.content, similarity: parseFloat(String(r.importance)) || 0.5, tier: 'semantic' });
+          results.push({ id: r.id, content: r.content, similarity: parseFloat(String(r.importance)) || 0.5, tier: 'semantic' });
         }
       }
 
-      // Episodic: text search (no embeddings on this table)
       const searchTerm = `%${q}%`;
       const episodicRows = await query<EpisodicMemoryRow>(
-        `SELECT situation, action, outcome, outcome_quality FROM forge_episodic_memories
+        `SELECT id, situation, action, outcome, outcome_quality FROM forge_episodic_memories
          WHERE (situation ILIKE $1 OR action ILIKE $1 OR outcome ILIKE $1)
          ORDER BY outcome_quality DESC LIMIT $2`,
         [searchTerm, Math.ceil(limit / 3)],
       );
       for (const r of episodicRows) {
-        results.push({ content: `${r.situation} → ${r.action} → ${r.outcome}`, similarity: parseFloat(String(r.outcome_quality)) || 0.5, tier: 'episodic' });
+        results.push({ id: r.id, content: `${r.situation} → ${r.action} → ${r.outcome}`, similarity: parseFloat(String(r.outcome_quality)) || 0.5, tier: 'episodic' });
       }
 
-      // Procedural: text search
       const proceduralRows = await query<ProceduralMemoryRow>(
-        `SELECT trigger_pattern, tool_sequence, confidence FROM forge_procedural_memories
+        `SELECT id, trigger_pattern, tool_sequence, confidence FROM forge_procedural_memories
          WHERE trigger_pattern ILIKE $1 ORDER BY confidence DESC LIMIT $2`,
         [searchTerm, Math.ceil(limit / 3)],
       );
       for (const r of proceduralRows) {
-        results.push({ content: r.trigger_pattern, similarity: parseFloat(String(r.confidence)) || 0.5, tier: 'procedural' });
+        results.push({ id: r.id, content: r.trigger_pattern, similarity: parseFloat(String(r.confidence)) || 0.5, tier: 'procedural' });
       }
 
       results.sort((a, b) => b.similarity - a.similarity);
@@ -880,6 +873,28 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
       }
 
       return reply.status(201).send({ id, tier, stored: true });
+    },
+  );
+
+  /**
+   * DELETE /api/v1/forge/memory/:id — Delete a memory by ID
+   * Searches all three tiers to find and remove it
+   */
+  app.delete(
+    '/api/v1/forge/memory/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      if (!id) return reply.status(400).send({ error: 'id required' });
+
+      let deleted = false;
+      for (const table of ['forge_semantic_memories', 'forge_episodic_memories', 'forge_procedural_memories']) {
+        const result = await query(`DELETE FROM ${table} WHERE id = $1 RETURNING id`, [id]);
+        if (result.length > 0) { deleted = true; break; }
+      }
+
+      if (!deleted) return reply.status(404).send({ error: 'Memory not found' });
+      return reply.send({ deleted: true, id });
     },
   );
 }
