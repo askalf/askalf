@@ -326,7 +326,7 @@ function BrainAnalytics() {
 
 function MemorySearch() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Array<{ content: string; similarity: number; tier: string }>>([]);
+  const [results, setResults] = useState<Array<{ id?: string; content: string; similarity: number; tier: string }>>([]);
   const [searching, setSearching] = useState(false);
   const [stats, setStats] = useState<{ total: number; semantic: number; episodic: number; procedural: number } | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -351,12 +351,22 @@ function MemorySearch() {
         body: JSON.stringify({ query: query.trim(), limit: 20 }),
       });
       if (res.ok) {
-        const data = await res.json() as { results?: Array<{ content: string; similarity: number; tier: string }> };
+        const data = await res.json() as { results?: Array<{ id?: string; content: string; similarity: number; tier: string }> };
         setResults(data.results ?? []);
       }
     } catch { /* ignore */ }
     setSearching(false);
   }, [query]);
+
+  const handleDelete = useCallback(async (id: string, idx: number) => {
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/v1/forge/memory/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        setResults(prev => prev.filter((_, i) => i !== idx));
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const tierLabel = (t: string) => t === 'semantic' ? 'Fact' : t === 'episodic' ? 'Experience' : t === 'procedural' ? 'Pattern' : t;
   const tierColor = (t: string) => t === 'semantic' ? '#7c3aed' : t === 'episodic' ? '#3b82f6' : t === 'procedural' ? '#10b981' : '#6b7280';
@@ -423,10 +433,18 @@ function MemorySearch() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>{results.length} memories found</div>
           {results.map((r, i) => (
-            <div key={i} style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', borderLeft: `3px solid ${tierColor(r.tier)}`, transition: 'border-color 0.2s' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <div key={r.id || i} style={{ padding: '12px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', borderLeft: `3px solid ${tierColor(r.tier)}`, transition: 'border-color 0.2s' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: tierColor(r.tier) }}>{tierLabel(r.tier)}</span>
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{(r.similarity * 100).toFixed(0)}% match</span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{(r.similarity * 100).toFixed(0)}% match</span>
+                  {r.id && (
+                    <button onClick={() => handleDelete(r.id!, i)} title="Delete this memory"
+                      style={{ padding: '2px 8px', background: 'transparent', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, color: '#ef4444', fontSize: '.65rem', cursor: 'pointer', opacity: 0.7 }}>
+                      Prune
+                    </button>
+                  )}
+                </div>
               </div>
               <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text)', lineHeight: 1.6 }}>{r.content}</p>
             </div>
