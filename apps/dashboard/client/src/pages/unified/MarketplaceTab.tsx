@@ -186,12 +186,18 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
     }
   }, []);
 
-  const handleExport = useCallback((pkg: MarketplacePackage) => {
-    const data = JSON.stringify({ type: typeFilter, name: pkg.name, description: pkg.description, tags: pkg.tags, author: pkg.author }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
+  const handleExport = useCallback(async (pkg: MarketplacePackage) => {
+    // Fetch full detail for complete export
+    let fullPkg = pkg;
+    try {
+      const detail = await hubApi.marketplace.detail(pkg.slug);
+      fullPkg = (detail as { package: MarketplacePackage }).package ?? pkg;
+    } catch { /* use basic pkg */ }
+    const exportData = { type: typeFilter, name: fullPkg.name, slug: (fullPkg as unknown as Record<string,string>).slug, description: fullPkg.description, tags: fullPkg.tags, author: fullPkg.author, config: (fullPkg as unknown as Record<string,unknown>).config || (fullPkg as unknown as Record<string,unknown>).install_config || {}, repository_url: (fullPkg as unknown as Record<string,string>).repo_url || (fullPkg as unknown as Record<string,string>).repository_url };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `${pkg.slug || pkg.name}.json`; a.click();
+    a.href = url; a.download = `${(fullPkg as unknown as Record<string,string>).slug || fullPkg.name}.json`; a.click();
     URL.revokeObjectURL(url);
   }, [typeFilter]);
 
