@@ -252,22 +252,50 @@ export default function TemplatesTab({
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [runMessage, setRunMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newCategory, setNewCategory] = useState('operations');
+  const [newDesc, setNewDesc] = useState('');
+  const [newPrompt, setNewPrompt] = useState('');
+  const [newTools, setNewTools] = useState('');
   const importRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const fetchTemplates = async () => {
-      try {
-        const data = await hubApi.templates.list();
-        setTemplates(data.templates as Template[]);
-        setCategories(data.categories as Record<string, Template[]>);
-      } catch (err) {
-        console.error('Failed to fetch templates:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTemplates();
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const data = await hubApi.templates.list();
+      setTemplates(data.templates as Template[]);
+      setCategories(data.categories as Record<string, Template[]>);
+    } catch (err) {
+      console.error('Failed to fetch templates:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+
+  const handleCreateTemplate = useCallback(async () => {
+    if (!newName.trim() || !newPrompt.trim()) return;
+    try {
+      const res = await fetch('/api/v1/forge/marketplace/import', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'worker_template', name: newName.trim(), category: newCategory,
+          description: newDesc.trim(), system_prompt: newPrompt.trim(),
+          tools: newTools.split(',').map(t => t.trim()).filter(Boolean),
+          model: 'claude-sonnet-4-6',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to save template');
+      setRunMessage({ type: 'success', text: `Template "${newName}" saved` });
+      setNewName(''); setNewDesc(''); setNewPrompt(''); setNewTools(''); setShowCreate(false);
+      fetchTemplates();
+    } catch (err) {
+      setRunMessage({ type: 'error', text: err instanceof Error ? err.message : 'Save failed' });
+    }
+    setTimeout(() => setRunMessage(null), 4000);
+  }, [newName, newCategory, newDesc, newPrompt, newTools, fetchTemplates]);
 
   const handleUse = useCallback((template: Template) => {
     if (onUseTemplate) {
@@ -401,10 +429,39 @@ export default function TemplatesTab({
             <button className="tmpl-import-btn" onClick={() => importRef.current?.click()} title="Import a single template or a bundle (.json)">
               Import
             </button>
+            <button className="tmpl-import-btn" onClick={() => setShowCreate(!showCreate)} style={{ background: showCreate ? 'var(--surface)' : '#7c3aed', color: showCreate ? 'var(--text)' : '#fff', fontWeight: 600 }}>
+              {showCreate ? 'Cancel' : '+ Template'}
+            </button>
             <input ref={importRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
           </div>
         </div>
         <p>Pre-built worker templates — run instantly or customize for your needs</p>
+
+        {showCreate && (
+          <div style={{ padding: '14px', margin: '12px 0', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ fontSize: '.85rem', fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>Create Template</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Template name"
+                  style={{ flex: 2, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem' }} />
+                <select value={newCategory} onChange={e => setNewCategory(e.target.value)}
+                  style={{ flex: 1, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem' }}>
+                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Description"
+                style={{ padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem' }} />
+              <textarea value={newPrompt} onChange={e => setNewPrompt(e.target.value)} placeholder="System prompt — what should this worker do?"
+                rows={4} style={{ padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem', fontFamily: 'inherit', resize: 'vertical' }} />
+              <input value={newTools} onChange={e => setNewTools(e.target.value)} placeholder="Tools (comma-separated): web_search, memory_store, ticket_ops"
+                style={{ padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.82rem' }} />
+              <button onClick={handleCreateTemplate} disabled={!newName.trim() || !newPrompt.trim()}
+                style={{ alignSelf: 'flex-start', padding: '6px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: '.82rem', cursor: 'pointer' }}>
+                Save Template
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Recently Used */}
