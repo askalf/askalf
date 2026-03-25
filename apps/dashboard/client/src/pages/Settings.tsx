@@ -1579,7 +1579,7 @@ function CostControlsTab() {
   const [spentThisMonth, setSpentThisMonth] = useState(0);
   const [topWorkers, setTopWorkers] = useState<Array<{ name: string; cost: number; executions: number }>>([]);
   const [workerBudgets, setWorkerBudgets] = useState<Record<string, string>>({});
-  const [agents, setAgents] = useState<Array<{ id: string; name: string; budget_limit: number | null }>>([]);
+  const [agents, setAgents] = useState<Array<{ id: string; name: string; cost_budget_daily: number | null }>>([]);
 
   useEffect(() => {
     fetchAll();
@@ -1604,11 +1604,11 @@ function CostControlsTab() {
         setTopWorkers((data.byAgent || []).sort((a, b) => b.cost - a.cost).slice(0, 10));
       }
       if (agentRes.ok) {
-        const data = await agentRes.json() as { agents: Array<{ id: string; name: string; budget_limit: number | null }> };
+        const data = await agentRes.json() as { agents: Array<{ id: string; name: string; cost_budget_daily: number | null }> };
         setAgents(data.agents || []);
         const budgets: Record<string, string> = {};
         for (const a of (data.agents || [])) {
-          if (a.budget_limit !== null) budgets[a.id] = String(a.budget_limit);
+          if (a.cost_budget_daily !== null) budgets[a.id] = String(a.cost_budget_daily);
         }
         setWorkerBudgets(budgets);
       }
@@ -1685,7 +1685,7 @@ function CostControlsTab() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ budget_limit: limit }),
+        body: JSON.stringify({ cost_budget_daily: limit }),
       });
       if (res.ok) {
         setMessage({ type: 'success', text: 'Worker budget updated' });
