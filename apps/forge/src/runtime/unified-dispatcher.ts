@@ -190,6 +190,15 @@ export class UnifiedDispatcher {
         return;
       }
 
+      // Global budget enforcement — check daily + monthly limits from user preferences
+      const globalBudgetBlock = await this.checkGlobalBudget();
+      if (globalBudgetBlock) {
+        if (this.tickCount % 10 === 0) {
+          console.log(`[Dispatcher] Heartbeat #${this.tickCount} — global ${globalBudgetBlock.period} budget exceeded: $${globalBudgetBlock.spent.toFixed(2)} / $${globalBudgetBlock.limit.toFixed(2)}`);
+        }
+        return;
+      }
+
       // Count in-flight executions
       const inFlightCounts = await query<{ agent_id: string; cnt: string }>(
         `SELECT agent_id, COUNT(*)::text as cnt FROM forge_executions WHERE status IN ('running', 'pending') GROUP BY agent_id`,
@@ -538,6 +547,44 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
       [agent.id],
     );
     console.log(`[Dispatcher] AUTO-PAUSED ${agent.name} — daily cost budget exceeded`);
+  }
+
+  /**
+   * Check global daily + monthly budget limits from user preferences.
+   * Returns the exceeded budget info, or null if within limits.
+   */
+  private async checkGlobalBudget(): Promise<{ period: string; spent: number; limit: number } | null> {
+    try {
+      const prefs = await queryOne<{ budget_limit_daily: string | null; budget_limit_monthly: string | null }>(
+        `SELECT budget_limit_daily, budget_limit_monthly FROM forge_preferences WHERE user_id = 'selfhosted-admin' LIMIT 1`,
+      );
+      if (!prefs) return null;
+
+      // Check daily limit
+      if (prefs.budget_limit_daily) {
+        const dailyLimit = parseFloat(prefs.budget_limit_daily);
+        if (!isNaN(dailyLimit) && dailyLimit > 0) {
+          const row = await queryOne<{ total: string }>(
+            `SELECT COALESCE(SUM(cost), 0)::text AS total FROM forge_cost_events WHERE created_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC')`,
+          );
+          const spent = parseFloat(row?.total ?? '0') || 0;
+          if (spent >= dailyLimit) return { period: 'daily', spent, limit: dailyLimit };
+        }
+      }
+
+      // Check monthly limit
+      if (prefs.budget_limit_monthly) {
+        const monthlyLimit = parseFloat(prefs.budget_limit_monthly);
+        if (!isNaN(monthlyLimit) && monthlyLimit > 0) {
+          const row = await queryOne<{ total: string }>(
+            `SELECT COALESCE(SUM(cost), 0)::text AS total FROM forge_cost_events WHERE created_at >= DATE_TRUNC('month', NOW() AT TIME ZONE 'UTC')`,
+          );
+          const spent = parseFloat(row?.total ?? '0') || 0;
+          if (spent >= monthlyLimit) return { period: 'monthly', spent, limit: monthlyLimit };
+        }
+      }
+    } catch { /* preferences table may not exist yet */ }
+    return null;
   }
 
   private async dispatchExecution(
