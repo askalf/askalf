@@ -1600,7 +1600,7 @@ function CostControlsTab() {
     try {
       const [budgetRes, costRes, agentRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/forge/user-budget`, { credentials: 'include' }),
-        fetch(`${API_BASE}/api/v1/forge/costs/summary`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/v1/admin/costs/summary`, { credentials: 'include' }),
         fetch(`${API_BASE}/api/v1/forge/agents`, { credentials: 'include' }),
       ]);
       if (budgetRes.ok) {
