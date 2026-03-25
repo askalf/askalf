@@ -402,10 +402,9 @@ services:
       HTTPPROXY: "on"
       HTTPPROXY_LISTENING_ADDRESS: ":8888"
       HTTPPROXY_STEALTH: "on"
-      # DNS leak protection
+      # DNS leak protection — uses internal DoT resolver
       DOT: "on"
       DOT_PROVIDERS: cloudflare,quad9
-      DNS_ADDRESS: 1.1.1.1
       # Security
       BLOCK_MALICIOUS: "on"
       BLOCK_ADS: "on"
@@ -472,7 +471,7 @@ services:
       # Note: OLLAMA_NO_CLOUD blocks registry pulls — leave disabled
       OLLAMA_NOPRUNE: "false"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:11434/api/tags || exit 1"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 3
