@@ -470,7 +470,7 @@ interface OAuthHealth {
 const AI_PROVIDERS = [
   { type: 'anthropic', name: 'Anthropic', desc: 'Claude models — powers Claude Code terminal + agent executions', prefix: 'sk-ant-' },
   { type: 'openai', name: 'OpenAI', desc: 'GPT models — powers Codex terminal, semantic memory embeddings, and chat fallback', prefix: 'sk-' },
-  { type: 'ollama', name: 'Ollama', desc: 'Local models — Llama, Mistral, Phi, Qwen, CodeLlama, and more. No API key needed.', prefix: '' },
+  { type: 'ollama', name: 'Ollama', desc: 'Local models — DeepSeek R1, Llama 3.2, Qwen 3, Gemma 3, Phi 4, Mistral. No API key needed.', prefix: '' },
   { type: 'xai', name: 'xAI', desc: 'Grok models', prefix: '' },
   { type: 'deepseek', name: 'DeepSeek', desc: 'DeepSeek models', prefix: '' },
 ];
@@ -3511,7 +3511,7 @@ function OllamaManager() {
   if (loading) return null;
   if (!data) return null;
 
-  const popularModels = ['llama3:8b', 'llama3:70b', 'mistral:7b', 'mixtral:8x7b', 'codellama:13b', 'phi3:mini', 'qwen2:7b', 'gemma2:9b'];
+  const popularModels = ['deepseek-r1:7b', 'deepseek-r1:14b', 'llama3.2:3b', 'llama3.1:8b', 'qwen3:8b', 'qwen2.5-coder:7b', 'gemma3:4b', 'phi4:14b', 'mistral:7b'];
 
   return (
     <div style={{ marginTop: 16 }}>
@@ -3538,7 +3538,7 @@ function OllamaManager() {
             <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
               <input value={pullModel} onChange={e => setPullModel(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handlePull(); }}
-                placeholder="Model name (e.g., llama3:8b)"
+                placeholder="Model name (e.g., deepseek-r1:7b, qwen3:8b)"
                 style={{ flex: 1, padding: '8px 12px', background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }} />
               <button onClick={handlePull} disabled={pulling || !pullModel.trim()}
                 style={{ padding: '8px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', opacity: !pullModel.trim() ? 0.4 : 1 }}>
