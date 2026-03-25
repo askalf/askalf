@@ -7,7 +7,7 @@ const GraphTab = lazy(() => import('./GraphTab'));
 
 // ── Types ──
 
-type SubTab = 'search' | 'teach' | 'browse' | 'graph' | 'analytics';
+type SubTab = 'search' | 'teach' | 'browse' | 'analytics';
 
 interface BrainCycle {
   cycle: string;
@@ -590,8 +590,7 @@ export default function BrainTab() {
           { key: 'search', label: 'Ask' },
           { key: 'teach', label: 'Teach Alf' },
           { key: 'browse', label: 'Browse' },
-          { key: 'graph', label: 'Graph' },
-          { key: 'analytics', label: 'Analytics' },
+          { key: 'analytics', label: 'Advanced' },
         ]}
         active={subTab}
         onChange={(k) => setSubTab(k as SubTab)}
@@ -603,8 +602,18 @@ export default function BrainTab() {
           {subTab === 'search' && <MemorySearch />}
           {subTab === 'teach' && <TeachAlf />}
           {subTab === 'browse' && <MemoryBrowserTab />}
-          {subTab === 'graph' && <GraphTab />}
-          {subTab === 'analytics' && <BrainAnalytics />}
+          {subTab === 'analytics' && (
+            <div>
+              <BrainAnalytics />
+              <div style={{ marginTop: 24, padding: '16px 0', borderTop: '1px solid var(--border)' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 8px' }}>Knowledge Graph</h3>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+                  {773} nodes &middot; {1397} edges &middot; Visual map of how agents, tools, and knowledge connect
+                </p>
+                <GraphTab />
+              </div>
+            </div>
+          )}
         </Suspense>
       </div>
     </div>
