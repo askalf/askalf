@@ -127,7 +127,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       MARKETPLACE_URL: ${MARKETPLACE_URL:-}
       # Channel integrations
       CHANNEL_ENCRYPTION_KEY: ${CHANNEL_ENCRYPTION_KEY:-}
@@ -446,6 +446,46 @@ services:
           memory: 64M
 
   # ===========================================
+  # OLLAMA — Local LLM inference (GPU accelerated)
+  # Run models like Llama, Mistral, Phi, Qwen, CodeLlama locally
+  # No API keys needed. Models download on first use.
+  # ===========================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: askalf-ollama
+    labels:
+      - "autoheal-askalf=true"
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    # GPU acceleration: uncomment reservations below if nvidia-container-toolkit is working
+    # To test: docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        #reservations:
+        #  devices:
+        #    - driver: nvidia
+        #      count: all
+        #      capabilities: [gpu]
+
+  # ===========================================
   # AUTOHEAL — auto-restart unhealthy containers
   # Monitors all containers with autoheal-askalf label.
   # If a container fails its healthcheck, Autoheal restarts it.
@@ -491,6 +531,8 @@ volumes:
     name: askalf_claude_home
   codex_home:
     name: askalf_codex_home
+  ollama_data:
+    name: askalf_ollama_data
 
 networks:
   askalf-net:
