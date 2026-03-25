@@ -31,7 +31,12 @@
     "node": ">=22.0.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/askalf"
   },
   "dependencies": {
     "ws": "^8.20.0"
