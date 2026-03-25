@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { hubApi } from '../../hooks/useHubApi';
-import type { MarketplacePackage, CommunitySkill } from '../../hooks/useHubApi';
+import type { MarketplacePackage } from '../../hooks/useHubApi';
 import TabBar from '../../components/TabBar';
 import './MarketplaceTab.css';
 
@@ -284,7 +284,7 @@ function SubmitPackage() {
   );
 }
 
-// ── Community Skill Card ──
+/*
 
 const COMMUNITY_CATEGORIES: Record<string, string> = {
   personal: 'Personal', content: 'Content', marketing: 'Marketing', support: 'Support',
@@ -526,35 +526,12 @@ function CommunitySkillsBrowser() {
     </div>
   );
 }
+*/
 
-// ── Templates Section (Built-in + Community toggle) ──
-
-type TemplateView = 'builtin' | 'community';
+// ── Templates Section ──
 
 function TemplatesSection() {
-  const [view, setView] = useState<TemplateView>('builtin');
-
-  return (
-    <div>
-      <div className="mp-community-toggle-bar">
-        <button
-          className={`mp-community-toggle-btn ${view === 'builtin' ? 'active' : ''}`}
-          onClick={() => setView('builtin')}
-        >
-          Built-in Templates
-        </button>
-        <button
-          className={`mp-community-toggle-btn ${view === 'community' ? 'active' : ''}`}
-          onClick={() => setView('community')}
-        >
-          Community Skills
-        </button>
-      </div>
-      <Suspense fallback={<div className="mp-loading">Loading...</div>}>
-        {view === 'builtin' ? <TemplatesTab /> : <CommunitySkillsBrowser />}
-      </Suspense>
-    </div>
-  );
+  return <TemplatesTab />;
 }
 
 // ── Main Marketplace ──
@@ -569,7 +546,7 @@ export default function MarketplaceTab() {
           { key: 'templates', label: 'Worker Templates' },
           { key: 'tools', label: 'Tool Bundles' },
           { key: 'servers', label: 'MCP Servers' },
-          { key: 'submit', label: 'Submit' },
+          { key: 'submit', label: 'Import' },
         ]}
         active={section}
         onChange={k => setSection(k as MarketSection)}
