@@ -3312,8 +3312,8 @@ function InfrastructureTab() {
           { name: 'PostgreSQL', status: infra?.postgres.status || 'unknown', detail: infra?.postgres.size || 'Database', icon: '\u{1F4BE}' },
           { name: 'Redis', status: infra?.redis.status || 'unknown', detail: 'Cache & Events', icon: '\u{26A1}' },
           { name: 'SearXNG', status: infra?.searxng.status || 'unknown', detail: infra?.searxng.engineCount ? `${infra.searxng.engineCount} engines` : 'Search', icon: '\u{1F50D}' },
-          { name: 'Autoheal', status: infra?.autoheal.status || 'unknown', detail: infra?.autoheal.containersMonitored ? `${infra.autoheal.containersMonitored} containers` : 'Recovery', icon: '\u{1F3E5}' },
-          { name: 'VPN', status: infra?.vpn.status || 'disabled', detail: infra?.vpn.provider || 'Not configured', icon: '\u{1F510}' },
+          { name: 'Autoheal', status: infra?.autoheal.enabled ? (infra?.autoheal.status || 'unknown') : 'disabled', detail: infra?.autoheal.enabled ? (infra?.autoheal.containersMonitored ? `${infra.autoheal.containersMonitored} containers` : 'Recovery') : 'Optional', icon: '\u{1F3E5}' },
+          { name: 'VPN', status: infra?.vpn.enabled ? (infra?.vpn.status || 'unknown') : 'disabled', detail: infra?.vpn.enabled ? (infra?.vpn.provider || 'Enabled') : 'Optional', icon: '\u{1F510}' },
         ].map(svc => (
           <div key={svc.name} style={{ padding: '14px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, borderLeft: `3px solid ${statusColor(svc.status)}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -3333,7 +3333,7 @@ function InfrastructureTab() {
           <div className="settings-provider-info">
             <span className="settings-provider-name">VPN Tunneling (Gluetun)</span>
             <span className="settings-provider-desc">
-              Route all outbound worker traffic through an encrypted VPN tunnel.
+              Route all outbound worker traffic through an encrypted VPN tunnel. Optional.
               {infra?.vpn.publicIp && <> Current IP: <strong style={{ color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{infra.vpn.publicIp}</strong></>}
             </span>
           </div>
@@ -3416,17 +3416,22 @@ function InfrastructureTab() {
       </div>
 
       {/* Autoheal Section */}
-      <div className="settings-provider-card" style={{ borderLeft: `3px solid ${statusColor(infra?.autoheal.status || 'unknown')}`, marginTop: 10 }}>
+      <div className="settings-provider-card" style={{ borderLeft: `3px solid ${infra?.autoheal.enabled ? statusColor(infra?.autoheal.status || 'unknown') : '#6b7280'}`, marginTop: 10 }}>
         <div className="settings-provider-header">
           <div className="settings-provider-info">
             <span className="settings-provider-name">Autoheal</span>
-            <span className="settings-provider-desc">Automatic container recovery — restarts failed containers when health checks fail</span>
+            <span className="settings-provider-desc">Automatic container recovery — restarts failed containers when health checks fail. Optional.</span>
           </div>
-          <div className="settings-provider-status">
-            <span className={`settings-provider-badge ${infra?.autoheal.status === 'healthy' ? 'settings-provider-active' : 'settings-provider-inactive'}`}>
-              {infra?.autoheal.containersMonitored ? `${infra.autoheal.containersMonitored} monitored` : statusLabel(infra?.autoheal.status || 'unknown')}
+          <div className="settings-provider-status" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span className={`settings-provider-badge ${infra?.autoheal.enabled && infra?.autoheal.status === 'healthy' ? 'settings-provider-active' : 'settings-provider-inactive'}`}>
+              {infra?.autoheal.enabled ? (infra?.autoheal.containersMonitored ? `${infra.autoheal.containersMonitored} monitored` : statusLabel(infra?.autoheal.status || 'unknown')) : 'Disabled'}
             </span>
           </div>
+        </div>
+        <div className="settings-provider-actions">
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            {infra?.autoheal.enabled ? 'Running — to disable, remove the autoheal container from docker-compose' : 'Not running — enable in docker-compose to auto-restart failed containers'}
+          </span>
         </div>
       </div>
 
