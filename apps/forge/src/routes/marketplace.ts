@@ -132,7 +132,14 @@ export async function marketplaceRoutes(app: FastifyInstance): Promise<void> {
 
       const total = parseInt(countResult[0]?.count ?? '0', 10);
 
-      return reply.send({ packages, total, limit, offset });
+      // Map DB columns to UI-expected field names
+      const mapped = packages.map(p => ({
+        ...p,
+        author: p.author_name || 'AskAlf',
+        type: p.package_type,
+      }));
+
+      return reply.send({ packages: mapped, total, limit, offset });
     },
   );
 
@@ -165,7 +172,7 @@ export async function marketplaceRoutes(app: FastifyInstance): Promise<void> {
         [pkg.id],
       );
 
-      return reply.send({ package: pkg, ratings });
+      return reply.send({ package: { ...pkg, author: pkg.author_name || 'AskAlf', type: pkg.package_type }, ratings });
     },
   );
 
