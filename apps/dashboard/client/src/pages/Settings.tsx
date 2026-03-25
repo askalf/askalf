@@ -1600,8 +1600,12 @@ function CostControlsTab() {
         setSpentThisMonth(data.spentThisMonth);
       }
       if (costRes.ok) {
-        const data = await costRes.json() as { byAgent?: Array<{ name: string; cost: number; executions: number }> };
-        setTopWorkers((data.byAgent || []).sort((a, b) => b.cost - a.cost).slice(0, 10));
+        const data = await costRes.json() as { byAgent?: Array<{ agentName?: string; name?: string; totalCost?: number; cost?: number; eventCount?: number; executions?: number }> };
+        setTopWorkers((data.byAgent || []).map(a => ({
+          name: a.agentName || a.name || 'Unknown',
+          cost: a.totalCost ?? a.cost ?? 0,
+          executions: a.eventCount ?? a.executions ?? 0,
+        })).sort((a, b) => b.cost - a.cost).slice(0, 10));
       }
       if (agentRes.ok) {
         const data = await agentRes.json() as { agents: Array<{ id: string; name: string; cost_budget_daily: number | null }> };
