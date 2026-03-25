@@ -1699,34 +1699,7 @@ fastify.post('/api/user/connectors/preferences', async (request, reply) => {
   return { success: true };
 });
 
-// Update profile
-fastify.patch('/api/user/profile', async (request, reply) => {
-  const user = await getAdminUser();
-  if (!user) {
-    reply.status(401);
-    return { error: 'Not authenticated' };
-  }
-
-  const { name, displayName } = request.body || {};
-  const updates = [];
-  const values = [];
-  let idx = 1;
-  if (name !== undefined) {
-    updates.push(`name = $${idx++}`);
-    values.push(name);
-  }
-  if (displayName !== undefined) {
-    updates.push(`display_name = $${idx++}`);
-    values.push(displayName);
-  }
-  if (updates.length > 0) {
-    updates.push('updated_at = NOW()');
-    values.push(user.id);
-    await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, values);
-  }
-
-  return { success: true };
-});
+// Profile update handled by self-hosted route above
 
 // Change password
 fastify.post('/api/user/password', async (request, reply) => {
