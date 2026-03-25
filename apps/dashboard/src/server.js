@@ -1143,6 +1143,16 @@ fastify.get('/api/user/me', async (request, reply) => {
 });
 
 
+// Update user profile (self-hosted — updates cached admin)
+fastify.patch('/api/user/profile', async (request, reply) => {
+  const user = await getAdminUser();
+  if (!user) return reply.code(401).send({ error: 'Not authenticated' });
+  const { name, displayName } = request.body || {};
+  if (name) user.name = name;
+  if (displayName) user.display_name = displayName;
+  return { success: true };
+});
+
 // Get user stats
 fastify.get('/api/user/stats', async (request, reply) => {
   const user = await getAdminUser();
@@ -2434,45 +2444,27 @@ fastify.get('/api/v1/auth/me', async (request, reply) => {
 
 
 // ===========================================
-// FORGE API PROXY — forward forge routes
-// In production, nginx handles this. In self-hosted
-// mode (no nginx), dashboard must proxy these.
+// FORGE API PROXY
+// All /api/v1/forge/*, /api/v1/admin/*, /api/v1/integrations/* routes
+// that aren't handled by dashboard go to forge.
+// Dashboard-local routes (auth, user, projects, infrastructure) are
+// registered above and take priority.
 // ===========================================
-for (const prefix of ['/api/v1/forge/', '/api/v1/integrations/', '/api/v1/terminal/']) {
-  for (const method of ['get', 'post', 'put', 'delete', 'patch']) {
-    fastify[method](`${prefix}*`, (req, reply) => {
-      const path = req.url.split('?')[0];
-      const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-      return proxyToForge(req, reply, path + qs);
-    });
-  }
-}
-
-
-// ===========================================
-// SPA FALLBACK - Serve index.html for client routes
-// ===========================================
-
-// Explicit proxy for admin API routes that forge handles
-for (const method of ['get', 'post', 'put', 'delete', 'patch']) {
-  for (const path of ['/api/v1/admin/audit', '/api/v1/admin/agents', '/api/v1/admin/agents/*', '/api/v1/admin/executions', '/api/v1/admin/executions/*', '/api/v1/admin/costs', '/api/v1/admin/costs/*', '/api/v1/admin/monitoring/*', '/api/v1/admin/retention-cleanup']) {
-    try {
-      fastify[method](path, (req, reply) => proxyToForge(req, reply, req.url));
-    } catch { /* route may already exist */ }
-  }
-}
-
-// Catch-all for React Router (must be after all API routes)
 fastify.setNotFoundHandler((request, reply) => {
-  // Proxy unhandled /api/v1/admin/ routes to forge
-  if (request.url.startsWith('/api/v1/admin/')) {
-    return proxyToForge(request, reply, request.url);
+  // Proxy to forge: forge/admin/integrations/mcp routes
+  const url = request.url;
+  if (url.startsWith('/api/v1/forge/') || url.startsWith('/api/v1/forge?') ||
+      url.startsWith('/api/v1/admin/') || url.startsWith('/api/v1/admin?') ||
+      url.startsWith('/api/v1/integrations') ||
+      url.startsWith('/api/v1/terminal/') ||
+      url.startsWith('/api/v1/mcp/')) {
+    return proxyToForge(request, reply, url);
   }
   // Other unhandled API routes → 404
-  if (request.url.startsWith('/api/') || request.url.startsWith('/ws')) {
+  if (url.startsWith('/api/') || url.startsWith('/ws')) {
     return reply.code(404).send({ error: 'Not found' });
   }
-  // For all other routes, serve React app
+  // SPA fallback — serve React app for client routes
   return reply.sendFile('index.html');
 });
 
