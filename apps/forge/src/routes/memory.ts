@@ -773,7 +773,7 @@ export async function memoryRoutes(app: FastifyInstance): Promise<void> {
       if (!q) return reply.status(400).send({ error: 'query parameter required' });
 
       const limit = Math.min(body?.limit ?? 20, 100);
-      const results: Array<{ content: string; similarity: number; tier: string }> = [];
+      const results: Array<{ id?: string; content: string; similarity: number; tier: string }> = [];
 
       // Semantic memories: vector similarity search via pgvector
       const embedding = await generateEmbedding(q);
