@@ -459,6 +459,18 @@ services:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama_data:/root/.ollama
+    environment:
+      # Performance tuning
+      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-2}"
+      OLLAMA_MAX_LOADED_MODELS: "${OLLAMA_MAX_LOADED_MODELS:-2}"
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
+      OLLAMA_MAX_QUEUE: "256"
+      OLLAMA_FLASH_ATTENTION: "true"
+      # Allow connections from forge and dashboard
+      OLLAMA_ORIGINS: "http://forge:3005,http://dashboard:3001,http://localhost:*,http://127.0.0.1:*"
+      OLLAMA_HOST: "0.0.0.0:11434"
+      # Note: OLLAMA_NO_CLOUD blocks registry pulls — leave disabled
+      OLLAMA_NOPRUNE: "false"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:11434/api/tags || exit 1"]
       interval: 30s
@@ -468,6 +480,7 @@ services:
     networks:
       - askalf-net
     restart: unless-stopped
+    stop_grace_period: 30s
     logging:
       driver: json-file
       options:
@@ -479,6 +492,7 @@ services:
       resources:
         limits:
           memory: 8G
+          cpus: '4.0'
         #reservations:
         #  devices:
         #    - driver: nvidia
