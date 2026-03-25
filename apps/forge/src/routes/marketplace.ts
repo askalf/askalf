@@ -513,209 +513,55 @@ export async function marketplaceRoutes(app: FastifyInstance): Promise<void> {
   );
 
   // ============================================
-  // CENTRAL MARKETPLACE BRIDGE
-  // Opt-in: requires MARKETPLACE_URL env var (set during onboarding, changeable in settings)
-  // Self-hosted instances submit to central, central handles review/approval
+  // COMMUNITY MARKETPLACE
+  // Browse & download from askalf.org/marketplace
+  // Import templates/bundles locally via JSON import
   // ============================================
 
-  const MARKETPLACE_URL = process.env['MARKETPLACE_URL'] || '';
-  const MARKETPLACE_ADMIN_SECRET = process.env['MARKETPLACE_ADMIN_SECRET'] || '';
-
   /**
-   * GET /api/v1/forge/marketplace/central/status — Check if central marketplace is enabled
-   */
-  app.get(
-    '/api/v1/forge/marketplace/central/status',
-    { preHandler: [authMiddleware] },
-    async () => ({
-      enabled: !!MARKETPLACE_URL,
-      url: MARKETPLACE_URL || null,
-    }),
-  );
-
-  /**
-   * POST /api/v1/forge/marketplace/central/submit — Submit a skill/package to the central marketplace
-   * Forwards the submission to askalf.org marketplace API for review
+   * POST /api/v1/forge/marketplace/import — Import a template/bundle from JSON
+   * Users download from askalf.org/marketplace, then import here
    */
   app.post(
-    '/api/v1/forge/marketplace/central/submit',
+    '/api/v1/forge/marketplace/import',
     { preHandler: [authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      if (!MARKETPLACE_URL) {
-        return reply.code(400).send({ error: 'Central marketplace not enabled. Enable community marketplace in Settings to submit skills.' });
-      }
-
       const body = request.body as Record<string, unknown>;
-      const { name, category, description, system_prompt, tools, model, submission_type, config: pkgConfig, repository_url } = body;
+      const importType = (body['type'] as string) || 'worker_template';
 
-      if (!name || !category) {
-        return reply.code(400).send({ error: 'name and category are required' });
-      }
-
-      const submissionType = (submission_type as string) || 'worker_template';
-      if (submissionType === 'worker_template' && !system_prompt) {
-        return reply.code(400).send({ error: 'system_prompt is required for worker templates' });
-      }
-
-      try {
-        const res = await fetch(`${MARKETPLACE_URL}/api/marketplace/submit`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            slug: (name as string).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 80),
-            category,
-            description: description || '',
-            system_prompt: system_prompt || null,
-            tools: tools || [],
-            model: model || 'claude-sonnet-4-6',
-            submission_type: submissionType,
-            config: pkgConfig || null,
-            repository_url: repository_url || null,
-            author_name: (body.author_name as string) || 'Community',
-            author_email: (body.author_email as string) || null,
-            instance_url: process.env['DASHBOARD_URL'] || 'self-hosted',
-          }),
-          signal: AbortSignal.timeout(15_000),
-        });
-
-        const data = await res.json() as Record<string, unknown>;
-
-        if (!res.ok) {
-          return reply.code(res.status).send(data);
+      if (importType === 'worker_template') {
+        const { name, category, description, system_prompt, tools, model } = body;
+        if (!name || !system_prompt) {
+          return reply.code(400).send({ error: 'name and system_prompt are required for worker templates' });
         }
-
-        // Log the submission locally for tracking
-        void logAudit({
-          ownerId: request.userId || 'admin',
-          action: 'marketplace.submitted',
-          resourceType: 'marketplace_submission',
-          resourceId: data.id as string,
-          details: { name, category, submissionType, status: data.status },
-        }).catch(() => {});
-
-        return reply.send({
-          id: data.id,
-          status: data.status,
-          message: data.message || 'Submitted to community marketplace for review',
-        });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        return reply.code(502).send({ error: `Failed to reach central marketplace: ${msg}` });
-      }
-    },
-  );
-
-  /**
-   * GET /api/v1/forge/marketplace/central/submissions — Check status of your submissions
-   */
-  app.get(
-    '/api/v1/forge/marketplace/central/submissions',
-    { preHandler: [authMiddleware] },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
-      if (!MARKETPLACE_URL || !MARKETPLACE_ADMIN_SECRET) {
-        return reply.send({ submissions: [], enabled: !!MARKETPLACE_URL });
+        const id = ulid();
+        const slug = (name as string).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 80);
+        await query(
+          `INSERT INTO forge_agent_templates (id, name, slug, category, description, icon, agent_config, required_tools, source, visibility, approved, downloads, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, '🌐', $6, $7, 'imported', 'public', true, 0, NOW(), NOW())
+           ON CONFLICT (slug) DO UPDATE SET agent_config = $6, updated_at = NOW()`,
+          [id, name, slug, category || 'operations', description || '', JSON.stringify({ system_prompt, model: model || 'claude-sonnet-4-6' }), tools || []],
+        );
+        void logAudit({ ownerId: request.userId || 'admin', action: 'marketplace.imported', resourceType: 'template', resourceId: id, details: { name, slug } }).catch(() => {});
+        return reply.status(201).send({ id, slug, message: 'Template imported successfully' });
       }
 
-      try {
-        const res = await fetch(`${MARKETPLACE_URL}/api/marketplace/admin/queue`, {
-          headers: { 'X-Admin-Secret': MARKETPLACE_ADMIN_SECRET },
-          signal: AbortSignal.timeout(10_000),
-        });
-        if (!res.ok) return reply.send({ submissions: [], error: `Central returned ${res.status}` });
-        const data = await res.json() as { submissions: unknown[] };
-        return reply.send(data);
-      } catch {
-        return reply.send({ submissions: [], error: 'Central marketplace unreachable' });
+      if (importType === 'tool_bundle' || importType === 'mcp_server') {
+        const { name, description, config: pkgConfig, repository_url, tags } = body;
+        if (!name) return reply.code(400).send({ error: 'name is required' });
+        const id = ulid();
+        const slug = (name as string).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 80);
+        await query(
+          `INSERT INTO marketplace_packages (id, slug, name, description, package_type, config, repository_url, tags, status, author_name, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'published', 'Imported', NOW(), NOW())
+           ON CONFLICT (slug) DO UPDATE SET config = $6, updated_at = NOW()`,
+          [id, slug, name, description || '', importType, JSON.stringify(pkgConfig || {}), repository_url || null, tags || []],
+        );
+        void logAudit({ ownerId: request.userId || 'admin', action: 'marketplace.imported', resourceType: importType, resourceId: id, details: { name, slug } }).catch(() => {});
+        return reply.status(201).send({ id, slug, message: `${importType === 'tool_bundle' ? 'Tool bundle' : 'MCP server'} imported successfully` });
       }
-    },
-  );
 
-  /**
-   * POST /api/v1/forge/marketplace/central/review/:id/approve — Approve a submission on central
-   */
-  app.post(
-    '/api/v1/forge/marketplace/central/review/:id/approve',
-    { preHandler: [authMiddleware] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      if (!MARKETPLACE_URL || !MARKETPLACE_ADMIN_SECRET) {
-        return reply.code(400).send({ error: 'Central marketplace not configured' });
-      }
-      const { id } = request.params as { id: string };
-      try {
-        const res = await fetch(`${MARKETPLACE_URL}/api/marketplace/admin/${id}/approve`, {
-          method: 'POST',
-          headers: { 'X-Admin-Secret': MARKETPLACE_ADMIN_SECRET },
-          signal: AbortSignal.timeout(10_000),
-        });
-        const data = await res.json();
-        void logAudit({
-          ownerId: request.userId || 'admin',
-          action: 'marketplace.approved',
-          resourceType: 'marketplace_submission',
-          resourceId: id,
-        }).catch(() => {});
-        return reply.code(res.status).send(data);
-      } catch {
-        return reply.code(502).send({ error: 'Failed to reach central marketplace' });
-      }
-    },
-  );
-
-  /**
-   * POST /api/v1/forge/marketplace/central/review/:id/reject — Reject a submission on central
-   */
-  app.post(
-    '/api/v1/forge/marketplace/central/review/:id/reject',
-    { preHandler: [authMiddleware] },
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      if (!MARKETPLACE_URL || !MARKETPLACE_ADMIN_SECRET) {
-        return reply.code(400).send({ error: 'Central marketplace not configured' });
-      }
-      const { id } = request.params as { id: string };
-      const body = request.body as { reason?: string };
-      try {
-        const res = await fetch(`${MARKETPLACE_URL}/api/marketplace/admin/${id}/reject`, {
-          method: 'POST',
-          headers: { 'X-Admin-Secret': MARKETPLACE_ADMIN_SECRET, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: body?.reason || 'Rejected by admin' }),
-          signal: AbortSignal.timeout(10_000),
-        });
-        const data = await res.json();
-        void logAudit({
-          ownerId: request.userId || 'admin',
-          action: 'marketplace.rejected',
-          resourceType: 'marketplace_submission',
-          resourceId: id,
-          details: { reason: body?.reason },
-        }).catch(() => {});
-        return reply.code(res.status).send(data);
-      } catch {
-        return reply.code(502).send({ error: 'Failed to reach central marketplace' });
-      }
-    },
-  );
-
-  /**
-   * GET /api/v1/forge/marketplace/central/quarantine — View quarantined submissions
-   */
-  app.get(
-    '/api/v1/forge/marketplace/central/quarantine',
-    { preHandler: [authMiddleware] },
-    async (_request: FastifyRequest, reply: FastifyReply) => {
-      if (!MARKETPLACE_URL || !MARKETPLACE_ADMIN_SECRET) {
-        return reply.send({ submissions: [] });
-      }
-      try {
-        const res = await fetch(`${MARKETPLACE_URL}/api/marketplace/admin/quarantine`, {
-          headers: { 'X-Admin-Secret': MARKETPLACE_ADMIN_SECRET },
-          signal: AbortSignal.timeout(10_000),
-        });
-        if (!res.ok) return reply.send({ submissions: [] });
-        return reply.send(await res.json());
-      } catch {
-        return reply.send({ submissions: [] });
-      }
+      return reply.code(400).send({ error: 'type must be worker_template, tool_bundle, or mcp_server' });
     },
   );
 }

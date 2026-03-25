@@ -62,8 +62,7 @@ import { dispatchRoutes } from './routes/dispatch.js';
 import { fleetAnalyticsRoutes } from './routes/fleet-analytics.js';
 import { marketplaceRoutes } from './routes/marketplace.js';
 // marketplace-sync is gitignored (private infrastructure) — only exists in deployment
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error — file intentionally excluded from repo
+// @ts-ignore — file may not exist in repo (gitignored), loads dynamically
 const marketplaceSyncRoutes = await import('./routes/marketplace-sync.js').then(m => m.marketplaceSyncRoutes).catch(() => null);
 import { preferencesRoutes } from './routes/preferences.js';
 import { clientRoutes } from './routes/clients.js';
