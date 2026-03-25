@@ -1,9 +1,10 @@
 {
   "name": "@askalf/agent",
-  "version": "2.2.0",
-  "description": "AskAlf Agent — Connect any device to your AskAlf workforce. Autonomous task execution with encrypted communication.",
+  "version": "2.2.1",
+  "description": "AskAlf Agent — Connect any device to your AskAlf workforce. Multi-executor (Claude, Codex, shell), AES-256-GCM encryption, audit logging, security policy engine.",
   "type": "module",
   "main": "dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
     "askalf-agent": "dist/cli.js"
   },
@@ -15,12 +16,15 @@
     "dist",
     "README.md"
   ],
-  "keywords": ["askalf", "agent", "cli", "ai", "autonomous", "workforce", "self-hosted", "multi-agent", "orchestration", "automation"],
+  "keywords": ["askalf", "agent", "cli", "ai", "autonomous", "workforce", "self-hosted", "multi-agent", "orchestration", "automation", "typescript", "claude", "ollama", "mcp", "security", "encryption"],
+  "author": "askalf <support@askalf.org> (https://askalf.org)",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/askalf/askalf.git",
-    "directory": "packages/agent-cli"
+    "url": "https://github.com/askalf/agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/askalf/agent/issues"
   },
   "homepage": "https://askalf.org",
   "engines": {
