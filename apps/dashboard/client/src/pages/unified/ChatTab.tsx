@@ -1077,21 +1077,21 @@ export default function ChatTab({ onNavigate }: { onNavigate?: (tab: string) => 
                   <span className="chat-sugg-icon">&#x2600;</span>
                   Catch me up
                 </button>
-                <button onClick={() => handleSend('Research my top 3 competitors and summarize what they do better than me')}>
-                  <span className="chat-sugg-icon">&#x1F50D;</span>
-                  Who are my competitors?
+                <button onClick={() => handleSend('What needs my attention right now? Check for failed executions, open tickets, pending reviews, and any alerts.')}>
+                  <span className="chat-sugg-icon">&#x1F514;</span>
+                  What needs my attention?
                 </button>
-                <button onClick={() => handleSend('Draft a professional email to follow up with a client who hasn\u2019t responded in a week')}>
-                  <span className="chat-sugg-icon">&#x2709;</span>
-                  Write an email for me
+                <button onClick={() => handleSend('I need a team for this project. Create the right specialists and put them to work.')}>
+                  <span className="chat-sugg-icon">&#x1F465;</span>
+                  Create a team
                 </button>
-                <button onClick={() => handleSend('Summarize what my team accomplished this week and what\u2019s still open')}>
+                <button onClick={() => handleSend('What did my team do today? Show me all executions, results, and any issues.')}>
                   <span className="chat-sugg-icon">&#x1F4CB;</span>
-                  Weekly summary
+                  What did my team do today?
                 </button>
-                <button onClick={() => handleSend('Find me the best flights and hotels for a trip to Austin next month')}>
-                  <span className="chat-sugg-icon">&#x2708;</span>
-                  Plan a trip
+                <button onClick={() => handleSend('Research this topic in depth. Search the web, gather sources, and give me a comprehensive summary.')}>
+                  <span className="chat-sugg-icon">&#x1F50D;</span>
+                  Research this topic
                 </button>
                 <button onClick={() => handleSend('I have a repetitive task I do every week — can you automate it?')}>
                   <span className="chat-sugg-icon">&#x2699;</span>
