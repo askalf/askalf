@@ -313,10 +313,12 @@ function ProfileTab({ user }: { user: ProfileUser | null }) {
           className="settings-save-btn"
           onClick={handleSave}
           disabled={isSaving}
+          style={{ marginTop: 8 }}
         >
-          {isSaving ? 'Saving...' : 'Save Changes'}
+          {isSaving ? 'Saving...' : 'Save Profile'}
         </button>
       </div>
+      <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '24px 0' }} />
     </div>
   );
 }
