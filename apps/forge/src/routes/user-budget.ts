@@ -33,20 +33,18 @@ export async function userBudgetRoutes(app: FastifyInstance) {
         [userId],
       );
 
-      // Get today's spend
+      // Get today's spend (all events — self-hosted is single-user, no owner filter)
       const todaySpend = await queryOne<BudgetSpend>(
         `SELECT COALESCE(SUM(cost), 0) as total
          FROM forge_cost_events
-         WHERE owner_id = $1 AND created_at >= CURRENT_DATE`,
-        [userId],
+         WHERE created_at >= CURRENT_DATE`,
       );
 
       // Get this month's spend
       const monthSpend = await queryOne<BudgetSpend>(
         `SELECT COALESCE(SUM(cost), 0) as total
          FROM forge_cost_events
-         WHERE owner_id = $1 AND created_at >= date_trunc('month', CURRENT_DATE)`,
-        [userId],
+         WHERE created_at >= date_trunc('month', CURRENT_DATE)`,
       );
 
       return reply.send({
