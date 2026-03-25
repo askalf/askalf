@@ -212,39 +212,78 @@ function SubmitPackage() {
   const [packageType, setPackageType] = useState('tool_bundle');
   const [repoUrl, setRepoUrl] = useState('');
   const [tags, setTags] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [category, setCategory] = useState('operations');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [centralEnabled, setCentralEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch('/api/v1/forge/marketplace/central/status', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setCentralEnabled(d?.enabled ?? false))
+      .catch(() => setCentralEnabled(false));
+  }, []);
 
   const handleSubmit = useCallback(async () => {
     if (!name.trim() || !description.trim()) return;
     setSubmitting(true);
     try {
-      const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3001' : '';
-      const res = await fetch(`${API_BASE}/api/v1/forge/marketplace/packages`, {
+      // If central marketplace is enabled, submit there for community review
+      // Otherwise, save locally only
+      const endpoint = centralEnabled
+        ? '/api/v1/forge/marketplace/central/submit'
+        : '/api/v1/forge/marketplace/packages';
+
+      const payload = centralEnabled
+        ? {
+            name: name.trim(),
+            description: description.trim(),
+            category,
+            submission_type: packageType === 'skill_template' ? 'worker_template' : packageType,
+            system_prompt: packageType === 'skill_template' ? systemPrompt.trim() : undefined,
+            config: packageType !== 'skill_template' ? { description: description.trim() } : undefined,
+            repository_url: repoUrl.trim() || undefined,
+            tools: tags.split(',').map(t => t.trim()).filter(Boolean),
+          }
+        : {
+            name: name.trim(),
+            description: description.trim(),
+            package_type: packageType,
+            repository_url: repoUrl.trim() || undefined,
+            tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+          };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim(),
-          package_type: packageType,
-          repository_url: repoUrl.trim() || undefined,
-          tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-        }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error(await res.text());
-      setResult({ ok: true, message: 'Package submitted for review!' });
-      setName(''); setDescription(''); setRepoUrl(''); setTags('');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Submit failed' }));
+        throw new Error((err as Record<string, string>).error || 'Submit failed');
+      }
+      const data = await res.json() as Record<string, unknown>;
+      const msg = centralEnabled
+        ? `Submitted to community marketplace! Status: ${data.status || 'pending_review'}. AI security review will run automatically.`
+        : 'Package saved locally.';
+      setResult({ ok: true, message: msg });
+      setName(''); setDescription(''); setRepoUrl(''); setTags(''); setSystemPrompt('');
     } catch (err) {
       setResult({ ok: false, message: err instanceof Error ? err.message : 'Submit failed' });
     } finally { setSubmitting(false); }
-  }, [name, description, packageType, repoUrl, tags]);
+  }, [name, description, packageType, repoUrl, tags, category, systemPrompt, centralEnabled]);
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: 600 }}>
-      <h3 style={{ margin: '0 0 4px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>Submit a Package</h3>
+      <h3 style={{ margin: '0 0 4px', fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>
+        {centralEnabled ? 'Submit to Community Marketplace' : 'Submit a Package'}
+      </h3>
       <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-        Share your tools, bundles, or MCP servers with the community. All submissions are reviewed before publishing.
+        {centralEnabled
+          ? 'Share with the AskAlf community. Submissions go through AI security review before publishing.'
+          : 'Save packages locally. Enable community marketplace in Settings to share with others.'}
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -256,15 +295,38 @@ function SubmitPackage() {
 
         <select value={packageType} onChange={e => setPackageType(e.target.value)}
           style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }}>
+          <option value="skill_template">Worker Template</option>
           <option value="tool_bundle">Tool Bundle</option>
           <option value="mcp_server">MCP Server</option>
-          <option value="skill_template">Skill Template</option>
         </select>
+
+        {centralEnabled && (
+          <select value={category} onChange={e => setCategory(e.target.value)}
+            style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }}>
+            <option value="personal">Personal</option>
+            <option value="marketing">Marketing</option>
+            <option value="support">Support</option>
+            <option value="ecommerce">E-Commerce</option>
+            <option value="content">Content</option>
+            <option value="finance">Finance</option>
+            <option value="operations">Operations</option>
+            <option value="hr">People & HR</option>
+            <option value="research">Research</option>
+            <option value="security">Security</option>
+            <option value="development">Development</option>
+            <option value="analytics">Analytics</option>
+          </select>
+        )}
+
+        {packageType === 'skill_template' && (
+          <textarea value={systemPrompt} onChange={e => setSystemPrompt(e.target.value)} placeholder="System prompt — instructions for this worker"
+            rows={5} style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem', resize: 'vertical', fontFamily: 'inherit' }} />
+        )}
 
         <input value={repoUrl} onChange={e => setRepoUrl(e.target.value)} placeholder="Repository URL (optional)"
           style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }} />
 
-        <input value={tags} onChange={e => setTags(e.target.value)} placeholder="Tags (comma-separated): security, monitoring, api"
+        <input value={tags} onChange={e => setTags(e.target.value)} placeholder="Tools (comma-separated): web_search, memory_store, ticket_ops"
           style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '0.85rem' }} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
