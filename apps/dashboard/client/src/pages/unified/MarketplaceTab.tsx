@@ -14,7 +14,7 @@ import './MarketplaceTab.css';
 const TemplatesTab = lazy(() => import('./TemplatesTab'));
 // ── Types ──
 
-type MarketSection = 'templates' | 'tools' | 'servers' | 'submit';
+type MarketSection = 'templates' | 'tools' | 'servers';
 type SortOption = 'popular' | 'rating' | 'recent';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -32,9 +32,9 @@ function renderStars(rating: number): string {
 
 // ── Package Card ──
 
-function PackageCard({ pkg, onClick }: { pkg: MarketplacePackage; onClick: () => void }) {
+function PackageCard({ pkg, onClick, onExport }: { pkg: MarketplacePackage; onClick: () => void; onExport?: () => void }) {
   return (
-    <button className="mp-card" onClick={onClick}>
+    <div className="mp-card" onClick={onClick} style={{ cursor: 'pointer' }}>
       <div className="mp-card-header">
         <span className="mp-card-name">{pkg.name}</span>
         <span className={`mp-card-type mp-card-type--${pkg.type}`}>
@@ -55,7 +55,13 @@ function PackageCard({ pkg, onClick }: { pkg: MarketplacePackage; onClick: () =>
           ))}
         </div>
       )}
-    </button>
+      {onExport && (
+        <button onClick={e => { e.stopPropagation(); onExport(); }}
+          style={{ marginTop: 8, padding: '4px 12px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: '.72rem', cursor: 'pointer' }}>
+          Export JSON
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -148,8 +154,11 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('popular');
   const [selectedPkg, setSelectedPkg] = useState<MarketplacePackage | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importJson, setImportJson] = useState('');
+  const [importResult, setImportResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  useEffect(() => {
+  const fetchPackages = useCallback(() => {
     let cancelled = false;
     setLoading(true);
     hubApi.marketplace.list({
@@ -166,6 +175,8 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
     return () => { cancelled = true; };
   }, [search, sortBy, typeFilter]);
 
+  useEffect(() => { return fetchPackages(); }, [fetchPackages]);
+
   const handleSelect = useCallback(async (pkg: MarketplacePackage) => {
     try {
       const detail = await hubApi.marketplace.detail(pkg.slug);
@@ -174,6 +185,43 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
       setSelectedPkg(pkg);
     }
   }, []);
+
+  const handleExport = useCallback((pkg: MarketplacePackage) => {
+    const data = JSON.stringify({ type: typeFilter, name: pkg.name, description: pkg.description, tags: pkg.tags, author: pkg.author }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${pkg.slug || pkg.name}.json`; a.click();
+    URL.revokeObjectURL(url);
+  }, [typeFilter]);
+
+  const handleImport = useCallback(async () => {
+    if (!importJson.trim()) return;
+    try {
+      const parsed = JSON.parse(importJson);
+      if (!parsed.type) parsed.type = typeFilter;
+      const res = await fetch('/api/v1/forge/marketplace/import', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error((e as Record<string,string>).error || 'Failed'); }
+      setImportResult({ ok: true, msg: 'Imported successfully' });
+      setImportJson(''); setShowImport(false); fetchPackages();
+    } catch (err) {
+      setImportResult({ ok: false, msg: err instanceof Error ? err.message : 'Import failed' });
+    }
+  }, [importJson, typeFilter, fetchPackages]);
+
+  const handleFileImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImportJson(reader.result as string);
+    reader.readAsText(file);
+  }, []);
+
+  const typeLabel = typeFilter === 'tool_bundle' ? 'Tool Bundle' : 'MCP Server';
 
   return (
     <div>
@@ -185,7 +233,30 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
           <option value="recent">Most Recent</option>
         </select>
         <span className="mp-result-count">{loading ? 'Loading...' : `${packages.length} packages`}</span>
+        <button onClick={() => setShowImport(!showImport)}
+          style={{ marginLeft: 'auto', padding: '6px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.8rem', cursor: 'pointer' }}>
+          {showImport ? 'Cancel' : `Import ${typeLabel}`}
+        </button>
       </div>
+
+      {showImport && (
+        <div style={{ padding: '14px', margin: '0 0 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10 }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+            <input type="file" accept=".json" onChange={handleFileImport} style={{ fontSize: '.8rem', color: 'var(--text)' }} />
+            <a href="https://askalf.org/marketplace" target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: '.78rem', color: '#a78bfa', alignSelf: 'center' }}>Browse marketplace</a>
+          </div>
+          <textarea value={importJson} onChange={e => setImportJson(e.target.value)}
+            placeholder={`Paste ${typeLabel} JSON here...`}
+            rows={4} style={{ width: '100%', padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: '.8rem', fontFamily: 'monospace', resize: 'vertical' }} />
+          <div style={{ display: 'flex', gap: 10, marginTop: 8, alignItems: 'center' }}>
+            <button onClick={handleImport} disabled={!importJson.trim()}
+              style={{ padding: '6px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: '.82rem', cursor: 'pointer' }}>Import</button>
+            {importResult && <span style={{ fontSize: '.78rem', color: importResult.ok ? '#10b981' : '#ef4444' }}>{importResult.msg}</span>}
+          </div>
+        </div>
+      )}
+
       <div className="mp-content">
         {loading ? (
           <div className="mp-loading">Loading...</div>
@@ -194,7 +265,7 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
         ) : (
           <div className="mp-grid">
             {packages.map(pkg => (
-              <PackageCard key={pkg.slug} pkg={pkg} onClick={() => handleSelect(pkg)} />
+              <PackageCard key={pkg.slug} pkg={pkg} onClick={() => handleSelect(pkg)} onExport={() => handleExport(pkg)} />
             ))}
           </div>
         )}
@@ -204,9 +275,9 @@ function PackageBrowser({ typeFilter }: { typeFilter: string }) {
   );
 }
 
-// ── Submit Package Form ──
-
-function SubmitPackage() {
+// ── Submit Package Form (removed — import is now inline on each tab) ──
+/*
+function _SubmitPackage() {
   const [importJson, setImportJson] = useState('');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
@@ -283,6 +354,7 @@ function SubmitPackage() {
     </div>
   );
 }
+*/
 
 /*
 
@@ -546,7 +618,6 @@ export default function MarketplaceTab() {
           { key: 'templates', label: 'Worker Templates' },
           { key: 'tools', label: 'Tool Bundles' },
           { key: 'servers', label: 'MCP Servers' },
-          { key: 'submit', label: 'Import' },
         ]}
         active={section}
         onChange={k => setSection(k as MarketSection)}
@@ -558,7 +629,6 @@ export default function MarketplaceTab() {
           {section === 'templates' && <TemplatesSection />}
           {section === 'tools' && <PackageBrowser typeFilter="tool_bundle" />}
           {section === 'servers' && <PackageBrowser typeFilter="mcp_server" />}
-          {section === 'submit' && <SubmitPackage />}
         </Suspense>
       </div>
     </div>
