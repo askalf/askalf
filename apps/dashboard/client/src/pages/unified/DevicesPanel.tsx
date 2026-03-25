@@ -15,8 +15,11 @@ interface Device {
   os: string;
   status: 'online' | 'offline' | 'busy';
   capabilities: Record<string, boolean>;
+  platform_capabilities?: Record<string, unknown>;
   last_heartbeat: string | null;
+  last_seen_at?: string | null;
   connected_at: string | null;
+  created_at?: string | null;
   task_count: number;
   current_task: string | null;
 }
@@ -265,7 +268,7 @@ export default function DevicesPanel() {
             const isSelected = selectedDevice === device.id;
             const icon = TYPE_ICONS[device.device_type] || '\u{1F4BB}';
             const statusColor = STATUS_COLORS[device.status] || '#6b7280';
-            const caps = Object.entries(device.capabilities || {}).filter(([, v]) => v).map(([k]) => k);
+            const caps = Object.entries(device.platform_capabilities || device.capabilities || {}).filter(([, v]) => v).map(([k]) => k);
 
             return (
               <div key={device.id}
@@ -288,7 +291,7 @@ export default function DevicesPanel() {
                       <span style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: 8, background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)' }}>Encrypted</span>
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                      {device.hostname} &middot; {device.os} &middot; Last seen {timeAgo(device.last_heartbeat)}
+                      {device.hostname} &middot; {device.os} &middot; Last seen {timeAgo(device.last_seen_at || device.last_heartbeat)}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -316,7 +319,7 @@ export default function DevicesPanel() {
 
                     {/* Connection info */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: '0.75rem', marginBottom: 10 }}>
-                      <div><span style={{ color: 'var(--text-muted)' }}>Connected:</span> <span style={{ color: 'var(--text)' }}>{device.connected_at ? new Date(device.connected_at).toLocaleString() : 'N/A'}</span></div>
+                      <div><span style={{ color: 'var(--text-muted)' }}>Connected:</span> <span style={{ color: 'var(--text)' }}>{(device.connected_at || device.created_at) ? new Date((device.connected_at || device.created_at)!).toLocaleString() : 'N/A'}</span></div>
                       <div><span style={{ color: 'var(--text-muted)' }}>Type:</span> <span style={{ color: 'var(--text)' }}>{device.device_type}</span></div>
                     </div>
 
