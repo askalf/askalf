@@ -78,9 +78,18 @@ export default function UnifiedDashboard() {
           hubApi.costs.summary({ days: 1 }),
         ]);
         setAgentCount(agentsData.agents.filter((a) => a.status === 'running').length);
-        setTodayCost(costsData.summary?.total?.totalCost ?? 0);
-        setTodayApiCost(costsData.summary?.api?.totalCost ?? 0);
-        setTodayCliCost(costsData.summary?.cli?.totalCost ?? 0);
+        // Use today's date from byDay breakdown for accurate daily total
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayEntry = (costsData.dailyCosts || []).find((d: { date: string }) => d.date === todayStr);
+        if (todayEntry) {
+          setTodayCost(todayEntry.totalCost ?? 0);
+          setTodayApiCost(todayEntry.apiCost ?? todayEntry.totalCost ?? 0);
+          setTodayCliCost(todayEntry.cliCost ?? 0);
+        } else {
+          setTodayCost(0);
+          setTodayApiCost(0);
+          setTodayCliCost(0);
+        }
       } catch {
         // ignore
       }
