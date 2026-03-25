@@ -221,6 +221,10 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       WORKSPACE_DIR: /workspace
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GIT_AUTHOR_NAME: askalf
+      GIT_AUTHOR_EMAIL: 263217947+askalf@users.noreply.github.com
+      GIT_COMMITTER_NAME: askalf
+      GIT_COMMITTER_EMAIL: 263217947+askalf@users.noreply.github.com
     volumes:
       - .:/workspace:rw
       - credentials:/tmp/claude-credentials:ro

@@ -6,6 +6,7 @@
  */
 
 import { spawn, exec, execSync, execFileSync, type ChildProcess } from 'child_process';
+import { ulid } from 'ulid';
 import { readFile, writeFile, access, copyFile, mkdir, unlink, rm, chmod } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
 import { initializeLogger } from '@askalf/observability';
@@ -2140,7 +2141,7 @@ export async function runDirectCliExecution(
       [executionId],
     );
 
-    // Emit execution started event
+    // Emit execution started event + audit log
     const agentRow = await query<{ name: string; model_id: string; enabled_tools: string[] }>(`SELECT name, model_id, enabled_tools FROM forge_agents WHERE id = $1`, [agentId]);
     const agentName = agentRow[0]?.name ?? agentId;
     const agentModelId = agentRow[0]?.model_id ?? 'claude-sonnet-4-6';
@@ -2149,6 +2150,10 @@ export async function runDirectCliExecution(
     void eventBus?.emitExecution('started', executionId, agentId, agentName, {
       input: input.substring(0, 200),
     }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    void query(
+      `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details) VALUES ($1, $2, 'execution.start', 'execution', $3, $4)`,
+      [ulid(), ownerId, executionId, JSON.stringify({ agentId, agentName, input: input.substring(0, 200) })],
+    ).catch(() => {});
 
     // Refresh OAuth credentials
     await refreshCredentials();
@@ -2484,6 +2489,10 @@ export async function runDirectCliExecution(
         turns: parsed.numTurns,
       },
     ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    void query(
+      `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details) VALUES ($1, $2, $3, 'execution', $4, $5)`,
+      [ulid(), ownerId, parsed.isError ? 'execution.fail' : 'execution.complete', executionId, JSON.stringify({ agentId, agentName, cost: parsed.costUsd, tokens: parsed.inputTokens + parsed.outputTokens, durationMs })],
+    ).catch(() => {});
 
     // Update agent performance counters (retry on transient DB errors)
     void retryQuery(

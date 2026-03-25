@@ -9,9 +9,9 @@ import './forge-observe.css';
  * Notification-relevant audit actions, grouped by category for filtering.
  */
 const NOTIFICATION_CATEGORIES: Record<string, string[]> = {
-  execution: ['execution.start', 'execution.complete', 'execution.fail'],
-  alert: ['deleted', 'auto_approved'],
-  system: ['created', 'updated', 'resolved', 'assigned', 'closed', 'template.instantiate'],
+  execution: ['execution.fail'],
+  alert: ['deleted', 'auto_approved', 'branch.pending_review', 'budget.exceeded'],
+  system: ['agent.created', 'agent.deleted', 'resolved', 'assigned', 'closed'],
   security: ['user.login', 'user.logout'],
   marketplace: ['submission.pending_review', 'submission.approved', 'submission.rejected', 'submission.quarantined'],
 };
