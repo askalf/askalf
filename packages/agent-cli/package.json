@@ -1,6 +1,6 @@
 {
   "name": "@askalf/agent",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "AskAlf Agent — Connect any device to your AskAlf workforce. Multi-executor (Claude, Codex, shell), AES-256-GCM encryption, audit logging, security policy engine.",
   "type": "module",
   "main": "dist/index.js",

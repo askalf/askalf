@@ -91,6 +91,7 @@ export async function dispatchTaskToDevice(
   input: string,
   maxTurns?: number,
   maxBudget?: number,
+  mode?: 'auto' | 'claude' | 'shell',
 ): Promise<boolean> {
   const session = sessions.get(deviceId);
   if (!session || session.ws.readyState !== 1) return false;
@@ -124,6 +125,7 @@ export async function dispatchTaskToDevice(
     maxTurns,
     maxBudget,
     credentials,
+    mode: mode || 'auto',
   });
 
   return true;
