@@ -175,3 +175,5 @@ apps/dashboard/client/public/releases/
 
 # Local Claude Code settings
 .claude/settings.local.json
+MIGRATION.md
+repos/
