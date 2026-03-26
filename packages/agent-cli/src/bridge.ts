@@ -277,10 +277,11 @@ export class AgentBridge {
       return;
     }
 
-    // Build CLI args
+    // Build CLI args — prompt via stdin to avoid shell quoting issues on Windows
     const args = [
       '--print',
       '--output-format', 'json',
+      '--dangerously-skip-permissions',
     ];
 
     if (task.maxTurns) {
@@ -290,10 +291,11 @@ export class AgentBridge {
       args.push('--max-budget-usd', String(task.maxBudget));
     }
 
-    args.push(task.input);
+    // Pass prompt via stdin pipe instead of positional arg (Windows cmd.exe mangles quoted args)
+    const useStdin = true;
 
     try {
-      const result = await this.runClaude(claudePath, args, task.executionId);
+      const result = await this.runClaude(claudePath, args, task.executionId, useStdin ? task.input : undefined);
 
       this.send('execution:complete', {
         executionId: task.executionId,
@@ -338,14 +340,21 @@ export class AgentBridge {
     claudePath: string,
     args: string[],
     executionId: string,
+    stdinPrompt?: string,
   ): Promise<{ output: string; tokensIn: number; tokensOut: number; cost: number }> {
     return new Promise((resolve, reject) => {
       const proc = spawn(claudePath, args, {
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: [stdinPrompt ? 'pipe' : 'ignore', 'pipe', 'pipe'],
         timeout: 600_000, // 10 min max
         env: { ...process.env },
         shell: process.platform === 'win32', // Windows needs shell:true for .cmd files
       });
+
+      // Write prompt via stdin and close (avoids shell quoting issues on Windows)
+      if (stdinPrompt && proc.stdin) {
+        proc.stdin.write(stdinPrompt);
+        proc.stdin.end();
+      }
 
       this.activeExecution = { id: executionId, process: proc };
 
