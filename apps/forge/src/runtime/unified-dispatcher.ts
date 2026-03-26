@@ -665,9 +665,15 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
       }
     }
 
+    // Smart model routing — use cheaper models for routine tasks
+    const routedModel = agent.model_id || this.routeModel(agent, enrichedInput);
+    if (!agent.model_id && routedModel !== 'claude-sonnet-4-6') {
+      console.log(`[Dispatcher] Smart routing: ${agent.name} → ${routedModel} (agent has no model override)`);
+    }
+
     // Default: run locally via CLI
     void runDirectCliExecution(execId, agent.id, enrichedInput, ownerId, {
-      modelId: agent.model_id ?? undefined,
+      modelId: routedModel,
       systemPrompt: agent.system_prompt ?? undefined,
       maxBudgetUsd: agent.max_cost_per_execution ?? undefined,
       maxTurns: agent.max_iterations ?? undefined,
@@ -675,6 +681,39 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
     }).catch((err) => {
       console.error(`[Dispatcher] Execution failed for ${agent.name}:`, err);
     });
+  }
+
+  /**
+   * Smart Model Routing — pick the cheapest model that can handle the task.
+   *
+   * Tiers:
+   *   Haiku  — monitoring, status checks, simple summaries, ticket triage
+   *   Sonnet — research, analysis, content generation, tool use (default)
+   *   Opus   — complex reasoning, multi-step coding, architecture decisions
+   *
+   * Agent type and tool count drive the decision. Explicit model_id on the agent overrides this.
+   */
+  private routeModel(agent: DispatchableAgent, input: string): string {
+    const isMonitor = agent.type === 'monitor';
+    const name = agent.name.toLowerCase();
+    const inputLen = input.length;
+
+    // Monitor agents (Watchdog, Platform Tester) → Haiku (cheap, fast)
+    if (isMonitor) return 'claude-haiku-4-5';
+
+    // Simple scheduled tasks with short inputs → Haiku
+    if (inputLen < 500 && agent.schedule_interval_minutes && agent.schedule_interval_minutes <= 60) {
+      // Short, frequent tasks are usually routine
+      const routinePatterns = /patrol|check|status|health|ping|heartbeat|monitor|scan|report/i;
+      if (routinePatterns.test(input) || routinePatterns.test(name)) return 'claude-haiku-4-5';
+    }
+
+    // Complex indicators → Sonnet (or Opus if very complex)
+    const complexPatterns = /architect|design|refactor|migrate|security audit|code review|implement|build.*from scratch|analyze.*codebase/i;
+    if (complexPatterns.test(input) && inputLen > 1000) return 'claude-sonnet-4-6';
+
+    // Default → Sonnet (best balance of quality and cost)
+    return 'claude-sonnet-4-6';
   }
 
   /**
