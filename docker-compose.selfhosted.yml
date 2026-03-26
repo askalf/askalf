@@ -318,9 +318,9 @@ services:
       - askalf-net
     restart: unless-stopped
     security_opt:
-      - seccomp=unconfined
-    cap_add:
-      - SYS_ADMIN
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     tmpfs:
       - /tmp:mode=1777,size=128m
     logging:
