@@ -18,7 +18,7 @@ import { join } from 'path';
 import { homedir, hostname, platform, type, release } from 'os';
 import { execSync, spawn } from 'child_process';
 
-const VERSION = '2.4.1';
+const VERSION = '2.4.4';
 const CONFIG_DIR = join(homedir(), '.askalf');
 const CONFIG_FILE = join(CONFIG_DIR, 'agent.json');
 const PID_FILE = join(CONFIG_DIR, 'agent.pid');
@@ -353,20 +353,17 @@ function installWindowsService(nodePath: string, agentPath: string, config: Agen
     return;
   }
 
-  // Fallback: create a VBS + BAT wrapper so the agent runs hidden (no terminal window)
+  // Fallback: create a BAT wrapper for schtasks
   mkdirSync(CONFIG_DIR, { recursive: true });
   const batPath = join(CONFIG_DIR, 'agent-service.bat');
-  const vbsPath = join(CONFIG_DIR, 'agent-service.vbs');
   const batLines = [
     '@echo off',
     `"${nodePath}" ${args.map(a => '"' + a + '"').join(' ')}`,
   ];
   writeFileSync(batPath, batLines.join('\r\n') + '\r\n');
-  // VBS launcher hides the console window
-  writeFileSync(vbsPath, `CreateObject("WScript.Shell").Run """${batPath}""", 0, False\r\n`);
 
   try {
-    const trArg = '"' + vbsPath + '"';
+    const trArg = '"' + batPath + '"';
     execSync(
       `schtasks /create /tn "${SERVICE_NAME}" /tr ${trArg} /sc onlogon /rl highest /f`,
       { stdio: 'inherit' },

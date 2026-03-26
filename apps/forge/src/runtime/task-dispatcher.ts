@@ -151,7 +151,7 @@ async function handleTask(channel: string, message: string): Promise<void> {
   // Try dispatching to remote device first
   if (targetDeviceId) {
     const maxBudget = agent.max_cost_per_execution ? parseFloat(agent.max_cost_per_execution) : undefined;
-    const dispatched = dispatchTaskToDevice(
+    const dispatched = await dispatchTaskToDevice(
       targetDeviceId,
       execId,
       task.agentId,

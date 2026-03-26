@@ -645,32 +645,48 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
       [execId, agent.id, ownerId, enrichedInput, JSON.stringify(metadata)],
     );
 
-    // Check if agent has a target device (SSH/Docker remote dispatch)
+    // Check if agent has a target device (WebSocket bridge, SSH, Docker remote dispatch)
     const targetDevice = await this.findTargetDevice(agent);
 
-    if (targetDevice && targetDevice.device_type === 'ssh') {
-      // Route to SSH adapter
-      const { getAdapter } = await import('./adapters/adapter-registry.js');
-      const sshAdapter = getAdapter('ssh' as import('./adapters/device-adapter.js').DeviceType);
-      if (sshAdapter) {
-        const config = typeof targetDevice.connection_config === 'string'
-          ? JSON.parse(targetDevice.connection_config)
-          : (targetDevice.connection_config || {});
-        const dispatched = await sshAdapter.dispatch(targetDevice.id, {
-          executionId: execId,
-          agentId: agent.id,
-          agentName: agent.name,
-          input: enrichedInput,
-          maxTurns: agent.max_iterations ?? undefined,
-          maxBudget: agent.max_cost_per_execution ? parseFloat(String(agent.max_cost_per_execution)) : undefined,
-          systemPrompt: agent.system_prompt ?? undefined,
-          modelId: agent.model_id ?? undefined,
-        }, config);
+    if (targetDevice) {
+      // Try WebSocket bridge dispatch first (CLI agents connected via askalf-agent)
+      if (targetDevice.device_type === 'cli' || !targetDevice.device_type || targetDevice.device_type === 'desktop') {
+        const { dispatchTaskToDevice } = await import('./agent-bridge.js');
+        const dispatched = await dispatchTaskToDevice(
+          targetDevice.id, execId, agent.id, agent.name, enrichedInput,
+          agent.max_iterations ?? undefined,
+          agent.max_cost_per_execution ? parseFloat(String(agent.max_cost_per_execution)) : undefined,
+        );
         if (dispatched) {
-          console.log(`[Dispatcher] ${agent.name} → SSH device "${targetDevice.device_name}" (${config.host})`);
-          // Update device last_seen
+          console.log(`[Dispatcher] ${agent.name} → device "${targetDevice.device_name}" via WebSocket bridge`);
           void query(`UPDATE agent_devices SET last_seen_at = NOW(), status = 'busy' WHERE id = $1`, [targetDevice.id]).catch(() => {});
           return;
+        }
+      }
+
+      // SSH adapter fallback
+      if (targetDevice.device_type === 'ssh') {
+        const { getAdapter } = await import('./adapters/adapter-registry.js');
+        const sshAdapter = getAdapter('ssh' as import('./adapters/device-adapter.js').DeviceType);
+        if (sshAdapter) {
+          const config = typeof targetDevice.connection_config === 'string'
+            ? JSON.parse(targetDevice.connection_config)
+            : (targetDevice.connection_config || {});
+          const dispatched = await sshAdapter.dispatch(targetDevice.id, {
+            executionId: execId,
+            agentId: agent.id,
+            agentName: agent.name,
+            input: enrichedInput,
+            maxTurns: agent.max_iterations ?? undefined,
+            maxBudget: agent.max_cost_per_execution ? parseFloat(String(agent.max_cost_per_execution)) : undefined,
+            systemPrompt: agent.system_prompt ?? undefined,
+            modelId: agent.model_id ?? undefined,
+          }, config);
+          if (dispatched) {
+            console.log(`[Dispatcher] ${agent.name} → SSH device "${targetDevice.device_name}" (${config.host})`);
+            void query(`UPDATE agent_devices SET last_seen_at = NOW(), status = 'busy' WHERE id = $1`, [targetDevice.id]).catch(() => {});
+            return;
+          }
         }
       }
     }
