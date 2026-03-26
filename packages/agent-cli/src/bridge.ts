@@ -266,55 +266,69 @@ export class AgentBridge {
       }
     }
 
-    // Check if claude CLI is available
+    // Check if claude CLI is available — fall back to direct shell if not
     const claudePath = this.findClaude();
-    if (!claudePath) {
-      console.error('  Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code');
-      this.send('execution:failed', {
-        executionId: task.executionId,
-        error: 'Claude CLI not installed on device',
-      });
-      return;
-    }
 
-    // Build CLI args — prompt via stdin to avoid shell quoting issues on Windows
-    const args = [
-      '--print',
-      '--output-format', 'json',
-      '--dangerously-skip-permissions',
-    ];
+    if (claudePath) {
+      // Full AI execution via Claude CLI
+      const args = [
+        '--print',
+        '--output-format', 'json',
+        '--dangerously-skip-permissions',
+      ];
 
-    if (task.maxTurns) {
-      args.push('--max-turns', String(task.maxTurns));
-    }
-    if (task.maxBudget) {
-      args.push('--max-budget-usd', String(task.maxBudget));
-    }
+      if (task.maxTurns) {
+        args.push('--max-turns', String(task.maxTurns));
+      }
+      if (task.maxBudget) {
+        args.push('--max-budget-usd', String(task.maxBudget));
+      }
 
-    // Pass prompt via stdin pipe instead of positional arg (Windows cmd.exe mangles quoted args)
-    const useStdin = true;
+      try {
+        const result = await this.runClaude(claudePath, args, task.executionId, task.input);
 
-    try {
-      const result = await this.runClaude(claudePath, args, task.executionId, useStdin ? task.input : undefined);
+        this.send('execution:complete', {
+          executionId: task.executionId,
+          output: result.output,
+          tokensIn: result.tokensIn,
+          tokensOut: result.tokensOut,
+          cost: result.cost,
+        });
 
-      this.send('execution:complete', {
-        executionId: task.executionId,
-        output: result.output,
-        tokensIn: result.tokensIn,
-        tokensOut: result.tokensOut,
-        cost: result.cost,
-      });
-
-      console.log(`  Task completed: ${task.executionId} ($${result.cost.toFixed(4)})`);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.send('execution:failed', {
-        executionId: task.executionId,
-        error: errorMsg,
-      });
-      console.error(`  Task failed: ${task.executionId} — ${errorMsg}`);
-    } finally {
-      this.activeExecution = null;
+        console.log(`  Task completed: ${task.executionId} ($${result.cost.toFixed(4)})`);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        this.send('execution:failed', {
+          executionId: task.executionId,
+          error: errorMsg,
+        });
+        console.error(`  Task failed: ${task.executionId} — ${errorMsg}`);
+      } finally {
+        this.activeExecution = null;
+      }
+    } else {
+      // Fallback: direct shell execution (no AI, just run the input as a command)
+      console.log('  Claude CLI not available — executing as shell command');
+      try {
+        const result = await this.runShell(task.input, task.executionId);
+        this.send('execution:complete', {
+          executionId: task.executionId,
+          output: result,
+          tokensIn: 0,
+          tokensOut: 0,
+          cost: 0,
+        });
+        console.log(`  Shell task completed: ${task.executionId}`);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        this.send('execution:failed', {
+          executionId: task.executionId,
+          error: errorMsg,
+        });
+        console.error(`  Shell task failed: ${task.executionId} — ${errorMsg}`);
+      } finally {
+        this.activeExecution = null;
+      }
     }
   }
 
@@ -324,6 +338,47 @@ export class AgentBridge {
       this.activeExecution.process.kill('SIGTERM');
       this.activeExecution = null;
     }
+  }
+
+  private runShell(command: string, executionId: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const isWin = process.platform === 'win32';
+      const shell = isWin ? 'powershell.exe' : '/bin/bash';
+      const shellArgs = isWin ? ['-NoProfile', '-NonInteractive', '-Command', command] : ['-c', command];
+
+      const proc = spawn(shell, shellArgs, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 300_000, // 5 min max for shell commands
+        env: { ...process.env },
+      });
+
+      this.activeExecution = { id: executionId, process: proc };
+
+      let stdout = '';
+      let stderr = '';
+
+      proc.stdout?.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString();
+        this.send('execution:progress', { executionId, progress: stdout.length });
+      });
+
+      proc.stderr?.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+
+      proc.on('close', (code) => {
+        const output = stdout || stderr;
+        if (code === 0 || stdout.length > 0) {
+          resolve(output);
+        } else {
+          reject(new Error(stderr || `Shell exited with code ${code}`));
+        }
+      });
+
+      proc.on('error', (err) => {
+        reject(new Error(`Failed to spawn shell: ${err.message}`));
+      });
+    });
   }
 
   private findClaude(): string | null {
