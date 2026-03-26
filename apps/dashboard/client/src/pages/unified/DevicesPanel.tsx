@@ -268,7 +268,14 @@ export default function DevicesPanel() {
             const isSelected = selectedDevice === device.id;
             const icon = TYPE_ICONS[device.device_type] || '\u{1F4BB}';
             const statusColor = STATUS_COLORS[device.status] || '#6b7280';
-            const caps = Object.entries(device.platform_capabilities || device.capabilities || {}).filter(([, v]) => v).map(([k]) => k);
+            const CAP_LABELS: Record<string, string> = { cpu: 'CPU', gpu: 'GPU', ram_gb: 'RAM', docker: 'Docker', wsl2: 'WSL2', claude_cli: 'Claude CLI', codex_cli: 'Codex CLI', ollama: 'Ollama', ssh: 'SSH', k8s: 'Kubernetes', browser: 'Browser' };
+            const rawCaps = device.platform_capabilities || device.capabilities || {};
+            const caps = Object.entries(rawCaps).filter(([, v]) => v).map(([k, v]) => {
+              if (k === 'cpu' && typeof v === 'number') return `${v} CPU`;
+              if (k === 'ram_gb' && typeof v === 'number') return `${v}GB RAM`;
+              if (k === 'gpu' && typeof v === 'string') return v;
+              return CAP_LABELS[k] || k;
+            });
 
             return (
               <div key={device.id}
