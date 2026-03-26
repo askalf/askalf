@@ -1,151 +1,260 @@
-#!/bin/sh
-# AskAlf CLI Installer — macOS / Linux / WSL
-# Usage: curl -fsSL https://askalf.org/install.sh | sh
-set -e
+#!/usr/bin/env bash
+# AskAlf — One-Line Installer
+# Usage: curl -fsSL https://get.askalf.org | bash
+#
+# Environment variables (optional):
+#   ASKALF_DIR        - Install directory (default: ~/.askalf)
+#   ANTHROPIC_API_KEY - Anthropic API key (will prompt if not set)
+#   OPENAI_API_KEY    - OpenAI API key (optional)
+#   ASKALF_BRANCH     - Git branch to clone (default: main)
 
+set -euo pipefail
+
+# ── Colors ──────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
 BOLD='\033[1m'
-DIM='\033[2m'
-VIOLET='\033[38;5;141m'
-GREEN='\033[32m'
-RED='\033[31m'
-RESET='\033[0m'
+NC='\033[0m'
 
-info()  { printf "${VIOLET}▸${RESET} %s\n" "$1"; }
-ok()    { printf "${GREEN}✓${RESET} %s\n" "$1"; }
-fail()  { printf "${RED}✗${RESET} %s\n" "$1" >&2; exit 1; }
+info()  { echo -e "${CYAN}→${NC} $1"; }
+ok()    { echo -e "${GREEN}✓${NC} $1"; }
+warn()  { echo -e "${YELLOW}!${NC} $1"; }
+fail()  { echo -e "${RED}✗${NC} $1"; exit 1; }
 
-printf "\n${BOLD}${VIOLET}  askalf${RESET} ${DIM}— CLI installer${RESET}\n\n"
+# ── Banner ──────────────────────────────────────────────
+echo ""
+echo -e "${PURPLE}${BOLD}"
+echo "   ╔═══════════════════════════════════════╗"
+echo "   ║         AskAlf — Installer            ║"
+echo "   ║   Your autonomous agent fleet.        ║"
+echo "   ╚═══════════════════════════════════════╝"
+echo -e "${NC}"
 
-# ── Detect OS and architecture ──
+# ── Platform Detection ──────────────────────────────────
 OS="$(uname -s)"
 ARCH="$(uname -m)"
+IS_WSL=false
 
 case "$OS" in
-  Linux*)   PLATFORM="linux" ;;
-  Darwin*)  PLATFORM="macos" ;;
-  MINGW*|MSYS*|CYGWIN*) fail "Use PowerShell on Windows: irm https://askalf.org/install.ps1 | iex" ;;
-  *)        fail "Unsupported OS: $OS" ;;
-esac
-
-case "$ARCH" in
-  x86_64|amd64)  ARCH_LABEL="x64" ;;
-  aarch64|arm64) ARCH_LABEL="arm64" ;;
-  *)             fail "Unsupported architecture: $ARCH" ;;
-esac
-
-info "Detected ${PLATFORM} ${ARCH_LABEL}"
-
-# ── Check for Node.js ──
-if command -v node >/dev/null 2>&1; then
-  NODE_VERSION="$(node -v)"
-  NODE_MAJOR="$(echo "$NODE_VERSION" | sed 's/v//' | cut -d. -f1)"
-  if [ "$NODE_MAJOR" -lt 20 ]; then
-    fail "Node.js 20+ required (found $NODE_VERSION). Update at https://nodejs.org"
-  fi
-  ok "Node.js $NODE_VERSION"
-else
-  info "Node.js not found — installing..."
-
-  if [ "$PLATFORM" = "macos" ]; then
-    if command -v brew >/dev/null 2>&1; then
-      brew install node@22 2>/dev/null || brew install node 2>/dev/null
+  Linux)
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+      IS_WSL=true
+      info "Detected: Windows WSL2 ($ARCH)"
     else
-      fail "Install Node.js 22+ from https://nodejs.org or install Homebrew first"
+      info "Detected: Linux ($ARCH)"
     fi
-  elif [ "$PLATFORM" = "linux" ]; then
-    # Try NodeSource setup
-    if command -v curl >/dev/null 2>&1; then
-      curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - 2>/dev/null
-      if command -v apt-get >/dev/null 2>&1; then
-        sudo apt-get install -y nodejs 2>/dev/null
-      elif command -v dnf >/dev/null 2>&1; then
-        sudo dnf install -y nodejs 2>/dev/null
-      elif command -v yum >/dev/null 2>&1; then
-        sudo yum install -y nodejs 2>/dev/null
+    ;;
+  Darwin)
+    info "Detected: macOS ($ARCH)"
+    ;;
+  *)
+    fail "Unsupported OS: $OS. Use Linux, macOS, or WSL2."
+    ;;
+esac
+
+# ── Prerequisite Checks ────────────────────────────────
+info "Checking prerequisites..."
+
+# Docker
+if ! command -v docker >/dev/null 2>&1; then
+  fail "Docker not found. Install Docker: https://docs.docker.com/get-docker/"
+fi
+
+DOCKER_VERSION=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "0")
+DOCKER_MAJOR=$(echo "$DOCKER_VERSION" | cut -d. -f1)
+if [ "$DOCKER_MAJOR" -lt 24 ] 2>/dev/null; then
+  warn "Docker $DOCKER_VERSION detected. Version 24+ recommended."
+fi
+ok "Docker $DOCKER_VERSION"
+
+# Docker Compose v2
+if ! docker compose version >/dev/null 2>&1; then
+  fail "Docker Compose v2 not found. Install: https://docs.docker.com/compose/install/"
+fi
+COMPOSE_VERSION=$(docker compose version --short 2>/dev/null || echo "unknown")
+ok "Docker Compose $COMPOSE_VERSION"
+
+# Git
+if ! command -v git >/dev/null 2>&1; then
+  fail "Git not found. Install git: https://git-scm.com/downloads"
+fi
+ok "Git $(git --version | awk '{print $3}')"
+
+# Memory check (need at least 4GB)
+if [ -f /proc/meminfo ]; then
+  TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+  TOTAL_MEM_GB=$((TOTAL_MEM_KB / 1024 / 1024))
+  if [ "$TOTAL_MEM_GB" -lt 3 ]; then
+    warn "Only ${TOTAL_MEM_GB}GB RAM detected. 4GB+ recommended."
+  else
+    ok "${TOTAL_MEM_GB}GB RAM"
+  fi
+elif command -v sysctl >/dev/null 2>&1; then
+  TOTAL_MEM_BYTES=$(sysctl -n hw.memsize 2>/dev/null || echo 0)
+  TOTAL_MEM_GB=$((TOTAL_MEM_BYTES / 1024 / 1024 / 1024))
+  if [ "$TOTAL_MEM_GB" -lt 3 ]; then
+    warn "Only ${TOTAL_MEM_GB}GB RAM detected. 4GB+ recommended."
+  else
+    ok "${TOTAL_MEM_GB}GB RAM"
+  fi
+fi
+
+# ── Install Directory ──────────────────────────────────
+INSTALL_DIR="${ASKALF_DIR:-$HOME/.askalf}"
+BRANCH="${ASKALF_BRANCH:-main}"
+REPO_URL="https://github.com/askalf/askalf.git"
+
+echo ""
+info "Installing to: $INSTALL_DIR"
+
+if [ -d "$INSTALL_DIR" ]; then
+  if [ -d "$INSTALL_DIR/.git" ]; then
+    info "Existing installation found. Pulling latest..."
+    cd "$INSTALL_DIR"
+    git pull --ff-only origin "$BRANCH" 2>/dev/null || {
+      warn "Git pull failed. Continuing with existing version."
+    }
+  else
+    fail "$INSTALL_DIR exists but is not a git repo. Remove it or set ASKALF_DIR."
+  fi
+else
+  info "Cloning AskAlf..."
+  git clone --depth 1 --branch "$BRANCH" "$REPO_URL" "$INSTALL_DIR" 2>&1 | tail -1
+  ok "Repository cloned"
+fi
+
+cd "$INSTALL_DIR/substrate"
+
+# ── API Key Configuration ──────────────────────────────
+echo ""
+echo -e "${BOLD}API Key Configuration${NC}"
+echo ""
+
+# Anthropic key
+if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+  echo -e "  An Anthropic API key is required for the AI agents."
+  echo -e "  Get one at: ${CYAN}https://console.anthropic.com/settings/keys${NC}"
+  echo ""
+  read -rp "  Anthropic API Key: " ANTHROPIC_API_KEY
+  if [ -z "$ANTHROPIC_API_KEY" ]; then
+    fail "Anthropic API key is required."
+  fi
+fi
+ok "Anthropic API key configured"
+
+# OpenAI key (optional)
+if [ -z "${OPENAI_API_KEY:-}" ]; then
+  read -rp "  OpenAI API Key (optional, press Enter to skip): " OPENAI_API_KEY
+fi
+if [ -n "${OPENAI_API_KEY:-}" ]; then
+  ok "OpenAI API key configured"
+fi
+
+# ── Generate Configuration ─────────────────────────────
+echo ""
+info "Generating configuration..."
+
+# Run setup.sh non-interactively
+if [ -f "setup.sh" ]; then
+  chmod +x setup.sh
+  yes y 2>/dev/null | bash setup.sh 2>/dev/null || bash setup.sh <<< "y" 2>/dev/null || true
+fi
+
+# Write API keys into .env
+if [ -f ".env" ]; then
+  # Replace API key placeholders
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}|" .env
+    [ -n "${OPENAI_API_KEY:-}" ] && sed -i '' "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${OPENAI_API_KEY}|" .env
+  else
+    sed -i "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}|" .env
+    [ -n "${OPENAI_API_KEY:-}" ] && sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${OPENAI_API_KEY}|" .env
+  fi
+
+  # Generate INTERNAL_API_SECRET if missing
+  if grep -q "^INTERNAL_API_SECRET=$" .env 2>/dev/null || ! grep -q "INTERNAL_API_SECRET" .env 2>/dev/null; then
+    SECRET=$(openssl rand -hex 32 2>/dev/null || node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))")
+    if grep -q "INTERNAL_API_SECRET" .env; then
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s|^INTERNAL_API_SECRET=.*|INTERNAL_API_SECRET=${SECRET}|" .env
       else
-        fail "Install Node.js 22+ from https://nodejs.org"
+        sed -i "s|^INTERNAL_API_SECRET=.*|INTERNAL_API_SECRET=${SECRET}|" .env
       fi
     else
-      fail "Install Node.js 22+ from https://nodejs.org"
+      echo "INTERNAL_API_SECRET=${SECRET}" >> .env
     fi
   fi
-
-  if ! command -v node >/dev/null 2>&1; then
-    fail "Node.js installation failed. Install manually from https://nodejs.org"
-  fi
-  ok "Node.js $(node -v) installed"
 fi
+ok "Configuration generated"
 
-# ── Check for npm ──
-if ! command -v npm >/dev/null 2>&1; then
-  fail "npm not found. Reinstall Node.js from https://nodejs.org"
-fi
-
-# ── Install AskAlf CLI ──
-info "Installing AskAlf CLI..."
-
-install_from_tarball_url() {
-  # Method 1: npm install -g from hosted tarball URL (fastest)
-  info "Trying tarball install..."
-  npm install -g "https://askalf.org/releases/cli-latest.tar.gz" 2>/dev/null
-}
-
-install_from_download() {
-  # Method 2: download tarball, extract, install, link
-  TMPDIR="$(mktemp -d)"
-  cd "$TMPDIR"
-  info "Downloading CLI package..."
-  curl -fsSL "https://askalf.org/api/v1/cli/package" -o cli.tar.gz
-  tar xzf cli.tar.gz
-  cd package
-  npm install --production 2>/dev/null
-  npm link 2>/dev/null || sudo npm link 2>/dev/null
-  cd /
-  rm -rf "$TMPDIR"
-}
-
-install_from_registry() {
-  # Method 3: npm registry (requires registry to be configured)
-  info "Trying npm registry..."
-  npm install -g @askalf/cli@latest --registry=https://askalf.org/npm 2>/dev/null
-}
-
-install_from_tarball_url || install_from_download || install_from_registry || {
-  fail "All installation methods failed. Try manually: curl -fsSL https://askalf.org/releases/cli-latest.tar.gz | tar xz && cd package && npm install && npm link"
-}
-
-# ── Verify installation ──
-if command -v o8r >/dev/null 2>&1; then
-  ok "AskAlf CLI installed"
+# ── Pull & Build ───────────────────────────────────────
+echo ""
+info "Pulling pre-built Docker images..."
+if docker compose -f docker-compose.selfhosted.yml pull 2>&1 | grep -qE "Downloaded|Pull complete|up to date"; then
+  ok "Pre-built images pulled (fast install)"
 else
-  # Try npx as fallback
-  info "Adding to PATH..."
-  NPM_BIN="$(npm bin -g 2>/dev/null || npm config get prefix)/bin"
-  if [ -f "$NPM_BIN/o8r" ]; then
-    export PATH="$NPM_BIN:$PATH"
-    SHELL_RC=""
-    case "$(basename "$SHELL")" in
-      zsh)  SHELL_RC="$HOME/.zshrc" ;;
-      bash) SHELL_RC="$HOME/.bashrc" ;;
-      fish) SHELL_RC="$HOME/.config/fish/config.fish" ;;
-    esac
-    if [ -n "$SHELL_RC" ]; then
-      echo "export PATH=\"$NPM_BIN:\$PATH\"" >> "$SHELL_RC"
-      info "Added to $SHELL_RC — restart your shell or run: source $SHELL_RC"
-    fi
-    ok "AskAlf CLI installed at $NPM_BIN/o8r"
-  else
-    fail "Installation failed. Try manually: npm install -g @askalf/cli"
-  fi
+  warn "Pre-built images not available — building from source (this takes a few minutes)"
+  docker compose -f docker-compose.selfhosted.yml build 2>&1 | tail -5
+  ok "Containers built from source"
 fi
 
-# ── Configure ──
-info "Configuring..."
-o8r config set apiUrl https://askalf.org 2>/dev/null || true
+# ── Start Services ─────────────────────────────────────
+echo ""
+info "Starting AskAlf..."
+docker compose -f docker-compose.selfhosted.yml up -d 2>&1
 
-printf "\n${BOLD}${GREEN}  Ready.${RESET}\n\n"
-printf "  ${DIM}Next steps:${RESET}\n"
-printf "  ${VIOLET}1.${RESET} Get your API key from ${VIOLET}https://askalf.org/settings/ai-keys${RESET}\n"
-printf "  ${VIOLET}2.${RESET} Run: ${BOLD}o8r config set apiKey <your-key>${RESET}\n"
-printf "  ${VIOLET}3.${RESET} Run: ${BOLD}o8r agent list${RESET}\n\n"
-printf "  ${DIM}Docs: https://askalf.org/docs${RESET}\n\n"
+# Wait for health
+info "Waiting for services to be ready..."
+TIMEOUT=120
+ELAPSED=0
+while [ $ELAPSED -lt $TIMEOUT ]; do
+  if curl -sf http://localhost:3001/health >/dev/null 2>&1; then
+    break
+  fi
+  sleep 3
+  ELAPSED=$((ELAPSED + 3))
+  printf "."
+done
+echo ""
+
+if [ $ELAPSED -ge $TIMEOUT ]; then
+  warn "Dashboard didn't respond within ${TIMEOUT}s. Check: docker compose -f docker-compose.selfhosted.yml logs"
+else
+  ok "All services running"
+fi
+
+# ── Extract Credentials ────────────────────────────────
+ADMIN_EMAIL=$(grep "^ADMIN_EMAIL=" .env | cut -d= -f2-)
+ADMIN_PASS=$(grep "^ADMIN_PASSWORD=" .env | cut -d= -f2-)
+DASHBOARD_PORT=$(grep "^DASHBOARD_PORT=" .env | cut -d= -f2- || echo "3001")
+DASHBOARD_PORT="${DASHBOARD_PORT:-3001}"
+
+# ── Done ───────────────────────────────────────────────
+echo ""
+echo -e "${GREEN}${BOLD}"
+echo "   ╔═══════════════════════════════════════╗"
+echo "   ║       AskAlf is running!              ║"
+echo "   ╚═══════════════════════════════════════╝"
+echo -e "${NC}"
+echo -e "   ${BOLD}Dashboard:${NC}  http://localhost:${DASHBOARD_PORT}"
+echo -e "   ${BOLD}Email:${NC}      ${ADMIN_EMAIL:-admin@localhost}"
+echo -e "   ${BOLD}Password:${NC}   ${ADMIN_PASS:-(check .env)}"
+echo ""
+echo -e "   ${CYAN}Installed at:${NC} $INSTALL_DIR"
+echo ""
+echo -e "   ${BOLD}Commands:${NC}"
+echo "   cd $INSTALL_DIR/substrate"
+echo "   docker compose -f docker-compose.selfhosted.yml logs -f    # view logs"
+echo "   docker compose -f docker-compose.selfhosted.yml down       # stop"
+echo "   docker compose -f docker-compose.selfhosted.yml up -d      # start"
+echo ""
+
+# Try to open browser
+if command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "http://localhost:${DASHBOARD_PORT}" 2>/dev/null &
+elif command -v open >/dev/null 2>&1; then
+  open "http://localhost:${DASHBOARD_PORT}" 2>/dev/null &
+fi

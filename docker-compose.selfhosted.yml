@@ -108,6 +108,7 @@ services:
   # APPLICATION LAYER
   # ===========================================
   forge:
+    image: askalf/forge:${ASKALF_VERSION:-latest}
     build:
       context: .
       dockerfile: apps/forge/Dockerfile
@@ -197,6 +198,7 @@ services:
           memory: 512M
 
   dashboard:
+    image: askalf/dashboard:${ASKALF_VERSION:-latest}
     build:
       context: .
       dockerfile: apps/dashboard/Dockerfile
@@ -267,6 +269,7 @@ services:
           memory: 512M
 
   mcp-tools:
+    image: askalf/mcp-tools:${ASKALF_VERSION:-latest}
     build:
       context: .
       dockerfile: apps/mcp-tools/Dockerfile
