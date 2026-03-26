@@ -24,6 +24,8 @@ interface ServerMessage {
   payload: Record<string, unknown>;
 }
 
+type ExecutionMode = 'auto' | 'claude' | 'shell';
+
 interface TaskPayload {
   executionId: string;
   agentId: string;
@@ -32,6 +34,7 @@ interface TaskPayload {
   maxTurns?: number;
   maxBudget?: number;
   credentials?: string;
+  mode?: ExecutionMode;
 }
 
 export function scanCapabilities(): Record<string, unknown> {
@@ -244,6 +247,44 @@ export class AgentBridge {
     console.log(`  Capabilities reported: ${(caps['tools'] as string[]).length} tools, ${caps['cpu_cores']} cores, ${caps['memory_total_mb']}MB RAM`);
   }
 
+  /**
+   * Detect execution mode from the input if not explicitly set.
+   * Direct commands (single shell commands, scripts) → shell mode ($0).
+   * Complex reasoning tasks → claude mode (AI).
+   */
+  private detectMode(input: string): ExecutionMode {
+    const trimmed = input.trim();
+    const lower = trimmed.toLowerCase();
+
+    // Explicit shell markers
+    if (lower.startsWith('$ ') || lower.startsWith('> ') || lower.startsWith('cmd:') || lower.startsWith('shell:') || lower.startsWith('ps:') || lower.startsWith('bash:')) {
+      return 'shell';
+    }
+
+    // Common direct commands — no AI needed
+    const shellPatterns = [
+      /^(dir|ls|pwd|cd|echo|cat|type|mkdir|rmdir|del|rm|cp|mv|copy|move|ren)\b/i,
+      /^(hostname|whoami|ipconfig|ifconfig|ping|nslookup|tracert|traceroute|netstat|curl|wget)\b/i,
+      /^(systeminfo|tasklist|taskkill|sc |net |wmic|schtasks)\b/i,
+      /^(docker |docker-compose |kubectl |git |npm |node |python|pip |go |cargo )\b/i,
+      /^(Get-|Set-|New-|Remove-|Start-|Stop-|Restart-|Invoke-|Test-|Select-|Where-|Sort-|Format-)/i,
+      /^(chmod|chown|grep|find|awk|sed|tar|gzip|unzip|ssh|scp|rsync)\b/i,
+      /^(apt|apt-get|yum|dnf|brew|pacman|snap)\b/i,
+      /^(systemctl|journalctl|service |crontab)\b/i,
+    ];
+    if (shellPatterns.some(p => p.test(trimmed))) {
+      return 'shell';
+    }
+
+    // Multi-line scripts
+    if (trimmed.includes('\n') && (lower.startsWith('#!') || lower.startsWith('@echo'))) {
+      return 'shell';
+    }
+
+    // Everything else needs AI reasoning
+    return 'claude';
+  }
+
   private async handleTask(task: TaskPayload): Promise<void> {
     console.log(`  [${new Date().toISOString()}] Task received: ${task.agentName} (${task.executionId})`);
     console.log(`  Input: ${task.input.substring(0, 100)}${task.input.length > 100 ? '...' : ''}`);
@@ -266,11 +307,21 @@ export class AgentBridge {
       }
     }
 
-    // Check if claude CLI is available — fall back to direct shell if not
-    const claudePath = this.findClaude();
+    // Determine execution mode
+    const mode = task.mode || this.detectMode(task.input);
+    const claudePath = mode !== 'shell' ? this.findClaude() : null;
+    const useShell = mode === 'shell' || (mode === 'auto' && !claudePath) || (mode === 'claude' && !claudePath);
 
-    if (claudePath) {
-      // Full AI execution via Claude CLI
+    // Strip shell prefix markers if present
+    let input = task.input;
+    if (/^(cmd:|shell:|ps:|bash:|\$ |> )/i.test(input)) {
+      input = input.replace(/^(cmd:|shell:|ps:|bash:|\$ |> )/i, '').trim();
+    }
+
+    console.log(`  Mode: ${useShell ? 'shell' : 'claude'}${task.mode ? ` (explicit: ${task.mode})` : ` (detected)`}`);
+
+    if (!useShell && claudePath) {
+      // AI execution via Claude CLI
       const args = [
         '--print',
         '--output-format', 'json',
@@ -285,8 +336,7 @@ export class AgentBridge {
       }
 
       try {
-        const result = await this.runClaude(claudePath, args, task.executionId, task.input);
-
+        const result = await this.runClaude(claudePath, args, task.executionId, input);
         this.send('execution:complete', {
           executionId: task.executionId,
           output: result.output,
@@ -294,23 +344,19 @@ export class AgentBridge {
           tokensOut: result.tokensOut,
           cost: result.cost,
         });
-
-        console.log(`  Task completed: ${task.executionId} ($${result.cost.toFixed(4)})`);
+        console.log(`  Claude task completed: ${task.executionId} ($${result.cost.toFixed(4)})`);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        this.send('execution:failed', {
-          executionId: task.executionId,
-          error: errorMsg,
-        });
-        console.error(`  Task failed: ${task.executionId} — ${errorMsg}`);
+        this.send('execution:failed', { executionId: task.executionId, error: errorMsg });
+        console.error(`  Claude task failed: ${task.executionId} — ${errorMsg}`);
       } finally {
         this.activeExecution = null;
       }
     } else {
-      // Fallback: direct shell execution (no AI, just run the input as a command)
-      console.log('  Claude CLI not available — executing as shell command');
+      // Direct shell execution — $0 cost
+      console.log(`  Executing via ${process.platform === 'win32' ? 'PowerShell' : 'bash'}`);
       try {
-        const result = await this.runShell(task.input, task.executionId);
+        const result = await this.runShell(input, task.executionId);
         this.send('execution:complete', {
           executionId: task.executionId,
           output: result,
@@ -318,13 +364,10 @@ export class AgentBridge {
           tokensOut: 0,
           cost: 0,
         });
-        console.log(`  Shell task completed: ${task.executionId}`);
+        console.log(`  Shell task completed: ${task.executionId} ($0.00)`);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
-        this.send('execution:failed', {
-          executionId: task.executionId,
-          error: errorMsg,
-        });
+        this.send('execution:failed', { executionId: task.executionId, error: errorMsg });
         console.error(`  Shell task failed: ${task.executionId} — ${errorMsg}`);
       } finally {
         this.activeExecution = null;

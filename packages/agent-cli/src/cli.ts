@@ -18,7 +18,7 @@ import { join } from 'path';
 import { homedir, hostname, platform, type, release } from 'os';
 import { execSync, spawn } from 'child_process';
 
-const VERSION = '2.5.0';
+const VERSION = '2.5.1';
 const CONFIG_DIR = join(homedir(), '.askalf');
 const CONFIG_FILE = join(CONFIG_DIR, 'agent.json');
 const PID_FILE = join(CONFIG_DIR, 'agent.pid');
