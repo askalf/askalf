@@ -52,7 +52,11 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
 
 # Install Chromium for browser_use tool (headless browser control)
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
+# Uses Alpine CDN mirror as fallback for large package downloads
+RUN apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.22/community chromium nss freetype harfbuzz ca-certificates ttf-freefont && \
+    rm -f /usr/lib/chromium/chrome_crashpad_handler && \
+    echo '#!/bin/sh' > /usr/lib/chromium/chrome_crashpad_handler && \
+    chmod +x /usr/lib/chromium/chrome_crashpad_handler
 
 # Security: create non-root user
 RUN addgroup -g 1001 substrate && \
@@ -60,6 +64,7 @@ RUN addgroup -g 1001 substrate && \
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ENV CHROME_PATH=/usr/bin/chromium-browser
+ENV CHROMIUM_FLAGS="--no-sandbox --disable-crash-reporter"
 
 WORKDIR /app
 
