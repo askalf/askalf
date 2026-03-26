@@ -9,7 +9,7 @@ One AI that creates specialized workers for any task — marketing, support, e-c
 Other tools give you a chatbot. **AskAlf gives you a workforce.**
 
 [![License](https://img.shields.io/badge/License-MIT-7c3aed?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/v2.3.0-7c3aed?style=flat-square&label=version)](https://github.com/askalf/askalf/releases)
+[![Version](https://img.shields.io/badge/v2.4.0-7c3aed?style=flat-square&label=version)](https://github.com/askalf/askalf/releases)
 [![npm](https://img.shields.io/npm/v/@askalf/agent?style=flat-square&color=7c3aed&label=agent)](https://www.npmjs.com/package/@askalf/agent)
 [![Discord](https://img.shields.io/badge/Discord-Join-7c3aed?style=flat-square)](https://discord.gg/fENVZpdYcX)
 [![CI](https://img.shields.io/github/actions/workflow/status/askalf/askalf/ci.yml?style=flat-square&label=CI)](https://github.com/askalf/askalf/actions)
@@ -137,6 +137,15 @@ Your workers don't just run in the cloud — they control real machines.
 | **Compute** | CLI Agent, Docker Host, SSH Remote, Kubernetes |
 | **Desktop & Mobile** | Browser Bridge, Desktop Control, VS Code, Android, iOS |
 | **IoT & Edge** | Raspberry Pi, Arduino/ESP32, Home Assistant |
+
+**Connect any device in one command:**
+
+```bash
+npm i -g @askalf/agent
+askalf-agent connect <your-api-key> --url ws://your-server:3005 --name prod-box --install
+```
+
+Auto-detects OS, installs as service (systemd/launchd/Windows), runs on boot. See [@askalf/agent](https://www.npmjs.com/package/@askalf/agent).
 
 ### 16 Communication Channels
 
