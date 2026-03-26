@@ -1,11 +1,12 @@
 /**
  * AskAlf Agent Bridge — WebSocket client
  * Connects to the Forge's /ws/agent-bridge endpoint.
- * Handles device registration, heartbeat, task dispatch, and execution.
+ * Handles device registration, heartbeat, task dispatch, capabilities scan, and execution.
  */
 
 import WebSocket from 'ws';
 import { execSync, spawn, type ChildProcess } from 'child_process';
+import { cpus, totalmem, freemem, hostname as osHostname, type as osType, release as osRelease, platform as osPlatform } from 'os';
 
 export interface BridgeOptions {
   apiKey: string;
@@ -13,7 +14,7 @@ export interface BridgeOptions {
   deviceName: string;
   hostname: string;
   os: string;
-  capabilities: Record<string, boolean>;
+  capabilities: Record<string, unknown>;
   reconnectInterval?: number;
   heartbeatInterval?: number;
 }
@@ -32,6 +33,52 @@ interface TaskPayload {
   maxBudget?: number;
 }
 
+export function scanCapabilities(): Record<string, unknown> {
+  const cpu = cpus();
+  const capabilities: Record<string, unknown> = {
+    cpu_cores: cpu.length,
+    cpu_model: cpu[0]?.model || 'unknown',
+    memory_total_mb: Math.round(totalmem() / 1024 / 1024),
+    memory_free_mb: Math.round(freemem() / 1024 / 1024),
+    platform: osPlatform(),
+    os: `${osType()} ${osRelease()} (${osPlatform()})`,
+    hostname: osHostname(),
+    node_version: process.version,
+    tools: [] as string[],
+  };
+
+  // Detect available tools
+  const toolChecks = [
+    'shell', 'filesystem', 'bash', 'powershell', 'git', 'docker',
+    'node', 'python', 'curl', 'ssh', 'kubectl', 'npm', 'pnpm',
+    'go', 'rustc', 'java', 'ruby', 'php',
+  ];
+  const tools: string[] = ['shell', 'filesystem']; // Always available
+  for (const tool of toolChecks) {
+    if (tool === 'shell' || tool === 'filesystem') continue;
+    if (tool === 'powershell' && osPlatform() === 'win32') { tools.push('powershell'); continue; }
+    if (tool === 'bash' && osPlatform() !== 'win32') { tools.push('bash'); continue; }
+    try {
+      const cmd = osPlatform() === 'win32' ? `where ${tool}` : `which ${tool}`;
+      execSync(cmd, { stdio: 'ignore', timeout: 3000 });
+      tools.push(tool);
+    } catch { /* not available */ }
+  }
+  capabilities['tools'] = tools;
+  capabilities['max_workers'] = Math.max(1, Math.min(cpu.length, 4));
+
+  // Check for Claude CLI
+  try {
+    const cmd = osPlatform() === 'win32' ? 'where claude' : 'which claude';
+    execSync(cmd, { stdio: 'ignore', timeout: 3000 });
+    capabilities['claude_cli'] = true;
+  } catch {
+    capabilities['claude_cli'] = false;
+  }
+
+  return capabilities;
+}
+
 export class AgentBridge {
   private ws: WebSocket | null = null;
   private options: Required<BridgeOptions>;
@@ -40,6 +87,7 @@ export class AgentBridge {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private activeExecution: { id: string; process: ChildProcess } | null = null;
   private shouldReconnect = true;
+  private reconnectAttempt = 0;
 
   constructor(options: BridgeOptions) {
     this.options = {
@@ -64,6 +112,7 @@ export class AgentBridge {
 
       this.ws.on('open', () => {
         console.log('  Connected. Registering device...');
+        this.reconnectAttempt = 0;
 
         // Register or reconnect
         if (this.deviceId) {
@@ -102,7 +151,7 @@ export class AgentBridge {
       this.ws.on('error', (err) => {
         console.error(`  WebSocket error: ${err.message}`);
         // Don't reject if we're reconnecting
-        if (!this.deviceId) {
+        if (!this.deviceId && this.reconnectAttempt === 0) {
           reject(err);
         }
       });
@@ -137,7 +186,11 @@ export class AgentBridge {
       case 'device:registered':
         this.deviceId = msg.payload['deviceId'] as string;
         console.log(`  Registered as device ${this.deviceId}`);
-        console.log('  Waiting for tasks...\n');
+        console.log('  Ready — waiting for tasks...\n');
+        break;
+
+      case 'capabilities:scan':
+        this.handleCapabilitiesScan();
         break;
 
       case 'task:dispatch':
@@ -159,6 +212,18 @@ export class AgentBridge {
         // Unknown message type — ignore
         break;
     }
+  }
+
+  private handleCapabilitiesScan(): void {
+    console.log('  Running capabilities scan...');
+    const caps = scanCapabilities();
+    this.send('capabilities:result', {
+      capabilities: caps,
+      hostname: caps['hostname'] as string,
+      os: caps['os'] as string,
+      deviceName: this.options.deviceName,
+    });
+    console.log(`  Capabilities reported: ${(caps['tools'] as string[]).length} tools, ${caps['cpu_cores']} cores, ${caps['memory_total_mb']}MB RAM`);
   }
 
   private async handleTask(task: TaskPayload): Promise<void> {
@@ -321,6 +386,9 @@ export class AgentBridge {
     this.stopHeartbeat();
     this.heartbeatTimer = setInterval(() => {
       this.send('device:heartbeat', {
+        deviceName: this.options.deviceName,
+        hostname: this.options.hostname,
+        os: this.options.os,
         load: 0,
         activeExecutions: this.activeExecution ? 1 : 0,
       });
@@ -336,7 +404,10 @@ export class AgentBridge {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
-    console.log(`  Reconnecting in ${this.options.reconnectInterval / 1000}s...`);
+    this.reconnectAttempt++;
+    // Exponential backoff: 2s, 4s, 8s, 16s, max 60s
+    const delay = Math.min(2000 * Math.pow(2, this.reconnectAttempt - 1), 60_000);
+    console.log(`  Reconnecting in ${(delay / 1000).toFixed(1)}s (attempt ${this.reconnectAttempt})...`);
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
       try {
@@ -345,6 +416,6 @@ export class AgentBridge {
         console.error(`  Reconnect failed: ${err instanceof Error ? err.message : err}`);
         this.scheduleReconnect();
       }
-    }, this.options.reconnectInterval);
+    }, delay);
   }
 }

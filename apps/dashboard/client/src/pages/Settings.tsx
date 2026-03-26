@@ -5,9 +5,9 @@ import { useThemeStore } from '../stores/theme';
 import { relativeTime } from '../utils/format';
 import './Settings.css';
 
-type SettingsTab = 'general' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'preferences' | 'infrastructure' | 'migration';
+type SettingsTab = 'general' | 'api-keys' | 'costs' | 'integrations' | 'channels' | 'devices' | 'preferences' | 'infrastructure' | 'reports' | 'migration';
 
-const VALID_TABS: SettingsTab[] = ['general', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'preferences', 'infrastructure', 'migration'];
+const VALID_TABS: SettingsTab[] = ['general', 'api-keys', 'costs', 'integrations', 'channels', 'devices', 'preferences', 'infrastructure', 'reports', 'migration'];
 
 // ── Natural Language Settings Assistant ──
 
@@ -188,6 +188,18 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
             Infrastructure
           </button>
           <button
+            className={`settings-nav-item ${activeTab === 'reports' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reports')}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            Reports
+          </button>
+          <button
             className={`settings-nav-item ${activeTab === 'migration' ? 'active' : ''}`}
             onClick={() => setActiveTab('migration')}
           >
@@ -209,6 +221,7 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
           {activeTab === 'devices' && <DevicesTab />}
           {activeTab === 'preferences' && <PreferencesTab />}
           {activeTab === 'infrastructure' && <InfrastructureTab />}
+          {activeTab === 'reports' && <ScheduledReportsTab />}
           {activeTab === 'migration' && <MigrationTab />}
         </div>
       </div>
@@ -3596,6 +3609,277 @@ function OllamaManager() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Scheduled Reports Tab ──
+
+interface ReportScheduleItem {
+  id: string;
+  name: string;
+  report_type: string;
+  schedule_hour: number;
+  schedule_day_of_week: number;
+  include_sections: string[];
+  recipients: { type: string; url?: string; address?: string }[];
+  is_enabled: boolean;
+  last_sent_at: string | null;
+  created_at: string;
+}
+
+function ScheduledReportsTab() {
+  const [schedules, setSchedules] = useState<ReportScheduleItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [sending, setSending] = useState<string | null>(null);
+
+  // Create form state
+  const [formName, setFormName] = useState('');
+  const [formType, setFormType] = useState('daily');
+  const [formHour, setFormHour] = useState(9);
+  const [formDay, setFormDay] = useState(1);
+  const [formSections, setFormSections] = useState(['metrics', 'activity', 'findings', 'cost']);
+  const [formWebhook, setFormWebhook] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const loadSchedules = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/report-schedules`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json() as { schedules: ReportScheduleItem[] };
+        setSchedules(data.schedules || []);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { loadSchedules(); }, [loadSchedules]);
+
+  const handleCreate = async () => {
+    if (!formName.trim()) return;
+    const recipients: { type: string; url?: string; address?: string }[] = [];
+    if (formWebhook.trim()) recipients.push({ type: 'discord_webhook', url: formWebhook.trim() });
+    if (formEmail.trim()) recipients.push({ type: 'email', address: formEmail.trim() });
+    if (recipients.length === 0) return;
+
+    setCreating(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/report-schedules`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formName.trim(),
+          report_type: formType,
+          schedule_hour: formHour,
+          schedule_day_of_week: formDay,
+          include_sections: formSections,
+          recipients,
+        }),
+      });
+      if (res.ok) {
+        setShowCreate(false);
+        setFormName(''); setFormWebhook(''); setFormEmail('');
+        await loadSchedules();
+      }
+    } catch { /* ignore */ }
+    setCreating(false);
+  };
+
+  const handleToggle = async (id: string, enabled: boolean) => {
+    await fetch(`${API_BASE}/api/v1/forge/report-schedules/${id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_enabled: !enabled }),
+    });
+    await loadSchedules();
+  };
+
+  const handleDelete = async (id: string) => {
+    await fetch(`${API_BASE}/api/v1/forge/report-schedules/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    await loadSchedules();
+  };
+
+  const handleSendNow = async (id: string) => {
+    setSending(id);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/forge/report-schedules/${id}/send-now`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        await loadSchedules();
+      }
+    } catch { /* ignore */ }
+    setSending(null);
+  };
+
+  const sectionOptions = [
+    { id: 'metrics', label: 'Fleet Metrics' },
+    { id: 'activity', label: 'Tickets & Activity' },
+    { id: 'findings', label: 'Findings' },
+    { id: 'cost', label: 'Cost Breakdown' },
+  ];
+
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  return (
+    <div className="settings-section">
+      <div className="settings-section-header">
+        <h2>Scheduled Reports</h2>
+        <p className="settings-section-desc">Automatic daily or weekly summaries sent to Discord or email.</p>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 20, opacity: 0.5 }}>Loading...</div>
+      ) : (
+        <>
+          {schedules.length === 0 && !showCreate && (
+            <div style={{ padding: '24px', textAlign: 'center', opacity: 0.6, fontSize: '0.9rem' }}>
+              No report schedules configured. Create one to get started.
+            </div>
+          )}
+
+          {schedules.map(s => (
+            <div key={s.id} style={{ padding: '16px', margin: '12px 0', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{s.name}</div>
+                  <div style={{ fontSize: '0.8rem', opacity: 0.5, marginTop: 4 }}>
+                    {s.report_type === 'weekly'
+                      ? `Weekly on ${dayNames[s.schedule_day_of_week]} at ${String(s.schedule_hour).padStart(2, '0')}:00 UTC`
+                      : `Daily at ${String(s.schedule_hour).padStart(2, '0')}:00 UTC`}
+                    {s.last_sent_at && ` — Last sent ${relativeTime(s.last_sent_at)}`}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                    {(s.include_sections || []).map(sec => (
+                      <span key={sec} style={{ padding: '2px 8px', borderRadius: 8, background: 'rgba(99,102,241,0.1)', fontSize: '0.7rem', color: 'rgba(165,168,255,0.8)' }}>{sec}</span>
+                    ))}
+                    {(s.recipients || []).map((r, i) => (
+                      <span key={i} style={{ padding: '2px 8px', borderRadius: 8, background: r.type === 'discord_webhook' ? 'rgba(88,101,242,0.15)' : 'rgba(52,211,153,0.1)', fontSize: '0.7rem', color: r.type === 'discord_webhook' ? '#7289da' : '#34d399' }}>
+                        {r.type === 'discord_webhook' ? 'Discord' : r.address || 'Email'}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    onClick={() => handleSendNow(s.id)}
+                    disabled={sending === s.id}
+                    style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)', color: '#a5a8ff', cursor: 'pointer', fontSize: '0.8rem' }}
+                  >
+                    {sending === s.id ? 'Sending...' : 'Send Now'}
+                  </button>
+                  <button
+                    onClick={() => handleToggle(s.id, s.is_enabled)}
+                    style={{ width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer', background: s.is_enabled ? '#7c3aed' : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s' }}
+                  >
+                    <span style={{ position: 'absolute', top: 2, left: s.is_enabled ? 20 : 2, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(s.id)}
+                    style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem' }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {!showCreate ? (
+            <button
+              onClick={() => setShowCreate(true)}
+              style={{ marginTop: 16, padding: '10px 20px', borderRadius: 8, border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)', color: '#a5a8ff', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}
+            >
+              + Create Report Schedule
+            </button>
+          ) : (
+            <div style={{ padding: '20px', margin: '16px 0', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 12 }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1rem' }}>New Report Schedule</h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Name</label>
+                  <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Daily Fleet Summary" style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'inherit', fontSize: '0.9rem' }} />
+                </div>
+
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Type</label>
+                    <select value={formType} onChange={e => setFormType(e.target.value)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'inherit' }}>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Hour (UTC)</label>
+                    <select value={formHour} onChange={e => setFormHour(parseInt(e.target.value))} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'inherit' }}>
+                      {Array.from({ length: 24 }, (_, i) => <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>)}
+                    </select>
+                  </div>
+                  {formType === 'weekly' && (
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Day</label>
+                      <select value={formDay} onChange={e => setFormDay(parseInt(e.target.value))} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'inherit' }}>
+                        {dayNames.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Include Sections</label>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {sectionOptions.map(opt => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setFormSections(prev => prev.includes(opt.id) ? prev.filter(s => s !== opt.id) : [...prev, opt.id])}
+                        style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${formSections.includes(opt.id) ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.1)'}`, background: formSections.includes(opt.id) ? 'rgba(99,102,241,0.15)' : 'transparent', color: formSections.includes(opt.id) ? '#a5a8ff' : 'inherit', cursor: 'pointer', fontSize: '0.8rem' }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Discord Webhook URL</label>
+                  <input value={formWebhook} onChange={e => setFormWebhook(e.target.value)} placeholder="https://discord.com/api/webhooks/..." style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'inherit', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }} />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Email (optional)</label>
+                  <input value={formEmail} onChange={e => setFormEmail(e.target.value)} placeholder="team@example.com" style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: 'inherit', fontSize: '0.85rem' }} />
+                  <span style={{ fontSize: '0.7rem', opacity: 0.4, marginTop: 2, display: 'block' }}>Requires SMTP to be configured in Infrastructure.</span>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <button
+                    onClick={handleCreate}
+                    disabled={creating || !formName.trim() || (!formWebhook.trim() && !formEmail.trim())}
+                    style={{ padding: '10px 20px', borderRadius: 8, border: 'none', background: '#7c3aed', color: '#fff', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600, opacity: creating ? 0.5 : 1 }}
+                  >
+                    {creating ? 'Creating...' : 'Create Schedule'}
+                  </button>
+                  <button
+                    onClick={() => setShowCreate(false)}
+                    style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: '0.9rem' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

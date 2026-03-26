@@ -225,6 +225,16 @@ export class UnifiedDispatcher {
       // Process scheduled agents
       await this.processScheduledAgents(agents, inFlightMap, fleetContext);
 
+      // Check report schedules every 60 ticks (~30 minutes)
+      if (this.tickCount % 60 === 0) {
+        try {
+          const { checkAndRunSchedules } = await import('../orchestration/report-builder.js');
+          await checkAndRunSchedules();
+        } catch (err) {
+          console.warn(`[Dispatcher] Report schedule check error: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
     } catch (err) {
       console.error('[Dispatcher] Tick error:', err);
     } finally {
