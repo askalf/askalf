@@ -666,7 +666,7 @@ async function getBrowser(): Promise<import('puppeteer-core').Browser> {
       browserInstance = await puppeteer.default.launch({
         headless: true,
         executablePath: execPath,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-crash-reporter', '--disable-extensions', '--disable-background-networking'],
         timeout: 15000,
       });
       log(`browser_use: launched Chrome from ${execPath}`);
