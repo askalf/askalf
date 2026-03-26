@@ -88,6 +88,7 @@ export class AgentBridge {
   private activeExecution: { id: string; process: ChildProcess } | null = null;
   private shouldReconnect = true;
   private reconnectAttempt = 0;
+  private onRegistered: (() => void) | null = null;
 
   constructor(options: BridgeOptions) {
     this.options = {
@@ -123,12 +124,24 @@ export class AgentBridge {
             hostname: this.options.hostname,
             os: this.options.os,
             capabilities: this.options.capabilities,
+            deviceType: 'cli',
           });
         }
 
-        // Start heartbeat
-        this.startHeartbeat();
-        resolve();
+        // Don't start heartbeat until registered — avoids race condition
+        this.onRegistered = () => {
+          this.startHeartbeat();
+          resolve();
+        };
+        // Fallback: if no response in 10s, start heartbeat anyway (triggers server auto-register)
+        setTimeout(() => {
+          if (!this.deviceId) {
+            console.log('  Registration timeout — starting heartbeat for auto-register...');
+            this.startHeartbeat();
+            this.onRegistered = null;
+            resolve();
+          }
+        }, 10_000);
       });
 
       this.ws.on('message', (data) => {
@@ -187,6 +200,10 @@ export class AgentBridge {
         this.deviceId = msg.payload['deviceId'] as string;
         console.log(`  Registered as device ${this.deviceId}`);
         console.log('  Ready — waiting for tasks...\n');
+        if (this.onRegistered) {
+          this.onRegistered();
+          this.onRegistered = null;
+        }
         break;
 
       case 'capabilities:scan':
