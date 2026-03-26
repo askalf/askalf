@@ -10,19 +10,20 @@
     "dev": "tsx watch src/server.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.26.0",
     "@askalf/db": "workspace:*",
-    "express": "^5.1.0",
-    "cors": "^2.8.6",
-    "openai": "^4.77.0",
     "@askalf/observability": "workspace:*",
-    "agent-twitter-client": "^0.0.18"
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "agent-twitter-client": "^0.0.18",
+    "cors": "^2.8.6",
+    "express": "^5.1.0",
+    "openai": "^4.77.0",
+    "puppeteer-core": "^24.40.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/express": "^5.0.0",
     "@types/cors": "^2.8.17",
-    "typescript": "^5.7.0",
-    "tsx": "^4.7.0"
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.7.0"
   }
 }
