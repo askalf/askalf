@@ -55,8 +55,8 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
 # Production stage
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
 
-# Install git for git_ops tool + procps for pgrep (process tree kill) + bash for Claude CLI shell
-RUN apk add --no-cache git procps bash
+# Install git for git_ops tool + procps for pgrep (process tree kill) + bash for Claude CLI shell + openssh for SSH dispatch
+RUN apk add --no-cache git procps bash openssh-client
 
 # Install Claude Code CLI globally for agent execution
 RUN npm install -g @anthropic-ai/claude-code

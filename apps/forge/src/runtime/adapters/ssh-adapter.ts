@@ -41,7 +41,7 @@ export class SshAdapter implements DeviceAdapter {
       return false;
     }
 
-    void this.executeRemote(deviceId, task, host, port, username, privateKey).catch((err) => {
+    void this.executeRemote(deviceId, task, host, port, username, privateKey, config).catch((err) => {
       console.error(`[SshAdapter] Execution error:`, err);
     });
 
@@ -55,18 +55,23 @@ export class SshAdapter implements DeviceAdapter {
     port: number,
     username: string,
     privateKey?: string,
+    config?: ConnectionConfig,
   ): Promise<void> {
     let keyFile: string | null = null;
 
     try {
       const sshArgs = [
         '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/tmp/askalf_known_hosts',
         '-o', 'ConnectTimeout=10',
-        '-o', 'BatchMode=yes',
         '-p', String(port),
       ];
 
-      if (privateKey) {
+      // Check for key file path first, then inline key
+      const keyPath = (config as Record<string, unknown>)?.['privateKeyPath'] as string | undefined;
+      if (keyPath) {
+        sshArgs.push('-i', keyPath);
+      } else if (privateKey) {
         keyFile = join(tmpdir(), `askalf-ssh-${task.executionId}.key`);
         await writeFile(keyFile, privateKey, { mode: 0o600 });
         sshArgs.push('-i', keyFile);
@@ -130,12 +135,13 @@ export class SshAdapter implements DeviceAdapter {
     return new Promise((resolve) => {
       const args = [
         '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/tmp/askalf_known_hosts',
         '-o', 'ConnectTimeout=5',
-        '-o', 'BatchMode=yes',
         '-p', String(config.port || 22),
-        `${config.username || 'root'}@${host}`,
-        'echo "askalf-ssh-ok" && uname -a',
       ];
+      const keyPath = (config as Record<string, unknown>)?.['privateKeyPath'] as string | undefined;
+      if (keyPath) args.push('-i', keyPath);
+      args.push(`${config.username || 'root'}@${host}`, 'echo "askalf-ssh-ok" && uname -a');
 
       const proc = spawn('ssh', args, { timeout: 10_000, stdio: ['ignore', 'pipe', 'pipe'] });
       let output = '';
