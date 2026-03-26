@@ -78,6 +78,22 @@ export const TOOLS = [
     },
   },
   {
+    name: 'browser_use',
+    description: 'Control a headless browser — navigate pages, take screenshots, click elements, fill forms, extract text. Powered by Puppeteer. Use for pages that require JavaScript rendering.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        action: { type: 'string', enum: ['navigate', 'screenshot', 'click', 'type', 'extract', 'evaluate', 'get_page_info', 'close'], description: 'Browser action to perform' },
+        url: { type: 'string', description: 'URL to navigate to (for navigate action)' },
+        selector: { type: 'string', description: 'CSS selector for click, type, or extract actions' },
+        text: { type: 'string', description: 'Text to type (for type action)' },
+        script: { type: 'string', description: 'JavaScript to evaluate in the page (for evaluate action)' },
+        wait_for: { type: 'string', description: 'CSS selector to wait for after navigation (optional)' },
+      },
+      required: ['action'],
+    },
+  },
+  {
     name: 'team_coordinate',
     description: 'Create a multi-agent team to work on a complex task. Supports single (direct dispatch to one agent), pipeline (sequential A→B→C), fan-out (parallel dispatch), and consensus (parallel analysis + synthesizer). Returns session ID to track progress.',
     inputSchema: {
@@ -121,6 +137,7 @@ export async function handleTool(name: string, args: Record<string, unknown>): P
     case 'web_browse': return handleWebBrowse(args);
     case 'twitter_ops': return handleTwitterOps(args);
     case 'discord_ops': return handleDiscordOps(args);
+    case 'browser_use': return handleBrowserUse(args);
     case 'team_coordinate': return handleTeamCoordinate(args);
     default: throw new Error(`Unknown agent tool: ${name}`);
   }
@@ -619,5 +636,136 @@ async function handleDiscordOps(args: Record<string, unknown>): Promise<string> 
     }
   } catch (err) {
     return JSON.stringify({ error: err instanceof Error ? err.message : 'Discord operation failed' });
+  }
+}
+
+// ============================================
+// browser_use — Headless browser control via Puppeteer
+// ============================================
+
+let browserInstance: import('puppeteer-core').Browser | null = null;
+let activePage: import('puppeteer-core').Page | null = null;
+
+async function getBrowser(): Promise<import('puppeteer-core').Browser> {
+  if (browserInstance?.connected) return browserInstance;
+  const puppeteer = await import('puppeteer-core');
+  // Try common Chrome/Chromium paths
+  const execPaths = [
+    process.env['CHROME_PATH'],
+    process.env['PUPPETEER_EXECUTABLE_PATH'],
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    'C:\Program Files\Google\Chrome\Application\chrome.exe',
+    'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+  ].filter(Boolean) as string[];
+
+  for (const execPath of execPaths) {
+    try {
+      browserInstance = await puppeteer.default.launch({
+        headless: true,
+        executablePath: execPath,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        timeout: 15000,
+      });
+      log(`browser_use: launched Chrome from ${execPath}`);
+      return browserInstance;
+    } catch { /* try next */ }
+  }
+  throw new Error('No Chrome/Chromium found. Set CHROME_PATH env var or install Chrome.');
+}
+
+async function getPage(): Promise<import('puppeteer-core').Page> {
+  if (activePage && !activePage.isClosed()) return activePage;
+  const browser = await getBrowser();
+  activePage = await browser.newPage();
+  await activePage.setViewport({ width: 1280, height: 800 });
+  await activePage.setUserAgent('AskAlf/2.3.0 Browser Bridge');
+  return activePage;
+}
+
+async function handleBrowserUse(args: Record<string, unknown>): Promise<string> {
+  const action = String(args['action'] ?? '');
+  log(`browser_use: ${action}`);
+
+  try {
+    switch (action) {
+      case 'navigate': {
+        const url = String(args['url'] ?? '');
+        if (!url) return JSON.stringify({ error: 'url required for navigate' });
+        const page = await getPage();
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+        if (args['wait_for']) {
+          await page.waitForSelector(String(args['wait_for']), { timeout: 10000 }).catch(() => {});
+        }
+        const title = await page.title();
+        const pageUrl = page.url();
+        return JSON.stringify({ success: true, title, url: pageUrl });
+      }
+
+      case 'screenshot': {
+        const page = await getPage();
+        const screenshot = await page.screenshot({ encoding: 'base64', type: 'png', fullPage: false });
+        return JSON.stringify({ success: true, screenshot: `data:image/png;base64,${screenshot}`, width: 1280, height: 800 });
+      }
+
+      case 'click': {
+        const selector = String(args['selector'] ?? '');
+        if (!selector) return JSON.stringify({ error: 'selector required for click' });
+        const page = await getPage();
+        await page.click(selector);
+        await new Promise(r => setTimeout(r, 500));
+        return JSON.stringify({ success: true, clicked: selector });
+      }
+
+      case 'type': {
+        const selector = String(args['selector'] ?? '');
+        const text = String(args['text'] ?? '');
+        if (!selector || !text) return JSON.stringify({ error: 'selector and text required for type' });
+        const page = await getPage();
+        await page.click(selector);
+        await page.type(selector, text, { delay: 50 });
+        return JSON.stringify({ success: true, typed: text.length + ' chars into ' + selector });
+      }
+
+      case 'extract': {
+        const selector = String(args['selector'] ?? 'body');
+        const page = await getPage();
+        const text = await page.$eval(selector, (el: Element) => el.textContent?.trim() ?? '').catch(() => '');
+        return JSON.stringify({ success: true, text: text.slice(0, 5000), length: text.length });
+      }
+
+      case 'evaluate': {
+        const script = String(args['script'] ?? '');
+        if (!script) return JSON.stringify({ error: 'script required for evaluate' });
+        const page = await getPage();
+        const result = await page.evaluate(script).catch((e: Error) => `Error: ${e.message}`);
+        return JSON.stringify({ success: true, result: String(result).slice(0, 5000) });
+      }
+
+      case 'get_page_info': {
+        const page = await getPage();
+        const title = await page.title();
+        const url = page.url();
+        const links = await page.$$eval('a[href]', (els: Element[]) => els.slice(0, 20).map(e => ({ text: e.textContent?.trim(), href: (e as HTMLAnchorElement).href }))).catch(() => []);
+        const forms = await page.$$eval('form', (els: Element[]) => els.length).catch(() => 0);
+        const inputs = await page.$$eval('input, textarea, select', (els: Element[]) => els.map(e => ({ tag: e.tagName, type: (e as HTMLInputElement).type, name: (e as HTMLInputElement).name, id: e.id })).slice(0, 20)).catch(() => []);
+        return JSON.stringify({ title, url, links, forms, inputs });
+      }
+
+      case 'close': {
+        if (activePage && !activePage.isClosed()) await activePage.close();
+        activePage = null;
+        if (browserInstance?.connected) await browserInstance.close();
+        browserInstance = null;
+        return JSON.stringify({ success: true, message: 'Browser closed' });
+      }
+
+      default:
+        return JSON.stringify({ error: `Unknown action: ${action}. Valid: navigate, screenshot, click, type, extract, evaluate, get_page_info, close` });
+    }
+  } catch (err) {
+    return JSON.stringify({ error: err instanceof Error ? err.message : 'Browser operation failed' });
   }
 }
