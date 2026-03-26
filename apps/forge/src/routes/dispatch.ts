@@ -30,7 +30,6 @@ async function classifyAgent(input: string): Promise<string> {
      FROM forge_agents
      WHERE status = 'active'
        AND (is_decommissioned IS NULL OR is_decommissioned = false)
-       AND (is_internal IS NULL OR is_internal = false)
      ORDER BY tasks_completed DESC NULLS LAST`,
   );
 
@@ -53,8 +52,28 @@ async function classifyAgent(input: string): Promise<string> {
       dev: ['code', 'build', 'develop', 'implement', 'fix', 'bug', 'api', 'endpoint', 'database', 'migration', 'test'],
       content: ['write', 'doc', 'readme', 'blog', 'content', 'report', 'draft', 'release notes', 'changelog'],
       monitor: ['monitor', 'health', 'alert', 'incident', 'performance', 'uptime', 'status', 'docker', 'container'],
+      worker: ['tweet', 'post', 'social', 'discord', 'github', 'issue', 'pr', 'pull request', 'discussion', 'landing', 'website', 'marketplace', 'review'],
       custom: [],
     };
+
+    // Named agent keyword boost
+    const nameKeywords: Record<string, string[]> = {
+      'watchdog': ['patrol', 'container', 'health', 'monitor', 'check'],
+      'platform tester': ['test', 'qa', 'health check', 'api health', 'system check'],
+      'github': ['github', 'issue', 'pr', 'pull request', 'readme', 'repo', 'discussion', 'star'],
+      'discord': ['discord', 'community', 'member', 'channel', 'message', 'welcome'],
+      'social media': ['tweet', 'post', 'twitter', 'x.com', 'social', 'marketing'],
+      'landing': ['landing', 'website', 'askalf.org', 'blog', 'changelog', 'site'],
+      'security': ['security', 'vulnerability', 'scan', 'cve', 'audit'],
+      'marketplace': ['marketplace', 'submission', 'review', 'package', 'template'],
+    };
+    for (const [namePattern, keywords] of Object.entries(nameKeywords)) {
+      if (agent.name.toLowerCase().includes(namePattern)) {
+        for (const kw of keywords) {
+          if (lower.includes(kw)) score += 3;
+        }
+      }
+    }
 
     const agentType = agent.type || 'custom';
     const keywords = typeKeywords[agentType] ?? [];
