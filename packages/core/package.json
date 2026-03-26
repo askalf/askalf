@@ -1,6 +1,6 @@
 {
   "name": "@askalf/core",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Core types, utilities, and validation for AskAlf",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
