@@ -114,8 +114,8 @@ services:
     container_name: askalf-forge
     labels:
       - "autoheal-askalf=true"
-    expose:
-      - "3005"
+    ports:
+      - "${FORGE_PORT:-3005}:3005"
     environment:
       NODE_ENV: production
       PORT: 3005
