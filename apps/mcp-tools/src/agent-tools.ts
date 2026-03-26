@@ -732,7 +732,8 @@ async function handleBrowserUse(args: Record<string, unknown>): Promise<string> 
       case 'extract': {
         const selector = String(args['selector'] ?? 'body');
         const page = await getPage();
-        const text = await page.$eval(selector, (el: Element) => el.textContent?.trim() ?? '').catch(() => '');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const text = await page.$eval(selector, (el: any) => el.textContent?.trim() ?? '').catch(() => '');
         return JSON.stringify({ success: true, text: text.slice(0, 5000), length: text.length });
       }
 
@@ -748,9 +749,11 @@ async function handleBrowserUse(args: Record<string, unknown>): Promise<string> 
         const page = await getPage();
         const title = await page.title();
         const url = page.url();
-        const links = await page.$$eval('a[href]', (els: Element[]) => els.slice(0, 20).map(e => ({ text: e.textContent?.trim(), href: (e as HTMLAnchorElement).href }))).catch(() => []);
-        const forms = await page.$$eval('form', (els: Element[]) => els.length).catch(() => 0);
-        const inputs = await page.$$eval('input, textarea, select', (els: Element[]) => els.map(e => ({ tag: e.tagName, type: (e as HTMLInputElement).type, name: (e as HTMLInputElement).name, id: e.id })).slice(0, 20)).catch(() => []);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const links = await page.$$eval('a[href]', (els: any[]) => els.slice(0, 20).map((e: any) => ({ text: e.textContent?.trim(), href: e.href }))).catch(() => []);
+        const forms = await page.$$eval('form', (els: any[]) => els.length).catch(() => 0);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const inputs = await page.$$eval('input, textarea, select', (els: any[]) => els.map((e: any) => ({ tag: e.tagName, type: e.type, name: e.name, id: e.id })).slice(0, 20)).catch(() => []);
         return JSON.stringify({ title, url, links, forms, inputs });
       }
 

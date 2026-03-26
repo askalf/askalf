@@ -51,9 +51,15 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
 # Production stage
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
 
+# Install Chromium for browser_use tool (headless browser control)
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
+
 # Security: create non-root user
 RUN addgroup -g 1001 substrate && \
     adduser -u 1001 -G substrate -s /bin/false -D substrate
+
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV CHROME_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 
