@@ -161,9 +161,15 @@ function extractToken(request: FastifyRequest): { token: string | null; deprecat
 
 export async function registerAgentBridge(app: FastifyInstance): Promise<void> {
   app.get('/ws/agent-bridge', { websocket: true }, async (socket: WebSocket, request: FastifyRequest) => {
+    // Buffer messages received during async auth — client may send device:register before auth completes
+    const earlyMessages: (Buffer | string)[] = [];
+    const earlyHandler = (data: Buffer | string) => { earlyMessages.push(data); };
+    socket.on('message', earlyHandler);
+
     const { token, deprecated } = extractToken(request);
 
     if (!token) {
+      socket.off('message', earlyHandler);
       sendMessage(socket, 'device:error', { code: 'AUTH_REQUIRED', message: 'Missing auth token. Use Authorization: Bearer <token> header.' });
       socket.close(4001, 'Missing token');
       return;
@@ -176,6 +182,7 @@ export async function registerAgentBridge(app: FastifyInstance): Promise<void> {
     // Validate API key (inline — avoids @askalf/auth dependency)
     const apiKey = await validateBridgeToken(token);
     if (!apiKey) {
+      socket.off('message', earlyHandler);
       sendMessage(socket, 'device:error', { code: 'AUTH_FAILED', message: 'Invalid or expired token' });
       socket.close(4001, 'Invalid token');
       return;
@@ -190,10 +197,14 @@ export async function registerAgentBridge(app: FastifyInstance): Promise<void> {
       : null;
 
     if (!user) {
+      socket.off('message', earlyHandler);
       sendMessage(socket, 'device:error', { code: 'USER_NOT_FOUND', message: 'API key not associated with an active user' });
       socket.close(4001, 'User not found');
       return;
     }
+
+    // Auth complete — remove early buffer handler
+    socket.off('message', earlyHandler);
 
     const userId = user.id;
     const tenantId = user.tenant_id;
@@ -247,6 +258,14 @@ export async function registerAgentBridge(app: FastifyInstance): Promise<void> {
         sendMessage(socket, 'device:error', { code: 'INTERNAL_ERROR', message: 'Server error processing message' });
       });
     });
+
+    // Replay any messages buffered during async auth (e.g. device:register sent immediately on open)
+    if (earlyMessages.length > 0) {
+      console.log(`[AgentBridge] Replaying ${earlyMessages.length} buffered message(s) for user=${userId}`);
+      for (const data of earlyMessages) {
+        socket.emit('message', data);
+      }
+    }
 
     socket.on('close', () => {
       clearTimeout(heartbeatTimeout);
