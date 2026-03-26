@@ -53,27 +53,6 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
 
-  apps/admin-console:
-    dependencies:
-      '@fastify/cookie':
-        specifier: ^11.0.1
-        version: 11.0.2
-      '@fastify/cors':
-        specifier: ^10.0.0
-        version: 10.1.0
-      '@fastify/websocket':
-        specifier: ^11.2.0
-        version: 11.2.0
-      fastify:
-        specifier: '>=5.8.1'
-        version: 5.8.4
-      node-pty:
-        specifier: ^1.0.0
-        version: 1.1.0
-      pg:
-        specifier: ^8.13.1
-        version: 8.20.0
-
   apps/dashboard:
     dependencies:
       '@askalf/auth':
@@ -327,8 +306,8 @@ importers:
         specifier: workspace:*
         version: link:../observability
       nodemailer:
-        specifier: ^8.0.3
-        version: 8.0.3
+        specifier: ^8.0.4
+        version: 8.0.4
     devDependencies:
       '@types/nodemailer':
         specifier: ^6.4.17
@@ -2294,8 +2273,8 @@ packages:
   node-pty@1.1.0:
     resolution: {integrity: sha512-20JqtutY6JPXTUnL0ij1uad7Qe1baT46lyolh2sSENDd4sTzKZ4nmAFkeAARDKwmlLjPx6XKRlwRUxwjOy+lUg==}
 
-  nodemailer@8.0.3:
-    resolution: {integrity: sha512-JQNBqvK+bj3NMhUFR3wmCl3SYcOeMotDiwDBvIoCuQdF0PvlIY0BH+FJ2CG7u4cXKPChplE78oowlH/Otsc4ZQ==}
+  nodemailer@8.0.4:
+    resolution: {integrity: sha512-k+jf6N8PfQJ0Fe8ZhJlgqU5qJU44Lpvp2yvidH3vp1lPnVQMgi4yEEMPXg5eJS1gFIJTVq1NHBk7Ia9ARdSBdQ==}
     engines: {node: '>=6.0.0'}
 
   nwsapi@2.2.23:
@@ -4362,6 +4341,14 @@ snapshots:
     optionalDependencies:
       vite: 5.4.21(@types/node@20.19.27)
 
+  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@25.5.0))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 5.4.21(@types/node@25.5.0)
+
   '@vitest/pretty-format@2.1.9':
     dependencies:
       tinyrainbow: 1.2.0
@@ -5461,7 +5448,7 @@ snapshots:
     dependencies:
       node-addon-api: 7.1.1
 
-  nodemailer@8.0.3: {}
+  nodemailer@8.0.4: {}
 
   nwsapi@2.2.23:
     optional: true
@@ -6271,7 +6258,7 @@ snapshots:
   vitest@2.1.9(@types/node@25.5.0)(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@20.19.27))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@25.5.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
