@@ -49,6 +49,7 @@ interface DeviceSession {
   activeExecutions: Set<string>;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   lastHeartbeat: number;
+  heartbeatCount: number;
 }
 
 // ============================================
@@ -395,6 +396,8 @@ async function handleClientMessage(
         const hbPayload = msg.payload as {
           hostname?: string; os?: string; deviceName?: string; load?: Record<string, unknown>; activeExecutions?: number; capabilities?: Record<string, unknown>;
         };
+        // Skip auto-register for internal connections (no deviceName = dashboard/internal agent)
+        if (!hbPayload.deviceName && !hbPayload.hostname) return;
         console.log(`[AgentBridge] Auto-registering from heartbeat (no prior device:register) for user=${userId}`);
         const autoDevice = await registerDevice({
           userId, tenantId, apiKeyId,
@@ -417,7 +420,12 @@ async function handleClientMessage(
         load?: Record<string, unknown>; activeExecutions?: number;
       };
       session.lastHeartbeat = Date.now();
+      session.heartbeatCount++;
       await updateHeartbeat(session.deviceId, load, activeExecutions);
+      // Request capabilities rescan every 10th heartbeat (~5 min)
+      if (session.heartbeatCount % 10 === 0) {
+        sendMessage(ws, 'capabilities:scan', { deviceId: session.deviceId });
+      }
       break;
     }
 
@@ -596,6 +604,7 @@ function createSession(
     activeExecutions: new Set(),
     heartbeatTimer: null,
     lastHeartbeat: Date.now(),
+    heartbeatCount: 0,
   };
 
   sessions.set(device.id, session);
