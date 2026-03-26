@@ -82,7 +82,7 @@ export function getOnlineDeviceSession(userId: string): DeviceSession | null {
 /**
  * Dispatch a task to a connected device. Returns true if dispatched.
  */
-export function dispatchTaskToDevice(
+export async function dispatchTaskToDevice(
   deviceId: string,
   executionId: string,
   agentId: string,
@@ -90,7 +90,7 @@ export function dispatchTaskToDevice(
   input: string,
   maxTurns?: number,
   maxBudget?: number,
-): boolean {
+): Promise<boolean> {
   const session = sessions.get(deviceId);
   if (!session || session.ws.readyState !== 1) return false;
 
@@ -99,6 +99,22 @@ export function dispatchTaskToDevice(
 
   session.activeExecutions.add(executionId);
 
+  // Read OAuth credentials to send with the task (so remote device can auth Claude)
+  let credentials: string | undefined;
+  try {
+    const { existsSync, readFileSync } = await import('fs');
+    const credPaths = [
+      '/tmp/claude-credentials/.credentials.json',
+      '/tmp/claude-home/.claude/.credentials.json',
+    ];
+    for (const p of credPaths) {
+      if (existsSync(p)) {
+        credentials = readFileSync(p, 'utf8');
+        break;
+      }
+    }
+  } catch { /* no credentials to send */ }
+
   sendMessage(session.ws, 'task:dispatch', {
     executionId,
     agentId,
@@ -106,6 +122,7 @@ export function dispatchTaskToDevice(
     input,
     maxTurns,
     maxBudget,
+    credentials,
   });
 
   return true;
@@ -448,7 +465,7 @@ async function handleClientMessage(
       await dbQuery(
         `UPDATE forge_executions
          SET status = 'completed', output = $1, completed_at = NOW(),
-             total_cost = $2, input_tokens = $3, output_tokens = $4, iterations = $5
+             cost = $2, input_tokens = $3, output_tokens = $4, total_tokens = $3::int + $4::int, iterations = $5
          WHERE id = $6`,
         [output ?? '', cost ?? 0, inputTokens ?? 0, outputTokens ?? 0, turns ?? 0, executionId],
       );

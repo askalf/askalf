@@ -31,6 +31,7 @@ interface TaskPayload {
   input: string;
   maxTurns?: number;
   maxBudget?: number;
+  credentials?: string;
 }
 
 export function scanCapabilities(): Record<string, unknown> {
@@ -250,6 +251,21 @@ export class AgentBridge {
     // Acknowledge receipt
     this.send('execution:accepted', { executionId: task.executionId });
 
+    // Write OAuth credentials if provided (so Claude CLI can auth on this device)
+    if (task.credentials) {
+      try {
+        const { mkdirSync, writeFileSync } = await import('fs');
+        const { join } = await import('path');
+        const { homedir } = await import('os');
+        const claudeDir = join(homedir(), '.claude');
+        mkdirSync(claudeDir, { recursive: true });
+        writeFileSync(join(claudeDir, '.credentials.json'), task.credentials, { mode: 0o600 });
+        console.log('  OAuth credentials synced from server');
+      } catch (err) {
+        console.warn(`  Failed to write credentials: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
     // Check if claude CLI is available
     const claudePath = this.findClaude();
     if (!claudePath) {
@@ -325,9 +341,10 @@ export class AgentBridge {
   ): Promise<{ output: string; tokensIn: number; tokensOut: number; cost: number }> {
     return new Promise((resolve, reject) => {
       const proc = spawn(claudePath, args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
         timeout: 600_000, // 10 min max
         env: { ...process.env },
+        shell: process.platform === 'win32', // Windows needs shell:true for .cmd files
       });
 
       this.activeExecution = { id: executionId, process: proc };

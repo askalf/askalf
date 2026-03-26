@@ -199,30 +199,52 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           userAgent: request.headers['user-agent'],
         }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
 
-        // Fire CLI execution asynchronously — return immediately, CLI runs in background
-        void runDirectCliExecution(
-          executionId,
-          body.agentId,
-          body.input,
-          userId,
-          {
-            modelId: agent.model_id ?? undefined,
-            systemPrompt: agent.system_prompt ?? undefined,
-            sessionId: body.sessionId,
-            maxBudgetUsd: agent.max_cost_per_execution,
-            maxTurns: agent.max_iterations ?? undefined,
-            priority,
-          },
-        ).catch((err) => {
-          request.log.error({ err, executionId }, 'Async CLI execution failed');
-          const errMsg = err instanceof Error ? err.message : String(err);
-          void query(
-            `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status IN ('pending', 'running')`,
-            [`Failed to start: ${errMsg}`, executionId],
-          ).catch((dbErr) => {
-            request.log.error({ err: dbErr, executionId }, 'Failed to update execution status after CLI failure');
+        // Check if agent has a target device — dispatch to remote device if connected
+        let dispatched = false;
+        try {
+          const agentMeta = await queryOne<{ metadata: Record<string, unknown> }>(
+            `SELECT metadata FROM forge_agents WHERE id = $1`, [body.agentId],
+          );
+          const targetDeviceId = agentMeta?.metadata?.['target_device'] as string | undefined;
+          if (targetDeviceId) {
+            const { dispatchTaskToDevice } = await import('../runtime/agent-bridge.js');
+            dispatched = await dispatchTaskToDevice(
+              targetDeviceId, executionId, body.agentId, 'Agent', body.input,
+              agent.max_iterations ?? undefined,
+              agent.max_cost_per_execution ? parseFloat(agent.max_cost_per_execution) : undefined,
+            );
+            if (dispatched) {
+              request.log.info({ executionId, targetDeviceId }, 'Task dispatched to remote device');
+            }
+          }
+        } catch { /* fall through to local */ }
+
+        if (!dispatched) {
+          // Fire CLI execution locally — return immediately, CLI runs in background
+          void runDirectCliExecution(
+            executionId,
+            body.agentId,
+            body.input,
+            userId,
+            {
+              modelId: agent.model_id ?? undefined,
+              systemPrompt: agent.system_prompt ?? undefined,
+              sessionId: body.sessionId,
+              maxBudgetUsd: agent.max_cost_per_execution,
+              maxTurns: agent.max_iterations ?? undefined,
+              priority,
+            },
+          ).catch((err) => {
+            request.log.error({ err, executionId }, 'Async CLI execution failed');
+            const errMsg = err instanceof Error ? err.message : String(err);
+            void query(
+              `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2 AND status IN ('pending', 'running')`,
+              [`Failed to start: ${errMsg}`, executionId],
+            ).catch((dbErr) => {
+              request.log.error({ err: dbErr, executionId }, 'Failed to update execution status after CLI failure');
+            });
           });
-        });
+        }
 
         return reply.status(201).send({ execution });
       } catch (err: unknown) {
