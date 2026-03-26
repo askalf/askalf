@@ -1,6 +1,6 @@
 {
   "name": "@askalf/auth",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "API key management for AskAlf",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
