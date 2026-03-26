@@ -192,13 +192,14 @@ ok "Configuration generated"
 
 # ── Pull & Build ───────────────────────────────────────
 echo ""
-info "Pulling Docker images..."
-docker compose -f docker-compose.selfhosted.yml pull 2>&1 | grep -E "Pull|Done|pull" || true
-ok "Images pulled"
-
-info "Building application containers..."
-docker compose -f docker-compose.selfhosted.yml build 2>&1 | tail -5
-ok "Containers built"
+info "Pulling pre-built Docker images..."
+if docker compose -f docker-compose.selfhosted.yml pull 2>&1 | grep -qE "Downloaded|Pull complete|up to date"; then
+  ok "Pre-built images pulled (fast install)"
+else
+  warn "Pre-built images not available — building from source (this takes a few minutes)"
+  docker compose -f docker-compose.selfhosted.yml build 2>&1 | tail -5
+  ok "Containers built from source"
+fi
 
 # ── Start Services ─────────────────────────────────────
 echo ""
