@@ -48,23 +48,27 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
     find /app/deploy -name "LICENSE*" -delete 2>/dev/null || true && \
     rm -rf /app/deploy/node_modules/.cache 2>/dev/null || true
 
-# Production stage
-FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
+# Production stage — Debian slim + Google Chrome (works in Docker Desktop WSL2)
+FROM node:22-slim AS runner
 
-# Install Chromium for browser_use tool (headless browser control)
-# Uses Alpine CDN mirror as fallback for large package downloads
-RUN apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/v3.22/community chromium nss freetype harfbuzz ca-certificates ttf-freefont && \
-    rm -f /usr/lib/chromium/chrome_crashpad_handler && \
-    echo '#!/bin/sh' > /usr/lib/chromium/chrome_crashpad_handler && \
-    chmod +x /usr/lib/chromium/chrome_crashpad_handler
+# Install Google Chrome Stable (Debian's chromium package crashes in WSL2)
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends wget gnupg ca-certificates fonts-freefont-ttf && \
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google.gpg && \
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update -qq && \
+    apt-get install -y --no-install-recommends google-chrome-stable && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    rm -f /opt/google/chrome/chrome_crashpad_handler && \
+    echo '#!/bin/sh' > /opt/google/chrome/chrome_crashpad_handler && \
+    chmod +x /opt/google/chrome/chrome_crashpad_handler
 
 # Security: create non-root user
-RUN addgroup -g 1001 substrate && \
-    adduser -u 1001 -G substrate -s /bin/false -D substrate
+RUN groupadd -g 1001 substrate && \
+    useradd -u 1001 -g substrate -s /usr/sbin/nologin -m substrate
 
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-ENV CHROME_PATH=/usr/bin/chromium-browser
-ENV CHROMIUM_FLAGS="--no-sandbox --disable-crash-reporter"
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
+ENV CHROME_PATH=/usr/bin/google-chrome-stable
 
 WORKDIR /app
 

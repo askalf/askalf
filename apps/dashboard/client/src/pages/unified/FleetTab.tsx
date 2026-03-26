@@ -9,6 +9,7 @@ import type {
 } from '../../hooks/useHubApi';
 import type { ForgeEvent } from '../../constants/status';
 import { relativeTime } from '../../utils/format';
+import { API_BASE } from '../../utils/api';
 import AgentConfigEditor from './AgentConfigEditor';
 import './FleetTab.css';
 
@@ -552,6 +553,7 @@ function AgentDetailPanel({
   actionLoading,
   liveLogEntries,
   onConfigSaved,
+  onSaveAsTemplate,
 }: {
   detail: AgentDetail | null;
   agent: Agent;
@@ -565,6 +567,7 @@ function AgentDetailPanel({
   actionLoading: boolean;
   liveLogEntries: LiveLogEntry[];
   onConfigSaved: () => void;
+  onSaveAsTemplate: () => void;
 }) {
   const [execPrompt, setExecPrompt] = useState('');
   const tools = getTools(agent);
@@ -702,6 +705,9 @@ function AgentDetailPanel({
             </button>
             <button className="fleet-btn" onClick={onPause} disabled={actionLoading || agent.status === 'paused'}>
               Pause
+            </button>
+            <button className="fleet-btn" onClick={onSaveAsTemplate} disabled={actionLoading} title="Save this agent's config as a reusable template">
+              Save as Template
             </button>
             <button className="fleet-btn danger" onClick={onDecommission} disabled={actionLoading}>
               Decommission
@@ -941,6 +947,27 @@ export default function FleetTab({ wsEvents = [] }: { wsEvents?: ForgeEvent[] })
                 actionLoading={!!actionLoading[selectedAgent.id]}
                 liveLogEntries={liveLogEntries}
                 onConfigSaved={pollCallback}
+                onSaveAsTemplate={async () => {
+                  try {
+                    setActionLoading(prev => ({ ...prev, [selectedAgent.id]: true }));
+                    const res = await fetch(`${API_BASE}/api/v1/forge/agents/${selectedAgent.id}/save-as-template`, {
+                      method: 'POST',
+                      credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name: `${selectedAgent.name} Template` }),
+                    });
+                    if (res.ok) {
+                      const data = await res.json() as { templateId: string; name: string };
+                      addToast(`Template "${data.name}" created`, 'success');
+                    } else {
+                      addToast('Failed to save template', 'error');
+                    }
+                  } catch {
+                    addToast('Failed to save template', 'error');
+                  } finally {
+                    setActionLoading(prev => ({ ...prev, [selectedAgent.id]: false }));
+                  }
+                }}
               />
             )}
           </div>

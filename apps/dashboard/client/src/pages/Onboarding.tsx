@@ -125,6 +125,8 @@ export default function Onboarding() {
   const [oauthExchanging, setOauthExchanging] = useState(false);
   const [oauthError, setOauthError] = useState('');
   const [searchParams] = useSearchParams();
+  const [ollamaAvailable, setOllamaAvailable] = useState(false);
+  const [ollamaModels, setOllamaModels] = useState<string[]>([]);
 
   // Check OAuth + provider key status on mount
   useEffect(() => {
@@ -148,8 +150,19 @@ export default function Onboarding() {
         }
       } catch { /* ignore */ }
     };
+    const checkOllama = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/forge/onboarding/ollama-status`, { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json() as { available: boolean; models?: string[] };
+          setOllamaAvailable(data.available);
+          setOllamaModels(data.models || []);
+        }
+      } catch { /* ignore */ }
+    };
     checkOAuth();
     checkProviders();
+    checkOllama();
 
     // Handle OAuth redirect result
     const success = searchParams.get('oauth_success');
@@ -382,9 +395,29 @@ export default function Onboarding() {
                 )}
               </div>
 
-              <p className="ob-desc" style={{ marginTop: '16px', fontSize: '0.85rem', opacity: 0.7 }}>
-                Using Ollama for local models? Set OLLAMA_BASE_URL in your .env file — no API key needed.
-              </p>
+              {/* Ollama Detection */}
+              <div className="ob-optional-section">
+                <div className="ob-optional-header">
+                  <span className="ob-optional-label">{ollamaAvailable ? 'Detected' : 'Optional'}</span>
+                  <span className="ob-optional-title">Ollama (Local Models)</span>
+                </div>
+                {ollamaAvailable ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div className="ob-optional-saved" style={{ color: '#34d399' }}>&#10003; Ollama is running{ollamaModels.length > 0 ? ` with ${ollamaModels.length} model${ollamaModels.length > 1 ? 's' : ''}` : ''}</div>
+                    {ollamaModels.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {ollamaModels.slice(0, 8).map(m => (
+                          <span key={m} style={{ padding: '3px 10px', borderRadius: 12, background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)', fontSize: '0.75rem', color: '#34d399' }}>{m.split(':')[0]}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="ob-optional-desc">
+                    No Ollama instance detected. Set OLLAMA_BASE_URL in .env to use local models. No API key needed.
+                  </p>
+                )}
+              </div>
 
               <div className="ob-btn-row">
                 <button className="ob-btn-secondary" onClick={() => setStep('welcome')}>Back</button>
@@ -761,6 +794,10 @@ export default function Onboarding() {
                 <div className="ob-summary-row">
                   <span>Agent Execution</span>
                   <span>{oauthStatus === 'connected' ? 'Claude (OAuth)' : 'Not connected'}</span>
+                </div>
+                <div className="ob-summary-row">
+                  <span>Local Models</span>
+                  <span>{ollamaAvailable ? `Ollama (${ollamaModels.length} models)` : 'Not configured'}</span>
                 </div>
                 <div className="ob-summary-row">
                   <span>Use Case</span>

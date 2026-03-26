@@ -653,12 +653,12 @@ async function getBrowser(): Promise<import('puppeteer-core').Browser> {
   const execPaths = [
     process.env['CHROME_PATH'],
     process.env['PUPPETEER_EXECUTABLE_PATH'],
-    '/usr/bin/chromium-browser',
     '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
     '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable',
-    'C:\Program Files\Google\Chrome\Application\chrome.exe',
-    'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
   ].filter(Boolean) as string[];
 
   for (const execPath of execPaths) {
@@ -666,12 +666,20 @@ async function getBrowser(): Promise<import('puppeteer-core').Browser> {
       browserInstance = await puppeteer.default.launch({
         headless: true,
         executablePath: execPath,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-crash-reporter', '--disable-extensions', '--disable-background-networking'],
+        args: [
+          '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+          '--disable-gpu', '--disable-software-rasterizer',
+          '--disable-crash-reporter', '--disable-extensions', '--disable-background-networking',
+          '--no-first-run', '--no-zygote', '--single-process',
+          '--disable-features=VizDisplayCompositor',
+        ],
         timeout: 15000,
       });
       log(`browser_use: launched Chrome from ${execPath}`);
       return browserInstance;
-    } catch { /* try next */ }
+    } catch (err) {
+      log(`browser_use: failed to launch from ${execPath}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
   throw new Error('No Chrome/Chromium found. Set CHROME_PATH env var or install Chrome.');
 }
@@ -681,7 +689,7 @@ async function getPage(): Promise<import('puppeteer-core').Page> {
   const browser = await getBrowser();
   activePage = await browser.newPage();
   await activePage.setViewport({ width: 1280, height: 800 });
-  await activePage.setUserAgent('AskAlf/2.3.0 Browser Bridge');
+  await activePage.setUserAgent('AskAlf/2.4.0 Browser Bridge');
   return activePage;
 }
 

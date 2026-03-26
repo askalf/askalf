@@ -203,6 +203,7 @@ export async function registerAgentBridge(app: FastifyInstance): Promise<void> {
 
     // Partial session — will be completed on device:register or device:reconnect
     let session: DeviceSession | null = null;
+    let registering = false; // Guard against concurrent auto-registration from rapid heartbeats
 
     // Heartbeat timeout checker (close if no message in 90s)
     let heartbeatTimeout = setTimeout(() => {
@@ -227,12 +228,20 @@ export async function registerAgentBridge(app: FastifyInstance): Promise<void> {
 
       let msg: ClientMessage;
       try {
-        msg = JSON.parse(typeof data === 'string' ? data : data.toString()) as ClientMessage;
+        const raw = typeof data === 'string' ? data : data.toString();
+        msg = JSON.parse(raw) as ClientMessage;
       } catch {
         sendMessage(socket, 'device:error', { code: 'INVALID_JSON', message: 'Could not parse message' });
         return;
       }
 
+      // Skip heartbeats while auto-registration is in progress or already registered
+      if (msg.type === 'device:heartbeat' && !session && registering) {
+        return; // Registration in flight, skip
+      }
+      if (msg.type === 'device:heartbeat' && !session) {
+        registering = true;
+      }
       void handleClientMessage(msg, socket, userId, tenantId, apiKeyId, session, (s) => { session = s; }).catch((err) => {
         console.error(`[AgentBridge] Error handling message type=${msg.type}:`, err instanceof Error ? err.message : err);
         sendMessage(socket, 'device:error', { code: 'INTERNAL_ERROR', message: 'Server error processing message' });
@@ -312,7 +321,9 @@ async function handleClientMessage(
       setSession(newSession);
 
       sendMessage(ws, 'device:registered', { deviceId: device.id, userId });
-      console.log(`[AgentBridge] Device registered: ${device.id} (${device.device_name}) for user=${userId}`);
+      // Request capabilities scan immediately after registration
+      sendMessage(ws, 'capabilities:scan', { deviceId: device.id });
+      console.log(`[AgentBridge] Device registered: ${device.id} (${device.device_name}) for user=${userId} — capabilities scan requested`);
       break;
     }
 
@@ -343,7 +354,29 @@ async function handleClientMessage(
     }
 
     case 'device:heartbeat': {
-      if (!session) return;
+      if (!session) {
+        // Agent sent heartbeat without registering first — auto-register from heartbeat payload
+        const hbPayload = msg.payload as {
+          hostname?: string; os?: string; deviceName?: string; load?: Record<string, unknown>; activeExecutions?: number; capabilities?: Record<string, unknown>;
+        };
+        console.log(`[AgentBridge] Auto-registering from heartbeat (no prior device:register) for user=${userId}`);
+        const autoDevice = await registerDevice({
+          userId, tenantId, apiKeyId,
+          deviceName: hbPayload.deviceName || hbPayload.hostname || 'Remote Agent',
+          hostname: hbPayload.hostname,
+          os: hbPayload.os,
+          capabilities: hbPayload.capabilities ?? hbPayload.load,
+          deviceType: 'cli',
+          deviceCategory: 'compute',
+          protocol: 'websocket',
+        });
+        const autoSession = createSession(ws, autoDevice, userId, tenantId, apiKeyId);
+        setSession(autoSession);
+        sendMessage(ws, 'device:registered', { deviceId: autoDevice.id, userId });
+        sendMessage(ws, 'capabilities:scan', { deviceId: autoDevice.id });
+        console.log(`[AgentBridge] Auto-registered device: ${autoDevice.id} (${autoDevice.device_name}) for user=${userId} — capabilities scan requested`);
+        return;
+      }
       const { load, activeExecutions } = msg.payload as {
         load?: Record<string, unknown>; activeExecutions?: number;
       };
@@ -460,6 +493,24 @@ async function handleClientMessage(
       }
 
       console.log(`[AgentBridge] Execution ${executionId} failed on device ${session.deviceId}: ${error}`);
+      break;
+    }
+
+    case 'capabilities:result': {
+      if (!session) return;
+      const caps = msg.payload as {
+        capabilities?: Record<string, unknown>;
+        hostname?: string;
+        os?: string;
+        deviceName?: string;
+      };
+      if (caps.capabilities) {
+        await dbQuery(
+          `UPDATE agent_devices SET platform_capabilities = $1, hostname = COALESCE($2, hostname), os = COALESCE($3, os), device_name = COALESCE($4, device_name), updated_at = NOW() WHERE id = $5`,
+          [JSON.stringify(caps.capabilities), caps.hostname ?? null, caps.os ?? null, caps.deviceName ?? null, session.deviceId],
+        );
+        console.log(`[AgentBridge] Capabilities updated for device=${session.deviceId}: ${Object.keys(caps.capabilities).join(', ')}`);
+      }
       break;
     }
 

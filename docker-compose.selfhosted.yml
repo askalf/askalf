@@ -313,16 +313,16 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    shm_size: '256mb'
     networks:
       - askalf-net
     restart: unless-stopped
     security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
+      - seccomp=unconfined
+    cap_add:
+      - SYS_ADMIN
     tmpfs:
-      - /tmp:mode=1777,size=64m
+      - /tmp:mode=1777,size=128m
     logging:
       driver: json-file
       options:
@@ -331,7 +331,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
         reservations:
           memory: 96M
 

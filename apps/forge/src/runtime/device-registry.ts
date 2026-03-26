@@ -69,10 +69,14 @@ export async function registerDevice(input: RegisterDeviceInput): Promise<AgentD
   );
   const currentCount = parseInt(countResult?.count ?? '0', 10);
 
-  // Check if this API key already has a device (reconnect case)
+  // Check if this API key + device name already has a device (reconnect case)
+  // Match on both api_key_id and device_name so multiple machines can share one key
   const existing = await queryOne<AgentDevice>(
-    `SELECT * FROM agent_devices WHERE api_key_id = $1`,
-    [input.apiKeyId],
+    `SELECT * FROM agent_devices WHERE api_key_id = $1 AND device_name = $2`,
+    [input.apiKeyId, input.deviceName],
+  ) ?? await queryOne<AgentDevice>(
+    `SELECT * FROM agent_devices WHERE api_key_id = $1 AND hostname = $2`,
+    [input.apiKeyId, input.hostname ?? ''],
   );
 
   if (existing) {

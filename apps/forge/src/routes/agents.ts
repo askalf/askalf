@@ -38,6 +38,8 @@ interface AgentRow {
   version: number;
   status: string;
   metadata: Record<string, unknown>;
+  type: string | null;
+  schedule_interval_minutes: number | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -682,6 +684,98 @@ Return ONLY the optimized system prompt text — no explanations, no markdown fe
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         request.log.error({ err }, 'Prompt optimization failed');
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'Internal Server Error' });
+      }
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/agents/:id/save-as-template — Save a customized agent as a reusable template
+   */
+  app.post(
+    '/api/v1/forge/agents/:id/save-as-template',
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'Save an agent as a reusable template',
+        params: IdParam,
+      },
+      preHandler: [authMiddleware],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const userId = request.userId!;
+      const { id } = request.params as { id: string };
+      const body = (request.body ?? {}) as {
+        name?: string;
+        category?: string;
+        description?: string;
+      };
+
+      try {
+        const agent = await queryOne<AgentRow>(
+          `SELECT * FROM forge_agents WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
+          [id, userId],
+        );
+        if (!agent) {
+          return reply.status(404).send({ error: 'Not Found', message: 'Agent not found' });
+        }
+
+        const templateName = body.name || `${agent.name} Template`;
+        const slug = templateName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const templateId = `tpl_${ulid()}`;
+
+        const agentConfig = {
+          systemPrompt: agent.system_prompt,
+          model: agent.model_id,
+          autonomyLevel: agent.autonomy_level,
+          maxIterations: agent.max_iterations,
+          maxCostPerExecution: agent.max_cost_per_execution,
+          mcpServers: agent.mcp_servers,
+          memoryConfig: agent.memory_config,
+        };
+
+        const scheduleConfig = agent.schedule_interval_minutes ? {
+          type: 'scheduled',
+          interval_minutes: agent.schedule_interval_minutes,
+        } : null;
+
+        await query(
+          `INSERT INTO forge_agent_templates (id, name, slug, category, description, icon, required_tools, agent_config, schedule_config, estimated_cost_per_run, is_active, sort_order)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, 100)
+           ON CONFLICT (slug) DO UPDATE SET
+             name = EXCLUDED.name, description = EXCLUDED.description, agent_config = EXCLUDED.agent_config,
+             schedule_config = EXCLUDED.schedule_config, required_tools = EXCLUDED.required_tools,
+             updated_at = NOW()`,
+          [
+            templateId,
+            templateName,
+            slug,
+            body.category || agent.type || 'custom',
+            body.description || agent.description || '',
+            null,
+            agent.enabled_tools || [],
+            JSON.stringify(agentConfig),
+            scheduleConfig ? JSON.stringify(scheduleConfig) : null,
+            agent.max_cost_per_execution ? String(agent.max_cost_per_execution) : null,
+          ],
+        );
+
+        void logAudit({
+          ownerId: userId,
+          action: 'agent.save_as_template',
+          resourceType: 'template',
+          resourceId: templateId,
+          details: { agentId: id, agentName: agent.name, templateName },
+        }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+
+        return reply.status(201).send({
+          templateId,
+          name: templateName,
+          slug,
+          message: `Template "${templateName}" created from agent "${agent.name}"`,
+        });
+      } catch (err) {
+        request.log.error({ err }, 'Failed to save agent as template');
         return reply.status(500).send({ error: 'Internal Server Error', message: 'Internal Server Error' });
       }
     },

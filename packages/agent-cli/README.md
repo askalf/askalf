@@ -2,7 +2,7 @@
 
 **Connect any device to your AskAlf workforce.**
 
-WebSocket bridge that registers your machine as a device in the AskAlf platform. Once connected, Alf's specialist workers can dispatch tasks to your device — executed via Claude CLI with full codebase access.
+WebSocket bridge that registers your machine as a device in the AskAlf platform. Once connected, Alf's specialist workers can dispatch tasks to your device — executed via Claude CLI with full codebase access. Auto-installs as an OS service so it runs on boot.
 
 Part of [AskAlf](https://askalf.org) — the self-hosted autonomous AI workforce with 109 worker templates, persistent memory, 16 communication channels, and a community skills library.
 
@@ -20,21 +20,37 @@ curl -fsSL https://get.askalf.org | bash
 
 ## Quick Start
 
+**One command to connect + install as service:**
+
 ```bash
-# Connect this device to your team
-askalf-agent connect <your-api-key>
+askalf-agent connect <your-api-key> --url ws://your-server:3005 --name my-device --install
+```
 
-# Connect to a self-hosted instance
-askalf-agent connect <your-api-key> --url wss://your-server.com
+That's it. Config saved, service installed, runs on boot. Close the terminal — it keeps running.
 
-# Run as a background daemon
+**Or step by step:**
+
+```bash
+# Connect this device to your team (interactive)
+askalf-agent connect <your-api-key> --url ws://your-server:3005
+
+# Install as OS service (auto-start on boot)
+askalf-agent install-service
+
+# Run as background daemon instead
 askalf-agent daemon
 
-# Check connection status
+# Check connection + service status
 askalf-agent status
 
-# Disconnect
+# Run capabilities scan (no server needed)
+askalf-agent scan
+
+# Stop the agent
 askalf-agent disconnect
+
+# Remove OS service
+askalf-agent uninstall-service
 ```
 
 ## What It Does
@@ -42,13 +58,37 @@ askalf-agent disconnect
 When connected, your device:
 
 1. **Registers** with the AskAlf platform via WebSocket
-2. **Reports capabilities** — shell, git, docker, node, python, filesystem (auto-detected)
+2. **Scans capabilities** — CPU, RAM, 18 tools checked (git, docker, kubectl, python, etc.), Claude CLI detection
 3. **Receives tasks** dispatched by the Forge orchestrator or unified dispatcher
 4. **Executes via Claude CLI** — `claude --print --output-format json`
 5. **Reports results** back to the platform with token counts, cost, and duration
 6. **Streams progress** — the dashboard sees output in real-time via the event bus
 
-The dashboard shows your device in the Devices tab and can route tasks to it based on capabilities. Alf can also dispatch investigation tickets to devices when workers identify issues.
+The dashboard shows your device in the Devices tab and can route tasks to it based on capabilities.
+
+## Service Installation
+
+`install-service` auto-detects your OS and creates the right service:
+
+| OS | Service Type | Auto-start |
+|----|-------------|------------|
+| **Linux** | systemd unit | On boot |
+| **macOS** | launchd plist | On login |
+| **Windows** | Scheduled Task (or nssm) | On login |
+
+```bash
+# Install (reads config from ~/.askalf/agent.json)
+askalf-agent install-service
+
+# Or combine connect + install in one command
+askalf-agent connect <key> --url ws://server:3005 --name prod-box --install
+
+# Check status
+askalf-agent status
+
+# Remove
+askalf-agent uninstall-service
+```
 
 ## How It Works
 
@@ -70,7 +110,8 @@ Your Machine                    AskAlf Platform
 ```
 
 - **Heartbeat** every 30 seconds to maintain presence
-- **Auto-reconnect** on disconnect (5 second backoff)
+- **Auto-reconnect** with exponential backoff (2s → 4s → 8s → max 60s)
+- **Capabilities scan** — responds to server requests with full system info
 - **Task cancellation** via SIGTERM
 - **10 minute timeout** per execution (configurable)
 - **Progress streaming** — the dashboard sees output in real-time
@@ -89,7 +130,7 @@ Config stored in `~/.askalf/agent.json`:
 ```json
 {
   "apiKey": "your-forge-api-key",
-  "url": "wss://your-server.com",
+  "url": "ws://your-server:3005",
   "deviceName": "my-laptop"
 }
 ```
@@ -102,32 +143,42 @@ Get your API key from the AskAlf dashboard at Settings > API Keys, or use the `F
 |------|-------------|---------|
 | `--url <url>` | Server WebSocket URL | `wss://askalf.org` |
 | `--name <name>` | Device display name | System hostname |
+| `--install` | Install as service after connecting | |
 | `--version` | Show version | |
 | `--help` | Show help | |
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `connect <key>` | Connect to fleet (interactive) |
+| `install-service` | Install as OS service (auto-start on boot) |
+| `uninstall-service` | Remove OS service |
+| `daemon` | Run as background daemon |
+| `status` | Check connection + service status |
+| `scan` | Run local capabilities scan |
+| `disconnect` | Stop running daemon |
 
 ## Programmatic Usage
 
 ```typescript
-import { AgentBridge } from '@askalf/agent';
+import { AgentBridge, scanCapabilities } from '@askalf/agent';
 
+// Scan system capabilities
+const caps = scanCapabilities();
+console.log(caps); // { cpu_cores: 8, tools: ['shell', 'git', 'docker', ...], ... }
+
+// Connect programmatically
 const bridge = new AgentBridge({
   apiKey: 'your-api-key',
-  url: 'wss://your-server.com',
+  url: 'ws://your-server:3005',
   deviceName: 'my-server',
   hostname: 'prod-01',
   os: 'Linux 6.1',
-  capabilities: { shell: true, docker: true, git: true, node: true, python: true, filesystem: true },
+  capabilities: caps,
 });
 
 await bridge.connect();
-
-// The bridge will now:
-// - Register with the platform
-// - Accept dispatched tasks
-// - Execute via Claude CLI
-// - Report results back
-// - Maintain heartbeat
-// - Auto-reconnect on failure
 ```
 
 ## Supported Platforms
@@ -138,7 +189,6 @@ Runs anywhere Node.js runs — Linux, macOS, Windows, Raspberry Pi, cloud VMs, C
 
 - [AskAlf Platform](https://github.com/askalf/askalf) — the full platform
 - [Wiki](https://github.com/askalf/askalf/wiki) — installation, configuration, FAQ
-- [Architecture Docs](https://github.com/askalf/askalf/blob/main/docs/ARCHITECTURE.md) — system internals
 - [Discord](https://discord.gg/fENVZpdYcX) — community support
 
 ## License

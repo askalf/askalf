@@ -91,12 +91,17 @@ export default function HomeTab({ onNavigate }: { wsEvents?: ForgeEvent[]; onNav
       apiFetchSafe<MetricsData>('/api/v1/admin/reports/metrics'),
       apiFetchSafe<{ agents: AgentInfo[] }>('/api/v1/admin/agents'),
       apiFetchSafe<{ executions: ExecutionEntry[] }>('/api/v1/admin/executions/timeline?hours=24'),
-      apiFetchSafe<{ summary: { total: { totalCost: number } } }>('/api/v1/admin/costs?days=1'),
+      apiFetchSafe<{ summary: { total: { totalCost: number } }; byDay?: { date: string; totalCost: number }[] }>('/api/v1/admin/costs?days=1'),
     ]);
     if (m) setMetrics(m);
     if (ag?.agents) setAllAgents(ag.agents.filter(a => a.status !== 'archived' && a.status !== 'decommissioned'));
     if (ex) setExecutions(Array.isArray(ex.executions) ? ex.executions.slice(0, 15) : []);
-    if (c) setTodayCost(c.summary?.total?.totalCost ?? 0);
+    if (c) {
+      // Use today's byDay entry for accurate daily total, not rolling 24h sum
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayEntry = (c.byDay || []).find(d => d.date === todayStr);
+      setTodayCost(todayEntry?.totalCost ?? c.summary?.total?.totalCost ?? 0);
+    }
   }, []);
 
   usePolling(fetchAll, 30000);
