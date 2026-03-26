@@ -438,6 +438,38 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
   /**
    * POST /api/v1/forge/agents/:id/restore - Restore a soft-deleted agent
    */
+  /**
+   * POST /api/v1/forge/agents/:id/assign-device — Assign an agent to a target device for remote execution
+   */
+  app.post(
+    '/api/v1/forge/agents/:id/assign-device',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as { deviceId: string | null };
+
+      const agent = await queryOne<{ id: string; metadata: Record<string, unknown> }>(
+        `SELECT id, metadata FROM forge_agents WHERE id = $1`, [id],
+      );
+      if (!agent) return reply.code(404).send({ error: 'Agent not found' });
+
+      const meta = agent.metadata || {};
+      if (body.deviceId) {
+        const device = await queryOne<{ id: string; device_name: string }>(
+          `SELECT id, device_name FROM agent_devices WHERE id = $1`, [body.deviceId],
+        );
+        if (!device) return reply.code(404).send({ error: 'Device not found' });
+        meta['target_device'] = body.deviceId;
+        await query(`UPDATE forge_agents SET metadata = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(meta), id]);
+        return { assigned: true, agent: id, device: device.device_name };
+      } else {
+        delete meta['target_device'];
+        await query(`UPDATE forge_agents SET metadata = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(meta), id]);
+        return { assigned: false, agent: id, device: null };
+      }
+    },
+  );
+
   app.post(
     '/api/v1/forge/agents/:id/restore',
     {

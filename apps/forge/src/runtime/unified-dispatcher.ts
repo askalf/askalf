@@ -635,6 +635,37 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
       [execId, agent.id, ownerId, enrichedInput, JSON.stringify(metadata)],
     );
 
+    // Check if agent has a target device (SSH/Docker remote dispatch)
+    const targetDevice = await this.findTargetDevice(agent);
+
+    if (targetDevice && targetDevice.device_type === 'ssh') {
+      // Route to SSH adapter
+      const { getAdapter } = await import('./adapters/adapter-registry.js');
+      const sshAdapter = getAdapter('ssh' as import('./adapters/device-adapter.js').DeviceType);
+      if (sshAdapter) {
+        const config = typeof targetDevice.connection_config === 'string'
+          ? JSON.parse(targetDevice.connection_config)
+          : (targetDevice.connection_config || {});
+        const dispatched = await sshAdapter.dispatch(targetDevice.id, {
+          executionId: execId,
+          agentId: agent.id,
+          agentName: agent.name,
+          input: enrichedInput,
+          maxTurns: agent.max_iterations ?? undefined,
+          maxBudget: agent.max_cost_per_execution ? parseFloat(String(agent.max_cost_per_execution)) : undefined,
+          systemPrompt: agent.system_prompt ?? undefined,
+          modelId: agent.model_id ?? undefined,
+        }, config);
+        if (dispatched) {
+          console.log(`[Dispatcher] ${agent.name} → SSH device "${targetDevice.device_name}" (${config.host})`);
+          // Update device last_seen
+          void query(`UPDATE agent_devices SET last_seen_at = NOW(), status = 'busy' WHERE id = $1`, [targetDevice.id]).catch(() => {});
+          return;
+        }
+      }
+    }
+
+    // Default: run locally via CLI
     void runDirectCliExecution(execId, agent.id, enrichedInput, ownerId, {
       modelId: agent.model_id ?? undefined,
       systemPrompt: agent.system_prompt ?? undefined,
@@ -644,6 +675,37 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
     }).catch((err) => {
       console.error(`[Dispatcher] Execution failed for ${agent.name}:`, err);
     });
+  }
+
+  /**
+   * Find a target device for an agent if one is configured.
+   * Checks agent metadata for preferred_device, or finds an SSH device with matching capabilities.
+   */
+  private async findTargetDevice(agent: DispatchableAgent): Promise<{
+    id: string; device_name: string; device_type: string; connection_config: Record<string, unknown>;
+  } | null> {
+    try {
+      // Check if agent has a preferred device in metadata
+      const meta = typeof (agent as unknown as Record<string, unknown>)['metadata'] === 'object'
+        ? (agent as unknown as Record<string, unknown>)['metadata'] as Record<string, unknown>
+        : {};
+      const preferredDeviceId = meta?.['target_device'] as string | undefined;
+
+      if (preferredDeviceId) {
+        const device = await queryOne<{
+          id: string; device_name: string; device_type: string; connection_config: Record<string, unknown>; status: string;
+        }>(
+          `SELECT id, device_name, device_type, connection_config, status FROM agent_devices WHERE id = $1 AND status IN ('online', 'busy')`,
+          [preferredDeviceId],
+        );
+        if (device) return device;
+      }
+
+      // No preferred device — don't auto-route to SSH (only explicit assignment)
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   private async advanceSchedule(agent: DispatchableAgent): Promise<void> {
