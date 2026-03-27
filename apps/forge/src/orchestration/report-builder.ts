@@ -154,6 +154,102 @@ export async function generateReport(type: 'daily' | 'weekly', sections: string[
   };
 }
 
+async function getSmtpConfig(): Promise<{ host: string; port: number; user: string; pass: string; from: string } | null> {
+  // Check env vars first, then platform_settings
+  const host = process.env['SMTP_HOST'];
+  const port = process.env['SMTP_PORT'];
+  const user = process.env['SMTP_USER'];
+  const pass = process.env['SMTP_PASS'];
+  const from = process.env['SMTP_FROM'] || 'noreply@askalf.org';
+
+  if (host && port) {
+    return { host, port: parseInt(port), user: user || '', pass: pass || '', from };
+  }
+
+  // Try platform_settings
+  try {
+    const settings = await query<{ key: string; value: string }>(
+      `SELECT key, value FROM platform_settings WHERE key IN ('SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASS','SMTP_FROM')`,
+    );
+    const map: Record<string, string> = {};
+    for (const s of settings) map[s.key] = s.value;
+    if (map['SMTP_HOST'] && map['SMTP_PORT']) {
+      return {
+        host: map['SMTP_HOST'],
+        port: parseInt(map['SMTP_PORT']),
+        user: map['SMTP_USER'] || '',
+        pass: map['SMTP_PASS'] || '',
+        from: map['SMTP_FROM'] || 'noreply@askalf.org',
+      };
+    }
+  } catch { /* ignore */ }
+
+  return null;
+}
+
+async function sendEmailReport(to: string, report: GeneratedReport): Promise<boolean> {
+  const smtp = await getSmtpConfig();
+  if (!smtp) {
+    console.log(`[ReportBuilder] No SMTP configured — skipping email to ${to}`);
+    return false;
+  }
+
+  try {
+    const subject = `AskAlf ${report.type === 'daily' ? 'Daily' : 'Weekly'} Report — ${new Date().toLocaleDateString()}`;
+    const htmlBody = report.summary
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>')
+      .replace(/- /g, '&bull; ');
+    const html = `<div style="font-family:system-ui,sans-serif;max-width:600px;padding:20px;color:#333">${htmlBody}</div>`;
+
+    // Use fetch to send via a simple HTTP-to-SMTP bridge, or raw SMTP via net
+    const { createConnection } = await import('net');
+    const { connect: tlsConnect } = await import('tls');
+
+    const sent = await new Promise<boolean>((resolve) => {
+      const secure = smtp.port === 465;
+      const connectFn = secure ? () => tlsConnect({ host: smtp.host, port: smtp.port }) : () => createConnection(smtp.port, smtp.host);
+      const socket = connectFn();
+      let step = 0;
+      const boundary = `----askalf${Date.now()}`;
+
+      const commands = [
+        `EHLO askalf.org`,
+        ...(smtp.user ? [`AUTH LOGIN`, Buffer.from(smtp.user).toString('base64'), Buffer.from(smtp.pass).toString('base64')] : []),
+        `MAIL FROM:<${smtp.from}>`,
+        `RCPT TO:<${to}>`,
+        `DATA`,
+        `From: AskAlf <${smtp.from}>\r\nTo: ${to}\r\nSubject: ${subject}\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary="${boundary}"\r\n\r\n--${boundary}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${report.summary}\r\n\r\n--${boundary}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${html}\r\n\r\n--${boundary}--\r\n.`,
+        `QUIT`,
+      ];
+
+      socket.on('data', (data: Buffer) => {
+        const line = data.toString();
+        if (line.startsWith('2') || line.startsWith('3')) {
+          if (step < commands.length) {
+            socket.write(commands[step]! + '\r\n');
+            step++;
+          }
+        } else if (line.startsWith('5') || line.startsWith('4')) {
+          console.error(`[ReportBuilder] SMTP error: ${line.trim()}`);
+          socket.end();
+          resolve(false);
+        }
+      });
+
+      socket.on('end', () => resolve(step >= commands.length - 1));
+      socket.on('error', (err: Error) => { console.error(`[ReportBuilder] SMTP socket error: ${err.message}`); resolve(false); });
+      setTimeout(() => { socket.end(); resolve(false); }, 15000);
+    });
+
+    if (sent) console.log(`[ReportBuilder] Email sent to ${to}`);
+    return sent;
+  } catch (err) {
+    console.error(`[ReportBuilder] Email failed to ${to}:`, err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
 export async function sendToDiscordWebhook(webhookUrl: string, content: string): Promise<boolean> {
   try {
     // Discord webhook limit is 2000 chars
@@ -178,9 +274,8 @@ export async function dispatchReport(report: GeneratedReport, recipients: Report
       const sent = await sendToDiscordWebhook(r.url, report.summary);
       results.push({ recipient: `discord:${r.url.substring(0, 40)}...`, sent, error: sent ? undefined : 'Webhook delivery failed' });
     } else if (r.type === 'email' && r.address) {
-      // Email delivery would go through the email channel — for now log it
-      console.log(`[ReportBuilder] Email report to ${r.address} — not yet wired (needs SMTP config)`);
-      results.push({ recipient: `email:${r.address}`, sent: false, error: 'Email delivery not yet configured' });
+      const sent = await sendEmailReport(r.address, report);
+      results.push({ recipient: `email:${r.address}`, sent, error: sent ? undefined : 'Email delivery failed (check SMTP settings)' });
     }
   }
 

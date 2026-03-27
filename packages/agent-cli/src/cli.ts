@@ -18,7 +18,7 @@ import { join } from 'path';
 import { homedir, hostname, platform, type, release } from 'os';
 import { execSync, spawn } from 'child_process';
 
-const VERSION = '2.5.1';
+const VERSION = '2.6.0';
 const CONFIG_DIR = join(homedir(), '.askalf');
 const CONFIG_FILE = join(CONFIG_DIR, 'agent.json');
 const PID_FILE = join(CONFIG_DIR, 'agent.pid');
@@ -353,14 +353,16 @@ function installWindowsService(nodePath: string, agentPath: string, config: Agen
     return;
   }
 
-  // Fallback: create a BAT wrapper for schtasks
+  // Create a PowerShell script that runs the agent hidden (no terminal window)
   mkdirSync(CONFIG_DIR, { recursive: true });
+  const ps1Path = join(CONFIG_DIR, 'agent-service.ps1');
+  const ps1Content = `$proc = Start-Process -FilePath "${nodePath}" -ArgumentList '${args.map(a => a.replace(/'/g, "''" )).join("' '")}' -WindowStyle Hidden -PassThru\r\n$proc.Id | Out-File "${join(CONFIG_DIR, 'agent.pid')}"`;
+  writeFileSync(ps1Path, ps1Content);
+
+  // Also create a BAT launcher that runs the PS1 hidden
   const batPath = join(CONFIG_DIR, 'agent-service.bat');
-  const batLines = [
-    '@echo off',
-    `"${nodePath}" ${args.map(a => '"' + a + '"').join(' ')}`,
-  ];
-  writeFileSync(batPath, batLines.join('\r\n') + '\r\n');
+  const batContent = `@echo off\r\npowershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "${ps1Path}"\r\n`;
+  writeFileSync(batPath, batContent);
 
   try {
     const trArg = '"' + batPath + '"';
@@ -368,14 +370,13 @@ function installWindowsService(nodePath: string, agentPath: string, config: Agen
       `schtasks /create /tn "${SERVICE_NAME}" /tr ${trArg} /sc onlogon /rl highest /f`,
       { stdio: 'inherit' },
     );
-    // Also start it now
-    execSync(`schtasks /run /tn "${SERVICE_NAME}"`, { stdio: 'inherit' });
-    console.log(`\n  Service installed (Windows Scheduled Task — runs on login)`);
+    // Start it now — use PowerShell directly for immediate hidden launch
+    execSync(`powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File "${ps1Path}"`, { stdio: 'ignore' });
+    console.log(`\n  Service installed (Windows Scheduled Task — runs hidden)`);
     console.log(`  Task:   ${SERVICE_NAME}`);
     console.log(`  Status: schtasks /query /tn "${SERVICE_NAME}"`);
     console.log(`  Stop:   schtasks /end /tn "${SERVICE_NAME}"`);
     console.log(`  Remove: askalf-agent uninstall-service`);
-    console.log(`\n  For a full Windows Service, install nssm (nssm.cc) and re-run.`);
   } catch (err) {
     console.error(`  Failed to create scheduled task: ${err instanceof Error ? err.message : err}`);
     console.log(`\n  Alternative: use 'askalf-agent daemon' to run in background.`);
