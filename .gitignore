@@ -177,3 +177,5 @@ apps/dashboard/client/public/releases/
 .claude/settings.local.json
 MIGRATION.md
 repos/
+infrastructure/README.md
+infrastructure/nginx/static/askalf-og.png
