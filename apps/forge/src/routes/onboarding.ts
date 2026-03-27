@@ -54,13 +54,17 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
       const theme = body?.theme?.trim();
       const useCase = body?.use_case?.trim();
 
-      // Update tenant name if provided
+      // Update tenant name and use-case if provided
       if (workspaceName && workspaceName.length > 0) {
         const userRow = await substrateQueryOne<{ tenant_id: string }>(
           'SELECT tenant_id FROM users WHERE id = $1',
           [userId],
         );
         if (userRow) {
+          await substrateQuery(
+            'UPDATE tenants SET use_case = $1 WHERE id = $2',
+            [useCase || null, userRow.tenant_id],
+          ).catch(() => {});
           await substrateQuery(
             'UPDATE tenants SET name = $1, updated_at = NOW() WHERE id = $2',
             [workspaceName, userRow.tenant_id],

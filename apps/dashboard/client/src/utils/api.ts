@@ -22,11 +22,14 @@ export async function apiFetch<T = unknown>(path: string, options?: RequestInit)
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      // Include tenant context on all API calls
+      const tenantId = localStorage.getItem('askalf_tenant_id');
       const res = await fetch(`${API_BASE}${path}`, {
         credentials: 'include',
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          ...(tenantId ? { 'X-Tenant-ID': tenantId } : {}),
           ...options?.headers,
         },
       });

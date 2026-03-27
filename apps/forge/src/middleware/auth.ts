@@ -25,6 +25,7 @@ interface ApiKeyRow {
 declare module 'fastify' {
   interface FastifyRequest {
     userId?: string;
+    tenantId?: string;
     apiKeyId?: string;
     apiKeyPermissions?: string[];
     apiKeyExpiresAt?: Date;
@@ -111,8 +112,34 @@ async function getAdminUserId(): Promise<string> {
 }
 
 export async function authMiddleware(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
-  if (await tryApiKeyAuth(request)) return;
+  if (await tryApiKeyAuth(request)) {
+    await resolveTenantId(request);
+    return;
+  }
   request.userId = await getAdminUserId();
+  await resolveTenantId(request);
+}
+
+/**
+ * Resolve tenant ID from header or user's default tenant.
+ * X-Tenant-ID header takes priority (for workspace switching).
+ */
+async function resolveTenantId(request: FastifyRequest): Promise<void> {
+  // Check header first (frontend sends this when user switches workspace)
+  const headerTenantId = request.headers['x-tenant-id'] as string | undefined;
+  if (headerTenantId && headerTenantId !== 'default') {
+    request.tenantId = headerTenantId;
+    return;
+  }
+  // Fall back to user's current tenant
+  try {
+    const user = await queryOne<{ tenant_id: string }>(
+      `SELECT tenant_id FROM users WHERE id = $1`, [request.userId],
+    );
+    request.tenantId = user?.tenant_id || 'selfhosted';
+  } catch {
+    request.tenantId = 'selfhosted';
+  }
 }
 
 export async function requireAdmin(request: FastifyRequest, _reply: FastifyReply): Promise<void> {

@@ -69,6 +69,7 @@ import { clientRoutes } from './routes/clients.js';
 import { chatRoutes } from './routes/chat.js';
 import { communitySkillsRoutes } from './routes/community-skills.js';
 import { reportScheduleRoutes } from './routes/reports-schedule.js';
+import { tenantRoutes } from './routes/tenants.js';
 import { registerMCPRoutes } from './tools/mcp-server.js';
 import { initializeWorker, runDirectCliExecution, getRunningExecutionCount, waitForRunningExecutions } from './runtime/worker.js';
 import { startTaskDispatcher, stopTaskDispatcher } from './runtime/task-dispatcher.js';
@@ -415,6 +416,7 @@ await clientRoutes(app);
 await chatRoutes(app);
 await communitySkillsRoutes(app);
 await reportScheduleRoutes(app);
+await tenantRoutes(app);
 await registerMCPRoutes(app);
 await registerAgentBridge(app);
 

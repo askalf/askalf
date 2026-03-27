@@ -2728,12 +2728,10 @@ export async function runDirectCliExecution(
     }
 
     // Clean up git credential helper (contains sensitive token — must be removed)
-    if (repoCredentials) {
-      try {
-        const credHelperPath = `/tmp/git-cred-${executionId}.sh`;
-        await unlink(credHelperPath).catch(() => {});
-      } catch { /* ignore */ }
-    }
+    try {
+      const credHelperPath = `/tmp/git-cred-${executionId}.sh`;
+      await unlink(credHelperPath).catch(() => {});
+    } catch { /* ignore */ }
 
     // Clean up git worktree (branch stays for Push Panel review)
     // Use async exec (not execSync) to avoid ETIMEDOUT under high concurrency.
