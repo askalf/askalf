@@ -178,6 +178,65 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
   );
 
   /**
+   * GET /api/v1/forge/reports/smtp — Get SMTP configuration (masked)
+   */
+  app.get(
+    '/api/v1/forge/reports/smtp',
+    { preHandler: [authMiddleware] },
+    async () => {
+      const settings = await query<{ key: string; value: string }>(
+        `SELECT key, value FROM platform_settings WHERE key IN ('SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASS','SMTP_FROM')`,
+      );
+      const config: Record<string, string> = {};
+      for (const s of settings) {
+        config[s.key] = s.key === 'SMTP_PASS' ? (s.value ? '****' : '') : s.value;
+      }
+      return { config };
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/reports/smtp — Save SMTP configuration
+   */
+  app.post(
+    '/api/v1/forge/reports/smtp',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest) => {
+      const body = request.body as Record<string, string>;
+      const keys = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
+      for (const key of keys) {
+        if (body[key] !== undefined && body[key] !== '****') {
+          await query(
+            `INSERT INTO platform_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+             ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+            [key, body[key]],
+          );
+          // Also set in process.env for immediate use
+          process.env[key] = body[key];
+        }
+      }
+      return { saved: true };
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/reports/smtp/test — Send a test email
+   */
+  app.post(
+    '/api/v1/forge/reports/smtp/test',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest) => {
+      const body = request.body as { to: string };
+      if (!body.to) return { sent: false, error: 'Email address required' };
+
+      const { generateReport, dispatchReport } = await import('../orchestration/report-builder.js');
+      const report = await generateReport('daily', ['metrics', 'cost']);
+      const results = await dispatchReport(report, [{ type: 'email', address: body.to }]);
+      return { results };
+    },
+  );
+
+  /**
    * GET /api/v1/forge/reports/history — Past generated reports
    */
   app.get(
