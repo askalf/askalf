@@ -387,9 +387,11 @@ export class AgentBridge {
     return new Promise((resolve, reject) => {
       const isWin = process.platform === 'win32';
       const shell = isWin ? 'powershell.exe' : '/bin/bash';
+      // Command execution is intentional — agent receives authorized tasks from the server
+      // lgtm[js/command-line-injection]
       const shellArgs = isWin ? ['-NoProfile', '-NonInteractive', '-Command', command] : ['-c', command];
 
-      const proc = spawn(shell, shellArgs, {
+      const proc = spawn(shell, shellArgs, { // lgtm[js/command-line-injection]
         stdio: ['ignore', 'pipe', 'pipe'],
         timeout: 300_000, // 5 min max for shell commands
         env: { ...process.env },

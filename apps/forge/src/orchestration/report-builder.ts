@@ -242,10 +242,10 @@ async function sendEmailReport(to: string, report: GeneratedReport): Promise<boo
       setTimeout(() => { socket.end(); resolve(false); }, 15000);
     });
 
-    if (sent) console.log(`[ReportBuilder] Email sent to ${to}`);
+    if (sent) console.log('[ReportBuilder] Email sent to %s', to);
     return sent;
   } catch (err) {
-    console.error(`[ReportBuilder] Email failed to ${to}:`, err instanceof Error ? err.message : err);
+    console.error('[ReportBuilder] Email failed to %s: %s', to, err instanceof Error ? err.message : String(err));
     return false;
   }
 }
