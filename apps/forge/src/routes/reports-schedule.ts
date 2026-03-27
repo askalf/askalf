@@ -7,6 +7,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { rateLimitHook as rateLimiter } from '../middleware/rate-limit.js';
 import { generateReport, dispatchReport, saveReport } from '../orchestration/report-builder.js';
 
 export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> {
@@ -16,7 +17,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.get(
     '/api/v1/forge/report-schedules',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async () => {
       const schedules = await query(
         `SELECT * FROM report_schedules ORDER BY created_at DESC`,
@@ -30,7 +31,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.post(
     '/api/v1/forge/report-schedules',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const body = request.body as {
         name: string;
@@ -72,7 +73,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.put(
     '/api/v1/forge/report-schedules/:id',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
       const body = request.body as {
@@ -119,7 +120,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.delete(
     '/api/v1/forge/report-schedules/:id',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
       const result = await queryOne(
@@ -135,7 +136,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.post(
     '/api/v1/forge/report-schedules/:id/send-now',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { id } = request.params as { id: string };
       const schedule = await queryOne<{
@@ -166,7 +167,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.post(
     '/api/v1/forge/reports/generate-preview',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async (request: FastifyRequest) => {
       const body = (request.body ?? {}) as { report_type?: string; include_sections?: string[] };
       const report = await generateReport(
@@ -182,7 +183,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.get(
     '/api/v1/forge/reports/smtp',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async () => {
       const settings = await query<{ key: string; value: string }>(
         `SELECT key, value FROM platform_settings WHERE key IN ('SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASS','SMTP_FROM')`,
@@ -200,7 +201,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.post(
     '/api/v1/forge/reports/smtp',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async (request: FastifyRequest) => {
       const body = request.body as Record<string, string>;
       const keys = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
@@ -224,7 +225,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.post(
     '/api/v1/forge/reports/smtp/test',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async (request: FastifyRequest) => {
       const body = request.body as { to: string };
       if (!body.to) return { sent: false, error: 'Email address required' };
@@ -241,7 +242,7 @@ export async function reportScheduleRoutes(app: FastifyInstance): Promise<void> 
    */
   app.get(
     '/api/v1/forge/reports/history',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async (request: FastifyRequest) => {
       const qs = request.query as { limit?: string; offset?: string };
       const limit = Math.min(50, Math.max(1, parseInt(qs.limit ?? '20')));

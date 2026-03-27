@@ -6,6 +6,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readFile, writeFile } from 'node:fs/promises';
 import { authMiddleware } from '../middleware/auth.js';
+import { rateLimitHook as rateLimiter } from '../middleware/rate-limit.js';
 
 // Check multiple possible credential locations
 const CREDENTIAL_PATHS = [
@@ -141,7 +142,7 @@ export async function credentialsHealthRoutes(app: FastifyInstance): Promise<voi
    */
   app.get(
     '/api/v1/forge/credentials/health',
-    { preHandler: [authMiddleware] },
+    { preHandler: [rateLimiter, authMiddleware] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         // Check Claude OAuth
