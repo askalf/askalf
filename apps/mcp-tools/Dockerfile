@@ -51,17 +51,23 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
 # Production stage — Debian slim + Google Chrome (works in Docker Desktop WSL2)
 FROM node:22-slim AS runner
 
-# Install Google Chrome Stable (Debian's chromium package crashes in WSL2)
+# Install Chrome/Chromium for browser_use tool
+# Google Chrome only available for amd64; use Chromium from Debian repos for arm64
 RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends wget gnupg ca-certificates fonts-freefont-ttf && \
-    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google.gpg && \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update -qq && \
-    apt-get install -y --no-install-recommends google-chrome-stable && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
-    rm -f /opt/google/chrome/chrome_crashpad_handler && \
-    echo '#!/bin/sh' > /opt/google/chrome/chrome_crashpad_handler && \
-    chmod +x /opt/google/chrome/chrome_crashpad_handler
+    apt-get install -y --no-install-recommends ca-certificates fonts-freefont-ttf && \
+    if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+      apt-get install -y --no-install-recommends wget gnupg && \
+      wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/keyrings/google.gpg && \
+      echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+      apt-get update -qq && \
+      apt-get install -y --no-install-recommends google-chrome-stable && \
+      rm -f /opt/google/chrome/chrome_crashpad_handler && \
+      echo '#!/bin/sh' > /opt/google/chrome/chrome_crashpad_handler && \
+      chmod +x /opt/google/chrome/chrome_crashpad_handler; \
+    else \
+      apt-get install -y --no-install-recommends chromium; \
+    fi && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Security: create non-root user
 RUN groupadd -g 1001 substrate && \
