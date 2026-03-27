@@ -639,10 +639,12 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
 
     const execId = ulid();
 
+    // Get agent's tenant_id for execution scoping
+    const agentTenant = await queryOne<{ tenant_id: string | null }>(`SELECT tenant_id FROM forge_agents WHERE id = $1`, [agent.id]).catch(() => null);
     await queryOne(
-      `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, metadata, started_at)
-       VALUES ($1, $2, $3, $4, 'pending', $5, NOW()) RETURNING id`,
-      [execId, agent.id, ownerId, enrichedInput, JSON.stringify(metadata)],
+      `INSERT INTO forge_executions (id, agent_id, owner_id, tenant_id, input, status, metadata, started_at)
+       VALUES ($1, $2, $3, $6, $4, 'pending', $5, NOW()) RETURNING id`,
+      [execId, agent.id, ownerId, enrichedInput, JSON.stringify(metadata), agentTenant?.tenant_id || 'selfhosted'],
     );
 
     // Check if agent has a target device (WebSocket bridge, SSH, Docker remote dispatch)

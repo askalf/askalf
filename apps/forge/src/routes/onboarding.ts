@@ -82,7 +82,8 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
 
       // Provision use-case agents if selected
       if (useCase && useCase !== 'custom') {
-        await provisionUseCaseAgents(userId, useCase);
+        const userTenant = await substrateQueryOne<{ tenant_id: string }>('SELECT tenant_id FROM users WHERE id = $1', [userId]);
+        await provisionUseCaseAgents(userId, useCase, userTenant?.tenant_id);
       }
 
       // Save marketplace preference
@@ -233,19 +234,20 @@ const USE_CASE_AGENTS: Record<string, { name: string; type: string; description:
   ],
 };
 
-async function provisionUseCaseAgents(userId: string, useCase: string): Promise<void> {
+async function provisionUseCaseAgents(userId: string, useCase: string, tenantId?: string): Promise<void> {
   const agents = USE_CASE_AGENTS[useCase];
   if (!agents?.length) return;
 
+  const tid = tenantId || 'selfhosted';
   for (const agent of agents) {
     const id = ulid();
     const slug = agent.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     try {
       await query(
-        `INSERT INTO forge_agents (id, owner_id, name, slug, description, system_prompt, type, model_id, autonomy_level, enabled_tools, status, is_internal, dispatch_enabled, metadata)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'claude-sonnet-4-6', 2, $8, 'active', true, true, $9)
+        `INSERT INTO forge_agents (id, owner_id, tenant_id, name, slug, description, system_prompt, type, model_id, autonomy_level, enabled_tools, status, is_internal, dispatch_enabled, metadata)
+         VALUES ($1, $2, $10, $3, $4, $5, $6, $7, 'claude-sonnet-4-6', 2, $8, 'active', true, true, $9)
          ON CONFLICT DO NOTHING`,
-        [id, userId, agent.name, slug, agent.description, agent.system_prompt, agent.type, agent.tools, JSON.stringify({ source: 'onboarding', use_case: useCase })],
+        [id, userId, agent.name, slug, agent.description, agent.system_prompt, agent.type, agent.tools, JSON.stringify({ source: 'onboarding', use_case: useCase }), tid],
       );
     } catch (err) {
       console.warn(`[Onboarding] Failed to provision agent "${agent.name}":`, err);

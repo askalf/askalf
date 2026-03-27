@@ -73,16 +73,17 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
+      const tenantId = request.tenantId || 'selfhosted';
       const body = request.body as Static<typeof CreateAgentBody>;
 
       try {
         const id = ulid();
         const slug = slugify(body.name);
 
-        // Check for slug collision
+        // Check for slug collision within tenant
         const existing = await queryOne<{ id: string }>(
-          `SELECT id FROM forge_agents WHERE owner_id = $1 AND slug = $2 AND deleted_at IS NULL`,
-          [userId, slug],
+          `SELECT id FROM forge_agents WHERE owner_id = $1 AND slug = $2 AND tenant_id = $3 AND deleted_at IS NULL`,
+          [userId, slug, tenantId],
         );
 
         const finalSlug = existing ? `${slug}-${id.slice(-6).toLowerCase()}` : slug;
@@ -95,13 +96,13 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
 
         const agent = await queryOne<AgentRow>(
           `INSERT INTO forge_agents (
-            id, owner_id, name, slug, description, system_prompt, model_id,
+            id, owner_id, tenant_id, name, slug, description, system_prompt, model_id,
             provider_config, autonomy_level, enabled_tools, mcp_servers,
             memory_config, max_iterations, max_tokens_per_turn,
             max_cost_per_execution, is_public, is_template, metadata, status,
             dispatch_enabled, is_internal, dispatch_mode, schedule_interval_minutes, next_run_at
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'active',
+            $1, $2, $23, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'active',
             $19, true, $20, $21, $22
           ) RETURNING *`,
           [
@@ -127,6 +128,7 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
             hasSchedule ? 'scheduled' : 'manual', // dispatch_mode
             intervalMin ?? null, // schedule_interval_minutes
             hasSchedule ? new Date(Date.now() + (intervalMin || 60) * 60000) : null, // next_run_at
+            tenantId, // $23
           ],
         );
 
@@ -168,12 +170,13 @@ export async function agentRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
       const userId = request.userId!;
+      const tenantId = request.tenantId || 'selfhosted';
       const qs = request.query as Static<typeof ListAgentsQuery>;
 
       try {
-        const conditions: string[] = ['owner_id = $1', "status != 'archived'", 'deleted_at IS NULL'];
-        const params: unknown[] = [userId];
-        let paramIndex = 2;
+        const conditions: string[] = ['owner_id = $1', '(tenant_id = $2 OR tenant_id IS NULL)', "status != 'archived'", 'deleted_at IS NULL'];
+        const params: unknown[] = [userId, tenantId];
+        let paramIndex = 3;
 
         if (qs.status) {
           conditions.push(`status = $${paramIndex}`);
