@@ -145,7 +145,14 @@ npm i -g @askalf/agent
 askalf-agent connect <your-api-key> --url ws://your-server:3005 --name prod-box --install
 ```
 
-Auto-detects OS, installs as service (systemd/launchd/Windows), runs on boot. OAuth credentials sync automatically — no manual auth on remote devices. See [@askalf/agent](https://www.npmjs.com/package/@askalf/agent).
+Auto-detects OS, installs as service (systemd/launchd/Windows), runs on boot. OAuth credentials sync automatically — no manual auth on remote devices.
+
+### Infrastructure
+
+- **Landing page**: [askalf.org](https://askalf.org) on Cloudflare Pages (global CDN)
+- **Install script**: `curl -fsSL https://get.askalf.org | bash` on Cloudflare Pages
+- **API**: `api.askalf.org` via Cloudflare Tunnel
+- **Docker Hub**: Pre-built images auto-published on every release See [@askalf/agent](https://www.npmjs.com/package/@askalf/agent).
 
 ### 16 Communication Channels
 
