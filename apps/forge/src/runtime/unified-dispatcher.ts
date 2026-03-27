@@ -565,13 +565,12 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
    */
   private async checkGlobalBudget(): Promise<{ period: string; spent: number; limit: number } | null> {
     try {
+      // Check global limits from forge_preferences
       const prefs = await queryOne<{ budget_limit_daily: string | null; budget_limit_monthly: string | null }>(
         `SELECT budget_limit_daily, budget_limit_monthly FROM forge_preferences WHERE user_id = 'selfhosted-admin' LIMIT 1`,
       );
-      if (!prefs) return null;
 
-      // Check daily limit
-      if (prefs.budget_limit_daily) {
+      if (prefs?.budget_limit_daily) {
         const dailyLimit = parseFloat(prefs.budget_limit_daily);
         if (!isNaN(dailyLimit) && dailyLimit > 0) {
           const row = await queryOne<{ total: string }>(
@@ -582,8 +581,7 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
         }
       }
 
-      // Check monthly limit
-      if (prefs.budget_limit_monthly) {
+      if (prefs?.budget_limit_monthly) {
         const monthlyLimit = parseFloat(prefs.budget_limit_monthly);
         if (!isNaN(monthlyLimit) && monthlyLimit > 0) {
           const row = await queryOne<{ total: string }>(
@@ -597,12 +595,63 @@ FOCUS. Work the ticket. Ship code. Stop.${fleetContext}`;
     return null;
   }
 
+  /**
+   * Check per-tenant budget limits. Returns exceeded budget info or null.
+   */
+  private async checkTenantBudget(tenantId: string): Promise<{ period: string; spent: number; limit: number } | null> {
+    try {
+      const { substrateQueryOne } = await import('../database.js');
+      const tenant = await substrateQueryOne<{ budget_limit_daily: string | null; budget_limit_monthly: string | null }>(
+        `SELECT budget_limit_daily, budget_limit_monthly FROM tenants WHERE id = $1`, [tenantId],
+      );
+      if (!tenant) return null;
+
+      if (tenant.budget_limit_daily) {
+        const limit = parseFloat(tenant.budget_limit_daily);
+        if (!isNaN(limit) && limit > 0) {
+          const row = await queryOne<{ total: string }>(
+            `SELECT COALESCE(SUM(cost), 0)::text AS total FROM forge_executions WHERE tenant_id = $1 AND created_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC')`,
+            [tenantId],
+          );
+          const spent = parseFloat(row?.total ?? '0') || 0;
+          if (spent >= limit) return { period: 'daily', spent, limit };
+        }
+      }
+
+      if (tenant.budget_limit_monthly) {
+        const limit = parseFloat(tenant.budget_limit_monthly);
+        if (!isNaN(limit) && limit > 0) {
+          const row = await queryOne<{ total: string }>(
+            `SELECT COALESCE(SUM(cost), 0)::text AS total FROM forge_executions WHERE tenant_id = $1 AND created_at >= DATE_TRUNC('month', NOW() AT TIME ZONE 'UTC')`,
+            [tenantId],
+          );
+          const spent = parseFloat(row?.total ?? '0') || 0;
+          if (spent >= limit) return { period: 'monthly', spent, limit };
+        }
+      }
+    } catch { /* ignore */ }
+    return null;
+  }
+
   private async dispatchExecution(
     agent: DispatchableAgent,
     input: string,
     ownerId: string,
     metadata: Record<string, unknown> = {},
   ): Promise<void> {
+    // Check per-tenant budget before dispatching
+    const agentTenantRow = await queryOne<{ tenant_id: string | null }>(`SELECT tenant_id FROM forge_agents WHERE id = $1`, [agent.id]).catch(() => null);
+    const agentTenantId = agentTenantRow?.tenant_id;
+    if (agentTenantId) {
+      const tenantBudget = await this.checkTenantBudget(agentTenantId);
+      if (tenantBudget) {
+        if (this.tickCount % 10 === 0) {
+          console.log(`[Dispatcher] Tenant ${agentTenantId} ${tenantBudget.period} budget exceeded for ${agent.name}: $${tenantBudget.spent.toFixed(2)} / $${tenantBudget.limit.toFixed(2)}`);
+        }
+        return;
+      }
+    }
+
     // Enforce guardrails before dispatching
     const guardrailResult = await checkGuardrails({
       ownerId,
