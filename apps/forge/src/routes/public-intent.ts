@@ -107,7 +107,7 @@ export async function publicIntentRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
+        const timeout = setTimeout(() => controller.abort(), 15000);
 
         const res = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
@@ -118,7 +118,7 @@ export async function publicIntentRoutes(app: FastifyInstance): Promise<void> {
           },
           body: JSON.stringify({
             model: 'claude-haiku-4-5-20251001',
-            max_tokens: 256,
+            max_tokens: 512,
             system: DEMO_SYSTEM_PROMPT,
             messages: [{ role: 'user', content: message }],
           }),
@@ -128,6 +128,8 @@ export async function publicIntentRoutes(app: FastifyInstance): Promise<void> {
         clearTimeout(timeout);
 
         if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          console.warn(`[PublicIntent] Anthropic API error: ${res.status} ${errText.substring(0, 200)}`);
           return reply.send(keywordFallback(message));
         }
 
@@ -165,7 +167,8 @@ export async function publicIntentRoutes(app: FastifyInstance): Promise<void> {
         };
 
         return reply.send(result);
-      } catch {
+      } catch (err) {
+        console.warn(`[PublicIntent] Error: ${err instanceof Error ? err.message : String(err)}`);
         return reply.send(keywordFallback(message));
       }
     },
