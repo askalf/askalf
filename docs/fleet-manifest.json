@@ -1,0 +1,237 @@
+[
+  {
+    "name": "Fleet Chief",
+    "type": "monitor",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 4,
+    "interval_min": 360,
+    "tools": [
+      "shell",
+      "substrate_db_query",
+      "forge_fleet_intel",
+      "forge_cost",
+      "forge_memory",
+      "memory_store",
+      "memory_search",
+      "ticket_ops",
+      "finding_ops",
+      "forge_coordination"
+    ],
+    "remote": true
+  },
+  {
+    "name": "AskAlf Social Media Manager",
+    "type": "worker",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 3,
+    "interval_min": 720,
+    "tools": [
+      "twitter_ops",
+      "web_search",
+      "memory_store",
+      "memory_search"
+    ],
+    "remote": true
+  },
+  {
+    "name": "Builder",
+    "type": "dev",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 3,
+    "interval_min": 360,
+    "tools": [
+      "shell",
+      "code_analysis",
+      "substrate_db_query",
+      "ticket_ops",
+      "memory_store",
+      "memory_search",
+      "web_search",
+      "finding_ops",
+      "forge_fleet_intel"
+    ],
+    "remote": true
+  },
+  {
+    "name": "Platform Tester",
+    "type": "monitor",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 3,
+    "interval_min": 120,
+    "tools": [
+      "fleet_health",
+      "memory_store",
+      "memory_search",
+      "finding_ops",
+      "ticket_ops"
+    ],
+    "remote": false
+  },
+  {
+    "name": "Release Manager",
+    "type": "dev",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 3,
+    "interval_min": 360,
+    "tools": [
+      "shell",
+      "file_ops",
+      "git_ops",
+      "discord_ops",
+      "memory_store",
+      "ticket_ops"
+    ],
+    "remote": false
+  },
+  {
+    "name": "Security",
+    "type": "security",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 3,
+    "interval_min": 360,
+    "tools": [
+      "security_scan",
+      "code_analysis",
+      "finding_ops",
+      "ticket_ops",
+      "memory_store",
+      "memory_search",
+      "web_search"
+    ],
+    "remote": false
+  },
+  {
+    "name": "Analytics Tracker",
+    "type": "monitor",
+    "model": "claude-haiku-4-5-20251001",
+    "autonomy": 2,
+    "interval_min": 720,
+    "tools": [
+      "shell",
+      "memory_store",
+      "memory_search",
+      "discord_ops",
+      "finding_ops",
+      "forge_cost"
+    ],
+    "remote": true
+  },
+  {
+    "name": "AskAlf Discord Manager",
+    "type": "worker",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 2,
+    "interval_min": 30,
+    "tools": [
+      "discord_ops",
+      "web_search",
+      "web_browse",
+      "memory_store",
+      "memory_search",
+      "ticket_ops"
+    ],
+    "remote": true
+  },
+  {
+    "name": "AskAlf GitHub Manager",
+    "type": "worker",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 2,
+    "interval_min": 60,
+    "tools": [
+      "web_search",
+      "web_browse",
+      "memory_store",
+      "memory_search",
+      "ticket_ops",
+      "finding_ops",
+      "file_ops",
+      "git_ops",
+      "shell_exec"
+    ],
+    "remote": true
+  },
+  {
+    "name": "AskAlf Landing Page Manager",
+    "type": "worker",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 2,
+    "interval_min": 1440,
+    "tools": [
+      "web_search",
+      "web_browse",
+      "memory_store",
+      "memory_search",
+      "ticket_ops",
+      "finding_ops",
+      "file_ops",
+      "shell_exec",
+      "docker_api"
+    ],
+    "remote": true
+  },
+  {
+    "name": "Backup Agent",
+    "type": "monitor",
+    "model": "claude-haiku-4-5-20251001",
+    "autonomy": 2,
+    "interval_min": 1440,
+    "tools": [
+      "shell",
+      "substrate_db_query",
+      "memory_store",
+      "finding_ops"
+    ],
+    "remote": false
+  },
+  {
+    "name": "Cost Optimizer",
+    "type": "monitor",
+    "model": "claude-haiku-4-5-20251001",
+    "autonomy": 2,
+    "interval_min": 720,
+    "tools": [
+      "shell",
+      "substrate_db_query",
+      "forge_cost",
+      "memory_store",
+      "memory_search",
+      "finding_ops",
+      "ticket_ops"
+    ],
+    "remote": true
+  },
+  {
+    "name": "Knowledge Base Writer",
+    "type": "content",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 2,
+    "interval_min": 1440,
+    "tools": [
+      "shell",
+      "web_search",
+      "memory_store",
+      "memory_search",
+      "ticket_ops",
+      "finding_ops",
+      "forge_fleet_intel"
+    ],
+    "remote": true
+  },
+  {
+    "name": "Watchdog",
+    "type": "monitor",
+    "model": "claude-sonnet-4-6",
+    "autonomy": 2,
+    "interval_min": 30,
+    "tools": [
+      "docker_api",
+      "fleet_health",
+      "finding_ops",
+      "ticket_ops",
+      "memory_store",
+      "memory_search"
+    ],
+    "remote": false
+  }
+]
