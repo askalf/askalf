@@ -20,16 +20,18 @@ import './forge/forge-theme.css';
 const HomeTab = lazy(() => import('./unified/HomeTab'));
 const TerminalTab = lazy(() => import('./unified/TerminalTab'));
 const FleetHubTab = lazy(() => import('./unified/FleetHubTab'));
+const LiveTab = lazy(() => import('./unified/LiveTab'));
 const OpsTab = lazy(() => import('./unified/OpsTab'));
 const BrainTab = lazy(() => import('./unified/BrainTab'));
 const MarketplaceTab = lazy(() => import('./unified/MarketplaceTab'));
 const Settings = lazy(() => import('./Settings'));
 
-type TabKey = 'home' | 'code' | 'fleet' | 'ops' | 'brain' | 'marketplace' | 'settings';
+type TabKey = 'home' | 'code' | 'fleet' | 'live' | 'ops' | 'brain' | 'marketplace' | 'settings';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'home', label: 'Ask Alf' },
   { key: 'fleet', label: 'Team' },
+  { key: 'live', label: 'Live' },
   { key: 'code', label: 'Workspace' },
   { key: 'ops', label: 'Ops' },
   { key: 'brain', label: 'Memory' },
@@ -167,6 +169,14 @@ export default function UnifiedDashboard() {
           <ErrorBoundary inline key="fleet">
             <Suspense fallback={<div className="ud-loading">Loading Team...</div>}>
               <FleetHubTab wsEvents={wsEvents} />
+            </Suspense>
+          </ErrorBoundary>
+        );
+      case 'live':
+        return (
+          <ErrorBoundary inline key="live">
+            <Suspense fallback={<div className="ud-loading">Loading Live...</div>}>
+              <LiveTab wsEvents={wsEvents} />
             </Suspense>
           </ErrorBoundary>
         );
