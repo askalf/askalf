@@ -150,9 +150,11 @@ export class SemanticMemory {
     embedding: number[],
     k: number,
     minSimilarity: number = 0.0,
+    tenantId?: string,
   ): Promise<SemanticSearchResult[]> {
     const vecLiteral = SemanticMemory.formatEmbedding(embedding);
 
+    const tenantFilter = tenantId ? `AND (tenant_id = '${tenantId}' OR tenant_id IS NULL)` : '';
     const rows = await this.query<SemanticSearchResult>(
       `SELECT
          id, agent_id, owner_id, content, source, importance,
@@ -160,6 +162,7 @@ export class SemanticMemory {
          1 - (embedding <=> $1::vector) AS similarity
        FROM forge_semantic_memories
        WHERE 1 - (embedding <=> $1::vector) >= $2
+       ${tenantFilter}
        ORDER BY similarity DESC
        LIMIT $3`,
       [vecLiteral, minSimilarity, k],

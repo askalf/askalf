@@ -174,9 +174,10 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
 
         const priority = body.priority ?? 'normal';
 
+        const tenantId = request.tenantId || 'selfhosted';
         const execution = await queryOne<ExecutionRow>(
-          `INSERT INTO forge_executions (id, agent_id, session_id, owner_id, input, status, priority, metadata, started_at)
-           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, NOW())
+          `INSERT INTO forge_executions (id, agent_id, session_id, owner_id, tenant_id, input, status, priority, metadata, started_at)
+           VALUES ($1, $2, $3, $4, $8, $5, 'pending', $6, $7, NOW())
            RETURNING *`,
           [
             executionId,
@@ -186,6 +187,7 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
             body.input,
             priority,
             JSON.stringify({ source_layer: 'api', ...body.metadata }),
+            tenantId,
           ],
         );
 
