@@ -1,6 +1,6 @@
 # Unified MCP Tools Server
 # Consolidates mcp-workflow + mcp-data + mcp-infra into one container.
-FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS builder
+FROM node:25-alpine@sha256:cf38e1f3c28ac9d81cdc0c51d8220320b3b618780e44ef96a39f76f7dbfef023 AS builder
 
 # Install build dependencies for native modules (node-pty from workspace peers)
 RUN apk add --no-cache python3 make g++ linux-headers
@@ -49,7 +49,7 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
     rm -rf /app/deploy/node_modules/.cache 2>/dev/null || true
 
 # Production stage — Debian slim + Google Chrome (works in Docker Desktop WSL2)
-FROM node:22-slim AS runner
+FROM node:25-slim AS runner
 
 # Install Chrome/Chromium for browser_use tool
 # Google Chrome only available for amd64; use Chromium from Debian repos for arm64
