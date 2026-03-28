@@ -255,6 +255,26 @@ export class UnifiedDispatcher {
         }
       }
 
+      // Reputation scores — update every 240 ticks (~2 hours)
+      if (this.tickCount % 240 === 0) {
+        try {
+          const { updateReputationScores } = await import('../orchestration/reputation.js');
+          await updateReputationScores();
+        } catch (err) {
+          console.warn(`[Dispatcher] Reputation error: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      // Federation sync — weekly (every 20160 ticks = ~7 days, or every 5040 ticks = ~1.75 days for testing)
+      if (this.tickCount % 5040 === 0) {
+        try {
+          const { syncFederation } = await import('../orchestration/federation.js');
+          await syncFederation();
+        } catch (err) {
+          console.warn(`[Dispatcher] Federation error: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
     } catch (err) {
       console.error('[Dispatcher] Tick error:', err);
     } finally {
