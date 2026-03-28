@@ -14,15 +14,57 @@ interface UseCaseOption {
   title: string;
   description: string;
   specialists: string[];
+  category: 'personal' | 'business' | 'both';
 }
 
 const USE_CASE_OPTIONS: UseCaseOption[] = [
+  {
+    id: 'personal',
+    icon: '\u2661',
+    title: 'Personal Productivity',
+    description: 'Meal planning, habit tracking, travel research, budget coaching',
+    specialists: ['Scheduler', 'Researcher', 'Budget Coach', 'Planner'],
+    category: 'personal',
+  },
+  {
+    id: 'health',
+    icon: '\u2695',
+    title: 'Health & Fitness',
+    description: 'Workout plans, nutrition tracking, sleep analysis, wellness goals',
+    specialists: ['Fitness Coach', 'Meal Planner', 'Wellness Tracker', 'Health Researcher'],
+    category: 'personal',
+  },
+  {
+    id: 'home',
+    icon: '\u2302',
+    title: 'Home & Family',
+    description: 'Home projects, pet care, family scheduling, household management',
+    specialists: ['Home Manager', 'Pet Care Scheduler', 'Family Planner', 'Project Tracker'],
+    category: 'personal',
+  },
+  {
+    id: 'learning',
+    icon: '\u2710',
+    title: 'Learning & Growth',
+    description: 'Study plans, skill tracking, reading lists, course research',
+    specialists: ['Study Planner', 'Researcher', 'Note Organizer', 'Progress Tracker'],
+    category: 'personal',
+  },
+  {
+    id: 'travel',
+    icon: '\u2708',
+    title: 'Travel & Adventure',
+    description: 'Trip planning, itineraries, budget tracking, destination research',
+    specialists: ['Trip Planner', 'Researcher', 'Budget Tracker', 'Itinerary Builder'],
+    category: 'personal',
+  },
   {
     id: 'software-dev',
     icon: '\u2699',
     title: 'Software Development',
     description: 'Build, test, and ship code with AI-powered specialists',
     specialists: ['Builder', 'Reviewer', 'Tester', 'Security', 'Ops', 'Monitor'],
+    category: 'business',
   },
   {
     id: 'devops',
@@ -30,6 +72,7 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     title: 'DevOps & Infrastructure',
     description: 'Automate deployments, monitor systems, and manage infrastructure',
     specialists: ['Ops', 'Security', 'Monitor', 'Deploy'],
+    category: 'business',
   },
   {
     id: 'marketing',
@@ -37,6 +80,7 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     title: 'Marketing & Content',
     description: 'Create content, track SEO, and monitor your brand presence',
     specialists: ['Content Writer', 'SEO Analyst', 'Social Media Monitor', 'Competitor Researcher'],
+    category: 'business',
   },
   {
     id: 'support',
@@ -44,6 +88,7 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     title: 'Customer Support',
     description: 'Automate support workflows, triage tickets, and build knowledge bases',
     specialists: ['Support Agent', 'Ticket Triager', 'FAQ Builder', 'Escalation Monitor'],
+    category: 'business',
   },
   {
     id: 'ecommerce',
@@ -51,6 +96,7 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     title: 'E-Commerce',
     description: 'Track inventory, respond to reviews, and analyze order data',
     specialists: ['Inventory Monitor', 'Review Responder', 'Price Tracker', 'Order Analyst'],
+    category: 'business',
   },
   {
     id: 'research',
@@ -58,6 +104,7 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     title: 'Research & Analysis',
     description: 'Collect data, spot trends, and generate comprehensive reports',
     specialists: ['Research Analyst', 'Data Collector', 'Report Writer', 'Trend Monitor'],
+    category: 'both',
   },
   {
     id: 'agency',
@@ -65,13 +112,7 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     title: 'Agency / Freelancer',
     description: 'Manage clients, track projects, and automate invoicing workflows',
     specialists: ['Client Manager', 'Project Tracker', 'Invoice Monitor', 'Report Generator'],
-  },
-  {
-    id: 'personal',
-    icon: '\u2661',
-    title: 'Personal Productivity',
-    description: 'Meal planning, habit tracking, travel research, budget coaching',
-    specialists: ['Scheduler', 'Researcher', 'Budget Coach', 'Planner'],
+    category: 'business',
   },
   {
     id: 'finance',
@@ -79,6 +120,7 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     title: 'Finance & Accounting',
     description: 'Invoice tracking, expense reports, bookkeeping, financial analysis',
     specialists: ['Finance Analyst', 'Invoice Monitor', 'Report Generator', 'Auditor'],
+    category: 'both',
   },
   {
     id: 'custom',
@@ -86,6 +128,7 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
     title: 'Custom',
     description: 'Start from scratch and handpick specialists for your unique workflow',
     specialists: [],
+    category: 'both',
   },
 ];
 
@@ -113,7 +156,7 @@ export default function Onboarding() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [selectedUseCase, setSelectedUseCase] = useState<string | null>(null);
-  const [marketplaceEnabled, setMarketplaceEnabled] = useState(false);
+  const [marketplaceEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [keySaved, setKeySaved] = useState(false);
   const [openaiKey, setOpenaiKey] = useState('');
@@ -225,7 +268,7 @@ export default function Onboarding() {
       });
       const data = await res.json() as { success?: boolean; error?: string };
       if (res.ok && data.success) {
-        setOpenaiResult({ ok: true, msg: 'OpenAI key saved' });
+        setOpenaiResult({ ok: true, msg: 'OpenAI key tested and saved' });
         setOpenaiSaved(true);
       } else {
         setOpenaiResult({ ok: false, msg: data.error || 'Failed to save' });
@@ -439,7 +482,7 @@ export default function Onboarding() {
                       onClick={handleSaveOpenai}
                       disabled={openaiTesting || !openaiKey.trim()}
                     >
-                      {openaiTesting ? 'Saving...' : 'Save'}
+                      {openaiTesting ? 'Testing...' : 'Test & Save'}
                     </button>
                   </div>
                 ) : (
@@ -661,7 +704,7 @@ export default function Onboarding() {
                   margin: '24px 0 16px',
                 }}
               >
-                {USE_CASE_OPTIONS.map(uc => {
+                {USE_CASE_OPTIONS.filter(uc => uc.category === 'both' || uc.category === (workspaceType || 'business')).map(uc => {
                   const isSelected = selectedUseCase === uc.id;
                   return (
                     <button
@@ -786,33 +829,6 @@ export default function Onboarding() {
                 Skip — I'll build my own
               </button>
 
-              {/* Community Marketplace opt-in */}
-              <div style={{ margin: '16px 0', padding: '14px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border, rgba(255,255,255,0.08))', borderRadius: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text, #f4f4f5)' }}>Community Marketplace</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, rgba(255,255,255,0.4))', lineHeight: 1.5, marginTop: 2 }}>
-                      Connect to askalf.org to browse and install community-submitted worker templates.
-                      <strong style={{ color: 'var(--text-secondary, rgba(255,255,255,0.7))' }}> Off by default — no data leaves your server unless you enable this.</strong>
-                      <br />You can change this later in Settings &gt; Preferences.
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setMarketplaceEnabled(!marketplaceEnabled)}
-                    style={{
-                      position: 'relative', width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', flexShrink: 0, marginLeft: 16,
-                      background: marketplaceEnabled ? '#7c3aed' : 'rgba(255,255,255,0.1)',
-                      transition: 'background 0.2s',
-                    }}
-                  >
-                    <span style={{
-                      position: 'absolute', top: 2, left: marketplaceEnabled ? 22 : 2, width: 20, height: 20, borderRadius: '50%',
-                      background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                    }} />
-                  </button>
-                </div>
-              </div>
-
               <div className="ob-btn-row">
                 <button className="ob-btn-secondary" onClick={() => setStep('theme')}>Back</button>
                 <button
@@ -881,30 +897,42 @@ export default function Onboarding() {
                 })}
               </div>
 
-              {teamRevealed < provisionedAgents.length ? (
+              {teamRevealed === 0 && provisionedAgents.length > 0 && (
                 <button
                   className="ob-btn-primary"
                   onClick={() => {
-                    // Reveal agents one by one with animation
+                    let i = 0;
                     const reveal = () => {
-                      setTeamRevealed(prev => {
-                        const next = prev + 1;
-                        if (next < provisionedAgents.length) {
-                          setTimeout(reveal, 300);
-                        }
-                        return next;
-                      });
+                      i++;
+                      setTeamRevealed(i);
+                      if (i < provisionedAgents.length) {
+                        setTimeout(reveal, 400);
+                      }
                     };
-                    reveal();
+                    setTimeout(reveal, 300);
                   }}
                 >
-                  Reveal Team
+                  Reveal Your Team
                 </button>
-              ) : (
-                <div className="ob-btn-row">
+              )}
+              {teamRevealed > 0 && teamRevealed < provisionedAgents.length && (
+                <div style={{ textAlign: 'center', opacity: 0.4, fontSize: '0.85rem', padding: 12 }}>
+                  Setting up...
+                </div>
+              )}
+              {teamRevealed >= provisionedAgents.length && provisionedAgents.length > 0 && (
+                <div className="ob-btn-row" style={{ marginTop: 16 }}>
                   <button className="ob-btn-secondary" onClick={() => setStep('use-case')}>Back</button>
                   <button className="ob-btn-primary" onClick={() => setStep('first-task')}>
                     Try Your First Task
+                  </button>
+                </div>
+              )}
+              {provisionedAgents.length === 0 && (
+                <div className="ob-btn-row">
+                  <button className="ob-btn-secondary" onClick={() => setStep('use-case')}>Back</button>
+                  <button className="ob-btn-primary" onClick={() => setStep('first-task')}>
+                    Continue
                   </button>
                 </div>
               )}

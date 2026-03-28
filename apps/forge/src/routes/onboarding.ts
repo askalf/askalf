@@ -144,7 +144,26 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
         : provider === 'google' ? 'GOOGLE_AI_KEY'
         : 'ANTHROPIC_API_KEY';
 
-      // Test the key first (Anthropic only — others are stored but not tested here)
+      // Test the key before saving
+      if (provider === 'openai') {
+        try {
+          const testRes = await fetch('https://api.openai.com/v1/models', {
+            headers: { 'Authorization': `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (!testRes.ok) {
+            const err = await testRes.json().catch(() => ({})) as { error?: { message?: string } };
+            return reply.status(400).send({
+              error: `Invalid OpenAI key: ${err.error?.message || testRes.statusText}`,
+            });
+          }
+        } catch (err) {
+          return reply.status(400).send({
+            error: `Connection failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          });
+        }
+      }
+
       if (provider === 'anthropic') {
         try {
           const testRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -225,8 +244,34 @@ const USE_CASE_AGENTS: Record<string, { name: string; type: string; description:
     { name: 'Report Generator', type: 'content', description: 'Generates client reports', system_prompt: 'You create professional client reports.', tools: ['web_search', 'code_edit'] },
   ],
   'personal': [
+    { name: 'Scheduler', type: 'worker', description: 'Manages your calendar and routines', system_prompt: 'You help manage schedules, set reminders, and organize daily routines.', tools: ['web_search', 'memory_store'] },
     { name: 'Researcher', type: 'research', description: 'Researches topics on demand', system_prompt: 'You research topics thoroughly and summarize findings.', tools: ['web_search', 'memory_store'] },
-    { name: 'Planner', type: 'worker', description: 'Helps plan and organize', system_prompt: 'You help plan schedules, trips, and projects.', tools: ['web_search', 'memory_store'] },
+    { name: 'Budget Coach', type: 'worker', description: 'Tracks spending and budgets', system_prompt: 'You help track spending, create budgets, and find ways to save money.', tools: ['web_search', 'memory_store'] },
+    { name: 'Planner', type: 'worker', description: 'Plans projects and goals', system_prompt: 'You help plan projects, set goals, and break them into actionable steps.', tools: ['web_search', 'memory_store'] },
+  ],
+  'health': [
+    { name: 'Fitness Coach', type: 'worker', description: 'Creates workout plans', system_prompt: 'You create personalized workout plans based on goals and fitness level.', tools: ['web_search', 'memory_store'] },
+    { name: 'Meal Planner', type: 'worker', description: 'Plans healthy meals', system_prompt: 'You plan nutritious meals within budget and dietary preferences.', tools: ['web_search', 'memory_store'] },
+    { name: 'Wellness Tracker', type: 'monitor', description: 'Tracks wellness goals', system_prompt: 'You track health goals, sleep, hydration, and wellness habits.', tools: ['memory_store', 'ticket_ops'] },
+    { name: 'Health Researcher', type: 'research', description: 'Researches health topics', system_prompt: 'You research health, nutrition, and wellness topics with evidence-based information.', tools: ['web_search', 'memory_store'] },
+  ],
+  'home': [
+    { name: 'Home Manager', type: 'worker', description: 'Manages household tasks', system_prompt: 'You manage household tasks, maintenance schedules, and home projects.', tools: ['web_search', 'memory_store'] },
+    { name: 'Pet Care Scheduler', type: 'worker', description: 'Manages pet care routines', system_prompt: 'You track pet care: vet appointments, feeding schedules, medications.', tools: ['memory_store', 'ticket_ops'] },
+    { name: 'Family Planner', type: 'worker', description: 'Coordinates family activities', system_prompt: 'You coordinate family schedules, events, and activities.', tools: ['web_search', 'memory_store'] },
+    { name: 'Project Tracker', type: 'monitor', description: 'Tracks home projects', system_prompt: 'You track home improvement projects, budgets, and timelines.', tools: ['memory_store', 'ticket_ops'] },
+  ],
+  'learning': [
+    { name: 'Study Planner', type: 'worker', description: 'Creates study schedules', system_prompt: 'You create study plans, track progress, and optimize learning schedules.', tools: ['web_search', 'memory_store'] },
+    { name: 'Researcher', type: 'research', description: 'Deep-dives into topics', system_prompt: 'You research topics in depth and create comprehensive summaries.', tools: ['web_search', 'memory_store'] },
+    { name: 'Note Organizer', type: 'content', description: 'Organizes notes and knowledge', system_prompt: 'You organize notes, create summaries, and build knowledge maps.', tools: ['memory_store'] },
+    { name: 'Progress Tracker', type: 'monitor', description: 'Tracks learning goals', system_prompt: 'You track learning milestones, certifications, and skill development.', tools: ['memory_store', 'ticket_ops'] },
+  ],
+  'travel': [
+    { name: 'Trip Planner', type: 'worker', description: 'Plans trips and itineraries', system_prompt: 'You plan trips: destinations, flights, hotels, activities, and logistics.', tools: ['web_search', 'memory_store'] },
+    { name: 'Researcher', type: 'research', description: 'Researches destinations', system_prompt: 'You research destinations, local culture, safety, and travel tips.', tools: ['web_search', 'memory_store'] },
+    { name: 'Budget Tracker', type: 'monitor', description: 'Tracks travel budget', system_prompt: 'You track travel expenses, find deals, and manage trip budgets.', tools: ['web_search', 'memory_store'] },
+    { name: 'Itinerary Builder', type: 'content', description: 'Builds detailed itineraries', system_prompt: 'You create day-by-day itineraries with times, locations, and reservations.', tools: ['web_search', 'memory_store'] },
   ],
   'finance': [
     { name: 'Finance Analyst', type: 'research', description: 'Analyzes financial data', system_prompt: 'You analyze financial data and spot trends.', tools: ['web_search', 'memory_store'] },
@@ -245,7 +290,7 @@ async function provisionUseCaseAgents(userId: string, useCase: string, tenantId?
     try {
       await query(
         `INSERT INTO forge_agents (id, owner_id, tenant_id, name, slug, description, system_prompt, type, model_id, autonomy_level, enabled_tools, status, is_internal, dispatch_enabled, metadata)
-         VALUES ($1, $2, $10, $3, $4, $5, $6, $7, 'claude-sonnet-4-6', 2, $8, 'active', true, true, $9)
+         VALUES ($1, $2, $10, $3, $4, $5, $6, $7, 'claude-sonnet-4-6', 2, $8, 'active', false, false, $9)
          ON CONFLICT DO NOTHING`,
         [id, userId, agent.name, slug, agent.description, agent.system_prompt, agent.type, agent.tools, JSON.stringify({ source: 'onboarding', use_case: useCase }), tid],
       );
