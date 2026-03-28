@@ -2733,10 +2733,66 @@ export async function runDirectCliExecution(
       await unlink(credHelperPath).catch(() => {});
     } catch { /* ignore */ }
 
-    // Clean up git worktree (branch stays for Push Panel review)
-    // Use async exec (not execSync) to avoid ETIMEDOUT under high concurrency.
-    // 30s timeout gives enough headroom when multiple agents clean up simultaneously.
-    if (worktreeCreated) {
+    // Check if agent made changes, push branch, and create PR before cleaning up worktree
+    if (worktreeCreated && agentBranchName) {
+      const gitEnv = { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' };
+      try {
+        // Check if there are commits on the agent branch that aren't on main
+        const diffOutput = execSync(
+          `git -C "${agentWorktreeDir}" log main..HEAD --oneline 2>/dev/null || echo ""`,
+          { encoding: 'utf8', timeout: 10_000, env: gitEnv },
+        ).trim();
+
+        if (diffOutput && diffOutput.length > 0) {
+          const commitCount = diffOutput.split('\n').filter(Boolean).length;
+          const agentSlugForPr = agentBranchName.split('/')[1] || agentId;
+          logger.info(`[CLI] Agent ${agentSlugForPr} made ${commitCount} commit(s) on branch ${agentBranchName}`);
+
+          // Push the branch
+          try {
+            execSync(
+              `git -C "${agentWorktreeDir}" push origin "${agentBranchName}" 2>&1`,
+              { encoding: 'utf8', timeout: 30_000, env: gitEnv },
+            );
+            logger.info(`[CLI] Pushed branch ${agentBranchName} to origin`);
+
+            // Create PR via gh CLI
+            const firstCommitMsg = diffOutput.split('\n')[0]?.substring(8) || 'Agent changes';
+            const prTitle = `[${agentSlugForPr}] ${firstCommitMsg}`.substring(0, 70);
+            try {
+              const prResult = execSync(
+                `cd "${agentWorktreeDir}" && gh pr create --title "${prTitle.replace(/"/g, '')}" --body "Automated changes by agent. Execution: ${executionId}" --base main --head "${agentBranchName}" 2>&1`,
+                { encoding: 'utf8', timeout: 15_000, env: gitEnv },
+              ).trim();
+              logger.info(`[CLI] Created PR: ${prResult}`);
+
+              // Auto-merge if agent has autonomy >= 3
+              try {
+                const autonomyRow = await query<{ autonomy_level: number }>(
+                  `SELECT autonomy_level FROM forge_agents WHERE id = $1`, [agentId],
+                );
+                if (autonomyRow[0] && autonomyRow[0].autonomy_level >= 3) {
+                  execSync(
+                    `cd "${agentWorktreeDir}" && gh pr merge --auto --squash 2>&1 || true`,
+                    { encoding: 'utf8', timeout: 10_000, env: gitEnv },
+                  );
+                  logger.info(`[CLI] Auto-merge enabled for PR`);
+                }
+              } catch { /* auto-merge may not be available */ }
+            } catch (prErr) {
+              logger.warn(`[CLI] Failed to create PR: ${prErr instanceof Error ? prErr.message : prErr}`);
+            }
+          } catch (pushErr) {
+            logger.warn(`[CLI] Failed to push branch: ${pushErr instanceof Error ? pushErr.message : pushErr}`);
+          }
+        } else {
+          logger.info(`[CLI] Agent made no commits on ${agentBranchName} — no PR needed`);
+        }
+      } catch (diffErr) {
+        logger.debug(`[CLI] Could not check for agent commits: ${diffErr instanceof Error ? diffErr.message : diffErr}`);
+      }
+
+      // Clean up worktree (branch preserved on remote)
       await new Promise<void>((resolve) => {
         exec(
           `git -C "${AGENT_REPO_ROOT}" worktree remove "${agentWorktreeDir}" --force 2>/dev/null || true`,
@@ -2747,8 +2803,6 @@ export async function runDirectCliExecution(
           (err) => {
             if (err) {
               logger.warn(`[CLI] Worktree cleanup failed: ${err.message}`);
-            } else {
-              logger.info(`[CLI] Removed worktree: ${agentWorktreeDir} (branch ${agentBranchName} preserved for review)`);
             }
             resolve();
           },
