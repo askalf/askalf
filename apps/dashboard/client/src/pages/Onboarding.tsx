@@ -6,7 +6,7 @@ import './Onboarding.css';
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:3001' : '';
 
-type Step = 'welcome' | 'ai-provider' | 'connect-claude' | 'theme' | 'use-case' | 'complete';
+type Step = 'welcome' | 'workspace-type' | 'ai-provider' | 'connect-claude' | 'theme' | 'use-case' | 'meet-team' | 'first-task' | 'complete';
 
 interface UseCaseOption {
   id: string;
@@ -91,10 +91,13 @@ const USE_CASE_OPTIONS: UseCaseOption[] = [
 
 const STEPS: { key: Step; label: string }[] = [
   { key: 'welcome', label: 'Workspace' },
+  { key: 'workspace-type', label: 'Type' },
   { key: 'ai-provider', label: 'AI Config' },
-  { key: 'connect-claude', label: 'Connect Claude' },
+  { key: 'connect-claude', label: 'Connect' },
   { key: 'theme', label: 'Appearance' },
   { key: 'use-case', label: 'Use Case' },
+  { key: 'meet-team', label: 'Your Team' },
+  { key: 'first-task', label: 'Try It' },
   { key: 'complete', label: 'Launch' },
 ];
 
@@ -127,6 +130,12 @@ export default function Onboarding() {
   const [searchParams] = useSearchParams();
   const [ollamaAvailable, setOllamaAvailable] = useState(false);
   const [ollamaModels, setOllamaModels] = useState<string[]>([]);
+  const [workspaceType, setWorkspaceType] = useState<'personal' | 'business' | null>(null);
+  const [provisionedAgents, setProvisionedAgents] = useState<{ name: string; type: string; description: string }[]>([]);
+  const [teamRevealed, setTeamRevealed] = useState(0);
+  const [firstTaskInput, setFirstTaskInput] = useState('');
+  const [firstTaskRunning, setFirstTaskRunning] = useState(false);
+  const [firstTaskResult, setFirstTaskResult] = useState('');
 
   // Check OAuth + provider key status on mount
   useEffect(() => {
@@ -285,13 +294,61 @@ export default function Onboarding() {
                 />
                 <span className="ob-hint">What should we call this deployment?</span>
               </div>
-              <button className="ob-btn-primary" onClick={() => setStep('ai-provider')}>
+              <button className="ob-btn-primary" onClick={() => setStep('workspace-type')}>
                 Continue
               </button>
             </div>
           )}
 
-          {/* Step 2: AI Provider */}
+          {/* Step 2: Workspace Type */}
+          {step === 'workspace-type' && (
+            <div className="ob-step-content">
+              <h1 className="ob-title">What is this workspace for?</h1>
+              <p className="ob-desc">This shapes which AI specialists Alf creates for you.</p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, margin: '32px 0' }}>
+                <button
+                  onClick={() => setWorkspaceType('personal')}
+                  style={{
+                    padding: '32px 24px', borderRadius: 16, cursor: 'pointer', textAlign: 'left',
+                    background: workspaceType === 'personal' ? 'rgba(99,102,241,0.12)' : 'var(--surface, rgba(255,255,255,0.03))',
+                    border: workspaceType === 'personal' ? '1.5px solid rgba(99,102,241,0.5)' : '1px solid var(--border, rgba(255,255,255,0.08))',
+                    color: 'inherit', transition: 'all 0.2s',
+                  }}
+                >
+                  <div style={{ fontSize: '2rem', marginBottom: 12 }}>&#9825;</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 8 }}>Personal</div>
+                  <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                    Meal planning, budget coaching, travel research, habit tracking, fitness, journaling, home projects
+                  </div>
+                </button>
+                <button
+                  onClick={() => setWorkspaceType('business')}
+                  style={{
+                    padding: '32px 24px', borderRadius: 16, cursor: 'pointer', textAlign: 'left',
+                    background: workspaceType === 'business' ? 'rgba(99,102,241,0.12)' : 'var(--surface, rgba(255,255,255,0.03))',
+                    border: workspaceType === 'business' ? '1.5px solid rgba(99,102,241,0.5)' : '1px solid var(--border, rgba(255,255,255,0.08))',
+                    color: 'inherit', transition: 'all 0.2s',
+                  }}
+                >
+                  <div style={{ fontSize: '2rem', marginBottom: 12 }}>&#9874;</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 8 }}>Business</div>
+                  <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
+                    Software dev, marketing, support, DevOps, finance, e-commerce, agency work, research, operations
+                  </div>
+                </button>
+              </div>
+
+              <div className="ob-btn-row">
+                <button className="ob-btn-secondary" onClick={() => setStep('welcome')}>Back</button>
+                <button className="ob-btn-primary" onClick={() => setStep('ai-provider')} disabled={!workspaceType}>
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: AI Provider */}
           {step === 'ai-provider' && (
             <div className="ob-step-content">
               <h1 className="ob-title">AI Providers</h1>
@@ -760,7 +817,17 @@ export default function Onboarding() {
                 <button className="ob-btn-secondary" onClick={() => setStep('theme')}>Back</button>
                 <button
                   className="ob-btn-primary"
-                  onClick={() => setStep('complete')}
+                  onClick={() => {
+                    // Show team preview based on selected use case
+                    const uc = USE_CASE_OPTIONS.find(u => u.id === selectedUseCase);
+                    if (uc) {
+                      setProvisionedAgents(uc.specialists.map(s => ({ name: s, type: 'worker', description: '' })));
+                      setTeamRevealed(0);
+                      setStep('meet-team');
+                    } else {
+                      setStep('complete');
+                    }
+                  }}
                   disabled={!selectedUseCase}
                 >
                   Continue
@@ -769,7 +836,166 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 6: Complete */}
+          {/* Step 7: Meet Your Team */}
+          {step === 'meet-team' && (
+            <div className="ob-step-content">
+              <h1 className="ob-title">Meet your team</h1>
+              <p className="ob-desc">
+                Alf created these specialists for your {workspaceType === 'personal' ? 'personal' : 'business'} workspace.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, margin: '24px 0' }}>
+                {provisionedAgents.map((agent, i) => {
+                  const visible = i < teamRevealed;
+                  return (
+                    <div
+                      key={agent.name}
+                      style={{
+                        padding: '16px 20px', borderRadius: 12,
+                        background: visible ? 'rgba(99,102,241,0.08)' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${visible ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                        opacity: visible ? 1 : 0.3,
+                        transform: visible ? 'translateX(0)' : 'translateX(20px)',
+                        transition: 'all 0.4s ease',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                      }}
+                    >
+                      <span style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        background: visible ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.05)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '1rem', fontWeight: 700, color: visible ? '#a5a8ff' : 'rgba(255,255,255,0.3)',
+                      }}>
+                        {agent.name.charAt(0)}
+                      </span>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem', color: visible ? '#f4f4f5' : 'rgba(255,255,255,0.4)' }}>
+                          {agent.name}
+                        </div>
+                      </div>
+                      {visible && (
+                        <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#34d399', fontWeight: 600 }}>READY</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {teamRevealed < provisionedAgents.length ? (
+                <button
+                  className="ob-btn-primary"
+                  onClick={() => {
+                    // Reveal agents one by one with animation
+                    const reveal = () => {
+                      setTeamRevealed(prev => {
+                        const next = prev + 1;
+                        if (next < provisionedAgents.length) {
+                          setTimeout(reveal, 300);
+                        }
+                        return next;
+                      });
+                    };
+                    reveal();
+                  }}
+                >
+                  Reveal Team
+                </button>
+              ) : (
+                <div className="ob-btn-row">
+                  <button className="ob-btn-secondary" onClick={() => setStep('use-case')}>Back</button>
+                  <button className="ob-btn-primary" onClick={() => setStep('first-task')}>
+                    Try Your First Task
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 8: First Task */}
+          {step === 'first-task' && (
+            <div className="ob-step-content">
+              <h1 className="ob-title">Try it out</h1>
+              <p className="ob-desc">
+                Tell Alf what you need. Your team is ready.
+              </p>
+
+              <div style={{ margin: '24px 0' }}>
+                <textarea
+                  value={firstTaskInput}
+                  onChange={e => setFirstTaskInput(e.target.value)}
+                  placeholder={workspaceType === 'personal'
+                    ? "Plan my meals for the week — I'm vegetarian, budget $80..."
+                    : "Research our top 3 competitors and summarize their pricing..."}
+                  style={{
+                    width: '100%', minHeight: 100, padding: '14px 16px', borderRadius: 12,
+                    border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
+                    color: 'inherit', fontSize: '0.95rem', lineHeight: 1.6, resize: 'vertical',
+                    fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+
+              {firstTaskResult && (
+                <div style={{
+                  padding: '16px', borderRadius: 12, background: 'rgba(52,211,153,0.06)',
+                  border: '1px solid rgba(52,211,153,0.2)', marginBottom: 16,
+                  fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6,
+                  maxHeight: 200, overflow: 'auto', whiteSpace: 'pre-wrap',
+                }}>
+                  {firstTaskResult}
+                </div>
+              )}
+
+              <div className="ob-btn-row">
+                <button className="ob-btn-secondary" onClick={() => setStep('meet-team')}>Back</button>
+                {!firstTaskResult ? (
+                  <button
+                    className="ob-btn-primary"
+                    onClick={async () => {
+                      if (!firstTaskInput.trim()) return;
+                      setFirstTaskRunning(true);
+                      try {
+                        const res = await fetch(`${API_BASE}/api/v1/forge/dispatch`, {
+                          method: 'POST', credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ message: firstTaskInput }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json() as { response?: string; summary?: string };
+                          setFirstTaskResult(data.response || data.summary || 'Task dispatched! Check the dashboard to see your team in action.');
+                        } else {
+                          setFirstTaskResult('Task dispatched! Your team will start working on it. You can watch progress in the Live tab.');
+                        }
+                      } catch {
+                        setFirstTaskResult('Task dispatched! Head to the dashboard to watch your team work.');
+                      }
+                      setFirstTaskRunning(false);
+                    }}
+                    disabled={firstTaskRunning || !firstTaskInput.trim()}
+                  >
+                    {firstTaskRunning ? 'Alf is thinking...' : 'Send to Alf'}
+                  </button>
+                ) : (
+                  <button className="ob-btn-primary ob-btn-launch" onClick={() => setStep('complete')}>
+                    Launch Dashboard
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => setStep('complete')}
+                style={{
+                  display: 'block', margin: '12px auto 0', padding: '8px 16px',
+                  background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
+                  fontSize: '0.8rem', cursor: 'pointer',
+                }}
+              >
+                Skip — I'll explore on my own
+              </button>
+            </div>
+          )}
+
+          {/* Step 9: Complete */}
           {step === 'complete' && (
             <div className="ob-step-content ob-complete">
               <div className="ob-complete-icon">&#10003;</div>
@@ -800,6 +1026,10 @@ export default function Onboarding() {
                   <span>{ollamaAvailable ? `Ollama (${ollamaModels.length} models)` : 'Not configured'}</span>
                 </div>
                 <div className="ob-summary-row">
+                  <span>Workspace Type</span>
+                  <span>{workspaceType === 'personal' ? 'Personal' : workspaceType === 'business' ? 'Business' : 'Not set'}</span>
+                </div>
+                <div className="ob-summary-row">
                   <span>Use Case</span>
                   <span>
                     {selectedUseCase
@@ -808,12 +1038,16 @@ export default function Onboarding() {
                   </span>
                 </div>
                 <div className="ob-summary-row">
+                  <span>Team Size</span>
+                  <span>{provisionedAgents.length > 0 ? `${provisionedAgents.length} specialists` : 'Custom'}</span>
+                </div>
+                <div className="ob-summary-row">
                   <span>Theme</span>
                   <span>{theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
                 </div>
               </div>
               <div className="ob-btn-row">
-                <button className="ob-btn-secondary" onClick={() => setStep('use-case')}>Back</button>
+                <button className="ob-btn-secondary" onClick={() => setStep('first-task')}>Back</button>
                 <button className="ob-btn-primary ob-btn-launch" onClick={handleComplete} disabled={saving}>
                   {saving ? 'Launching...' : 'Launch Dashboard'}
                 </button>
