@@ -235,6 +235,26 @@ export class UnifiedDispatcher {
         }
       }
 
+      // Dream Cycle — overnight learning (every 120 ticks = ~1 hour)
+      if (this.tickCount % 120 === 0) {
+        try {
+          const { checkDreamCycle } = await import('../orchestration/dream-cycle.js');
+          await checkDreamCycle();
+        } catch (err) {
+          console.warn(`[Dispatcher] Dream cycle error: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      // The Watcher — predictive pre-runs (every 10 ticks = ~5 minutes)
+      if (this.tickCount % 10 === 0) {
+        try {
+          const { checkPreRuns } = await import('../orchestration/watcher.js');
+          await checkPreRuns();
+        } catch (err) {
+          console.warn(`[Dispatcher] Watcher error: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
     } catch (err) {
       console.error('[Dispatcher] Tick error:', err);
     } finally {

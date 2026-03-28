@@ -191,6 +191,11 @@ export async function executionRoutes(app: FastifyInstance): Promise<void> {
           ],
         );
 
+        // Record user action for The Watcher's pattern learning
+        void import('../orchestration/watcher.js').then(({ recordUserAction }) =>
+          recordUserAction(userId, 'dispatch', `${body.input.substring(0, 100)}`),
+        ).catch(() => {});
+
         void logAudit({
           ownerId: userId,
           action: 'execution.start',
