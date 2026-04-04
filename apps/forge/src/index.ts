@@ -450,6 +450,7 @@ async function start(): Promise<void> {
   } else {
     initializeDatabase(config.databaseUrl);
     logger.info('[Forge] PostgreSQL database connection initialized');
+  }
 
 
   // Run forge database migrations

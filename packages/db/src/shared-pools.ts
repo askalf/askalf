@@ -20,7 +20,7 @@ const { Pool } = pg;
 let pool: pg.Pool | null = null;
 let dbAdapter: DatabaseAdapter | null = null;
 
-function getPool(): pg.Pool {
+export function getPool(): pg.Pool {
   if (!pool) {
     const connectionString = process.env['DATABASE_URL']
       || process.env['FORGE_DATABASE_URL'];
