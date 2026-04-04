@@ -4,7 +4,6 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query, queryOne } from '../../database.js';
-import { query } from '../../database.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { requireAdmin } from '../../middleware/auth.js';
 import { mapAgentType, paginationResponse } from './utils.js';

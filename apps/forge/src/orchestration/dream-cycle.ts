@@ -11,7 +11,6 @@
  */
 
 import { query, queryOne } from '../database.js';
-import { query } from '../database.js';
 import { ulid } from 'ulid';
 
 interface ExecutionRecord {

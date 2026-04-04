@@ -11,7 +11,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
-import { query } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { rateLimitHook as rateLimiter } from '../middleware/rate-limit.js';
 import { createHmac } from 'crypto';

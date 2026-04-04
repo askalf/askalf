@@ -8,7 +8,6 @@
 
 import type { FastifyInstance } from 'fastify';
 import { query, queryOne } from '../database.js';
-import { query } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 // Build a map of agent_id → name from forge DB (cached in memory)

@@ -6,7 +6,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
-import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 function slugify(text: string): string {

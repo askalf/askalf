@@ -13,7 +13,6 @@
  */
 
 import { query, queryOne } from '../database.js';
-import { query } from '../database.js';
 import { ulid } from 'ulid';
 
 export type MessageType = 'request' | 'inform' | 'consult' | 'signal' | 'handoff';

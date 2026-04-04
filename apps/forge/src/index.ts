@@ -23,7 +23,7 @@ import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import { initializeDatabase, initializeDatabaseWithAdapter, initializeDatabase, closeDatabase, query as dbQuery, query, getPool, runForgeMigrations, isStandaloneMode } from './database.js';
+import { initializeDatabase, initializeDatabaseWithAdapter, closeDatabase, query as dbQuery, getPool, runForgeMigrations, isStandaloneMode } from './database.js';
 import { loadConfig } from './config.js';
 import { agentRoutes } from './routes/agents.js';
 import { executionRoutes } from './routes/executions.js';

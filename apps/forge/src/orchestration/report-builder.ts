@@ -4,7 +4,6 @@
  */
 
 import { query, queryOne } from '../database.js';
-import { query, queryOne } from '../database.js';
 import { ulid } from 'ulid';
 
 interface ReportSchedule {

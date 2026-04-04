@@ -6,7 +6,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomBytes, createHash } from 'crypto';
 import { query, queryOne } from '../database.js';
-import { query, queryOne } from '../database.js';
 
 const MAX_INTERACTIONS = parseInt(process.env['DEMO_SESSION_MAX_INTERACTIONS'] || '15');
 const SESSION_DURATION_MIN = parseInt(process.env['DEMO_SESSION_DURATION_MINUTES'] || '30');

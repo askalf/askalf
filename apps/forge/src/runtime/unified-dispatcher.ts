@@ -9,7 +9,6 @@
 
 import { ulid } from 'ulid';
 import { query, queryOne } from '../database.js';
-import { query } from '../database.js';
 import { runDirectCliExecution, cancelCliExecution } from './worker.js';
 import { checkGuardrails } from '../observability/guardrails.js';
 

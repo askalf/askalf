@@ -11,7 +11,6 @@
  */
 
 import { query, queryOne } from '../database.js';
-import { query, queryOne } from '../database.js';
 import { ulid } from 'ulid';
 import { sendAgentMessage, emitSignal } from './nervous-system.js';
 

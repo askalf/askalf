@@ -6,7 +6,6 @@
 
 import { exec } from 'child_process';
 import { query, queryOne } from '../database.js';
-import { query } from '../database.js';
 import { processUnprocessedFeedback, getAgentFeedbackStats } from '../learning/feedback-processor.js';
 import { proposeAllRevisions, applyPromptRevision, proposePromptRevision } from '../learning/prompt-rewriter.js';
 import { selectOptimalModel } from '../orchestration/cost-router.js';
