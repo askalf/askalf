@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AskAlf</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #020612;
+      color: #c8d6e5;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #00ff88;
+      letter-spacing: 0.1em;
+    }
+    .status {
+      font-size: 0.9rem;
+      color: rgba(200, 214, 229, 0.5);
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid rgba(0, 255, 136, 0.1);
+      border-top-color: #00ff88;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="logo">ASKALF</div>
+  <div class="spinner"></div>
+  <div class="status" id="status">Starting server...</div>
+
+  <script type="module">
+    // Poll the local server until it's ready, then redirect to the dashboard
+    const port = 3000;
+    const maxAttempts = 60; // 30 seconds
+    let attempts = 0;
+
+    async function checkHealth() {
+      try {
+        const res = await fetch(`http://localhost:${port}/health`);
+        if (res.ok) {
+          document.getElementById('status').textContent = 'Ready!';
+          window.location.href = `http://localhost:${port}`;
+          return;
+        }
+      } catch {}
+
+      attempts++;
+      if (attempts < maxAttempts) {
+        document.getElementById('status').textContent =
+          `Starting server... (${attempts}s)`;
+        setTimeout(checkHealth, 500);
+      } else {
+        document.getElementById('status').textContent =
+          'Server failed to start. Check logs.';
+      }
+    }
+
+    checkHealth();
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "@askalf/core",
+  "version": "2.9.9",
+  "description": "Core types, utilities, and validation for AskAlf",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.24.0",
+    "ulid": "^3.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

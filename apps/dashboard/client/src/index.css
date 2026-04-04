@@ -1,0 +1,656 @@
+/* ===========================================
+   FORGE DESIGN SYSTEM
+   Dark theme with violet accents
+   =========================================== */
+
+:root,
+[data-theme="dark"] {
+  /* Background - Warmer, less harsh (dark green fading to black) */
+  --void: #0a0a0b;
+  --deep: #0f0f12;
+  --surface: #141419;
+  --elevated: #1a1a22;
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+
+  /* Text */
+  --text: #f4f4f5;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+  --text-muted: rgba(255, 255, 255, 0.3);
+
+  /* Accent - Violet */
+  --crystal: #7c3aed;
+  --crystal-light: #8b5cf6;
+  --crystal-lighter: #a78bfa;
+  --crystal-dim: rgba(124, 58, 237, 0.1);
+  --crystal-glow: rgba(124, 58, 237, 0.25);
+
+  /* Accent - Bright (Landing page signature purple) */
+  --crystal-bright: #7c3aed;
+  --crystal-bright-light: #a78bfa;
+  --crystal-bright-dim: rgba(124, 58, 237, 0.1);
+  --crystal-bright-glow: rgba(124, 58, 237, 0.25);
+  --accent-green: #7c3aed;
+
+  /* Semantic status (preserved green) */
+  --status-healthy: #10b981;
+  --status-active: #10b981;
+
+  /* Secondary accents */
+  --synapse: #8b5cf6;
+  --synapse-light: #a78bfa;
+  --water: #3b82f6;
+  --water-light: #60a5fa;
+  --warning: #f59e0b;
+  --warning-light: #fbbf24;
+  --danger: #ef4444;
+  --danger-light: #f87171;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.3);
+
+  /* Typography */
+  --font-body: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-display: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+
+  /* Aliases — used by older component CSS */
+  --bg-primary: var(--void);
+  --bg-secondary: var(--deep);
+  --bg-tertiary: var(--surface);
+  --text-primary: var(--text);
+  --accent: var(--crystal);
+}
+
+/* Light Theme - Clean, professional */
+[data-theme="light"] {
+  /* Background - Light with subtle violet tint */
+  --void: #f9f8fc;
+  --deep: #f3f1f8;
+  --surface: #ffffff;
+  --elevated: #f9f8fc;
+
+  /* Borders */
+  --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.15);
+
+  /* Text */
+  --text: #0f172a;
+  --text-secondary: rgba(15, 23, 42, 0.7);
+  --text-tertiary: rgba(15, 23, 42, 0.5);
+  --text-muted: rgba(15, 23, 42, 0.4);
+
+  /* Accent - Violet (slightly darker for light mode contrast) */
+  --crystal: #6d28d9;
+  --crystal-light: #7c3aed;
+  --crystal-lighter: #8b5cf6;
+  --crystal-dim: rgba(109, 40, 217, 0.1);
+  --crystal-glow: rgba(109, 40, 217, 0.2);
+
+  /* Shadows - Lighter */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 20px rgba(109, 40, 217, 0.2);
+
+  /* Aliases — used by older component CSS */
+  --bg-primary: var(--void);
+  --bg-secondary: var(--deep);
+  --bg-tertiary: var(--surface);
+  --text-primary: var(--text);
+  --accent: var(--crystal);
+}
+
+/* OpenClaw Theme - Coral red accent, deep dark surfaces */
+[data-theme="claw"] {
+  /* Background */
+  --void: #0e1015;
+  --deep: #131720;
+  --surface: #161920;
+  --elevated: #191c24;
+
+  /* Borders */
+  --border: #1e2028;
+  --border-hover: #2e3040;
+
+  /* Text */
+  --text: #f4f4f5;
+  --text-secondary: #d4d4d8;
+  --text-tertiary: #a1a1aa;
+  --text-muted: #636370;
+
+  /* Accent - Coral Red */
+  --crystal: #ff5c5c;
+  --crystal-light: #ff7070;
+  --crystal-lighter: #ff8a8a;
+  --crystal-dim: rgba(255, 92, 92, 0.1);
+  --crystal-glow: rgba(255, 92, 92, 0.25);
+
+  /* Accent - Bright */
+  --crystal-bright: #ff5c5c;
+  --crystal-bright-light: #ff7070;
+  --crystal-bright-dim: rgba(255, 92, 92, 0.1);
+  --crystal-bright-glow: rgba(255, 92, 92, 0.25);
+  --accent-green: #14b8a6;
+
+  /* Semantic status */
+  --status-healthy: #22c55e;
+  --status-active: #22c55e;
+
+  /* Secondary accents */
+  --synapse: #14b8a6;
+  --synapse-light: #2dd4bf;
+  --water: #14b8a6;
+  --water-light: #2dd4bf;
+  --warning: #f59e0b;
+  --warning-light: #fbbf24;
+  --danger: #ef4444;
+  --danger-light: #f87171;
+
+  /* Radii - OpenClaw uses 10px default */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Shadows - Heavy blacks */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 20px rgba(255, 92, 92, 0.3);
+
+  /* Typography - OpenClaw uses Inter + JetBrains Mono */
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Aliases */
+  --bg-primary: var(--void);
+  --bg-secondary: var(--deep);
+  --bg-tertiary: var(--surface);
+  --text-primary: var(--text);
+  --accent: var(--crystal);
+}
+
+/* Font size adjustments */
+[data-font-size="small"] {
+  font-size: 14px;
+}
+
+[data-font-size="medium"] {
+  font-size: 16px;
+}
+
+[data-font-size="large"] {
+  font-size: 18px;
+}
+
+/* Font family adjustments */
+[data-font-family="inter"] body {
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+[data-font-family="system"] body {
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+[data-font-family="mono"] body {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+}
+
+/* Reduced motion */
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* ===========================================
+   BASE STYLES
+   =========================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--void);
+  color: var(--text);
+  line-height: 1.6;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Atmospheric noise + radial vignette */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139,92,246,0.03), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(59,130,246,0.02), transparent 60%);
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+body > #root {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background: var(--crystal);
+  color: var(--void);
+}
+
+a {
+  color: var(--crystal);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--crystal-light);
+}
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ===========================================
+   ANIMATIONS - Signature Effects
+   =========================================== */
+
+/* UFO floating animation */
+@keyframes ufo-float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(2deg);
+  }
+}
+
+/* ALF text gradient shimmer */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Message entrance - user (from right) */
+@keyframes message-in-user {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Message entrance - ALF (from left) */
+@keyframes message-in-alf {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shard-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(124, 58, 237, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
+  }
+}
+
+/* Counter bump on update */
+@keyframes counter-bump {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); color: var(--crystal-lighter); }
+  100% { transform: scale(1); }
+}
+
+/* Typing dots bounce */
+@keyframes typing-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Subtle pulse for live indicators */
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Stream in for new content */
+@keyframes stream-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade in */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Cursor blink */
+@keyframes cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Glow pulse */
+@keyframes glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(124, 58, 237, 0.8));
+  }
+}
+
+/* ===========================================
+   UTILITY CLASSES
+   =========================================== */
+
+.animate-ufo-float {
+  animation: ufo-float 3s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+.animate-message-user {
+  animation: message-in-user 0.3s ease forwards;
+}
+
+.animate-message-alf {
+  animation: message-in-alf 0.3s ease forwards;
+}
+
+.animate-shard-pulse {
+  animation: shard-pulse 0.6s ease-out;
+}
+
+.animate-counter-bump {
+  animation: counter-bump 0.4s ease;
+}
+
+.animate-typing-dot {
+  animation: typing-bounce 1.4s infinite ease-in-out both;
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+.animate-stream-in {
+  animation: stream-in 0.4s ease forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease forwards;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ===========================================
+   SCROLLBAR
+   =========================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* ===========================================
+   FOCUS STATES
+   =========================================== */
+
+:focus-visible {
+  outline: 2px solid var(--crystal);
+  outline-offset: 2px;
+}
+
+/* ===========================================
+   BUTTONS
+   =========================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--crystal);
+  color: var(--void);
+}
+
+.btn-primary:hover {
+  background: var(--crystal-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--elevated);
+  border-color: var(--border-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.btn-icon {
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+}
+
+/* ===========================================
+   INPUTS
+   =========================================== */
+
+.input {
+  width: 100%;
+  padding: var(--space-md);
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--crystal);
+  box-shadow: 0 0 0 3px var(--crystal-dim);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ===========================================
+   CARDS
+   =========================================== */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+}
+
+.card-elevated {
+  background: var(--elevated);
+  box-shadow: var(--shadow-md);
+}
+
+/* ===========================================
+   BADGES
+   =========================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-success {
+  background: var(--crystal-dim);
+  color: var(--crystal);
+}
+
+.badge-free {
+  background: linear-gradient(135deg, var(--crystal-dim), rgba(139, 92, 246, 0.1));
+  color: var(--crystal-light);
+  border: 1px solid var(--crystal-dim);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning);
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+/* ===========================================
+   ACCESSIBILITY - Screen Reader Only
+   =========================================== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@askalf/email",
+  "version": "2.9.9",
+  "description": "Email service with provider abstraction for AskAlf",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@askalf/core": "workspace:*",
+    "@askalf/observability": "workspace:*",
+    "nodemailer": "^8.0.4"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^7.0.11",
+    "typescript": "^5.7.2"
+  }
+}

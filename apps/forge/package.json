@@ -1,0 +1,47 @@
+{
+  "name": "@askalf/forge",
+  "version": "2.9.9",
+  "main": "./dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "tsx tests/unit.ts",
+    "test:integration": "vitest run tests/forge-api.integration.test.ts",
+    "test:integration:admin": "tsx tests/integration.ts",
+    "test": "tsx tests/unit.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^10.0.0",
+    "@fastify/websocket": "^11.0.1",
+    "@fastify/swagger": "^9.4.2",
+    "@fastify/swagger-ui": "^5.2.1",
+    "@sinclair/typebox": "^0.34.49",
+    "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "bcryptjs": "^3.0.2",
+    "bullmq": "^5.71.1",
+    "dotenv": "^17.3.1",
+    "fastify": "^5.8.4",
+    "ioredis": "^5.10.1",
+    "openai": "^6.33.0",
+    "pg": "^8.20.0",
+    "ulid": "^3.0.2",
+    "zod": "^3.23.0",
+    "@askalf/database-adapter": "workspace:*",
+    "@askalf/redis-adapter": "workspace:*",
+    "@askalf/email": "workspace:*",
+    "@askalf/observability": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/pg": "^8.20.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

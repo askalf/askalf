@@ -1,0 +1,29 @@
+{
+  "name": "@askalf/auth",
+  "version": "2.9.9",
+  "description": "API key management for AskAlf",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@askalf/core": "workspace:*",
+    "@askalf/database": "workspace:*",
+    "zod": "^3.24.0",
+    "ulid": "^3.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

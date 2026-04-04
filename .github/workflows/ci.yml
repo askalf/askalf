@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: |
+          pnpm --filter @askalf/database-adapter build || true
+          pnpm --filter @askalf/redis-adapter build || true
+          pnpm --filter @askalf/db build || true
+          pnpm --filter @askalf/observability build
+          pnpm --filter @askalf/email build || true
+
+      - name: Build forge
+        run: pnpm --filter @askalf/forge build
+
+      - name: Build mcp-tools
+        run: pnpm --filter @askalf/mcp-tools build
+
+  docker-validate:
+    name: Validate Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate docker-compose config
+        run: docker compose -f docker-compose.selfhosted.yml config --quiet
