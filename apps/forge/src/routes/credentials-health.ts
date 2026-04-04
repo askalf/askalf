@@ -1,0 +1,264 @@
+/**
+ * Credentials Health Routes
+ * OAuth token health check and forced refresh endpoint.
+ */
+
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { readFile, writeFile } from 'node:fs/promises';
+import { authMiddleware } from '../middleware/auth.js';
+import { rateLimitHook as rateLimiter } from '../middleware/rate-limit.js';
+
+// Check multiple possible credential locations
+const CREDENTIAL_PATHS = [
+  '/tmp/claude-credentials/.credentials.json',
+  '/tmp/claude-home/.claude/.credentials.json',
+  '/home/askalf/.claude-session/.claude/.credentials.json',
+];
+const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
+const OAUTH_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
+
+interface CredentialsFile {
+  claudeAiOauth?: {
+    accessToken?: string;
+    refreshToken?: string;
+    expiresAt?: number;
+  };
+}
+
+function computeStatus(expiresAt: number | null | undefined): {
+  status: 'healthy' | 'expiring' | 'expired' | 'unknown';
+  expiresIn: string | null;
+} {
+  if (expiresAt == null) {
+    return { status: 'unknown', expiresIn: null };
+  }
+
+  const now = Date.now();
+  const diffMs = expiresAt - now;
+
+  if (diffMs <= 0) {
+    return { status: 'expired', expiresIn: null };
+  }
+
+  const diffMin = Math.floor(diffMs / 60_000);
+  const diffHours = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  let expiresIn: string;
+  if (diffDays > 0) {
+    expiresIn = `${diffDays}d ${diffHours % 24}h`;
+  } else if (diffHours > 0) {
+    expiresIn = `${diffHours}h ${diffMin % 60}m`;
+  } else {
+    expiresIn = `${diffMin}m`;
+  }
+
+  // Expiring if less than 1 hour remaining
+  if (diffMs < 3_600_000) {
+    return { status: 'expiring', expiresIn };
+  }
+
+  return { status: 'healthy', expiresIn };
+}
+
+async function readCredentials(): Promise<CredentialsFile | null> {
+  for (const path of CREDENTIAL_PATHS) {
+    try {
+      const raw = await readFile(path, 'utf-8');
+      return JSON.parse(raw) as CredentialsFile;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+// Auto-refresh timer — refreshes token when within 30 min of expiry
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+const AUTO_REFRESH_THRESHOLD_MS = 30 * 60_000; // 30 minutes before expiry
+const AUTO_REFRESH_CHECK_INTERVAL_MS = 5 * 60_000; // Check every 5 minutes
+
+async function autoRefreshIfNeeded(): Promise<void> {
+  try {
+    const creds = await readCredentials();
+    if (!creds?.claudeAiOauth?.refreshToken || !creds?.claudeAiOauth?.expiresAt) return;
+
+    const timeLeft = creds.claudeAiOauth.expiresAt - Date.now();
+    if (timeLeft > AUTO_REFRESH_THRESHOLD_MS) return; // Still healthy
+
+    console.log(`[OAuth] Token expires in ${Math.round(timeLeft / 60_000)}m — auto-refreshing`);
+
+    const response = await fetch(OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: OAUTH_CLIENT_ID,
+        refresh_token: creds.claudeAiOauth.refreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`[OAuth] Auto-refresh failed: ${response.status}`);
+      return;
+    }
+
+    const tokenData = await response.json() as {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+    };
+
+    creds.claudeAiOauth.accessToken = tokenData.access_token ?? creds.claudeAiOauth.accessToken;
+    creds.claudeAiOauth.refreshToken = tokenData.refresh_token ?? creds.claudeAiOauth.refreshToken;
+    if (tokenData.expires_in) {
+      creds.claudeAiOauth.expiresAt = Date.now() + tokenData.expires_in * 1000;
+    }
+
+    // Write back to the first path that exists
+    for (const path of CREDENTIAL_PATHS) {
+      try {
+        await readFile(path);
+        await writeFile(path, JSON.stringify(creds, null, 2), 'utf-8');
+        console.log(`[OAuth] Token auto-refreshed — expires in ${Math.round((creds.claudeAiOauth.expiresAt - Date.now()) / 60_000)}m`);
+        break;
+      } catch { continue; }
+    }
+  } catch (err) {
+    console.error('[OAuth] Auto-refresh error:', err instanceof Error ? err.message : err);
+  }
+}
+
+export async function credentialsHealthRoutes(app: FastifyInstance): Promise<void> {
+  // Start auto-refresh timer
+  if (!autoRefreshTimer) {
+    autoRefreshTimer = setInterval(autoRefreshIfNeeded, AUTO_REFRESH_CHECK_INTERVAL_MS);
+    // Also check immediately on startup
+    setTimeout(autoRefreshIfNeeded, 10_000);
+    console.log('[OAuth] Auto-refresh enabled — checking every 5 minutes, refreshing 30 min before expiry');
+  }
+  /**
+   * GET /api/v1/forge/credentials/health — check OAuth token status
+   */
+  app.get(
+    '/api/v1/forge/credentials/health',
+    { preHandler: [rateLimiter, authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        // Check Claude OAuth
+        const creds = await readCredentials();
+        const claudeExpiresAt = creds?.claudeAiOauth?.expiresAt ?? null;
+        const claude = computeStatus(claudeExpiresAt);
+
+        // Check Codex OAuth
+        let codexStatus = 'no_credentials';
+        try {
+          const { readFile } = await import('node:fs/promises');
+          const raw = await readFile('/home/askalf/.codex-session/.codex-auth.json', 'utf-8');
+          const auth = JSON.parse(raw) as { tokens?: { access_token?: string } };
+          codexStatus = auth.tokens?.access_token ? 'healthy' : 'no_token';
+        } catch { /* no codex credentials */ }
+
+        // Return combined — pick the active provider's status for the badge
+        const hasClaudeKey = !!process.env['ANTHROPIC_API_KEY'] || claude.status !== 'unknown';
+        const hasClaude = claudeExpiresAt !== null;
+        const hasCodex = codexStatus === 'healthy';
+
+        // Primary status: whichever provider is configured
+        const primaryStatus = hasClaude ? claude.status : hasCodex ? 'healthy' : hasClaudeKey ? 'healthy' : 'unknown';
+        const primaryProvider = hasClaude ? 'claude' : hasCodex ? 'codex' : hasClaudeKey ? 'claude-api' : 'none';
+
+        return reply.send({
+          status: primaryStatus,
+          provider: primaryProvider,
+          expiresAt: claudeExpiresAt,
+          expiresIn: claude.expiresIn,
+          claude: { status: claude.status, expiresAt: claudeExpiresAt },
+          codex: { status: codexStatus },
+        });
+      } catch (err) {
+        request.log.error(err, 'Failed to check credential health');
+        return reply.status(500).send({ error: 'Internal Server Error' });
+      }
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/credentials/refresh — force token refresh
+   */
+  app.post(
+    '/api/v1/forge/credentials/refresh',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const creds = await readCredentials();
+        if (!creds?.claudeAiOauth?.refreshToken) {
+          return reply.status(400).send({
+            refreshed: false,
+            expiresAt: null,
+            error: 'No refresh token found in credentials file',
+          });
+        }
+
+        const refreshToken = creds.claudeAiOauth.refreshToken;
+
+        const response = await fetch(OAUTH_TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: OAUTH_CLIENT_ID,
+            refresh_token: refreshToken,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown error');
+          return reply.status(502).send({
+            refreshed: false,
+            expiresAt: creds.claudeAiOauth.expiresAt ?? null,
+            error: `OAuth refresh failed (${response.status}): ${errorText}`,
+          });
+        }
+
+        const tokenData = (await response.json()) as {
+          access_token?: string;
+          refresh_token?: string;
+          expires_in?: number;
+        };
+
+        const newExpiresAt = tokenData.expires_in
+          ? Date.now() + tokenData.expires_in * 1000
+          : null;
+
+        // Update credentials file
+        creds.claudeAiOauth.accessToken = tokenData.access_token ?? creds.claudeAiOauth.accessToken;
+        creds.claudeAiOauth.refreshToken = tokenData.refresh_token ?? creds.claudeAiOauth.refreshToken;
+        if (newExpiresAt) {
+          creds.claudeAiOauth.expiresAt = newExpiresAt;
+        }
+
+        // Write back to the first path that exists
+        for (const path of CREDENTIAL_PATHS) {
+          try {
+            await readFile(path);
+            await writeFile(path, JSON.stringify(creds, null, 2), 'utf-8');
+            break;
+          } catch { continue; }
+        }
+
+        return reply.send({
+          refreshed: true,
+          expiresAt: newExpiresAt,
+        });
+      } catch (err) {
+        request.log.error(err, 'Failed to refresh credentials');
+        return reply.status(500).send({
+          refreshed: false,
+          expiresAt: null,
+          error: err instanceof Error ? err.message : 'Internal Server Error',
+        });
+      }
+    },
+  );
+}

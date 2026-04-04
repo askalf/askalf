@@ -1,0 +1,99 @@
+# Agent Forge API Server
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS builder
+
+# Install build dependencies for native modules (node-pty from workspace peers)
+RUN apk add --no-cache python3 make g++ linux-headers
+
+# Install pnpm (pinned version)
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+WORKDIR /app
+
+# Copy workspace files — all package.json files needed for frozen lockfile resolution
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.base.json ./
+COPY packages/core/package.json ./packages/core/package.json
+COPY packages/database-adapter/package.json ./packages/database-adapter/package.json
+COPY packages/redis-adapter/package.json ./packages/redis-adapter/package.json
+COPY packages/observability/package.json ./packages/observability/package.json
+COPY packages/database/package.json ./packages/database/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/auth/package.json ./packages/auth/package.json
+COPY packages/email/package.json ./packages/email/package.json
+COPY packages/agent-cli/package.json ./packages/agent-cli/package.json
+COPY apps/forge/package.json ./apps/forge/package.json
+COPY apps/dashboard/package.json ./apps/dashboard/package.json
+COPY apps/mcp-tools/package.json ./apps/mcp-tools/package.json
+COPY apps/standalone/package.json ./apps/standalone/package.json
+COPY apps/desktop/package.json ./apps/desktop/package.json
+COPY packages/create-askalf/package.json ./packages/create-askalf/package.json
+
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy full source for packages we need to build
+COPY packages/core ./packages/core
+COPY packages/database-adapter ./packages/database-adapter
+COPY packages/redis-adapter ./packages/redis-adapter
+COPY packages/observability ./packages/observability
+COPY packages/email ./packages/email
+COPY apps/forge ./apps/forge
+
+# Build workspace dependencies first, then forge
+RUN pnpm --filter @askalf/core build && \
+    pnpm --filter @askalf/database-adapter build && \
+    pnpm --filter @askalf/redis-adapter build && \
+    pnpm --filter @askalf/observability build && \
+    pnpm --filter @askalf/email build && \
+    pnpm --filter @askalf/forge build
+
+# Note: unit tests excluded from Docker context via .dockerignore — run tests in CI instead
+
+# Deploy to a self-contained directory
+RUN pnpm deploy --filter @askalf/forge --prod /app/deploy
+
+# Remove unnecessary files from deploy
+RUN rm -rf /app/deploy/src 2>/dev/null || true && \
+    find /app/deploy -name "*.ts" -not -name "*.d.ts" -delete 2>/dev/null || true && \
+    find /app/deploy -name "*.map" -delete 2>/dev/null || true && \
+    find /app/deploy -name "*.md" -delete 2>/dev/null || true && \
+    find /app/deploy -name "CHANGELOG*" -delete 2>/dev/null || true && \
+    find /app/deploy -name "LICENSE*" -delete 2>/dev/null || true && \
+    rm -rf /app/deploy/node_modules/.cache 2>/dev/null || true
+
+# Production stage
+FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
+
+# Install git for git_ops tool + procps for pgrep (process tree kill) + bash for Claude CLI shell + openssh for SSH dispatch
+RUN apk add --no-cache git procps bash openssh-client curl github-cli
+
+# Install Claude Code CLI globally for agent execution
+RUN npm install -g @anthropic-ai/claude-code
+
+# Security: create non-root user
+RUN addgroup -g 1001 substrate && \
+    adduser -u 1001 -G substrate -s /bin/false -D substrate
+
+WORKDIR /app
+
+# Copy the deployed app
+COPY --from=builder --chown=substrate:substrate /app/deploy ./
+
+# Pre-create CLI directories owned by substrate user
+RUN mkdir -p /tmp/claude-home/.claude /tmp/agent-workspace && \
+    chown -R substrate:substrate /tmp/claude-home /tmp/agent-workspace
+
+ENV NODE_ENV=production
+ENV PORT=3005
+ENV HOME=/tmp/claude-home
+ENV SHELL=/bin/bash
+
+USER substrate
+
+EXPOSE 3005
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "dist/index.js"]

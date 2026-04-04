@@ -1,0 +1,206 @@
+import { useState, useEffect, useRef } from 'react';
+import { useThemeStore } from '../../stores/theme';
+import { useTenantStore } from '../../stores/tenant';
+import NotificationCenter from '../NotificationCenter';
+import HeartbeatIndicator from './HeartbeatIndicator';
+
+interface TopBarProps {
+  wsConnected: boolean;
+  agentCount: number;
+  todayCost: number;
+  todayApiCost: number;
+  todayCliCost: number;
+  budgetLimit?: number;
+  onNavigate?: (tab: string) => void;
+}
+
+interface AuthUser {
+  id: string;
+  email: string;
+  name?: string;
+  displayName?: string;
+  role?: string;
+  tenantName?: string | null;
+}
+
+export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCost, todayCliCost, budgetLimit, onNavigate }: TopBarProps) {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const { tenants, currentTenantId, fetchTenants, switchTenant, createTenant } = useTenantStore();
+  const [showTenantMenu, setShowTenantMenu] = useState(false);
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const tenantMenuRef = useRef<HTMLDivElement>(null);
+  const [oauthStatus, setOauthStatus] = useState<'healthy' | 'expiring' | 'expired' | 'unknown'>('unknown');
+  const [oauthProvider, setOauthProvider] = useState<string>('claude');
+  const [oauthRefreshing, setOauthRefreshing] = useState(false);
+  const { theme, setTheme } = useThemeStore();
+  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
+
+  // Fetch current user + tenants
+  useEffect(() => {
+    fetch('/api/v1/auth/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.user) setUser(data.user); })
+      .catch(() => {});
+    fetchTenants();
+  }, [fetchTenants]);
+
+  // Close tenant menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (tenantMenuRef.current && !tenantMenuRef.current.contains(e.target as Node)) {
+        setShowTenantMenu(false);
+      }
+    };
+    if (showTenantMenu) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showTenantMenu]);
+
+  // Check OAuth token health
+  useEffect(() => {
+    const checkOAuth = () => {
+      fetch('/api/v1/forge/credentials/health', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.status) { setOauthStatus(data.status); setOauthProvider(data.provider || 'claude'); } })
+        .catch(() => {});
+    };
+    checkOAuth();
+    const timer = setInterval(checkOAuth, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleOAuthRefresh = async () => {
+    setOauthRefreshing(true);
+    try {
+      const res = await fetch('/api/v1/forge/credentials/refresh', { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (data?.refreshed) setOauthStatus('healthy');
+    } catch { /* ignore */ }
+    setOauthRefreshing(false);
+  };
+
+  const oauthColor = oauthStatus === 'healthy' ? '#22c55e' : oauthStatus === 'expiring' ? '#f59e0b' : oauthStatus === 'expired' ? '#ef4444' : '#6b7280';
+  const providerName = oauthProvider === 'codex' ? 'Codex' : oauthProvider === 'claude-api' ? 'API Key' : 'OAuth';
+  const oauthLabel = oauthStatus === 'healthy' ? `${providerName} OK` : oauthStatus === 'expiring' ? `${providerName} Expiring` : oauthStatus === 'expired' ? `${providerName} Expired` : null;
+
+  const healthColor = wsConnected ? '#22c55e' : '#ef4444';
+  const healthLabel = wsConnected ? 'Healthy' : 'Disconnected';
+
+  return (
+    <div className="ud-topbar">
+      <div className="ud-topbar-left">
+        <div ref={tenantMenuRef} style={{ position: 'relative' }}>
+          <button
+            className="ud-topbar-workspace"
+            onClick={() => setShowTenantMenu(!showTenantMenu)}
+            style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', font: 'inherit', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            {tenants.find(t => t.id === currentTenantId)?.name || user?.tenantName || 'Workspace'}
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.5 }}>
+              <path d="M1 1l4 4 4-4" />
+            </svg>
+          </button>
+          {showTenantMenu && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, marginTop: 8, minWidth: 220,
+              background: 'var(--surface, #1a1a2e)', border: '1px solid var(--border, rgba(255,255,255,0.1))',
+              borderRadius: 10, padding: 6, zIndex: 1000, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            }}>
+              {tenants.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => { if (t.id !== currentTenantId) switchTenant(t.id); setShowTenantMenu(false); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',
+                    background: t.id === currentTenantId ? 'rgba(124,58,237,0.15)' : 'transparent',
+                    border: 'none', borderRadius: 6, color: 'inherit', cursor: 'pointer', fontSize: '0.85rem',
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: t.id === currentTenantId ? '#7c3aed' : 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
+                  <span style={{ fontWeight: t.id === currentTenantId ? 600 : 400 }}>{t.name}</span>
+                  {t.use_case && <span style={{ fontSize: '0.7rem', opacity: 0.4, marginLeft: 'auto' }}>{t.use_case}</span>}
+                </button>
+              ))}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '4px 0' }} />
+              {!showCreateWorkspace ? (
+                <button
+                  onClick={() => setShowCreateWorkspace(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',
+                    background: 'transparent', border: 'none', borderRadius: 6, color: 'rgba(165,168,255,0.8)',
+                    cursor: 'pointer', fontSize: '0.8rem',
+                  }}
+                >
+                  + New Workspace
+                </button>
+              ) : (
+                <div style={{ padding: '8px 12px' }}>
+                  <input
+                    value={newWorkspaceName}
+                    onChange={e => setNewWorkspaceName(e.target.value)}
+                    placeholder="Workspace name..."
+                    autoFocus
+                    onKeyDown={async e => {
+                      if (e.key === 'Enter' && newWorkspaceName.trim()) {
+                        await createTenant(newWorkspaceName.trim());
+                        setNewWorkspaceName('');
+                        setShowCreateWorkspace(false);
+                      }
+                      if (e.key === 'Escape') { setShowCreateWorkspace(false); setNewWorkspaceName(''); }
+                    }}
+                    style={{
+                      width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(255,255,255,0.03)', color: 'inherit', fontSize: '0.85rem',
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <span className="ud-topbar-divider" />
+        <span className="ud-health-dot" style={{ background: healthColor }} aria-hidden="true" />
+        <span className="ud-topbar-label" aria-label={`Connection status: ${healthLabel}`}>{healthLabel}</span>
+        <span className="ud-topbar-divider" />
+        <span className="ud-topbar-stat">{agentCount} running</span>
+        <span className="ud-topbar-divider" />
+        <HeartbeatIndicator activeExecutions={agentCount} hourlyCost={todayCost} />
+        <span className="ud-topbar-divider" />
+        <span
+          className={`ud-topbar-stat${budgetLimit && todayCost / budgetLimit > 0.8 ? todayCost / budgetLimit >= 1 ? ' ud-topbar-cost-over' : ' ud-topbar-cost-warn' : ''}`}
+          title={`API: $${todayApiCost.toFixed(2)} billed\nOAuth: ~$${todayCliCost.toFixed(2)} est.`}
+        >
+          {todayApiCost > 0 && <><span style={{ color: 'var(--crystal-lighter, #a78bfa)' }}>${todayApiCost.toFixed(2)}</span><span style={{ opacity: 0.4, margin: '0 3px' }}>+</span></>}
+          <span style={{ opacity: todayApiCost > 0 ? 0.7 : 1 }}>~${todayCliCost.toFixed(2)}</span>
+          {budgetLimit ? <span style={{ opacity: 0.5 }}> / ${budgetLimit.toFixed(0)}</span> : null}
+          <span style={{ opacity: 0.5 }}> today</span>
+        </span>
+        <span className="ud-topbar-divider" />
+        {oauthLabel && (
+          <span
+            className="ud-topbar-stat"
+            style={{ cursor: oauthStatus !== 'healthy' ? 'pointer' : 'default' }}
+            onClick={oauthStatus !== 'healthy' ? handleOAuthRefresh : undefined}
+            title={oauthStatus !== 'healthy' ? 'Click to refresh token' : 'OAuth token is healthy'}
+          >
+            <span className="ud-health-dot" style={{ background: oauthColor, marginRight: 4 }} aria-hidden="true" />
+            {oauthRefreshing ? 'Refreshing...' : oauthLabel}
+          </span>
+        )}
+      </div>
+      <div className="ud-topbar-right">
+        <NotificationCenter />
+        {/* Light mode removed — dark only */}
+        <button className="ud-topbar-icon-btn" onClick={() => onNavigate?.('settings')} aria-label="Settings">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+        {/* Account menu removed — self-hosted single-user, Settings tab handles profile */}
+      </div>
+    </div>
+  );
+}

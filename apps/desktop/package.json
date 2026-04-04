@@ -1,0 +1,17 @@
+{
+  "name": "@askalf/desktop",
+  "version": "2.9.9",
+  "description": "AskAlf Desktop — double-click to run your AI workforce",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@tauri-apps/api": "^2.0.0",
+    "typescript": "^5.7.0"
+  }
+}

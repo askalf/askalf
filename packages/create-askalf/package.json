@@ -1,0 +1,39 @@
+{
+  "name": "create-askalf",
+  "version": "2.9.15",
+  "description": "Create an AskAlf AI workforce in 60 seconds. No Docker required.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "create-askalf": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "autonomous",
+    "workforce",
+    "askalf",
+    "create"
+  ],
+  "author": "AskAlf",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/askalf/askalf"
+  },
+  "dependencies": {
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.0.0",
+    "@types/prompts": "^2.4.9"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@askalf/mcp-tools",
+  "version": "2.9.9",
+  "description": "Unified MCP server: workflow, data, infrastructure tools for agent fleet",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "@askalf/db": "workspace:*",
+    "@askalf/observability": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "agent-twitter-client": "^0.0.18",
+    "cors": "^2.8.6",
+    "express": "^5.1.0",
+    "openai": "^6.33.0",
+    "puppeteer-core": "^24.40.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.7.0"
+  }
+}

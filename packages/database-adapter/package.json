@@ -1,0 +1,28 @@
+{
+  "name": "@askalf/database-adapter",
+  "version": "2.9.9",
+  "description": "Database adapter supporting PostgreSQL (pg) and PGlite (standalone mode)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  },
+  "optionalDependencies": {
+    "@electric-sql/pglite": "^0.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/pg": "^8.11.0"
+  }
+}
