@@ -23,7 +23,7 @@
     "@sinclair/typebox": "^0.34.49",
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^3.0.3",
     "bullmq": "^5.71.1",
     "dotenv": "^17.3.1",
     "fastify": "^5.8.4",
@@ -38,7 +38,7 @@
     "@askalf/observability": "workspace:*"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/pg": "^8.20.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
