@@ -1,0 +1,26 @@
+{
+  "name": "@askalf/db",
+  "version": "2.9.9",
+  "description": "Shared database connection pools for MCP servers",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./shared-pools": "./dist/shared-pools.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@askalf/database-adapter": "workspace:*",
+    "@askalf/redis-adapter": "workspace:*",
+    "pg": "^8.20.0",
+    "ioredis": "^5.10.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "typescript": "^5.7.0"
+  }
+}

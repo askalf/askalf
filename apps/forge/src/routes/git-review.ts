@@ -1,0 +1,898 @@
+/**
+ * Git Review Routes
+ * Read-only git operations + merge for the Git Space admin page.
+ * All commands run against /workspace where the repo is mounted.
+ */
+
+import { exec, execFile } from 'child_process';
+import http from 'http';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { ulid } from 'ulid';
+import { authMiddleware } from '../middleware/auth.js';
+import { query, queryOne } from '../database.js';
+
+const REPO_ROOT = process.env['REPO_ROOT'] ?? '/workspace';
+const EXEC_TIMEOUT_MS = 30_000;
+const MAX_DIFF_SIZE = 100_000; // 100KB max diff
+const BUILDER_IMAGE = 'docker:27-cli';
+
+// Docker connection — uses DOCKER_HOST (tcp://host:port) when behind socket proxy, falls back to Unix socket
+const DOCKER_CONN: Record<string, unknown> = (() => {
+  const h = process.env['DOCKER_HOST'];
+  if (h?.startsWith('tcp://')) {
+    const u = new URL(h.replace('tcp://', 'http://'));
+    return { hostname: u.hostname, port: Number(u.port) || 2375 };
+  }
+  return { socketPath: '/var/run/docker.sock' };
+})();
+
+// Service dependency order for recreating containers
+const RECREATE_ORDER = [
+  'mcp', 'mcp-tools',                                              // MCP servers first
+  'api', 'forge',                                                  // Backend depends on MCP
+  'dashboard',                                                     // Frontend depends on API
+  'nginx',                                                         // Reverse proxy last
+  'scheduler', 'worker',                                           // Workers independent
+];
+
+function dockerApi(method: string, path: string, body?: unknown, timeout = 30_000): Promise<{ statusCode: number; data: string }> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Docker API timeout')), timeout);
+    const opts: http.RequestOptions = {
+      ...DOCKER_CONN,
+      path,
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    };
+    const req = http.request(opts, (res) => {
+      let data = '';
+      res.on('data', (c: Buffer) => { data += c.toString(); });
+      res.on('end', () => { clearTimeout(timer); resolve({ statusCode: res.statusCode ?? 500, data }); });
+    });
+    req.on('error', (err) => { clearTimeout(timer); reject(err); });
+    if (body) req.write(JSON.stringify(body));
+    req.end();
+  });
+}
+
+function git(args: string[], timeout = EXEC_TIMEOUT_MS): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    execFile(
+      'git',
+      ['-C', REPO_ROOT, ...args],
+      { timeout, maxBuffer: 2_048_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' } },
+      (error, stdout, stderr) => {
+        resolve({
+          exitCode: error ? (typeof error.code === 'number' ? error.code : 1) : 0,
+          stdout,
+          stderr: stderr?.slice(0, 4000) ?? '',
+        });
+      },
+    );
+  });
+}
+
+// Strict branch name validation — prevents command injection via shell metacharacters
+const SAFE_BRANCH_RE = /^[a-zA-Z0-9._\-/]+$/;
+const ALLOWED_PREFIXES = ['agent/', 'docs/', 'feature/', 'fix/', 'chore/', 'refactor/'];
+function validateBranch(branch: string, reply: FastifyReply): boolean {
+  if (branch === 'main' || branch === 'master') {
+    reply.status(400).send({ error: 'Cannot operate on main/master branch' });
+    return false;
+  }
+  if (!SAFE_BRANCH_RE.test(branch)) {
+    reply.status(400).send({ error: 'Invalid branch name — only alphanumeric, hyphens, underscores, dots, and slashes allowed' });
+    return false;
+  }
+  return true;
+}
+
+// Branch cache — git on Docker Desktop 9P is slow (~1s per subprocess)
+let branchCache: { data: unknown; ts: number } | null = null;
+const BRANCH_CACHE_TTL = 30_000; // 30 second TTL
+
+export async function gitReviewRoutes(app: FastifyInstance): Promise<void> {
+
+  /**
+   * GET /api/v1/forge/git/branches
+   * List agent/* branches with metadata (cached 30s)
+   */
+  app.get(
+    '/api/v1/forge/git/branches',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      // Check query param for cache bust
+      const { refresh } = request.query as { refresh?: string };
+
+      if (branchCache && !refresh && Date.now() - branchCache.ts < BRANCH_CACHE_TTL) {
+        return reply.send(branchCache.data);
+      }
+
+      // List all non-main branches (agent/*, docs/*, feature/*, etc.)
+      const branchRes = await git(['branch', '--format=%(refname:short)|%(committerdate:iso8601)|%(committername)']);
+      if (branchRes.exitCode !== 0) {
+        request.log.error({ stderr: branchRes.stderr }, 'Failed to list branches');
+        return reply.status(500).send({ error: 'Failed to list branches' });
+      }
+
+      const lines = branchRes.stdout.trim().split('\n').filter(Boolean);
+
+      // Build branch list first, then batch git calls
+      const branchMeta = lines.map(line => {
+        const parts = line.split('|');
+        const name = parts[0] ?? '';
+        const date = parts[1] ?? '';
+        const author = parts[2] ?? '';
+        const branchParts = name.split('/');
+        const agentSlug = branchParts.length >= 2 ? (branchParts[1] ?? 'unknown') : 'unknown';
+        return { name, date: date.trim() || null, author: author.trim() || null, agentSlug };
+      }).filter(b => b.name);
+
+      // Fetch stats for all branches in parallel (safe: array-based git calls)
+      const branchNames = branchMeta.map(b => b.name);
+      if (branchNames.length === 0) {
+        const response = { branches: [] };
+        branchCache = { data: response, ts: Date.now() };
+        return reply.send(response);
+      }
+
+      // Parallel stats fetch using safe execFile calls (no shell injection risk)
+      const statsResults = await Promise.all(
+        branchNames.map(async (n) => {
+          const countRes = await git(['rev-list', '--count', `main..${n}`], 30_000).catch(() => ({ exitCode: 1, stdout: '0', stderr: '' }));
+          const statRes = await git(['diff', '--shortstat', `main...${n}`], 30_000).catch(() => ({ exitCode: 0, stdout: '', stderr: '' }));
+          const count = countRes.exitCode === 0 ? countRes.stdout.trim() : '0';
+          const stats = statRes.exitCode === 0 ? statRes.stdout.trim() : '';
+          return `${n}|${count}|${stats}`;
+        })
+      );
+      const batchRes = { exitCode: 0, stdout: statsResults.join('\n'), stderr: '' };
+
+      // Parse batch results into a map
+      const statsMap = new Map<string, { commits: number; filesChanged: number }>();
+      if (batchRes.exitCode === 0) {
+        for (const line of batchRes.stdout.trim().split('\n').filter(Boolean)) {
+          const [name, countStr, ...statParts] = line.split('|');
+          if (!name) continue;
+          const statsText = statParts.join('|');
+          const filesMatch = statsText.match(/(\d+)\s+files?\s+changed/);
+          statsMap.set(name, {
+            commits: parseInt(countStr ?? '0', 10) || 0,
+            filesChanged: filesMatch ? parseInt(filesMatch[1] ?? '0', 10) : 0,
+          });
+        }
+      }
+
+      // Look up agent names from DB
+      const agents = await query<{ id: string; name: string }>(
+        'SELECT id, name FROM forge_agents',
+      ).catch(() => []);
+      const agentNameMap = new Map<string, { id: string; name: string }>();
+      for (const a of agents) {
+        agentNameMap.set(a.name.toLowerCase().replace(/\s+/g, '-'), a);
+        agentNameMap.set(a.name.toLowerCase().replace(/\s+/g, '_'), a);
+        agentNameMap.set(a.name.toLowerCase().replace(/\s+/g, ''), a);
+        agentNameMap.set(a.name.toLowerCase(), a);
+      }
+
+      const branches = branchMeta.map(b => {
+        const stats = statsMap.get(b.name) ?? { commits: 0, filesChanged: 0 };
+        const agentMatch = agentNameMap.get(b.agentSlug.toLowerCase());
+        return {
+          name: b.name,
+          agent_slug: b.agentSlug,
+          agent_name: agentMatch?.name ?? b.agentSlug.charAt(0).toUpperCase() + b.agentSlug.slice(1),
+          agent_id: agentMatch?.id ?? null,
+          commits: stats.commits,
+          files_changed: stats.filesChanged,
+          last_date: b.date,
+          author: b.author,
+          review_status: null,
+          intervention_id: null,
+          intervention_status: null,
+        };
+      });
+
+      const response = { branches };
+      branchCache = { data: response, ts: Date.now() };
+      return reply.send(response);
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/git/diff/:branch
+   * Full unified diff of main..<branch>
+   */
+  app.get(
+    '/api/v1/forge/git/diff/:branch',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { branch: rawBranch } = request.params as { branch: string };
+      const branch = decodeURIComponent(rawBranch);
+      if (!validateBranch(branch, reply)) return;
+
+      // Parallel: get diff and stats simultaneously (safe: array args)
+      const [diffRes, statRes] = await Promise.all([
+        git(['diff', '--unified=5', `main...${branch}`]),
+        git(['diff', '--shortstat', `main...${branch}`]),
+      ]);
+      if (diffRes.exitCode !== 0) {
+        request.log.error({ stderr: diffRes.stderr }, 'Failed to get diff');
+        return reply.status(500).send({ error: 'Failed to get diff' });
+      }
+
+      let diff = diffRes.stdout;
+      let truncated = false;
+      if (diff.length > MAX_DIFF_SIZE) {
+        diff = diff.substring(0, MAX_DIFF_SIZE);
+        truncated = true;
+      }
+
+      const statsText = statRes.stdout.trim();
+      const addMatch = statsText.match(/(\d+)\s+insertion/);
+      const delMatch = statsText.match(/(\d+)\s+deletion/);
+      const fileMatch = statsText.match(/(\d+)\s+files?\s+changed/);
+
+      return reply.send({
+        branch,
+        diff,
+        truncated,
+        stats: {
+          files: fileMatch ? parseInt(fileMatch[1] ?? '0', 10) : 0,
+          additions: addMatch ? parseInt(addMatch[1] ?? '0', 10) : 0,
+          deletions: delMatch ? parseInt(delMatch[1] ?? '0', 10) : 0,
+        },
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/git/log/:branch
+   * Commit log for a branch (diverged from main)
+   */
+  app.get(
+    '/api/v1/forge/git/log/:branch',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { branch: rawBranch } = request.params as { branch: string };
+      const branch = decodeURIComponent(rawBranch);
+      if (!validateBranch(branch, reply)) return;
+
+      const logRes = await git(['log', `main..${branch}`, '--format=%H|%s|%an|%aI', '-n', '50']);
+      if (logRes.exitCode !== 0) {
+        request.log.error({ stderr: logRes.stderr }, 'Failed to get log');
+        return reply.status(500).send({ error: 'Failed to get log' });
+      }
+
+      const commits = logRes.stdout.trim().split('\n').filter(Boolean).map((line: string) => {
+        const p = line.split('|');
+        return { hash: p[0] ?? '', subject: p[1] ?? '', author: p[2] ?? '', date: p[3] ?? '' };
+      });
+
+      return reply.send({ branch, commits });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/git/files/:branch
+   * List changed files with stats
+   */
+  app.get(
+    '/api/v1/forge/git/files/:branch',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { branch: rawBranch } = request.params as { branch: string };
+      const branch = decodeURIComponent(rawBranch);
+      if (!validateBranch(branch, reply)) return;
+
+      const numstatRes = await git(['diff', '--numstat', `main...${branch}`]);
+      if (numstatRes.exitCode !== 0) {
+        request.log.error({ stderr: numstatRes.stderr }, 'Failed to get file stats');
+        return reply.status(500).send({ error: 'Failed to get file stats' });
+      }
+
+      const files = numstatRes.stdout.trim().split('\n').filter(Boolean).map((line: string) => {
+        const p = line.split('\t');
+        return {
+          path: p[2] ?? '',
+          additions: parseInt(p[0] ?? '0', 10) || 0,
+          deletions: parseInt(p[1] ?? '0', 10) || 0,
+        };
+      });
+
+      return reply.send({ branch, files });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/git/merge
+   * Merge an agent branch into main (requires auth)
+   */
+  app.post(
+    '/api/v1/forge/git/merge',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { branch } = request.body as { branch: string };
+      if (!branch || !validateBranch(branch, reply)) return;
+
+      // Ensure we're on main and up to date
+      const checkoutRes = await git(['checkout', 'main']);
+      if (checkoutRes.exitCode !== 0) {
+        request.log.error({ stderr: checkoutRes.stderr }, 'Failed to checkout main');
+        return reply.status(500).send({ error: 'Failed to checkout main' });
+      }
+
+      // Merge with no-ff to preserve merge commit (safe: array args prevent shell injection)
+      const mergeRes = await git(['merge', '--no-ff', branch, '-m', `Merge ${branch} [Git Space Approved]`]);
+      if (mergeRes.exitCode !== 0) {
+        // Check for conflicts
+        if (mergeRes.stderr.includes('CONFLICT') || mergeRes.stdout.includes('CONFLICT')) {
+          await git(['merge', '--abort']);
+          return reply.status(409).send({
+            error: 'Merge conflict',
+            detail: mergeRes.stdout.substring(0, 4000),
+            message: 'Merge conflicts detected. The agent branch needs to be rebased or conflicts resolved manually.',
+          });
+        }
+        request.log.error({ stderr: mergeRes.stderr }, 'Merge failed');
+        return reply.status(500).send({ error: 'Merge failed' });
+      }
+
+      // Get the merge commit hash
+      const hashRes = await git(['rev-parse', 'HEAD']);
+      const mergeCommit = hashRes.stdout.trim();
+
+      // Clean up the branch
+      await git(['branch', '-d', branch]);
+
+      // Invalidate branch cache after merge
+      branchCache = null;
+
+      return reply.send({
+        success: true,
+        merge_commit: mergeCommit,
+        message: `Merged ${branch} into main`,
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/git/health/:service
+   * Get health status of a Docker container
+   */
+  app.get(
+    '/api/v1/forge/git/health/:service',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { service } = request.params as { service: string };
+
+      // Sanitize service name
+      if (!/^[a-zA-Z0-9_-]+$/.test(service)) {
+        return reply.status(400).send({ error: 'Invalid service name' });
+      }
+
+      const container = `askalf-${service}`;
+
+      try {
+        const data = await new Promise<string>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('Timeout')), 10_000);
+          const req = http.request(
+            { ...DOCKER_CONN, path: `/v1.44/containers/${container}/json`, method: 'GET' },
+            (res) => {
+              clearTimeout(timer);
+              let body = '';
+              res.on('data', (c: Buffer) => { body += c.toString(); });
+              res.on('end', () => {
+                if (res.statusCode === 200) resolve(body);
+                else reject(new Error(`HTTP ${res.statusCode}: ${body.substring(0, 500)}`));
+              });
+            },
+          );
+          req.on('error', (err) => { clearTimeout(timer); reject(err); });
+          req.end();
+        });
+
+        const info = JSON.parse(data);
+        return reply.send({
+          service,
+          container,
+          running: info.State?.Running ?? false,
+          status: info.State?.Status ?? 'unknown',
+          started_at: info.State?.StartedAt ?? null,
+          health: info.State?.Health?.Status ?? null,
+        });
+      } catch (err) {
+        return reply.send({
+          service,
+          container,
+          running: false,
+          status: 'unreachable',
+          started_at: null,
+          health: null,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/git/deploy
+   * Restart Docker containers via Docker Engine API (socket)
+   */
+  app.post(
+    '/api/v1/forge/git/deploy',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { services } = request.body as { services: string[] };
+
+      if (!services || !Array.isArray(services) || services.length === 0) {
+        return reply.status(400).send({ error: 'services array is required' });
+      }
+
+      const PROTECTED = ['postgres', 'redis', 'cloudflared'];
+      const blocked = services.filter(s => PROTECTED.includes(s));
+      if (blocked.length > 0) {
+        return reply.status(400).send({ error: `Protected services cannot be restarted: ${blocked.join(', ')}` });
+      }
+
+      const results: Array<{ service: string; status: string; error?: string }> = [];
+
+      for (const service of services) {
+        const container = `askalf-${service}`;
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('Timeout')), 60_000);
+            const req = http.request(
+              { ...DOCKER_CONN, path: `/v1.44/containers/${container}/restart?t=10`, method: 'POST' },
+              (res) => {
+                clearTimeout(timer);
+                let body = '';
+                res.on('data', (c: Buffer) => { body += c.toString(); });
+                res.on('end', () => {
+                  if (res.statusCode === 204 || res.statusCode === 200) resolve();
+                  else reject(new Error(`HTTP ${res.statusCode}: ${body}`));
+                });
+              },
+            );
+            req.on('error', (err) => { clearTimeout(timer); reject(err); });
+            req.end();
+          });
+          results.push({ service, status: 'restarted' });
+        } catch (err) {
+          results.push({ service, status: 'failed', error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+
+      return reply.send({ success: true, results });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/git/rebuild
+   * Start a rebuild or restart via ephemeral builder container.
+   * For rebuilds: spins up docker:27-cli container to run docker compose build + up.
+   * For restarts: uses Docker API restart directly.
+   */
+  app.post(
+    '/api/v1/forge/git/rebuild',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { services, action, task_id, branch } = request.body as {
+        services: string[];
+        action: 'rebuild' | 'restart';
+        task_id?: string;
+        branch?: string;
+      };
+
+      if (!services || !Array.isArray(services) || services.length === 0) {
+        return reply.status(400).send({ error: 'services array is required' });
+      }
+
+      const PROTECTED = ['postgres', 'redis', 'cloudflared'];
+      const blocked = services.filter(s => PROTECTED.includes(s));
+      if (blocked.length > 0) {
+        return reply.status(400).send({ error: `Protected services: ${blocked.join(', ')}` });
+      }
+
+      // For restart-only, use Docker API directly
+      if (action === 'restart') {
+        const results: Array<{ service: string; status: string; error?: string }> = [];
+        // Order services by dependency
+        const ordered = services.sort((a, b) => {
+          const ai = RECREATE_ORDER.indexOf(a);
+          const bi = RECREATE_ORDER.indexOf(b);
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        });
+
+        for (const service of ordered) {
+          try {
+            const res = await dockerApi('POST', `/v1.44/containers/askalf-${service}/restart?t=10`);
+            if (res.statusCode === 204 || res.statusCode === 200) {
+              results.push({ service, status: 'restarted' });
+            } else {
+              results.push({ service, status: 'failed', error: `HTTP ${res.statusCode}` });
+            }
+          } catch (err) {
+            results.push({ service, status: 'failed', error: err instanceof Error ? err.message : String(err) });
+          }
+        }
+        return reply.send({ action: 'restart', results, task_id: task_id || null });
+      }
+
+      // For rebuild: use ephemeral builder container
+      try {
+        // 1. Get host workspace path by inspecting our own container
+        const inspectRes = await dockerApi('GET', '/v1.44/containers/askalf-forge/json');
+        if (inspectRes.statusCode !== 200) {
+          return reply.status(500).send({ error: 'Failed to inspect forge container' });
+        }
+        const forgeInfo = JSON.parse(inspectRes.data);
+        const workspaceMount = (forgeInfo.Mounts || []).find(
+          (m: { Destination: string }) => m.Destination === '/workspace',
+        );
+        if (!workspaceMount) {
+          return reply.status(500).send({ error: 'Workspace mount not found on forge container' });
+        }
+        const hostWorkspacePath = workspaceMount.Source;
+
+        // 2. Ensure builder image exists
+        const imageCheck = await dockerApi('GET', `/v1.44/images/${encodeURIComponent(BUILDER_IMAGE)}/json`);
+        if (imageCheck.statusCode === 404) {
+          // Pull the image
+          await dockerApi('POST', `/v1.44/images/create?fromImage=docker&tag=27-cli`, undefined, 120_000);
+        }
+
+        // 3. Order services by dependency and build compose command
+        const ordered = services.sort((a, b) => {
+          const ai = RECREATE_ORDER.indexOf(a);
+          const bi = RECREATE_ORDER.indexOf(b);
+          return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+        });
+
+        const buildCmd = ordered.map(s => `docker compose -f /workspace/docker-compose.prod.yml --env-file /workspace/.env.production build ${s}`).join(' && ');
+        const upCmd = ordered.map(s => `docker compose -f /workspace/docker-compose.prod.yml --env-file /workspace/.env.production up -d --force-recreate ${s}`).join(' && ');
+        const fullCmd = `${buildCmd} && ${upCmd}`;
+
+        // 4. Create ephemeral builder container
+        const createRes = await dockerApi('POST', '/v1.44/containers/create?name=askalf-builder-' + Date.now(), {
+          Image: BUILDER_IMAGE,
+          Cmd: ['sh', '-c', fullCmd],
+          WorkingDir: '/workspace',
+          HostConfig: {
+            Binds: [
+              `${hostWorkspacePath}:/workspace`,
+              '/var/run/docker.sock:/var/run/docker.sock',
+            ],
+            AutoRemove: false,
+          },
+          Labels: {
+            'askalf.role': 'builder',
+            'askalf.services': ordered.join(','),
+            'askalf.task_id': task_id || '',
+            'askalf.action': action,
+            'askalf.branch': branch || '',
+            'askalf.triggered_by': 'dashboard',
+          },
+        });
+
+        if (createRes.statusCode !== 201) {
+          request.log.error({ statusCode: createRes.statusCode, data: createRes.data.substring(0, 500) }, 'Failed to create builder container');
+          return reply.status(500).send({ error: 'Failed to create builder container' });
+        }
+
+        const builder = JSON.parse(createRes.data);
+        const builderId = builder.Id;
+
+        // 5. Start the builder
+        const startRes = await dockerApi('POST', `/v1.44/containers/${builderId}/start`);
+        if (startRes.statusCode !== 204 && startRes.statusCode !== 200) {
+          // Cleanup failed container
+          await dockerApi('DELETE', `/v1.44/containers/${builderId}?force=true`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+          request.log.error({ statusCode: startRes.statusCode, data: startRes.data.substring(0, 500) }, 'Failed to start builder');
+          return reply.status(500).send({ error: 'Failed to start builder' });
+        }
+
+        return reply.send({
+          action: 'rebuild',
+          builder_id: builderId,
+          services: ordered,
+          task_id: task_id || null,
+          message: `Rebuilding ${ordered.length} service(s): ${ordered.join(', ')}`,
+        });
+      } catch (err) {
+        request.log.error({ err }, 'Rebuild failed');
+        return reply.status(500).send({ error: 'Rebuild failed' });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/git/rebuild/:builderId
+   * Poll the status of a builder container + get logs.
+   */
+  app.get(
+    '/api/v1/forge/git/rebuild/:builderId',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { builderId } = request.params as { builderId: string };
+
+      try {
+        const inspectRes = await dockerApi('GET', `/v1.44/containers/${builderId}/json`);
+        if (inspectRes.statusCode === 404) {
+          return reply.send({ status: 'completed', exit_code: 0, logs: 'Builder container already cleaned up.' });
+        }
+        if (inspectRes.statusCode !== 200) {
+          return reply.status(500).send({ error: 'Failed to inspect builder' });
+        }
+
+        const info = JSON.parse(inspectRes.data);
+        const running = info.State?.Running ?? false;
+        const exitCode = info.State?.ExitCode ?? null;
+
+        // Get last 100 lines of logs
+        const logsRes = await dockerApi('GET', `/v1.44/containers/${builderId}/logs?stdout=true&stderr=true&tail=100&timestamps=false`);
+        // Docker log stream has 8-byte header per line, strip it
+        const rawLogs = logsRes.data || '';
+        const logs = rawLogs.split('\n').map((line: string) => line.length > 8 ? line.substring(8) : line).join('\n').trim();
+
+        if (!running) {
+          // Container finished — clean up
+          await dockerApi('DELETE', `/v1.44/containers/${builderId}?force=true`).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+          return reply.send({
+            status: exitCode === 0 ? 'completed' : 'failed',
+            exit_code: exitCode,
+            logs,
+          });
+        }
+
+        return reply.send({
+          status: 'running',
+          exit_code: null,
+          logs,
+        });
+      } catch (err) {
+        request.log.error({ err }, 'Failed to poll builder container');
+        return reply.status(500).send({ error: 'Failed to poll builder container' });
+      }
+    },
+  );
+
+  /**
+   * DELETE /api/v1/forge/git/rebuild/:builderId
+   * Cancel a running rebuild by force-removing the builder container.
+   */
+  app.delete(
+    '/api/v1/forge/git/rebuild/:builderId',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { builderId } = request.params as { builderId: string };
+
+      try {
+        // Check if container exists first
+        const inspectRes = await dockerApi('GET', `/v1.44/containers/${builderId}/json`);
+        if (inspectRes.statusCode === 404) {
+          return reply.status(404).send({ error: 'Builder container not found' });
+        }
+
+        // Force remove (stops if running + removes)
+        const deleteRes = await dockerApi('DELETE', `/v1.44/containers/${builderId}?force=true`);
+        if (deleteRes.statusCode === 204 || deleteRes.statusCode === 200) {
+          return reply.send({ status: 'cancelled', builder_id: builderId });
+        }
+
+        return reply.status(500).send({ error: `Failed to cancel: HTTP ${deleteRes.statusCode}` });
+      } catch (err) {
+        request.log.error({ err }, 'Failed to cancel builder container');
+        return reply.status(500).send({ error: 'Failed to cancel builder container' });
+      }
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/git/rebuild/tasks
+   * List all builder containers (running + recently stopped).
+   */
+  app.get(
+    '/api/v1/forge/git/rebuild/tasks',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const filters = encodeURIComponent(JSON.stringify({ label: ['askalf.role=builder'] }));
+        const listRes = await dockerApi('GET', `/v1.44/containers/json?all=true&filters=${filters}`);
+        if (listRes.statusCode !== 200) {
+          return reply.send({ tasks: [] });
+        }
+
+        const containers = JSON.parse(listRes.data) as Array<{
+          Id: string;
+          State: string;
+          Status: string;
+          Created: number;
+          Labels: Record<string, string>;
+        }>;
+
+        const tasks = containers.map((c) => {
+          let status: string;
+          if (c.State === 'running') {
+            status = 'running';
+          } else if (c.Status?.includes('Exited (0)')) {
+            status = 'completed';
+          } else {
+            status = 'failed';
+          }
+
+          const createdAt = new Date(c.Created * 1000).toISOString();
+
+          return {
+            id: c.Labels['askalf.task_id'] || c.Id.substring(0, 12),
+            task_id: c.Labels['askalf.task_id'] || null,
+            builder_id: c.Id,
+            action: c.Labels['askalf.action'] || 'rebuild',
+            services: (c.Labels['askalf.services'] || '').split(',').filter(Boolean),
+            status,
+            created_at: createdAt,
+            started_at: createdAt,
+            completed_at: status !== 'running' ? createdAt : null,
+            triggered_by: c.Labels['askalf.triggered_by'] || null,
+            branch: c.Labels['askalf.branch'] || null,
+            logs: null,
+            exit_code: status === 'completed' ? 0 : status === 'failed' ? 1 : null,
+          };
+        });
+
+        return reply.send({ tasks });
+      } catch (err) {
+        request.log.error({ err }, 'Failed to list builder tasks');
+        return reply.status(500).send({ error: 'Failed to list builder tasks' });
+      }
+    },
+  );
+
+  // ── AI Code Review Routes ──────────────────────────────────────────────
+
+  /**
+   * POST /api/v1/forge/git-space/ai-review
+   * Kick off an AI-powered code review of a git diff.
+   */
+  app.post(
+    '/api/v1/forge/git-space/ai-review',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { branch, diff } = request.body as { branch: string; diff: string };
+      if (!diff) return reply.status(400).send({ error: 'No diff provided' });
+
+      const executionId = ulid();
+
+      await query(
+        `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, started_at)
+         VALUES ($1, 'code-reviewer', 'system:ai-review', $2, 'running', NOW())`,
+        [executionId, JSON.stringify({ branch, diff: diff.substring(0, 50000) })],
+      );
+
+      // Run review async — return immediately
+      runCodeReview(executionId, branch, diff).catch((err) => {
+        query(
+          `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2`,
+          [String(err), executionId],
+        ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+      });
+
+      return reply.status(201).send({
+        review_id: executionId,
+        execution_id: executionId,
+        agent_name: 'Code Reviewer',
+      });
+    },
+  );
+
+  /**
+   * GET /api/v1/forge/git-space/review-result/:id
+   * Poll for the result of an AI code review.
+   */
+  app.get(
+    '/api/v1/forge/git-space/review-result/:id',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string };
+      const row = await queryOne<{ status: string; output: string | null }>(
+        `SELECT status, output FROM forge_executions WHERE id = $1`,
+        [id],
+      );
+      if (!row) return reply.status(404).send({ error: 'Review not found' });
+
+      let output: Record<string, unknown> = {};
+      if (row.output) {
+        try {
+          output = typeof row.output === 'string' ? JSON.parse(row.output) : row.output;
+        } catch {
+          output = { summary: row.output };
+        }
+      }
+      return reply.send({ status: row.status, ...output });
+    },
+  );
+
+  /**
+   * POST /api/v1/forge/git-space/ai-review/chat
+   * Follow-up chat with the AI reviewer about a previous review.
+   */
+  app.post(
+    '/api/v1/forge/git-space/ai-review/chat',
+    { preHandler: [authMiddleware] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { review_id, message } = request.body as { review_id: string; message: string };
+      if (!review_id || !message) {
+        return reply.status(400).send({ error: 'review_id and message are required' });
+      }
+
+      const row = await queryOne<{ input: string; output: string | null }>(
+        `SELECT input, output FROM forge_executions WHERE id = $1`,
+        [review_id],
+      );
+      if (!row) return reply.status(404).send({ error: 'Review not found' });
+
+      const Anthropic = (await import('@anthropic-ai/sdk')).default;
+      const client = new Anthropic();
+
+      const input = typeof row.input === 'string' ? JSON.parse(row.input) : row.input;
+      const output = row.output
+        ? typeof row.output === 'string' ? JSON.parse(row.output) : row.output
+        : {};
+
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2048,
+        system: `You are a code reviewer. You previously reviewed a diff from branch "${input.branch}" and provided this assessment:\n${JSON.stringify(output, null, 2)}`,
+        messages: [{ role: 'user', content: message }],
+      });
+
+      const text = response.content[0]?.type === 'text' ? response.content[0].text : '';
+      return reply.send({ response: text });
+    },
+  );
+}
+
+// ── Helper: run the AI code review via Anthropic SDK ───────────────────
+
+async function runCodeReview(executionId: string, branch: string, diff: string): Promise<void> {
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
+  const client = new Anthropic();
+
+  const prompt = `Review this git diff from branch "${branch}". Analyze for:
+1. Bugs or logic errors
+2. Security vulnerabilities
+3. Performance issues
+4. Code style / best practices
+
+Respond in JSON format:
+{
+  "summary": "Brief overall assessment",
+  "approved": true/false,
+  "issues": [{"severity": "critical|high|medium|low", "file": "path", "line": number, "message": "description"}],
+  "suggestions": [{"file": "path", "message": "suggestion"}]
+}
+
+Diff:
+${diff.substring(0, 80000)}`;
+
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 4096,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const text = response.content[0]?.type === 'text' ? response.content[0].text : '';
+
+  let result: Record<string, unknown>;
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    result = jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: text, approved: true, issues: [], suggestions: [] };
+  } catch {
+    result = { summary: text, approved: true, issues: [], suggestions: [] };
+  }
+
+  await query(
+    `UPDATE forge_executions SET status = 'completed', output = $1, completed_at = NOW() WHERE id = $2`,
+    [JSON.stringify(result), executionId],
+  );
+}

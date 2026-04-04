@@ -1,0 +1,250 @@
+.organism-tab {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.organism-header {
+  flex-shrink: 0;
+}
+
+.organism-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.organism-subtitle {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: rgba(200, 214, 229, 0.4);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* Vital Signs Bar */
+.organism-vitals {
+  display: flex;
+  gap: 1px;
+  background: rgba(0, 255, 136, 0.03);
+  border: 1px solid rgba(0, 255, 136, 0.06);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.organism-vital {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--bg-primary, #0a0a14);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vital-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: rgba(200, 214, 229, 0.3);
+  text-transform: uppercase;
+}
+
+.vital-bar {
+  height: 3px;
+  background: rgba(200, 214, 229, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.vital-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+.vital-value {
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #00ff88;
+}
+
+/* Main Layout */
+.organism-main {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.organism-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.organism-right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid rgba(0, 255, 136, 0.06);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(0, 255, 136, 0.02);
+}
+
+/* Neural Canvas */
+.organism-canvas-wrap {
+  flex: 1;
+  min-height: 300px;
+  border: 1px solid rgba(0, 255, 136, 0.06);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  background: rgba(2, 6, 18, 0.8);
+}
+
+.organism-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Systems Panel */
+.organism-systems {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: rgba(0, 255, 136, 0.03);
+  border: 1px solid rgba(0, 255, 136, 0.06);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.organism-system-card {
+  background: var(--bg-primary, #0a0a14);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.2s;
+}
+
+.organism-system-card:hover {
+  background: rgba(0, 255, 136, 0.03);
+}
+
+.system-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.system-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.system-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.system-detail {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  color: rgba(200, 214, 229, 0.3);
+}
+
+.system-status {
+  font-family: 'Fira Code', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* Activity Feed */
+.organism-feed-header {
+  font-family: 'Fira Code', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: rgba(200, 214, 229, 0.3);
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.06);
+  background: rgba(0, 255, 136, 0.02);
+  flex-shrink: 0;
+}
+
+.organism-feed {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.organism-feed-empty {
+  color: rgba(200, 214, 229, 0.2);
+  text-align: center;
+  padding: 40px 16px;
+  font-size: 11px;
+}
+
+.organism-feed-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 16px;
+  line-height: 1.5;
+  transition: background 0.15s;
+}
+
+.organism-feed-line:hover {
+  background: rgba(0, 255, 136, 0.03);
+}
+
+.organism-feed-time {
+  color: rgba(200, 214, 229, 0.2);
+  flex-shrink: 0;
+  font-size: 10px;
+  margin-top: 1px;
+}
+
+.organism-feed-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.organism-feed-text {
+  color: rgba(200, 214, 229, 0.6);
+  word-break: break-word;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .organism-main {
+    grid-template-columns: 1fr;
+  }
+  .organism-systems {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .organism-right {
+    max-height: 300px;
+  }
+}

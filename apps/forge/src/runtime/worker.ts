@@ -1,0 +1,2875 @@
+/**
+ * Forge Execution Worker
+ * Wires together provider adapters, tool registry, and the execution engine.
+ * Provides `runDirectCliExecution()` for CLI-based agent execution (Phase 7).
+ * Also retains `runExecution()` for SDK-based execution as fallback.
+ */
+
+import { spawn, exec, execSync, execFileSync, type ChildProcess } from 'child_process';
+import { ulid } from 'ulid';
+import { readFile, writeFile, access, copyFile, mkdir, unlink, rm, chmod } from 'fs/promises';
+import { loadConfig, type ForgeConfig } from '../config.js';
+import { initializeLogger } from '@askalf/observability';
+
+const logger = initializeLogger().child({ component: 'worker' });
+import { AnthropicAdapter } from '../providers/adapters/anthropic.js';
+import { OpenAIAdapter } from '../providers/adapters/openai.js';
+import { OllamaAdapter } from '../providers/adapters/ollama.js';
+import { ProviderRegistry } from '../providers/registry.js';
+import type { IProviderAdapter } from '../providers/interface.js';
+import { ToolRegistry } from '../tools/registry.js';
+import { executeTools, type ToolCall as ExecutorToolCall } from '../tools/executor.js';
+import { execute, type ExecutionContext, type ExecutionDeps } from './engine.js';
+import { query, retryQuery } from '../database.js';
+import { extractMemories } from '../memory/extractor.js';
+import { buildMemoryContext } from '../memory/context-builder.js';
+import { updateCapabilityFromExecution } from '../orchestration/capability-registry.js';
+import { getEventBus } from '../orchestration/event-bus.js';
+import { extractKnowledge } from '../orchestration/knowledge-graph.js';
+import { recordCostSample } from '../orchestration/cost-router.js';
+import { trackCost } from '../observability/cost-tracker.js';
+import { forgeExecutionsTotal, forgeExecutionDuration } from '../metrics.js';
+import { withRetry, classifyCliError, ExecutionError } from './error-handler.js';
+import {
+  calculateRuntimeBudget,
+  estimateTaskComplexity,
+  suggestMaxTurns,
+  formatBudgetPromptHint,
+} from './budget.js';
+
+// Built-in tools
+import { apiCall } from '../tools/built-in/api-call.js';
+import { codeExec } from '../tools/built-in/code-exec.js';
+import { webBrowse } from '../tools/built-in/web-browse.js';
+import { shellExec } from '../tools/built-in/shell-exec.js';
+import { fileOps } from '../tools/built-in/file-ops.js';
+import { dbQuery } from '../tools/built-in/db-query.js';
+import { dockerApi } from '../tools/built-in/docker-api.js';
+// askalf-db-query removed — use db-query instead
+import { ticketOps } from '../tools/built-in/ticket-ops.js';
+import { findingOps } from '../tools/built-in/finding-ops.js';
+import { interventionOps } from '../tools/built-in/intervention-ops.js';
+import { gitOps } from '../tools/built-in/git-ops.js';
+import { deployOps } from '../tools/built-in/deploy-ops.js';
+import { securityScan } from '../tools/built-in/security-scan.js';
+import { codeAnalysis } from '../tools/built-in/code-analysis.js';
+import { agentCreate } from '../tools/built-in/agent-create.js';
+import { agentDelegate } from '../tools/built-in/agent-delegate.js';
+import { agentCall, type AgentCallInput } from '../tools/built-in/agent-call.js';
+import { memorySearch, type MemorySearchInput } from '../tools/built-in/memory-search.js';
+import { memoryStore, type MemoryStoreInput } from '../tools/built-in/memory-store.js';
+import { knowledgeSearch } from '../tools/built-in/knowledge-search.js';
+import { fleetHealth } from '../tools/built-in/fleet-health.js';
+import { selfHeal } from '../tools/built-in/self-heal.js';
+import { selfImprove } from '../tools/built-in/self-improve.js';
+import { evolutionTest } from '../tools/built-in/evolution-test.js';
+import { workflowOps } from '../tools/built-in/workflow-ops.js';
+import { orchestrate } from '../tools/built-in/orchestrate.js';
+import { goalOps } from '../tools/built-in/goal-ops.js';
+import { costOptimize } from '../tools/built-in/cost-optimize.js';
+import { feedbackOps } from '../tools/built-in/feedback-ops.js';
+import { eventQuery } from '../tools/built-in/event-query.js';
+import { agentChat } from '../tools/built-in/agent-chat.js';
+import { auditInspect } from '../tools/built-in/audit-inspect.js';
+import { checkpointOps } from '../tools/built-in/checkpoint-ops.js';
+import { contextOps } from '../tools/built-in/context-ops.js';
+import { capabilityOps } from '../tools/built-in/capability-ops.js';
+import { knowledgeGraphOps } from '../tools/built-in/knowledge-graph-ops.js';
+import { teamOps } from '../tools/built-in/team-ops.js';
+import { messaging } from '../tools/built-in/messaging.js';
+import { budgetCheck } from '../tools/built-in/budget-check.js';
+import { proposalOps } from '../tools/built-in/proposal-ops.js';
+import { webSearch } from '../tools/built-in/web-search.js';
+// twitter_ops moved to mcp-tools (cookie-based, VPN-routed) — no longer registered in forge runtime
+import { economyOps } from '../tools/built-in/economy-ops.js';
+import { getMemoryManager } from '../memory/singleton.js';
+import { getExecutionContext, executionStore } from './execution-context.js';
+import {
+  resolveRepoCredentials,
+  buildGitCredentialHelperScript,
+  buildRepoPromptInstructions,
+  type RepoContext,
+  type RepoCredentials,
+} from './credential-resolver.js';
+
+// ============================================
+// State
+// ============================================
+
+let config: ForgeConfig;
+let provider: IProviderAdapter;
+let registry: ToolRegistry;
+let initialized = false;
+
+/**
+ * Registry of active CLI processes keyed by executionId.
+ * Used by cancelCliExecution() to send SIGTERM to running processes.
+ */
+const runningCliProcesses = new Map<string, ChildProcess>();
+
+/** Tracked memory monitor intervals keyed by executionId. */
+const memoryMonitors = new Map<string, ReturnType<typeof setInterval>>();
+
+/**
+ * Monitor memory usage and emit warnings when approaching container limits.
+ * Helps diagnose OOM issues before they kill processes silently.
+ */
+function monitorMemoryUsage(executionId: string): void {
+  const checkInterval = setInterval(() => {
+    try {
+      const usage = process.memoryUsage();
+      const heapUsedMb = Math.round(usage.heapUsed / 1024 / 1024);
+      const heapTotalMb = Math.round(usage.heapTotal / 1024 / 1024);
+      const rssMb = Math.round(usage.rss / 1024 / 1024);
+      // Container limit is typically 4GB (4096M); warn at 3GB (75%)
+      if (rssMb > 3072) {
+        logger.warn(
+          `[MEMORY] Execution ${executionId}: high memory usage (heap: ${heapUsedMb}/${heapTotalMb}MB, rss: ${rssMb}MB). ` +
+          `Approaching container limit — may trigger OOM killer.`
+        );
+      }
+    } catch {
+      // Ignore memory check errors
+    }
+  }, 30000); // Check every 30 seconds
+
+  // Store interval ID in a tracked Map so we can clean it up reliably
+  memoryMonitors.set(executionId, checkInterval);
+}
+
+/**
+ * Returns the number of currently running CLI execution processes.
+ */
+export function getRunningExecutionCount(): number {
+  return runningCliProcesses.size;
+}
+
+/**
+ * Wait for all running CLI executions to drain, up to timeoutMs.
+ * Polls every second. Returns the number still running (0 = fully drained).
+ */
+export async function waitForRunningExecutions(timeoutMs: number): Promise<number> {
+  const deadline = Date.now() + timeoutMs;
+  while (runningCliProcesses.size > 0 && Date.now() < deadline) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+  }
+  return runningCliProcesses.size;
+}
+
+/**
+ * Cancel a running CLI execution by sending SIGTERM to its process.
+ * Returns true if a running process was found and signalled, false otherwise.
+ */
+export function cancelCliExecution(executionId: string): boolean {
+  const proc = runningCliProcesses.get(executionId);
+  if (!proc) return false;
+  try {
+    if (proc.exitCode === null) {
+      proc.kill('SIGTERM');
+      try {
+        execSync(`kill -TERM $(pgrep -P ${proc.pid}) 2>/dev/null || true`, { stdio: 'ignore', timeout: 3000 });
+      } catch { /* no children or already dead */ }
+      setTimeout(() => {
+        try { if (proc.exitCode === null) proc.kill('SIGKILL'); } catch { /* already dead */ }
+      }, 5000);
+    }
+  } catch { /* already dead */ }
+  runningCliProcesses.delete(executionId);
+  return true;
+}
+
+// ============================================
+// Initialization
+// ============================================
+
+/**
+ * Initialize the execution worker.
+ * Sets up the provider adapter, tool registry, and registers built-in tools.
+ * Called once on server startup.
+ */
+export async function initializeWorker(): Promise<void> {
+  if (initialized) return;
+
+  config = loadConfig();
+
+  // Initialize primary provider (Anthropic)
+  provider = new AnthropicAdapter();
+  await provider.initialize({
+    apiKey: config.anthropicApiKey,
+    apiKeyFallback: config.anthropicApiKeyFallback,
+  });
+
+  // Initialize provider registry with all available providers
+  const providerRegistry = ProviderRegistry.getInstance();
+  await providerRegistry.initializeDefaults({
+    anthropicApiKey: config.anthropicApiKey,
+    openaiApiKey: config.openaiApiKey,
+    googleAiKey: config.googleAiKey,
+    ollamaBaseUrl: config.ollamaBaseUrl,
+  });
+
+  logger.info(`[Worker] Provider registry initialized: ${Array.from(providerRegistry.listProviders()).join(', ')}`);
+
+  // Initialize tool registry
+  registry = new ToolRegistry();
+
+  // Register built-in tool implementations
+  registerBuiltInTools(registry);
+
+  // Load tool metadata from database (updates schemas, preserves execute functions)
+  try {
+    await registry.loadFromDatabase();
+  } catch (err) {
+    logger.warn(`[Worker] Could not load tools from database: ${err}`);
+  }
+
+  initialized = true;
+  logger.info(`[Worker] Execution worker initialized with ${registry.size} tools`);
+
+  // Start periodic OAuth token refresh (every 6 hours)
+  // Ensures token stays fresh even when no CLI executions are happening
+  startTokenRefreshTimer();
+}
+
+// ============================================
+// Built-in Tool Registration
+// ============================================
+
+function registerBuiltInTools(reg: ToolRegistry): void {
+  reg.register({
+    name: 'api_call',
+    displayName: 'API Call',
+    description: 'Make HTTP requests to REST APIs. Supports GET, POST, PUT, DELETE, PATCH.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'The URL to call' },
+        method: { type: 'string', description: 'HTTP method (GET, POST, PUT, DELETE, PATCH)' },
+        headers: { type: 'object', description: 'Optional request headers' },
+        body: { description: 'Optional request body (auto-serialized to JSON)' },
+      },
+      required: ['url', 'method'],
+    },
+    execute: (input) => apiCall(input as unknown as Parameters<typeof apiCall>[0]),
+  });
+
+  reg.register({
+    name: 'code_exec',
+    displayName: 'Code Execute',
+    description: 'Execute JavaScript code in a sandboxed environment. Captures console output.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string', description: 'JavaScript code to execute' },
+        language: { type: 'string', description: 'Programming language (only javascript supported)' },
+      },
+      required: ['code'],
+    },
+    execute: (input) => codeExec(input as unknown as Parameters<typeof codeExec>[0]),
+  });
+
+  reg.register({
+    name: 'web_browse',
+    displayName: 'Web Browse',
+    description: 'Fetch a URL and extract its text content. Supports basic CSS selector filtering.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'URL to fetch' },
+        selector: { type: 'string', description: 'Optional CSS tag selector to filter content' },
+        maxLength: { type: 'number', description: 'Max content length (default 5000)' },
+      },
+      required: ['url'],
+    },
+    execute: (input) => webBrowse(input as unknown as Parameters<typeof webBrowse>[0]),
+  });
+
+  reg.register({
+    name: 'shell_exec',
+    displayName: 'Shell Execute',
+    description: 'Execute shell commands. Blocks dangerous patterns. 30s default timeout.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'Shell command to execute' },
+        cwd: { type: 'string', description: 'Working directory (default /app)' },
+        timeout: { type: 'number', description: 'Timeout in ms (max 60000)' },
+      },
+      required: ['command'],
+    },
+    execute: (input) => shellExec(input as unknown as Parameters<typeof shellExec>[0]),
+  });
+
+  reg.register({
+    name: 'file_ops',
+    displayName: 'File Operations',
+    description: 'Read, write, list, or check existence of files. Restricted to workspace root.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        operation: {
+          type: 'string',
+          enum: ['read', 'write', 'list', 'exists'],
+          description: 'Operation to perform',
+        },
+        path: { type: 'string', description: 'File or directory path (relative to workspace)' },
+        content: { type: 'string', description: 'Content to write (for write operation)' },
+      },
+      required: ['operation', 'path'],
+    },
+    execute: (input) => fileOps(input as unknown as Parameters<typeof fileOps>[0]),
+  });
+
+  reg.register({
+    name: 'db_query',
+    displayName: 'Database Query',
+    description: 'Execute read-only SQL queries against the forge database. SELECT, WITH, EXPLAIN only.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sql: { type: 'string', description: 'SQL query (SELECT only)' },
+        params: { type: 'array', description: 'Parameterized query values' },
+      },
+      required: ['sql'],
+    },
+    execute: (input) => dbQuery(input as unknown as Parameters<typeof dbQuery>[0]),
+  });
+
+  reg.register({
+    name: 'docker_api',
+    displayName: 'Docker API',
+    description: 'Interact with Docker containers: list, inspect, logs, stats, exec commands, view processes.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['list', 'inspect', 'logs', 'stats', 'exec', 'top'],
+          description: 'Docker action to perform',
+        },
+        container: { type: 'string', description: 'Container name or ID (required for all except list)' },
+        command: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Command to exec in container (for exec action)',
+        },
+        tail: { type: 'number', description: 'Number of log lines to return (default 100)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => dockerApi(input as unknown as Parameters<typeof dockerApi>[0]),
+  });
+
+  // --- Autonomous Operation Tools ---
+  // These tools let agents create tickets, report findings, and request interventions
+  // so the fleet can operate fully autonomously 24/7.
+
+  reg.register({
+    name: 'ticket_ops',
+    displayName: 'Ticket Operations',
+    description: 'Create, update, assign, list, get tickets, add progress notes, and view audit history. IMPORTANT: Use add_note to log timestamped progress on every ticket as you work. Every significant step must have a note. Use update with resolution to resolve tickets — resolution is REQUIRED to close/resolve. No ticket should sit stale without notes.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'update', 'assign', 'list', 'get', 'add_note', 'audit_history'],
+          description: 'Operation to perform. Use add_note to add timestamped progress notes to a ticket.',
+        },
+        title: { type: 'string', description: 'Ticket title (required for create)' },
+        description: { type: 'string', description: 'Detailed ticket description' },
+        priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'], description: 'Ticket priority' },
+        category: { type: 'string', description: 'Category (task, bug, feature, maintenance, security)' },
+        assigned_to: { type: 'string', description: 'Agent name to assign to' },
+        agent_id: { type: 'string', description: 'Your agent ID' },
+        agent_name: { type: 'string', description: 'Your agent name' },
+        ticket_id: { type: 'string', description: 'Ticket ID (for update/assign/get)' },
+        status: { type: 'string', enum: ['open', 'in_progress', 'resolved', 'closed'], description: 'Ticket status' },
+        resolution: { type: 'string', description: 'Resolution note — what was done to resolve this ticket (REQUIRED when setting status to resolved or closed)' },
+        note: { type: 'string', description: 'Progress note content — timestamped update on work in progress (use with add_note action)' },
+        filter_status: { type: 'string', description: 'Filter by status (for list)' },
+        filter_assigned_to: { type: 'string', description: 'Filter by assigned agent (for list)' },
+        limit: { type: 'number', description: 'Max results (default 20, max 50)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => ticketOps(input as unknown as Parameters<typeof ticketOps>[0]),
+  });
+
+  reg.register({
+    name: 'finding_ops',
+    displayName: 'Finding Operations',
+    description: 'Report findings, insights, issues, and observations. Use this to log anything noteworthy: security issues, performance problems, bugs discovered, optimization opportunities, or status reports.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'list', 'get'],
+          description: 'Operation to perform',
+        },
+        finding: { type: 'string', description: 'The finding/observation text (required for create)' },
+        severity: { type: 'string', enum: ['info', 'warning', 'critical'], description: 'Severity level' },
+        category: { type: 'string', description: 'Category (security, performance, bug, optimization, status)' },
+        agent_id: { type: 'string', description: 'Your agent ID' },
+        agent_name: { type: 'string', description: 'Your agent name (required for create)' },
+        execution_id: { type: 'string', description: 'Current execution ID' },
+        metadata: { type: 'object', description: 'Additional structured data' },
+        finding_id: { type: 'string', description: 'Finding ID (for get)' },
+        filter_severity: { type: 'string', description: 'Filter by severity (for list)' },
+        filter_agent_id: { type: 'string', description: 'Filter by agent ID (for list)' },
+        filter_category: { type: 'string', description: 'Filter by category (for list)' },
+        limit: { type: 'number', description: 'Max results (default 20, max 50)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => findingOps(input as unknown as Parameters<typeof findingOps>[0]),
+  });
+
+  reg.register({
+    name: 'intervention_ops',
+    displayName: 'Intervention Operations',
+    description: 'Request human intervention when you need approval, hit a blocker, encounter an error you cannot resolve, or need a decision from a human operator. Also check status of previous intervention requests.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'list', 'get', 'check'],
+          description: 'Operation to perform',
+        },
+        agent_id: { type: 'string', description: 'Your agent ID' },
+        agent_name: { type: 'string', description: 'Your agent name (required for create)' },
+        agent_type: { type: 'string', description: 'Your agent type (ops, dev, etc.)' },
+        task_id: { type: 'string', description: 'Related task/execution ID' },
+        type: { type: 'string', enum: ['approval', 'escalation', 'feedback', 'error', 'resource'], description: 'Intervention type' },
+        title: { type: 'string', description: 'Brief title (required for create)' },
+        description: { type: 'string', description: 'Detailed description of what you need' },
+        context: { type: 'string', description: 'Relevant context or data' },
+        proposed_action: { type: 'string', description: 'What you propose to do (for approval requests)' },
+        intervention_id: { type: 'string', description: 'Intervention ID (for get/check)' },
+        filter_status: { type: 'string', description: 'Filter by status (for list)' },
+        filter_agent_id: { type: 'string', description: 'Filter by agent (for list)' },
+        limit: { type: 'number', description: 'Max results (default 20, max 50)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => interventionOps(input as unknown as Parameters<typeof interventionOps>[0]),
+  });
+
+  // --- Productivity Tools ---
+  // Real tools for real work: git, deploy, security, code analysis
+
+  reg.register({
+    name: 'git_ops',
+    displayName: 'Git Operations',
+    description: 'Git operations for source code management. Create branches, commit code, view diffs/logs, and request merges. All work happens on agent/* branches — merging to main requires human approval.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['status', 'diff', 'log', 'branch_list', 'branch_create', 'checkout', 'add', 'commit', 'merge_to_main'],
+          description: 'Git action to perform',
+        },
+        branch_name: { type: 'string', description: 'Branch name (auto-prefixed with agent/<name>/ for branch_create)' },
+        paths: { type: 'array', items: { type: 'string' }, description: 'File paths to add (for add action)' },
+        message: { type: 'string', description: 'Commit message (for commit action)' },
+        max_count: { type: 'number', description: 'Max log entries (default 20, max 50)' },
+        cached: { type: 'boolean', description: 'Show staged changes (for diff action)' },
+        file_path: { type: 'string', description: 'Specific file to diff' },
+        agent_name: { type: 'string', description: 'Your agent name (required for branch_create, commit, merge_to_main)' },
+        agent_id: { type: 'string', description: 'Your agent ID' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => gitOps(input as unknown as Parameters<typeof gitOps>[0]),
+  });
+
+  reg.register({
+    name: 'deploy_ops',
+    displayName: 'Deploy Operations',
+    description: 'Deployment operations: check container status, view logs, restart services, trigger builds. Critical actions (restart, build) require human approval via intervention gating.',
+    type: 'built_in',
+    riskLevel: 'critical',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['status', 'logs', 'restart', 'build'],
+          description: 'Deploy action to perform',
+        },
+        service: { type: 'string', description: 'Service name (api, dashboard, forge, worker, scheduler, nginx, mcp, self)' },
+        tail: { type: 'number', description: 'Number of log lines (default 100, max 200)' },
+        intervention_id: { type: 'string', description: 'Approved intervention ID (required for restart/build execution)' },
+        agent_name: { type: 'string', description: 'Your agent name (required for restart, build)' },
+        agent_id: { type: 'string', description: 'Your agent ID' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => deployOps(input as unknown as Parameters<typeof deployOps>[0]),
+  });
+
+  reg.register({
+    name: 'security_scan',
+    displayName: 'Security Scan',
+    description: 'Security analysis: npm audit, dependency checks, file permission scanning, environment variable leak detection, Docker container security inspection.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['npm_audit', 'dependency_check', 'file_permissions', 'env_leak_check', 'docker_security'],
+          description: 'Security scan action to perform',
+        },
+        package_dir: { type: 'string', description: 'Package directory relative to repo root (for npm_audit, dependency_check)' },
+        scan_path: { type: 'string', description: 'Path to scan relative to repo root (for file_permissions, env_leak_check)' },
+        container: { type: 'string', description: 'Filter to specific container (for docker_security)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => securityScan(input as unknown as Parameters<typeof securityScan>[0]),
+  });
+
+  reg.register({
+    name: 'code_analysis',
+    displayName: 'Code Analysis',
+    description: 'Static code analysis: TypeScript type checking, dead code detection, import dependency tracing, function complexity metrics, TODO/FIXME scanning.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['typecheck', 'dead_code', 'import_analysis', 'complexity', 'todo_scan'],
+          description: 'Analysis action to perform',
+        },
+        package_dir: { type: 'string', description: 'Package directory relative to repo root (for typecheck)' },
+        file_path: { type: 'string', description: 'Specific file to analyze (for import_analysis, complexity)' },
+        scan_path: { type: 'string', description: 'Path to scan relative to repo root' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => codeAnalysis(input as unknown as Parameters<typeof codeAnalysis>[0]),
+  });
+
+  reg.register({
+    name: 'agent_create',
+    displayName: 'Agent Create',
+    description: 'Create new agents programmatically. All agent creation requires human approval via intervention gating. New agents start at autonomy level 1 with draft status. Can also add schedules to existing agents.',
+    type: 'built_in',
+    riskLevel: 'critical',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'schedule'],
+          description: 'Operation: create a new agent or add a schedule to an existing agent',
+        },
+        name: { type: 'string', description: 'Name for the new agent (for create)' },
+        description: { type: 'string', description: 'What the agent does (for create)' },
+        system_prompt: { type: 'string', description: 'System prompt for the new agent (for create)' },
+        type: { type: 'string', enum: ['dev', 'monitor', 'research', 'content', 'custom'], description: 'Agent type (for create)' },
+        enabled_tools: { type: 'array', items: { type: 'string' }, description: 'Tools the agent can use (for create)' },
+        model_id: { type: 'string', description: 'Model ID (default: claude-haiku-4-5)' },
+        autonomy_level: { type: 'number', description: 'Autonomy level 1-3 (default: 1)' },
+        schedule_minutes: { type: 'number', description: 'If set, auto-create schedule (for create)' },
+        agent_id: { type: 'string', description: 'Agent ID (for schedule action)' },
+        schedule_type: { type: 'string', enum: ['continuous', 'scheduled'], description: 'Schedule type (for schedule action)' },
+        interval_minutes: { type: 'number', description: 'Schedule interval in minutes (for schedule action, min 5)' },
+        intervention_id: { type: 'string', description: 'Approved intervention ID (required for create execution)' },
+        agent_name: { type: 'string', description: 'Your agent name' },
+        execution_id: { type: 'string', description: 'Your execution ID' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => agentCreate(input as unknown as Parameters<typeof agentCreate>[0]),
+  });
+
+  reg.register({
+    name: 'agent_delegate',
+    displayName: 'Agent Delegate',
+    description: 'Delegate a task to the best available agent by capability. Finds the most suitable agent using capability matching and runs them synchronously. Can also search for agents without executing.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['delegate', 'find'],
+          description: 'delegate: find best agent and run them. find: just search for matching agents.',
+        },
+        task: { type: 'string', description: 'Task description to delegate or search for' },
+        capability: { type: 'string', description: 'Capability to match (e.g. monitoring, architecture, troubleshooting)' },
+        agent_type: { type: 'string', description: 'Filter by agent type (dev, monitor, research, content, custom)' },
+        agent_id: { type: 'string', description: 'Your agent ID (for self-delegation prevention)' },
+        agent_name: { type: 'string', description: 'Your agent name' },
+        execution_id: { type: 'string', description: 'Your execution ID' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => agentDelegate(input as unknown as Parameters<typeof agentDelegate>[0]),
+  });
+
+  reg.register({
+    name: 'agent_call',
+    displayName: 'Agent Call',
+    description: 'Invoke another agent by ID as a sub-agent. The sub-agent runs synchronously and returns its output. Includes recursion depth protection (max depth 5).',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agentId: { type: 'string', description: 'The ID of the agent to call' },
+        input: { type: 'string', description: 'The input/task to send to the sub-agent' },
+      },
+      required: ['agentId', 'input'],
+    },
+    execute: async (rawInput) => {
+      const input = rawInput as unknown as AgentCallInput;
+      const ctx = getExecutionContext();
+      return agentCall(input, {
+        executeAgent: async (params) => {
+          const childExecId = `child-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+          // Create child execution record
+          await query(
+            `INSERT INTO forge_executions (id, agent_id, owner_id, input, status, parent_execution_id)
+             VALUES ($1, $2, $3, $4, 'pending', $5)`,
+            [childExecId, params.agentId, params.ownerId, params.input, ctx?.executionId ?? null],
+          );
+          // Get agent config
+          const agentRow = await query<{ model_id: string; system_prompt: string; max_cost_per_execution: number }>(
+            `SELECT model_id, system_prompt, max_cost_per_execution FROM forge_agents WHERE id = $1`,
+            [params.agentId],
+          );
+          const agentCfg = agentRow[0];
+          if (!agentCfg) throw new Error(`Agent not found: ${params.agentId}`);
+
+          await runDirectCliExecution(childExecId, params.agentId, params.input, params.ownerId, {
+            modelId: agentCfg.model_id,
+            systemPrompt: agentCfg.system_prompt,
+            maxBudgetUsd: String(agentCfg.max_cost_per_execution ?? '2.00'),
+          });
+
+          // Read back result
+          const result = await query<{
+            status: string; output: string; error: string | null;
+            iterations: number; duration_ms: number;
+          }>(
+            `SELECT status, COALESCE(output, '') as output, error,
+                    COALESCE(iterations, 0) as iterations, COALESCE(duration_ms, 0) as duration_ms
+             FROM forge_executions WHERE id = $1`,
+            [childExecId],
+          );
+          const r = result[0];
+          return {
+            output: r?.output ?? '',
+            status: (r?.status === 'completed' ? 'completed' : 'failed') as 'completed' | 'failed',
+            iterations: r?.iterations ?? 0,
+            durationMs: r?.duration_ms ?? 0,
+            error: r?.error ?? undefined,
+          };
+        },
+        ownerId: ctx?.ownerId ?? 'system:forge',
+        currentDepth: ctx?.depth ?? 0,
+      });
+    },
+  });
+
+  reg.register({
+    name: 'memory_search',
+    displayName: 'Memory Search',
+    description: 'Search agent memory (semantic, episodic, procedural). Use fleet=true to search across ALL agents\' memories for shared knowledge.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query text' },
+        memoryType: { type: 'string', enum: ['semantic', 'episodic', 'procedural'], description: 'Filter by memory type' },
+        limit: { type: 'number', description: 'Max results (default 5)' },
+        fleet: { type: 'boolean', description: 'Search across all agents (default false)' },
+      },
+      required: ['query'],
+    },
+    execute: async (rawInput) => {
+      const input = rawInput as unknown as MemorySearchInput;
+      const ctx = getExecutionContext();
+      const mgr = getMemoryManager();
+      return memorySearch(input, {
+        memoryManager: {
+          recall: async (params) => {
+            const result = await mgr.recall(params.agentId, params.query, {
+              tiers: params.memoryType
+                ? [params.memoryType as 'semantic' | 'episodic' | 'procedural']
+                : undefined,
+              k: params.limit,
+            });
+            // Flatten to MemoryRecallResult
+            const memories: Array<{ id: string; content: string; memoryType: string; similarity?: number; createdAt: string; metadata?: Record<string, unknown> }> = [];
+            for (const s of result.semantic ?? []) {
+              memories.push({ id: s.id, content: s.content, memoryType: 'semantic', similarity: s.similarity, createdAt: String(s.created_at), metadata: s.metadata as Record<string, unknown> | undefined });
+            }
+            for (const e of result.episodic ?? []) {
+              memories.push({ id: e.id, content: `${e.situation} → ${e.action} → ${e.outcome}`, memoryType: 'episodic', similarity: e.similarity, createdAt: String(e.created_at) });
+            }
+            for (const p of result.procedural ?? []) {
+              memories.push({ id: p.id, content: p.trigger_pattern, memoryType: 'procedural', similarity: p.similarity, createdAt: String(p.created_at) });
+            }
+            return { memories, total: memories.length };
+          },
+          recallFleet: async (q, options) => {
+            const result = await mgr.recallFleet(q, { k: options?.k });
+            const memories: Array<{ id: string; content: string; memoryType: string; similarity?: number; createdAt: string }> = [];
+            for (const s of result.semantic ?? []) {
+              memories.push({ id: s.id, content: s.content, memoryType: 'semantic', similarity: s.similarity, createdAt: String(s.created_at) });
+            }
+            for (const e of result.episodic ?? []) {
+              memories.push({ id: e.id, content: `${e.situation} → ${e.action} → ${e.outcome}`, memoryType: 'episodic', similarity: e.similarity, createdAt: String(e.created_at) });
+            }
+            for (const p of result.procedural ?? []) {
+              memories.push({ id: p.id, content: p.trigger_pattern, memoryType: 'procedural', similarity: p.similarity, createdAt: String(p.created_at) });
+            }
+            return { memories, total: memories.length };
+          },
+        },
+        agentId: ctx?.agentId ?? (rawInput as Record<string, unknown>)['agent_id'] as string ?? 'unknown',
+      });
+    },
+  });
+
+  reg.register({
+    name: 'memory_store',
+    displayName: 'Memory Store',
+    description: 'Store knowledge, experiences, and patterns into the cognitive memory system. Supports semantic (facts), episodic (experiences), and procedural (workflows) memory types.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['semantic', 'episodic', 'procedural'], description: 'Memory tier to store in' },
+        content: { type: 'string', description: 'Content to store (for semantic/episodic)' },
+        action: { type: 'string', description: 'Action taken (for episodic)' },
+        outcome: { type: 'string', description: 'Outcome observed (for episodic)' },
+        quality: { type: 'number', description: 'Outcome quality 0-1 (for episodic)' },
+        trigger_pattern: { type: 'string', description: 'Trigger pattern (for procedural)' },
+        tool_sequence: { type: 'array', description: 'Tool sequence [{tool, params, description}] (for procedural)' },
+        importance: { type: 'number', description: 'Importance 0-1 (for semantic)' },
+        source: { type: 'string', description: 'Source label (for semantic)' },
+        metadata: { type: 'object', description: 'Optional metadata' },
+      },
+      required: ['type'],
+    },
+    execute: async (rawInput) => {
+      const input = rawInput as unknown as MemoryStoreInput;
+      const ctx = getExecutionContext();
+      return memoryStore(input, {
+        memoryManager: getMemoryManager(),
+        agentId: ctx?.agentId ?? (rawInput as Record<string, unknown>)['agent_id'] as string ?? 'unknown',
+        ownerId: ctx?.ownerId ?? 'system:forge',
+      });
+    },
+  });
+
+  reg.register({
+    name: 'knowledge_search',
+    displayName: 'Knowledge Search',
+    description: 'Search the fleet-wide knowledge graph for entities and relationships extracted from all agent executions. Find concepts, tools, services, patterns, and their connections.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['search', 'related'],
+          description: 'search: find knowledge nodes. related: get relationships for a node.',
+        },
+        query: { type: 'string', description: 'Search query (for search action)' },
+        entity_type: { type: 'string', enum: ['concept', 'person', 'tool', 'service', 'file', 'error', 'pattern'], description: 'Filter by entity type' },
+        limit: { type: 'number', description: 'Max results (default 10, max 20)' },
+        node_id: { type: 'string', description: 'Node ID (for related action)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => knowledgeSearch(input as unknown as Parameters<typeof knowledgeSearch>[0]),
+  });
+
+  reg.register({
+    name: 'fleet_health',
+    displayName: 'Fleet Health',
+    description: 'Query fleet health, agent performance rankings, cost summaries, and execution statistics with anomaly detection. Use this to understand how the fleet is performing and identify problems.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['check', 'leaderboard', 'costs', 'execution_stats'],
+          description: 'check: run health check. leaderboard: agent rankings. costs: cost breakdown. execution_stats: per-agent stats + anomaly detection.',
+        },
+        days: { type: 'number', description: 'Number of days for cost summary (default 7)' },
+        owner_id: { type: 'string', description: 'Owner ID filter for costs (default system:forge)' },
+        agent_id: { type: 'string', description: 'Filter to specific agent' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => fleetHealth(input as unknown as Parameters<typeof fleetHealth>[0]),
+  });
+
+  reg.register({
+    name: 'self_heal',
+    displayName: 'Self Heal',
+    description: 'Take autonomous corrective actions: heal stuck executions, pause poorly-performing agents, reset circuit breakers, or rebalance workload away from degraded agents.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['heal_stuck', 'pause_agent', 'reset_circuit_breaker', 'rebalance'],
+          description: 'heal_stuck: fix stuck executions. pause_agent: temporarily pause a failing agent. reset_circuit_breaker: reset stuck breaker. rebalance: extend schedule of degraded agent.',
+        },
+        agent_id: { type: 'string', description: 'Target agent ID (for pause_agent)' },
+        reason: { type: 'string', description: 'Reason for pausing (required for pause_agent)' },
+        breaker_name: { type: 'string', description: 'Circuit breaker name (default: provider)' },
+        degraded_agent_id: { type: 'string', description: 'Agent to rebalance away from (for rebalance)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => selfHeal(input as unknown as Parameters<typeof selfHeal>[0]),
+  });
+
+  reg.register({
+    name: 'self_improve',
+    displayName: 'Self Improve',
+    description: 'Propose and apply prompt revisions based on correction patterns, review revision history, and analyze your capabilities with fleet comparison. Use this to actively improve your own performance.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['propose_revision', 'list_revisions', 'apply_revision', 'reject_revision', 'analyze_capabilities'],
+          description: 'propose_revision: generate prompt improvements. list_revisions: see revision history. apply_revision: apply an approved revision. reject_revision: reject a pending revision. analyze_capabilities: see your skills vs fleet.',
+        },
+        revision_id: { type: 'string', description: 'Revision ID (for apply_revision)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => selfImprove(input as unknown as Parameters<typeof selfImprove>[0]),
+  });
+
+  reg.register({
+    name: 'evolution_test',
+    displayName: 'Evolution Test',
+    description: 'A/B test agent variations: clone yourself with mutations (prompt, model, tools), run head-to-head tests, review results, and promote winning variants.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['clone', 'run_test', 'results', 'promote'],
+          description: 'clone: create a variant. run_test: A/B test parent vs variant. results: see experiment history. promote: apply winning variant config to parent.',
+        },
+        mutation_type: { type: 'string', enum: ['prompt', 'tools', 'model', 'config', 'combined'], description: 'Type of mutation (for clone)' },
+        mutation_description: { type: 'string', description: 'Description of what changed (for clone)' },
+        prompt_override: { type: 'string', description: 'New system prompt (for clone with prompt mutation)' },
+        model_override: { type: 'string', description: 'New model ID (for clone with model mutation)' },
+        variant_id: { type: 'string', description: 'Variant agent ID (for run_test)' },
+        test_task: { type: 'string', description: 'Task to test both agents on (for run_test)' },
+        experiment_id: { type: 'string', description: 'Experiment ID (for promote)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => evolutionTest(input as unknown as Parameters<typeof evolutionTest>[0]),
+  });
+
+  reg.register({
+    name: 'workflow_ops',
+    displayName: 'Workflow Ops',
+    description: 'Structured multi-agent coordination: decompose complex tasks into subtasks, create DAG-based coordination plans, execute across the fleet, monitor plan health, and recover from task failures.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['decompose', 'create_plan', 'execute_plan', 'plan_status', 'recover'],
+          description: 'decompose: break task into subtasks. create_plan: build coordination plan. execute_plan: dispatch tasks to agents. plan_status: check plan health. recover: handle failed tasks.',
+        },
+        task_description: { type: 'string', description: 'Complex task to decompose (for decompose)' },
+        title: { type: 'string', description: 'Plan title (for create_plan)' },
+        pattern: { type: 'string', enum: ['pipeline', 'fan-out', 'consensus'], description: 'Coordination pattern (for create_plan, default: pipeline)' },
+        tasks: {
+          type: 'array',
+          description: 'Array of tasks with title, description, agent_name, dependencies (for create_plan)',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+              agent_name: { type: 'string' },
+              dependencies: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['title', 'description', 'agent_name'],
+          },
+        },
+        plan_id: { type: 'string', description: 'Plan ID (for execute_plan, plan_status, recover)' },
+        task_id: { type: 'string', description: 'Failed task ID within a plan (for recover)' },
+        retry_count: { type: 'number', description: 'Number of retries already attempted (for recover, default: 0)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => workflowOps(input as unknown as Parameters<typeof workflowOps>[0]),
+  });
+
+  reg.register({
+    name: 'orchestrate',
+    displayName: 'Orchestrate',
+    description: 'Natural language orchestration: give a plain English instruction and the system automatically decomposes it, matches the best agents, and executes across the fleet. Monitor progress with status checks.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['run', 'status'],
+          description: 'run: start orchestration from a natural language instruction. status: check progress of an orchestration session.',
+        },
+        instruction: { type: 'string', description: 'Plain English instruction describing work to be done (for run)' },
+        max_agents: { type: 'number', description: 'Maximum number of agents to assign (for run, default: 5)' },
+        session_id: { type: 'string', description: 'Orchestration session ID (for status)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => orchestrate(input as unknown as Parameters<typeof orchestrate>[0]),
+  });
+
+  reg.register({
+    name: 'goal_ops',
+    displayName: 'Goal Ops',
+    description: 'Manage your own improvement goals: propose goals based on execution history, list existing goals, self-approve at high autonomy, and mark goals complete with results.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['propose', 'list', 'approve', 'reject', 'complete'],
+          description: 'propose: generate improvement goals from history. list: see your goals. approve: self-approve a proposed goal (autonomy >= 4). reject: reject a proposed goal. complete: mark a goal done.',
+        },
+        status: { type: 'string', description: 'Filter goals by status: proposed, approved, rejected, in_progress, completed (for list)' },
+        goal_id: { type: 'string', description: 'Goal ID (for approve, complete)' },
+        result_summary: { type: 'string', description: 'Summary of what was accomplished (for complete)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => goalOps(input as unknown as Parameters<typeof goalOps>[0]),
+  });
+
+  reg.register({
+    name: 'economy_ops',
+    displayName: 'Economy Ops',
+    description: 'Manage agent economy: check wallet balance, post bounties for other agents, bid on open bounties, transfer credits, view marketplace, check reputation and transaction history.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['balance', 'post_bounty', 'assign_bounty', 'complete_bounty', 'fail_bounty', 'marketplace', 'transfer', 'reputation', 'transactions'],
+          description: 'balance: check wallet. post_bounty: create a bounty. assign_bounty: bid on bounty. complete_bounty/fail_bounty: finalize. marketplace: list open bounties. transfer: send credits. reputation: view scores. transactions: history.',
+        },
+        title: { type: 'string', description: 'Bounty title (for post_bounty)' },
+        description: { type: 'string', description: 'Bounty description (for post_bounty)' },
+        reward_amount: { type: 'number', description: 'Reward amount in credits (for post_bounty)' },
+        required_capabilities: { type: 'array', items: { type: 'string' }, description: 'Required capabilities (for post_bounty)' },
+        bounty_id: { type: 'string', description: 'Bounty ID (for assign/complete/fail)' },
+        quality_score: { type: 'number', description: 'Quality score 0-1 (for complete_bounty)' },
+        to_agent_id: { type: 'string', description: 'Recipient agent ID (for transfer)' },
+        amount: { type: 'number', description: 'Transfer amount (for transfer)' },
+        status_filter: { type: 'string', description: 'Filter bounties by status (for marketplace)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => economyOps(input as unknown as Parameters<typeof economyOps>[0]),
+  });
+
+  reg.register({
+    name: 'cost_optimize',
+    displayName: 'Cost Optimize',
+    description: 'Make cost-aware decisions: view cost profiles across capabilities, get model recommendations for specific tasks, batch recommendations, and analyze your own spending patterns.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['dashboard', 'recommend', 'recommend_batch', 'my_costs'],
+          description: 'dashboard: view all cost profiles. recommend: get cheapest model for a capability. recommend_batch: recommendations for multiple capabilities. my_costs: your 7-day spending.',
+        },
+        capability: { type: 'string', description: 'Capability name (for recommend)' },
+        min_quality: { type: 'number', description: 'Minimum quality threshold 0-1 (default: 0.7)' },
+        capabilities: { type: 'array', items: { type: 'string' }, description: 'List of capabilities (for recommend_batch)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => costOptimize(input as unknown as Parameters<typeof costOptimize>[0]),
+  });
+
+  reg.register({
+    name: 'feedback_ops',
+    displayName: 'Feedback Ops',
+    description: 'Self-assessment and learning from corrections: submit feedback on execution results (triggers full learning pipeline), view your feedback stats, and inspect correction patterns for self-improvement.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['submit', 'stats', 'patterns'],
+          description: 'submit: process feedback through learning pipeline. stats: see feedback breakdown. patterns: view correction patterns.',
+        },
+        execution_id: { type: 'string', description: 'Execution ID to attach feedback to (for submit)' },
+        feedback_type: {
+          type: 'string',
+          enum: ['correction', 'clarification', 'praise', 'warning', 'rejection'],
+          description: 'Type of feedback (for submit)',
+        },
+        human_response: { type: 'string', description: 'Feedback content / correction details (for submit)' },
+        agent_output: { type: 'string', description: 'Original agent output being assessed (for submit)' },
+        corrected_output: { type: 'string', description: 'Corrected version of the output (for submit with correction)' },
+        autonomy_delta: { type: 'number', description: 'Autonomy adjustment -2 to +2 (for submit)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => feedbackOps(input as unknown as Parameters<typeof feedbackOps>[0]),
+  });
+
+  reg.register({
+    name: 'event_query',
+    displayName: 'Event Query',
+    description: 'Fleet intelligence: replay execution events, query orchestration sessions, view fleet leaderboard rankings, and monitor event volume across the system.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['execution', 'session', 'recent', 'leaderboard', 'stats'],
+          description: 'execution: replay events for an execution. session: events for orchestration session. recent: latest fleet events. leaderboard: agent rankings. stats: event volume.',
+        },
+        execution_id: { type: 'string', description: 'Execution ID (for execution action)' },
+        session_id: { type: 'string', description: 'Orchestration session ID (for session action)' },
+        limit: { type: 'number', description: 'Max events to return (for recent, default 50, max 200)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => eventQuery(input as unknown as Parameters<typeof eventQuery>[0]),
+  });
+
+  reg.register({
+    name: 'agent_chat',
+    displayName: 'Agent Chat',
+    description: 'Multi-agent collaborative discussions: create chat sessions with selected agents, run discussion rounds, get individual responses, view session status, and end sessions.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'round', 'respond', 'status', 'end'],
+          description: 'create: start a discussion. round: all agents respond in turn. respond: get one agent\'s response. status: view session or list all. end: close session.',
+        },
+        topic: { type: 'string', description: 'Discussion topic (for create)' },
+        agent_ids: { type: 'array', items: { type: 'string' }, description: 'Agent IDs to include (for create)' },
+        session_id: { type: 'string', description: 'Chat session ID (for round, respond, status, end)' },
+        agent_id: { type: 'string', description: 'Agent ID to get response from (for respond)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => agentChat(input as unknown as Parameters<typeof agentChat>[0]),
+  });
+
+  reg.register({
+    name: 'audit_inspect',
+    displayName: 'Audit Inspect',
+    description: 'Self-inspection of audit trails and guardrail constraints: view your own audit history, pre-check guardrails before acting, and inspect active guardrail rules that apply to you.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['my_audit', 'check_guardrails', 'my_guardrails'],
+          description: 'my_audit: view your audit trail. check_guardrails: pre-check if an action is allowed. my_guardrails: see active rules.',
+        },
+        filter_action: { type: 'string', description: 'Filter audit by action type (for my_audit)' },
+        filter_resource_type: { type: 'string', description: 'Filter audit by resource type (for my_audit)' },
+        limit: { type: 'number', description: 'Max results (for my_audit, default 25, max 100)' },
+        offset: { type: 'number', description: 'Pagination offset (for my_audit)' },
+        input: { type: 'string', description: 'Input text to check against guardrails (for check_guardrails)' },
+        tool_name: { type: 'string', description: 'Tool name to check restrictions (for check_guardrails)' },
+        estimated_cost: { type: 'number', description: 'Estimated cost in USD (for check_guardrails)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => auditInspect(input as unknown as Parameters<typeof auditInspect>[0]),
+  });
+
+  reg.register({
+    name: 'checkpoint_ops',
+    displayName: 'Checkpoint Ops',
+    description: 'Human-in-the-loop checkpoints: create approval/review/input requests to pause for human response, list pending checkpoints, respond to checkpoints (high autonomy), and check checkpoint status.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'list', 'respond', 'get'],
+          description: 'create: request human approval/review/input. list: pending checkpoints. respond: answer a checkpoint (autonomy >= 4). get: check status.',
+        },
+        type: { type: 'string', enum: ['approval', 'review', 'input', 'confirmation'], description: 'Checkpoint type (for create)' },
+        title: { type: 'string', description: 'Brief title for the checkpoint (for create)' },
+        description: { type: 'string', description: 'Detailed description of what is needed (for create)' },
+        context: { type: 'object', description: 'Additional context data (for create)' },
+        timeout_minutes: { type: 'number', description: 'Timeout in minutes (for create, default 60)' },
+        checkpoint_id: { type: 'string', description: 'Checkpoint ID (for respond, get)' },
+        response: { type: 'object', description: 'Response data (for respond)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => checkpointOps(input as unknown as Parameters<typeof checkpointOps>[0]),
+  });
+
+  reg.register({
+    name: 'context_ops',
+    displayName: 'Context Ops',
+    description: 'Redis-backed shared context for multi-agent coordination: read/write session state, accumulate results in lists, list keys, and create/retrieve agent-to-agent handoffs.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['set', 'get', 'append', 'list_keys', 'handoff', 'get_handoff'],
+          description: 'set: write value. get: read value. append: add to list. list_keys: see all keys. handoff: create agent handoff. get_handoff: retrieve handoff.',
+        },
+        session_id: { type: 'string', description: 'Coordination session ID' },
+        key: { type: 'string', description: 'Context key (for set, get, append)' },
+        value: { description: 'Value to store (for set, append)' },
+        to_agent_id: { type: 'string', description: 'Target agent ID (for handoff)' },
+        task: { type: 'string', description: 'Task description (for handoff)' },
+        progress: { type: 'string', description: 'Current progress summary (for handoff)' },
+        artifacts: { type: 'array', items: { type: 'string' }, description: 'Artifact references (for handoff)' },
+        notes: { type: 'string', description: 'Additional notes (for handoff)' },
+        handoff_id: { type: 'string', description: 'Handoff ID (for get_handoff)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => contextOps(input as unknown as Parameters<typeof contextOps>[0]),
+  });
+
+  reg.register({
+    name: 'capability_ops',
+    displayName: 'Capability Ops',
+    description: 'Capability-based agent routing and discovery: find agents by capability, view your own capability profile, re-detect capabilities, and browse the full capability catalog.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['find', 'my_capabilities', 'detect', 'catalog'],
+          description: 'find: search agents by capability. my_capabilities: view own profile. detect: re-scan capabilities (autonomy >= 3). catalog: browse all capabilities.',
+        },
+        capability: { type: 'string', description: 'Capability name to search for (for find)' },
+        min_proficiency: { type: 'number', description: 'Minimum proficiency score 0-100 (for find, default 30)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => capabilityOps(input as unknown as Parameters<typeof capabilityOps>[0]),
+  });
+
+  reg.register({
+    name: 'knowledge_graph',
+    displayName: 'Knowledge Graph',
+    description: 'Graph traversal and fleet knowledge statistics: traverse node neighborhoods to explore entity relationships, view graph-wide stats, and search nodes semantically.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['traverse', 'stats', 'search'],
+          description: 'traverse: explore node neighborhood. stats: graph-wide statistics. search: semantic node search.',
+        },
+        node_id: { type: 'string', description: 'Node ID to traverse from (for traverse)' },
+        depth: { type: 'number', description: 'Traversal depth (for traverse, default 1)' },
+        query: { type: 'string', description: 'Search query text (for search)' },
+        entity_type: { type: 'string', enum: ['concept', 'person', 'tool', 'service', 'file', 'error', 'pattern'], description: 'Filter by entity type (for search)' },
+        limit: { type: 'number', description: 'Max results (for search, default 10, max 20)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => knowledgeGraphOps(input as unknown as Parameters<typeof knowledgeGraphOps>[0]),
+  });
+
+  reg.register({
+    name: 'team_ops',
+    displayName: 'Team Ops',
+    description: 'Fleet team management: start coordinated teams with multiple agents, monitor team sessions, list all sessions, cancel teams, and synthesize results from completed plans.',
+    type: 'built_in',
+    riskLevel: 'high',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['start', 'status', 'list', 'cancel', 'synthesize'],
+          description: 'start: create team session (autonomy >= 3). status: check session. list: all sessions. cancel: stop session (autonomy >= 3). synthesize: generate result summary.',
+        },
+        title: { type: 'string', description: 'Team title (for start)' },
+        pattern: { type: 'string', enum: ['pipeline', 'fan-out', 'consensus'], description: 'Coordination pattern (for start, default: pipeline)' },
+        tasks: {
+          type: 'array',
+          description: 'Task definitions with title, description, agent_name, dependencies (for start)',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+              agent_name: { type: 'string' },
+              dependencies: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['title', 'description', 'agent_name'],
+          },
+        },
+        session_id: { type: 'string', description: 'Session ID (for status, cancel, synthesize)' },
+        agent_id: { type: 'string', description: 'Target agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => teamOps(input as unknown as Parameters<typeof teamOps>[0]),
+  });
+
+  reg.register({
+    name: 'messaging',
+    displayName: 'Messaging',
+    description: 'Agent-to-agent messaging: send direct messages to other agents via Redis pub/sub, publish to broadcast channels, and emit custom events on the forge event bus.',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['send', 'publish', 'emit_event'],
+          description: 'send: direct message to agent. publish: broadcast to channel. emit_event: emit custom forge event.',
+        },
+        to_agent_id: { type: 'string', description: 'Target agent ID (for send)' },
+        type: { type: 'string', description: 'Message type: info, request, response, alert, etc. (for send)' },
+        payload: { description: 'Message payload (for send)' },
+        channel: { type: 'string', description: 'Channel name (for publish)' },
+        message: { description: 'Broadcast message content (for publish)' },
+        event_type: { type: 'string', description: 'Custom event type name (for emit_event)' },
+        event_data: { type: 'object', description: 'Event data payload (for emit_event)' },
+        agent_id: { type: 'string', description: 'Your agent ID (defaults to self)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => messaging(input as unknown as Parameters<typeof messaging>[0]),
+  });
+
+  reg.register({
+    name: 'budget_check',
+    displayName: 'Budget Check',
+    description: 'Cost estimation and budget monitoring: estimate costs for model usage before expensive operations, and check remaining budget to avoid overspending.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['estimate', 'check'],
+          description: 'estimate: calculate cost for token usage. check: verify budget remaining.',
+        },
+        input_tokens: { type: 'number', description: 'Number of input tokens (for estimate)' },
+        output_tokens: { type: 'number', description: 'Number of output tokens (for estimate)' },
+        model: { type: 'string', description: 'Model ID for pricing lookup (for estimate)' },
+        current_cost: { type: 'number', description: 'Current accumulated cost in USD (for check)' },
+        max_cost: { type: 'number', description: 'Maximum allowed cost in USD (for check)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => budgetCheck(input as unknown as Parameters<typeof budgetCheck>[0]),
+  });
+
+  reg.register({
+    name: 'proposal_ops',
+    displayName: 'Proposal Operations',
+    description: 'Manage change proposals for agent code review. Actions: create (draft a proposal), submit (send for review), review (approve/reject/request_changes), list (filter proposals), get (detail with reviews), apply (mark approved proposal as applied), revise (update draft/revision_requested proposal).',
+    type: 'built_in',
+    riskLevel: 'medium',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'submit', 'review', 'list', 'get', 'apply', 'revise'],
+          description: 'Operation to perform',
+        },
+        agent_id: { type: 'string', description: 'Author agent ID (for create/submit/apply/revise)' },
+        agent_name: { type: 'string', description: 'Author agent name' },
+        proposal_type: { type: 'string', enum: ['prompt_revision', 'code_change', 'config_change', 'schema_change'], description: 'Type of change (for create)' },
+        title: { type: 'string', description: 'Proposal title (for create)' },
+        description: { type: 'string', description: 'Detailed description (for create/revise)' },
+        target_agent_id: { type: 'string', description: 'Agent being modified (for create)' },
+        file_changes: { type: 'array', description: 'Array of {path, action, content, diff} (for create/revise)' },
+        config_changes: { type: 'object', description: 'Config changes object (for create/revise)' },
+        risk_level: { type: 'string', enum: ['low', 'medium', 'high', 'critical'], description: 'Risk classification (for create)' },
+        proposal_id: { type: 'string', description: 'Proposal ID (for submit/get/apply/revise/review)' },
+        reviewer_agent_id: { type: 'string', description: 'Reviewing agent ID (for review)' },
+        verdict: { type: 'string', enum: ['approve', 'reject', 'request_changes', 'comment'], description: 'Review verdict (for review)' },
+        comment: { type: 'string', description: 'Review comment (for review)' },
+        filter_status: { type: 'string', description: 'Filter by status (for list)' },
+        filter_type: { type: 'string', description: 'Filter by proposal_type (for list)' },
+        filter_author: { type: 'string', description: 'Filter by author_agent_id (for list)' },
+        limit: { type: 'number', description: 'Max results (for list, default 20, max 50)' },
+      },
+      required: ['action'],
+    },
+    execute: (input) => proposalOps(input as unknown as Parameters<typeof proposalOps>[0]),
+  });
+
+  reg.register({
+    name: 'web_search',
+    displayName: 'Web Search',
+    description: 'Search the web via SearXNG meta search engine. Returns titles, URLs, and snippets.',
+    type: 'built_in',
+    riskLevel: 'low',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        maxResults: { type: 'number', description: 'Max results to return (1-10, default 5)' },
+      },
+      required: ['query'],
+    },
+    execute: (input) => webSearch(input as unknown as Parameters<typeof webSearch>[0]),
+  });
+
+  // twitter_ops is handled by mcp-tools (cookie-based, VPN-routed)
+  // Not registered here — the MCP server provides it to CLI executions
+}
+
+// ============================================
+// Run Execution
+// ============================================
+
+/**
+ * Run an agent execution asynchronously.
+ * Called from the POST /executions route after creating the execution record.
+ * The engine will update the existing record from 'pending' to 'running' to 'completed'.
+ */
+export async function runExecution(
+  executionId: string,
+  agentId: string,
+  input: string,
+  ownerId: string,
+  sessionId?: string,
+): Promise<void> {
+  if (!initialized) {
+    await initializeWorker();
+  }
+
+  const ctx: ExecutionContext = {
+    agentId,
+    sessionId,
+    input,
+    ownerId,
+    executionId,
+  };
+
+  const deps: ExecutionDeps = {
+    provider,
+    executeTool: async (toolCalls, execId) => {
+      const calls: ExecutorToolCall[] = toolCalls.map((tc) => ({
+        name: tc.name,
+        input: tc.input,
+      }));
+      return executeTools(calls, registry, execId);
+    },
+    config,
+  };
+
+  try {
+    const result = await execute(ctx, deps);
+    logger.info(
+      `[Worker] Execution ${executionId} completed: ${result.iterations} iterations, $${result.cost.toFixed(4)} cost`,
+    );
+  } catch (err) {
+    logger.error(`[Worker] Execution ${executionId} failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * Get the initialized tool registry. Used by other modules that need tool info.
+ */
+export function getRegistry(): ToolRegistry {
+  return registry;
+}
+
+// ============================================
+// CLI Execution (Phase 7 — Direct CLI Spawn)
+// ============================================
+
+let cliEnvironmentReady = false;
+let cliConcurrent = 0;
+
+/** Numeric weight for each priority level — higher = processed first. */
+const PRIORITY_WEIGHT: Record<string, number> = {
+  urgent: 4,
+  high: 3,
+  normal: 2,
+  low: 1,
+};
+
+interface CliQueueEntry {
+  priority: number;
+  callback: () => void;
+}
+const cliQueue: Array<CliQueueEntry> = [];
+
+const MCP_CONFIG_PATH = '/tmp/claude-home/mcp.json';
+const CLAUDE_DIR = '/tmp/claude-home/.claude';
+const WORKSPACE_DIR = '/tmp/agent-workspace';
+
+/**
+ * One-time CLI environment setup.
+ * Creates credential files, settings.json, and MCP config.
+ */
+async function setupCliEnvironment(): Promise<void> {
+  if (cliEnvironmentReady) return;
+
+  const cfg = config ?? loadConfig();
+
+  // Create directories
+  await mkdir(`${CLAUDE_DIR}/debug`, { recursive: true });
+  await mkdir(`${CLAUDE_DIR}/cache`, { recursive: true });
+  await mkdir(WORKSPACE_DIR, { recursive: true });
+
+  // Copy OAuth credentials if available
+  try {
+    await access('/tmp/claude-credentials/.credentials.json');
+    await copyFile('/tmp/claude-credentials/.credentials.json', `${CLAUDE_DIR}/.credentials.json`);
+    await chmod(`${CLAUDE_DIR}/.credentials.json`, 0o600);
+    logger.info('[CLI] OAuth credentials installed (mode 600)');
+  } catch {
+    logger.warn('[CLI] No OAuth credentials found at /tmp/claude-credentials/.credentials.json');
+  }
+
+  // Write settings.json — auto-accept all permissions
+  const settings = {
+    permissions: {
+      allow: [
+        'Bash(*)', 'Read(*)', 'Write(*)', 'Edit(*)',
+        'Glob(*)', 'Grep(*)', 'WebFetch(*)', 'WebSearch(*)',
+        'NotebookEdit(*)', 'Task(*)',
+        'mcp__mcp-tools__*',
+      ],
+      deny: [],
+    },
+    hasCompletedOnboarding: true,
+  };
+  await writeFile(`${CLAUDE_DIR}/settings.json`, JSON.stringify(settings, null, 2), { mode: 0o600 });
+  logger.info('[CLI] Settings.json written');
+
+  // Write MCP config with streamable HTTP transport
+  const internalSecret = process.env['INTERNAL_API_SECRET'] ?? '';
+  const mcpConfig = {
+    mcpServers: {
+      'mcp-tools': {
+        type: 'http',
+        url: 'http://mcp-tools:3010/mcp',
+        ...(internalSecret ? { headers: { Authorization: `Bearer ${internalSecret}` } } : {}),
+      },
+    },
+  };
+  await writeFile(MCP_CONFIG_PATH, JSON.stringify(mcpConfig, null, 2), { mode: 0o600 });
+  logger.info('[CLI] MCP config written');
+
+  cliEnvironmentReady = true;
+}
+
+/**
+ * Semaphore: acquire a CLI execution slot.
+ * Blocks if MAX_CLI_CONCURRENCY is reached.
+ * Times out after 10 minutes to prevent indefinite queueing.
+ * High-priority executions jump ahead of lower-priority ones in the queue.
+ */
+const CLI_SLOT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+function acquireCliSlot(priority: string = 'normal'): Promise<void> {
+  const cfg = config ?? loadConfig();
+  if (cliConcurrent < cfg.maxCliConcurrency) {
+    cliConcurrent++;
+    return Promise.resolve();
+  }
+  const weight = PRIORITY_WEIGHT[priority] ?? PRIORITY_WEIGHT['normal']!;
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      // Remove from queue if still waiting
+      const idx = cliQueue.findIndex((e) => e.callback === callback);
+      if (idx >= 0) cliQueue.splice(idx, 1);
+      const queueLen = cliQueue.length;
+      reject(new Error(`CLI slot timeout: waited 600s (queued for execution but all ${cfg.maxCliConcurrency} slots remained occupied; ${queueLen} other executions still waiting). This usually indicates resource contention — consider staggering agent schedules or increasing MAX_CLI_CONCURRENCY.`));
+    }, CLI_SLOT_TIMEOUT_MS);
+
+    const callback = () => {
+      clearTimeout(timer);
+      cliConcurrent++;
+      resolve();
+    };
+
+    // Insert in priority order (highest weight first, FIFO within same priority)
+    const insertAt = cliQueue.findIndex((e) => e.priority < weight);
+    if (insertAt === -1) {
+      cliQueue.push({ priority: weight, callback });
+    } else {
+      cliQueue.splice(insertAt, 0, { priority: weight, callback });
+    }
+    logger.info(`[CLI] Execution queued (priority=${priority}) — ${cliConcurrent}/${cfg.maxCliConcurrency} slots occupied, ${cliQueue.length} in queue`);
+  });
+}
+
+/** Release a CLI execution slot, dispatching the highest-priority waiter next. */
+function releaseCliSlot(): void {
+  cliConcurrent--;
+  const cfg = config ?? loadConfig();
+  if (cliQueue.length > 0) {
+    // Queue is sorted highest-priority first; shift() picks the highest
+    const next = cliQueue.shift()!;
+    logger.info(`[CLI] Slot released — dispatching next waiter (${cliConcurrent + 1}/${cfg.maxCliConcurrency} slots occupied, ${cliQueue.length} remaining in queue)`);
+    next.callback();
+  } else {
+    logger.debug(`[CLI] Slot released (${cliConcurrent}/${cfg.maxCliConcurrency} slots occupied)`);
+  }
+}
+
+/** Start periodic OAuth token refresh timer */
+function startTokenRefreshTimer(): void {
+  const ONE_HOUR = 60 * 60 * 1000;
+  // Initial refresh after 30 seconds (let the server finish booting)
+  setTimeout(() => {
+    refreshCredentials().catch(err =>
+      logger.warn(`[CLI] Periodic token refresh error: ${err}`),
+    );
+  }, 30_000);
+  // Then every hour (8h token TTL, refresh at 1h before expiry)
+  setInterval(() => {
+    refreshCredentials().catch(err =>
+      logger.warn(`[CLI] Periodic token refresh error: ${err}`),
+    );
+  }, ONE_HOUR);
+  logger.info('[CLI] OAuth token refresh timer started (every 1h)');
+}
+
+/** Claude Code CLI OAuth client ID (constant) */
+const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
+const OAUTH_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
+const TOKEN_REFRESH_BUFFER_MS = 60 * 60 * 1000; // Refresh 1 hour before expiry
+
+/**
+ * Refresh OAuth credentials before execution.
+ * 1. Copies fresher token from mount if available
+ * 2. Auto-refreshes expired/expiring tokens using the refresh_token grant
+ * 3. Persists refreshed tokens back to mount (host) for container restart survival
+ */
+async function refreshCredentials(): Promise<void> {
+  const credsPath = `${CLAUDE_DIR}/.credentials.json`;
+  const mountPath = '/tmp/claude-credentials/.credentials.json';
+
+  // Step 1: Copy fresher token from mount if available (best-effort — mount may not exist)
+  try {
+    await access(mountPath);
+    const mountRaw = await readFile(mountPath, 'utf8');
+    const mountCreds = JSON.parse(mountRaw);
+    let currentExpiry = 0;
+    try {
+      const curRaw = await readFile(credsPath, 'utf8');
+      const cur = JSON.parse(curRaw);
+      currentExpiry = cur.claudeAiOauth?.expiresAt || 0;
+    } catch { /* no current file */ }
+    if ((mountCreds.claudeAiOauth?.expiresAt || 0) > currentExpiry) {
+      await copyFile(mountPath, credsPath);
+      await chmod(credsPath, 0o600);
+      logger.info('[CLI] Refreshed credentials from mount');
+    }
+  } catch { /* mount may not exist — continue to auto-refresh */ }
+
+  // Step 2: Check if token needs auto-refresh (runs regardless of mount availability)
+  try {
+    const raw = await readFile(credsPath, 'utf8');
+    const creds = JSON.parse(raw);
+    const oauth = creds.claudeAiOauth;
+    if (!oauth?.refreshToken) return;
+
+    const expiresAt = oauth.expiresAt || 0;
+    const now = Date.now();
+
+    if (expiresAt > now + TOKEN_REFRESH_BUFFER_MS) {
+      return; // Token still valid for > 1 hour
+    }
+
+    logger.info(`[CLI] OAuth token expires in ${Math.round((expiresAt - now) / 60000)}min — auto-refreshing`);
+
+    const res = await fetch(OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: oauth.refreshToken,
+        client_id: OAUTH_CLIENT_ID,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      logger.error(`[CLI] OAuth token refresh failed: ${res.status} ${errText.slice(0, 200)}`);
+      // Throw on auth failures so callers know the token is dead
+      if (res.status === 401 || res.status === 403) {
+        throw new Error(`OAuth refresh token rejected (${res.status}): ${errText.slice(0, 200)}`);
+      }
+      return;
+    }
+
+    const data = await res.json() as {
+      access_token: string;
+      refresh_token: string;
+      expires_in: number;
+    };
+
+    // Build updated credentials (preserve existing fields like scopes, subscriptionType)
+    const updated = {
+      claudeAiOauth: {
+        ...oauth,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token, // Single-use — must store new one
+        expiresAt: now + data.expires_in * 1000,
+      },
+    };
+
+    const updatedJson = JSON.stringify(updated);
+
+    // Write to CLI credential path
+    await writeFile(credsPath, updatedJson, { mode: 0o600 });
+    logger.info(`[CLI] OAuth token refreshed — expires ${new Date(updated.claudeAiOauth.expiresAt).toISOString()}`);
+
+    // Persist back to mount (host file) so it survives container restarts
+    try {
+      await writeFile(mountPath, updatedJson, { mode: 0o600 });
+      logger.info('[CLI] Persisted refreshed token to host mount');
+    } catch (writeErr) {
+      logger.warn(`[CLI] Could not persist to mount (read-only?): ${(writeErr as Error).message}`);
+    }
+  } catch (err) {
+    // Re-throw auth failures (OAuth refresh token rejected) so callers can abort
+    if (err instanceof Error && /OAuth refresh/i.test(err.message)) throw err;
+    logger.warn(`[CLI] Token auto-refresh error: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * Execute Claude Code CLI with the given arguments.
+ * Returns exit code, stdout, and stderr.
+ * If executionId is provided, the child process is registered in runningCliProcesses
+ * so it can be cancelled via cancelCliExecution().
+ */
+function executeClaudeCode(
+  args: string[],
+  cwd = '/workspace',
+  timeout = 900_000,
+  executionId?: string,
+  extraEnv?: Record<string, string>,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  return new Promise((resolve) => {
+    // Write prompt to temp file to avoid shell escaping issues
+    const promptIdx = args.indexOf('-p');
+    let promptFile: string | null = null;
+    const filteredArgs = [...args];
+
+    const run = async () => {
+      if (promptIdx >= 0 && promptIdx + 1 < args.length) {
+        promptFile = `/tmp/prompt-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`;
+        await writeFile(promptFile, filteredArgs[promptIdx + 1]!);
+        filteredArgs.splice(promptIdx, 2); // remove -p and prompt
+      }
+
+      const escapedArgs = filteredArgs.map(a => "'" + a.replace(/'/g, "'\\''") + "'").join(' ');
+      const shellCmd = promptFile
+        ? `claude -p "$(cat '${promptFile}')" ${escapedArgs}`
+        : `claude ${escapedArgs}`;
+
+      const proc = spawn('sh', ['-c', shellCmd], {
+        cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          ANTHROPIC_API_KEY: '', // Force OAuth subscription
+          HOME: '/tmp/claude-home',
+          ...(extraEnv ?? {}),
+        },
+      });
+
+      // Register process so cancelCliExecution() can signal it
+      if (executionId) {
+        runningCliProcesses.set(executionId, proc);
+      }
+
+      let stdout = '';
+      let stderr = '';
+      let killed = false;
+      const MAX_BUFFER = 2 * 1024 * 1024; // 2MB cap — prevent OOM from verbose agents
+
+      proc.stdout.on('data', (chunk: Buffer) => {
+        if (stdout.length < MAX_BUFFER) stdout += chunk.toString().slice(0, MAX_BUFFER - stdout.length);
+      });
+      proc.stderr.on('data', (chunk: Buffer) => {
+        const text = chunk.toString();
+        if (stderr.length < MAX_BUFFER) stderr += text.slice(0, MAX_BUFFER - stderr.length);
+        // Log first few lines in real-time for diagnostics
+        const lines = text.trim().split('\n');
+        for (const line of lines.slice(0, 3)) {
+          if (line.trim()) logger.info(`[CLI:stderr] ${line.substring(0, 200)}`);
+        }
+      });
+
+      const cleanup = async () => {
+        if (promptFile) {
+          try { await unlink(promptFile); } catch { /* ignore */ }
+        }
+      };
+
+      const killTree = () => {
+        if (killed) return; // Guard against double-kill race
+        killed = true;
+        try {
+          // Check process is still alive before killing
+          if (proc.exitCode === null) {
+            proc.kill('SIGTERM');
+            try {
+              execSync(`kill -TERM $(pgrep -P ${proc.pid}) 2>/dev/null || true`, { stdio: 'ignore', timeout: 3000 });
+            } catch { /* no children or already dead */ }
+            setTimeout(() => {
+              try { if (proc.exitCode === null) proc.kill('SIGKILL'); } catch { /* already dead */ }
+            }, 5000);
+          }
+        } catch { /* already dead */ }
+      };
+
+      proc.on('close', (code) => {
+        proc.removeAllListeners(); // Prevent listener leak across 1000s of executions
+        if (executionId) runningCliProcesses.delete(executionId);
+        cleanup().catch((e) => { if (e) console.debug("[catch]", String(e)); });
+        const cleanStdout = stdout.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim();
+        resolve({
+          exitCode: killed ? 124 : (code ?? 1),
+          stdout: cleanStdout,
+          stderr: stderr.trim(),
+        });
+      });
+
+      proc.on('error', (err) => {
+        proc.removeAllListeners();
+        if (executionId) runningCliProcesses.delete(executionId);
+        cleanup().catch((e) => { if (e) console.debug("[catch]", String(e)); });
+        resolve({ exitCode: 1, stdout: '', stderr: err.message });
+      });
+
+      setTimeout(killTree, timeout);
+    };
+
+    run().catch((err) => {
+      resolve({ exitCode: 1, stdout: '', stderr: `Setup error: ${err}` });
+    });
+  });
+}
+
+/**
+ * Parse Claude Code CLI JSON output.
+ */
+function parseCliOutput(stdout: string, stderr: string, exitCode: number): {
+  output: string;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  numTurns: number;
+  isError: boolean;
+  diagnostics?: string;
+} {
+  let output = stdout;
+  let costUsd = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let numTurns = 0;
+  let isError = false;
+  let diagnostics: string | undefined;
+
+  try {
+    let jsonStr = stdout;
+    // Remove control characters except newline
+    jsonStr = jsonStr.replace(/[\x00-\x09\x0b-\x1f\x7f]/g, '');
+    // Extract JSON object
+    const firstBrace = jsonStr.indexOf('{');
+    const lastBrace = jsonStr.lastIndexOf('}');
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+    }
+
+    const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
+    costUsd = (parsed['total_cost_usd'] as number) ?? 0;
+    numTurns = (parsed['num_turns'] as number) ?? 0;
+
+    const usage = parsed['usage'] as Record<string, number> | undefined;
+    if (usage) {
+      inputTokens = usage['input_tokens'] ?? 0;
+      outputTokens = usage['output_tokens'] ?? 0;
+    }
+
+    // Extract the agent's actual text response — prefer 'result' field
+    const resultText = parsed['result'] as string | undefined;
+    const subtype = parsed['subtype'] as string | undefined;
+
+    if (resultText && resultText.trim().length > 0) {
+      output = resultText;
+    } else if (subtype === 'error_max_budget_usd') {
+      output = `[Budget exceeded after ${numTurns} turn(s), $${costUsd.toFixed(4)} spent] No output produced — budget was exhausted before the agent could complete its work.`;
+      isError = true;
+    } else if (subtype === 'error_max_turns') {
+      output = `[Max turns reached (${numTurns}), $${costUsd.toFixed(4)} spent] Agent ran out of turns before completing. Partial work may exist in git worktree.`;
+    } else {
+      // Last resort: store a clean summary, not the raw JSON blob
+      output = `[Execution completed: ${numTurns} turns, $${costUsd.toFixed(4)}] No text output captured.`;
+    }
+
+    // Only mark as error if explicitly errored AND no useful output
+    if (parsed['is_error'] === true && outputTokens === 0) {
+      isError = true;
+    } else if (!parsed['type'] && exitCode !== 0) {
+      isError = true;
+    }
+
+    // Populate diagnostics when JSON parsed OK but execution failed
+    if (isError && !diagnostics) {
+      const errField = parsed['error'] as string | undefined;
+      const msgField = parsed['message'] as string | undefined;
+      const sub = parsed['subtype'] as string | undefined;
+      if (errField) {
+        diagnostics = errField.substring(0, 300);
+      } else if (msgField) {
+        diagnostics = msgField.substring(0, 300);
+      } else if (sub) {
+        diagnostics = `CLI error subtype: ${sub} (exit code: ${exitCode}, turns: ${numTurns})`;
+      } else {
+        diagnostics = `CLI process failed (exit code: ${exitCode}, turns: ${numTurns}, tokens: ${inputTokens + outputTokens})`;
+      }
+    }
+  } catch {
+    logger.error(`[CLI] JSON parse failed for stdout (first 200): ${stdout.substring(0, 200)}`);
+    if (stderr) logger.error(`[CLI] stderr (first 500): ${stderr.substring(0, 500)}`);
+    if (exitCode !== 0) {
+      isError = true;
+      // Provide diagnostic info when JSON parsing fails, with special handling for signal exits
+      if (exitCode === 137) {
+        diagnostics = `CLI process killed by OOM (exit code: ${exitCode}). Memory limit exceeded — increase container memory or reduce concurrent executions.`;
+      } else if (exitCode === 143) {
+        diagnostics = `CLI process terminated (exit code: ${exitCode}). Process received SIGTERM — possible timeout or resource limit.`;
+      } else if (stdout.length === 0) {
+        diagnostics = `CLI process produced no output (exit code: ${exitCode})`;
+      } else if (stderr) {
+        diagnostics = `CLI process error: ${stderr.substring(0, 200)}`;
+      } else {
+        diagnostics = `CLI process failed with non-JSON output (exit code: ${exitCode}), stdout (first 100): ${stdout.substring(0, 100)}`;
+      }
+    }
+  }
+
+  return { output, costUsd, inputTokens, outputTokens, numTurns, isError, diagnostics };
+}
+
+/** Cached result of CLI availability check */
+let cliAvailable: boolean | null = null;
+
+/**
+ * Validate prerequisites before spawning a CLI execution.
+ * Checks command availability and validates required arguments.
+ * Throws ExecutionError if prerequisites are not met.
+ */
+function validateCliPrerequisites(
+  executionId: string,
+  agentId: string,
+  input: string,
+): void {
+  // Check CLI binary availability (cached after first successful check)
+  if (cliAvailable === null) {
+    try {
+      execSync('which claude', { stdio: 'ignore', timeout: 5000 });
+      cliAvailable = true;
+    } catch {
+      cliAvailable = false;
+    }
+  }
+
+  if (!cliAvailable) {
+    throw new ExecutionError(
+      'Claude CLI binary not found in PATH',
+      'CLI_NOT_FOUND',
+      false,
+      { executionId, agentId },
+    );
+  }
+
+  // Validate required arguments
+  if (!input || input.trim().length === 0) {
+    throw new ExecutionError(
+      'CLI execution requires a non-empty input prompt',
+      'CLI_VALIDATION_ERROR',
+      false,
+      { executionId, agentId },
+    );
+  }
+
+  if (!agentId || !executionId) {
+    throw new ExecutionError(
+      'CLI execution requires valid executionId and agentId',
+      'CLI_VALIDATION_ERROR',
+      false,
+      { executionId, agentId },
+    );
+  }
+
+  // Verify workspace directory is accessible (catches mount/permission issues)
+  try {
+    execSync(`test -w ${WORKSPACE_DIR}`, { stdio: 'ignore', timeout: 3000 });
+  } catch {
+    throw new ExecutionError(
+      `Workspace directory ${WORKSPACE_DIR} is not writable`,
+      'CLI_VALIDATION_ERROR',
+      true, // Retryable — mount may recover
+      { executionId, agentId },
+    );
+  }
+
+  // Verify MCP config exists (written by setupCliEnvironment, but could be deleted)
+  try {
+    execSync(`test -f ${MCP_CONFIG_PATH}`, { stdio: 'ignore', timeout: 3000 });
+  } catch {
+    // MCP config missing — reset environment setup flag so it gets recreated
+    cliEnvironmentReady = false;
+  }
+}
+
+/**
+ * Run an agent execution via Claude Code CLI (Phase 7).
+ * Spawns the CLI as a child process with OAuth credentials and MCP tools.
+ * This is the primary execution path — agents use Claude Max subscription.
+ * Includes pre-execution validation and retry logic for transient failures.
+ */
+export async function runDirectCliExecution(
+  executionId: string,
+  agentId: string,
+  input: string,
+  ownerId: string,
+  options?: {
+    modelId?: string;
+    systemPrompt?: string;
+    sessionId?: string;
+    maxBudgetUsd?: string;
+    maxTurns?: number;
+    /** Agent's schedule interval in minutes — used for runtime budgeting. */
+    scheduleIntervalMinutes?: number;
+    /** Execution priority — high/urgent are processed before normal/low. */
+    priority?: string;
+  },
+): Promise<void> {
+  if (!initialized) {
+    await initializeWorker();
+  }
+
+  const cfg = config ?? loadConfig();
+
+  // One-time CLI environment setup (must run before validation to create dirs)
+  await setupCliEnvironment();
+
+  // Refresh OAuth credentials before each execution to prevent "Not logged in" failures
+  try {
+    await refreshCredentials();
+  } catch (refreshErr) {
+    const msg = refreshErr instanceof Error ? refreshErr.message : String(refreshErr);
+    // If the refresh token itself is rejected, abort — don't waste an execution
+    if (/refresh token rejected|OAuth refresh/i.test(msg)) {
+      logger.error(`[CLI] OAuth token is dead — aborting execution ${executionId}: ${msg}`);
+      throw new ExecutionError(
+        `OAuth token expired and refresh failed: ${msg}`,
+        'PROVIDER_ERROR',
+        false,
+        { executionId, refreshError: msg },
+      );
+    }
+    logger.warn(`[CLI] Pre-execution credential refresh failed for ${executionId}: ${msg}`);
+  }
+
+  // Pre-execution validation — fail fast before acquiring resources
+  validateCliPrerequisites(executionId, agentId, input);
+
+  // Wait for concurrency slot — high priority executions jump ahead in queue.
+  // Handle timeout separately: if we can't acquire a slot, mark the execution failed
+  // rather than leaving it in 'pending' (the .catch in the caller only logs).
+  try {
+    await acquireCliSlot(options?.priority ?? 'normal');
+  } catch (slotErr) {
+    const errorMsg = slotErr instanceof Error ? slotErr.message : String(slotErr);
+    logger.error(`[CLI] Slot acquisition failed for execution ${executionId}: ${errorMsg}`);
+    await query(
+      `UPDATE forge_executions SET status = 'failed', error = $1, completed_at = NOW() WHERE id = $2`,
+      [errorMsg, executionId],
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    return;
+  }
+
+  const startTime = Date.now();
+  forgeExecutionsTotal.inc();
+  logger.info(`[CLI] Processing execution ${executionId} for agent ${agentId}`);
+
+  // Propagate execution context via AsyncLocalStorage so tools (agent_call, agent_delegate)
+  // can access ownerId, executionId, and depth for sub-agent invocations
+  const parentCtx = getExecutionContext();
+  const depth = (parentCtx?.depth ?? 0) + (parentCtx ? 1 : 0);
+
+  await executionStore.run({ ownerId, executionId, agentId, depth }, async () => {
+
+  // Worktree state — hoisted above try/catch so finally can clean up
+  const AGENT_REPO_ROOT = '/workspace';
+  let agentWorktreeDir = '';
+  let agentBranchName = '';
+  let worktreeCreated = false;
+  let memoryCount = 0;
+
+  try {
+    // Update execution status to running
+    await query(
+      `UPDATE forge_executions SET status = 'running', started_at = NOW() WHERE id = $1`,
+      [executionId],
+    );
+
+    // Emit execution started event + audit log
+    const agentRow = await query<{ name: string; model_id: string; enabled_tools: string[] }>(`SELECT name, model_id, enabled_tools FROM forge_agents WHERE id = $1`, [agentId]);
+    const agentName = agentRow[0]?.name ?? agentId;
+    const agentModelId = agentRow[0]?.model_id ?? 'claude-sonnet-4-6';
+    const enabledTools: string[] = agentRow[0]?.enabled_tools ?? [];
+    const eventBus = getEventBus();
+    void eventBus?.emitExecution('started', executionId, agentId, agentName, {
+      input: input.substring(0, 200),
+    }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    void query(
+      `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details) VALUES ($1, $2, 'execution.start', 'execution', $3, $4)`,
+      [ulid(), ownerId, executionId, JSON.stringify({ agentId, agentName, input: input.substring(0, 200) })],
+    ).catch(() => {});
+
+    // Refresh OAuth credentials
+    await refreshCredentials();
+
+    // ---- Resolve repo credentials (Phase 4: credential injection) ----
+    let repoCredentials: RepoCredentials | null = null;
+    let repoExtraEnv: Record<string, string> = {};
+    try {
+      // Check execution metadata for repoContext
+      const execMeta = await query<{ metadata: { repoContext?: RepoContext } | null }>(
+        `SELECT metadata FROM forge_executions WHERE id = $1`,
+        [executionId],
+      );
+      const repoContext = execMeta[0]?.metadata?.repoContext;
+      if (repoContext) {
+        repoCredentials = await resolveRepoCredentials(ownerId, repoContext);
+        if (repoCredentials) {
+          // Write a git credential helper script (short-lived, per-execution)
+          const credHelperPath = `/tmp/git-cred-${executionId}.sh`;
+          const credHelperContent = buildGitCredentialHelperScript(
+            repoCredentials.provider,
+            repoCredentials.accessToken,
+          );
+          await writeFile(credHelperPath, credHelperContent, { mode: 0o700 });
+
+          // Set env vars so git uses our credential helper
+          repoExtraEnv = {
+            GIT_ASKPASS: credHelperPath,
+            GIT_TERMINAL_PROMPT: '0',
+            REPO_CLONE_URL: repoCredentials.cloneUrl,
+            REPO_FULL_NAME: repoCredentials.repoFullName,
+            REPO_PROVIDER: repoCredentials.provider,
+            REPO_DEFAULT_BRANCH: repoCredentials.defaultBranch,
+          };
+          logger.info(`[CLI] Repo credentials resolved for ${repoCredentials.repoFullName} (${repoCredentials.provider})`);
+        }
+      }
+    } catch (credErr) {
+      logger.warn(`[CLI] Failed to resolve repo credentials: ${credErr instanceof Error ? credErr.message : credErr}`);
+    }
+
+    // ---- Runtime budget calculation ----
+    const runtimeBudget = calculateRuntimeBudget(
+      options?.scheduleIntervalMinutes,
+      cfg.cliTimeout,
+    );
+    const dynamicTimeout = runtimeBudget.maxDurationMs;
+
+    // Estimate task complexity to adjust max turns
+    const complexity = estimateTaskComplexity(input);
+    const agentMaxTurns = options?.maxTurns ?? cfg.cliMaxTurns;
+    const budgetAwareTurns = suggestMaxTurns(agentMaxTurns, complexity, dynamicTimeout);
+
+    logger.info(
+      `[CLI] Runtime budget: ${Math.round(dynamicTimeout / 1000)}s timeout, ` +
+      `complexity=${complexity}, turns=${budgetAwareTurns}/${agentMaxTurns} ` +
+      `(schedule=${options?.scheduleIntervalMinutes ?? 'manual'}min)`,
+    );
+
+    // --- Git worktree isolation: only for workers that need file access ---
+    // Workers that only use web_search, memory, tickets, findings, etc. skip worktree creation
+    const FILE_TOOLS = new Set(['file_ops', 'git_ops', 'shell_exec', 'code_exec', 'code_analysis', 'deploy_ops']);
+    const agentTools = new Set(enabledTools);
+    const needsWorktree = [...agentTools].some(t => FILE_TOOLS.has(t));
+
+    const agentSlug = agentName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    if (needsWorktree) {
+      agentBranchName = `agent/${agentSlug}/${executionId}`;
+      agentWorktreeDir = `${AGENT_REPO_ROOT}/.worktrees/${agentSlug}-${executionId}`;
+
+      try {
+        const gitEnv = { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' };
+        try {
+          execFileSync('git', ['-C', AGENT_REPO_ROOT, 'worktree', 'add', agentWorktreeDir, '-b', agentBranchName, 'main'], {
+            timeout: 60_000, stdio: 'pipe', env: gitEnv,
+          });
+        } catch {
+          execFileSync('git', ['-C', AGENT_REPO_ROOT, 'worktree', 'add', agentWorktreeDir, agentBranchName], {
+            timeout: 60_000, stdio: 'pipe', env: gitEnv,
+          });
+        }
+        worktreeCreated = true;
+        logger.info(`[CLI] Created worktree for ${agentName}: ${agentWorktreeDir} (branch: ${agentBranchName})`);
+      } catch (wtErr) {
+        logger.error(`[CLI] Failed to create worktree, falling back to shared workspace: ${wtErr instanceof Error ? wtErr.message : wtErr}`);
+      }
+    } else {
+      logger.info(`[CLI] Skipping worktree for ${agentName} — no file tools enabled`);
+    }
+
+    const agentWorkDir = worktreeCreated ? agentWorktreeDir : WORKSPACE_DIR;
+
+    // Build system prompt directly — no CLAUDE.md file needed
+    let systemPromptText = '';
+
+    // Agent Zero: if system_prompt is BOOT_FROM_BRAIN, load from cognitive OS
+    if (options?.systemPrompt === 'BOOT_FROM_BRAIN') {
+      try {
+        const MCP_URL = process.env['MCP_TOOLS_URL'] || 'http://mcp-tools:3010';
+        const kernelRes = await fetch(`${MCP_URL}/api/memory/boot-kernel`, {
+          signal: AbortSignal.timeout(10_000),
+        }).then(r => r.json()) as Record<string, unknown>;
+        if (typeof kernelRes['kernel'] === 'string') {
+          options.systemPrompt = kernelRes['kernel'] as string;
+          logger.info(`[CLI] Agent Zero: loaded boot kernel from brain (${(options.systemPrompt as string).length} chars)`);
+        }
+      } catch (kernelErr) {
+        logger.warn(`[CLI] Agent Zero: boot kernel fetch failed, using fallback: ${kernelErr instanceof Error ? kernelErr.message : kernelErr}`);
+        options.systemPrompt = 'You are Alf. Your brain is offline. Operate with caution.';
+      }
+    }
+
+    if (options?.systemPrompt) {
+      try {
+        // Inject relevant memories from the shared brain (mcp-tools)
+        const memoryResult = await buildMemoryContext(agentId, input, { fleetWide: true }).catch((err) => {
+          logger.warn(`[CLI] Memory context build failed for ${agentName}: ${err instanceof Error ? err.message : err}`);
+          return { text: '', count: 0 };
+        });
+        const memoryContext = memoryResult.text;
+        memoryCount = memoryResult.count;
+
+        // Also query the mcp-tools brain for context-aware memories
+        let brainContext = '';
+        try {
+          const MCP_URL = process.env['MCP_TOOLS_URL'] || 'http://mcp-tools:3010';
+          const [relevantRes, claudemdRes] = await Promise.allSettled([
+            fetch(`${MCP_URL}/api/memory/relevant`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ context: input, limit: 5 }),
+              signal: AbortSignal.timeout(10_000),
+            }).then(r => r.json()),
+            fetch(`${MCP_URL}/api/memory/boot-kernel`, {
+              signal: AbortSignal.timeout(10_000),
+            }).then(r => r.json()),
+          ]);
+
+          if (relevantRes.status === 'fulfilled') {
+            const memories = (relevantRes.value as Record<string, unknown>)['memories'];
+            if (Array.isArray(memories) && memories.length > 0) {
+              brainContext += '\n## Brain — Context-Relevant Memories\n';
+              for (const m of memories as Array<Record<string, unknown>>) {
+                brainContext += `- [${m['tier']}] ${String(m['text']).slice(0, 200)} (relevance: ${m['similarity']})\n`;
+              }
+              memoryCount += memories.length;
+            }
+          }
+
+          if (claudemdRes.status === 'fulfilled') {
+            const kernel = (claudemdRes.value as Record<string, unknown>)['kernel'];
+            if (typeof kernel === 'string' && kernel.length > 0) {
+              brainContext += '\n' + kernel;
+            }
+          }
+        } catch (brainErr) {
+          logger.warn(`[CLI] Brain context query failed (non-fatal): ${brainErr instanceof Error ? brainErr.message : brainErr}`);
+        }
+
+        const budgetHint = formatBudgetPromptHint(runtimeBudget, agentName);
+        const memoryInstruction = [
+          '',
+          '## COGNITIVE MEMORY — USE IT',
+          'You have access to a fleet-wide cognitive memory system via the `memory_search` MCP tool.',
+          '',
+          '**Before starting work:**',
+          '- Search memory for knowledge relevant to your task: `memory_search(query="<your task keywords>")`',
+          '- Check if another agent already solved a similar problem',
+          '- Look for procedural patterns that match your workflow',
+          '',
+          '**After completing work:**',
+          '- Store key learnings via `memory_store` (type: "semantic" for facts, "episodic" for outcomes)',
+          '- Include what worked, what failed, and any discoveries about the codebase',
+          '- This helps the entire fleet learn from your experience',
+          '',
+        ].join('\n');
+        const branchInstruction = [
+          '',
+          '## GIT WORKFLOW — MANDATORY',
+          `You are working on git branch: ${agentBranchName}`,
+          `Your working directory is: ${agentWorkDir}`,
+          'All your file changes are isolated in your own git worktree.',
+          '',
+          'When you finish your work:',
+          '1. Stage your changes: run `git add -A` in your working directory',
+          '2. Commit with a descriptive message: run `git commit -m "your message"`',
+          '3. Do NOT merge to main — a human will review and merge via the Push Panel',
+          '4. Do NOT switch branches or run git checkout',
+          '5. NEVER leave uncommitted changes on disk',
+          '',
+        ].join('\n');
+        // Load organism vision — the DNA every agent carries
+        let visionContext = '';
+        try {
+          visionContext = await readFile('/workspace/VISION.md', 'utf-8');
+        } catch {
+          // Vision file not available — continue without it
+        }
+        const repoInstruction = repoCredentials ? buildRepoPromptInstructions(repoCredentials) : '';
+        systemPromptText = [visionContext, options.systemPrompt, memoryContext, brainContext, memoryInstruction, budgetHint, branchInstruction, repoInstruction]
+          .filter(Boolean)
+          .join('\n');
+      } catch {
+        logger.warn('[CLI] Could not build system prompt');
+        systemPromptText = options.systemPrompt;
+      }
+    }
+
+    // Build CLI arguments — inject system prompt directly, no CLAUDE.md file
+    const args: string[] = [
+      '-p', input,
+      '--output-format', 'json',
+      '--max-turns', String(budgetAwareTurns),
+      '--max-budget-usd', options?.maxBudgetUsd ?? cfg.cliBudgetUsd,
+      '--dangerously-skip-permissions',
+      '--mcp-config', MCP_CONFIG_PATH,
+    ];
+
+    // Wire system prompt directly into CLI — no .md file intermediary
+    if (systemPromptText) {
+      args.push('--append-system-prompt', systemPromptText);
+    }
+
+    // Use agent's configured model
+    if (options?.modelId) {
+      args.push('--model', options.modelId);
+      logger.info(`[CLI] Using model: ${options.modelId}`);
+    }
+
+    // Monitor memory usage during execution
+    monitorMemoryUsage(executionId);
+
+    // Execute CLI with retry for transient failures
+    const result = await withRetry(
+      async () => {
+        const res = await executeClaudeCode(args, agentWorkDir, dynamicTimeout, executionId, repoExtraEnv);
+        // Classify non-zero exits — throw retryable errors so withRetry can retry them
+        if (res.exitCode !== 0) {
+          const classified = classifyCliError(res.exitCode, res.stderr, res.stdout);
+          if (classified.retryable) {
+            logger.warn(
+              `[CLI] Execution ${executionId} transient failure (${classified.code}): ${classified.message} — will retry`,
+            );
+            throw classified;
+          }
+        }
+        return res;
+      },
+      {
+        maxRetries: 2,
+        baseDelayMs: 3000,
+        maxDelayMs: 15_000,
+        backoffMultiplier: 2,
+        jitter: 0.2,
+        shouldRetry: (err) => err instanceof ExecutionError && err.retryable,
+      },
+    );
+    const durationMs = Date.now() - startTime;
+
+    // Parse result
+    const parsed = parseCliOutput(result.stdout, result.stderr, result.exitCode);
+    forgeExecutionDuration.observe(durationMs);
+
+    logger.info(
+      `[CLI] Execution ${executionId} ${parsed.isError ? 'FAILED' : 'completed'} ` +
+      `in ${durationMs}ms — cost=$${parsed.costUsd.toFixed(4)} ` +
+      `tokens=${parsed.inputTokens}/${parsed.outputTokens} turns=${parsed.numTurns}`,
+    );
+
+    // Update execution record
+    const errorMsg = parsed.isError
+      ? (parsed.diagnostics || result.stderr || 'CLI execution failed with no diagnostic info')
+      : null;
+
+    await query(
+      `UPDATE forge_executions
+       SET status = $1,
+           output = $2,
+           error = $3,
+           cost = $4,
+           input_tokens = $5,
+           output_tokens = $6,
+           total_tokens = $7,
+           iterations = $8,
+           duration_ms = $9,
+           metadata = COALESCE(metadata, '{}'::jsonb) || $10::jsonb,
+           completed_at = NOW()
+       WHERE id = $11`,
+      [
+        parsed.isError ? 'failed' : 'completed',
+        parsed.output,
+        errorMsg,
+        parsed.costUsd,
+        parsed.inputTokens,
+        parsed.outputTokens,
+        parsed.inputTokens + parsed.outputTokens,
+        parsed.numTurns,
+        durationMs,
+        JSON.stringify({ memory_count: memoryCount, runtime_mode: 'cli' }),
+        executionId,
+      ],
+    );
+
+    // Record cost event for the cost dashboard (trackCost retries internally)
+    // CLI/OAuth runs are subscription-covered — record $0 cost but keep token counts for usage tracking
+    if (parsed.costUsd > 0 || parsed.inputTokens > 0) {
+      void trackCost({
+        executionId,
+        agentId,
+        ownerId,
+        provider: 'anthropic',
+        model: agentModelId,
+        inputTokens: parsed.inputTokens,
+        outputTokens: parsed.outputTokens,
+        cost: parsed.costUsd, // Track estimated cost even for OAuth — needed for fleet budgeting
+        metadata: { turns: parsed.numTurns, durationMs, memory_count: memoryCount, runtime_mode: 'cli', estimated_cost: parsed.costUsd },
+      }).catch(() => {
+        // trackCost logs full details on final failure — nothing more to do here
+      });
+    }
+
+    // Emit execution completed/failed event
+    void eventBus?.emitExecution(
+      parsed.isError ? 'failed' : 'completed',
+      executionId, agentId, agentName,
+      {
+        output: parsed.output.substring(0, 500),
+        error: parsed.isError ? (result.stderr?.substring(0, 500) || 'CLI execution failed') : undefined,
+        tokens: parsed.inputTokens + parsed.outputTokens,
+        cost: parsed.costUsd,
+        durationMs,
+        turns: parsed.numTurns,
+      },
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    void query(
+      `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details) VALUES ($1, $2, $3, 'execution', $4, $5)`,
+      [ulid(), ownerId, parsed.isError ? 'execution.fail' : 'execution.complete', executionId, JSON.stringify({ agentId, agentName, cost: parsed.costUsd, tokens: parsed.inputTokens + parsed.outputTokens, durationMs })],
+    ).catch(() => {});
+
+    // Nervous System: emit signals + grow knowledge graph
+    void (async () => {
+      try {
+        const { postExecutionSignals } = await import('../orchestration/nervous-system.js');
+        await postExecutionSignals(agentId, agentName, parsed.isError ? 'failed' : 'completed', parsed.costUsd, durationMs, parsed.output);
+      } catch { /* non-critical */ }
+      try {
+        const { extractExecutionKnowledge } = await import('../orchestration/collective-memory.js');
+        await extractExecutionKnowledge(agentName, input, parsed.output, parsed.isError ? 'failed' : 'completed');
+      } catch { /* non-critical */ }
+    })();
+
+    // Update agent performance counters (retry on transient DB errors)
+    void retryQuery(
+      `UPDATE forge_agents
+       SET tasks_completed = tasks_completed + CASE WHEN $2 THEN 1 ELSE 0 END,
+           tasks_failed = tasks_failed + CASE WHEN $2 THEN 0 ELSE 1 END
+       WHERE id = $1`,
+      [agentId, !parsed.isError],
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+
+    // Auto-review: if the agent branch has changes vs main, queue for review
+    if (worktreeCreated && !parsed.isError && agentBranchName) {
+      void (async () => {
+        try {
+          let diffStat = '';
+          try {
+            const safeBranch = agentBranchName.replace(/[^a-zA-Z0-9/_.-]/g, '');
+            diffStat = execFileSync('git', ['-C', AGENT_REPO_ROOT, 'diff', `main...${safeBranch}`, '--stat'],
+              { timeout: 10_000, env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' }, stdio: ['pipe', 'pipe', 'pipe'] },
+            ).toString().trim();
+          } catch { /* no diff or git error */ }
+
+          if (diffStat && diffStat.length > 0) {
+            const filesChanged = (diffStat.match(/\d+ file/)?.[0] || '0 files');
+            // Store review request in DB for the review queue
+            await query(
+              `INSERT INTO forge_audit_log (id, owner_id, action, resource_type, resource_id, details)
+               VALUES ($1, $2, 'branch.pending_review', 'branch', $3, $4)`,
+              [
+                `review_${Date.now().toString(36)}`,
+                ownerId,
+                agentBranchName,
+                JSON.stringify({
+                  agent_name: agentName,
+                  agent_id: agentId,
+                  execution_id: executionId,
+                  branch: agentBranchName,
+                  files_changed: filesChanged,
+                  diff_stat: diffStat.slice(0, 500),
+                }),
+              ],
+            ).catch(() => {});
+            logger.info(`[CLI] Branch ${agentBranchName} has changes (${filesChanged}) — queued for review`);
+          }
+        } catch { /* non-fatal */ }
+      })();
+    }
+
+    // Auto-cleanup spawned specialists: if this agent was spawned on demand and has
+    // no remaining open tickets, decommission it. Spawned agents use owner_id='system:core_engine'.
+    void (async () => {
+      try {
+        const agents = await query<{ owner_id: string; name: string }>(
+          `SELECT owner_id, name FROM forge_agents WHERE id = $1`,
+          [agentId],
+        );
+        const agent = agents[0];
+        if (agent?.owner_id === 'system:core_engine') {
+          const tickets = await query<{ count: string }>(
+            `SELECT COUNT(*)::text as count FROM agent_tickets
+             WHERE assigned_to = $1 AND status IN ('open', 'in_progress') AND deleted_at IS NULL`,
+            [agent.name],
+          );
+          const openTickets = tickets[0];
+          if (parseInt(openTickets?.count || '0') === 0) {
+            await query(
+              `UPDATE forge_agents SET status = 'archived', is_decommissioned = true, dispatch_enabled = false, updated_at = NOW()
+               WHERE id = $1`,
+              [agentId],
+            );
+            logger.info(`[Worker] Auto-decommissioned spawned specialist "${agent.name}" — no open tickets remaining`);
+          }
+        }
+      } catch { /* non-fatal */ }
+    })();
+
+    // Pipeline chaining: if this execution is part of a pipeline, start the next task
+    if (!parsed.isError) {
+      void (async () => {
+        try {
+          const execMeta = await query<{ metadata: Record<string, unknown> }>(
+            `SELECT metadata FROM forge_executions WHERE id = $1`,
+            [executionId],
+          );
+          const meta = execMeta[0]?.metadata;
+          if (meta?.['pattern'] === 'pipeline' && meta?.['sessionId']) {
+            const nextExec = await query<{ id: string; agent_id: string; input: string }>(
+              `SELECT id, agent_id, input FROM forge_executions
+               WHERE metadata->>'sessionId' = $1 AND status = 'queued'
+               ORDER BY started_at ASC LIMIT 1`,
+              [meta['sessionId'] as string],
+            );
+            if (nextExec[0]) {
+              const next = nextExec[0];
+              logger.info(`[Pipeline] Chaining: ${executionId} completed, starting ${next.id}`);
+              const nextAgent = await query<{ system_prompt: string; model_id: string; max_budget: string }>(
+                `SELECT system_prompt,
+                        COALESCE(metadata->>'model_id', 'claude-sonnet-4-6') AS model_id,
+                        COALESCE(metadata->>'max_budget', '0.50') AS max_budget
+                 FROM forge_agents WHERE id = $1`,
+                [next.agent_id],
+              );
+              const cfg = nextAgent[0];
+              await query(`UPDATE forge_executions SET status = 'pending' WHERE id = $1`, [next.id]);
+              void runDirectCliExecution(next.id, next.agent_id, next.input, ownerId, {
+                systemPrompt: cfg?.system_prompt,
+                modelId: cfg?.model_id,
+                maxBudgetUsd: cfg?.max_budget,
+              }).catch((err) => {
+                logger.error(`[Pipeline] Next execution ${next.id} failed: ${err instanceof Error ? err.message : String(err)}`);
+              });
+            }
+          }
+        } catch (err) {
+          logger.error(`[Pipeline] Chain check failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      })();
+    }
+
+    // Update capability proficiency from tools used in this execution
+    const toolExecs = await query<{ tool_name: string }>(
+      `SELECT DISTINCT tool_name FROM forge_tool_executions WHERE execution_id = $1`,
+      [executionId],
+    ).catch(() => [] as { tool_name: string }[]);
+    if (toolExecs.length > 0) {
+      void updateCapabilityFromExecution(
+        agentId, toolExecs.map((t) => t.tool_name), !parsed.isError,
+      ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    }
+
+    // Fire-and-forget memory extraction (forge's internal memory manager)
+    void extractMemories({
+      executionId,
+      agentId,
+      ownerId,
+      input,
+      output: parsed.output,
+      isError: parsed.isError,
+      costUsd: parsed.costUsd,
+      inputTokens: parsed.inputTokens,
+      outputTokens: parsed.outputTokens,
+      numTurns: parsed.numTurns,
+      durationMs,
+    }).catch((err) => {
+      logger.warn(`[Memory] Post-execution extraction failed: ${err instanceof Error ? err.message : String(err)}`);
+    });
+
+    // Feed the shared brain (mcp-tools memory system) with execution conversation
+    void (async () => {
+      try {
+        const MCP_URL = process.env['MCP_TOOLS_URL'] || 'http://mcp-tools:3010';
+        const conversation = `Agent: ${agentName}\nTask: ${input}\nOutcome: ${parsed.isError ? 'FAILED' : 'COMPLETED'}\nOutput: ${parsed.output.slice(0, 3000)}`;
+
+        // Extract memories into the shared brain
+        await fetch(`${MCP_URL}/api/memory/extract`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversation, project: 'askalf', session_id: executionId }),
+          signal: AbortSignal.timeout(30_000),
+        });
+
+        // Store execution outcome for procedural reinforcement
+        await fetch(`${MCP_URL}/api/memory/tool-outcome`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tool_name: `agent:${agentName}`,
+            command: input.slice(0, 300),
+            success: !parsed.isError,
+            error: parsed.isError ? parsed.output.slice(0, 200) : undefined,
+            duration_ms: durationMs,
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        logger.info(`[Brain] Shared brain updated for execution ${executionId}`);
+      } catch (brainErr) {
+        logger.warn(`[Brain] Failed to update shared brain (non-fatal): ${brainErr instanceof Error ? brainErr.message : brainErr}`);
+      }
+    })();
+
+    // Fire-and-forget knowledge graph extraction (Phase 11)
+    if (!parsed.isError && parsed.output.length > 200) {
+      void extractKnowledge(agentId, parsed.output, input).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    }
+
+    // Record cost sample for optimization (Phase 10)
+    if (parsed.costUsd > 0) {
+      const quality = parsed.isError ? 0.2 : 0.8;
+      const totalTokens = parsed.inputTokens + parsed.outputTokens;
+      // Record at agent level (CLI mode doesn't populate forge_tool_executions)
+      void recordCostSample(agentName, agentModelId, parsed.costUsd, totalTokens, quality).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+    }
+  } catch (err) {
+    const durationMs = Date.now() - startTime;
+    const errorMsg = err instanceof Error ? err.message : String(err);
+
+    // Structured error logging with classification
+    if (err instanceof ExecutionError) {
+      logger.error(
+        `[CLI] Execution ${executionId} ${err.retryable ? 'TRANSIENT' : 'FATAL'} error ` +
+        `(${err.code}): ${err.message} metadata=${JSON.stringify(err.metadata)}`,
+      );
+    } else {
+      logger.error(`[CLI] Execution ${executionId} error: ${errorMsg}`);
+    }
+
+    // Emit failure event
+    const errorCode = err instanceof ExecutionError ? err.code : 'UNKNOWN';
+    void getEventBus()?.emitExecution('failed', executionId, agentId, agentId, {
+      error: `[${errorCode}] ${errorMsg.substring(0, 500)}`,
+      durationMs,
+    }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+
+    await query(
+      `UPDATE forge_executions
+       SET status = 'failed', error = $1, duration_ms = $2, completed_at = NOW()
+       WHERE id = $3`,
+      [errorMsg, durationMs, executionId],
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+
+    // Update agent failure counter
+    await query(
+      `UPDATE forge_agents SET tasks_failed = tasks_failed + 1 WHERE id = $1`,
+      [agentId],
+    ).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+  } finally {
+    // Clean up memory monitor for this execution
+    const memMonitor = memoryMonitors.get(executionId);
+    if (memMonitor) {
+      clearInterval(memMonitor);
+      memoryMonitors.delete(executionId);
+    }
+
+    // Clean up git credential helper (contains sensitive token — must be removed)
+    try {
+      const credHelperPath = `/tmp/git-cred-${executionId}.sh`;
+      await unlink(credHelperPath).catch(() => {});
+    } catch { /* ignore */ }
+
+    // Check if agent made changes, push branch, and create PR before cleaning up worktree
+    if (worktreeCreated && agentBranchName) {
+      const gitEnv = { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' };
+      try {
+        // Check if there are commits on the agent branch that aren't on main
+        const diffOutput = execSync(
+          `git -C "${agentWorktreeDir}" log main..HEAD --oneline 2>/dev/null || echo ""`,
+          { encoding: 'utf8', timeout: 10_000, env: gitEnv },
+        ).trim();
+
+        if (diffOutput && diffOutput.length > 0) {
+          const commitCount = diffOutput.split('\n').filter(Boolean).length;
+          const agentSlugForPr = agentBranchName.split('/')[1] || agentId;
+          logger.info(`[CLI] Agent ${agentSlugForPr} made ${commitCount} commit(s) on branch ${agentBranchName}`);
+
+          // Push the branch
+          try {
+            execSync(
+              `git -C "${agentWorktreeDir}" push origin "${agentBranchName}" 2>&1`,
+              { encoding: 'utf8', timeout: 30_000, env: gitEnv },
+            );
+            logger.info(`[CLI] Pushed branch ${agentBranchName} to origin`);
+
+            // Create PR via gh CLI
+            const firstCommitMsg = diffOutput.split('\n')[0]?.substring(8) || 'Agent changes';
+            const prTitle = `[${agentSlugForPr}] ${firstCommitMsg}`.substring(0, 70);
+            try {
+              const prResult = execSync(
+                `cd "${agentWorktreeDir}" && gh pr create --title "${prTitle.replace(/"/g, '')}" --body "Automated changes by agent. Execution: ${executionId}" --base main --head "${agentBranchName}" 2>&1`,
+                { encoding: 'utf8', timeout: 15_000, env: gitEnv },
+              ).trim();
+              logger.info(`[CLI] Created PR: ${prResult}`);
+
+              // Auto-merge if agent has autonomy >= 3
+              try {
+                const autonomyRow = await query<{ autonomy_level: number }>(
+                  `SELECT autonomy_level FROM forge_agents WHERE id = $1`, [agentId],
+                );
+                if (autonomyRow[0] && autonomyRow[0].autonomy_level >= 3) {
+                  execSync(
+                    `cd "${agentWorktreeDir}" && gh pr merge --auto --squash 2>&1 || true`,
+                    { encoding: 'utf8', timeout: 10_000, env: gitEnv },
+                  );
+                  logger.info(`[CLI] Auto-merge enabled for PR`);
+                }
+              } catch { /* auto-merge may not be available */ }
+            } catch (prErr) {
+              logger.warn(`[CLI] Failed to create PR: ${prErr instanceof Error ? prErr.message : prErr}`);
+            }
+          } catch (pushErr) {
+            logger.warn(`[CLI] Failed to push branch: ${pushErr instanceof Error ? pushErr.message : pushErr}`);
+          }
+        } else {
+          logger.info(`[CLI] Agent made no commits on ${agentBranchName} — no PR needed`);
+        }
+      } catch (diffErr) {
+        logger.debug(`[CLI] Could not check for agent commits: ${diffErr instanceof Error ? diffErr.message : diffErr}`);
+      }
+
+      // Clean up worktree (branch preserved on remote)
+      await new Promise<void>((resolve) => {
+        exec(
+          `git -C "${AGENT_REPO_ROOT}" worktree remove "${agentWorktreeDir}" --force 2>/dev/null || true`,
+          {
+            timeout: 30_000,
+            env: { ...process.env, HOME: '/tmp', GIT_TERMINAL_PROMPT: '0' },
+          },
+          (err) => {
+            if (err) {
+              logger.warn(`[CLI] Worktree cleanup failed: ${err.message}`);
+            }
+            resolve();
+          },
+        );
+      });
+    }
+    releaseCliSlot();
+  }
+
+  }); // end executionStore.run()
+}
+
+/**
+ * Run a synchronous CLI query (for System Assistant).
+ * Spawns CLI with OAuth + MCP tools, returns output directly.
+ * Shorter timeout and fewer turns than agent executions.
+ */
+export async function runCliQuery(
+  prompt: string,
+  options?: {
+    model?: string;
+    maxTurns?: number;
+    timeout?: number;
+    systemPrompt?: string;
+  },
+): Promise<{
+  output: string;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  numTurns: number;
+  isError: boolean;
+}> {
+  if (!initialized) {
+    await initializeWorker();
+  }
+
+  await setupCliEnvironment();
+  await acquireCliSlot();
+
+  try {
+    await refreshCredentials();
+
+    // Write system prompt as CLAUDE.md in a temp directory to avoid conflicts
+    const tempDir = `/tmp/assistant-query-${Date.now()}`;
+    await mkdir(tempDir, { recursive: true });
+
+    if (options?.systemPrompt) {
+      await writeFile(`${tempDir}/CLAUDE.md`, options.systemPrompt);
+    }
+
+    const args: string[] = [
+      '-p', prompt,
+      '--output-format', 'json',
+      '--max-turns', String(options?.maxTurns ?? 10),
+      '--dangerously-skip-permissions',
+      '--add-dir', tempDir,
+      '--mcp-config', MCP_CONFIG_PATH,
+    ];
+
+    if (options?.model) {
+      args.push('--model', options.model);
+    }
+
+    const result = await executeClaudeCode(args, tempDir, options?.timeout ?? 120000);
+    const parsed = parseCliOutput(result.stdout, result.stderr, result.exitCode);
+
+    // Cleanup temp directory
+    await rm(tempDir, { recursive: true }).catch((e) => { if (e) console.debug("[catch]", String(e)); });
+
+    return parsed;
+  } finally {
+    releaseCliSlot();
+  }
+}

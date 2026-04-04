@@ -1,0 +1,572 @@
+# AskAlf Self-Hosted — docker compose up
+# See .env.example for configuration options
+
+name: askalf
+
+services:
+  # ===========================================
+  # DATABASE LAYER
+  # ===========================================
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17-bookworm@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
+    container_name: askalf-postgres
+    labels:
+      - "autoheal-askalf=true"
+    stop_grace_period: 30s
+    expose:
+      - "5432"
+    environment:
+      POSTGRES_USER: askalf
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: askalf
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    shm_size: 256m
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./packages/database/src/migrations:/docker-entrypoint-initdb.d:ro
+      - ./infrastructure/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+      - /var/run/postgresql:mode=755,size=8m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U askalf -d askalf"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+
+  redis:
+    image: redis:8.4-alpine@sha256:e55195a3afbb812a14306909caad6583a1ab6c79f393f53490e42cb2111084a9
+    container_name: askalf-redis
+    stop_grace_period: 10s
+    labels:
+      - "autoheal-askalf=true"
+    command: redis-server /usr/local/etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+      - ./infrastructure/redis/redis-selfhosted.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    read_only: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+
+  # ===========================================
+  # APPLICATION LAYER
+  # ===========================================
+  forge:
+    image: askalf/forge:${ASKALF_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: apps/forge/Dockerfile
+    container_name: askalf-forge
+    env_file:
+      - path: .env
+        required: false
+    labels:
+      - "autoheal-askalf=true"
+    ports:
+      - "${FORGE_PORT:-3005}:3005"
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      SELFHOSTED: "true"
+      FORGE_DATABASE_URL: postgresql://askalf:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      SUBSTRATE_DATABASE_URL: postgresql://askalf:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      # AI Providers
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      MARKETPLACE_URL: ${MARKETPLACE_URL:-}
+      # Channel integrations
+      CHANNEL_ENCRYPTION_KEY: ${CHANNEL_ENCRYPTION_KEY:-}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      # OpenClaw bridge (optional)
+      OPENCLAW_GATEWAY_URL: ${OPENCLAW_GATEWAY_URL:-}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-}
+      BASE_URL: http://localhost:${DASHBOARD_PORT:-3001}
+      # Auth
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SELFHOSTED_ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@localhost}
+      SELFHOSTED_ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      REPO_ROOT: /workspace
+      WORKSPACE_ROOT: /workspace
+      HOME: /tmp/claude-home
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /workspace
+      MAX_CLI_CONCURRENCY: ${MAX_CLI_CONCURRENCY:-4}
+      SEARXNG_URL: http://searxng:8080
+      # GitHub integration
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GH_TOKEN: ${GH_TOKEN:-}
+      # Public demo (only for hosted askalf.org, not self-hosted)
+      ENABLE_PUBLIC_DEMO: ${ENABLE_PUBLIC_DEMO:-}
+      # OAuth (for Claude CLI subscription)
+      ANTHROPIC_OAUTH_CLIENT_ID: ${ANTHROPIC_OAUTH_CLIENT_ID:-}
+      ANTHROPIC_OAUTH_CLIENT_SECRET: ${ANTHROPIC_OAUTH_CLIENT_SECRET:-}
+    volumes:
+      - .:/workspace:ro
+      - credentials:/tmp/claude-credentials
+      - ${CLAUDE_CREDENTIALS_FILE:-${HOME}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
+      - ${HOME}/.claude:/tmp/claude-home/.claude
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    group_add:
+      - "0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 60s
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    stop_grace_period: 100s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=1777,size=2g
+      - /tmp/claude-home:mode=1777
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  dashboard:
+    image: askalf/dashboard:${ASKALF_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile
+      args:
+        SELFHOSTED: "true"
+        INSTALL_CLAUDE: ${INSTALL_CLAUDE:-true}
+        INSTALL_CODEX: ${INSTALL_CODEX:-true}
+    container_name: askalf-dashboard
+    labels:
+      - "autoheal-askalf=true"
+    ports:
+      - "${DASHBOARD_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      SELFHOSTED: "true"
+      DATABASE_URL: postgresql://askalf:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      SESSION_SECRET: ${SESSION_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      FORGE_URL: http://forge:3005
+      FORGE_API_KEY: ${FORGE_API_KEY:-}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      WORKSPACE_DIR: /workspace
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GIT_AUTHOR_NAME: askalf
+      GIT_AUTHOR_EMAIL: 263217947+askalf@users.noreply.github.com
+      GIT_COMMITTER_NAME: askalf
+      GIT_COMMITTER_EMAIL: 263217947+askalf@users.noreply.github.com
+    volumes:
+      - .:/workspace:rw
+      - credentials:/tmp/claude-credentials
+      - ${CLAUDE_CREDENTIALS_FILE:-${HOME}/.claude/.credentials.json}:/tmp/claude-credentials/.credentials.json:ro
+      - claude_home:/home/askalf/.claude-session
+      - codex_home:/home/askalf/.codex-session
+    depends_on:
+      postgres:
+        condition: service_healthy
+      forge:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=1777,size=512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+        reservations:
+          memory: 512M
+
+  mcp-tools:
+    image: askalf/mcp-tools:${ASKALF_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: apps/mcp-tools/Dockerfile
+    container_name: askalf-mcp-tools
+    labels:
+      - "autoheal-askalf=true"
+    ports:
+      - "127.0.0.1:3010:3010"
+    environment:
+      NODE_ENV: production
+      PORT: 3010
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      DATABASE_URL: postgresql://askalf:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      FORGE_DATABASE_URL: postgresql://askalf:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      SUBSTRATE_DATABASE_URL: postgresql://askalf:${POSTGRES_PASSWORD}@postgres:5432/askalf
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      SEARXNG_URL: http://searxng:8080
+      FORGE_URL: http://forge:3005
+      FORGE_API_KEY: ${FORGE_API_KEY:-}
+      TWITTER_API_KEY: ${TWITTER_API_KEY:-}
+      TWITTER_API_SECRET: ${TWITTER_API_SECRET:-}
+      TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN:-}
+      TWITTER_ACCESS_TOKEN: ${TWITTER_ACCESS_TOKEN:-}
+      TWITTER_ACCESS_TOKEN_SECRET: ${TWITTER_ACCESS_TOKEN_SECRET:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      TWITTER_USERNAME: ${TWITTER_USERNAME:-}
+      TWITTER_PASSWORD: ${TWITTER_PASSWORD:-}
+      TWITTER_EMAIL: ${TWITTER_EMAIL:-}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      REPO_ROOT: /workspace
+    group_add:
+      - "0"
+    volumes:
+      - .:/workspace:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    shm_size: '256mb'
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=1777,size=128m
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 96M
+
+  # ===========================================
+  # INFRASTRUCTURE
+  # ===========================================
+  searxng:
+    image: searxng/searxng@sha256:1a143665b6445079d1cd5b6facdf599d22ac9c29698dd2e7d15eb9b5f5a854cc
+    container_name: askalf-searxng
+    labels:
+      - "autoheal-askalf=true"
+    environment:
+      SEARXNG_VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      SEARXNG_SECRET: ${SEARXNG_SECRET_KEY}
+      HTTP_PROXY: http://gluetun:8888
+      HTTPS_PROXY: http://gluetun:8888
+    depends_on:
+      redis:
+        condition: service_healthy
+      gluetun:
+        condition: service_healthy
+    volumes:
+      - ./infrastructure/searxng:/etc/searxng:ro
+      - searxng_cache:/var/cache/searxng
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 128M
+
+  # ===========================================
+  # GLUETUN — VPN tunnel for outbound traffic (optional)
+  # Activate: docker compose --profile vpn up -d
+  # All outbound API calls route through encrypted VPN tunnel.
+  # ===========================================
+  gluetun:
+    image: qmcgaw/gluetun:v3.40.0@sha256:2b42bfa046757145a5155acece417b65b4443c8033fb88661a8e9dcf7fda5a00
+    container_name: askalf-gluetun
+    labels:
+      - "autoheal-askalf=true"
+    environment:
+      VPN_SERVICE_PROVIDER: protonvpn
+      VPN_TYPE: wireguard
+      WIREGUARD_PRIVATE_KEY: ${PROTON_WIREGUARD_PRIVATE_KEY}
+      SERVER_COUNTRIES: ${PROTON_SERVER_COUNTRIES:-United States}
+      # HTTP proxy for searxng and other services
+      HTTPPROXY: "on"
+      HTTPPROXY_LISTENING_ADDRESS: ":8888"
+      HTTPPROXY_STEALTH: "on"
+      # DNS leak protection — uses internal DoT resolver
+      DOT: "on"
+      DOT_PROVIDERS: cloudflare,quad9
+      # Security
+      BLOCK_MALICIOUS: "on"
+      BLOCK_ADS: "on"
+      BLOCK_SURVEILLANCE: "on"
+      # Auto-refresh VPN server list daily
+      UPDATER_PERIOD: 24h
+      # Firewall — only allow HTTP proxy port internally
+      FIREWALL_VPN_INPUT_PORTS: ""
+    cap_add:
+      - NET_ADMIN
+      - CHOWN
+      - DAC_OVERRIDE
+    cap_drop:
+      - ALL
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    tmpfs:
+      - /tmp:mode=1777,size=16m
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+        reservations:
+          memory: 64M
+
+  # ===========================================
+  # OLLAMA — Local LLM inference (GPU accelerated)
+  # Run models like Llama, Mistral, Phi, Qwen, CodeLlama locally
+  # No API keys needed. Models download on first use.
+  # ===========================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: askalf-ollama
+    labels:
+      - "autoheal-askalf=true"
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      # Performance tuning
+      OLLAMA_NUM_PARALLEL: "${OLLAMA_NUM_PARALLEL:-2}"
+      OLLAMA_MAX_LOADED_MODELS: "${OLLAMA_MAX_LOADED_MODELS:-2}"
+      OLLAMA_KEEP_ALIVE: "${OLLAMA_KEEP_ALIVE:-10m}"
+      OLLAMA_MAX_QUEUE: "256"
+      OLLAMA_FLASH_ATTENTION: "true"
+      # Allow connections from forge and dashboard
+      OLLAMA_ORIGINS: "http://forge:3005,http://dashboard:3001,http://localhost:*,http://127.0.0.1:*"
+      OLLAMA_HOST: "0.0.0.0:11434"
+      # Note: OLLAMA_NO_CLOUD blocks registry pulls — leave disabled
+      OLLAMA_NOPRUNE: "false"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    # GPU acceleration: uncomment reservations below if nvidia-container-toolkit is working
+    # To test: docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        #reservations:
+        #  devices:
+        #    - driver: nvidia
+        #      count: all
+        #      capabilities: [gpu]
+
+  # ===========================================
+  # AUTOHEAL — auto-restart unhealthy containers
+  # Monitors all containers with autoheal-askalf label.
+  # If a container fails its healthcheck, Autoheal restarts it.
+  # ===========================================
+  autoheal:
+    image: willfarrell/autoheal@sha256:eeb45dc8997520bedc6b53c65c4a605a6ded3ea2be960e6c194fb9d8e3f10d4d
+    container_name: askalf-autoheal
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal-askalf
+      AUTOHEAL_INTERVAL: 30
+      AUTOHEAL_START_PERIOD: 60
+      AUTOHEAL_DEFAULT_STOP_TIMEOUT: 10
+      AUTOHEAL_ONLY_MONITOR_RUNNING: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    network_mode: none
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+
+volumes:
+  postgres_data:
+    name: askalf_postgres_data
+  redis_data:
+    name: askalf_redis_data
+  searxng_cache:
+    name: askalf_searxng_cache
+  credentials:
+    name: askalf_credentials
+  claude_home:
+    name: askalf_claude_home
+  codex_home:
+    name: askalf_codex_home
+  ollama_data:
+    name: askalf_ollama_data
+
+networks:
+  askalf-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.name: "askalf-br0"
