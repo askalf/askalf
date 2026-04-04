@@ -1638,19 +1638,27 @@ function startTokenRefreshTimer(): void {
 /** Claude Code CLI OAuth client ID (constant) */
 const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const OAUTH_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
-const TOKEN_REFRESH_BUFFER_MS = 60 * 60 * 1000; // Refresh 1 hour before expiry
+const TOKEN_REFRESH_BUFFER_MS = 2 * 60 * 60 * 1000; // Refresh 2 hours before expiry (aggressive)
+
+// Track consecutive refresh failures to know when OAuth is truly dead
+let oauthRefreshFailures = 0;
+const MAX_REFRESH_FAILURES = 5;
 
 /**
  * Refresh OAuth credentials before execution.
- * 1. Copies fresher token from mount if available
- * 2. Auto-refreshes expired/expiring tokens using the refresh_token grant
- * 3. Persists refreshed tokens back to mount (host) for container restart survival
+ * Multi-strategy approach to keep tokens alive:
+ * 1. Copy fresher token from host mount
+ * 2. Auto-refresh with aggressive timing (2hr buffer)
+ * 3. Retry with exponential backoff on transient failures
+ * 4. Persist to multiple locations for redundancy
+ * 5. Track failures — after MAX_REFRESH_FAILURES, callers should fall back to API key
  */
 async function refreshCredentials(): Promise<void> {
   const credsPath = `${CLAUDE_DIR}/.credentials.json`;
   const mountPath = '/tmp/claude-credentials/.credentials.json';
+  const backupPath = `${CLAUDE_DIR}/.credentials.backup.json`;
 
-  // Step 1: Copy fresher token from mount if available (best-effort — mount may not exist)
+  // Step 1: Copy fresher token from mount if available
   try {
     await access(mountPath);
     const mountRaw = await readFile(mountPath, 'utf8');
@@ -1665,10 +1673,11 @@ async function refreshCredentials(): Promise<void> {
       await copyFile(mountPath, credsPath);
       await chmod(credsPath, 0o600);
       logger.info('[CLI] Refreshed credentials from mount');
+      oauthRefreshFailures = 0; // Reset on successful mount copy
     }
   } catch { /* mount may not exist — continue to auto-refresh */ }
 
-  // Step 2: Check if token needs auto-refresh (runs regardless of mount availability)
+  // Step 2: Auto-refresh with aggressive timing
   try {
     const raw = await readFile(credsPath, 'utf8');
     const creds = JSON.parse(raw);
@@ -1679,60 +1688,73 @@ async function refreshCredentials(): Promise<void> {
     const now = Date.now();
 
     if (expiresAt > now + TOKEN_REFRESH_BUFFER_MS) {
-      return; // Token still valid for > 1 hour
+      return; // Token still valid
     }
 
     logger.info(`[CLI] OAuth token expires in ${Math.round((expiresAt - now) / 60000)}min — auto-refreshing`);
 
-    const res = await fetch(OAUTH_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: oauth.refreshToken,
-        client_id: OAUTH_CLIENT_ID,
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
+    // Backup current credentials before attempting refresh
+    try { await writeFile(backupPath, raw, { mode: 0o600 }); } catch {}
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      logger.error(`[CLI] OAuth token refresh failed: ${res.status} ${errText.slice(0, 200)}`);
-      // Throw on auth failures so callers know the token is dead
-      if (res.status === 401 || res.status === 403) {
-        throw new Error(`OAuth refresh token rejected (${res.status}): ${errText.slice(0, 200)}`);
+    // Try refresh with retry
+    let refreshed = false;
+    for (let attempt = 0; attempt < 3 && !refreshed; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+
+      try {
+        const res = await fetch(OAUTH_TOKEN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: oauth.refreshToken,
+            client_id: OAUTH_CLIENT_ID,
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          if (res.status === 401 || res.status === 403) {
+            oauthRefreshFailures++;
+            logger.error(`[CLI] OAuth refresh rejected (${res.status}, failure ${oauthRefreshFailures}/${MAX_REFRESH_FAILURES}): ${errText.slice(0, 200)}`);
+            if (oauthRefreshFailures >= MAX_REFRESH_FAILURES) {
+              logger.error('[CLI] OAuth appears permanently broken — agents should use API key fallback (ANTHROPIC_API_KEY)');
+            }
+            throw new Error(`OAuth refresh token rejected (${res.status})`);
+          }
+          logger.warn(`[CLI] OAuth refresh attempt ${attempt + 1} failed: ${res.status}`);
+          continue;
+        }
+
+        const data = await res.json() as {
+          access_token: string;
+          refresh_token: string;
+          expires_in: number;
+        };
+
+        const updated = {
+          claudeAiOauth: {
+            ...oauth,
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token,
+            expiresAt: now + data.expires_in * 1000,
+          },
+        };
+
+        const updatedJson = JSON.stringify(updated);
+
+        // Write to all credential locations for redundancy
+        await writeFile(credsPath, updatedJson, { mode: 0o600 });
+        try { await writeFile(mountPath, updatedJson, { mode: 0o600 }); } catch {}
+        try { await writeFile(backupPath, updatedJson, { mode: 0o600 }); } catch {}
+
+        logger.info(`[CLI] OAuth token refreshed — expires ${new Date(updated.claudeAiOauth.expiresAt).toISOString()}`);
+        oauthRefreshFailures = 0;
+        refreshed = true;
+      } catch (fetchErr) {
+        if (attempt === 2) throw fetchErr;
       }
-      return;
-    }
-
-    const data = await res.json() as {
-      access_token: string;
-      refresh_token: string;
-      expires_in: number;
-    };
-
-    // Build updated credentials (preserve existing fields like scopes, subscriptionType)
-    const updated = {
-      claudeAiOauth: {
-        ...oauth,
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token, // Single-use — must store new one
-        expiresAt: now + data.expires_in * 1000,
-      },
-    };
-
-    const updatedJson = JSON.stringify(updated);
-
-    // Write to CLI credential path
-    await writeFile(credsPath, updatedJson, { mode: 0o600 });
-    logger.info(`[CLI] OAuth token refreshed — expires ${new Date(updated.claudeAiOauth.expiresAt).toISOString()}`);
-
-    // Persist back to mount (host file) so it survives container restarts
-    try {
-      await writeFile(mountPath, updatedJson, { mode: 0o600 });
-      logger.info('[CLI] Persisted refreshed token to host mount');
-    } catch (writeErr) {
-      logger.warn(`[CLI] Could not persist to mount (read-only?): ${(writeErr as Error).message}`);
     }
   } catch (err) {
     // Re-throw auth failures (OAuth refresh token rejected) so callers can abort
