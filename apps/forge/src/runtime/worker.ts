@@ -1790,19 +1790,37 @@ function executeClaudeCode(
       }
 
       const escapedArgs = filteredArgs.map(a => "'" + a.replace(/'/g, "'\\''") + "'").join(' ');
+
+      // Auth strategy:
+      // 1. Primary: OAuth token (from .credentials.json) — uses subscription quota
+      // 2. Fallback: API key — if OAuth is dead (oauthRefreshFailures >= MAX_REFRESH_FAILURES),
+      //    pass ANTHROPIC_API_KEY so the CLI uses direct API billing instead
+      const useApiKeyFallback = oauthRefreshFailures >= MAX_REFRESH_FAILURES && process.env['ANTHROPIC_API_KEY'];
+      const apiKeyFlag = useApiKeyFallback ? ` --api-key '${process.env['ANTHROPIC_API_KEY']}'` : '';
+
+      if (useApiKeyFallback) {
+        logger.warn('[CLI] OAuth dead — using ANTHROPIC_API_KEY fallback for execution');
+      }
+
       const shellCmd = promptFile
-        ? `claude -p "$(cat '${promptFile}')" ${escapedArgs}`
-        : `claude ${escapedArgs}`;
+        ? `claude -p "$(cat '${promptFile}')"${apiKeyFlag} ${escapedArgs}`
+        : `claude${apiKeyFlag} ${escapedArgs}`;
+
+      // Build env: only clear API key if OAuth is working (forces subscription billing).
+      // If OAuth is dead, pass the API key through env as additional fallback.
+      const cliEnv: Record<string, string> = {
+        ...process.env as Record<string, string>,
+        HOME: '/tmp/claude-home',
+        ...(extraEnv ?? {}),
+      };
+      if (!useApiKeyFallback) {
+        cliEnv['ANTHROPIC_API_KEY'] = ''; // Force OAuth subscription when OAuth works
+      }
 
       const proc = spawn('sh', ['-c', shellCmd], {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: {
-          ...process.env,
-          ANTHROPIC_API_KEY: '', // Force OAuth subscription
-          HOME: '/tmp/claude-home',
-          ...(extraEnv ?? {}),
-        },
+        env: cliEnv,
       });
 
       // Register process so cancelCliExecution() can signal it
