@@ -14,7 +14,7 @@
     "test": "tsx tests/unit.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.81.0",
+    "@anthropic-ai/sdk": "^0.82.0",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^10.0.0",
     "@fastify/websocket": "^11.0.1",
@@ -24,8 +24,8 @@
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "bcryptjs": "^2.4.3",
-    "bullmq": "^5.71.1",
-    "dotenv": "^17.3.1",
+    "bullmq": "^5.73.0",
+    "dotenv": "^17.4.0",
     "fastify": "^5.8.4",
     "ioredis": "^5.10.1",
     "openai": "^6.33.0",

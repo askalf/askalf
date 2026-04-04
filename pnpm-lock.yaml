@@ -25,8 +25,8 @@ importers:
   .:
     dependencies:
       dotenv:
-        specifier: ^17.3.1
-        version: 17.3.1
+        specifier: ^17.4.0
+        version: 17.4.0
       pg:
         specifier: ^8.20.0
         version: 8.20.0
@@ -104,8 +104,8 @@ importers:
   apps/forge:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: ^0.81.0
-        version: 0.81.0(zod@3.25.76)
+        specifier: ^0.82.0
+        version: 0.82.0(zod@3.25.76)
       '@askalf/database-adapter':
         specifier: workspace:*
         version: link:../../packages/database-adapter
@@ -146,11 +146,11 @@ importers:
         specifier: ^2.4.3
         version: 2.4.3
       bullmq:
-        specifier: ^5.71.1
-        version: 5.71.1
+        specifier: ^5.73.0
+        version: 5.73.0
       dotenv:
-        specifier: ^17.3.1
-        version: 17.3.1
+        specifier: ^17.4.0
+        version: 17.4.0
       fastify:
         specifier: '>=5.8.1'
         version: 5.8.4
@@ -328,8 +328,8 @@ importers:
         version: 8.20.0
     optionalDependencies:
       '@electric-sql/pglite':
-        specifier: ^0.2.0
-        version: 0.2.17
+        specifier: ^0.4.3
+        version: 0.4.3
     devDependencies:
       '@types/pg':
         specifier: ^8.11.0
@@ -404,8 +404,8 @@ importers:
 
 packages:
 
-  '@anthropic-ai/sdk@0.81.0':
-    resolution: {integrity: sha512-D4K5PvEV6wPiRtVlVsJHIUhHAmOZ6IT/I9rKlTf84gR7GyyAurPJK7z9BOf/AZqC5d1DhYQGJNKRmV+q8dGhgw==}
+  '@anthropic-ai/sdk@0.82.0':
+    resolution: {integrity: sha512-xdHTjL1GlUlDugHq/I47qdOKp/ROPvuHl7ROJCgUQigbvPu7asf9KcAcU1EqdrP2LuVhEKaTs7Z+ShpZDRzHdQ==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -452,8 +452,8 @@ packages:
     resolution: {integrity: sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw==}
     engines: {node: '>=18'}
 
-  '@electric-sql/pglite@0.2.17':
-    resolution: {integrity: sha512-qEpKRT2oUaWDH6tjRxLHjdzMqRUGYDnGZlKrnL4dJ77JVMcP2Hpo3NYnOSPKdZdeec57B6QPprCUFg0picx5Pw==}
+  '@electric-sql/pglite@0.4.3':
+    resolution: {integrity: sha512-ichuWTgtd4mOM1G4SpyGJa5trT03lWbMypDV0fUXUCXg5hiHqVAz/bZyV68NqmkLB7WcYmj1RMJVSp8HV/v/ZQ==}
 
   '@esbuild/aix-ppc64@0.27.2':
     resolution: {integrity: sha512-GZMB+a0mOMZs4MpDbj8RJp4cw+w1WV5NYD6xzgvzUJ5Ek2jerwfO2eADyI6ExDSUED+1X8aMbegahsJi+8mgpw==}
@@ -1281,8 +1281,8 @@ packages:
   buffer-crc32@0.2.13:
     resolution: {integrity: sha512-VO9Ht/+p3SN7SKWqcrgEzjGbRSJYTx+Q1pTQC0wrWqHx0vpJraQ6GtHx8tvcg1rlK1byhU5gccxgOgj7B0TDkQ==}
 
-  bullmq@5.71.1:
-    resolution: {integrity: sha512-kOBfdcsHmO6wwmIjpersoVdYQ7jkjTgky4Yop0loc7QwSdgxliSzD69U9ijZuRrkyCJwz5p5eqxeGeQkJ0YGZQ==}
+  bullmq@5.73.0:
+    resolution: {integrity: sha512-uX8RbQaBbzk0H9JYXKGrNxpDqFcDBQFFKCyKarMjtfYHuct5X48M2LUq3Q9FXt/P2kWzPrqYlNnNqsico7ty5A==}
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -1464,8 +1464,8 @@ packages:
     engines: {node: '>=12'}
     deprecated: Use your platform's native DOMException instead
 
-  dotenv@17.3.1:
-    resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
+  dotenv@17.4.0:
+    resolution: {integrity: sha512-kCKF62fwtzwYm0IGBNjRUjtJgMfGapII+FslMHIjMR5KTnwEmBmWLDRSnc3XSNP8bNy34tekgQyDT0hr7pERRQ==}
     engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
@@ -2882,7 +2882,7 @@ packages:
 
 snapshots:
 
-  '@anthropic-ai/sdk@0.81.0(zod@3.25.76)':
+  '@anthropic-ai/sdk@0.82.0(zod@3.25.76)':
     dependencies:
       json-schema-to-ts: 3.1.1
     optionalDependencies:
@@ -2928,7 +2928,7 @@ snapshots:
   '@csstools/css-tokenizer@3.0.4':
     optional: true
 
-  '@electric-sql/pglite@0.2.17':
+  '@electric-sql/pglite@0.4.3':
     optional: true
 
   '@esbuild/aix-ppc64@0.27.2':
@@ -3519,6 +3519,14 @@ snapshots:
     optionalDependencies:
       vite: 5.4.21(@types/node@20.19.27)
 
+  '@vitest/mocker@2.1.9(vite@5.4.21(@types/node@25.5.0))':
+    dependencies:
+      '@vitest/spy': 2.1.9
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 5.4.21(@types/node@25.5.0)
+
   '@vitest/pretty-format@2.1.9':
     dependencies:
       tinyrainbow: 1.2.0
@@ -3682,7 +3690,7 @@ snapshots:
 
   buffer-crc32@0.2.13: {}
 
-  bullmq@5.71.1:
+  bullmq@5.73.0:
     dependencies:
       cron-parser: 4.9.0
       ioredis: 5.10.1
@@ -3852,7 +3860,7 @@ snapshots:
       webidl-conversions: 7.0.0
     optional: true
 
-  dotenv@17.3.1: {}
+  dotenv@17.4.0: {}
 
   dunder-proto@1.0.1:
     dependencies:
@@ -5361,7 +5369,7 @@ snapshots:
   vitest@2.1.9(@types/node@25.5.0)(jsdom@25.0.1):
     dependencies:
       '@vitest/expect': 2.1.9
-      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@20.19.27))
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@25.5.0))
       '@vitest/pretty-format': 2.1.9
       '@vitest/runner': 2.1.9
       '@vitest/snapshot': 2.1.9
