@@ -5,7 +5,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
-import { query } from '../database.js';
+import { query, queryOne } from '../database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 function extractUserId(request: FastifyRequest): string | null {

@@ -4,7 +4,7 @@
  * reset circuit breakers, rebalance workload away from degraded agents.
  */
 
-import { query, query } from '../../database.js';
+import { query } from '../../database.js';
 import { healStuckExecutions } from '../../orchestration/monitoring-agent.js';
 import { getCircuitBreaker, getCircuitBreakerNames } from '../../runtime/error-handler.js';
 import type { ToolResult } from '../registry.js';

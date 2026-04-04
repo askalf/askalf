@@ -673,7 +673,7 @@ async function start(): Promise<void> {
           const agent = agents[0]!;
 
           // Get schedule interval for runtime budget
-          const schedules = await query<{ schedule_interval_minutes: number }>(
+          const schedules = await dbQuery<{ schedule_interval_minutes: number }>(
             `SELECT schedule_interval_minutes FROM agent_schedules WHERE agent_id = $1`,
             [row.agent_id],
           ).catch(() => [] as { schedule_interval_minutes: number }[]);
@@ -699,7 +699,7 @@ async function start(): Promise<void> {
           );
 
           // Push forward next_run_at so the scheduler doesn't double-dispatch this agent
-          await query(
+          await dbQuery(
             `UPDATE agent_schedules
              SET next_run_at = NOW() + (schedule_interval_minutes || ' minutes')::INTERVAL
              WHERE agent_id = $1`,
@@ -819,7 +819,7 @@ async function start(): Promise<void> {
             const agentName = agentNameMap.get(agentId);
             if (!agentName) continue;
 
-            const reopened = await query<{ id: string; title: string }>(
+            const reopened = await dbQuery<{ id: string; title: string }>(
               `UPDATE agent_tickets
                SET status = 'open', updated_at = NOW()
                WHERE status = 'in_progress' AND assigned_to = $1
@@ -828,7 +828,7 @@ async function start(): Promise<void> {
             ).catch(() => [] as { id: string; title: string }[]);
 
             for (const ticket of reopened) {
-              await query(
+              await dbQuery(
                 `INSERT INTO ticket_notes (id, ticket_id, author, content, created_at)
                  VALUES ($1, $2, 'system', $3, NOW())`,
                 [

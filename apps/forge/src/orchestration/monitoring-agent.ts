@@ -4,7 +4,7 @@
  * Runs as a periodic cycle inside Forge (no separate container).
  */
 
-import { query, query } from '../database.js';
+import { query } from '../database.js';
 import { getEventBus } from './event-bus.js';
 
 export interface HealthReport {

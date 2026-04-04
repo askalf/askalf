@@ -49,7 +49,6 @@ const TOOL_TO_SERVER: Record<string, string> = {
 
   // mcp-data (port 3011)
   db_query: MCP_DATA_URL,
-  db_query: MCP_DATA_URL,
   memory_search: MCP_DATA_URL,
   memory_store: MCP_DATA_URL,
 

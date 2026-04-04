@@ -4,7 +4,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ulid } from 'ulid';
-import { queryOne } from '../../database.js';
+import { query, queryOne } from '../../database.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { requireAdmin } from '../../middleware/auth.js';
 import { paginationResponse, encodeCursor, decodeCursor } from './utils.js';
