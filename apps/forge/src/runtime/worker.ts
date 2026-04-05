@@ -1532,15 +1532,21 @@ async function setupCliEnvironment(): Promise<void> {
   }
 
   // Write settings.json — auto-accept all permissions
+  // IMPORTANT: WebFetch and WebSearch are DENIED — agents must use our MCP tools
+  // (web_search via SearxNG, web_browse via fetch, browser_use via CDP)
+  // This ensures all web traffic goes through our infrastructure
   const settings = {
     permissions: {
       allow: [
         'Bash(*)', 'Read(*)', 'Write(*)', 'Edit(*)',
-        'Glob(*)', 'Grep(*)', 'WebFetch(*)', 'WebSearch(*)',
+        'Glob(*)', 'Grep(*)',
         'NotebookEdit(*)', 'Task(*)',
         'mcp__mcp-tools__*',
       ],
-      deny: [],
+      deny: [
+        'WebFetch(*)',
+        'WebSearch(*)',
+      ],
     },
     hasCompletedOnboarding: true,
   };
