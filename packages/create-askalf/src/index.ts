@@ -347,7 +347,27 @@ async function main() {
     'pnpm --filter @askalf/forge build',
     'pnpm --filter @askalf/standalone build',
   ];
+
+  // Build dashboard UI (React client)
+  const dashboardClientDir = join(installDir, 'apps', 'dashboard', 'client');
+  const dashboardBuilt = existsSync(join(installDir, 'apps', 'dashboard', 'public', 'app', 'index.html'));
+  if (!dashboardBuilt && existsSync(join(dashboardClientDir, 'package.json'))) {
+    buildSteps.push('DASHBOARD_CLIENT');
+  }
   for (const step of buildSteps) {
+    if (step === 'DASHBOARD_CLIENT') {
+      // Build the React dashboard separately (uses npm, not pnpm filter)
+      console.log('  ⟳ dashboard UI (this may take a minute)...');
+      try {
+        const clientDir = join(installDir, 'apps', 'dashboard', 'client');
+        execSync('npm install --legacy-peer-deps', { cwd: clientDir, stdio: 'pipe' });
+        execSync('npm run build', { cwd: clientDir, stdio: 'pipe', env: { ...process.env, SELFHOSTED: 'true' } });
+        console.log('  ✓ dashboard UI');
+      } catch {
+        console.log('  ~ dashboard UI (skipped — server will show basic status page)');
+      }
+      continue;
+    }
     try {
       execSync(step, { cwd: installDir, stdio: 'pipe' });
       const pkg = step.match(/@askalf\/([^\s]+)/)?.[1] || step;

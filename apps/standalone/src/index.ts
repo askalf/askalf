@@ -179,57 +179,42 @@ async function main() {
   app.get('/api/v1/conversations', async () => ({ conversations: [] }));
   app.post('/api/v1/conversations', async () => ({ id: 'standalone-' + Date.now() }));
 
-  // Static dashboard placeholder
-  app.get('/', async (_req, reply) => {
-    reply.type('text/html').send(`<!DOCTYPE html>
+  // Serve the full dashboard UI if it's been built
+  const dashboardDir = join(process.cwd(), 'apps', 'dashboard', 'public', 'app');
+  const hasDashboard = existsSync(join(dashboardDir, 'index.html'));
+
+  if (hasDashboard) {
+    // Serve static assets from the Vite build
+    await app.register(await import('@fastify/static').then(m => m.default), {
+      root: dashboardDir,
+      prefix: '/',
+      decorateReply: false,
+    });
+
+    // SPA fallback — serve index.html for all non-API, non-asset routes
+    app.setNotFoundHandler(async (req, reply) => {
+      if (req.url.startsWith('/api/') || req.url === '/health') {
+        return reply.status(404).send({ error: 'Not found' });
+      }
+      return reply.sendFile('index.html', dashboardDir);
+    });
+
+    console.log('  ✓ Dashboard UI loaded');
+  } else {
+    // Fallback: minimal status page
+    app.get('/', async (_req, reply) => {
+      reply.type('text/html').send(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AskAlf</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a14;color:#c8d6e5;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
-.card{max-width:600px;width:100%;text-align:center}
-h1{font-size:2rem;color:#00ff88;margin-bottom:8px}
-.sub{color:rgba(200,214,229,.5);font-size:.9rem;margin-bottom:32px}
-.status{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:32px}
-.stat{background:rgba(0,255,136,.03);border:1px solid rgba(0,255,136,.08);border-radius:8px;padding:16px}
-.stat-val{font-family:monospace;font-size:1.5rem;color:#00ff88;font-weight:700}
-.stat-label{font-size:.75rem;color:rgba(200,214,229,.4);margin-top:4px;text-transform:uppercase;letter-spacing:.1em}
-.links{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.btn{font-family:monospace;font-size:12px;padding:10px 20px;border-radius:4px;text-decoration:none;border:1px solid rgba(0,255,136,.2);color:#00ff88;transition:all .2s}
-.btn:hover{background:rgba(0,255,136,.1);border-color:#00ff88}
-.btn-primary{background:#00ff88;color:#000;border-color:#00ff88}
-.btn-primary:hover{background:#fff}
-code{font-family:monospace;background:rgba(0,255,136,.08);padding:2px 8px;border-radius:3px;font-size:.85rem;color:#00ff88}
-.next{margin-top:32px;text-align:left;background:rgba(0,255,136,.02);border:1px solid rgba(0,255,136,.06);border-radius:8px;padding:20px}
-.next h3{color:#fff;font-size:.9rem;margin-bottom:12px}
-.next li{color:rgba(200,214,229,.6);font-size:.85rem;line-height:2;list-style:none}
-.next li::before{content:"→ ";color:#00ff88}
-</style></head><body>
-<div class="card">
-<h1>AskAlf</h1>
-<p class="sub">Standalone Mode — PGlite + In-Memory Cache</p>
-<div class="status">
-<div class="stat"><div class="stat-val">✓</div><div class="stat-label">Database</div></div>
-<div class="stat"><div class="stat-val">✓</div><div class="stat-label">Cache</div></div>
-<div class="stat"><div class="stat-val">✓</div><div class="stat-label">API</div></div>
-<div class="stat"><div class="stat-val">:${config.port}</div><div class="stat-label">Port</div></div>
-</div>
-<div class="links">
-<a href="/health" class="btn">API Health</a>
-<a href="/api/v1/forge/agents" class="btn">Agents</a>
-<a href="/api/v1/forge/templates" class="btn">Templates</a>
-<a href="https://github.com/askalf/askalf" class="btn btn-primary">GitHub</a>
-</div>
-<div class="next">
-<h3>Next Steps</h3>
-<ul>
-<li>Add your API key to <code>${join(config.dataDir, '.env')}</code></li>
-<li>Full dashboard requires Docker: <code>curl -fsSL https://get.askalf.org | bash</code></li>
-<li>Join Discord: <a href="https://discord.gg/fENVZpdYcX" style="color:#00ff88">discord.gg/fENVZpdYcX</a></li>
-</ul>
-</div>
-</div></body></html>`);
-  });
+<style>*{margin:0;padding:0;box-sizing:border-box}body{background:#030306;color:#e8e8ec;font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;text-align:center}.logo{font-size:2rem;font-weight:700;color:#00ff88;margin-bottom:8px}.sub{color:rgba(232,232,236,.4);font-size:.9rem;margin-bottom:2rem}code{font-family:monospace;background:rgba(0,255,136,.08);padding:2px 8px;border-radius:3px;color:#00ff88}a{color:#00ff88}</style></head><body>
+<div><div class="logo">AskAlf</div><p class="sub">Server running. Dashboard not yet built.</p>
+<p style="color:rgba(232,232,236,.4);font-size:.85rem;line-height:2">
+Build the dashboard:<br><code>cd apps/dashboard/client && npm install && npm run build</code><br><br>
+Then restart the server.<br><br>
+<a href="/health">API Health</a> · <a href="https://github.com/askalf/askalf">GitHub</a> · <a href="https://discord.gg/fENVZpdYcX">Discord</a>
+</p></div></body></html>`);
+    });
+  }
 
   // CORS
   app.addHook('onRequest', async (_req, reply) => {
