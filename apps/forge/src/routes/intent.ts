@@ -201,51 +201,98 @@ export async function intentRoutes(app: FastifyInstance): Promise<void> {
          FROM forge_agent_templates WHERE is_active = true ORDER BY sort_order ASC`,
       );
 
-      // Try LLM-based parsing first, fall back to keyword classifier
-      const apiKey = process.env['ANTHROPIC_INTENT_API_KEY'] || process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
-      if (!apiKey) {
-        // No API key available — use local fallback
-        return buildFallbackIntent(message, templates);
+      // Try LLM-based parsing — universal provider chain
+      // Priority: Anthropic API → OpenAI API → Ollama → CLI OAuth → keyword fallback
+      const anthropicKey = process.env['ANTHROPIC_INTENT_API_KEY'] || process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
+      const openaiKey = process.env['OPENAI_API_KEY'];
+      const ollamaUrl = process.env['OLLAMA_URL'] || process.env['OLLAMA_BASE_URL'] || 'http://ollama:11434';
+
+      if (!anthropicKey && !openaiKey) {
+        // Try Ollama before giving up
+        try {
+          const ollamaRes = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
+          if (!ollamaRes.ok) throw new Error('no ollama');
+        } catch {
+          return buildFallbackIntent(message, templates);
+        }
       }
 
+      // Build system prompt dynamically from DB state (agents, skills, tools)
+      let systemPrompt: string;
       try {
-        const { default: Anthropic } = await import('@anthropic-ai/sdk');
-        const client = new Anthropic({ apiKey });
+        systemPrompt = await buildIntentSystemPrompt();
+      } catch {
+        systemPrompt = INTENT_SYSTEM_PROMPT;
+      }
 
-        // Build system prompt dynamically from DB state (agents, skills, tools)
-        let systemPrompt: string;
-        try {
-          systemPrompt = await buildIntentSystemPrompt();
-        } catch {
-          systemPrompt = INTENT_SYSTEM_PROMPT; // Fallback to static prompt
+      const templateContext = templates.map(t =>
+        `- ${t.name} (${t.category}): ${t.description} [tools: ${t.required_tools.join(', ')}]`
+      ).join('\n');
+
+      const userContent = `Available templates:\n${templateContext}\n\nUser request: "${message}"`;
+
+      let responseText = '';
+
+      try {
+        // 1. Try Anthropic
+        if (anthropicKey && !responseText) {
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const { default: Anthropic } = await import('@anthropic-ai/sdk');
+              const client = new Anthropic({ apiKey: anthropicKey });
+              const response = await client.messages.create({
+                model: 'claude-haiku-4-5',
+                max_tokens: 1024,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userContent }],
+              });
+              responseText = response.content
+                .filter((block) => block.type === 'text')
+                .map(block => (block as { type: 'text'; text: string }).text)
+                .join('');
+              break;
+            } catch (apiErr) {
+              if (attempt === 1 && !openaiKey) throw apiErr;
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          }
         }
 
-        const templateContext = templates.map(t =>
-          `- ${t.name} (${t.category}): ${t.description} [tools: ${t.required_tools.join(', ')}]`
-        ).join('\n');
-
-        const userContent = `Available templates:\n${templateContext}\n\nUser request: "${message}"`;
-
-        // Try up to 2 times (initial + 1 retry)
-        let responseText = '';
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            const response = await client.messages.create({
-              model: 'claude-haiku-4-5',
-              max_tokens: 1024,
-              system: systemPrompt,
-              messages: [{ role: 'user', content: userContent }],
-            });
-
-            responseText = response.content
-              .filter((block) => block.type === 'text')
-              .map(block => (block as { type: 'text'; text: string }).text)
-              .join('');
-            break;
-          } catch (apiErr) {
-            if (attempt === 1) throw apiErr;
-            await new Promise(r => setTimeout(r, 1000));
+        // 2. Try OpenAI (or any OpenAI-compatible API)
+        if (openaiKey && !responseText) {
+          const baseUrl = process.env['OPENAI_BASE_URL'] || 'https://api.openai.com/v1';
+          const model = process.env['OPENAI_MODEL'] || 'gpt-4o-mini';
+          const res = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, max_tokens: 1024, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }] }),
+            signal: AbortSignal.timeout(30000),
+          });
+          if (res.ok) {
+            const data = await res.json() as { choices: { message: { content: string } }[] };
+            responseText = data.choices[0]?.message?.content || '';
           }
+        }
+
+        // 3. Try Ollama
+        if (!responseText) {
+          try {
+            const ollamaModel = process.env['OLLAMA_MODEL'] || 'llama3.2';
+            const res = await fetch(`${ollamaUrl}/api/chat`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: ollamaModel, stream: false, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }] }),
+              signal: AbortSignal.timeout(60000),
+            });
+            if (res.ok) {
+              const data = await res.json() as { message?: { content: string } };
+              responseText = data.message?.content || '';
+            }
+          } catch { /* ollama not available */ }
+        }
+
+        if (!responseText) {
+          return buildFallbackIntent(message, templates);
         }
 
         // Parse the JSON response

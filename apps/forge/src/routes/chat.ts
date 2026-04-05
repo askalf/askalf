@@ -73,15 +73,8 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
-      const apiKey = process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
-
-      if (!apiKey) {
-        return { mode: 'dispatch' as const };
-      }
-
       try {
-        const { default: Anthropic } = await import('@anthropic-ai/sdk');
-        const client = new Anthropic({ apiKey });
+        const { universalComplete } = await import('../providers/universal.js');
 
         // Build compact context for the router (last 5 messages only — routing is fast)
         const recentForRouter = rawHistory.slice(-5);
@@ -89,18 +82,13 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
           ? `\n\nRecent conversation:\n${recentForRouter.map(m => `${m.role}: ${m.content.slice(0, 200)}`).join('\n')}\n\nNew message:`
           : '';
 
-        // Step 1: Route — is this chat or dispatch? (Haiku — fast + cheap)
-        const routeResponse = await client.messages.create({
-          model: 'claude-haiku-4-5',
-          max_tokens: 50,
+        // Step 1: Route — is this chat or dispatch? (universal provider)
+        const routeResult = await universalComplete({
           system: ROUTER_PROMPT,
           messages: [{ role: 'user', content: routerContext + message }],
+          maxTokens: 50,
         });
-
-        const routeText = routeResponse.content
-          .filter(b => b.type === 'text')
-          .map(b => (b as { type: 'text'; text: string }).text)
-          .join('');
+        const routeText = routeResult.text;
 
         const routeMatch = routeText.match(/\{[\s\S]*\}/);
         let mode: 'chat' | 'dispatch' = 'dispatch';
@@ -165,50 +153,52 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
         const wantsStream = (body as { stream?: boolean }).stream === true;
 
         if (wantsStream) {
-          // SSE streaming response
-          reply.raw.writeHead(200, {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-          });
+          // SSE streaming — try Anthropic SDK first (best streaming), fall back to non-streaming universal
+          const anthropicKey = process.env['ANTHROPIC_API_KEY'] || process.env['ANTHROPIC_API_KEY_FALLBACK'];
+          if (anthropicKey) {
+            try {
+              const { default: Anthropic } = await import('@anthropic-ai/sdk');
+              const client = new Anthropic({ apiKey: anthropicKey });
 
-          const stream = await client.messages.stream({
-            model: 'claude-sonnet-4-6',
-            max_tokens: 2048,
-            system: systemWithContext,
-            messages: chatMessages,
-          });
+              reply.raw.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+              });
 
-          for await (const event of stream) {
-            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-              reply.raw.write(`data: ${JSON.stringify({ type: 'text', text: event.delta.text })}\n\n`);
-            }
+              const stream = await client.messages.stream({
+                model: 'claude-sonnet-4-6',
+                max_tokens: 2048,
+                system: systemWithContext,
+                messages: chatMessages,
+              });
+
+              for await (const event of stream) {
+                if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+                  reply.raw.write(`data: ${JSON.stringify({ type: 'text', text: event.delta.text })}\n\n`);
+                }
+              }
+
+              const finalText = await stream.finalText();
+              const suggestions = generateFollowUps(message, finalText);
+              if (suggestions.length > 0) {
+                reply.raw.write(`data: ${JSON.stringify({ type: 'suggestions', suggestions })}\n\n`);
+              }
+
+              reply.raw.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+              reply.raw.end();
+              return reply;
+            } catch { /* fall through to universal non-streaming */ }
           }
-
-          // Send follow-up suggestions
-          const finalText = await stream.finalText();
-          const suggestions = generateFollowUps(message, finalText);
-          if (suggestions.length > 0) {
-            reply.raw.write(`data: ${JSON.stringify({ type: 'suggestions', suggestions })}\n\n`);
-          }
-
-          reply.raw.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-          reply.raw.end();
-          return reply;
         }
 
-        // Non-streaming response
-        const chatResponse = await client.messages.create({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 2048,
+        // Non-streaming response (universal provider — works with any AI)
+        const chatResult = await universalComplete({
           system: systemWithContext,
           messages: chatMessages,
+          maxTokens: 2048,
         });
-
-        const text = chatResponse.content
-          .filter(b => b.type === 'text')
-          .map(b => (b as { type: 'text'; text: string }).text)
-          .join('');
+        const text = chatResult.text;
 
         const suggestions = generateFollowUps(message, text);
 
