@@ -1,8 +1,9 @@
-# AskAlf Browser Bridge — Headless Chromium via CDP
-FROM debian:bookworm-slim
+# AskAlf Browser Bridge — Stealth Chromium via CDP
+# Routes through Gluetun VPN, evades bot detection
+FROM node:22-slim
 
 LABEL org.opencontainers.image.source="https://github.com/askalf/askalf"
-LABEL org.opencontainers.image.description="AskAlf Browser Bridge — Headless Chromium for web scraping and automation"
+LABEL org.opencontainers.image.description="AskAlf Browser Bridge — Stealth headless Chromium for web automation"
 LABEL org.opencontainers.image.licenses="MIT"
 
 RUN apt-get update -qq && \
@@ -15,14 +16,25 @@ RUN apt-get update -qq && \
       curl \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+WORKDIR /app
+
+# Install puppeteer-extra with stealth plugin
+RUN npm install puppeteer-extra puppeteer-extra-plugin-stealth puppeteer-core 2>/dev/null
+
+# Browser launcher script
+COPY apps/browser/launch.mjs /app/launch.mjs
+
 RUN groupadd -r browser && useradd -r -g browser browser && \
-    mkdir -p /home/browser/data && chown -R browser:browser /home/browser
+    mkdir -p /home/browser/data && chown -R browser:browser /home/browser /app
+
+USER browser
+
+ENV CHROME_PATH=/usr/bin/chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 EXPOSE 9222
 
-HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -sf http://127.0.0.1:9222/json/version || exit 1
 
-# socat forwards 0.0.0.0:9222 → 127.0.0.1:9223
-# Chromium debugger only listens on 127.0.0.1 in newer versions
-CMD ["sh", "-c", "socat TCP-LISTEN:9222,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:9223 & exec chromium --headless --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --disable-crash-reporter --disable-extensions --disable-background-networking --no-first-run --remote-debugging-port=9223 --remote-allow-origins=* --user-data-dir=/home/browser/data"]
+CMD ["node", "/app/launch.mjs"]

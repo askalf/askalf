@@ -352,6 +352,11 @@ services:
       - "autoheal-askalf=true"
     expose:
       - "9222"
+    # VPN proxy disabled for now — Chromium HTTPS tunneling incompatible with Gluetun HTTP proxy
+    # Stealth plugin alone evades Twitter bot detection
+    # environment:
+    #   HTTP_PROXY: http://gluetun:8888
+    #   HTTPS_PROXY: http://gluetun:8888
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9222/json/version || exit 1"]
       interval: 15s
