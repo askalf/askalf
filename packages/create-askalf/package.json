@@ -1,6 +1,6 @@
 {
   "name": "create-askalf",
-  "version": "3.0.4",
+  "version": "3.0.5",
   "description": "Create a self-healing AI workforce. One command. No Docker.",
   "type": "module",
   "main": "./dist/index.js",
