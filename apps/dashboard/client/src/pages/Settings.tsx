@@ -3222,7 +3222,7 @@ function ForgeApiKeysTab() {
 // Migration Tab — Legacy Import Import Wizard
 // ============================================
 
-interface Legacy ImportConfig {
+interface LegacyImportConfig {
   gateway?: {
     port?: number;
     bind?: string;
@@ -4154,7 +4154,7 @@ function MigrationTab() {
     if (!text.trim()) return;
 
     try {
-      const config: Legacy ImportConfig = JSON.parse(text);
+      const config: LegacyImportConfig = JSON.parse(text);
 
       const agents = (config.agents ?? []).map(a => ({
         name: a.name ?? a.id ?? 'unnamed',
