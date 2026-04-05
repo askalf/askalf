@@ -861,28 +861,40 @@ async function getBrowser(): Promise<import('puppeteer-core').Browser> {
     }
   }
 
-  // Try discovering the WebSocket URL from the CDP endpoint
+  // Try connecting to remote browser container via CDP
+  // Chromium rejects non-localhost Host headers, so we use http module
   try {
-    const cdpUrl = `http://${browserHost}:${browserPort}`;
-    // Chromium validates Host header — must be 127.0.0.1 or localhost
-    const res = await fetch(`${cdpUrl}/json/version`, {
-      headers: { Host: `127.0.0.1:${browserPort}` },
-      signal: AbortSignal.timeout(3000),
+    const { get: httpGet } = await import('http');
+    const wsUrl: string = await new Promise((resolve, reject) => {
+      const req = httpGet({
+        hostname: browserHost,
+        port: parseInt(browserPort),
+        path: '/json/version',
+        headers: { Host: `127.0.0.1:${browserPort}` },
+        timeout: 3000,
+      }, (res) => {
+        let data = '';
+        res.on('data', (c) => data += c);
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            if (json.webSocketDebuggerUrl) {
+              resolve(json.webSocketDebuggerUrl
+                .replace('ws://127.0.0.1:', `ws://${browserHost}:`)
+                .replace('ws://localhost:', `ws://${browserHost}:`));
+            } else reject(new Error('No WS URL'));
+          } catch (e) { reject(e); }
+        });
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
     });
-    if (res.ok) {
-      const data = await res.json() as { webSocketDebuggerUrl?: string };
-      if (data.webSocketDebuggerUrl) {
-        // Replace localhost with the actual container host for Docker networking
-        const wsUrl = data.webSocketDebuggerUrl
-          .replace('ws://127.0.0.1:', `ws://${browserHost}:`)
-          .replace('ws://localhost:', `ws://${browserHost}:`);
-        browserInstance = await puppeteer.default.connect({ browserWSEndpoint: wsUrl });
-        log(`browser_use: connected to remote browser at ${wsUrl}`);
-        return browserInstance;
-      }
-    }
-  } catch {
-    log('browser_use: remote browser container not available, trying local launch');
+
+    browserInstance = await puppeteer.default.connect({ browserWSEndpoint: wsUrl });
+    log(`browser_use: connected to remote browser at ${wsUrl}`);
+    return browserInstance;
+  } catch (err) {
+    log(`browser_use: remote browser not available (${err instanceof Error ? err.message : err}), trying local`);
   }
 
   // Strategy 2: Launch locally (fallback for standalone/dev)
