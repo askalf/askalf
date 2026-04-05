@@ -16,6 +16,10 @@ Autonomous agents with a nervous system, immune system, and collective memory. T
 
 **[askalf.org](https://askalf.org)** · **[Demo](https://demo.askalf.org)** · **[Discord](https://discord.gg/fENVZpdYcX)** · **[@ask_alf](https://x.com/ask_alf)** · **[Changelog](CHANGELOG.md)**
 
+<br>
+
+<img src="https://askalf.org/demo.gif" alt="AskAlf — Tell it what you need, it builds the team" width="100%">
+
 </div>
 
 ---
