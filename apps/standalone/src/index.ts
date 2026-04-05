@@ -150,12 +150,23 @@ async function main() {
 
   const app = Fastify({ logger: false });
 
+  // Detect available AI providers
+  const claudeCredsPath = join(homedir(), '.claude', '.credentials.json');
+  const hasOauth = (() => { try { return !!JSON.parse(readFileSync(claudeCredsPath, 'utf-8'))?.claudeAiOauth?.refreshToken; } catch { return false; } })();
+  const providers: string[] = [];
+  if (hasOauth) providers.push('claude-oauth');
+  if (process.env['ANTHROPIC_API_KEY']) providers.push('anthropic-api');
+  if (process.env['OPENAI_API_KEY']) providers.push('openai-api');
+  providers.push('ollama-local'); // always available as fallback attempt
+  console.log(`  ✓ AI providers: ${providers.filter(p => p !== 'ollama-local').join(', ') || 'ollama (local only)'}`);
+
   // Health
   app.get('/health', async () => ({
     status: 'ok',
     mode: 'standalone',
     database: 'pglite',
     cache: 'memory',
+    providers,
     uptime: process.uptime(),
   }));
 
@@ -221,44 +232,90 @@ async function main() {
     } catch { return { completed: false }; }
   });
 
-  // Intent (chat with Alf) — real AI response if API key is set
-  app.post('/api/v1/intent', async (req, reply) => {
+  // ── Universal AI provider for intent/chat ──
+  const ALF_SYSTEM = `You are Alf — an AI workforce builder. When someone describes what they need, you design an AI agent team. Name each agent with a clear role, describe what it does autonomously, show the schedule, and end with a monthly cost estimate. Keep it under 200 words, conversational, no markdown headers.`;
+
+  async function callAI(message: string): Promise<string> {
+    const anthropicKey = process.env['ANTHROPIC_API_KEY'];
+    const openaiKey = process.env['OPENAI_API_KEY'];
+    const ollamaUrl = process.env['OLLAMA_URL'] || 'http://localhost:11434';
+    const ollamaModel = process.env['OLLAMA_MODEL'] || 'llama3.2';
+
+    // 1. Try Claude OAuth (via CLI — uses subscription, no API key needed)
+    const claudeCredsPath = join(homedir(), '.claude', '.credentials.json');
+    if (existsSync(claudeCredsPath)) {
+      try {
+        const creds = JSON.parse(readFileSync(claudeCredsPath, 'utf-8'));
+        if (creds?.claudeAiOauth?.refreshToken) {
+          const { execSync: exec } = await import('node:child_process');
+          const result = exec(`echo ${JSON.stringify(message)} | claude --print --model claude-haiku-4-5`, {
+            timeout: 30000,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+            env: { ...process.env, CLAUDE_SYSTEM_PROMPT: ALF_SYSTEM },
+          });
+          if (result.trim()) return result.trim();
+        }
+      } catch { /* fall through to next provider */ }
+    }
+
+    // 2. Try Anthropic API key
+    if (anthropicKey) {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 500, system: ALF_SYSTEM, messages: [{ role: 'user', content: message }] }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const data = await res.json() as { content: { text: string }[] };
+        return data.content[0]?.text || '';
+      }
+    }
+
+    // 3. Try OpenAI API key
+    if (openaiKey) {
+      const baseUrl = process.env['OPENAI_BASE_URL'] || 'https://api.openai.com/v1';
+      const model = process.env['OPENAI_MODEL'] || 'gpt-4o-mini';
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, max_tokens: 500, messages: [{ role: 'system', content: ALF_SYSTEM }, { role: 'user', content: message }] }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const data = await res.json() as { choices: { message: { content: string } }[] };
+        return data.choices[0]?.message?.content || '';
+      }
+    }
+
+    // 4. Try Ollama (local)
+    try {
+      const res = await fetch(`${ollamaUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: ollamaModel, stream: false, messages: [{ role: 'system', content: ALF_SYSTEM }, { role: 'user', content: message }] }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (res.ok) {
+        const data = await res.json() as { message?: { content: string } };
+        return data.message?.content || '';
+      }
+    } catch { /* ollama not running */ }
+
+    // 5. Nothing available
+    return `No AI provider configured. AskAlf supports:\n• Claude OAuth (claude login)\n• Anthropic API key (ANTHROPIC_API_KEY)\n• OpenAI API key (OPENAI_API_KEY)\n• Ollama local (OLLAMA_URL)\n\nConfigure any one in ${join(config.dataDir, '.env')} and restart.`;
+  }
+
+  // Intent (chat with Alf) — universal provider
+  app.post('/api/v1/intent', async (req) => {
     const body = req.body as { message?: string };
     const message = (body?.message || '').trim();
     if (!message) return { response: 'Send a message to get started.', intent: null };
 
-    const apiKey = process.env['ANTHROPIC_API_KEY'];
-    if (!apiKey) {
-      return {
-        response: `API key not configured. Add ANTHROPIC_API_KEY to ${join(config.dataDir, '.env')} and restart.`,
-        intent: null,
-      };
-    }
-
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5',
-          max_tokens: 500,
-          system: `You are Alf — an AI workforce builder. When someone describes what they need, you design an AI agent team. Name each agent with a clear role, describe what it does autonomously, show the schedule, and end with a monthly cost estimate. Keep it under 200 words, conversational, no markdown headers.`,
-          messages: [{ role: 'user', content: message }],
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        return { response: `AI error: ${err.error?.message || res.statusText}`, intent: null };
-      }
-
-      const data = await res.json() as { content: { text: string }[] };
-      return { response: data.content[0]?.text || 'No response', intent: null };
+      const response = await callAI(message);
+      return { response, intent: null };
     } catch (err) {
       return { response: `Error: ${err instanceof Error ? err.message : String(err)}`, intent: null };
     }
