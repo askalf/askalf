@@ -46,7 +46,7 @@ async function parseIntentDirect(message: string): Promise<ParsedIntentResult> {
     const client = new Anthropic({ apiKey });
 
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-haiku-4-5',
       max_tokens: 512,
       system: `Classify this user request into one category. Respond in JSON only.
 Categories: research, monitor, build, analyze, automate, security

@@ -11,10 +11,14 @@ const MAX_INTERACTIONS = parseInt(process.env['DEMO_SESSION_MAX_INTERACTIONS'] |
 const SESSION_DURATION_MIN = parseInt(process.env['DEMO_SESSION_DURATION_MINUTES'] || '30');
 const SESSION_BUDGET = parseFloat(process.env['DEMO_SESSION_BUDGET_USD'] || '0.50');
 const MAX_SESSIONS_PER_IP = parseInt(process.env['DEMO_MAX_SESSIONS_PER_IP'] || '5');
+const MAX_SESSIONS_PER_IP_DAILY = parseInt(process.env['DEMO_MAX_SESSIONS_PER_IP_DAILY'] || '15');
 const MESSAGE_MAX_LENGTH = 500;
+const DEMO_SALT = process.env['DEMO_IP_SALT'] || randomBytes(32).toString('hex');
+
+const ALLOWED_ORIGINS = ['https://demo.askalf.org', 'https://askalf.org', 'http://localhost:3001'];
 
 function hashIp(ip: string): string {
-  return createHash('sha256').update(ip + 'askalf-demo-salt').digest('hex').substring(0, 16);
+  return createHash('sha256').update(ip + DEMO_SALT).digest('hex').substring(0, 16);
 }
 
 interface DemoSession {
@@ -46,12 +50,15 @@ async function validateSession(token: string): Promise<{ session: DemoSession; s
 
 export async function demoRoutes(app: FastifyInstance): Promise<void> {
 
-  // CORS preflight for demo routes
+  // CORS preflight for demo routes — locked to known origins
   app.addHook('onRequest', async (request, reply) => {
     if (request.url.startsWith('/api/v1/demo/')) {
-      reply.header('Access-Control-Allow-Origin', '*');
+      const origin = request.headers.origin || '';
+      const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+      reply.header('Access-Control-Allow-Origin', allowed);
       reply.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      reply.header('Vary', 'Origin');
       if (request.method === 'OPTIONS') {
         return reply.status(204).send();
       }
@@ -67,13 +74,22 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
     const ua = request.headers['user-agent'] || '';
     const body = (request.body || {}) as { referrer?: string };
 
-    // Rate limit: max sessions per IP
+    // Rate limit: max concurrent sessions per IP
     const existing = await queryOne<{ count: string }>(
       `SELECT COUNT(*)::text as count FROM demo_sessions WHERE ip_hash = $1 AND expires_at > NOW()`,
       [ipHash],
     );
     if (parseInt(existing?.count || '0') >= MAX_SESSIONS_PER_IP) {
-      return reply.status(429).send({ error: 'Too many demo sessions. Try again later.' });
+      return reply.status(429).send({ error: 'Too many active sessions. Try again in 30 minutes.' });
+    }
+
+    // Rate limit: max sessions per IP per 24 hours
+    const daily = await substrateQueryOne<{ count: string }>(
+      `SELECT COUNT(*)::text as count FROM demo_sessions WHERE ip_hash = $1 AND created_at > NOW() - INTERVAL '24 hours'`,
+      [ipHash],
+    );
+    if (parseInt(daily?.count || '0') >= MAX_SESSIONS_PER_IP_DAILY) {
+      return reply.status(429).send({ error: 'Daily limit reached. Try again tomorrow.' });
     }
 
     const token = randomBytes(32).toString('hex');
@@ -146,11 +162,13 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
       return { message: 'Demo is being configured. Please try again shortly.', type: 'system' };
     }
 
+    const origin = request.headers.origin || '';
+    const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': allowedOrigin,
     });
 
     try {
@@ -162,7 +180,7 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
+          model: 'claude-haiku-4-5',
           max_tokens: 500,
           stream: true,
           system: `You are Alf — an AI workforce builder. You CREATE AI AGENTS to handle work autonomously.

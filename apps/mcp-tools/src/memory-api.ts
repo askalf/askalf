@@ -15270,7 +15270,7 @@ async function executeRealAction(situation: string, p: ReturnType<typeof getForg
         const agent = expensive.rows[0] as Record<string, unknown>;
         // Downgrade to haiku for cost savings (high success rate means task is easy enough)
         await p.query(
-          `UPDATE forge_agents SET model_id = 'claude-haiku-4-5-20251001', updated_at = NOW() WHERE id = $1`,
+          `UPDATE forge_agents SET model_id = 'claude-haiku-4-5', updated_at = NOW() WHERE id = $1`,
           [agent['id']],
         );
         trackOutcome('fleet_optimize', String(agent['name']), 24 * 60 * 60 * 1000, 'check_dispatch');

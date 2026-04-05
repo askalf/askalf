@@ -117,7 +117,7 @@ export async function publicIntentRoutes(app: FastifyInstance): Promise<void> {
             'content-type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: 'claude-haiku-4-5',
             max_tokens: 512,
             system: DEMO_SYSTEM_PROMPT,
             messages: [{ role: 'user', content: message }],

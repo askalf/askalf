@@ -207,7 +207,7 @@ Keep responses concise and terminal-friendly:
 - Reference slash commands when relevant (e.g., "run /fleet to see your agents")`;
 
         const response = await client.messages.create({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4',
           max_tokens: 2048,
           system: systemPrompt,
           messages,
@@ -294,7 +294,7 @@ Keep responses concise and terminal-friendly:
         try {
           const testClient = new Anthropic({ apiKey: '', authToken: oauth.accessToken });
           await testClient.messages.create({
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-sonnet-4',
             max_tokens: 10,
             messages: [{ role: 'user', content: 'hi' }],
           });

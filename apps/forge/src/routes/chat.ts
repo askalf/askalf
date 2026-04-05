@@ -91,7 +91,7 @@ export async function chatRoutes(app: FastifyInstance): Promise<void> {
 
         // Step 1: Route — is this chat or dispatch? (Haiku — fast + cheap)
         const routeResponse = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001',
+          model: 'claude-haiku-4-5',
           max_tokens: 50,
           system: ROUTER_PROMPT,
           messages: [{ role: 'user', content: routerContext + message }],
