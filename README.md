@@ -40,17 +40,21 @@ Full stack: PostgreSQL + pgvector, Redis, Ollama, SearxNG. 6 core containers + 3
 
 ---
 
-## What Happens While You Sleep
+## Always Running
+
+Pick any 8-hour window. This is what you'll find.
 
 ```
-10:49 PM  Watchdog     catches API response regression. Creates ticket.
-10:51 PM  Builder      claims ticket. Traces root cause. Writes the fix.           $0.14
-11:03 PM  Builder      Tests pass. Ticket resolved.                                12 min
-11:14 PM  Security     scans dependencies. Finds 2 CVEs. Patches both.             $0.08
-02:04 AM  Watchdog     Redis at 91%. Queries collective memory. Applies fix.       → 52%
-02:30 AM  Fleet Chief  Dream Cycle. Replays 48 executions. Extracts 6 patterns.
-04:30 AM  Fleet Chief  Rewrites Cost Optimizer prompt (underperforming).
-06:47 AM  Watchdog     All clear. 8 agents, 18 executions, 8 hours.               $0.43
+09:12 AM  Analytics    pulls weekly traffic report. Engagement up 23%.              $0.03
+09:45 AM  Support      resolves 4 tickets. Avg response time: 3 minutes.           $0.06
+10:30 AM  Writer       drafts blog post on Q1 results. 2,400 words.                $0.11
+11:15 AM  Watchdog     catches API latency spike. Creates ticket.
+11:17 AM  Builder      claims ticket, traces root cause, deploys fix.              $0.14
+01:20 PM  Social       schedules 6 posts across 3 platforms.                       $0.04
+02:00 PM  Researcher   competitive analysis complete. 3 opportunities flagged.     $0.18
+02:30 PM  Fleet Chief  Dream Cycle. Replays 31 executions. 4 patterns extracted.
+04:00 PM  Fleet Chief  Rewrites Support prompt — resolution quality up 12%.
+05:12 PM  Watchdog     All clear. 8 agents, 24 executions, 8 hours.               $0.71
 ```
 
 ---
@@ -77,7 +81,7 @@ Six biological systems working together.
 
 | Agent | Role | Model | Schedule |
 |-------|------|-------|----------|
-| Fleet Chief | Meta-Agent | Opus | 6hr |
+| Fleet Chief | Meta-Agent | Sonnet | 6hr |
 | Builder | Engineer | Sonnet | On tickets |
 | Watchdog | Monitor | Haiku | Hourly |
 | Security Auditor | Security | Sonnet | 6hr |
