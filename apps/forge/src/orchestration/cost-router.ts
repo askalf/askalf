@@ -20,9 +20,6 @@ const MODEL_TIERS: Record<string, { label: string; costMultiplier: number }> = {
   'claude-haiku-4-5': { label: 'haiku', costMultiplier: 0.2 },
   'claude-sonnet-4-6': { label: 'sonnet', costMultiplier: 1.0 },
   'claude-opus-4-6': { label: 'opus', costMultiplier: 5.0 },
-  // Dated versions (backwards compat)
-  'claude-haiku-4-5': { label: 'haiku', costMultiplier: 0.2 },
-  'claude-sonnet-4-5': { label: 'sonnet', costMultiplier: 1.0 },
 };
 
 /**

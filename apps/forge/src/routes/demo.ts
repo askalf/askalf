@@ -84,7 +84,7 @@ export async function demoRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // Rate limit: max sessions per IP per 24 hours
-    const daily = await substrateQueryOne<{ count: string }>(
+    const daily = await queryOne<{ count: string }>(
       `SELECT COUNT(*)::text as count FROM demo_sessions WHERE ip_hash = $1 AND created_at > NOW() - INTERVAL '24 hours'`,
       [ipHash],
     );

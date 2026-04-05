@@ -43,9 +43,6 @@ const DEFAULT_PRICING_TABLE: Record<string, ModelPricing> = {
   'claude-sonnet-4-6':            { inputPer1k: 0.003, outputPer1k: 0.015 },
   // Anthropic — Claude 4.5
   'claude-haiku-4-5':             { inputPer1k: 0.001, outputPer1k: 0.005 },
-  'claude-haiku-4-5':    { inputPer1k: 0.001, outputPer1k: 0.005 },
-  'claude-opus-4-5':     { inputPer1k: 0.005, outputPer1k: 0.025 },
-  'claude-sonnet-4-5':   { inputPer1k: 0.003, outputPer1k: 0.015 },
   // Anthropic — Claude 4.0 (legacy)
   'claude-opus-4':       { inputPer1k: 0.015, outputPer1k: 0.075 },
   'claude-sonnet-4':     { inputPer1k: 0.003, outputPer1k: 0.015 },
