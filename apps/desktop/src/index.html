@@ -194,24 +194,56 @@
     <div class="logo">ASKALF</div>
     <div class="subtitle">Self-healing AI workforce. Double-click to run.</div>
 
-    <div class="form-group">
-      <label>Anthropic API Key</label>
-      <input type="password" id="anthropicKey" placeholder="sk-ant-..." autocomplete="off">
-      <div class="hint">Required. Get one at console.anthropic.com</div>
+    <!-- Auth method tabs -->
+    <div style="display:flex;gap:0;margin-bottom:1.5rem;width:100%;border:1px solid rgba(255,255,255,0.06);border-radius:8px;overflow:hidden;">
+      <button class="auth-tab active" id="tabOauth" onclick="switchAuth('oauth')" style="flex:1;padding:0.65rem;background:rgba(0,255,136,0.06);border:none;color:var(--green);font-family:var(--font-mono,monospace);font-size:0.72rem;cursor:pointer;letter-spacing:0.05em;">CLAUDE LOGIN</button>
+      <button class="auth-tab" id="tabApikey" onclick="switchAuth('apikey')" style="flex:1;padding:0.65rem;background:transparent;border:none;border-left:1px solid rgba(255,255,255,0.06);color:var(--text-muted);font-family:var(--font-mono,monospace);font-size:0.72rem;cursor:pointer;letter-spacing:0.05em;">API KEY</button>
     </div>
 
-    <div class="form-group">
-      <label>OpenAI API Key (optional)</label>
-      <input type="password" id="openaiKey" placeholder="sk-..." autocomplete="off">
-      <div class="hint">Optional. Enables GPT models as alternatives.</div>
+    <!-- OAuth flow -->
+    <div id="authOauth">
+      <div style="text-align:center;margin-bottom:1rem;">
+        <div style="font-size:0.85rem;color:var(--text-dim);line-height:1.6;margin-bottom:1.2rem;">Connect your Claude account. Uses your existing subscription — no API key needed.</div>
+        <button class="btn btn-primary" onclick="startOauthLogin()" id="oauthBtn">Connect Claude Account</button>
+        <div id="oauthStatus" style="font-family:monospace;font-size:0.72rem;color:var(--text-muted);margin-top:0.8rem;"></div>
+      </div>
+
+      <div class="form-group" style="margin-top:1.5rem;">
+        <label>OpenAI API Key (optional)</label>
+        <input type="password" id="openaiKeyOauth" placeholder="sk-..." autocomplete="off">
+        <div class="hint">Enables GPT models as alternatives.</div>
+      </div>
+
+      <div class="form-group">
+        <label>Port</label>
+        <input type="number" id="portOauth" value="3000" min="1024" max="65535">
+      </div>
+
+      <button class="btn btn-primary" id="startBtnOauth" onclick="startSetup()" disabled>Start AskAlf</button>
     </div>
 
-    <div class="form-group">
-      <label>Port</label>
-      <input type="number" id="port" value="3000" min="1024" max="65535">
+    <!-- API Key flow -->
+    <div id="authApikey" style="display:none;">
+      <div class="form-group">
+        <label>Anthropic API Key</label>
+        <input type="password" id="anthropicKey" placeholder="sk-ant-..." autocomplete="off">
+        <div class="hint">Get one at console.anthropic.com. Pay-as-you-go billing.</div>
+      </div>
+
+      <div class="form-group">
+        <label>OpenAI API Key (optional)</label>
+        <input type="password" id="openaiKey" placeholder="sk-..." autocomplete="off">
+        <div class="hint">Enables GPT models as alternatives.</div>
+      </div>
+
+      <div class="form-group">
+        <label>Port</label>
+        <input type="number" id="port" value="3000" min="1024" max="65535">
+      </div>
+
+      <button class="btn btn-primary" id="startBtnApikey" onclick="startSetup()">Start AskAlf</button>
     </div>
 
-    <button class="btn btn-primary" id="startBtn" onclick="startSetup()">Start AskAlf</button>
     <div id="setupError" class="error-msg" style="display:none"></div>
   </div>
 
@@ -252,21 +284,36 @@
     const { invoke } = window.__TAURI__.core;
     const { emit, listen } = window.__TAURI__.event;
 
+    let authMode = 'oauth';
+    let oauthConnected = false;
+
     // Expose functions to onclick handlers
     window.startSetup = startSetup;
     window.openDashboard = openDashboard;
     window.stopServer = stopServer;
+    window.switchAuth = switchAuth;
+    window.startOauthLogin = startOauthLogin;
 
     // Check if already configured
     try {
       const config = await invoke('get_config');
-      if (config && config.anthropic_key) {
-        // Already set up — go straight to loading
+      if (config && (config.anthropic_key || config.oauth_connected)) {
         showScreen('loadingScreen');
-        runStartup(config);
+        await invoke('start_server');
       }
     } catch {
-      // First run — show setup
+      // First run — check if Claude Code is already logged in
+      try {
+        const hasOauth = await invoke('check_oauth');
+        if (hasOauth) {
+          oauthConnected = true;
+          document.getElementById('oauthStatus').textContent = '✓ Claude account connected';
+          document.getElementById('oauthStatus').style.color = '#00ff88';
+          document.getElementById('oauthBtn').textContent = 'Connected';
+          document.getElementById('oauthBtn').disabled = true;
+          document.getElementById('startBtnOauth').disabled = false;
+        }
+      } catch {}
     }
 
     // Listen for server events from Rust backend
@@ -284,23 +331,84 @@
       }
     });
 
-    async function startSetup() {
-      const anthropicKey = document.getElementById('anthropicKey').value.trim();
-      const openaiKey = document.getElementById('openaiKey').value.trim();
-      const port = parseInt(document.getElementById('port').value) || 3000;
-
-      if (!anthropicKey) {
-        showError('setupError', 'Anthropic API key is required');
-        return;
+    // Listen for OAuth login result
+    await listen('oauth-result', (event) => {
+      const { success, error } = event.payload;
+      if (success) {
+        oauthConnected = true;
+        document.getElementById('oauthStatus').textContent = '✓ Claude account connected';
+        document.getElementById('oauthStatus').style.color = '#00ff88';
+        document.getElementById('oauthBtn').textContent = 'Connected';
+        document.getElementById('oauthBtn').disabled = true;
+        document.getElementById('startBtnOauth').disabled = false;
+      } else {
+        document.getElementById('oauthStatus').textContent = error || 'Login failed';
+        document.getElementById('oauthStatus').style.color = '#ff2d55';
+        document.getElementById('oauthBtn').disabled = false;
+        document.getElementById('oauthBtn').textContent = 'Connect Claude Account';
       }
-      if (!anthropicKey.startsWith('sk-ant-')) {
-        showError('setupError', 'Invalid Anthropic API key format (should start with sk-ant-)');
-        return;
+    });
+
+    function switchAuth(mode) {
+      authMode = mode;
+      document.getElementById('authOauth').style.display = mode === 'oauth' ? 'block' : 'none';
+      document.getElementById('authApikey').style.display = mode === 'apikey' ? 'block' : 'none';
+      document.getElementById('tabOauth').style.background = mode === 'oauth' ? 'rgba(0,255,136,0.06)' : 'transparent';
+      document.getElementById('tabOauth').style.color = mode === 'oauth' ? 'var(--green)' : 'var(--text-muted)';
+      document.getElementById('tabApikey').style.background = mode === 'apikey' ? 'rgba(0,255,136,0.06)' : 'transparent';
+      document.getElementById('tabApikey').style.color = mode === 'apikey' ? 'var(--green)' : 'var(--text-muted)';
+    }
+
+    async function startOauthLogin() {
+      document.getElementById('oauthBtn').disabled = true;
+      document.getElementById('oauthBtn').textContent = 'Connecting...';
+      document.getElementById('oauthStatus').textContent = 'Opening Claude login...';
+      document.getElementById('oauthStatus').style.color = 'var(--text-muted)';
+      try {
+        await invoke('start_oauth_login');
+      } catch (err) {
+        document.getElementById('oauthStatus').textContent = String(err);
+        document.getElementById('oauthStatus').style.color = '#ff2d55';
+        document.getElementById('oauthBtn').disabled = false;
+        document.getElementById('oauthBtn').textContent = 'Connect Claude Account';
+      }
+    }
+
+    async function startSetup() {
+      let anthropicKey = '';
+      let openaiKey = '';
+      let port = 3000;
+
+      if (authMode === 'oauth') {
+        if (!oauthConnected) {
+          showError('setupError', 'Connect your Claude account first');
+          return;
+        }
+        openaiKey = document.getElementById('openaiKeyOauth').value.trim();
+        port = parseInt(document.getElementById('portOauth').value) || 3000;
+      } else {
+        anthropicKey = document.getElementById('anthropicKey').value.trim();
+        openaiKey = document.getElementById('openaiKey').value.trim();
+        port = parseInt(document.getElementById('port').value) || 3000;
+
+        if (!anthropicKey) {
+          showError('setupError', 'Anthropic API key is required');
+          return;
+        }
+        if (!anthropicKey.startsWith('sk-ant-')) {
+          showError('setupError', 'Invalid API key format (should start with sk-ant-)');
+          return;
+        }
       }
 
       try {
         await invoke('save_config', {
-          config: { anthropic_key: anthropicKey, openai_key: openaiKey, port }
+          config: {
+            anthropic_key: anthropicKey,
+            openai_key: openaiKey,
+            port,
+            oauth_connected: oauthConnected,
+          }
         });
         showScreen('loadingScreen');
         await invoke('start_server');

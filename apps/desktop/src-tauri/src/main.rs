@@ -28,6 +28,7 @@ struct AppConfig {
     port: u16,
     data_dir: String,
     installed: bool,
+    oauth_connected: bool,
 }
 
 impl Default for AppConfig {
@@ -38,6 +39,7 @@ impl Default for AppConfig {
             port: 3000,
             data_dir: default_data_dir(),
             installed: false,
+            oauth_connected: false,
         }
     }
 }
@@ -102,7 +104,7 @@ fn save_config_to_disk(config: &AppConfig) -> Result<(), String> {
 #[tauri::command]
 fn get_config() -> Result<AppConfig, String> {
     let config = load_config();
-    if config.anthropic_key.is_empty() {
+    if config.anthropic_key.is_empty() && !config.oauth_connected {
         return Err("No configuration found".into());
     }
     Ok(config)
@@ -111,6 +113,66 @@ fn get_config() -> Result<AppConfig, String> {
 #[tauri::command]
 fn save_config(config: AppConfig) -> Result<(), String> {
     save_config_to_disk(&config)
+}
+
+/// Check if Claude Code is already authenticated via OAuth
+#[tauri::command]
+fn check_oauth() -> Result<bool, String> {
+    // Check for existing Claude credentials file
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".into());
+    let creds_path = PathBuf::from(&home).join(".claude").join(".credentials.json");
+
+    if !creds_path.exists() {
+        return Ok(false);
+    }
+
+    if let Ok(data) = fs::read_to_string(&creds_path) {
+        if let Ok(creds) = serde_json::from_str::<serde_json::Value>(&data) {
+            if let Some(oauth) = creds.get("claudeAiOauth") {
+                let expires_at = oauth.get("expiresAt").and_then(|v| v.as_i64()).unwrap_or(0);
+                let has_refresh = oauth.get("refreshToken").and_then(|v| v.as_str()).map(|s| !s.is_empty()).unwrap_or(false);
+                // Valid if has refresh token (can renew even if expired)
+                return Ok(has_refresh);
+            }
+        }
+    }
+
+    Ok(false)
+}
+
+/// Start Claude Code OAuth login flow
+#[tauri::command]
+async fn start_oauth_login(app: AppHandle) -> Result<(), String> {
+    // Run `claude login` which opens a browser for OAuth
+    let result = Command::new("claude")
+        .args(["login"])
+        .output()
+        .map_err(|e| format!("Failed to run claude login: {}", e))?;
+
+    if result.status.success() {
+        // Check if credentials were created
+        let connected = check_oauth().unwrap_or(false);
+        let _ = app.emit("oauth-result", serde_json::json!({
+            "success": connected,
+            "error": if connected { "" } else { "Login completed but credentials not found" }
+        }));
+
+        if connected {
+            let mut config = load_config();
+            config.oauth_connected = true;
+            let _ = save_config_to_disk(&config);
+        }
+    } else {
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        let _ = app.emit("oauth-result", serde_json::json!({
+            "success": false,
+            "error": format!("Login failed: {}", stderr.chars().take(200).collect::<String>())
+        }));
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -341,7 +403,8 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .manage(Mutex::new(ServerState { child: None, running: false }))
         .invoke_handler(tauri::generate_handler![
-            get_config, save_config, start_server, stop_server, open_dashboard
+            get_config, save_config, start_server, stop_server, open_dashboard,
+            check_oauth, start_oauth_login
         ])
         .setup(|app| {
             // System tray
