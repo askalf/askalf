@@ -43,9 +43,13 @@ const DEFAULT_PRICING_TABLE: Record<string, ModelPricing> = {
   'claude-sonnet-4-6':            { inputPer1k: 0.003, outputPer1k: 0.015 },
   // Anthropic — Claude 4.5
   'claude-haiku-4-5':             { inputPer1k: 0.001, outputPer1k: 0.005 },
-  // Anthropic — Claude 4.0 (legacy)
-  'claude-opus-4':       { inputPer1k: 0.015, outputPer1k: 0.075 },
-  'claude-sonnet-4':     { inputPer1k: 0.003, outputPer1k: 0.015 },
+  'claude-sonnet-4-5':            { inputPer1k: 0.003, outputPer1k: 0.015 },
+  'claude-opus-4-5':              { inputPer1k: 0.005, outputPer1k: 0.025 },
+  // Anthropic — Claude 4.1
+  'claude-opus-4-1':              { inputPer1k: 0.015, outputPer1k: 0.075 },
+  // Anthropic — Claude 4.0
+  'claude-sonnet-4-0':            { inputPer1k: 0.003, outputPer1k: 0.015 },
+  'claude-opus-4-0':              { inputPer1k: 0.015, outputPer1k: 0.075 },
   // OpenAI — GPT-5 series (March 2026)
   'gpt-5.4':                      { inputPer1k: 0.0025, outputPer1k: 0.015 },
   'gpt-5.4-mini':                 { inputPer1k: 0.00075, outputPer1k: 0.003 },

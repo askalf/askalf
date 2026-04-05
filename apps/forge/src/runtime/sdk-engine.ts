@@ -64,10 +64,17 @@ export interface SdkExecutionContext {
 // ============================================
 
 const MODEL_COSTS: Record<string, { input: number; output: number }> = {
-  // Current aliases
+  // Claude 4.6 (current)
+  'claude-opus-4-6': { input: 5.0, output: 25.0 },
   'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
-  'claude-haiku-4-5': { input: 0.80, output: 4.0 },
-  'claude-opus-4-6': { input: 15.0, output: 75.0 },
+  // Claude 4.5
+  'claude-haiku-4-5': { input: 1.0, output: 5.0 },
+  'claude-sonnet-4-5': { input: 3.0, output: 15.0 },
+  'claude-opus-4-5': { input: 5.0, output: 25.0 },
+  // Claude 4.0/4.1 (legacy)
+  'claude-opus-4-1': { input: 15.0, output: 75.0 },
+  'claude-sonnet-4-0': { input: 3.0, output: 15.0 },
+  'claude-opus-4-0': { input: 15.0, output: 75.0 },
 };
 
 function calculateCost(model: string, inputTokens: number, outputTokens: number): number {

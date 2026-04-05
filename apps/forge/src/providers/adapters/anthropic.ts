@@ -593,10 +593,13 @@ export class AnthropicAdapter implements IProviderAdapter {
   async listModels(): Promise<ModelInfo[]> {
     // Anthropic doesn't have a list models API; return known models.
     return [
-      { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', contextWindow: 200000, maxOutput: 64000 },
-      { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', contextWindow: 200000, maxOutput: 64000 },
+      { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', contextWindow: 1000000, maxOutput: 128000 },
+      { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', contextWindow: 1000000, maxOutput: 64000 },
       { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', contextWindow: 200000, maxOutput: 64000 },
-      { id: 'claude-sonnet-4', name: 'Claude Sonnet 4', contextWindow: 200000, maxOutput: 16000 },
+      { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', contextWindow: 200000, maxOutput: 64000 },
+      { id: 'claude-opus-4-5', name: 'Claude Opus 4.5', contextWindow: 200000, maxOutput: 64000 },
+      { id: 'claude-sonnet-4-0', name: 'Claude Sonnet 4', contextWindow: 200000, maxOutput: 64000 },
+      { id: 'claude-opus-4-0', name: 'Claude Opus 4', contextWindow: 200000, maxOutput: 32000 },
     ];
   }
 }
