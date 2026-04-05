@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Reports.css';
 
-const API_BASE = window.location.hostname === 'askalf.org' || hostname.endsWith('.askalf.org')
+const API_BASE = window.location.hostname === 'askalf.org' || window.location.hostname.endsWith('.askalf.org')
   ? ''
   : 'http://localhost:3001';
 

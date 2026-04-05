@@ -87,7 +87,6 @@ const TOOL_LABELS: Record<string, string> = {
   web_browse: 'Web Browse',
   memory_search: 'Memory Search',
   memory_store: 'Memory Store',
-  db_query: 'DB Query',
   db_query: 'Platform DB',
   ticket_ops: 'Tickets',
   finding_ops: 'Findings',

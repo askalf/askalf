@@ -1,6 +1,6 @@
 // Centralized API layer for Convergence Dashboard
 
-const API_BASE = window.location.hostname === 'askalf.org' || hostname.endsWith('.askalf.org')
+const API_BASE = window.location.hostname === 'askalf.org' || window.location.hostname.endsWith('.askalf.org')
   ? 'https://api.askalf.org'
   : 'http://localhost:3005';
 
