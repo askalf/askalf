@@ -133,13 +133,18 @@ async function main() {
   // Tickets
   app.get('/api/v1/admin/tickets', async (req) => {
     const qs = req.query as { status?: string };
-    const where = qs.status ? `WHERE status = '${qs.status}'` : '';
+    const params: unknown[] = [];
+    let where = '';
+    if (qs.status) {
+      where = 'WHERE status = $1';
+      params.push(qs.status);
+    }
     try {
-      const tickets = await db.query(`SELECT * FROM tickets ${where} ORDER BY created_at DESC LIMIT 50`);
+      const tickets = await db.query(`SELECT * FROM tickets ${where} ORDER BY created_at DESC LIMIT 50`, params);
       return { tickets, total: tickets.length };
     } catch {
       try {
-        const tickets = await db.query(`SELECT * FROM agent_tickets ${where} ORDER BY created_at DESC LIMIT 50`);
+        const tickets = await db.query(`SELECT * FROM agent_tickets ${where} ORDER BY created_at DESC LIMIT 50`, params);
         return { tickets, total: tickets.length };
       } catch { return { tickets: [], total: 0 }; }
     }
