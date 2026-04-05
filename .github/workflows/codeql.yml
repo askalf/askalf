@@ -16,7 +16,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build TypeScript (gives CodeQL type info)
+        run: |
+          pnpm --filter @askalf/core build || true
+          pnpm --filter @askalf/database-adapter build || true
+          pnpm --filter @askalf/redis-adapter build || true
+          pnpm --filter @askalf/observability build || true
+          pnpm --filter @askalf/email build || true
+          pnpm --filter @askalf/forge build || true
+          pnpm --filter @askalf/mcp-tools build || true
+
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
+          config-file: ./.github/codeql/codeql-config.yml
+
       - uses: github/codeql-action/analyze@v3

@@ -1,0 +1,18 @@
+name: "AskAlf CodeQL Config"
+
+paths:
+  - apps/forge/src
+  - apps/dashboard/src
+  - apps/dashboard/client/src
+  - apps/mcp-tools/src
+  - packages
+
+paths-ignore:
+  - '**/node_modules/**'
+  - '**/dist/**'
+  - '**/build/**'
+  - '**/*.test.ts'
+  - '**/*.spec.ts'
+  - '**/tests/**'
+  - apps/desktop/**
+  - apps/standalone/**
