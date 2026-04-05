@@ -1,7 +1,7 @@
 // Centralized API layer for Backup Administration
 
 const getApiBase = () => {
-  if (window.location.hostname.includes('askalf.org')) return 'https://api.askalf.org';
+  if (window.location.hostname === 'askalf.org' || hostname.endsWith('.askalf.org')) return 'https://api.askalf.org';
   return '';
 };
 

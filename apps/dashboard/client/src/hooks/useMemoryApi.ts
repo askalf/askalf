@@ -1,6 +1,6 @@
 // Centralized API layer for Memory (Knowledge Layers) page
 
-const API_BASE = window.location.hostname.includes('askalf.org')
+const API_BASE = window.location.hostname === 'askalf.org' || hostname.endsWith('.askalf.org')
   ? 'https://api.askalf.org'
   : 'http://localhost:3005';
 

@@ -6,6 +6,7 @@
  */
 
 import { spawn, exec, execSync, execFileSync, type ChildProcess } from 'child_process';
+import { resolve as resolvePath } from 'path';
 import { ulid } from 'ulid';
 import { readFile, writeFile, access, copyFile, mkdir, unlink, rm, chmod } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
@@ -1789,22 +1790,25 @@ function executeClaudeCode(
         filteredArgs.splice(promptIdx, 2); // remove -p and prompt
       }
 
-      const escapedArgs = filteredArgs.map(a => "'" + a.replace(/'/g, "'\\''") + "'").join(' ');
-
       // Auth strategy:
       // 1. Primary: OAuth token (from .credentials.json) — uses subscription quota
       // 2. Fallback: API key — if OAuth is dead (oauthRefreshFailures >= MAX_REFRESH_FAILURES),
       //    pass ANTHROPIC_API_KEY so the CLI uses direct API billing instead
       const useApiKeyFallback = oauthRefreshFailures >= MAX_REFRESH_FAILURES && process.env['ANTHROPIC_API_KEY'];
-      const apiKeyFlag = useApiKeyFallback ? ` --api-key '${process.env['ANTHROPIC_API_KEY']}'` : '';
 
       if (useApiKeyFallback) {
         logger.warn('[CLI] OAuth dead — using ANTHROPIC_API_KEY fallback for execution');
       }
 
-      const shellCmd = promptFile
-        ? `claude -p "$(cat '${promptFile}')"${apiKeyFlag} ${escapedArgs}`
-        : `claude${apiKeyFlag} ${escapedArgs}`;
+      // Build CLI args array — no shell interpolation, prevents command injection
+      const cliArgs: string[] = [];
+      if (promptFile) {
+        cliArgs.push('-p', await readFile(promptFile, 'utf8'));
+      }
+      if (useApiKeyFallback) {
+        cliArgs.push('--api-key', process.env['ANTHROPIC_API_KEY']!);
+      }
+      cliArgs.push(...filteredArgs);
 
       // Build env: only clear API key if OAuth is working (forces subscription billing).
       // If OAuth is dead, pass the API key through env as additional fallback.
@@ -1817,8 +1821,16 @@ function executeClaudeCode(
         cliEnv['ANTHROPIC_API_KEY'] = ''; // Force OAuth subscription when OAuth works
       }
 
-      const proc = spawn('sh', ['-c', shellCmd], {
-        cwd,
+      // Validate cwd is within allowed workspace paths
+      const safeCwd = resolvePath(cwd);
+      const allowedPrefixes = ['/workspace', '/tmp/agent-workspace', '/tmp/claude-home'];
+      if (!allowedPrefixes.some(p => safeCwd.startsWith(p))) {
+        return resolve({ exitCode: 1, stdout: '', stderr: `Blocked: cwd '${cwd}' outside allowed workspace` });
+      }
+
+      // Use spawn with args array — no shell, no injection
+      const proc = spawn('claude', cliArgs, {
+        cwd: safeCwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: cliEnv,
       });
