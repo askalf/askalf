@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useThemeStore } from '../../stores/theme';
 import { useTenantStore } from '../../stores/tenant';
 import NotificationCenter from '../NotificationCenter';
 import HeartbeatIndicator from './HeartbeatIndicator';
@@ -33,8 +32,6 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
   const [oauthStatus, setOauthStatus] = useState<'healthy' | 'expiring' | 'expired' | 'unknown'>('unknown');
   const [oauthProvider, setOauthProvider] = useState<string>('claude');
   const [oauthRefreshing, setOauthRefreshing] = useState(false);
-  const { theme } = useThemeStore();
-  const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   // Fetch current user + tenants
   useEffect(() => {
