@@ -115,6 +115,10 @@ RUN if [ "$INSTALL_CODEX" = "true" ]; then \
 # Production stage - minimal Alpine
 FROM node:22-alpine@sha256:8094c002d08262dba12645a3b4a15cd6cd627d30bc782f53229a2ec13ee22a00 AS runner
 
+LABEL org.opencontainers.image.source="https://github.com/askalf/askalf"
+LABEL org.opencontainers.image.description="AskAlf Dashboard — Web UI and API Gateway"
+LABEL org.opencontainers.image.licenses="MIT"
+
 # Runtime deps only: bash (node-pty), git (claude/codex), curl (healthchecks)
 RUN apk add --no-cache bash git curl
 

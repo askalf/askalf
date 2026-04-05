@@ -59,6 +59,10 @@ RUN rm -rf /app/deploy/src 2>/dev/null || true && \
 # Production stage — Debian slim + Google Chrome (works in Docker Desktop WSL2)
 FROM node:22-slim AS runner
 
+LABEL org.opencontainers.image.source="https://github.com/askalf/askalf"
+LABEL org.opencontainers.image.description="AskAlf MCP Tools — 70 Built-in Tools Server"
+LABEL org.opencontainers.image.licenses="MIT"
+
 # Install Chrome/Chromium for browser_use tool
 # Google Chrome only available for amd64; use Chromium from Debian repos for arm64
 RUN apt-get update -qq && \
