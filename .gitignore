@@ -185,3 +185,7 @@ CLAUDE.md
 apps/dashboard/public/app/assets/
 infrastructure/
 CLAUDE.md
+
+# Build-time generated files
+apps/desktop/icon.html
+docs/images/
