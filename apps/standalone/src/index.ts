@@ -63,32 +63,87 @@ async function main() {
   const redis = createRedisAdapter({ mode: 'memory' });
   console.log('  [2/4] Cache ready.');
 
-  // 3. Migrations
-  console.log('  [3/4] Running migrations...');
+  // 3. Schema & seed data
+  console.log('  [3/4] Setting up database...');
   try {
-    const { readdir, readFile } = await import('fs/promises');
-    const migrationsDir = join(process.cwd(), 'apps', 'forge', 'migrations');
+    // Create core tables (PGlite-compatible — no extensions, no complex types)
+    await db.query(`CREATE TABLE IF NOT EXISTS forge_agents (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT DEFAULT 'worker', status TEXT DEFAULT 'active',
+      description TEXT, system_prompt TEXT, model_id TEXT DEFAULT 'claude-haiku-4-5',
+      schedule_cron TEXT, tasks_completed INTEGER DEFAULT 0, tasks_failed INTEGER DEFAULT 0,
+      tenant_id TEXT DEFAULT 'default', created_at TIMESTAMPTZ DEFAULT NOW(), deleted_at TIMESTAMPTZ
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS forge_agent_templates (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, category TEXT,
+      is_active BOOLEAN DEFAULT true, system_prompt TEXT, model_id TEXT DEFAULT 'claude-haiku-4-5',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS forge_executions (
+      id TEXT PRIMARY KEY, agent_id TEXT, owner_id TEXT, tenant_id TEXT DEFAULT 'default',
+      input TEXT, output TEXT, status TEXT DEFAULT 'pending', cost NUMERIC DEFAULT 0,
+      metadata JSONB, started_at TIMESTAMPTZ, completed_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS tickets (
+      id TEXT PRIMARY KEY, title TEXT, description TEXT, status TEXT DEFAULT 'open',
+      priority TEXT DEFAULT 'medium', category TEXT, created_by TEXT, assigned_to TEXT,
+      resolution TEXT, source TEXT DEFAULT 'system', is_agent_ticket BOOLEAN DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(), deleted_at TIMESTAMPTZ
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS platform_settings (
+      key TEXT PRIMARY KEY, value TEXT, updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY, title TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await db.query(`INSERT INTO platform_settings (key, value) VALUES ('onboarding_completed', 'false') ON CONFLICT DO NOTHING`);
+    console.log('  [3/4] Schema ready.');
+  } catch (err) {
+    console.log(`  [3/4] Schema warning: ${err instanceof Error ? err.message : err}`);
+  }
 
-    if (existsSync(migrationsDir)) {
-      await db.query(`CREATE TABLE IF NOT EXISTS forge_migrations (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
-      const applied = new Set((await db.query<{ name: string }>('SELECT name FROM forge_migrations')).map(r => r.name));
-      const files = (await readdir(migrationsDir)).filter(f => f.endsWith('.sql')).sort();
-      let count = 0;
-      for (const file of files) {
-        if (applied.has(file)) continue;
-        try {
-          await db.query(await readFile(join(migrationsDir, file), 'utf8'));
-          await db.query('INSERT INTO forge_migrations (name) VALUES ($1)', [file]);
-          count++;
-        } catch {
-          await db.query('INSERT INTO forge_migrations (name) VALUES ($1) ON CONFLICT DO NOTHING', [file]);
+  // 3b. Seed default data if fresh install
+  try {
+    const templateCount = await db.query<{ count: string }>('SELECT COUNT(*)::text as count FROM forge_agent_templates');
+    if (parseInt(templateCount[0]?.count || '0') === 0) {
+      console.log('  [3/4] Seeding templates and agents...');
+      const categories = [
+        { cat: 'Software Dev', items: ['Full-Stack Builder', 'Code Reviewer', 'CI/CD Manager', 'Bug Triage', 'Security Auditor'] },
+        { cat: 'DevOps', items: ['Infrastructure Monitor', 'Deploy Manager', 'Log Analyzer', 'Cost Optimizer', 'Backup Agent'] },
+        { cat: 'Marketing', items: ['Content Writer', 'SEO Analyst', 'Social Media Manager', 'Campaign Tracker', 'Brand Monitor'] },
+        { cat: 'Support', items: ['Ticket Responder', 'FAQ Builder', 'Escalation Manager', 'Satisfaction Tracker', 'Onboarding Guide'] },
+        { cat: 'E-Commerce', items: ['Order Manager', 'Inventory Tracker', 'Review Responder', 'Price Monitor', 'Returns Processor'] },
+        { cat: 'Research', items: ['Deep Researcher', 'Competitive Analyst', 'Data Synthesizer', 'Trend Spotter', 'Report Generator'] },
+        { cat: 'Finance', items: ['Invoice Chaser', 'Expense Categorizer', 'Budget Tracker', 'Revenue Reporter', 'Compliance Monitor'] },
+        { cat: 'Personal', items: ['Daily Briefer', 'Email Triager', 'Calendar Optimizer', 'Reading Summarizer', 'Task Prioritizer'] },
+        { cat: 'Agency', items: ['Client Communicator', 'Brief Analyzer', 'Project Tracker', 'Asset Organizer', 'Timesheet Manager'] },
+        { cat: 'Custom', items: ['General Assistant', 'Workflow Automator', 'Integration Builder', 'Notification Manager', 'Data Migrator'] },
+      ];
+      for (const { cat, items } of categories) {
+        for (const name of items) {
+          await db.query(
+            `INSERT INTO forge_agent_templates (id, name, description, category, is_active, created_at)
+             VALUES (gen_random_uuid()::text, $1, $2, $3, true, NOW()) ON CONFLICT DO NOTHING`,
+            [name, `${name} agent for ${cat.toLowerCase()} workflows`, cat],
+          ).catch(() => {});
         }
       }
-      console.log(`  [3/4] ${count} migrations applied (${files.length} total).`);
+
+      // Seed default fleet agents
+      const defaultAgents = [
+        { name: 'Watchdog', type: 'monitor', desc: 'Monitors system health, detects anomalies, creates tickets for issues' },
+        { name: 'Builder', type: 'worker', desc: 'Claims tickets, writes code, fixes bugs, deploys changes autonomously' },
+        { name: 'Fleet Chief', type: 'meta', desc: 'Coordinates the fleet, evolves agent prompts, creates new agents when gaps are found' },
+      ];
+      for (const agent of defaultAgents) {
+        await db.query(
+          `INSERT INTO forge_agents (id, name, type, status, description, tasks_completed, tasks_failed, tenant_id, created_at)
+           VALUES (gen_random_uuid()::text, $1, $2, 'active', $3, 0, 0, 'default', NOW()) ON CONFLICT DO NOTHING`,
+          [agent.name, agent.type, agent.desc],
+        ).catch(() => {});
+      }
+      console.log(`  [3/4] Seeded ${categories.reduce((s, c) => s + c.items.length, 0)} templates, ${defaultAgents.length} agents.`);
     }
-  } catch (err) {
-    console.log(`  [3/4] Warning: ${err instanceof Error ? err.message : err}`);
-  }
+  } catch {}
 
   // 4. API Server
   console.log('  [4/4] Starting server...');
@@ -166,13 +221,47 @@ async function main() {
     } catch { return { completed: false }; }
   });
 
-  // Intent (chat with Alf)
-  app.post('/api/v1/intent', async (req) => {
+  // Intent (chat with Alf) — real AI response if API key is set
+  app.post('/api/v1/intent', async (req, reply) => {
     const body = req.body as { message?: string };
-    return {
-      response: `Received: "${body?.message}". The full AI intent engine requires an API key configured in .env. Check ${join(config.dataDir, '.env')}`,
-      intent: null,
-    };
+    const message = (body?.message || '').trim();
+    if (!message) return { response: 'Send a message to get started.', intent: null };
+
+    const apiKey = process.env['ANTHROPIC_API_KEY'];
+    if (!apiKey) {
+      return {
+        response: `API key not configured. Add ANTHROPIC_API_KEY to ${join(config.dataDir, '.env')} and restart.`,
+        intent: null,
+      };
+    }
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5',
+          max_tokens: 500,
+          system: `You are Alf — an AI workforce builder. When someone describes what they need, you design an AI agent team. Name each agent with a clear role, describe what it does autonomously, show the schedule, and end with a monthly cost estimate. Keep it under 200 words, conversational, no markdown headers.`,
+          messages: [{ role: 'user', content: message }],
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: { message?: string } };
+        return { response: `AI error: ${err.error?.message || res.statusText}`, intent: null };
+      }
+
+      const data = await res.json() as { content: { text: string }[] };
+      return { response: data.content[0]?.text || 'No response', intent: null };
+    } catch (err) {
+      return { response: `Error: ${err instanceof Error ? err.message : String(err)}`, intent: null };
+    }
   });
 
   // Conversations
