@@ -188,15 +188,17 @@ async function main() {
     await app.register(await import('@fastify/static').then(m => m.default), {
       root: dashboardDir,
       prefix: '/',
-      decorateReply: false,
     });
+
+    // Cache the index.html for SPA fallback
+    const indexHtml = readFileSync(join(dashboardDir, 'index.html'), 'utf-8');
 
     // SPA fallback — serve index.html for all non-API, non-asset routes
     app.setNotFoundHandler(async (req, reply) => {
       if (req.url.startsWith('/api/') || req.url === '/health') {
         return reply.status(404).send({ error: 'Not found' });
       }
-      return reply.sendFile('index.html', dashboardDir);
+      return reply.type('text/html').send(indexHtml);
     });
 
     console.log('  ✓ Dashboard UI loaded');
