@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; }
+  body {
+    width: 1024px;
+    height: 1024px;
+    background: #030306;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .icon {
+    width: 1024px;
+    height: 1024px;
+    background: linear-gradient(135deg, #030306 0%, #0a0a14 100%);
+    border-radius: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .icon::before {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,255,136,0.08) 0%, transparent 70%);
+  }
+  .letter {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 520px;
+    font-weight: 700;
+    color: #00ff88;
+    text-shadow: 0 0 80px rgba(0,255,136,0.3), 0 0 160px rgba(0,255,136,0.1);
+    position: relative;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+  <div class="icon">
+    <div class="letter">A</div>
+  </div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicedoc/tauri/main/tooling/cli/schema.json",
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/main/crates/tauri-cli/schema.json",
   "productName": "AskAlf",
   "version": "2.9.9",
   "identifier": "org.askalf.desktop",
@@ -12,16 +12,22 @@
     "windows": [
       {
         "title": "AskAlf",
-        "width": 1280,
-        "height": 800,
+        "width": 520,
+        "height": 640,
         "resizable": true,
-        "fullscreen": false
+        "center": true,
+        "decorations": true,
+        "transparent": false
       }
     ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' http://localhost:*"
+    },
     "trayIcon": {
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
-      "menuOnLeftClick": false
+      "menuOnLeftClick": false,
+      "tooltip": "AskAlf — AI Workforce"
     }
   },
   "bundle": {
@@ -34,15 +40,17 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": [
-      "sidecar/askalf-server"
-    ],
     "macOS": {
       "minimumSystemVersion": "10.15"
     },
     "windows": {
       "wix": {
         "language": "en-US"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": ["nodejs (>= 20)", "git"]
       }
     }
   }
