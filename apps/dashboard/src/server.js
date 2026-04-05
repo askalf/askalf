@@ -1560,6 +1560,25 @@ fastify.post('/api/user/connectors/test', async (request, reply) => {
   let testKey = api_key;
   let testBaseUrl = base_url;
 
+  // Validate base_url to prevent SSRF — only allow http/https to public endpoints
+  if (testBaseUrl) {
+    try {
+      const parsed = new URL(testBaseUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('bad protocol');
+      // Block internal/private IPs
+      const host = parsed.hostname;
+      if (host === 'localhost' || host === '127.0.0.1' || host === '::1' ||
+          host.startsWith('10.') || host.startsWith('172.') || host.startsWith('192.168.') ||
+          host.endsWith('.local') || host.endsWith('.internal')) {
+        // Allow localhost only for ollama (expected to run locally)
+        if (provider !== 'ollama') throw new Error('Internal URLs not allowed');
+      }
+    } catch (e) {
+      if (e.message !== 'Internal URLs not allowed' && e.message !== 'bad protocol') { /* URL parse fail — let it through, fetch will fail naturally */ }
+      else return reply.status(400).send({ valid: false, error: e.message });
+    }
+  }
+
   if (!testKey && tenant) {
     const connector = await queryOne('SELECT api_key_encrypted, base_url FROM user_ai_connectors WHERE tenant_id = $1 AND provider = $2', [tenant.id, provider]);
     if (connector?.api_key_encrypted) {

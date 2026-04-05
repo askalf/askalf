@@ -170,10 +170,27 @@ function extractTextFromHtml(html: string, selector?: string | undefined): strin
     }
   }
 
-  // Remove script and style blocks
-  content = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-  content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-  content = content.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  // Decode entities FIRST to prevent re-introducing tags after stripping
+  function decodeEntities(s: string): string {
+    return s
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&#x27;/g, "'")
+      .replace(/&#(\d+);/g, (_m, c: string) => String.fromCharCode(parseInt(c, 10)));
+  }
+
+  // Remove script/style/noscript — loop until stable to prevent nested bypass
+  let prev = '';
+  while (prev !== content) {
+    prev = content;
+    content = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+    content = content.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  }
 
   // Convert common block elements to newlines
   content = content.replace(/<\/?(p|div|br|hr|h[1-6]|li|tr|blockquote|pre)[^>]*>/gi, '\n');
@@ -181,18 +198,15 @@ function extractTextFromHtml(html: string, selector?: string | undefined): strin
   // Convert list items to bullet points
   content = content.replace(/<li[^>]*>/gi, '\n- ');
 
-  // Strip all remaining HTML tags
-  content = content.replace(/<[^>]+>/g, '');
+  // Strip all remaining HTML tags — loop until stable
+  prev = '';
+  while (prev !== content) {
+    prev = content;
+    content = content.replace(/<[^>]+>/g, '');
+  }
 
-  // Decode common HTML entities
-  content = content.replace(/&nbsp;/g, ' ');
-  content = content.replace(/&amp;/g, '&');
-  content = content.replace(/&lt;/g, '<');
-  content = content.replace(/&gt;/g, '>');
-  content = content.replace(/&quot;/g, '"');
-  content = content.replace(/&#39;/g, "'");
-  content = content.replace(/&#x27;/g, "'");
-  content = content.replace(/&#(\d+);/g, (_match, code: string) => String.fromCharCode(parseInt(code, 10)));
+  // Decode entities after all tags are stripped
+  content = decodeEntities(content);
 
   // Collapse whitespace
   content = content.replace(/[ \t]+/g, ' ');

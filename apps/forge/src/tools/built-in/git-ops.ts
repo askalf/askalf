@@ -307,12 +307,14 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
         }
 
         // Auto-append agent attribution to commit message
-        const agentEmail = `${input.agent_name.replace(/\s+/g, '').toLowerCase()}@forge.local`;
-        const fullMessage = `${input.message}\n\n[Agent: ${input.agent_name} | Execution: ${input.agent_id ?? 'unknown'}]`;
+        const safeName = input.agent_name.replace(/[^a-zA-Z0-9 _-]/g, '');
+        const agentEmail = `${safeName.replace(/\s+/g, '').toLowerCase()}@forge.local`;
+        const safeMessage = input.message.replace(/[`$"\\!]/g, '');
+        const fullMessage = `${safeMessage}\n\n[Agent: ${safeName} | Execution: ${input.agent_id ?? 'unknown'}]`;
 
         const res = await gitIn(
           commitDir,
-          `-c user.name="${input.agent_name}" -c user.email="${agentEmail}" commit -m "${fullMessage.replace(/"/g, '\\"')}"`,
+          `-c user.name="${safeName}" -c user.email="${agentEmail}" commit -m "${fullMessage.replace(/"/g, '\\"')}"`,
         );
 
         if (res.exitCode !== 0 && res.stderr.includes('lock')) {
@@ -320,7 +322,7 @@ export async function gitOps(input: GitOpsInput): Promise<ToolResult> {
           await new Promise((r) => setTimeout(r, 2000));
           const retry = await gitIn(
             commitDir,
-            `-c user.name="${input.agent_name}" -c user.email="${agentEmail}" commit -m "${fullMessage.replace(/"/g, '\\"')}"`,
+            `-c user.name="${safeName}" -c user.email="${agentEmail}" commit -m "${fullMessage.replace(/"/g, '\\"')}"`,
           );
           return {
             output: { committed: retry.exitCode === 0, branch: currentBranch, worktree: commitDir, retried: true, stdout: retry.stdout },

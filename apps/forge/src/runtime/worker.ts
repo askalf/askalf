@@ -7,6 +7,7 @@
 
 import { spawn, exec, execSync, execFileSync, type ChildProcess } from 'child_process';
 import { resolve as resolvePath } from 'path';
+import { randomBytes } from 'crypto';
 import { ulid } from 'ulid';
 import { readFile, writeFile, access, copyFile, mkdir, unlink, rm, chmod } from 'fs/promises';
 import { loadConfig, type ForgeConfig } from '../config.js';
@@ -1785,7 +1786,7 @@ function executeClaudeCode(
 
     const run = async () => {
       if (promptIdx >= 0 && promptIdx + 1 < args.length) {
-        promptFile = `/tmp/prompt-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`;
+        promptFile = `/tmp/prompt-${Date.now()}-${randomBytes(8).toString('hex')}.txt`;
         await writeFile(promptFile, filteredArgs[promptIdx + 1]!);
         filteredArgs.splice(promptIdx, 2); // remove -p and prompt
       }

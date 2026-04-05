@@ -1986,17 +1986,16 @@ export async function platformAdminRoutes(app: FastifyInstance): Promise<void> {
       const existing = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = $1', [body.email]);
       if (existing) return reply.code(409).send({ error: 'User already exists' });
 
-      // Hash password using Node crypto (bcrypt not available, use simple hash for admin-created accounts)
-      const { createHash: makeHash, randomBytes } = await import('crypto');
+      const { scryptSync, randomBytes } = await import('crypto');
       const salt = randomBytes(16).toString('hex');
-      const hash = makeHash('sha256').update(body.password + salt).digest('hex');
+      const hash = scryptSync(body.password, salt, 64).toString('hex');
 
       const userId = ulid();
 
       await query(
         `INSERT INTO users (id, email, password_hash, display_name, role, status, email_verified, created_at)
          VALUES ($1, $2, $3, $4, $5, 'active', true, NOW())`,
-        [userId, body.email, `sha256:${salt}:${hash}`, body.display_name || null, body.role || 'user'],
+        [userId, body.email, `scrypt:${salt}:${hash}`, body.display_name || null, body.role || 'user'],
       );
 
       return reply.code(201).send({ success: true, userId });

@@ -513,12 +513,16 @@ export async function testApiKeyIntegration(
 
   try {
     let url = providerConfig.testEndpoint;
-    // For providers with domain-based URLs
+    // For providers with domain-based URLs — validate to prevent SSRF
     if (provider === 'jira' && config['domain']) {
-      url = `https://${config['domain']}/rest/api/3/myself`;
+      const domain = String(config['domain']).replace(/[^a-zA-Z0-9.-]/g, '');
+      if (!domain.endsWith('.atlassian.net')) throw new Error('Jira domain must end with .atlassian.net');
+      url = `https://${domain}/rest/api/3/myself`;
     }
     if (provider === 'grafana' && config['url']) {
-      url = `${config['url'].replace(/\/$/, '')}/api/org`;
+      const grafanaUrl = new URL(String(config['url']));
+      if (!['http:', 'https:'].includes(grafanaUrl.protocol)) throw new Error('Grafana URL must use http/https');
+      url = `${grafanaUrl.origin}/api/org`;
     }
 
     const headers = providerConfig.testHeaders(config);

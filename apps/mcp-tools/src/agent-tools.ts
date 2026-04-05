@@ -290,23 +290,31 @@ function extractTextFromHtml(html: string, selector?: string): string {
     }
   }
 
-  // Remove script/style/noscript
-  content = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-  content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-  content = content.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  // Remove script/style/noscript — loop until stable to prevent nested bypass
+  let prev = '';
+  while (prev !== content) {
+    prev = content;
+    content = content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+    content = content.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+    content = content.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, '');
+  }
 
   // Block elements → newlines
   content = content.replace(/<\/?(p|div|br|hr|h[1-6]|li|tr|blockquote|pre)[^>]*>/gi, '\n');
   content = content.replace(/<li[^>]*>/gi, '\n- ');
 
-  // Strip remaining tags
-  content = content.replace(/<[^>]+>/g, '');
+  // Strip remaining tags — loop until stable
+  prev = '';
+  while (prev !== content) {
+    prev = content;
+    content = content.replace(/<[^>]+>/g, '');
+  }
 
-  // Decode entities
+  // Decode entities AFTER all tags are fully stripped
   content = content.replace(/&nbsp;/g, ' ');
   content = content.replace(/&amp;/g, '&');
-  content = content.replace(/&lt;/g, '<');
-  content = content.replace(/&gt;/g, '>');
+  content = content.replace(/&lt;/g, ' ');
+  content = content.replace(/&gt;/g, ' ');
   content = content.replace(/&quot;/g, '"');
   content = content.replace(/&#39;/g, "'");
   content = content.replace(/&#x27;/g, "'");
