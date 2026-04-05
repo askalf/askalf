@@ -379,46 +379,9 @@ async function handleTeamCoordinate(args: Record<string, unknown>): Promise<stri
 }
 
 // ============================================
-// twitter_ops — Cookie-based X/Twitter via agent-twitter-client
-// Routes through Gluetun VPN proxy when available.
-// No paid API tier needed — uses same endpoints as the web browser.
+// twitter_ops — X/Twitter via browser bridge OR OAuth API OR cookie scraper
+// Strategy: OAuth API (if keys set) → Browser bridge (CDP) → Cookie scraper (legacy fallback)
 // ============================================
-
-let _scraper: unknown = null;
-let _scraperReady = false;
-
-async function getScraper(): Promise<unknown> {
-  if (_scraperReady && _scraper) return _scraper;
-
-  const username = process.env['TWITTER_USERNAME'] || '';
-  const password = process.env['TWITTER_PASSWORD'] || '';
-  const email = process.env['TWITTER_EMAIL'] || '';
-
-  if (!username || !password) {
-    throw new Error('Twitter credentials not configured. Set TWITTER_USERNAME, TWITTER_PASSWORD, and optionally TWITTER_EMAIL in .env');
-  }
-
-  try {
-    const { Scraper } = await import('agent-twitter-client');
-    const scraper = new Scraper();
-
-    // Configure proxy if Gluetun VPN is available
-    const proxy = process.env['HTTPS_PROXY'] || process.env['HTTP_PROXY'];
-    if (proxy) {
-      log(`twitter_ops: routing through VPN proxy ${proxy}`);
-    }
-
-    await scraper.login(username, password, email || undefined);
-    _scraper = scraper;
-    _scraperReady = true;
-    log(`twitter_ops: logged in as @${username} (cookie-based)`);
-    return scraper;
-  } catch (err) {
-    _scraperReady = false;
-    _scraper = null;
-    throw new Error(`Twitter login failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-  }
-}
 
 // Human-like delay between actions (2-5 seconds)
 function humanDelay(): Promise<void> {
@@ -426,12 +389,236 @@ function humanDelay(): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
+type TwitterStrategy = 'oauth' | 'browser' | 'scraper';
+
+function detectTwitterStrategy(): TwitterStrategy {
+  if (process.env['TWITTER_API_KEY'] && process.env['TWITTER_API_SECRET'] &&
+      process.env['TWITTER_ACCESS_TOKEN'] && process.env['TWITTER_ACCESS_TOKEN_SECRET']) {
+    return 'oauth';
+  }
+  // Check if browser bridge is available
+  const browserHost = process.env['BROWSER_HOST'] || 'browser';
+  const browserPort = process.env['BROWSER_PORT'] || '9222';
+  // We'll try browser first, fall back to scraper
+  return 'browser';
+}
+
+let _twitterPage: import('puppeteer-core').Page | null = null;
+let _twitterLoggedIn = false;
+
+async function getTwitterBrowserPage(): Promise<import('puppeteer-core').Page> {
+  if (_twitterPage && !_twitterPage.isClosed() && _twitterLoggedIn) return _twitterPage;
+
+  const browser = await getBrowser(); // reuse browser_use's connection
+  _twitterPage = await browser.newPage();
+  await _twitterPage.setViewport({ width: 1280, height: 900 });
+  await _twitterPage.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36');
+
+  // Check if already logged in
+  await _twitterPage.goto('https://x.com/home', { waitUntil: 'networkidle2', timeout: 20000 });
+  await humanDelay();
+
+  const url = _twitterPage.url();
+  if (url.includes('/login') || url.includes('/i/flow/login')) {
+    // Need to log in
+    const username = process.env['TWITTER_USERNAME'] || '';
+    const password = process.env['TWITTER_PASSWORD'] || '';
+    if (!username || !password) {
+      throw new Error('Twitter credentials not configured. Set TWITTER_USERNAME and TWITTER_PASSWORD.');
+    }
+
+    log('twitter_ops: logging in via browser bridge...');
+
+    // Enter username
+    await _twitterPage.waitForSelector('input[autocomplete="username"]', { timeout: 10000 });
+    await _twitterPage.type('input[autocomplete="username"]', username, { delay: 50 });
+    await humanDelay();
+
+    // Click Next
+    const nextButtons = await _twitterPage.$$('button');
+    for (const btn of nextButtons) {
+      const text = await btn.evaluate((el: HTMLElement) => el.textContent?.trim());
+      if (text === 'Next') { await btn.click(); break; }
+    }
+    await humanDelay();
+
+    // Handle email verification step if it appears
+    const emailInput = await _twitterPage.$('input[data-testid="ocfEnterTextTextInput"]');
+    if (emailInput) {
+      const email = process.env['TWITTER_EMAIL'] || '';
+      if (email) {
+        await emailInput.type(email, { delay: 50 });
+        const verifyNext = await _twitterPage.$$('button');
+        for (const btn of verifyNext) {
+          const text = await btn.evaluate((el: HTMLElement) => el.textContent?.trim());
+          if (text === 'Next') { await btn.click(); break; }
+        }
+        await humanDelay();
+      }
+    }
+
+    // Enter password
+    await _twitterPage.waitForSelector('input[type="password"]', { timeout: 10000 });
+    await _twitterPage.type('input[type="password"]', password, { delay: 50 });
+    await humanDelay();
+
+    // Click Log in
+    const loginButtons = await _twitterPage.$$('button');
+    for (const btn of loginButtons) {
+      const text = await btn.evaluate((el: HTMLElement) => el.textContent?.trim());
+      if (text === 'Log in') { await btn.click(); break; }
+    }
+
+    await new Promise(r => setTimeout(r, 5000));
+
+    // Verify login succeeded
+    const postLoginUrl = _twitterPage.url();
+    if (postLoginUrl.includes('/home')) {
+      _twitterLoggedIn = true;
+      log('twitter_ops: browser login successful');
+    } else {
+      throw new Error(`Twitter browser login failed — ended up at ${postLoginUrl}`);
+    }
+  } else {
+    _twitterLoggedIn = true;
+    log('twitter_ops: already logged in via browser');
+  }
+
+  return _twitterPage;
+}
+
+// Legacy cookie scraper fallback
+let _scraper: unknown = null;
+let _scraperReady = false;
+
+async function getScraperFallback(): Promise<unknown> {
+  if (_scraperReady && _scraper) return _scraper;
+  const { Scraper } = await import('agent-twitter-client');
+  const scraper = new Scraper();
+  const username = process.env['TWITTER_USERNAME'] || '';
+  const password = process.env['TWITTER_PASSWORD'] || '';
+  const email = process.env['TWITTER_EMAIL'] || '';
+  if (!username || !password) throw new Error('Twitter credentials not configured');
+  await scraper.login(username, password, email || undefined);
+  _scraper = scraper;
+  _scraperReady = true;
+  return scraper;
+}
+
+async function handleTwitterViaBrowser(action: string, args: Record<string, unknown>): Promise<string> {
+  const page = await getTwitterBrowserPage();
+
+  switch (action) {
+    case 'post_tweet': {
+      const text = args['text'] as string;
+      if (!text) return JSON.stringify({ error: 'text is required' });
+      if (text.length > 280) return JSON.stringify({ error: `Tweet too long (${text.length}/280)` });
+
+      await page.goto('https://x.com/compose/post', { waitUntil: 'networkidle2', timeout: 15000 });
+      await humanDelay();
+
+      // Type into the compose box
+      const editor = await page.waitForSelector('[data-testid="tweetTextarea_0"]', { timeout: 10000 });
+      if (!editor) throw new Error('Could not find tweet compose box');
+      await editor.click();
+      await page.keyboard.type(text, { delay: 30 });
+      await humanDelay();
+
+      // Click Post button
+      const postBtn = await page.$('[data-testid="tweetButton"]');
+      if (!postBtn) throw new Error('Could not find Post button');
+      await postBtn.click();
+      await new Promise(r => setTimeout(r, 3000));
+
+      log(`twitter_ops: posted tweet via browser`);
+      return JSON.stringify({ posted: true, text, strategy: 'browser' });
+    }
+
+    case 'search': {
+      const query = args['query'] as string;
+      if (!query) return JSON.stringify({ error: 'query is required' });
+      const max = Math.min((args['max_results'] as number) || 10, 20);
+
+      await page.goto(`https://x.com/search?q=${encodeURIComponent(query)}&f=live`, { waitUntil: 'networkidle2', timeout: 15000 });
+      await humanDelay();
+
+      // Extract tweet content from the page
+      const tweets = await page.evaluate((limit: number) => {
+        const results: Array<{ text: string; username: string }> = [];
+        const articles = document.querySelectorAll('article[data-testid="tweet"]');
+        for (const article of articles) {
+          if (results.length >= limit) break;
+          const textEl = article.querySelector('[data-testid="tweetText"]');
+          const userEl = article.querySelector('a[role="link"][href*="/"]');
+          results.push({
+            text: textEl?.textContent || '',
+            username: userEl?.getAttribute('href')?.replace('/', '') || '',
+          });
+        }
+        return results;
+      }, max);
+
+      return JSON.stringify({ count: tweets.length, tweets, strategy: 'browser' });
+    }
+
+    case 'get_profile': {
+      const username = (args['username'] as string) || process.env['TWITTER_USERNAME'] || '';
+      if (!username) return JSON.stringify({ error: 'username required' });
+
+      await page.goto(`https://x.com/${username}`, { waitUntil: 'networkidle2', timeout: 15000 });
+      await humanDelay();
+
+      const profile = await page.evaluate(() => {
+        const name = document.querySelector('[data-testid="UserName"]')?.textContent || '';
+        const bio = document.querySelector('[data-testid="UserDescription"]')?.textContent || '';
+        const followers = document.querySelector('a[href*="/followers"] span')?.textContent || '';
+        const following = document.querySelector('a[href*="/following"] span')?.textContent || '';
+        return { name, bio, followers, following };
+      });
+
+      return JSON.stringify({ ...profile, username, strategy: 'browser' });
+    }
+
+    default:
+      throw new Error(`Browser strategy doesn't support action: ${action}`);
+  }
+}
+
 async function handleTwitterOps(args: Record<string, unknown>): Promise<string> {
   const action = args['action'] as string;
   if (!action) return JSON.stringify({ error: 'action is required' });
 
+  const strategy = detectTwitterStrategy();
+
+  // OAuth strategy — use the official API (twitter-ops.ts in forge handles this)
+  if (strategy === 'oauth' && (action === 'post_tweet' || action === 'reply')) {
+    // Delegate to forge's OAuth twitter tool
+    try {
+      const forgeUrl = process.env['FORGE_URL'] || 'http://forge:3005';
+      const forgeKey = process.env['FORGE_API_KEY'] || '';
+      const res = await fetch(`${forgeUrl}/api/v1/tools/twitter_ops`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': forgeKey },
+        body: JSON.stringify(args),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) return await res.text();
+    } catch { /* fall through to browser */ }
+  }
+
+  // Browser strategy — use the browser bridge
+  if (strategy === 'browser' || strategy === 'oauth') {
+    try {
+      return await handleTwitterViaBrowser(action, args);
+    } catch (browserErr) {
+      log(`twitter_ops: browser strategy failed: ${browserErr instanceof Error ? browserErr.message : String(browserErr)}`);
+      // Fall through to legacy scraper
+    }
+  }
+
+  // Legacy scraper fallback
   try {
-    const scraper = await getScraper() as {
+    const scraper = await getScraperFallback() as {
       sendTweet: (text: string, replyTo?: string) => Promise<{ id_str?: string; text?: string } | { rest_id?: string }>;
       getTweets: (username: string, count: number) => AsyncGenerator<{ id?: string; text?: string; username?: string; likes?: number; retweets?: number; timeParsed?: Date }>;
       getProfile: (username: string) => Promise<Record<string, unknown>>;
