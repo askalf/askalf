@@ -293,6 +293,8 @@ services:
       SUBSTRATE_DATABASE_URL: postgresql://askalf:${POSTGRES_PASSWORD}@postgres:5432/askalf
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       SEARXNG_URL: http://searxng:8080
+      BROWSER_HOST: browser
+      BROWSER_PORT: "9222"
       FORGE_URL: http://forge:3005
       FORGE_API_KEY: ${FORGE_API_KEY:-}
       TWITTER_API_KEY: ${TWITTER_API_KEY:-}
@@ -337,6 +339,36 @@ services:
       options:
         max-size: "50m"
         max-file: "3"
+
+  # ===========================================
+  # BROWSER BRIDGE — Headless Chromium via CDP
+  # ===========================================
+  browser:
+    build:
+      context: .
+      dockerfile: apps/browser/Dockerfile
+    container_name: askalf-browser
+    labels:
+      - "autoheal-askalf=true"
+    expose:
+      - "9222"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9222/json/version || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    shm_size: '512mb'
+    networks:
+      - askalf-net
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "2"
     deploy:
       resources:
         limits:

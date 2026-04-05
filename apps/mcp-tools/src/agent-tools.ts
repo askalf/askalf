@@ -657,7 +657,48 @@ let activePage: import('puppeteer-core').Page | null = null;
 async function getBrowser(): Promise<import('puppeteer-core').Browser> {
   if (browserInstance?.connected) return browserInstance;
   const puppeteer = await import('puppeteer-core');
-  // Try common Chrome/Chromium paths
+
+  // Strategy 1: Connect to remote browser container via CDP (preferred — works everywhere)
+  const browserWsUrl = process.env['BROWSER_WS_URL'] || process.env['BROWSER_CDP_URL'];
+  const browserHost = process.env['BROWSER_HOST'] || 'browser';
+  const browserPort = process.env['BROWSER_PORT'] || '9222';
+
+  if (browserWsUrl) {
+    // Direct WebSocket URL provided
+    try {
+      browserInstance = await puppeteer.default.connect({ browserWSEndpoint: browserWsUrl });
+      log(`browser_use: connected to remote browser at ${browserWsUrl}`);
+      return browserInstance;
+    } catch (err) {
+      log(`browser_use: failed to connect to ${browserWsUrl}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Try discovering the WebSocket URL from the CDP endpoint
+  try {
+    const cdpUrl = `http://${browserHost}:${browserPort}`;
+    // Chromium validates Host header — must be 127.0.0.1 or localhost
+    const res = await fetch(`${cdpUrl}/json/version`, {
+      headers: { Host: `127.0.0.1:${browserPort}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (res.ok) {
+      const data = await res.json() as { webSocketDebuggerUrl?: string };
+      if (data.webSocketDebuggerUrl) {
+        // Replace localhost with the actual container host for Docker networking
+        const wsUrl = data.webSocketDebuggerUrl
+          .replace('ws://127.0.0.1:', `ws://${browserHost}:`)
+          .replace('ws://localhost:', `ws://${browserHost}:`);
+        browserInstance = await puppeteer.default.connect({ browserWSEndpoint: wsUrl });
+        log(`browser_use: connected to remote browser at ${wsUrl}`);
+        return browserInstance;
+      }
+    }
+  } catch {
+    log('browser_use: remote browser container not available, trying local launch');
+  }
+
+  // Strategy 2: Launch locally (fallback for standalone/dev)
   const execPaths = [
     process.env['CHROME_PATH'],
     process.env['PUPPETEER_EXECUTABLE_PATH'],
@@ -689,7 +730,7 @@ async function getBrowser(): Promise<import('puppeteer-core').Browser> {
       log(`browser_use: failed to launch from ${execPath}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  throw new Error('No Chrome/Chromium found. Set CHROME_PATH env var or install Chrome.');
+  throw new Error('No browser available. Either start the browser container (docker compose up browser) or set CHROME_PATH.');
 }
 
 async function getPage(): Promise<import('puppeteer-core').Page> {
