@@ -53,6 +53,10 @@ jobs:
         working-directory: apps/desktop
         run: npm install
 
+      - name: Generate icons from PNG source
+        working-directory: apps/desktop
+        run: npx tauri icon src-tauri/icons/icon-1024.png
+
       - name: Build desktop app
         working-directory: apps/desktop
         run: npx tauri build --target ${{ matrix.target }}
