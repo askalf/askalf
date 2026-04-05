@@ -30,6 +30,7 @@ jobs:
       - name: Build TypeScript (gives CodeQL type info)
         run: |
           pnpm --filter @askalf/core build || true
+          pnpm --filter @askalf/db build || true
           pnpm --filter @askalf/database-adapter build || true
           pnpm --filter @askalf/redis-adapter build || true
           pnpm --filter @askalf/observability build || true
@@ -37,9 +38,9 @@ jobs:
           pnpm --filter @askalf/forge build || true
           pnpm --filter @askalf/mcp-tools build || true
 
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
           config-file: ./.github/codeql/codeql-config.yml
 
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
