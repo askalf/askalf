@@ -38,6 +38,16 @@ curl -fsSL https://get.askalf.org | bash
 
 Full stack: PostgreSQL + pgvector, Redis, Ollama, SearxNG. 6 core containers + 3 optional. Running at `localhost:3001` in 60 seconds.
 
+### Migrate: Standalone → Docker
+
+Outgrew standalone? One command to migrate — keeps your data, secrets, and config:
+
+```bash
+bash scripts/migrate-to-docker.sh
+```
+
+Exports PGlite database, generates Docker `.env` with your existing secrets, imports data into PostgreSQL. Your standalone install stays untouched.
+
 ---
 
 ## Always Running
