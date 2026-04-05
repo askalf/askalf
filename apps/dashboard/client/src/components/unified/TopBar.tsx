@@ -33,9 +33,8 @@ export default function TopBar({ wsConnected, agentCount, todayCost, todayApiCos
   const [oauthStatus, setOauthStatus] = useState<'healthy' | 'expiring' | 'expired' | 'unknown'>('unknown');
   const [oauthProvider, setOauthProvider] = useState<string>('claude');
   const [oauthRefreshing, setOauthRefreshing] = useState(false);
-  const { theme, setTheme } = useThemeStore();
+  const { theme } = useThemeStore();
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
 
   // Fetch current user + tenants
   useEffect(() => {
