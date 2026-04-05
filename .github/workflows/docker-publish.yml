@@ -92,11 +92,10 @@ jobs:
             org.opencontainers.image.vendor=AskAlf
 
       - name: Update Docker Hub description
-        if: matrix.image == 'forge'
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: askalf/forge
-          short-description: "AskAlf Forge — AI Agent Execution Engine. Self-healing, self-growing autonomous fleet."
-          readme-filepath: ./README.md
+          repository: askalf/${{ matrix.image }}
+          short-description: ${{ matrix.image == 'forge' && 'AskAlf Forge — AI Agent Execution Engine. Self-healing, self-growing autonomous fleet.' || matrix.image == 'dashboard' && 'AskAlf Dashboard — Web UI and API Gateway for your autonomous AI workforce.' || 'AskAlf MCP Tools — 70 built-in tools for autonomous AI agents.' }}
+          readme-filepath: ./apps/${{ matrix.image }}/DOCKER_README.md
