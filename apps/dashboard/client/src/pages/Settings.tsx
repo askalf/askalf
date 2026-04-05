@@ -256,7 +256,7 @@ export default function SettingsPage({ embedded }: { embedded?: boolean }) {
 // Determine API base URL based on current hostname
 const getApiUrl = () => {
   const host = window.location.hostname;
-  if (host.includes('askalf.org') ) return '';
+  if (host === 'askalf.org' || host.endsWith('.askalf.org')) return '';
   if (host === 'localhost' || host === '127.0.0.1') return 'http://localhost:3001';
   return '';
 };
