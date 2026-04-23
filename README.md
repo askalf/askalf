@@ -15,6 +15,6 @@
 
 <div align="center">
 
-**[Discord](https://discord.gg/fENVZpdYcX)** · **[@ask_alf](https://x.com/ask_alf)**
+**[@ask_alf](https://x.com/ask_alf)**
 
 </div>
