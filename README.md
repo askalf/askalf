@@ -19,6 +19,8 @@ I'm **Thomas Sprayberry** — 20 years of engineering, from solo founders to For
 
 These aren't demos — **[dario](https://github.com/askalf/dario)** has **200+ stars** and ships on npm, and the studio runs on this stack every day.
 
+**Shipped with it:** **[amnesia.tax](https://amnesia.tax)** — a privacy-first metasearch engine. 155 engines at once, zero tracking, no AI, VPN-tunneled. *Search the web, remember nothing.*
+
 ---
 
 ## The open-source workforce
