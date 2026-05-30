@@ -1,14 +1,31 @@
 <div align="center">
 
-## Local-first LLM infrastructure.
+# I ship bespoke software — with a workforce of AI agents I built.
+
+**[Sprayberry Labs](https://sprayberrylabs.com)** — fixed-price **audits & builds**, delivered end-to-end.
+The open-source fleet below is the engine I deliver with. It's also free for you to use.
+
+[![sprayberrylabs.com](https://img.shields.io/badge/sprayberrylabs.com-22d3ee?style=flat-square&logo=safari&logoColor=04181d)](https://sprayberrylabs.com)
+[![@ask_alf](https://img.shields.io/badge/%40ask__alf-111111?style=flat-square&logo=x&logoColor=white)](https://x.com/ask_alf)
 
 </div>
 
 ---
 
+I'm **Thomas Sprayberry** — 20 years of engineering, from solo founders to Fortune 500. I run **[Sprayberry Labs](https://sprayberrylabs.com)**, a studio of one that moves at a team's pace: I built my own AI workforce to do the heavy lifting while I architect, review, and own everything that ships.
+
+> **Have a codebase that needs an expert read, or something that needs building?**
+> → **[sprayberrylabs.com](https://sprayberrylabs.com)** — fixed-price **Audits from $1,500**, build **Sprints**, and **retainers**. There's an AI on the site that answers anything before we talk.
+
+These aren't demos — **[dario](https://github.com/askalf/dario)** has **200+ stars** and ships on npm, and the studio runs on this stack every day.
+
+---
+
+## The workforce
+
 | Project | What it does | |
 |---------|-------------|---|
-| **[dario](https://github.com/askalf/dario)** | A universal LLM router. One local endpoint, every provider — OpenAI, Groq, OpenRouter, Ollama, Claude subscriptions, any OpenAI-compat URL. Your tools point here and stop caring which vendor is upstream. **Status (2026-05-19):** maintenance mode. Drift watchers, compat gate, auto-release, NPM_TOKEN health monitor, billing-classifier canary, and recovery runbook all run unattended; feature velocity moved upstream to the [askalf platform](https://askalf.org). | [![npm](https://img.shields.io/npm/v/@askalf/dario?logo=npm&logoColor=white&label=npm&color=00ff88&style=flat-square)](https://www.npmjs.com/package/@askalf/dario) |
+| **[dario](https://github.com/askalf/dario)** | A universal LLM router. One local endpoint, every provider — OpenAI, Groq, OpenRouter, Ollama, Claude subscriptions, any OpenAI-compat URL. Your tools point here and stop caring which vendor is upstream. | [![npm](https://img.shields.io/npm/v/@askalf/dario?logo=npm&logoColor=white&label=npm&color=00ff88&style=flat-square)](https://www.npmjs.com/package/@askalf/dario) |
 | **[hands](https://github.com/askalf/hands)** | A computer-use agent. Natural language → your mouse, keyboard, and screen. Drives the OS through its native shell (PowerShell / AppleScript / xdotool) for speed, screenshot tool for visual verification, optional voice pipeline. Routes through dario or any Anthropic-compat endpoint to keep subscription billing. | [![npm](https://img.shields.io/npm/v/@askalf/hands?logo=npm&logoColor=white&label=npm&color=00ff88&style=flat-square)](https://www.npmjs.com/package/@askalf/hands) |
 | **[deepdive](https://github.com/askalf/deepdive)** | A local research agent. One command, cited answer — plan, search, read, iterate with a critic loop, synthesize. Routes LLM calls through dario so deep research runs on your own subscription. | [![npm](https://img.shields.io/npm/v/@askalf/deepdive?logo=npm&logoColor=white&label=npm&color=00ff88&style=flat-square)](https://www.npmjs.com/package/@askalf/deepdive) |
 | **[agent](https://github.com/askalf/agent)** | Connect any device to your askalf fleet. A WebSocket connector that registers a machine — laptop, server, remote box — then runs the shell or Claude Code tasks the fleet dispatches and streams results back. Installs as a system service; Claude Code execution routes through dario. | [![npm](https://img.shields.io/npm/v/@askalf/agent?logo=npm&logoColor=white&label=npm&color=00ff88&style=flat-square)](https://www.npmjs.com/package/@askalf/agent) |
@@ -30,6 +47,6 @@
 
 <div align="center">
 
-**[@ask_alf](https://x.com/ask_alf)**
+**[sprayberrylabs.com](https://sprayberrylabs.com)** · **[@ask_alf](https://x.com/ask_alf)** · **hello@sprayberrylabs.com**
 
 </div>
