@@ -3,7 +3,7 @@
 # I ship bespoke software — with a workforce of AI agents I built.
 
 **[Sprayberry Labs](https://sprayberrylabs.com)** — fixed-price **audits & builds**, delivered end-to-end.
-The open-source fleet below is the engine I deliver with. It's also free for you to use.
+The building blocks below are open-source and free to use. The platform that turns them into a working AI workforce is the studio's own — and it's how I deliver.
 
 [![sprayberrylabs.com](https://img.shields.io/badge/sprayberrylabs.com-22d3ee?style=flat-square&logo=safari&logoColor=04181d)](https://sprayberrylabs.com)
 [![@ask_alf](https://img.shields.io/badge/%40ask__alf-111111?style=flat-square&logo=x&logoColor=white)](https://x.com/ask_alf)
@@ -21,7 +21,7 @@ These aren't demos — **[dario](https://github.com/askalf/dario)** has **200+ s
 
 ---
 
-## The workforce
+## The open-source workforce
 
 | Project | What it does | |
 |---------|-------------|---|
