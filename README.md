@@ -3,9 +3,10 @@
 # I ship bespoke software — with a workforce of AI agents I built.
 
 **[Sprayberry Labs](https://sprayberrylabs.com)** — fixed-price **audits & builds**, delivered end-to-end.
-The building blocks below are open-source and free to use. The platform that turns them into a working AI workforce is the studio's own — and it's how I deliver.
+The building blocks below are open-source and free to use. The platform that turns them into a working AI workforce — **askalf** — is how I deliver, and it's now **[opening for early access](https://askalf.org)**.
 
 [![sprayberrylabs.com](https://img.shields.io/badge/sprayberrylabs.com-22d3ee?style=flat-square&logo=safari&logoColor=04181d)](https://sprayberrylabs.com)
+[![askalf.org](https://img.shields.io/badge/askalf.org%20·%20early%20access-8b5cf6?style=flat-square)](https://askalf.org)
 [![@ask_alf](https://img.shields.io/badge/%40ask__alf-111111?style=flat-square&logo=x&logoColor=white)](https://x.com/ask_alf)
 
 </div>
@@ -16,6 +17,9 @@ I'm **Thomas Sprayberry** — 20 years of engineering, from solo founders to For
 
 > **Have a codebase that needs an expert read, or something that needs building?**
 > → **[sprayberrylabs.com](https://sprayberrylabs.com)** — fixed-price **Audits from $1,500**, build **Sprints**, and **retainers**. There's an AI on the site that answers anything before we talk.
+
+> **Want the workforce itself?**
+> → **[askalf.org](https://askalf.org)** — the self-hosted AI workforce platform behind the studio is opening for **early access**. Join the waitlist.
 
 These aren't demos — **[dario](https://github.com/askalf/dario)** has **200+ stars** and ships on npm, and the studio runs on this stack every day.
 
@@ -51,6 +55,6 @@ These aren't demos — **[dario](https://github.com/askalf/dario)** has **200+ s
 
 <div align="center">
 
-**[sprayberrylabs.com](https://sprayberrylabs.com)** · **[@ask_alf](https://x.com/ask_alf)** · **hello@sprayberrylabs.com**
+**[sprayberrylabs.com](https://sprayberrylabs.com)** · **[askalf.org](https://askalf.org)** · **[@ask_alf](https://x.com/ask_alf)** · **hello@sprayberrylabs.com**
 
 </div>
