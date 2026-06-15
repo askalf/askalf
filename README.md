@@ -16,6 +16,7 @@ You were sold a meter — intelligence rented by the token, your data through so
 | **[agent](https://github.com/askalf/agent)** | **own your fleet** — connect any device, run the shell or Claude Code tasks the fleet dispatches | [![npm](https://img.shields.io/npm/v/@askalf/agent?logo=npm&logoColor=white&label=&color=8b5cf6&style=flat-square)](https://www.npmjs.com/package/@askalf/agent) |
 | **[browser-bridge](https://github.com/askalf/browser-bridge)** | **own your browser** — stealth headless Chromium in a container, CDP on your own endpoint | [![ghcr](https://img.shields.io/badge/ghcr-pkg-8b5cf6?style=flat-square)](https://github.com/askalf/browser-bridge/pkgs/container/browser-bridge) |
 | **[claude-sync](https://github.com/askalf/claude-sync)** | **own your sessions** — move Claude Code sessions across machines, byte-identical | [![npm](https://img.shields.io/npm/v/@askalf/claude-sync?logo=npm&logoColor=white&label=&color=8b5cf6&style=flat-square)](https://www.npmjs.com/package/@askalf/claude-sync) |
+| **[amnesia](https://github.com/askalf/amnesia)** | **own your search** — privacy-first metasearch, 155 engines at once, zero tracking, no AI, VPN-tunneled | [![live](https://img.shields.io/badge/live-amnesia.tax-8b5cf6?style=flat-square)](https://amnesia.tax) |
 | **[askalf](https://askalf.org)** | **own your operation** — the self-hosted AI workforce platform the whole stack runs | early access |
 
 More of the stack → **[sprayberrylabs.com/own-your-stack](https://sprayberrylabs.com/own-your-stack)**
