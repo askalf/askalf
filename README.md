@@ -11,6 +11,7 @@ You were sold a meter — intelligence rented by the token, your data through so
 | | | |
 |---|---|---|
 | **[dario](https://github.com/askalf/dario)** | **own your routing** — your Claude subscription in any tool (Cursor, Cline, Aider, the Agent SDK), at subscription pricing, not per-token bills | [![npm](https://img.shields.io/npm/v/@askalf/dario?logo=npm&logoColor=white&label=&color=8b5cf6&style=flat-square)](https://www.npmjs.com/package/@askalf/dario) |
+| **[hybrid](https://github.com/askalf/hybrid)** | **own your inference** — local-first LLM routing: answer the easy majority on a small local model, escalate only the genuinely hard queries to the frontier; nothing paid or sent off your machine for the rest | [![stars](https://img.shields.io/github/stars/askalf/hybrid?logo=github&label=&color=8b5cf6&style=flat-square)](https://github.com/askalf/hybrid) |
 | **[deja](https://github.com/askalf/deja)** | **own your LLM cache** — a hybrid exact + semantic caching proxy; repeat and near-repeat queries serve from your cache, not the provider's meter | [![stars](https://img.shields.io/github/stars/askalf/deja?logo=github&label=&color=8b5cf6&style=flat-square)](https://github.com/askalf/deja) |
 | **[deepdive](https://github.com/askalf/deepdive)** | **own your research** — a local agent that plans, searches, reads, and synthesizes a cited answer, through your own router | [![npm](https://img.shields.io/npm/v/@askalf/deepdive?logo=npm&logoColor=white&label=&color=8b5cf6&style=flat-square)](https://www.npmjs.com/package/@askalf/deepdive) |
 | **[hands](https://github.com/askalf/hands)** | **own your computer-use** — your LLM on your own mouse, keyboard, and screen, with an audit log of everything it does | [![npm](https://img.shields.io/npm/v/@askalf/hands?logo=npm&logoColor=white&label=&color=8b5cf6&style=flat-square)](https://www.npmjs.com/package/@askalf/hands) |
@@ -22,6 +23,8 @@ You were sold a meter — intelligence rented by the token, your data through so
 | **[claude-sync](https://github.com/askalf/claude-sync)** | **own your sessions** — move Claude Code sessions across machines, byte-identical | [![npm](https://img.shields.io/npm/v/@askalf/claude-sync?logo=npm&logoColor=white&label=&color=8b5cf6&style=flat-square)](https://www.npmjs.com/package/@askalf/claude-sync) |
 | **[amnesia](https://github.com/askalf/amnesia)** | **own your search** — privacy-first metasearch, 155 engines at once, zero tracking, no AI, VPN-tunneled | [![live](https://img.shields.io/badge/live-amnesia.tax-8b5cf6?style=flat-square)](https://amnesia.tax) |
 | **[askalf](https://askalf.org)** | **own your operation** — the self-hosted AI workforce platform the whole stack runs | early access |
+
+> **warden · canon · keeper** compose into one layered defense → **[agent-security-stack](https://github.com/askalf/agent-security-stack)** — vet the tool, contain the call, give it a key it never holds.
 
 More of the stack → **[sprayberrylabs.com/own-your-stack](https://sprayberrylabs.com/own-your-stack)**
 
