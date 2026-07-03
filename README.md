@@ -1,4 +1,4 @@
-![Own Your Stack](banner.png)
+![Own Your Agent Security · Own Your Stack](banner.png)
 
 Two banners fly here. **Own Your Agent Security** — govern what your agents are allowed to *do*. **Own Your Stack** — own the AI infrastructure they run on instead of renting it by the token. Related, but not the same question — and each gets its own answer.
 
