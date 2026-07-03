@@ -27,7 +27,20 @@ You were sold a meter — intelligence rented by the token, your data through so
 
 > **warden · canon · keeper** compose into one layered defense → **[agent-security-stack](https://github.com/askalf/agent-security-stack)** — vet the tool, contain the call, give it a key it never holds.
 
-More of the stack → **[sprayberrylabs.com/own-your-stack](https://sprayberrylabs.com/own-your-stack)**
+More of the stack → **[ownyourstack.sprayberrylabs.com](https://ownyourstack.sprayberrylabs.com)**
+
+## The receipts
+
+[Sprayberry Labs](https://sprayberrylabs.com) is a research lab in the literal sense: every claim above traces to a merged PR, a release, or a measured incident. Some of the write-ups:
+
+- **[The leaderboard I refused to build](https://sprayberrylabs.com/blog/the-leaderboard-i-refused-to-build)** — why an agent-firewall leaderboard would be a category error; a threat-model map instead, with warden's own benchmark numbers shown, misses included
+- **[Auditing the skills supply chain](https://sprayberrylabs.com/blog/auditing-the-skills-supply-chain)** — canon run across 2,019 published Claude skills: what a real marketplace audit finds, and doesn't
+- **[Zero raw credentials](https://sprayberrylabs.com/blog/keeper-zero-raw-credentials)** — migrating a live agent fleet from 132 inherited environment keys to keeper leases, one seam at a time
+- **[An injection firewall for the agentic browser](https://sprayberrylabs.com/blog/picket-governed-agentic-browser)** — why the lethal trifecta is structural, and how picket gates it
+- **[A self-healing release pipeline](https://sprayberrylabs.com/blog/dario-self-healing-release-pipeline)** — how dario ships, health-gates, and rolls itself back
+- **Warden governing third-party frameworks** — [CrewAI](https://sprayberrylabs.com/blog/crewai-flowdef-under-askalf) · [LangGraph](https://sprayberrylabs.com/blog/langgraph-under-askalf) · [OpenAI Agents SDK](https://sprayberrylabs.com/blog/openai-agents-under-askalf) · [AutoGen](https://sprayberrylabs.com/blog/autogen-under-askalf), each with a runnable public example in [askalf/warden](https://github.com/askalf/warden/tree/master/examples)
+
+Full engineering log → **[sprayberrylabs.com/blog](https://sprayberrylabs.com/blog)**
 
 ## Building it in the open
 
@@ -35,6 +48,8 @@ It's hard, and it's not finished — that's the point. The value isn't a demo; i
 
 I'm **Thomas Sprayberry** — 20 years of engineering, from solo founders to Fortune 500. I run **[Sprayberry Labs](https://sprayberrylabs.com)**, a studio of one that moves at a team's pace because the workforce above does the heavy lifting while I architect, review, and own everything that ships.
 
+Portfolio → **[thomas.sprayberrylabs.com](https://thomas.sprayberrylabs.com)**
+
 ---
 
-**[Own Your Stack](https://sprayberrylabs.com/own-your-stack)** · **[sprayberrylabs.com](https://sprayberrylabs.com)** · **[@ask_alf](https://x.com/ask_alf)** · **hello@sprayberrylabs.com**
+**[Own Your Stack](https://ownyourstack.sprayberrylabs.com)** · **[sprayberrylabs.com](https://sprayberrylabs.com)** · **[@ask_alf](https://x.com/ask_alf)** · **hello@sprayberrylabs.com**
