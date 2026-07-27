@@ -4,7 +4,7 @@ Two banners fly here. **Own Your Agent Security** — govern what your agents ar
 
 ## Own Your Agent Security
 
-**Don't trust agents by default.** A firewall for every agent tool call, a supply-chain gate for every skill, leases instead of raw keys, a governed browser between the agent and the open web — one layered defense, running in production here.
+**Don't trust agents by default.** A firewall for every agent tool call, a supply-chain gate for every skill, leases instead of raw keys, a governed browser between the agent and the open web, and a trajectory monitor watching the whole sequence — one layered defense, running in production here.
 
 | | | |
 |---|---|---|
@@ -12,8 +12,9 @@ Two banners fly here. **Own Your Agent Security** — govern what your agents ar
 | **[truecopy](https://github.com/askalf/truecopy)** | **own your agent skills** — vet, sign & pin every skill & MCP server before it runs; drift detection catches a poisoned or silently-updated tool before it ever loads | [![stars](https://img.shields.io/github/stars/askalf/truecopy?logo=github&label=&color=b5372a&style=flat-square)](https://github.com/askalf/truecopy) |
 | **[strongroom](https://github.com/askalf/strongroom)** | **own your agent secrets** — an encrypted vault that hands agents scoped, short-lived, single-use leases instead of raw keys; the key never enters the agent's context, and every access is audited | [![stars](https://img.shields.io/github/stars/askalf/strongroom?logo=github&label=&color=b5372a&style=flat-square)](https://github.com/askalf/strongroom) |
 | **[fieldpass](https://github.com/askalf/fieldpass)** | **own your agent browser** — a governed browser for agents: an indirect-prompt-injection firewall, an action gate, and an LLM judge between the agent and the open web, so a hostile page can't hijack the session | [![stars](https://img.shields.io/github/stars/askalf/fieldpass?logo=github&label=&color=b5372a&style=flat-square)](https://github.com/askalf/fieldpass) |
+| **[plumbline](https://github.com/askalf/plumbline)** | **own your agent trajectory** — out-of-band, read-only monitoring that scores an agent's *whole action sequence* against its declared job, catching escapes assembled from individually-authorized steps that every per-call gate waves through | [![stars](https://img.shields.io/github/stars/askalf/plumbline?logo=github&label=&color=b5372a&style=flat-square)](https://github.com/askalf/plumbline) |
 
-> **redstamp · truecopy · strongroom** compose into one layered defense → **[agent-security-stack](https://github.com/askalf/agent-security-stack)** — vet the tool, contain the call, give it a key it never holds.
+> **redstamp · truecopy · strongroom** compose into one layered defense → **[agent-security-stack](https://github.com/askalf/agent-security-stack)** — vet the tool, contain the call, give it a key it never holds. **[plumbline](https://github.com/askalf/plumbline)** watches the whole trajectory from out of band.
 
 ## Own Your Stack
 
