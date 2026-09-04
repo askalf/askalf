@@ -22,7 +22,7 @@ Two banners fly here. **Own Your Agent Security** — govern what your agents ar
 
 | | | |
 |---|---|---|
-| **[dario](https://github.com/askalf/dario)** | **own your routing** — one local endpoint that puts your Claude subscription behind Cursor, Cline, Aider, and the Agent SDK, with session-affinity routing and multi-account pooling that keep long agent runs stable | [![npm](https://img.shields.io/npm/v/@askalf/dario?logo=npm&logoColor=white&label=&color=b5372a&style=flat-square)](https://www.npmjs.com/package/@askalf/dario) |
+| **[dario](https://github.com/askalf/dario)** | **own your routing** — one local endpoint that puts your Claude and ChatGPT subscriptions behind Cursor, Cline, Aider, Claude Code, and the Agent SDK — either plan answering either wire shape, with failover between them, session-affinity routing, and multi-account pooling that keep long agent runs stable | [![npm](https://img.shields.io/npm/v/@askalf/dario?logo=npm&logoColor=white&label=&color=b5372a&style=flat-square)](https://www.npmjs.com/package/@askalf/dario) |
 | **[hybrid](https://github.com/askalf/hybrid)** | **own your inference** — local-first LLM routing: answer the easy majority on a small local model, escalate only the genuinely hard queries to the frontier; nothing paid or sent off your machine for the rest | [![stars](https://img.shields.io/github/stars/askalf/hybrid?logo=github&label=&color=b5372a&style=flat-square)](https://github.com/askalf/hybrid) |
 | **[deepdive](https://github.com/askalf/deepdive)** | **own your research** — a local agent that plans, searches, reads, and synthesizes a cited answer, through your own router | [![npm](https://img.shields.io/npm/v/@askalf/deepdive?logo=npm&logoColor=white&label=&color=b5372a&style=flat-square)](https://www.npmjs.com/package/@askalf/deepdive) |
 | **[hands](https://github.com/askalf/hands)** | **own your computer-use** — your LLM on your own mouse, keyboard, and screen, with an audit log of everything it does | [![npm](https://img.shields.io/npm/v/@askalf/hands?logo=npm&logoColor=white&label=&color=b5372a&style=flat-square)](https://www.npmjs.com/package/@askalf/hands) |
@@ -51,7 +51,7 @@ Full engineering log → **[sprayberrylabs.com/blog](https://sprayberrylabs.com/
 
 It's hard, and it's not finished — that's the point. The value isn't a demo; it's the scars from running agents in production for real. I write down what actually happens.
 
-I'm **Thomas Sprayberry** — 20 years of engineering, from solo founders to Fortune 500. I run **[Sprayberry Labs](https://sprayberrylabs.com)**, the software studio with one human on staff: **[askalf](https://askalf.org)** — the AI operation built from the tools above — ships the code, reviews the pull requests, verifies the findings, and watches production. I architect, review, and sign everything that leaves the shop.
+I'm **Thomas Sprayberry** — fifteen-plus years of engineering, from solo founders to Fortune 500. I run **[Sprayberry Labs](https://sprayberrylabs.com)**, the software studio with one human on staff: **[askalf](https://askalf.org)** — the AI operation built from the tools above — ships the code, reviews the pull requests, verifies the findings, and watches production. I architect, review, and sign everything that leaves the shop.
 
 Portfolio → **[thomas.sprayberrylabs.com](https://thomas.sprayberrylabs.com)**
 
