@@ -64,7 +64,6 @@ Two questions every agent deployment has to answer: what is it *allowed to do*, 
 | **[cordon](https://github.com/askalf/cordon)** | A PII-redacting LLM gateway that fails closed, shipped as an attested container. |
 | **[browser-bridge](https://github.com/askalf/browser-bridge)** | Stealth headless Chromium on your own CDP endpoint, with a prompt-injection firewall in front of it. |
 | **[amnesia](https://github.com/askalf/amnesia)** | Privacy meta-search with no accounts, no ads and no query log, live at [amnesia.tax](https://amnesia.tax). |
-| **[hybrid](https://github.com/askalf/hybrid)** | Local-first LLM routing: the easy majority on a small local model, frontier calls only when earned. Measured on a GPU-less 2013 desktop. |
 | **[pgflex](https://github.com/askalf/pgflex)** · **[redisflex](https://github.com/askalf/redisflex)** | One Postgres API and one Redis API, real servers in production and in-process engines for tests, so a whole platform runs without Docker. |
 
 The whole map on one page → **[ownyourstack.sprayberrylabs.com](https://ownyourstack.sprayberrylabs.com)**
@@ -96,7 +95,7 @@ Full engineering log → **[sprayberrylabs.com/blog](https://sprayberrylabs.com/
 <details>
 <summary><b>Supply-chain receipts</b></summary>
 
-- Live OpenSSF Scorecard on dario, redstamp, truecopy, plumbline, agent-security-stack, cordon, browser-bridge, amnesia and hybrid; 100% OpenSSF Best Practices on [dario](https://www.bestpractices.dev/projects/13638), [truecopy](https://www.bestpractices.dev/projects/14488), [redstamp](https://www.bestpractices.dev/projects/14489) and [amnesia](https://www.bestpractices.dev/projects/14490).
+- Live OpenSSF Scorecard on dario, redstamp, truecopy, plumbline, agent-security-stack, cordon, browser-bridge and amnesia; 100% OpenSSF Best Practices on [dario](https://www.bestpractices.dev/projects/13638), [truecopy](https://www.bestpractices.dev/projects/14488), [redstamp](https://www.bestpractices.dev/projects/14489) and [amnesia](https://www.bestpractices.dev/projects/14490).
 - npm packages publish from CI through OIDC trusted publishing, with provenance and no long-lived token.
 - cordon ships as an attested container from GHCR.
 
