@@ -5,7 +5,7 @@
 ### I build the infrastructure AI agents run on, and I run it in production.
 
 **[dario](https://github.com/askalf/dario)** · 544★ · 27,000+ npm installs a month · 594 releases<br>
-**12 fixes merged upstream** into Node.js, Hugging Face, Erigon, GitHub, Raycast, gosec and more
+**14 fixes merged upstream** into Node.js, Hugging Face, Erigon, GitHub, Raycast, Taro, Lingui, gosec and more
 
 [Portfolio](https://thomas.sprayberrylabs.com) · [Engineering log](https://sprayberrylabs.com/blog) · [What I build](#what-i-build) · hello@sprayberrylabs.com
 
@@ -37,6 +37,8 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 | [getopenscreen/openscreen #708](https://github.com/getopenscreen/openscreen/pull/708) | Linux capture lost an early first frame; the capture-started state is now latched. |
 | [silverbulletmd/silverbullet #2128](https://github.com/silverbulletmd/silverbullet/pull/2128) | Short or link-leading task lines never got the page reference their Linked Mentions toggle needs. |
 | [williamngan/pts #228](https://github.com/williamngan/pts/pull/228) | A numeric equality threshold excluded a difference exactly at the threshold, unlike the point comparison beside it. |
+| [NervJS/taro #19506](https://github.com/NervJS/taro/pull/19506) | `Events#once` could fire twice when its callback re-triggered the event, and stayed attached when the callback threw; a one-shot listener now fires exactly once and detaches on every path. |
+| [lingui/js-lingui #2677](https://github.com/lingui/js-lingui/pull/2677) | A new catalog message was written with `translation` first and rewritten with it last on the next extract, a diff that changed nothing; new messages now use the merge path's key order. |
 | [awesome-mcp-servers #10332](https://github.com/punkpeye/awesome-mcp-servers/pull/10332) | truecopy listed under Security. |
 
 ## What I build
