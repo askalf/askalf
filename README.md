@@ -72,7 +72,7 @@ The plan you already pay for, on the machine you already own.
 
 <table>
 <tr>
-<td width="50%" valign="top"><a href="https://github.com/askalf/cordon"><img src="cards/cordon.jpg" alt="cordon: your app sends an email address and a card number through cordon, which forwards placeholders to the provider and restores the real values on the way back." width="100%"></a><br><b><a href="https://github.com/askalf/cordon">cordon</a></b>: a PII-redacting LLM gateway that fails closed, shipped as an attested container. Put it in front of dario and a shared subscription never sees raw personal data.</td>
+<td width="50%" valign="top"><a href="https://github.com/askalf/cordon"><img src="cards/cordon.jpg" alt="cordon: your app sends an email address and a card number through cordon, which forwards placeholders to the provider and restores the real values on the way back." width="100%"></a><br><b><a href="https://github.com/askalf/cordon">cordon</a></b>: a PII-redacting LLM gateway that fails closed, shipped as an attested container. Put it in front of dario and the emails, phone numbers, card numbers, keys and other patterns it detects are replaced before a shared subscription sees them; names and free text are outside its coverage.</td>
 <td width="50%" valign="top"><a href="https://github.com/askalf/browser-bridge"><img src="cards/browser-bridge.jpg" alt="browser-bridge: ALF holds a browser window on port 9222, and Playwright, Puppeteer and MCP clients connect through its token-auth padlock." width="100%"></a><br><b><a href="https://github.com/askalf/browser-bridge">browser-bridge</a></b>: stealth headless Chromium on your own CDP endpoint, with token auth and a prompt-injection firewall in front of it.</td>
 </tr>
 <tr>
