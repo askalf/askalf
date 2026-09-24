@@ -4,8 +4,8 @@
 
 ### I build the infrastructure AI agents run on, and I run it in production.
 
-**[dario](https://github.com/askalf/dario)** · 544★ · 27,000+ npm installs a month · 594 releases<br>
-**14 fixes merged upstream** into Node.js, Hugging Face, Erigon, GitHub, Raycast, Taro, Lingui, gosec and more
+**[dario](https://github.com/askalf/dario)** · 544★ · 27,000+ npm installs a month · 600 releases<br>
+**13 fixes merged upstream** into Node.js, Hugging Face, Erigon, GitHub, Raycast, Taro, Lingui, gosec and more
 
 [Portfolio](https://thomas.sprayberrylabs.com) · [Engineering log](https://sprayberrylabs.com/blog) · [What I build](#what-i-build) · hello@sprayberrylabs.com
 
@@ -15,7 +15,9 @@
 
 ## dario
 
-**One local endpoint that puts your Claude and ChatGPT subscriptions behind any coding tool.** Cursor, Cline, Aider, Claude Code, Codex CLI and the Agent SDK all talk to it; either plan answers either wire shape, with failover between them, session-sticky multi-seat pooling, and hourly drift watchers that track Claude Code's request shape. Zero runtime dependencies.
+<a href="https://github.com/askalf/dario"><img src="cards/dario.jpg" alt="dario routes every AI tool you use to the subscriptions you already pay for: Claude Code, Cursor, Cline, Aider, Codex CLI and the Agent SDK go through dario at localhost:3456 to a Claude plan or a ChatGPT plan." width="100%"></a>
+
+**One local endpoint that puts your Claude and ChatGPT subscriptions behind any coding tool.** Cursor, Cline, Aider, Claude Code, Codex CLI and the Agent SDK all talk to it. Either plan answers either wire shape, with failover between them, session-sticky multi-seat pooling, one key per developer with a daily budget, and eleven unattended watchers that track Claude Code's request shape. Zero runtime dependencies.
 
 Every release is SLSA-attested and published from CI with no long-lived token. 9.4 OpenSSF Scorecard, 100% Best Practices.
 
@@ -45,36 +47,51 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 
 Two questions every agent deployment has to answer: what is it *allowed to do*, and what does it *run on*? Everything here is open source, and runs the operation that ships it.
 
+### Own Your Agent Security
+
 <img src="security.jpg" alt="An agent's tool calls pass through redstamp, its skills through truecopy, and plumbline watches the whole sequence from out of band before anything reaches tools, skills or the web." width="100%">
 
-**Own Your Agent Security.** Deterministic gates around what an agent may do.
+Deterministic gates around what an agent may do.
 
-| | |
-|---|---|
-| **[redstamp](https://github.com/askalf/redstamp)** | An offline firewall for agent tool calls: blocks RCE, secret exfiltration, SSRF, prompt injection and poisoned MCP tools, with a tamper-evident audit trail. Runs under CrewAI, LangGraph, the OpenAI Agents SDK and AutoGen. |
-| **[truecopy](https://github.com/askalf/truecopy)** | Vet, sign and pin every skill and MCP server, then fail the build when the bytes change. 68,560 skills audited across two ecosystems. |
-| **[plumbline](https://github.com/askalf/plumbline)** | Out-of-band monitoring that scores an agent's *whole action sequence* against its declared job, catching an escape assembled from individually allowed steps. |
-| **[agent-security-stack](https://github.com/askalf/agent-security-stack)** | redstamp and truecopy behind one governed MCP server, with scoped single-use credential leases. |
+<table>
+<tr>
+<td width="50%" valign="top"><a href="https://github.com/askalf/redstamp"><img src="cards/redstamp.jpg" alt="redstamp: ALF holds a red stamp beside tool calls stamped allow, allow, approve and block." width="100%"></a><br><b><a href="https://github.com/askalf/redstamp">redstamp</a></b>: an offline firewall for agent tool calls. It blocks RCE, secret exfiltration, SSRF, prompt injection and poisoned MCP tools, with a tamper-evident audit trail, under CrewAI, LangGraph, the OpenAI Agents SDK and AutoGen.</td>
+<td width="50%" valign="top"><a href="https://github.com/askalf/truecopy"><img src="cards/truecopy.jpg" alt="truecopy: MCP servers, skills and marketplaces flow through scan, pin, verify and enforce into truecopy.lock, and a poisoned skill is stopped at scan." width="100%"></a><br><b><a href="https://github.com/askalf/truecopy">truecopy</a></b>: vet, sign and pin every skill and MCP server, then fail the build when the bytes change. 68,560 skills poison-scanned across two ecosystems.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><a href="https://github.com/askalf/truecopy-action"><img src="cards/truecopy-action.jpg" alt="truecopy-action: one YAML block, and a pull request whose truecopy / verify check fails on a drifted skill cannot merge." width="100%"></a><br><b><a href="https://github.com/askalf/truecopy-action">truecopy-action</a></b>: truecopy as a GitHub Action. One YAML block, and a skill that drifted or turned poisonous fails the pull request.</td>
+<td width="50%" valign="top"><a href="https://github.com/askalf/plumbline"><img src="cards/plumbline.jpg" alt="plumbline: a trajectory of individually approved agent events climbs past the drift threshold and is halted at seq 18, nine events before code execution." width="100%"></a><br><b><a href="https://github.com/askalf/plumbline">plumbline</a></b>: out-of-band monitoring that scores an agent's <i>whole action sequence</i> against its declared job, catching an escape assembled from individually allowed steps.</td>
+</tr>
+</table>
 
-<img src="stack.jpg" alt="A layered stack on your box: agents and coding tools at the top, dario and cordon routing and redacting in the middle, browser-bridge and amnesia beside them, pgflex and redisflex at the foundation." width="100%">
+### Own Your Stack
 
-**Own Your Stack.** The plan you already pay for, on the machine you already own.
+<img src="stack.jpg" alt="Your box: Claude Code, Cursor, Aider and the Agent SDK go through cordon, which redacts PII, to dario, which routes to a Claude plan or a ChatGPT plan. browser-bridge, amnesia, pgflex and redisflex also run on the box." width="100%">
 
-| | |
-|---|---|
-| **[dario](https://github.com/askalf/dario)** | Subscription routing for every coding tool (above). |
-| **[cordon](https://github.com/askalf/cordon)** | A PII-redacting LLM gateway that fails closed, shipped as an attested container. |
-| **[browser-bridge](https://github.com/askalf/browser-bridge)** | Stealth headless Chromium on your own CDP endpoint, with a prompt-injection firewall in front of it. |
-| **[amnesia](https://github.com/askalf/amnesia)** | Privacy meta-search with no accounts, no ads and no query log, live at [amnesia.tax](https://amnesia.tax). |
-| **[pgflex](https://github.com/askalf/pgflex)** · **[redisflex](https://github.com/askalf/redisflex)** | One Postgres API and one Redis API, real servers in production and in-process engines for tests, so a whole platform runs without Docker. |
+The plan you already pay for, on the machine you already own.
+
+<table>
+<tr>
+<td width="50%" valign="top"><a href="https://github.com/askalf/cordon"><img src="cards/cordon.jpg" alt="cordon: your app sends an email address and a card number through cordon, which forwards placeholders to the provider and restores the real values on the way back." width="100%"></a><br><b><a href="https://github.com/askalf/cordon">cordon</a></b>: a PII-redacting LLM gateway that fails closed, shipped as an attested container. Put it in front of dario and the emails, phone numbers, card numbers, keys and other patterns it detects are replaced before a shared subscription sees them; names and free text are outside its coverage.</td>
+<td width="50%" valign="top"><a href="https://github.com/askalf/browser-bridge"><img src="cards/browser-bridge.jpg" alt="browser-bridge: ALF holds a browser window on port 9222, and Playwright, Puppeteer and MCP clients connect through its token-auth padlock." width="100%"></a><br><b><a href="https://github.com/askalf/browser-bridge">browser-bridge</a></b>: stealth headless Chromium on your own CDP endpoint, with token auth and a prompt-injection firewall in front of it.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><a href="https://github.com/askalf/amnesia"><img src="cards/amnesia.jpg" alt="amnesia: ALF beside a search bar whose trail of particles dissolves as it drifts away." width="100%"></a><br><b><a href="https://github.com/askalf/amnesia">amnesia</a></b>: privacy meta-search with no accounts, no ads and no query log, live at <a href="https://amnesia.tax">amnesia.tax</a>.</td>
+<td width="50%" valign="top"><a href="https://github.com/askalf/pgflex"><img src="cards/pgflex.jpg" alt="pgflex: your app calls createAdapter(), which runs on pg in production or pglite in-process for dev, CI and tests." width="100%"></a><br><b><a href="https://github.com/askalf/pgflex">pgflex</a></b>: one Postgres API, two modes. A real server in production, in-process PGlite for dev, CI and tests, same SQL.</td>
+</tr>
+<tr>
+<td width="50%" valign="top"><a href="https://github.com/askalf/redisflex"><img src="cards/redisflex.jpg" alt="redisflex: your app calls createRedisAdapter(), which runs on ioredis in production or in memory for dev, CI and tests, with a BullMQ-shaped queue." width="100%"></a><br><b><a href="https://github.com/askalf/redisflex">redisflex</a></b>: one Redis API, two modes, plus a BullMQ-shaped in-memory queue, so a whole platform runs without Docker.</td>
+<td width="50%" valign="top"><a href="https://github.com/askalf/checkout-with-retry"><img src="cards/checkout-with-retry.jpg" alt="checkout-with-retry: attempts 1 and 2 fail with a 401, and after waits of 8 and 20 seconds attempt 3 checks out." width="100%"></a><br><b><a href="https://github.com/askalf/checkout-with-retry">checkout-with-retry</a></b>: a drop-in for <code>actions/checkout</code> that retries the transient credential failures of ephemeral runners.</td>
+</tr>
+</table>
 
 The whole map on one page → **[ownyourstack.sprayberrylabs.com](https://ownyourstack.sprayberrylabs.com)**
 
 ## How it runs
 
-<img src="operation.jpg" alt="The askalf orchestrator at the center, a ring of specialist agents around it, one human approving what matters, and the output flowing to Sprayberry Labs on GitHub and in production." width="100%">
+<img src="operation.jpg" alt="The askalf orchestrator at the center with ALF, surrounded by shipping, reviewing, auditing and upstream fixes, one human approving what matters, and the output flowing to Sprayberry Labs." width="100%">
 
-**[askalf](https://askalf.org)** is the agent operation behind [Sprayberry Labs](https://sprayberrylabs.com): an orchestrator and specialist agents that ship, review, audit and watch production, with one human approving what matters. It runs on the tools above. dario routes its model traffic, redstamp gates its tool calls, truecopy verifies every skill at load, and every pull request gets a gating review from a different model family than the one that wrote it, in the open, before a human merges.
+**[askalf](https://askalf.org)** is the agent operation behind [Sprayberry Labs](https://sprayberrylabs.com): an orchestrator and specialist agents that ship, review, audit and send fixes upstream, with one human approving what matters. It runs on the tools above. dario routes its model traffic, redstamp gates its tool calls, truecopy verifies every skill at load, and every pull request gets a gating review from a different model family than the one that wrote it, in the open, before it lands.
 
 I'm that human: fifteen-plus years in systems and infrastructure engineering, data centers and virtualization before the agent work. I architect it, review it and sign everything that leaves the shop, and I write down what actually happens.
 
@@ -87,7 +104,6 @@ I'm that human: fifteen-plus years in systems and infrastructure engineering, da
 - **[Zero raw credentials](https://sprayberrylabs.com/blog/keeper-zero-raw-credentials)**: moving a live agent fleet from 132 inherited environment keys to scoped leases, one seam at a time.
 - **[An injection firewall for the agentic browser](https://sprayberrylabs.com/blog/picket-governed-agentic-browser)**: why the lethal trifecta is structural, and how to gate it.
 - **[A self-healing release pipeline](https://sprayberrylabs.com/blog/dario-self-healing-release-pipeline)**: how dario ships, health-gates and rolls itself back.
-- **[Own your inference](https://sprayberrylabs.com/blog/own-your-inference)**: the measurements behind hybrid.
 - **redstamp governing third-party frameworks:** [CrewAI](https://sprayberrylabs.com/blog/crewai-flowdef-under-askalf) · [LangGraph](https://sprayberrylabs.com/blog/langgraph-under-askalf) · [OpenAI Agents SDK](https://sprayberrylabs.com/blog/openai-agents-under-askalf) · [AutoGen](https://sprayberrylabs.com/blog/autogen-under-askalf)
 
 Full engineering log → **[sprayberrylabs.com/blog](https://sprayberrylabs.com/blog)**
@@ -97,7 +113,7 @@ Full engineering log → **[sprayberrylabs.com/blog](https://sprayberrylabs.com/
 <details>
 <summary><b>Supply-chain receipts</b></summary>
 
-- Live OpenSSF Scorecard on dario, redstamp, truecopy, plumbline, agent-security-stack, cordon, browser-bridge and amnesia; 100% OpenSSF Best Practices on [dario](https://www.bestpractices.dev/projects/13638), [truecopy](https://www.bestpractices.dev/projects/14488), [redstamp](https://www.bestpractices.dev/projects/14489) and [amnesia](https://www.bestpractices.dev/projects/14490).
+- Live OpenSSF Scorecard on dario, redstamp, truecopy, truecopy-action, plumbline, cordon, browser-bridge, amnesia and checkout-with-retry; 100% OpenSSF Best Practices on [dario](https://www.bestpractices.dev/projects/13638), [truecopy](https://www.bestpractices.dev/projects/14488), [redstamp](https://www.bestpractices.dev/projects/14489) and [amnesia](https://www.bestpractices.dev/projects/14490).
 - npm packages publish from CI through OIDC trusted publishing, with provenance and no long-lived token.
 - cordon ships as an attested container from GHCR.
 
