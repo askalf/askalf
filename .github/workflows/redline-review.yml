@@ -1,0 +1,56 @@
+# Redline: the gating code review, as a CI check. Each reviewed repo calls this from its own
+# redline.yml on pull_request; the job's result is the verdict (APPROVE passes, REQUEST_CHANGES fails).
+# It runs on the caller's self-hosted runner, which reaches the model locally and reads the reviewer
+# credentials from a root-only file on the host, so no secret is stored in GitHub.
+# The PR's code is checked out only to be read by the review's read-only tools; nothing from it runs.
+name: Redline review
+
+on:
+  workflow_call:
+    inputs:
+      runner-label:
+        description: The caller's self-hosted runner label.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  redline:
+    # Same-repo PRs only: a fork's code never reaches the self-hosted runner. Drafts wait.
+    if: github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
+    runs-on: [self-hosted, ${{ inputs.runner-label }}]
+    timeout-minutes: 20
+    steps:
+      - name: Fetch the review script from askalf/askalf
+        uses: askalf/checkout-with-retry@115a6407547e9711edbc2e915838d495cad9583f  # v1.1.0
+        with:
+          repository: askalf/askalf
+          ref: main
+          path: .redline
+          sparse-checkout: scripts/redline
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Check out the PR head to read
+        uses: askalf/checkout-with-retry@115a6407547e9711edbc2e915838d495cad9583f  # v1.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: pr
+          persist-credentials: false
+
+      - name: Review
+        env:
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHECKOUT: ${{ github.workspace }}/pr
+          GH_READ_TOKEN: ${{ github.token }}
+          REDLINE_ENV_FILE: /etc/askalf/redline.env
+        run: node .redline/scripts/redline/review.mjs
+
+      - name: Remove the checkouts
+        if: always()
+        run: rm -rf pr .redline
