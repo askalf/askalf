@@ -226,6 +226,18 @@ console.log('\n  runReview');
   const { ctx, calls } = world({ turns: [[{ type: 'text', text: 'thinking' }], submit(APPROVE)] });
   const r = await runReview(ctx);
   check('a text-only turn is nudged back to the tools', r.verdict === 'APPROVE' && calls.model[1].messages.at(-1).content.includes('submit_review'));
+  check('the nudge says the text was discarded', calls.model[1].messages.at(-1).content.startsWith('That text was discarded'));
+}
+{
+  const { ctx, calls } = world({ turns: [[{ type: 'text', text: 'Here is my review in prose.' }]] });
+  const e = await throws(() => runReview(ctx));
+  check(`${LIMITS.textOnlyTurns} text-only answers in a row fail the run early, not at turn ${LIMITS.turns}`,
+    e && /text-only answers in a row/.test(e.message) && calls.model.length === LIMITS.textOnlyTurns);
+}
+{
+  const { ctx, calls } = world({ turns: [[{ type: 'text', text: 'a' }], use('read_file', { path: 'src/b.js' }), [{ type: 'text', text: 'b' }], [{ type: 'text', text: 'c' }], submit(APPROVE)] });
+  const r = await runReview(ctx);
+  check('a tool call in between resets the text-only count', r.verdict === 'APPROVE' && calls.model.length === 5);
 }
 {
   const { ctx, calls } = world({ turns: [submit({ verdict: 'MAYBE', summary: 's', findings: [] }), submit(APPROVE)] });
