@@ -16,6 +16,7 @@ import {
   collectPages,
 } from './fleet-status.mjs';
 import { readdirSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -401,6 +402,97 @@ console.log('\n  required CI is the verification where the base branch requires 
   check('a full last page reads one more, empty, page', (await collectPages(pager([100, 100]))).length === 200);
   check('a short first page is the only page', (await collectPages(pager([5]))).length === 5);
   check('a required check on page 2 counts', requiredCiState(['check-2-0'], two) === 'passed');
+}
+
+{
+  // The CLI, end to end, against a stubbed GitHub: the rules read fails closed, check runs page,
+  // and a run posts only what differs, then re-reads and corrects a stale overwrite.
+  const script = fileURLToPath(new URL('./fleet-status.mjs', import.meta.url));
+  const stub = `
+    const fx = JSON.parse(process.env.FLEET_STATUS_FIXTURE);
+    const posted = [];
+    const pageOf = (u) => Number(new URL(u).searchParams.get('page') ?? 1);
+    const slice = (rows, u) => rows.slice((pageOf(u) - 1) * 100, pageOf(u) * 100);
+    const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
+    globalThis.fetch = async (url, init = {}) => {
+      const p = new URL(url).pathname;
+      if (init.method === 'POST') { posted.push({ path: p, ...JSON.parse(init.body) }); return json({}, 201); }
+      if (p.endsWith('/files')) return json(slice(fx.files, url));
+      if (p.endsWith('/reviews')) return json(slice(fx.reviews, url));
+      if (p.endsWith('/comments')) return json(slice(fx.comments, url));
+      if (p.includes('/rules/branches/')) return fx.rules === null ? json({ message: 'no' }, 500) : json(fx.rules);
+      if (p.endsWith('/statuses')) return json(slice(fx.statuses.length > 1 ? fx.statuses.shift() : fx.statuses[0], url));
+      if (p.endsWith('/check-runs')) return json({ check_runs: slice(fx.checkRuns, url) });
+      if (/[/]pulls[/][0-9]+$/.test(p)) return json(fx.pr);
+      return json({ message: 'unexpected ' + p }, 404);
+    };
+    process.on('exit', () => process.stdout.write('POSTED ' + JSON.stringify(posted) + '\\n'));
+  `;
+  const run = (fixture, ...args) => {
+    const r = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(stub)}`, script, ...args], {
+      env: { ...process.env, GITHUB_TOKEN: 't', REPO: 'o/r', PR: '7', FLEET_STATUS_FIXTURE: JSON.stringify(fixture) },
+      encoding: 'utf8',
+    });
+    const posted = JSON.parse(/^POSTED (.*)$/m.exec(r.stdout)?.[1] ?? '[]');
+    return { status: r.status, out: r.stdout + r.stderr, posted, lane: (c) => new RegExp(`^${c}\\s+(\\S+)\\s+(.*)$`, 'm').exec(r.stdout)?.slice(1) ?? [] };
+  };
+  const pr = (over = {}) => ({
+    state: 'open', number: 7, html_url: 'https://x/pull/7',
+    head: { sha: HEAD, ref: 'feat/x', repo: { full_name: 'o/r' } }, base: { ref: 'main' },
+    user: { login: 'askalf' }, labels: [{ name: 'verified' }], ...over,
+  });
+  const fixture = (over = {}) => ({
+    pr: pr(), files: [{ filename: 'src/a.ts' }], reviews: [], rules: [],
+    comments: [{ user: { login: VERIFIER_LOGIN }, body: `## Verification at ${HEAD}` }],
+    statuses: [[]], checkRuns: [], ...over,
+  });
+  const requireTest = [{ type: 'required_status_checks', parameters: { required_status_checks: [{ context: 'test' }] } }];
+  const filler = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, name: `lint-${i}`, status: 'completed', conclusion: 'success' }));
+
+  const unreadable = run(fixture({ rules: null }), '--dry-run');
+  check('rules that cannot be read leave verify pending, label and comment notwithstanding',
+    unreadable.status === 0 && unreadable.lane(CONTEXTS.verify).join(' ') === `pending Waiting on required CI at ${HEAD.slice(0, 7)}`);
+  const paged = run(fixture({ rules: requireTest, checkRuns: [...filler, { id: 101, name: 'test', status: 'completed', conclusion: 'success' }] }), '--dry-run');
+  check('a required check run on the second page is read', paged.status === 0 && paged.lane(CONTEXTS.verify)[0] === 'success');
+  const running = run(fixture({ rules: requireTest, checkRuns: [{ id: 1, name: 'test', status: 'in_progress', conclusion: null }] }), '--dry-run');
+  check('a required check still running is pending, not failed', running.lane(CONTEXTS.verify).join(' ') === `pending Waiting on required CI at ${HEAD.slice(0, 7)}`);
+  check('a dry run posts nothing', unreadable.posted.length === 0 && paged.posted.length === 0);
+
+  const want = (context, state, description) => ({ context, state, description });
+  const settled = [
+    want(CONTEXTS.verify, 'success', `Verified at ${HEAD.slice(0, 7)}`),
+    want(CONTEXTS.review, 'pending', `Waiting on Redline at ${HEAD.slice(0, 7)}`),
+    want(CONTEXTS.secondRead, 'pending', `Waiting on the Second Read at ${HEAD.slice(0, 7)}`),
+  ];
+  const stale = [want(CONTEXTS.review, 'pending', 'older'), ...settled];
+  const posting = run(fixture({ statuses: [[], stale, settled] }));
+  check('the first pass posts all three lanes on the head',
+    posting.status === 0 && posting.posted.slice(0, 3).every((s) => s.path === `/repos/o/r/statuses/${HEAD}` && s.target_url === 'https://x/pull/7'));
+  check('the second pass re-posts only the lane a stale run overwrote',
+    posting.posted.length === 4 && posting.posted[3].context === CONTEXTS.review && /^pass 2: correcting fleet\/review$/m.test(posting.out));
+  const quiet = run(fixture({ statuses: [settled] }));
+  check('a head already showing the right statuses gets no post', quiet.status === 0 && quiet.posted.length === 0);
+  const closed = run(fixture({ pr: pr({ state: 'closed' }) }));
+  check('a closed PR gets no post', closed.status === 0 && closed.posted.length === 0 && /nothing to report/.test(closed.out));
+  const fork = run(fixture({ pr: pr({ head: { sha: HEAD, ref: 'feat/x', repo: { full_name: 'else/r' } } }) }));
+  check('a fork PR gets no post', fork.status === 0 && fork.posted.length === 0 && /fork PR/.test(fork.out));
+}
+
+{
+  // requiredCi drives the verify lane ahead of the label and comment.
+  const at = (requiredCi) => by(laneStatuses(base({ requiredCi, labels: ['verified'], comments: [verification(HEAD)] })));
+  check('a failed required check is red even at a verified head',
+    at('failed')[CONTEXTS.verify].state === 'failure' && at('failed')[CONTEXTS.verify].description === 'A required check failed at 4753643');
+  check('pending required CI holds every lane', Object.values(at('pending')).every((s) => s.state === 'pending'));
+}
+
+{
+  // Verdict lines as the API returns them: trailing whitespace, CRLF bodies, words that only start with the verdict.
+  const at = (body) => secondReadAtHead(base({ reviews: [review(SECOND_READ_LOGIN, 'COMMENTED', HEAD, body)] }));
+  check('READY with trailing spaces is READY', at('SECOND READ: READY  \nmore').state === 'READY');
+  check('READY on a CRLF line', at('text\r\nSECOND READ: READY\r\n').state === 'READY');
+  check('NOT READY on a CRLF line keeps a clean reason', at('SECOND READ: NOT READY - stale stack\r\nmore\r\n').reason === 'stale stack');
+  check('NOT READYish is not a verdict', at('SECOND READ: NOT READYish').state === 'none');
 }
 
 console.log(`\n  ${pass} pass, ${fail} fail`);
