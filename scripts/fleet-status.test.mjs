@@ -331,14 +331,18 @@ console.log('\n  required CI is the verification where the base branch requires 
 }
 
 {
-  // fleet-status.yml's workflow_run list names every workflow that runs on pull_request, so a
-  // required check it produces refreshes the lanes when it finishes. A workflow that runs only on
-  // pull_request_target is left out: it runs against the base branch's commit, so its checks
-  // never land on the PR head, and the status job drops its workflow_run events.
+  // This copy of fleet-status.yml has no workflow_run trigger: the branch rules require no checks,
+  // so no CI run can move a lane, and the pull_request workflows beside it are not listed. A copy
+  // that does list workflows names every one that runs on pull_request, so a required check it
+  // produces refreshes the lanes when it finishes, and leaves out one that runs only on
+  // pull_request_target: that runs against the base branch's commit, so its checks never land on
+  // the PR head, and the status job drops its workflow_run events.
   const dir = join(fileURLToPath(new URL('..', import.meta.url)), '.github', 'workflows');
   const own = readFileSync(join(dir, 'fleet-status.yml'), 'utf8');
-  const listed = (/^  workflow_run:\s*\n\s+workflows:\s*\[([^\]]*)\]/m.exec(own)?.[1] ?? '')
-    .split(',').map((w) => w.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  const workflowRunList = (y) => {
+    const m = /^  workflow_run:\s*\n\s+workflows:\s*\[([^\]]*)\]/m.exec(y);
+    return m ? m[1].split(',').map((w) => w.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean) : null;
+  };
   const onBlock = (y) => {
     const m = /^on:(.*)$/m.exec(y);
     if (!m) return '';
@@ -349,16 +353,24 @@ console.log('\n  required CI is the verification where the base branch requires 
     }
     return lines.join('\n').replace(/#.*$/gm, '');
   };
-  for (const f of readdirSync(dir).filter((x) => /\.ya?ml$/.test(x) && x !== 'fleet-status.yml')) {
-    const y = readFileSync(join(dir, f), 'utf8');
+  const workflowName = (f, y) => (/^name:\s*(.+)$/m.exec(y)?.[1] ?? f).trim().replace(/^['"]|['"]$/g, '');
+  // The workflows ([name, yaml]) whose listing disagrees with their trigger.
+  const misfits = (list, workflows) => workflows.filter(([name, y]) => {
     const on = onBlock(y);
-    const name = (/^name:\s*(.+)$/m.exec(y)?.[1] ?? f).trim().replace(/^['"]|['"]$/g, '');
-    if (/\bpull_request\b(?!_target)/.test(on)) {
-      check(`workflow_run lists "${name}" (${f} runs on pull_request)`, listed.includes(name));
-    } else if (/\bpull_request_target\b/.test(on)) {
-      check(`workflow_run leaves out "${name}" (${f} runs only on pull_request_target)`, !listed.includes(name));
-    }
-  }
+    if (/\bpull_request\b(?!_target)/.test(on)) return list !== null && !list.includes(name);
+    if (/\bpull_request_target\b/.test(on)) return list !== null && list.includes(name);
+    return false;
+  }).map(([name]) => name);
+  const beside = readdirSync(dir).filter((x) => /\.ya?ml$/.test(x) && x !== 'fleet-status.yml')
+    .map((f) => { const y = readFileSync(join(dir, f), 'utf8'); return [workflowName(f, y), y]; });
+  check('fleet-status.yml has no workflow_run trigger', !/^\s*workflow_run:/m.test(own) && workflowRunList(own) === null);
+  check('the workflows beside it agree with it', misfits(workflowRunList(own), beside).length === 0);
+  const onPr = (name) => `name: ${name}\non:\n  pull_request:\n    types: [opened]\njobs: {}\n`;
+  const onTarget = (name) => `name: ${name}\non:\n  pull_request_target:\njobs: {}\n`;
+  check('no list: a pull_request workflow beside it is not a misfit', misfits(null, [['review', onPr('review')], ['pulse', onPr('pulse')]]).length === 0);
+  check('a list must name every pull_request workflow', misfits(['review'], [['review', onPr('review')], ['pulse', onPr('pulse')]]).join() === 'pulse');
+  check('a list must leave out a pull_request_target-only workflow', misfits(['review', 'triage'], [['review', onPr('review')], ['triage', onTarget('triage')]]).join() === 'triage');
+  check('a list is read from the yaml', String(workflowRunList(own.replace(/^on:\n/m, 'on:\n  workflow_run:\n    workflows: ["ci", \'review\']\n    types: [completed]\n'))) === 'ci,review');
 }
 
 {
