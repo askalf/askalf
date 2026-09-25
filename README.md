@@ -66,7 +66,7 @@ Deterministic gates around what an agent may do.
 
 ### Own Your Stack
 
-<img src="stack.jpg" alt="Your box: Claude Code, Cursor, Aider and the Agent SDK go through cordon, which redacts PII, to dario, which routes to a Claude plan or a ChatGPT plan. browser-bridge, amnesia, pgflex and redisflex also run on the box." width="100%">
+<img src="stack.jpg" alt="Your box: Claude Code, Cursor, Aider and the Agent SDK go through cordon, which redacts PII, to dario, which routes to a Claude plan or a ChatGPT plan. browser-bridge and amnesia also run on the box." width="100%">
 
 The plan you already pay for, on the machine you already own.
 
@@ -77,10 +77,6 @@ The plan you already pay for, on the machine you already own.
 </tr>
 <tr>
 <td width="50%" valign="top"><a href="https://github.com/askalf/amnesia"><img src="cards/amnesia.jpg" alt="amnesia: ALF beside a search bar whose trail of particles dissolves as it drifts away." width="100%"></a><br><b><a href="https://github.com/askalf/amnesia">amnesia</a></b>: privacy meta-search with no accounts, no ads and no query log, live at <a href="https://amnesia.tax">amnesia.tax</a>.</td>
-<td width="50%" valign="top"><a href="https://github.com/askalf/pgflex"><img src="cards/pgflex.jpg" alt="pgflex: your app calls createAdapter(), which runs on pg in production or pglite in-process for dev, CI and tests." width="100%"></a><br><b><a href="https://github.com/askalf/pgflex">pgflex</a></b>: one Postgres API, two modes. A real server in production, in-process PGlite for dev, CI and tests, same SQL.</td>
-</tr>
-<tr>
-<td width="50%" valign="top"><a href="https://github.com/askalf/redisflex"><img src="cards/redisflex.jpg" alt="redisflex: your app calls createRedisAdapter(), which runs on ioredis in production or in memory for dev, CI and tests, with a BullMQ-shaped queue." width="100%"></a><br><b><a href="https://github.com/askalf/redisflex">redisflex</a></b>: one Redis API, two modes, plus a BullMQ-shaped in-memory queue, so a whole platform runs without Docker.</td>
 <td width="50%" valign="top"><a href="https://github.com/askalf/checkout-with-retry"><img src="cards/checkout-with-retry.jpg" alt="checkout-with-retry: attempts 1 and 2 fail with a 401, and after waits of 8 and 20 seconds attempt 3 checks out." width="100%"></a><br><b><a href="https://github.com/askalf/checkout-with-retry">checkout-with-retry</a></b>: a drop-in for <code>actions/checkout</code> that retries the transient credential failures of ephemeral runners.</td>
 </tr>
 </table>
