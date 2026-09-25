@@ -2,8 +2,8 @@
 //
 // One run reviews one head. It reads the PR (metadata, commits, per-file patches) with the
 // workflow's read-only token, lets the model read the PR checkout through read-only tools
-// (list_files, read_file, grep; nothing executes), and ends when the model calls submit_review.
-// The review is posted as sprayberry-redline with commit_id pinned to the head it read, and the
+// (redline_list, redline_read, redline_search; nothing executes), and ends when the model calls
+// redline_submit. The review is posted as sprayberry-redline with commit_id pinned to the head it read, and the
 // process exits 0 on APPROVE and 1 on REQUEST_CHANGES, so the job's own check is the verdict.
 //
 // Hardening, each with a reason:
@@ -92,7 +92,7 @@ export function buildDiff(files, cap = LIMITS.diffChars) {
     if (out.length + part.length > cap) { omitted.push(f.filename); continue; }
     out += part;
   }
-  if (omitted.length) out += `\n(diff cap reached; not shown, read them with read_file: ${omitted.join(', ')})\n`;
+  if (omitted.length) out += `\n(diff cap reached; not shown, read them with redline_read: ${omitted.join(', ')})\n`;
   return out;
 }
 
@@ -124,9 +124,9 @@ export function corpusOf(brief) {
   return out;
 }
 
-/** Validate submit_review input; returns { review } or { error }. */
+/** Validate redline_submit input; returns { review } or { error }. */
 export function checkSubmission(input) {
-  if (!input || typeof input !== 'object') return { error: 'submit_review needs an object' };
+  if (!input || typeof input !== 'object') return { error: 'redline_submit needs an object' };
   if (input.verdict !== 'APPROVE' && input.verdict !== 'REQUEST_CHANGES') return { error: 'verdict must be APPROVE or REQUEST_CHANGES' };
   if (typeof input.summary !== 'string' || !input.summary.trim()) return { error: 'summary is required' };
   const findings = Array.isArray(input.findings) ? input.findings : [];
@@ -180,13 +180,13 @@ export function verdictAtHead(reviews, headSha) {
 // ---------- tools over the checkout ----------
 
 export const TOOLS = [
-  { name: 'list_files', description: 'List a directory of the PR checkout (directories end with /).',
+  { name: 'redline_list', description: 'List a directory of the PR checkout (directories end with /).',
     input_schema: { type: 'object', properties: { path: { type: 'string', description: 'Directory relative to the repo root; default the root.' } } } },
-  { name: 'read_file', description: `Read lines of a file in the PR checkout, numbered. At most ${LIMITS.readLines} lines per call.`,
+  { name: 'redline_read', description: `Read lines of a file in the PR checkout, numbered. At most ${LIMITS.readLines} lines per call.`,
     input_schema: { type: 'object', properties: { path: { type: 'string' }, start_line: { type: 'integer', minimum: 1 }, end_line: { type: 'integer', minimum: 1 } }, required: ['path'] } },
-  { name: 'grep', description: `Search the PR checkout with a JavaScript regular expression. At most ${LIMITS.grepResults} matches.`,
+  { name: 'redline_search', description: `Search the PR checkout with a JavaScript regular expression. At most ${LIMITS.grepResults} matches.`,
     input_schema: { type: 'object', properties: { pattern: { type: 'string' }, path: { type: 'string', description: 'Directory or file to search; default the root.' } }, required: ['pattern'] } },
-  { name: 'submit_review', description: 'Submit the review. Call exactly once, last.',
+  { name: 'redline_submit', description: 'Submit the review. Call exactly once, last.',
     input_schema: { type: 'object', required: ['verdict', 'summary', 'findings'], properties: {
       verdict: { type: 'string', enum: ['APPROVE', 'REQUEST_CHANGES'] },
       summary: { type: 'string', description: 'One short paragraph: the verdict in a sentence and what you checked.' },
@@ -201,15 +201,15 @@ export const TOOLS = [
 
 export function runTool(root, name, input = {}) {
   try {
-    if (name === 'list_files') {
+    if (name === 'redline_list') {
       const dir = safePath(root, input.path);
       const rows = readdirSync(dir, { withFileTypes: true }).filter((e) => e.name !== '.git')
         .map((e) => (e.isDirectory() ? `${e.name}/` : e.name)).sort();
       return rows.length > LIMITS.listEntries ? `${rows.slice(0, LIMITS.listEntries).join('\n')}\n(${rows.length - LIMITS.listEntries} more not shown)` : rows.join('\n') || '(empty)';
     }
-    if (name === 'read_file') {
+    if (name === 'redline_read') {
       const file = safePath(root, input.path);
-      if (lstatSync(file).isDirectory()) return 'error: that is a directory; use list_files';
+      if (lstatSync(file).isDirectory()) return 'error: that is a directory; use redline_list';
       if (isBinary(file)) return 'error: binary file, not readable as text';
       const lines = readFileSync(file, 'utf8').split('\n');
       const start = Math.max(1, Number(input.start_line) || 1);
@@ -222,7 +222,7 @@ export function runTool(root, name, input = {}) {
       }
       return `${out}(file has ${lines.length} lines)`;
     }
-    if (name === 'grep') {
+    if (name === 'redline_search') {
       const pat = String(input.pattern ?? '');
       if (!pat || pat.length > LIMITS.grepPattern) return `error: pattern must be 1-${LIMITS.grepPattern} characters`;
       let re;
@@ -296,7 +296,7 @@ async function callModel(ctx, system, messages, force) {
     headers: { 'content-type': 'application/json', 'x-api-key': ctx.darioKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: ctx.model, max_tokens: LIMITS.maxTokens, system, messages, tools: TOOLS,
-      ...(force ? { tool_choice: { type: 'tool', name: 'submit_review' } } : {}),
+      ...(force ? { tool_choice: { type: 'tool', name: 'redline_submit' } } : {}),
     }),
     signal: AbortSignal.timeout(LIMITS.modelTimeoutMs),
   }));
@@ -337,7 +337,7 @@ export async function runReview(ctx) {
   const brief = buildBrief(pr, files, commits, buildDiff(files));
   const corpus = corpusOf(brief);
 
-  const messages = [{ role: 'user', content: `${brief}\n\nReview this change and finish with submit_review.` }];
+  const messages = [{ role: 'user', content: `${brief}\n\nReview this change and finish with redline_submit.` }];
   const started = ctx.now();
   let review = null;
   let repaired = false;
@@ -346,8 +346,8 @@ export async function runReview(ctx) {
   // A text answer is not a review: nothing in prose is graded, grounded or posted. Five of eight
   // live runs on 2026-09-25 answered in prose for 25 turns straight, because the gateway between
   // this script and the model drops tool_choice, so the forced turns never forced anything.
-  const TEXT_ONLY_NUDGE = 'That text was discarded: a review is accepted only as a submit_review tool call. '
-    + 'Call submit_review now with verdict, summary and findings; do not answer in text again.';
+  const TEXT_ONLY_NUDGE = 'That text was discarded: a review is accepted only as a redline_submit tool call. '
+    + 'Call redline_submit now with verdict, summary and findings; do not answer in text again.';
   for (let turn = 1; turn <= LIMITS.turns && !review; turn++) {
     const force = turn >= LIMITS.forceSubmitAt || ctx.now() - started > LIMITS.timeMs;
     const res = await callModel(ctx, ctx.system, messages, force);
@@ -360,7 +360,7 @@ export async function runReview(ctx) {
       + (uses.length ? '' : ` text=${JSON.stringify(text.slice(0, 200))}`));
     if (!uses.length) {
       textOnly++;
-      if (textOnly >= LIMITS.textOnlyTurns) throw new Error(`no review submitted: ${textOnly} text-only answers in a row (the model will not call submit_review)`);
+      if (textOnly >= LIMITS.textOnlyTurns) throw new Error(`no review submitted: ${textOnly} text-only answers in a row (the model will not call redline_submit)`);
       if (res.content.length) {
         // Prose is kept and answered; an empty reply is not history, the same request goes again.
         messages.push({ role: 'assistant', content: res.content });
@@ -372,11 +372,11 @@ export async function runReview(ctx) {
     messages.push({ role: 'assistant', content: res.content });
     const results = [];
     for (const u of uses) {
-      if (u.name !== 'submit_review') {
+      if (u.name !== 'redline_submit') {
         // Past the forced turn a read is refused, not run, so the model cannot keep reading whether or
         // not a gateway kept tool_choice (dario#1423, 2026-09-25: 30 turns of reading past it).
         results.push(force
-          ? { type: 'tool_result', tool_use_id: u.id, is_error: true, content: 'The read budget is spent. Call submit_review now with what you have read.' }
+          ? { type: 'tool_result', tool_use_id: u.id, is_error: true, content: 'The read budget is spent. Call redline_submit now with what you have read.' }
           : { type: 'tool_result', tool_use_id: u.id, content: runTool(ctx.checkout, u.name, u.input) });
         continue;
       }
@@ -391,7 +391,7 @@ export async function runReview(ctx) {
         repaired = true;
         ctx.log?.(`  ${bad.length} ungrounded finding(s): one repair round offered`);
         results.push({ type: 'tool_result', tool_use_id: u.id, is_error: true, content:
-          `These findings quote text that is not in the diff, the PR text or a commit message: ${bad.map((f) => `${f.file} ("${norm(f.quote).slice(0, 80)}")`).join('; ')}. Copy the quote exactly from the diff, or drop the finding, then call submit_review again.` });
+          `These findings quote text that is not in the diff, the PR text or a commit message: ${bad.map((f) => `${f.file} ("${norm(f.quote).slice(0, 80)}")`).join('; ')}. Copy the quote exactly from the diff, or drop the finding, then call redline_submit again.` });
         continue;
       }
       if (bad.length) {
