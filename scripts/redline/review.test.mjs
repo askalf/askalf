@@ -240,6 +240,26 @@ console.log('\n  runReview');
   check('a tool call in between resets the text-only count', r.verdict === 'APPROVE' && calls.model.length === 5);
 }
 {
+  const { ctx, calls } = world({ turns: [[{ type: 'text', text: 'Looks  fine\nto me.' }], submit(APPROVE)] });
+  const lines = [];
+  ctx.log = (l) => lines.push(l);
+  const r = await runReview(ctx);
+  check('a reply without a tool call is logged with its text, whitespace collapsed', r.verdict === 'APPROVE' && lines[0] === 'turn 1: no tool call; stop=- text="Looks fine to me."');
+  check('a reply with a tool call logs no text', lines[1] === 'turn 2: submit_review; stop=-' && calls.model.length === 2);
+}
+{
+  // Empty replies (dario at its concurrency ceiling, 2026-09-25): not kept as history, and the same early end.
+  const { ctx, calls } = world({ turns: [[]] });
+  const e = await throws(() => runReview(ctx));
+  check('empty replies end the run like text-only ones and never enter the history',
+    e && /text-only answers in a row/.test(e.message) && calls.model.length === LIMITS.textOnlyTurns && calls.model.at(-1).messages.length === 1);
+}
+{
+  const { ctx, calls } = world({ turns: [() => undefined] });
+  const e = await throws(() => runReview(ctx));
+  check('a reply with no content array fails the run at once', e && /no message content/.test(e.message) && calls.model.length === 1);
+}
+{
   const { ctx, calls } = world({ turns: [submit({ verdict: 'MAYBE', summary: 's', findings: [] }), submit(APPROVE)] });
   const lines = [];
   ctx.log = (l) => lines.push(l);
