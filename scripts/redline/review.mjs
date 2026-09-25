@@ -35,6 +35,7 @@ export const LIMITS = {
   readLines: 400, readBytes: 64_000, listEntries: 400,
   grepResults: 80, grepFiles: 5_000, grepFileBytes: 1_000_000, grepPattern: 200,
   turns: 30, forceSubmitAt: 24, timeMs: 12 * 60_000, maxTokens: 8_000, modelTimeoutMs: 240_000,
+  textOnlyTurns: 3,
 };
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', 'vendor', '.next']);
 
@@ -335,14 +336,26 @@ export async function runReview(ctx) {
   const started = ctx.now();
   let review = null;
   let repaired = false;
+  let textOnly = 0;
   const notes = [];
+  // A text answer is not a review: nothing in prose is graded, grounded or posted. Five of eight
+  // live runs on 2026-09-25 answered in prose for 25 turns straight, because the gateway between
+  // this script and the model drops tool_choice, so the forced turns never forced anything.
+  const TEXT_ONLY_NUDGE = 'That text was discarded: a review is accepted only as a submit_review tool call. '
+    + 'Call submit_review now with verdict, summary and findings; do not answer in text again.';
   for (let turn = 1; turn <= LIMITS.turns && !review; turn++) {
     const force = turn >= LIMITS.forceSubmitAt || ctx.now() - started > LIMITS.timeMs;
     const res = await callModel(ctx, ctx.system, messages, force);
     messages.push({ role: 'assistant', content: res.content });
     const uses = (res.content ?? []).filter((b) => b.type === 'tool_use');
     ctx.log?.(`turn ${turn}${force ? ' (forced)' : ''}: ${uses.map((u) => u.name).join(', ') || 'no tool call'}; stop=${res.stop_reason ?? '-'}`);
-    if (!uses.length) { messages.push({ role: 'user', content: 'Use the tools, and finish with submit_review.' }); continue; }
+    if (!uses.length) {
+      textOnly++;
+      if (textOnly >= LIMITS.textOnlyTurns) throw new Error(`no review submitted: ${textOnly} text-only answers in a row (the model will not call submit_review)`);
+      messages.push({ role: 'user', content: TEXT_ONLY_NUDGE });
+      continue;
+    }
+    textOnly = 0;
     const results = [];
     for (const u of uses) {
       if (u.name !== 'submit_review') {
