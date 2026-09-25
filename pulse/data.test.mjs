@@ -73,6 +73,13 @@ test('per-day tally starts its coverage at the oldest fetched event after a gap'
   assert.equal(by['2026-09-25'].n, 1);
 });
 
+test('per-day tally counts the day since falls on only when since is its midnight', () => {
+  const covered = (since) => tallyPerDay({ since, lastEventId: '1', perDay: [] }, { events: [], complete: true }, now).perDay.find((d) => d.day === '2026-09-20').covered;
+  assert.equal(covered('2026-09-20T00:00:00Z'), true);
+  assert.equal(covered('2026-09-20T00:00:01Z'), false);
+  assert.equal(covered('2026-09-20T23:59:59Z'), false);
+});
+
 test('per-day tally with no previous state covers the whole window once the feed is exhausted', () => {
   const t = tallyPerDay(undefined, { events: [ev(5, '2026-09-25T01:00:00Z')], complete: true }, now);
   assert.equal(t.since, new Date(now - 14 * DAY).toISOString());
