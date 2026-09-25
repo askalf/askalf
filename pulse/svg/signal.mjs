@@ -19,11 +19,16 @@ export function renderSignal(d) {
     body += per.map((x, i) => {
       const bh = Math.max(3, (x.n / max) * h);
       const bx = x0 + i * (bw + gap);
-      return `<rect class="bar" x="${bx}" y="${top + h - bh}" width="${bw}" height="${bh.toFixed(1)}" rx="4" fill="url(#col)" style="animation-delay:${(0.2 + i * 0.05).toFixed(2)}s"><title>${x.day}: ${x.n} events</title></rect>
+      const bar = x.covered === false
+        ? `<rect x="${bx}" y="${top}" width="${bw}" height="${h}" rx="4" fill="${C.grid}" opacity=".5"><title>${x.day}: not yet counted</title></rect>`
+        : `<rect class="bar" x="${bx}" y="${top + h - bh}" width="${bw}" height="${bh.toFixed(1)}" rx="4" fill="url(#col)" style="animation-delay:${(0.2 + i * 0.05).toFixed(2)}s"><title>${x.day}: ${x.n} events</title></rect>`;
+      return `${bar}
       ${i % 2 === 1 ? `<text x="${bx + bw / 2}" y="${top + h + 18}" font-size="10.5" fill="${C.faint}" text-anchor="middle">${x.day.slice(8)}</text>` : ''}`;
     }).join('');
-    const total = per.reduce((s, x) => s + x.n, 0);
-    body += `<text x="${x0}" y="${top + h + 46}" font-size="12" fill="${C.dim}">${n(total)} public events in 14 days</text>`;
+    const counted = per.filter((x) => x.covered !== false);
+    const total = counted.reduce((s, x) => s + x.n, 0);
+    const span = counted.length === per.length ? '14 days' : `${counted.length} day${counted.length === 1 ? '' : 's'}`;
+    body += `<text x="${x0}" y="${top + h + 46}" font-size="12" fill="${C.dim}">${n(total)} public events in ${span}</text>`;
     // Newest move lands on top and the rest step down.
     const fx = 470;
     body += `<line x1="${fx - 24}" x2="${fx - 24}" y1="60" y2="${H - 30}" stroke="${C.edge}"/>`;

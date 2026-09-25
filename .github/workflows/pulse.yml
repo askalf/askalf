@@ -30,6 +30,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Test
+        run: node --test pulse/data.test.mjs
+
       - name: Restore the last good state
         run: |
           mkdir -p out
