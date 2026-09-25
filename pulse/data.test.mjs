@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { OWN, inReviewFrom, recentEvents, tallyPerDay } from './data.mjs';
 import { renderSignal } from './svg/signal.mjs';
+import { renderGate } from './svg/gate.mjs';
+import { renderHeartbeat } from './svg/heartbeat.mjs';
 
 const DAY = 864e5;
 const now = Date.parse('2026-09-25T02:00:00Z');
@@ -102,4 +104,23 @@ test('signal panel counts only the days its tally covers', () => {
   const full = renderSignal({ at: new Date(now).toISOString(), github: { perDay: perDay.map((d) => ({ ...d, covered: true })), feed: [] } });
   assert.match(full, /20 public events in 14 days</);
   assert.doesNotMatch(full, /not yet counted/);
+});
+
+test('gate audit log rests on its newest five entries when motion is reduced', () => {
+  const svg = renderGate();
+  const [, top, height] = svg.match(/id="logclip"><rect x="\d+" y="(\d+)" width="\d+" height="(\d+)"/).map(Number);
+  const rest = [...svg.matchAll(/<g class="entry" style="[^"]*transform:translateY\((-?\d+)px\)"><text[^>]*>\s*<tspan[^>]*>#(\d+)/g)].map((m) => [m[2], Number(m[1])]);
+  assert.equal(rest.length, 8);
+  assert.deepEqual(rest.filter(([, y]) => y > top && y <= top + height).map(([seq]) => seq), ['04104', '04105', '04106', '04107', '04108']);
+  assert.equal(rest.at(-1)[1], top + height - 8);
+  const css = svg.slice(svg.indexOf('<style>'), svg.indexOf('</style>'));
+  const hidden = css.indexOf('.entry { opacity: 0;');
+  const still = css.indexOf('@media (prefers-reduced-motion: reduce) { .entry { opacity: 1 } }');
+  assert.ok(hidden >= 0 && still > hidden);
+});
+
+test('heartbeat shows a plain dash where a source has no data', () => {
+  const svg = renderHeartbeat({ at: new Date(now).toISOString(), dario: null, installs: null });
+  assert.equal((svg.match(/>-<\/text>/g) ?? []).length, 2);
+  assert.doesNotMatch(svg, /\u2014/);
 });
