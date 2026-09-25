@@ -41,24 +41,24 @@ try { symlinkSync(join(outside, 'secret.txt'), join(root, 'leak.txt')); } catch 
 
 console.log('\n  safePath');
 check('a path inside resolves', safePath(root, 'src/a.js').endsWith('a.js'));
-check('.. is refused', /outside/.test(runTool(root, 'read_file', { path: '../x' })));
-check('a leading slash is relative to the checkout, not the host', /no such file/.test(runTool(root, 'read_file', { path: '/etc/passwd' })));
-if (symlinked) check('a symlink out of the checkout is refused', /outside the checkout/.test(runTool(root, 'read_file', { path: 'leak.txt' })));
+check('.. is refused', /outside/.test(runTool(root, 'redline_read', { path: '../x' })));
+check('a leading slash is relative to the checkout, not the host', /no such file/.test(runTool(root, 'redline_read', { path: '/etc/passwd' })));
+if (symlinked) check('a symlink out of the checkout is refused', /outside the checkout/.test(runTool(root, 'redline_read', { path: 'leak.txt' })));
 
 console.log('\n  tools');
-check('list_files lists, directories with a slash', runTool(root, 'list_files', {}).split('\n').includes('src/'));
+check('redline_list lists, directories with a slash', runTool(root, 'redline_list', {}).split('\n').includes('src/'));
 {
-  const r = runTool(root, 'read_file', { path: 'src/a.js', start_line: 10, end_line: 12 });
-  check('read_file returns the numbered range', r.startsWith('10\tline 10\n11\tline 11\n12\tline 12\n') && r.includes('(file has 900 lines)'));
-  const big = runTool(root, 'read_file', { path: 'src/a.js' });
-  check(`read_file stops at ${LIMITS.readLines} lines`, big.includes(`${LIMITS.readLines}\tline ${LIMITS.readLines}\n`) && !big.includes(`${LIMITS.readLines + 1}\tline`));
+  const r = runTool(root, 'redline_read', { path: 'src/a.js', start_line: 10, end_line: 12 });
+  check('redline_read returns the numbered range', r.startsWith('10\tline 10\n11\tline 11\n12\tline 12\n') && r.includes('(file has 900 lines)'));
+  const big = runTool(root, 'redline_read', { path: 'src/a.js' });
+  check(`redline_read stops at ${LIMITS.readLines} lines`, big.includes(`${LIMITS.readLines}\tline ${LIMITS.readLines}\n`) && !big.includes(`${LIMITS.readLines + 1}\tline`));
 }
-check('read_file refuses a binary file', /binary/.test(runTool(root, 'read_file', { path: 'img.png' })));
-check('read_file on a directory says so', /directory/.test(runTool(root, 'read_file', { path: 'src' })));
-check('grep finds file:line: text', runTool(root, 'grep', { pattern: 'process\\.env' }) === 'src/b.js:1: export const token = process.env.X;');
-check('grep skips binaries and reports no matches', runTool(root, 'grep', { pattern: 'PNG' }) === '(no matches)');
-check('grep reports a bad pattern', /bad pattern/.test(runTool(root, 'grep', { pattern: '(' })));
-check('grep caps its matches', runTool(root, 'grep', { pattern: 'line' }).endsWith('(match cap reached)'));
+check('redline_read refuses a binary file', /binary/.test(runTool(root, 'redline_read', { path: 'img.png' })));
+check('redline_read on a directory says so', /directory/.test(runTool(root, 'redline_read', { path: 'src' })));
+check('grep finds file:line: text', runTool(root, 'redline_search', { pattern: 'process\\.env' }) === 'src/b.js:1: export const token = process.env.X;');
+check('grep skips binaries and reports no matches', runTool(root, 'redline_search', { pattern: 'PNG' }) === '(no matches)');
+check('grep reports a bad pattern', /bad pattern/.test(runTool(root, 'redline_search', { pattern: '(' })));
+check('grep caps its matches', runTool(root, 'redline_search', { pattern: 'line' }).endsWith('(match cap reached)'));
 check('an unknown tool is an error, not a throw', /unknown tool/.test(runTool(root, 'exec', {})));
 
 console.log('\n  diff, brief and grounding');
@@ -69,7 +69,7 @@ console.log('\n  diff, brief and grounding');
   ];
   const diff = buildDiff(files);
   check('a patch is included and a binary is named', diff.includes('+export const token') && diff.includes('diff --git a/img.png b/img.png\n(no patch'));
-  check('the cap names what it left out', buildDiff(files, 60).includes('not shown, read them with read_file: src/b.js'));
+  check('the cap names what it left out', buildDiff(files, 60).includes('not shown, read them with redline_read: src/b.js'));
   const pr = { number: 7, title: 'feat: add token', body: '- adds the token\n\nGenerated with a tool', user: { login: 'askalf' },
     head: { ref: 'feat/x', sha: HEAD }, base: { ref: 'main', repo: { full_name: 'askalf/r' } } };
   const brief = buildBrief(pr, files, [{ sha: HEAD, commit: { message: 'feat: add token\n\nCo-Authored-By: Someone' } }], diff);
@@ -142,13 +142,13 @@ function world({ reviews = [], heads = [HEAD], turns, modelStatus = [] } = {}) {
   return { ctx, calls };
 }
 const use = (name, input, id = name) => [{ type: 'tool_use', id, name, input }];
-const submit = (input) => use('submit_review', input, `s${Math.random()}`);
+const submit = (input) => use('redline_submit', input, `s${Math.random()}`);
 const APPROVE = { verdict: 'APPROVE', summary: 'No blocking issues; read src/b.js.', findings: [] };
 const GOOD = { severity: 'blocking', file: 'src/b.js', line: 1, quote: '+export const token = process.env.X;', problem: 'Exports a secret from the environment.' };
 
 console.log('\n  runReview');
 {
-  const { ctx, calls } = world({ turns: [use('read_file', { path: 'src/b.js' }), submit(APPROVE)] });
+  const { ctx, calls } = world({ turns: [use('redline_read', { path: 'src/b.js' }), submit(APPROVE)] });
   const r = await runReview(ctx);
   check('approve: posted at the head with the reviewer token', r.outcome === 'posted' && r.verdict === 'APPROVE'
     && calls.posted.length === 1 && calls.posted[0].commit_id === HEAD && calls.posted[0].event === 'APPROVE' && calls.posted[0].auth === 'Bearer review');
@@ -201,22 +201,22 @@ console.log('\n  runReview');
   check('a 400 from the model is not retried and fails the run', e && /HTTP 400/.test(e.message) && calls.sleeps === 0 && calls.posted.length === 0);
 }
 {
-  const { ctx, calls } = world({ turns: [(b) => (b.tool_choice ? submit(APPROVE) : use('list_files', {}))] });
+  const { ctx, calls } = world({ turns: [(b) => (b.tool_choice ? submit(APPROVE) : use('redline_list', {}))] });
   const r = await runReview(ctx);
-  check(`the model is forced to submit at turn ${LIMITS.forceSubmitAt}`, r.verdict === 'APPROVE' && calls.model.length === LIMITS.forceSubmitAt && calls.model.at(-1).tool_choice.name === 'submit_review');
+  check(`the model is forced to submit at turn ${LIMITS.forceSubmitAt}`, r.verdict === 'APPROVE' && calls.model.length === LIMITS.forceSubmitAt && calls.model.at(-1).tool_choice.name === 'redline_submit');
   check('a forced turn keeps every tool in the request (history may name them)', calls.model.at(-1).tools.length === 4);
 }
 {
-  const { ctx } = world({ turns: [use('list_files', {})] });
+  const { ctx } = world({ turns: [use('redline_list', {})] });
   const lines = [];
   ctx.log = (l) => lines.push(l);
   const e = await throws(() => runReview(ctx));
   check('each turn is logged with its tools, and the forced turns are marked',
-    lines[0] === 'turn 1: list_files; stop=-' && lines.some((l) => l.startsWith(`turn ${LIMITS.forceSubmitAt} (forced): list_files`)));
+    lines[0] === 'turn 1: redline_list; stop=-' && lines.some((l) => l.startsWith(`turn ${LIMITS.forceSubmitAt} (forced): redline_list`)));
   check('a model that never submits fails the run', e && /no review submitted/.test(e.message));
 }
 {
-  const { ctx, calls } = world({ turns: [(b) => (b.messages.length > 2 * LIMITS.forceSubmitAt + 1 ? submit(APPROVE) : use('read_file', { path: 'src/b.js' }))] });
+  const { ctx, calls } = world({ turns: [(b) => (b.messages.length > 2 * LIMITS.forceSubmitAt + 1 ? submit(APPROVE) : use('redline_read', { path: 'src/b.js' }))] });
   const r = await runReview(ctx);
   const forcedResult = JSON.stringify(calls.model[LIMITS.forceSubmitAt].messages.at(-1));
   check('a read past the forced turn is refused, not run, and the model then submits',
@@ -225,7 +225,7 @@ console.log('\n  runReview');
 {
   const { ctx, calls } = world({ turns: [[{ type: 'text', text: 'thinking' }], submit(APPROVE)] });
   const r = await runReview(ctx);
-  check('a text-only turn is nudged back to the tools', r.verdict === 'APPROVE' && calls.model[1].messages.at(-1).content.includes('submit_review'));
+  check('a text-only turn is nudged back to the tools', r.verdict === 'APPROVE' && calls.model[1].messages.at(-1).content.includes('redline_submit'));
   check('the nudge says the text was discarded', calls.model[1].messages.at(-1).content.startsWith('That text was discarded'));
 }
 {
@@ -235,7 +235,7 @@ console.log('\n  runReview');
     e && /text-only answers in a row/.test(e.message) && calls.model.length === LIMITS.textOnlyTurns);
 }
 {
-  const { ctx, calls } = world({ turns: [[{ type: 'text', text: 'a' }], use('read_file', { path: 'src/b.js' }), [{ type: 'text', text: 'b' }], [{ type: 'text', text: 'c' }], submit(APPROVE)] });
+  const { ctx, calls } = world({ turns: [[{ type: 'text', text: 'a' }], use('redline_read', { path: 'src/b.js' }), [{ type: 'text', text: 'b' }], [{ type: 'text', text: 'c' }], submit(APPROVE)] });
   const r = await runReview(ctx);
   check('a tool call in between resets the text-only count', r.verdict === 'APPROVE' && calls.model.length === 5);
 }
@@ -245,7 +245,7 @@ console.log('\n  runReview');
   ctx.log = (l) => lines.push(l);
   const r = await runReview(ctx);
   check('a reply without a tool call is logged with its text, whitespace collapsed', r.verdict === 'APPROVE' && lines[0] === 'turn 1: no tool call; stop=- text="Looks fine to me."');
-  check('a reply with a tool call logs no text', lines[1] === 'turn 2: submit_review; stop=-' && calls.model.length === 2);
+  check('a reply with a tool call logs no text', lines[1] === 'turn 2: redline_submit; stop=-' && calls.model.length === 2);
 }
 {
   // Empty replies (dario at its concurrency ceiling, 2026-09-25): not kept as history, and the same early end.
