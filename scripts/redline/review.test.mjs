@@ -239,7 +239,7 @@ console.log('\n  the reusable workflow');
 {
   const wf = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline-review.yml', import.meta.url)), 'utf8');
   check('it is a reusable workflow', /^on:\s*\n\s+workflow_call:/m.test(wf));
-  check('it runs on the caller\'s self-hosted runner label', /runs-on: \[self-hosted, \$\{\{ inputs\.runner-label \}\}\]/.test(wf));
+  check('it runs on the caller\'s self-hosted runner label', /runs-on: \[self-hosted, "\$\{\{ inputs\.runner-label \}\}"\]/.test(wf));
   check('it refuses fork PRs itself', wf.includes('github.event.pull_request.head.repo.full_name == github.repository'));
   check('the PR checkout keeps no credentials', (wf.match(/persist-credentials: false/g) ?? []).length === 2);
   check('the job token is read-only', /permissions:\s*\n\s+contents: read\s*\n\s+pull-requests: read/.test(wf) && !/write/.test(wf.split('permissions:')[1] ?? ''));
