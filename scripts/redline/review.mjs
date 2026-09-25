@@ -3,10 +3,7 @@
 // One run reviews one head. It reads the PR (metadata, commits, per-file patches) with the
 // workflow's read-only token, lets the model read the PR checkout through read-only tools
 // (redline_list, redline_read, redline_search; nothing executes), and ends when the model calls
-// redline_submit. The tool names carry a redline_ prefix on purpose: the gateway between this
-// script and the model maps client tools onto its own by name and forwards the rest as they are,
-// and four names it cannot map is what makes it forward this client's tools verbatim.
-// The review is posted as sprayberry-redline with commit_id pinned to the head it read, and the
+// redline_submit. The review is posted as sprayberry-redline with commit_id pinned to the head it read, and the
 // process exits 0 on APPROVE and 1 on REQUEST_CHANGES, so the job's own check is the verdict.
 //
 // Hardening, each with a reason:
