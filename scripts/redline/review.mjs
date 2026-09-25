@@ -341,15 +341,28 @@ export async function runReview(ctx) {
     const res = await callModel(ctx, ctx.system, messages, force);
     messages.push({ role: 'assistant', content: res.content });
     const uses = (res.content ?? []).filter((b) => b.type === 'tool_use');
+    ctx.log?.(`turn ${turn}${force ? ' (forced)' : ''}: ${uses.map((u) => u.name).join(', ') || 'no tool call'}; stop=${res.stop_reason ?? '-'}`);
     if (!uses.length) { messages.push({ role: 'user', content: 'Use the tools, and finish with submit_review.' }); continue; }
     const results = [];
     for (const u of uses) {
-      if (u.name !== 'submit_review') { results.push({ type: 'tool_result', tool_use_id: u.id, content: runTool(ctx.checkout, u.name, u.input) }); continue; }
+      if (u.name !== 'submit_review') {
+        // Past the forced turn a read is refused, not run, so the model cannot keep reading whether or
+        // not a gateway kept tool_choice (dario#1423, 2026-09-25: 30 turns of reading past it).
+        results.push(force
+          ? { type: 'tool_result', tool_use_id: u.id, is_error: true, content: 'The read budget is spent. Call submit_review now with what you have read.' }
+          : { type: 'tool_result', tool_use_id: u.id, content: runTool(ctx.checkout, u.name, u.input) });
+        continue;
+      }
       const checked = checkSubmission(u.input);
-      if (checked.error) { results.push({ type: 'tool_result', tool_use_id: u.id, is_error: true, content: checked.error }); continue; }
+      if (checked.error) {
+        ctx.log?.(`  submission rejected: ${checked.error}`);
+        results.push({ type: 'tool_result', tool_use_id: u.id, is_error: true, content: checked.error });
+        continue;
+      }
       const bad = ungrounded(checked.review, corpus);
       if (bad.length && !repaired && turn < LIMITS.turns) {
         repaired = true;
+        ctx.log?.(`  ${bad.length} ungrounded finding(s): one repair round offered`);
         results.push({ type: 'tool_result', tool_use_id: u.id, is_error: true, content:
           `These findings quote text that is not in the diff, the PR text or a commit message: ${bad.map((f) => `${f.file} ("${norm(f.quote).slice(0, 80)}")`).join('; ')}. Copy the quote exactly from the diff, or drop the finding, then call submit_review again.` });
         continue;
@@ -394,6 +407,7 @@ async function main() {
     system: readFileSync(fileURLToPath(new URL('./prompt.md', import.meta.url)), 'utf8'),
     fetch: globalThis.fetch, sleep: (ms) => new Promise((r) => setTimeout(r, ms)), now: () => Date.now(),
     dryRun: env.REDLINE_DRY_RUN === '1',
+    log: (line) => console.log(line),
   };
   let result;
   try { result = await runReview(ctx); } catch (e) {

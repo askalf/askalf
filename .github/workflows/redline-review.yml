@@ -28,7 +28,8 @@ jobs:
         uses: askalf/checkout-with-retry@115a6407547e9711edbc2e915838d495cad9583f  # v1.1.0
         with:
           repository: askalf/askalf
-          ref: main
+          # The script at this workflow's own commit: a caller pinned to a sha gets exactly that script.
+          ref: ${{ github.job_workflow_sha }}
           path: .redline
           sparse-checkout: scripts/redline
           sparse-checkout-cone-mode: false
