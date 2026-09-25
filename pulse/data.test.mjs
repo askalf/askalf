@@ -56,7 +56,8 @@ test('per-day tally carries the previous run forward and adds only the new event
   assert.equal(by['2026-09-25'].n, 1);
   assert.equal(t.since, previous.since);
   assert.equal(t.lastEventId, '12');
-  assert.deepEqual(t.perDay.map((d) => d.covered), [false, false, false, false, false, false, true, true, true, true, true, true, true, true]);
+  // since is midday on 09-18, so 09-18 itself is only partly counted.
+  assert.deepEqual(t.perDay.map((d) => d.covered), [false, false, false, false, false, false, false, true, true, true, true, true, true, true]);
 });
 
 test('per-day tally starts its coverage at the oldest fetched event after a gap', () => {
@@ -68,7 +69,7 @@ test('per-day tally starts its coverage at the oldest fetched event after a gap'
   assert.equal(by['2026-09-20'].n, 0);
   assert.equal(by['2026-09-20'].covered, false);
   assert.equal(by['2026-09-24'].n, 1);
-  assert.equal(by['2026-09-24'].covered, true);
+  assert.equal(by['2026-09-24'].covered, false);
   assert.equal(by['2026-09-25'].n, 1);
 });
 

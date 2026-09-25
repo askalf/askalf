@@ -110,7 +110,8 @@ export function tallyPerDay(previous, { events, complete }, now) {
     since = events.at(-1).created_at;
   }
   for (const e of events) { const d = ymd(Date.parse(e.created_at)); counts[d] = (counts[d] ?? 0) + 1; }
-  const first = ymd(Date.parse(since));
+  // A day is counted only if the tally reaches back to its midnight.
+  const first = ymd(Date.parse(since) + DAY - 1);
   const perDay = [];
   for (let i = 13; i >= 0; i--) {
     const day = ymd(now - i * DAY);
