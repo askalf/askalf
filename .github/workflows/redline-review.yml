@@ -21,7 +21,7 @@ jobs:
   redline:
     # Same-repo PRs only: a fork's code never reaches the self-hosted runner. Drafts wait.
     if: github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
-    runs-on: [self-hosted, ${{ inputs.runner-label }}]
+    runs-on: [self-hosted, "${{ inputs.runner-label }}"]
     timeout-minutes: 20
     steps:
       - name: Fetch the review script from askalf/askalf
