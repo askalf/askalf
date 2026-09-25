@@ -16,6 +16,11 @@
 //   - Blocking findings force REQUEST_CHANGES whatever verdict the model named.
 //   - Turns, wall time, tool output and diff size are all bounded; near the end the model is
 //     forced to submit.
+//   - A reply with no tool call is logged with its text, so the next failure explains itself.
+//     Three in a row end the run. An EMPTY reply (dario at its concurrency ceiling on 2026-09-25
+//     18:27Z answered five runs that way from turn 6 to 30) is not kept in the history, since an
+//     empty assistant turn is rejected upstream; the same request is simply sent again. A reply
+//     with no content array at all fails the run at once.
 //
 // CLI (the workflow's review step):
 //   REPO=owner/name PR=<n> HEAD_SHA=<sha> CHECKOUT=<dir> GH_READ_TOKEN=... \
@@ -346,16 +351,25 @@ export async function runReview(ctx) {
   for (let turn = 1; turn <= LIMITS.turns && !review; turn++) {
     const force = turn >= LIMITS.forceSubmitAt || ctx.now() - started > LIMITS.timeMs;
     const res = await callModel(ctx, ctx.system, messages, force);
-    messages.push({ role: 'assistant', content: res.content });
-    const uses = (res.content ?? []).filter((b) => b.type === 'tool_use');
-    ctx.log?.(`turn ${turn}${force ? ' (forced)' : ''}: ${uses.map((u) => u.name).join(', ') || 'no tool call'}; stop=${res.stop_reason ?? '-'}`);
+    if (!Array.isArray(res?.content)) {
+      throw new Error(`the model returned no message content: ${JSON.stringify(res ?? null).slice(0, 300)}`);
+    }
+    const uses = res.content.filter((b) => b.type === 'tool_use');
+    const text = res.content.filter((b) => b.type === 'text').map((b) => String(b.text ?? '')).join(' ').replace(/\s+/g, ' ').trim();
+    ctx.log?.(`turn ${turn}${force ? ' (forced)' : ''}: ${uses.map((u) => u.name).join(', ') || 'no tool call'}; stop=${res.stop_reason ?? '-'}`
+      + (uses.length ? '' : ` text=${JSON.stringify(text.slice(0, 200))}`));
     if (!uses.length) {
       textOnly++;
       if (textOnly >= LIMITS.textOnlyTurns) throw new Error(`no review submitted: ${textOnly} text-only answers in a row (the model will not call submit_review)`);
-      messages.push({ role: 'user', content: TEXT_ONLY_NUDGE });
+      if (res.content.length) {
+        // Prose is kept and answered; an empty reply is not history, the same request goes again.
+        messages.push({ role: 'assistant', content: res.content });
+        messages.push({ role: 'user', content: TEXT_ONLY_NUDGE });
+      }
       continue;
     }
     textOnly = 0;
+    messages.push({ role: 'assistant', content: res.content });
     const results = [];
     for (const u of uses) {
       if (u.name !== 'submit_review') {
