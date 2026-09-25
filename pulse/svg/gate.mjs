@@ -65,7 +65,10 @@ export function renderGate() {
   CALLS.forEach(([verdict, tool, arg], i) => {
     const h = createHash('sha256').update(prev + verdict + tool + arg).digest('hex').slice(0, 16);
     const seq = String(4101 + i).padStart(5, '0');
-    log += `<g class="entry" style="animation-delay:${(i * every).toFixed(2)}s"><text x="40" y="0" font-size="12.5">
+    // Where the entry rests when motion is reduced: the newest on the bottom
+    // row, older ones stacked above it and the oldest pushed out of logclip.
+    const rest = logY0 - (CALLS.length - 1 - i) * rowH;
+    log += `<g class="entry" style="animation-delay:${(i * every).toFixed(2)}s;transform:translateY(${rest}px)"><text x="40" y="0" font-size="12.5">
       <tspan fill="${C.faint}">#${seq}</tspan><tspan x="112" fill="${COLOR[verdict]}">${verdict.padEnd(8, ' ')}</tspan><tspan x="200" fill="${C.text}">${esc(`${tool} ${arg}`)}</tspan><tspan x="560" fill="${C.faint}">prev ${prev.slice(0, 8)}…</tspan><tspan x="720" fill="${C.dim}">sha256 ${h.slice(0, 12)}…</tspan></text></g>`;
     prev = h;
   });
@@ -119,6 +122,7 @@ export function renderGate() {
   .s-approve { animation: stampApprove ${T}s linear infinite; }
   .s-allow { animation: stampAllow ${T}s linear infinite; }
   .entry { opacity: 0; animation: entry ${T}s ease-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .entry { opacity: 1 } }
   .flow { animation: flow 1.2s linear infinite; }
   @keyframes flow { to { stroke-dashoffset: -20 } }
   ${keyframes}`;

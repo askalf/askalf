@@ -63,13 +63,13 @@ export function renderHeartbeat(d) {
   <g transform="translate(${rx} 0)">
     <text x="0" y="78" font-size="11" fill="${C.dim}" letter-spacing="1.5">RELEASES · 30 DAYS</text>
     <g transform="translate(0 132)">
-      <text x="0" y="0" font-size="58" font-weight="700" fill="${C.pink}" filter="url(#glow)">${d.dario ? d.dario.releases30 : '—'}</text>
+      <text x="0" y="0" font-size="58" font-weight="700" fill="${C.pink}" filter="url(#glow)">${d.dario ? d.dario.releases30 : '-'}</text>
       <path class="heart" d="M160 -30c-6-9-20-7-20 4 0 9 12 16 20 23 8-7 20-14 20-23 0-11-14-13-20-4z" fill="${C.block}"/>
     </g>
     <text x="0" y="170" font-size="13" fill="${C.text}">${d.dario ? `v${esc(d.dario.latest)}` : ''}</text>
     <text x="0" y="190" font-size="12" fill="${C.dim}">${d.dario ? `shipped ${ago(d.dario.latestAt, now)}` : ''}</text>
     <text x="0" y="228" font-size="11" fill="${C.dim}" letter-spacing="1.5">INSTALLS · 30 DAYS</text>
-    <text x="0" y="252" font-size="20" fill="${C.text}">${d.installs ? n(d.installs.last30) : '—'}</text>
+    <text x="0" y="252" font-size="20" fill="${C.text}">${d.installs ? n(d.installs.last30) : '-'}</text>
   </g>
   <text x="${x0}" y="${bandTop + bandH + 44}" font-size="11.5" fill="${C.faint}">every spike is dario shipping: releases per four-hour window, from the npm registry</text>`;
 
