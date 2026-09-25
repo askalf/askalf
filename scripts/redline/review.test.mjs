@@ -204,11 +204,23 @@ console.log('\n  runReview');
   const { ctx, calls } = world({ turns: [(b) => (b.tool_choice ? submit(APPROVE) : use('list_files', {}))] });
   const r = await runReview(ctx);
   check(`the model is forced to submit at turn ${LIMITS.forceSubmitAt}`, r.verdict === 'APPROVE' && calls.model.length === LIMITS.forceSubmitAt && calls.model.at(-1).tool_choice.name === 'submit_review');
+  check('a forced turn keeps every tool in the request (history may name them)', calls.model.at(-1).tools.length === 4);
 }
 {
   const { ctx } = world({ turns: [use('list_files', {})] });
+  const lines = [];
+  ctx.log = (l) => lines.push(l);
   const e = await throws(() => runReview(ctx));
+  check('each turn is logged with its tools, and the forced turns are marked',
+    lines[0] === 'turn 1: list_files; stop=-' && lines.some((l) => l.startsWith(`turn ${LIMITS.forceSubmitAt} (forced): list_files`)));
   check('a model that never submits fails the run', e && /no review submitted/.test(e.message));
+}
+{
+  const { ctx, calls } = world({ turns: [(b) => (b.messages.length > 2 * LIMITS.forceSubmitAt + 1 ? submit(APPROVE) : use('read_file', { path: 'src/b.js' }))] });
+  const r = await runReview(ctx);
+  const forcedResult = JSON.stringify(calls.model[LIMITS.forceSubmitAt].messages.at(-1));
+  check('a read past the forced turn is refused, not run, and the model then submits',
+    r.verdict === 'APPROVE' && forcedResult.includes('read budget is spent') && !forcedResult.includes('export const token'));
 }
 {
   const { ctx, calls } = world({ turns: [[{ type: 'text', text: 'thinking' }], submit(APPROVE)] });
@@ -217,7 +229,10 @@ console.log('\n  runReview');
 }
 {
   const { ctx, calls } = world({ turns: [submit({ verdict: 'MAYBE', summary: 's', findings: [] }), submit(APPROVE)] });
+  const lines = [];
+  ctx.log = (l) => lines.push(l);
   const r = await runReview(ctx);
+  check('a rejected submission is logged with its reason', lines.some((l) => l.includes('submission rejected: verdict must be')));
   check('a malformed submission is returned as an error and retried', r.verdict === 'APPROVE' && JSON.stringify(calls.model[1].messages.at(-1)).includes('is_error'));
 }
 
@@ -239,6 +254,7 @@ console.log('\n  the reusable workflow');
 {
   const wf = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline-review.yml', import.meta.url)), 'utf8');
   check('it is a reusable workflow', /^on:\s*\n\s+workflow_call:/m.test(wf));
+  check('the script is fetched at the workflow\'s own commit, not a moving branch', wf.includes('ref: ${{ github.job_workflow_sha }}') && !/ref: main\b/.test(wf));
   check('it runs on the caller\'s self-hosted runner label', /runs-on: \[self-hosted, "\$\{\{ inputs\.runner-label \}\}"\]/.test(wf));
   check('it refuses fork PRs itself', wf.includes('github.event.pull_request.head.repo.full_name == github.repository'));
   check('the PR checkout keeps no credentials', (wf.match(/persist-credentials: false/g) ?? []).length === 2);
