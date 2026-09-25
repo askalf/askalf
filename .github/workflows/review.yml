@@ -1,0 +1,83 @@
+# Claude reviews every pull request: inline comments on specific lines and
+# one summary comment with a verdict. Needs the ANTHROPIC_API_KEY repository
+# secret; without it the job says so and passes, so it never blocks a merge.
+name: review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+permissions: {}
+
+concurrency:
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  claude:
+    # Fork PRs get no secrets, and drafts aren't ready to read.
+    if: github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check for the API key
+        id: key
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::ANTHROPIC_API_KEY is not set; skipping the Claude review."
+          fi
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        if: steps.key.outputs.present == 'true'
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: anthropics/claude-code-action@9171db3e57d6a3140a37ddc2ba92788584e0ead6 # v1.0.234
+        if: steps.key.outputs.present == 'true'
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            You are the code reviewer for this repository: the GitHub profile
+            README of askalf (Sprayberry Labs), its art, the zero-dependency
+            renderer in pulse/ that draws the live SVG panels, and the
+            workflows in .github/workflows/.
+
+            Read the diff with `gh pr diff`, and read whole files where you
+            need context. Look for:
+
+            1. Correctness: bugs in pulse/ (data parsing, fallbacks to
+               state.json, SVG output that breaks or overflows), and README
+               changes that break the "## Merged upstream" table format that
+               pulse/data.mjs parses.
+            2. Workflow security: token permissions wider than needed,
+               untrusted input interpolated into `run:` scripts, actions not
+               pinned to a full commit SHA, secrets exposed to forks.
+            3. GitHub rendering: SVGs shown through <img> cannot run script
+               or load external fonts, images or stylesheets; animation must
+               be CSS or SMIL and should respect prefers-reduced-motion.
+            4. Accuracy: numbers and claims in README.md that the diff
+               changes should match their linked sources; alt text should
+               describe what the image shows.
+
+            Report only real problems. Put each specific finding on its line
+            with an inline comment, starting with **Blocking** or
+            **Non-blocking**. Then post exactly one summary comment with
+            `gh pr comment` that starts with a verdict line ("no blocking
+            issues" or "N blocking issues"), lists what you checked, and says
+            plainly what you could not verify (for example, the pixels of a
+            binary image). Do not approve or request changes; comment only.
+          claude_args: |
+            --model claude-opus-5-5
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

@@ -1,4 +1,4 @@
-<img src="hero.jpg" alt="askalf. Own Your Agent Security. Own Your Stack. ALF, the violet alien mascot, beside the askalf wordmark on a near-black field with neon circuit lines." width="100%">
+<img src="pulse/hero.svg" alt="askalf. Own Your Agent Security. Own Your Stack. ALF, the violet alien mascot, blinks beside the askalf wordmark while signal runs along neon circuit lines." width="100%">
 
 <div align="center">
 
@@ -11,6 +11,8 @@
 
 </div>
 
+<img src="https://raw.githubusercontent.com/askalf/askalf/pulse/console.svg" alt="alf status: dario's latest version and release count, installs in the last 30 days, stars, fixes merged upstream and open for review, and the operation's last move, as of the most recent hourly pulse." width="100%">
+
 ---
 
 ## dario
@@ -21,11 +23,15 @@
 
 Every release is SLSA-attested and published from CI with no long-lived token. 9.4 OpenSSF Scorecard, 100% Best Practices.
 
+<img src="https://raw.githubusercontent.com/askalf/askalf/pulse/heartbeat.svg" alt="dario's heartbeat: an ECG trace where each spike is releases shipped in a four-hour window over the last two weeks, above the daily install curve, with the 30-day release and install counts." width="100%">
+
 [![npm](https://img.shields.io/npm/v/@askalf/dario?color=8b5cf6&label=npm&style=flat-square)](https://www.npmjs.com/package/@askalf/dario) [![downloads](https://img.shields.io/npm/dm/@askalf/dario?color=8b5cf6&label=installs%2Fmo&style=flat-square)](https://www.npmjs.com/package/@askalf/dario) [![stars](https://img.shields.io/github/stars/askalf/dario?color=8b5cf6&label=stars&style=flat-square)](https://github.com/askalf/dario) [![Scorecard](https://api.scorecard.dev/projects/github.com/askalf/dario/badge)](https://scorecard.dev/viewer/?uri=github.com/askalf/dario) [![Best Practices](https://www.bestpractices.dev/projects/13638/badge)](https://www.bestpractices.dev/projects/13638)
 
 ## Merged upstream
 
 Fixes found, reproduced and landed in other people's projects, reviewed and merged by their maintainers.
+
+<img src="https://raw.githubusercontent.com/askalf/askalf/pulse/orbit.svg" alt="Every project in the table below, orbiting ALF." width="100%">
 
 | Project | The fix |
 |---|---|
@@ -64,6 +70,8 @@ Deterministic gates around what an agent may do.
 </tr>
 </table>
 
+<img src="https://raw.githubusercontent.com/askalf/askalf/pulse/gate.svg" alt="redstamp, illustrated: an agent's tool calls meet the gate. Reading a file, calling the GitHub API and running tests are allowed; curl piped to sh, the cloud metadata address, a write to authorized_keys and piping env to curl are blocked; a force push is held for a human. Every verdict lands in a hash-chained audit trail." width="100%">
+
 ### Own Your Stack
 
 <img src="stack.jpg" alt="Your box: Claude Code, Cursor, Aider and the Agent SDK go through cordon, which redacts PII, to dario, which routes to a Claude plan or a ChatGPT plan. browser-bridge and amnesia also run on the box." width="100%">
@@ -88,6 +96,8 @@ The whole map on one page → **[ownyourstack.sprayberrylabs.com](https://ownyou
 <img src="operation.jpg" alt="The askalf orchestrator at the center with ALF, surrounded by shipping, reviewing, auditing and upstream fixes, one human approving what matters, and the output flowing to Sprayberry Labs." width="100%">
 
 **[askalf](https://askalf.org)** is the agent operation behind [Sprayberry Labs](https://sprayberrylabs.com): an orchestrator and specialist agents that ship, review, audit and send fixes upstream, with one human approving what matters. It runs on the tools above. dario routes its model traffic, redstamp gates its tool calls, truecopy verifies every skill at load, and every pull request gets a gating review from a different model family than the one that wrote it, in the open, before it lands.
+
+<img src="https://raw.githubusercontent.com/askalf/askalf/pulse/signal.svg" alt="The operation lately: public GitHub events per day for two weeks, and the latest pushes, merges, reviews and releases." width="100%">
 
 I'm that human: fifteen-plus years in systems and infrastructure engineering, data centers and virtualization before the agent work. I architect it, review it and sign everything that leaves the shop, and I write down what actually happens.
 
@@ -118,6 +128,8 @@ Full engineering log → **[sprayberrylabs.com/blog](https://sprayberrylabs.com/
 ---
 
 <div align="center">
+
+<sub>This page is alive: ALF blinks, the panels redraw every hour from npm and GitHub, and <a href="pulse">the renderer</a> is in this repo.</sub>
 
 **[Portfolio](https://thomas.sprayberrylabs.com)** · **[Own Your Stack](https://ownyourstack.sprayberrylabs.com)** · **[the operation](https://askalf.org)** · **[sprayberrylabs.com](https://sprayberrylabs.com)** · **[@ask_alf](https://x.com/ask_alf)** · **hello@sprayberrylabs.com**
 
