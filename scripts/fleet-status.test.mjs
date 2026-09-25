@@ -13,6 +13,7 @@ import {
   REDLINE_LOGIN,
   SECOND_READ_LOGIN,
   VERIFIER_LOGIN,
+  collectPages,
 } from './fleet-status.mjs';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -332,11 +333,10 @@ console.log('\n  required CI is the verification where the base branch requires 
 
 {
   // This copy of fleet-status.yml has no workflow_run trigger: the branch rules require no checks,
-  // so no CI run can move a lane, and the pull_request workflows beside it are not listed. A copy
-  // that does list workflows names every one that runs on pull_request, so a required check it
-  // produces refreshes the lanes when it finishes, and leaves out one that runs only on
-  // pull_request_target: that runs against the base branch's commit, so its checks never land on
-  // the PR head, and the status job drops its workflow_run events.
+  // so no CI run can move a lane, and the workflows beside it are not listed. A copy that does list
+  // workflows names every one that runs on pull_request or pull_request_target (a
+  // pull_request_target run's checks land on the PR head too), so a required check it produces
+  // refreshes the lanes when it finishes.
   const dir = join(fileURLToPath(new URL('..', import.meta.url)), '.github', 'workflows');
   const own = readFileSync(join(dir, 'fleet-status.yml'), 'utf8');
   const workflowRunList = (y) => {
@@ -357,8 +357,7 @@ console.log('\n  required CI is the verification where the base branch requires 
   // The workflows ([name, yaml]) whose listing disagrees with their trigger.
   const misfits = (list, workflows) => workflows.filter(([name, y]) => {
     const on = onBlock(y);
-    if (/\bpull_request\b(?!_target)/.test(on)) return list !== null && !list.includes(name);
-    if (/\bpull_request_target\b/.test(on)) return list !== null && list.includes(name);
+    if (/\bpull_request(_target)?\b/.test(on)) return list !== null && !list.includes(name);
     return false;
   }).map(([name]) => name);
   const beside = readdirSync(dir).filter((x) => /\.ya?ml$/.test(x) && x !== 'fleet-status.yml')
@@ -369,7 +368,7 @@ console.log('\n  required CI is the verification where the base branch requires 
   const onTarget = (name) => `name: ${name}\non:\n  pull_request_target:\njobs: {}\n`;
   check('no list: a pull_request workflow beside it is not a misfit', misfits(null, [['review', onPr('review')], ['pulse', onPr('pulse')]]).length === 0);
   check('a list must name every pull_request workflow', misfits(['review'], [['review', onPr('review')], ['pulse', onPr('pulse')]]).join() === 'pulse');
-  check('a list must leave out a pull_request_target-only workflow', misfits(['review', 'triage'], [['review', onPr('review')], ['triage', onTarget('triage')]]).join() === 'triage');
+  check('a list must name a pull_request_target workflow too', misfits(['review'], [['review', onPr('review')], ['triage', onTarget('triage')]]).join() === 'triage');
   check('a list is read from the yaml', String(workflowRunList(own.replace(/^on:\n/m, 'on:\n  workflow_run:\n    workflows: ["ci", \'review\']\n    types: [completed]\n'))) === 'ci,review');
 }
 
@@ -392,6 +391,16 @@ console.log('\n  required CI is the verification where the base branch requires 
   const limit = Number(/gh pr list --repo "\$REPO" --state open --limit (\d+)/.exec(wf)?.[1] ?? 0);
   check('backfill reads more than one page of open PRs', limit > 100);
   check('backfill fails at its cap instead of skipping PRs', new RegExp(`-ge ${limit}\\b`).test(wf) && /::error::/.test(wf));
+}
+
+{
+  // Paging reads to the first short page, so a required check on page 2 still counts.
+  const pager = (sizes) => async (n) => Array.from({ length: sizes[n - 1] ?? 0 }, (_, i) => ({ name: `check-${n}-${i}`, state: 'SUCCESS' }));
+  const two = await collectPages(pager([100, 1]));
+  check('101 rows over two pages are all read', two.length === 101);
+  check('a full last page reads one more, empty, page', (await collectPages(pager([100, 100]))).length === 200);
+  check('a short first page is the only page', (await collectPages(pager([5]))).length === 5);
+  check('a required check on page 2 counts', requiredCiState(['check-2-0'], two) === 'passed');
 }
 
 console.log(`\n  ${pass} pass, ${fail} fail`);
