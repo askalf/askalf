@@ -1,4 +1,5 @@
-# Runs Redline's tests on any change to the review script or its reusable workflow.
+# Runs Redline's tests on any change to the review script, its reusable workflow, this
+# repo's caller, or the pin bump workflow, all of which the tests read.
 # The model and GitHub are stubbed; no credentials are used.
 name: Redline self-test
 
@@ -8,6 +9,8 @@ on:
       - scripts/redline/**
       - .github/workflows/redline-review.yml
       - .github/workflows/redline-self-test.yml
+      - .github/workflows/redline-pin-bump.yml
+      - .github/workflows/redline.yml
 
 permissions:
   contents: read

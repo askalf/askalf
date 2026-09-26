@@ -1,6 +1,7 @@
-# Opens a PR in each Redline caller that moves its redline-review.yml pin to the main commit
-# that changed the review. Each caller pins by SHA so a review change reaches it only through a
-# reviewed bump there; this writes those bumps, and each repo's own gate reviews and merges them.
+# Opens a PR in each Redline caller that moves its redline-review.yml pin, and the redline-ref
+# input that names the same commit, to the main commit that changed the review. Each caller pins
+# by SHA so a review change reaches it only through a reviewed bump there; this writes those
+# bumps (scripts/redline/pin.mjs), and each repo's own gate reviews and merges them.
 #
 # Writing to other repos needs a token GITHUB_TOKEN cannot be: REDLINE_PIN_BUMP_TOKEN, a
 # fine-grained token owned by askalf with Contents and Pull requests read/write on the repos in
@@ -14,6 +15,7 @@ on:
     paths:
       - scripts/redline/**
       - .github/workflows/redline-review.yml
+      - .github/workflows/redline-pin-bump.yml
   workflow_dispatch:
 
 permissions: {}
@@ -49,6 +51,19 @@ jobs:
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Fetch the pin rewriter
+        if: steps.guard.outputs.ok == 'true'
+        uses: askalf/checkout-with-retry@115a6407547e9711edbc2e915838d495cad9583f  # v1.1.0
+        with:
+          sparse-checkout: scripts/redline/pin.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.guard.outputs.ok == 'true'
+        with:
+          node-version: 22
+
       - name: Open or update a bump PR in each caller
         if: steps.guard.outputs.ok == 'true'
         env:
@@ -75,10 +90,12 @@ jobs:
             if ! printf '%s\n' "$current" | grep -Eq "$pattern"; then
               echo "::error::${repo}: ${CALLER_PATH} has no pinned redline-review.yml call"; failed=1; continue
             fi
-            if printf '%s\n' "$current" | grep -q "redline-review.yml@${SHA}"; then
+            if printf '%s\n' "$current" | grep -q "redline-review.yml@${SHA}" && printf '%s\n' "$current" | grep -q "redline-ref: ${SHA}"; then
               echo "already at ${short}"; continue
             fi
-            updated="$(printf '%s\n' "$current" | sed -E "s|(uses: ${SOURCE}/.github/workflows/redline-review.yml@)[0-9a-f]{40}.*|\1${SHA} # ${note}|")"
+            if ! updated="$(printf '%s\n' "$current" | node scripts/redline/pin.mjs "$SHA" "$note")"; then
+              echo "::error::${repo}: could not rewrite ${CALLER_PATH}"; failed=1; continue
+            fi
             # The bump branch is this job's alone: reset it to the default branch tip each time,
             # so an open bump PR carries exactly one commit, the newest pin.
             if gh api "repos/${repo}/git/ref/heads/${BRANCH}" >/dev/null 2>&1; then
@@ -97,7 +114,7 @@ jobs:
               gh pr edit "$open" --repo "$repo" --title "ci: bump Redline to ${SOURCE}@${short}" >/dev/null
               echo "updated #${open}"
             else
-              body="Moves the pinned redline-review.yml call to ${SOURCE}@${SHA}, the main commit that last changed the review (${note}). The pin is the only change."
+              body="Moves the pinned redline-review.yml call and its redline-ref input to ${SOURCE}@${SHA}, the main commit that last changed the review (${note}). The review script is fetched at that same commit. The pin is the only change."
               gh pr create --repo "$repo" --base "$base" --head "$BRANCH" \
                 --title "ci: bump Redline to ${SOURCE}@${short}" --body "$body"
             fi
