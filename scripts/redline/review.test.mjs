@@ -10,6 +10,7 @@ import {
   parseEnvFile, safePath, buildDiff, quoteIsGrounded, corpusOf, checkSubmission, finalVerdict,
   renderBody, verdictAtHead, runTool, runReview, buildBrief, REVIEWER_LOGIN, LIMITS, metaPhrase,
 } from './review.mjs';
+import { bumpCaller, REVIEW_WORKFLOW } from './pin.mjs';
 
 let pass = 0;
 let fail = 0;
@@ -98,7 +99,10 @@ console.log('\n  submission, verdict and body');
   check('body never names the reviewer machinery', !/Automated review|gating lane|fleet code reviewer/i.test(body));
   check('body quotes the finding, names file:line and ends with the rule and head marker',
     body.includes('`src/b.js:1`') && body.includes('> export const token') && body.includes('rule:secret-exposure') && body.endsWith(`<!-- redline:head=${HEAD} -->`));
-  check('a suggestion containing backticks gets a longer fence', body.includes('````\nconst x = `a`;\n````') || body.includes('```\nconst x = `a`;\n```'));
+  const fenced = { ...blocking, suggestion: 'Run:\n```\nnpm test\n```' };
+  const fencedBody = renderBody(checkSubmission({ verdict: 'REQUEST_CHANGES', summary: 's', findings: [fenced] }).review, 'REQUEST_CHANGES', HEAD);
+  check('a suggestion containing a 3-backtick fence gets a 4-backtick fence', fencedBody.includes('````\nRun:\n```\nnpm test\n```\n````'));
+  check('a suggestion with no backticks keeps a 3-backtick fence', renderBody(checkSubmission({ verdict: 'REQUEST_CHANGES', summary: 's', findings: [{ ...blocking, suggestion: 'const x = 1;' }] }).review, 'REQUEST_CHANGES', HEAD).includes('```\nconst x = 1;\n```\n'));
   check('an approval carries no rule line', !renderBody(checkSubmission({ verdict: 'APPROVE', summary: 's', findings: [] }).review, 'APPROVE', HEAD).includes('rule:'));
   check('the fixed text uses no em dash', !renderBody(approveButBlocking, 'REQUEST_CHANGES', HEAD, ['n']).replace(/Leaks X\.|Looks fine\./g, '').includes('—'));
 }
@@ -308,13 +312,81 @@ console.log('\n  the reusable workflow');
 {
   const wf = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline-review.yml', import.meta.url)), 'utf8');
   check('it is a reusable workflow', /^on:\s*\n\s+workflow_call:/m.test(wf));
-  check('the script is fetched at the workflow\'s own commit, not a moving branch', wf.includes('ref: ${{ github.job_workflow_sha }}') && !/ref: main\b/.test(wf));
+  check('redline-ref is a required string input', /\n      redline-ref:\n(?:        .*\n)*?        required: true\n        type: string\n/.test(wf));
+  const steps = wf.split(/\n      - /).slice(1);
+  const stepNamed = (name) => steps.findIndex((s) => s.startsWith(`name: ${name}\n`));
+  const fetchAt = stepNamed('Fetch the review script from askalf/askalf');
+  check('the script is fetched at redline-ref, not job_workflow_sha or a branch',
+    fetchAt >= 0 && steps[fetchAt].includes('ref: ${{ inputs.redline-ref }}') && !/ref: \$\{\{ github\.job_workflow_sha/.test(wf) && !/ref: main\b/.test(wf));
+  const guardAt = stepNamed('Check the review ref is a full commit sha');
+  check('the sha guard is the first step', guardAt === 0);
+  check('the on-main check runs before the fetch', stepNamed('Check the review ref is on askalf/askalf main') > guardAt
+    && stepNamed('Check the review ref is on askalf/askalf main') < fetchAt);
+  check('the ref reaches the guards through env, not interpolated into run',
+    steps.every((s) => !s.includes('run:') || !s.slice(s.indexOf('run:')).includes('${{ inputs.redline-ref')));
+  // The guard's own shell, run against good and bad refs.
+  const guardRun = /run: \|\n((?: {10}.*\n?)+)/.exec(steps[guardAt] ?? '')?.[1].replace(/^ {10}/gm, '') ?? 'exit 0';
+  const bash = spawnSync('bash', ['-c', 'exit 0'], { encoding: 'utf8' });
+  if (bash.error) {
+    console.log('  skip the guard\'s shell: no bash here');
+  } else {
+    const guard = (ref) => spawnSync('bash', ['-e', '-c', guardRun], { env: { ...process.env, REDLINE_REF: ref }, encoding: 'utf8' }).status;
+    check('the guard passes a full sha', guard(HEAD) === 0);
+    check('the guard fails an empty ref', guard('') !== 0);
+    check('the guard fails a branch name', guard('main') !== 0);
+    check('the guard fails a short sha', guard(HEAD.slice(0, 7)) !== 0);
+    check('the guard fails an uppercase or padded sha', guard(HEAD.toUpperCase()) !== 0 && guard(`${HEAD}\nmain`) !== 0 && guard(` ${HEAD}`) !== 0);
+  }
   check('it runs on the caller\'s self-hosted runner label', /runs-on: \[self-hosted, "\$\{\{ inputs\.runner-label \}\}"\]/.test(wf));
   check('it refuses fork PRs itself', wf.includes('github.event.pull_request.head.repo.full_name == github.repository'));
   check('the PR checkout keeps no credentials', (wf.match(/persist-credentials: false/g) ?? []).length === 2);
   check('the job token is read-only', /permissions:\s*\n\s+contents: read\s*\n\s+pull-requests: read/.test(wf) && !/write/.test(wf.split('permissions:')[1] ?? ''));
   check('third-party actions are pinned by sha', [...wf.matchAll(/uses: ([^\s]+)/g)].every((m) => /@[0-9a-f]{40}$/.test(m[1])));
   check('nothing from the PR is interpolated into a run step', !/run:[^\n]*\$\{\{\s*github\.event\.pull_request\.(title|body|head\.ref)/.test(wf));
+}
+
+console.log('\n  pin bump');
+{
+  const NEW = 'c0ffee0000000000000000000000000000000001';
+  const OLD = '116935d3803fc5904d96efb56991b93539c1714c';
+  const job = (body) => `name: Redline\n\non:\n  pull_request:\n\njobs:\n  review:\n    if: github.event.pull_request.draft == false\n${body}`;
+  const uses = (sha) => `    uses: ${REVIEW_WORKFLOW}@${sha}  # main 2026-09-25, askalf/askalf#64\n`;
+  const pinnedTo = (y) => new RegExp(`uses: ${REVIEW_WORKFLOW}@${NEW} # main 2026-09-27, askalf/askalf#72\\n`).test(y);
+  const refs = (y) => [...y.matchAll(/redline-ref: (\S+)/g)].map((m) => m[1]);
+
+  const oldShape = job(`${uses(OLD)}    with:\n      runner-label: redline\n`);
+  const a = bumpCaller(oldShape, NEW, 'main 2026-09-27, askalf/askalf#72');
+  check('old shape: the pin moves', pinnedTo(a) && !a.includes(OLD));
+  check('old shape: redline-ref is added under with, at the same sha', a.includes(`    with:\n      redline-ref: ${NEW}\n      runner-label: redline\n`));
+
+  const newShape = job(`${uses(OLD)}    with:\n      runner-label: redline\n      redline-ref: ${OLD}\n`);
+  const b = bumpCaller(newShape, NEW, 'main 2026-09-27, askalf/askalf#72');
+  check('new shape: the pin and redline-ref both move, once each', pinnedTo(b) && refs(b).join() === NEW && !b.includes(OLD));
+  check('new shape: the other input stays', b.includes('      runner-label: redline\n'));
+  check('a second bump changes nothing', bumpCaller(b, NEW, 'main 2026-09-27, askalf/askalf#72') === b);
+
+  const withFirst = job(`    with:\n      runner-label: redline\n${uses(OLD)}`);
+  const c = bumpCaller(withFirst, NEW, 'main 2026-09-27, askalf/askalf#72');
+  check('with above uses: redline-ref still lands in it', c.includes(`    with:\n      redline-ref: ${NEW}\n      runner-label: redline\n`) && pinnedTo(c));
+
+  const noWith = job(uses(OLD));
+  const d = bumpCaller(noWith, NEW, 'main 2026-09-27, askalf/askalf#72');
+  check('no with block: one is added with redline-ref', d.includes(`@${NEW} # main 2026-09-27, askalf/askalf#72\n    with:\n      redline-ref: ${NEW}\n`));
+
+  const nextJob = job(`${uses(OLD)}    with:\n      runner-label: redline\n\n  other:\n    runs-on: x\n    with:\n      redline-ref: keep\n`);
+  const e = bumpCaller(nextJob, NEW, 'n');
+  check('another job\'s inputs are left alone', refs(e).join() === `${NEW},keep`);
+
+  check('a short or branch ref is refused', (() => { try { bumpCaller(oldShape, 'main'); return false; } catch { return true; } })()
+    && (() => { try { bumpCaller(oldShape, NEW.slice(0, 7)); return false; } catch { return true; } })());
+  check('a caller without the call is refused', (() => { try { bumpCaller('name: x\n', NEW); return false; } catch { return true; } })());
+
+  const own = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline.yml', import.meta.url)), 'utf8');
+  const f = bumpCaller(own, NEW, 'n');
+  check('this repo\'s own caller bumps cleanly', refs(f).join() === NEW && f.includes(`@${NEW} # n\n`) && f.split('\n').length === own.split('\n').length + 1);
+
+  const bump = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline-pin-bump.yml', import.meta.url)), 'utf8');
+  check('the bump workflow rewrites callers with pin.mjs', bump.includes('node scripts/redline/pin.mjs "$SHA" "$note"') && !/sed -E/.test(bump));
 }
 
 rmSync(root, { recursive: true, force: true });
