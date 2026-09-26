@@ -1,6 +1,8 @@
 # Redraws the profile's live panels from npm and GitHub and publishes them to
 # the orphan `pulse` branch, which README.md links to. Force-pushing a single
 # commit there keeps main's history clean and needs no write to main.
+# Pull requests render through pulse-check.yml instead, so this workflow never
+# runs where it may not publish.
 name: pulse
 
 on:
@@ -9,61 +11,23 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['README.md', 'pulse/**', '.github/workflows/pulse.yml']
-  pull_request:
-    paths: ['README.md', 'pulse/**', '.github/workflows/pulse.yml']
+    paths: ['README.md', 'pulse/**', '.github/workflows/pulse.yml', '.github/workflows/pulse-render.yml']
 
 permissions: {}
 
 concurrency:
-  group: pulse-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  group: pulse-publish
   cancel-in-progress: false
 
 jobs:
-  # Render holds a read-only token: it also runs on pull requests, where nothing may write.
-  # The write scope lives only in publish, which never runs on a pull request.
+  # Render holds a read-only token; the write scope lives only in publish.
   render:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Test
-        run: node --test pulse/data.test.mjs
-
-      - name: Restore the last good state
-        run: |
-          mkdir -p out
-          if git fetch --depth=1 origin pulse 2>/dev/null; then
-            git show FETCH_HEAD:state.json > out/state.json || rm -f out/state.json
-          fi
-
-      - name: Render
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          node pulse/render.mjs --out out | tee render.log
-          {
-            echo '### pulse'
-            echo '```'
-            cat render.log
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: pulse-out
-          path: out
-          retention-days: 1
-          if-no-files-found: error
+    uses: ./.github/workflows/pulse-render.yml
 
   publish:
     needs: render
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
