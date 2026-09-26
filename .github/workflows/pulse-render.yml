@@ -1,0 +1,49 @@
+# Tests and renders the profile's live panels into the `pulse-out` artifact of the calling run.
+# Called by pulse.yml (which then publishes) and pulse-check.yml (pull requests, render only).
+# It holds a read-only token: it also runs on pull requests, where nothing may write.
+name: pulse render
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Test
+        run: node --test pulse/data.test.mjs
+
+      - name: Restore the last good state
+        run: |
+          mkdir -p out
+          if git fetch --depth=1 origin pulse 2>/dev/null; then
+            git show FETCH_HEAD:state.json > out/state.json || rm -f out/state.json
+          fi
+
+      - name: Render
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node pulse/render.mjs --out out | tee render.log
+          {
+            echo '### pulse'
+            echo '```'
+            cat render.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pulse-out
+          path: out
+          retention-days: 1
+          if-no-files-found: error

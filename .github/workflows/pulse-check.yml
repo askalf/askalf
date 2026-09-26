@@ -1,0 +1,19 @@
+# Renders the profile's live panels on a pull request that touches them, without publishing.
+# Publishing needs a write token and is pulse.yml's alone, which never runs on a pull request.
+name: pulse check
+
+on:
+  pull_request:
+    paths: ['README.md', 'pulse/**', '.github/workflows/pulse.yml', '.github/workflows/pulse-render.yml', '.github/workflows/pulse-check.yml']
+
+permissions: {}
+
+concurrency:
+  group: pulse-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/pulse-render.yml

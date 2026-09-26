@@ -1,0 +1,105 @@
+# Opens a PR in each Redline caller that moves its redline-review.yml pin to the main commit
+# that changed the review. Each caller pins by SHA so a review change reaches it only through a
+# reviewed bump there; this writes those bumps, and each repo's own gate reviews and merges them.
+#
+# Writing to other repos needs a token GITHUB_TOKEN cannot be: REDLINE_PIN_BUMP_TOKEN, a
+# fine-grained token owned by askalf with Contents and Pull requests read/write on the repos in
+# CALLERS. A PR opened with GITHUB_TOKEN would also start no CI, so no required check would report.
+# Without the secret the job says so and stops, green.
+name: Redline pin bump
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/redline/**
+      - .github/workflows/redline-review.yml
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: redline-pin-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      # Every repo whose .github/workflows/redline.yml calls askalf/askalf's redline-review.yml.
+      CALLERS: >-
+        askalf/askalf askalf/dario askalf/amnesia askalf/browser-bridge askalf/redstamp
+        askalf/truecopy askalf/truecopy-action askalf/cordon askalf/plumbline askalf/checkout-with-retry
+      # A bot-shaped branch opened by askalf: the fleet lanes treat it as a bot PR.
+      BRANCH: bot/redline-pin
+      CALLER_PATH: .github/workflows/redline.yml
+    steps:
+      - name: Check for the token
+        id: guard
+        env:
+          TOKEN: ${{ secrets.REDLINE_PIN_BUMP_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::notice::REDLINE_PIN_BUMP_TOKEN is not set; no bump PRs opened. Bump the redline-review.yml pin in each caller by hand."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update a bump PR in each caller
+        if: steps.guard.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.REDLINE_PIN_BUMP_TOKEN }}
+          SHA: ${{ github.sha }}
+          SOURCE: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          short="${SHA:0:7}"
+          day="$(date -u +%Y-%m-%d)"
+          # The PR that landed this commit, for the pin's trailing comment.
+          pr="$(gh api "repos/${SOURCE}/commits/${SHA}/pulls" --jq '.[0].number // empty' || true)"
+          note="main ${day}"
+          if [ -n "$pr" ]; then note="${note}, ${SOURCE}#${pr}"; fi
+          failed=0
+          for repo in $CALLERS; do
+            echo "== ${repo}"
+            if ! base="$(gh api "repos/${repo}" --jq .default_branch)"; then
+              echo "::error::${repo}: cannot read the repo"; failed=1; continue
+            fi
+            tip="$(gh api "repos/${repo}/git/ref/heads/${base}" --jq .object.sha)"
+            current="$(gh api "repos/${repo}/contents/${CALLER_PATH}?ref=${tip}" --jq .content | base64 -d)"
+            pattern="uses: ${SOURCE}/.github/workflows/redline-review.yml@[0-9a-f]{40}"
+            if ! printf '%s\n' "$current" | grep -Eq "$pattern"; then
+              echo "::error::${repo}: ${CALLER_PATH} has no pinned redline-review.yml call"; failed=1; continue
+            fi
+            if printf '%s\n' "$current" | grep -q "redline-review.yml@${SHA}"; then
+              echo "already at ${short}"; continue
+            fi
+            updated="$(printf '%s\n' "$current" | sed -E "s|(uses: ${SOURCE}/.github/workflows/redline-review.yml@)[0-9a-f]{40}.*|\1${SHA} # ${note}|")"
+            # The bump branch is this job's alone: reset it to the default branch tip each time,
+            # so an open bump PR carries exactly one commit, the newest pin.
+            if gh api "repos/${repo}/git/ref/heads/${BRANCH}" >/dev/null 2>&1; then
+              gh api -X PATCH "repos/${repo}/git/refs/heads/${BRANCH}" -f sha="$tip" -F force=true >/dev/null
+            else
+              gh api -X POST "repos/${repo}/git/refs" -f ref="refs/heads/${BRANCH}" -f sha="$tip" >/dev/null
+            fi
+            blob="$(gh api "repos/${repo}/contents/${CALLER_PATH}?ref=${BRANCH}" --jq .sha)"
+            printf '%s\n' "$updated" > redline.yml
+            gh api -X PUT "repos/${repo}/contents/${CALLER_PATH}" \
+              -f message="ci: bump Redline to ${SOURCE}@${short}" \
+              -f content="$(base64 -w0 redline.yml)" \
+              -f branch="$BRANCH" -f sha="$blob" >/dev/null
+            open="$(gh pr list --repo "$repo" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
+            if [ -n "$open" ]; then
+              gh pr edit "$open" --repo "$repo" --title "ci: bump Redline to ${SOURCE}@${short}" >/dev/null
+              echo "updated #${open}"
+            else
+              body="Moves the pinned redline-review.yml call to ${SOURCE}@${SHA}, the main commit that last changed the review (${note}). The pin is the only change."
+              gh pr create --repo "$repo" --base "$base" --head "$BRANCH" \
+                --title "ci: bump Redline to ${SOURCE}@${short}" --body "$body"
+            fi
+          done
+          exit "$failed"
