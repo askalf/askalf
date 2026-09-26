@@ -98,7 +98,10 @@ console.log('\n  submission, verdict and body');
   check('body never names the reviewer machinery', !/Automated review|gating lane|fleet code reviewer/i.test(body));
   check('body quotes the finding, names file:line and ends with the rule and head marker',
     body.includes('`src/b.js:1`') && body.includes('> export const token') && body.includes('rule:secret-exposure') && body.endsWith(`<!-- redline:head=${HEAD} -->`));
-  check('a suggestion containing backticks gets a longer fence', body.includes('````\nconst x = `a`;\n````') || body.includes('```\nconst x = `a`;\n```'));
+  const fenced = { ...blocking, suggestion: 'Run:\n```\nnpm test\n```' };
+  const fencedBody = renderBody(checkSubmission({ verdict: 'REQUEST_CHANGES', summary: 's', findings: [fenced] }).review, 'REQUEST_CHANGES', HEAD);
+  check('a suggestion containing a 3-backtick fence gets a 4-backtick fence', fencedBody.includes('````\nRun:\n```\nnpm test\n```\n````'));
+  check('a suggestion with no backticks keeps a 3-backtick fence', renderBody(checkSubmission({ verdict: 'REQUEST_CHANGES', summary: 's', findings: [{ ...blocking, suggestion: 'const x = 1;' }] }).review, 'REQUEST_CHANGES', HEAD).includes('```\nconst x = 1;\n```\n'));
   check('an approval carries no rule line', !renderBody(checkSubmission({ verdict: 'APPROVE', summary: 's', findings: [] }).review, 'APPROVE', HEAD).includes('rule:'));
   check('the fixed text uses no em dash', !renderBody(approveButBlocking, 'REQUEST_CHANGES', HEAD, ['n']).replace(/Leaks X\.|Looks fine\./g, '').includes('—'));
 }
