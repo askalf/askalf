@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   parseEnvFile, safePath, buildDiff, quoteIsGrounded, corpusOf, checkSubmission, finalVerdict,
-  renderBody, verdictAtHead, runTool, runReview, buildBrief, REVIEWER_LOGIN, HEADER, LIMITS,
+  renderBody, verdictAtHead, runTool, runReview, buildBrief, REVIEWER_LOGIN, LIMITS, metaPhrase,
 } from './review.mjs';
 
 let pass = 0;
@@ -94,12 +94,34 @@ console.log('\n  submission, verdict and body');
   check('a blocking finding forces REQUEST_CHANGES', finalVerdict(approveButBlocking) === 'REQUEST_CHANGES');
   check('minor findings do not', finalVerdict(checkSubmission({ verdict: 'APPROVE', summary: 's', findings: [{ ...blocking, severity: 'minor' }] }).review) === 'APPROVE');
   const body = renderBody(approveButBlocking, 'REQUEST_CHANGES', HEAD, ['a note']);
-  check('body starts with the reviewer header', body.startsWith(HEADER));
+  check('body opens with the verdict, no header', body.startsWith('**Verdict: request changes.**'));
+  check('body never names the reviewer machinery', !/Automated review|gating lane|fleet code reviewer/i.test(body));
   check('body quotes the finding, names file:line and ends with the rule and head marker',
     body.includes('`src/b.js:1`') && body.includes('> export const token') && body.includes('rule:secret-exposure') && body.endsWith(`<!-- redline:head=${HEAD} -->`));
   check('a suggestion containing backticks gets a longer fence', body.includes('````\nconst x = `a`;\n````') || body.includes('```\nconst x = `a`;\n```'));
   check('an approval carries no rule line', !renderBody(checkSubmission({ verdict: 'APPROVE', summary: 's', findings: [] }).review, 'APPROVE', HEAD).includes('rule:'));
   check('the fixed text uses no em dash', !renderBody(approveButBlocking, 'REQUEST_CHANGES', HEAD, ['n']).replace(/Leaks X\.|Looks fine\./g, '').includes('—'));
+}
+
+// The review is public. 2026-09-26: truecopy#221's approval read "contains no secrets, private hosts,
+// or AI attribution; the PR text reads as a human-written triage", under a "fleet code reviewer /
+// gating lane" header. The guard bounces that prose before it is posted; the negatives keep it from
+// biting words the reviewed repositories use legitimately.
+console.log('\n  public voice: no machinery narration in the review');
+{
+  const meta = (summary) => checkSubmission({ verdict: 'APPROVE', summary, findings: [] }).error ?? '';
+  check('AI attribution narration is bounced', /"AI attribution"/.test(meta('Contains no secrets or AI attribution.')));
+  check('human-written narration is bounced', /"human-written"/.test(meta('The PR text reads as a human-written triage.')));
+  check('reads-as-generated narration is bounced', /reads as generated/.test(meta('The README addition reads as generated.')));
+  check('a lane or header mention is bounced', /"gating lane"/.test(meta('Reviewed by the gating lane.')));
+  check('the bounce tells the model what to do instead', /call redline_submit again/.test(meta('AI-generated text in the README.')));
+  const problemHit = checkSubmission({ verdict: 'REQUEST_CHANGES', summary: 'One issue.', findings: [{ severity: 'blocking', file: 'README.md', quote: 'x', problem: 'This paragraph reads as generated.' }] }).error ?? '';
+  check('a finding problem is checked too', /finding 1 problem/.test(problemHit));
+  check('a plain summary passes', !meta('Adds one acceptance entry; the hash is 64 hex and the JSON stays valid.'));
+  check('provenance attribution in truecopy passes', !meta('The attribution check compares the manifest author to the tarball.'));
+  check('the dario fleet key passes', !meta('The fleet key budget is read once per request.'));
+  check('an LLM proxy passes', !meta('Requests to the LLM backend now retry once on 429.'));
+  check('metaPhrase returns null on clean text', metaPhrase('Fixes the off-by-one in the pager.') === null);
 }
 
 console.log('\n  verdictAtHead');
