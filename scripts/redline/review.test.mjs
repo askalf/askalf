@@ -311,7 +311,31 @@ console.log('\n  the reusable workflow');
 {
   const wf = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline-review.yml', import.meta.url)), 'utf8');
   check('it is a reusable workflow', /^on:\s*\n\s+workflow_call:/m.test(wf));
-  check('the script is fetched at the workflow\'s own commit, not a moving branch', wf.includes('ref: ${{ github.job_workflow_sha }}') && !/ref: main\b/.test(wf));
+  check('redline-ref is a required string input', /\n      redline-ref:\n(?:        .*\n)*?        required: true\n        type: string\n/.test(wf));
+  const steps = wf.split(/\n      - /).slice(1);
+  const stepNamed = (name) => steps.findIndex((s) => s.startsWith(`name: ${name}\n`));
+  const fetchAt = stepNamed('Fetch the review script from askalf/askalf');
+  check('the script is fetched at redline-ref, not job_workflow_sha or a branch',
+    fetchAt >= 0 && steps[fetchAt].includes('ref: ${{ inputs.redline-ref }}') && !/ref: \$\{\{ github\.job_workflow_sha/.test(wf) && !/ref: main\b/.test(wf));
+  const guardAt = stepNamed('Check the review ref is a full commit sha');
+  check('the sha guard is the first step', guardAt === 0);
+  check('the on-main check runs before the fetch', stepNamed('Check the review ref is on askalf/askalf main') > guardAt
+    && stepNamed('Check the review ref is on askalf/askalf main') < fetchAt);
+  check('the ref reaches the guards through env, not interpolated into run',
+    steps.every((s) => !s.includes('run:') || !s.slice(s.indexOf('run:')).includes('${{ inputs.redline-ref')));
+  // The guard's own shell, run against good and bad refs.
+  const guardRun = /run: \|\n((?: {10}.*\n?)+)/.exec(steps[guardAt] ?? '')?.[1].replace(/^ {10}/gm, '') ?? 'exit 0';
+  const bash = spawnSync('bash', ['-c', 'exit 0'], { encoding: 'utf8' });
+  if (bash.error) {
+    console.log('  skip the guard\'s shell: no bash here');
+  } else {
+    const guard = (ref) => spawnSync('bash', ['-e', '-c', guardRun], { env: { ...process.env, REDLINE_REF: ref }, encoding: 'utf8' }).status;
+    check('the guard passes a full sha', guard(HEAD) === 0);
+    check('the guard fails an empty ref', guard('') !== 0);
+    check('the guard fails a branch name', guard('main') !== 0);
+    check('the guard fails a short sha', guard(HEAD.slice(0, 7)) !== 0);
+    check('the guard fails an uppercase or padded sha', guard(HEAD.toUpperCase()) !== 0 && guard(`${HEAD}\nmain`) !== 0 && guard(` ${HEAD}`) !== 0);
+  }
   check('it runs on the caller\'s self-hosted runner label', /runs-on: \[self-hosted, "\$\{\{ inputs\.runner-label \}\}"\]/.test(wf));
   check('it refuses fork PRs itself', wf.includes('github.event.pull_request.head.repo.full_name == github.repository'));
   check('the PR checkout keeps no credentials', (wf.match(/persist-credentials: false/g) ?? []).length === 2);

@@ -12,6 +12,12 @@ on:
         description: The caller's self-hosted runner label.
         required: true
         type: string
+      redline-ref:
+        description: >-
+          The full commit sha of askalf/askalf this workflow is called at, the same sha as the
+          caller's uses pin. The review script is fetched at it. It must be a commit on main.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -24,12 +30,51 @@ jobs:
     runs-on: [self-hosted, "${{ inputs.runner-label }}"]
     timeout-minutes: 20
     steps:
+      # github.job_workflow_sha is not available to expressions (it evaluates empty, and the
+      # checkout then falls back to the default branch), so the caller passes the sha it pins as
+      # redline-ref. It must be a full sha, so it cannot name a moving branch or tag, and a commit
+      # on main, so a PR cannot point its own review at a script from its unmerged branch.
+      - name: Check the review ref is a full commit sha
+        env:
+          REDLINE_REF: ${{ inputs.redline-ref }}
+        run: |
+          if ! [[ "$REDLINE_REF" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::redline-ref must be the full 40-character commit sha the caller pins; got '${REDLINE_REF}'"
+            exit 1
+          fi
+
+      - name: Check the review ref is on askalf/askalf main
+        env:
+          REDLINE_REF: ${{ inputs.redline-ref }}
+          GH_READ_TOKEN: ${{ github.token }}
+        # main is ahead of or identical to the ref exactly when the ref is on main. A failed read
+        # is retried, then fails the review: it is never taken as a pass.
+        run: |
+          node --input-type=module -e '
+            const ref = process.env.REDLINE_REF;
+            const url = `https://api.github.com/repos/askalf/askalf/compare/${ref}...main`;
+            const headers = { authorization: `Bearer ${process.env.GH_READ_TOKEN}`, accept: "application/vnd.github+json" };
+            let status = "";
+            for (let attempt = 1; attempt <= 3 && !status; attempt++) {
+              try {
+                const res = await fetch(url, { headers });
+                if (res.ok) status = String((await res.json()).status ?? "");
+                else console.log(`attempt ${attempt}: HTTP ${res.status}`);
+              } catch (e) { console.log(`attempt ${attempt}: ${e.message}`); }
+              if (!status && attempt < 3) await new Promise((r) => setTimeout(r, attempt * 5000));
+            }
+            if (status === "ahead" || status === "identical") { console.log(`redline-ref ${ref} is on main`); process.exit(0); }
+            console.log(status
+              ? `::error::redline-ref ${ref} is not a commit on askalf/askalf main (${status})`
+              : `::error::could not compare redline-ref ${ref} with askalf/askalf main`);
+            process.exit(1);
+          '
+
       - name: Fetch the review script from askalf/askalf
         uses: askalf/checkout-with-retry@115a6407547e9711edbc2e915838d495cad9583f  # v1.1.0
         with:
           repository: askalf/askalf
-          # The script at this workflow's own commit: a caller pinned to a sha gets exactly that script.
-          ref: ${{ github.job_workflow_sha }}
+          ref: ${{ inputs.redline-ref }}
           path: .redline
           sparse-checkout: scripts/redline
           sparse-checkout-cone-mode: false
