@@ -3,8 +3,14 @@
 // One run reviews one head. It reads the PR (metadata, commits, per-file patches) with the
 // workflow's read-only token, lets the model read the PR checkout through read-only tools
 // (redline_list, redline_read, redline_search; nothing executes), and ends when the model calls
-// redline_submit. The review is posted as sprayberry-redline with commit_id pinned to the head it read, and the
-// process exits 0 on APPROVE and 1 on REQUEST_CHANGES, so the job's own check is the verdict.
+// redline_submit. The process exits 0 on APPROVE and 1 on REQUEST_CHANGES, so the job's own check is
+// the verdict.
+//
+// Posting. The finished review is written as verdict.json (REDLINE_VERDICT_FILE), which the workflow
+// uploads as the redline-verdict artifact. When the env file holds a reviewer token, the review is
+// also posted here as sprayberry-redline (posted: true). When it holds none, nothing is posted
+// (posted: false) and the forge posts it after checking where the run came from, so the reviewer
+// token never has to sit on a CI runner that a pull request's own workflow files can reach.
 //
 // Hardening, each with a reason:
 //   - A verdict already posted at this head is reused, never posted twice (re-runs are free).
@@ -25,11 +31,12 @@
 // CLI (the workflow's review step):
 //   REPO=owner/name PR=<n> HEAD_SHA=<sha> CHECKOUT=<dir> GH_READ_TOKEN=... \
 //   REDLINE_ENV_FILE=/etc/askalf/redline.env node review.mjs
-// The env file holds DARIO_API_KEY and REDLINE_GITHUB_TOKEN (or GITHUB_PAT_REVIEWER), and optionally
-// DARIO_URL (default http://127.0.0.1:3456) and REDLINE_MODEL.
+// The env file holds DARIO_API_KEY, and optionally REDLINE_GITHUB_TOKEN (or GITHUB_PAT_REVIEWER),
+// DARIO_URL (default http://127.0.0.1:3456) and REDLINE_MODEL. REDLINE_VERDICT_FILE, when set, is
+// where verdict.json goes.
 
-import { readFileSync, readdirSync, lstatSync, realpathSync, appendFileSync, openSync, readSync, closeSync } from 'node:fs';
-import { join, resolve, relative, isAbsolute, sep } from 'node:path';
+import { readFileSync, readdirSync, lstatSync, realpathSync, appendFileSync, openSync, readSync, closeSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { join, resolve, relative, isAbsolute, sep, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
 export const REVIEWER_LOGIN = 'sprayberry-redline';
@@ -204,6 +211,41 @@ export function verdictAtHead(reviews, headSha) {
   return v;
 }
 
+// ---------- the verdict file ----------
+
+export const VERDICT_VERSION = 1;
+export const VERDICT_EVENTS = ['APPROVE', 'REQUEST_CHANGES', 'COMMENT'];
+
+/** verdict.json: the review exactly as it is (or would be) posted, and whether it was. */
+export function verdictRecord({ repo, pr, headSha, event, body, comments = [], posted }) {
+  return { version: VERDICT_VERSION, repo, pr, head_sha: headSha, event, body, comments, posted: posted === true };
+}
+
+/** Why a parsed verdict.json is malformed, or null. The forge applies its own checks as well. */
+export function verdictProblem(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return 'not an object';
+  if (v.version !== VERDICT_VERSION) return `version must be ${VERDICT_VERSION}`;
+  if (typeof v.repo !== 'string' || !/^[\w.-]+\/[\w.-]+$/.test(v.repo)) return 'repo must be owner/name';
+  if (!Number.isInteger(v.pr) || v.pr <= 0) return 'pr must be a positive integer';
+  if (typeof v.head_sha !== 'string' || !/^[0-9a-f]{40}$/.test(v.head_sha)) return 'head_sha must be a full commit sha';
+  if (!VERDICT_EVENTS.includes(v.event)) return `event must be one of ${VERDICT_EVENTS.join(', ')}`;
+  if (typeof v.body !== 'string' || !v.body.trim()) return 'body is required';
+  if (!Array.isArray(v.comments)) return 'comments must be an array';
+  for (const [i, c] of v.comments.entries()) {
+    if (!c || typeof c.path !== 'string' || !Number.isInteger(c.line) || (c.side !== 'LEFT' && c.side !== 'RIGHT') || typeof c.body !== 'string') {
+      return `comment ${i + 1} needs path, line, side (LEFT or RIGHT) and body`;
+    }
+  }
+  if (typeof v.posted !== 'boolean') return 'posted must be true or false';
+  return null;
+}
+
+/** Write verdict.json, creating its directory. */
+export function saveVerdict(file, record) {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+}
+
 // ---------- tools over the checkout ----------
 
 export const TOOLS = [
@@ -346,8 +388,9 @@ export function buildBrief(pr, files, commits, diff) {
 
 /**
  * Review one PR head. ctx: { repo, pr, headSha, checkout, readToken, reviewToken, darioUrl, darioKey,
- * model, system, fetch, sleep, now, log }.
- * Returns { outcome: 'posted'|'existing'|'skipped', verdict?, url?, reason? }.
+ * model, system, fetch, sleep, now, log }. With no reviewToken the review is built but not posted.
+ * Returns { outcome: 'posted'|'unposted'|'existing'|'skipped'|'dry-run', verdict?, url?, reason?, record? };
+ * record (verdict.json) is set when a review was built for this head, posted or not.
  */
 export async function runReview(ctx) {
   const { repo, pr: n, headSha } = ctx;
@@ -439,11 +482,14 @@ export async function runReview(ctx) {
   if (ctx.dryRun) return { outcome: 'dry-run', verdict, body: renderBody(review, verdict, headSha, notes) };
   const now = await gh(ctx, `/repos/${repo}/pulls/${n}`);
   if (now.head.sha !== headSha) return { outcome: 'skipped', reason: `head moved to ${now.head.sha.slice(0, 7)} during the review` };
+  const body = renderBody(review, verdict, headSha, notes);
+  const record = (posted) => verdictRecord({ repo, pr: n, headSha, event: verdict, body, comments: [], posted });
+  if (!ctx.reviewToken) return { outcome: 'unposted', verdict, record: record(false) };
   const posted = await gh(ctx, `/repos/${repo}/pulls/${n}/reviews`, {
     token: ctx.reviewToken, method: 'POST',
-    body: { commit_id: headSha, event: verdict, body: renderBody(review, verdict, headSha, notes) },
+    body: { commit_id: headSha, event: verdict, body },
   });
-  return { outcome: 'posted', verdict, url: posted.html_url };
+  return { outcome: 'posted', verdict, url: posted.html_url, record: record(true) };
 }
 
 // ---------- CLI ----------
@@ -452,10 +498,14 @@ async function main() {
   const env = process.env;
   const need = (k, src = env) => { if (!src[k]) { console.error(`::error::${k} is not set`); process.exit(2); } return src[k]; };
   const secrets = parseEnvFile(readFileSync(need('REDLINE_ENV_FILE'), 'utf8'));
+  // The runner's workspace outlives the job, so a file from an earlier run is removed before this
+  // one can leave it to be uploaded.
+  const verdictFile = env.REDLINE_VERDICT_FILE || '';
+  if (verdictFile) rmSync(verdictFile, { force: true });
   const ctx = {
     repo: need('REPO'), pr: Number(need('PR')), headSha: need('HEAD_SHA'), checkout: need('CHECKOUT'),
     readToken: need('GH_READ_TOKEN'),
-    reviewToken: secrets.REDLINE_GITHUB_TOKEN || need('GITHUB_PAT_REVIEWER', secrets),
+    reviewToken: secrets.REDLINE_GITHUB_TOKEN || secrets.GITHUB_PAT_REVIEWER || '',
     darioUrl: secrets.DARIO_URL || 'http://127.0.0.1:3456', darioKey: need('DARIO_API_KEY', secrets),
     model: secrets.REDLINE_MODEL || DEFAULT_MODEL,
     system: readFileSync(fileURLToPath(new URL('./prompt.md', import.meta.url)), 'utf8'),
@@ -468,9 +518,11 @@ async function main() {
     console.error(`::error::Redline could not finish the review: ${e.message}`);
     process.exit(2);
   }
+  if (result.record && verdictFile) saveVerdict(verdictFile, result.record);
   const line = result.outcome === 'skipped' ? `Redline skipped: ${result.reason}`
     : result.outcome === 'dry-run' ? `Redline dry run (nothing posted): ${result.verdict}`
-      : `Redline ${result.outcome === 'existing' ? 'already reviewed' : 'posted'}: ${result.verdict} ${result.url ?? ''}`;
+      : result.outcome === 'unposted' ? `Redline verdict, left to the forge to post: ${result.verdict}`
+        : `Redline ${result.outcome === 'existing' ? 'already reviewed' : 'posted'}: ${result.verdict} ${result.url ?? ''}`;
   console.log(line);
   if (result.body) console.log(`\n${result.body}`);
   if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, `${line}\n`);

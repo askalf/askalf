@@ -1,7 +1,11 @@
 # Redline: the gating code review, as a CI check. Each reviewed repo calls this from its own
 # redline.yml on pull_request; the job's result is the verdict (APPROVE passes, REQUEST_CHANGES fails).
-# It runs on the caller's self-hosted runner, which reaches the model locally and reads the reviewer
+# It runs on the caller's self-hosted runner, which reaches the model locally and reads its
 # credentials from a root-only file on the host, so no secret is stored in GitHub.
+# The finished review is uploaded as the redline-verdict artifact (verdict.json). When the host file
+# holds no reviewer token the review is not posted here: the forge posts it as sprayberry-redline
+# only after checking, from the GitHub API, that the run came from the pinned redline.yml at the PR's
+# current head and that the PR changes no workflow or action definitions.
 # The PR's code is checked out only to be read by the review's read-only tools; nothing from it runs.
 name: Redline review
 
@@ -95,8 +99,21 @@ jobs:
           CHECKOUT: ${{ github.workspace }}/pr
           GH_READ_TOKEN: ${{ github.token }}
           REDLINE_ENV_FILE: /etc/askalf/redline.env
+          REDLINE_VERDICT_FILE: ${{ github.workspace }}/redline-verdict/verdict.json
         run: node .redline/scripts/redline/review.mjs
+
+      # The verdict goes up whether the review passed or failed; a run that built no review (skipped,
+      # already reviewed, or errored) leaves no file and uploads nothing.
+      - name: Upload the verdict
+        if: always() && hashFiles('redline-verdict/verdict.json') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: redline-verdict
+          path: redline-verdict/verdict.json
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: true
 
       - name: Remove the checkouts
         if: always()
-        run: rm -rf pr .redline
+        run: rm -rf pr .redline redline-verdict
