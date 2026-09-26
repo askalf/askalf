@@ -1,0 +1,1384 @@
+{
+ "at": "2026-09-26T18:38:39.029Z",
+ "sources": {
+  "dario": "live",
+  "installs": "live",
+  "github": "live"
+ },
+ "dario": {
+  "latest": "6.12.6",
+  "latestAt": "2026-09-26T00:24:10.949Z",
+  "releaseCount": 619,
+  "releases30": 123,
+  "recent": [
+   {
+    "version": "5.5.74",
+    "at": "2026-08-27T12:51:42.087Z"
+   },
+   {
+    "version": "5.5.75",
+    "at": "2026-08-27T13:16:21.013Z"
+   },
+   {
+    "version": "5.5.76",
+    "at": "2026-08-27T13:40:21.532Z"
+   },
+   {
+    "version": "5.5.77",
+    "at": "2026-08-28T02:23:49.273Z"
+   },
+   {
+    "version": "5.5.78",
+    "at": "2026-08-28T08:07:57.712Z"
+   },
+   {
+    "version": "5.5.79",
+    "at": "2026-08-28T11:57:42.160Z"
+   },
+   {
+    "version": "5.5.80",
+    "at": "2026-08-28T16:18:26.251Z"
+   },
+   {
+    "version": "5.5.81",
+    "at": "2026-08-28T17:01:17.734Z"
+   },
+   {
+    "version": "5.5.82",
+    "at": "2026-08-28T23:43:25.811Z"
+   },
+   {
+    "version": "5.5.83",
+    "at": "2026-08-29T02:30:54.111Z"
+   },
+   {
+    "version": "5.5.84",
+    "at": "2026-08-29T14:44:46.561Z"
+   },
+   {
+    "version": "5.5.85",
+    "at": "2026-08-29T16:35:03.702Z"
+   },
+   {
+    "version": "5.5.86",
+    "at": "2026-08-29T23:23:47.462Z"
+   },
+   {
+    "version": "5.5.87",
+    "at": "2026-08-30T00:18:56.972Z"
+   },
+   {
+    "version": "5.5.88",
+    "at": "2026-08-30T00:51:00.381Z"
+   },
+   {
+    "version": "5.5.89",
+    "at": "2026-08-30T01:19:51.002Z"
+   },
+   {
+    "version": "5.5.90",
+    "at": "2026-08-30T03:16:14.512Z"
+   },
+   {
+    "version": "6.0.0",
+    "at": "2026-08-30T13:58:44.794Z"
+   },
+   {
+    "version": "6.0.1",
+    "at": "2026-08-30T15:27:54.811Z"
+   },
+   {
+    "version": "6.0.2",
+    "at": "2026-08-30T17:33:39.762Z"
+   },
+   {
+    "version": "6.0.3",
+    "at": "2026-08-30T19:12:45.430Z"
+   },
+   {
+    "version": "6.0.4",
+    "at": "2026-08-30T20:40:07.059Z"
+   },
+   {
+    "version": "6.0.5",
+    "at": "2026-08-30T22:36:07.241Z"
+   },
+   {
+    "version": "6.0.6",
+    "at": "2026-08-31T01:08:44.590Z"
+   },
+   {
+    "version": "6.0.7",
+    "at": "2026-08-31T22:05:55.644Z"
+   },
+   {
+    "version": "6.0.8",
+    "at": "2026-09-01T00:22:22.308Z"
+   },
+   {
+    "version": "6.0.9",
+    "at": "2026-09-01T20:52:38.447Z"
+   },
+   {
+    "version": "6.0.11",
+    "at": "2026-09-01T23:24:39.137Z"
+   },
+   {
+    "version": "6.0.12",
+    "at": "2026-09-02T00:40:58.787Z"
+   },
+   {
+    "version": "6.0.13",
+    "at": "2026-09-02T18:22:10.401Z"
+   },
+   {
+    "version": "6.0.14",
+    "at": "2026-09-02T22:37:55.056Z"
+   },
+   {
+    "version": "6.0.15",
+    "at": "2026-09-02T23:13:22.491Z"
+   },
+   {
+    "version": "6.0.16",
+    "at": "2026-09-02T23:42:46.836Z"
+   },
+   {
+    "version": "6.0.17",
+    "at": "2026-09-03T01:42:56.519Z"
+   },
+   {
+    "version": "6.0.18",
+    "at": "2026-09-04T03:53:52.208Z"
+   },
+   {
+    "version": "6.0.19",
+    "at": "2026-09-04T05:30:53.179Z"
+   },
+   {
+    "version": "6.0.20",
+    "at": "2026-09-04T20:31:19.604Z"
+   },
+   {
+    "version": "6.0.21",
+    "at": "2026-09-04T21:32:07.363Z"
+   },
+   {
+    "version": "6.0.22",
+    "at": "2026-09-05T14:43:43.304Z"
+   },
+   {
+    "version": "6.0.23",
+    "at": "2026-09-05T23:50:38.470Z"
+   },
+   {
+    "version": "6.0.24",
+    "at": "2026-09-06T05:44:05.772Z"
+   },
+   {
+    "version": "6.0.25",
+    "at": "2026-09-06T06:44:32.546Z"
+   },
+   {
+    "version": "6.0.26",
+    "at": "2026-09-06T16:09:48.426Z"
+   },
+   {
+    "version": "6.0.27",
+    "at": "2026-09-06T16:25:01.472Z"
+   },
+   {
+    "version": "6.0.28",
+    "at": "2026-09-06T20:25:57.448Z"
+   },
+   {
+    "version": "6.0.29",
+    "at": "2026-09-06T20:54:56.034Z"
+   },
+   {
+    "version": "6.0.30",
+    "at": "2026-09-06T22:34:10.612Z"
+   },
+   {
+    "version": "6.0.31",
+    "at": "2026-09-06T22:54:48.786Z"
+   },
+   {
+    "version": "6.0.32",
+    "at": "2026-09-07T01:54:26.032Z"
+   },
+   {
+    "version": "6.0.33",
+    "at": "2026-09-07T13:33:33.613Z"
+   },
+   {
+    "version": "6.0.34",
+    "at": "2026-09-07T14:27:20.665Z"
+   },
+   {
+    "version": "6.0.35",
+    "at": "2026-09-07T16:03:02.801Z"
+   },
+   {
+    "version": "6.0.36",
+    "at": "2026-09-07T17:41:22.709Z"
+   },
+   {
+    "version": "6.0.37",
+    "at": "2026-09-07T18:55:16.776Z"
+   },
+   {
+    "version": "6.0.38",
+    "at": "2026-09-08T00:37:36.242Z"
+   },
+   {
+    "version": "6.0.39",
+    "at": "2026-09-08T15:19:25.754Z"
+   },
+   {
+    "version": "6.0.40",
+    "at": "2026-09-08T21:47:34.421Z"
+   },
+   {
+    "version": "6.0.41",
+    "at": "2026-09-08T22:47:35.065Z"
+   },
+   {
+    "version": "6.0.42",
+    "at": "2026-09-09T03:47:02.328Z"
+   },
+   {
+    "version": "6.0.43",
+    "at": "2026-09-09T05:17:53.090Z"
+   },
+   {
+    "version": "6.0.44",
+    "at": "2026-09-09T20:50:03.767Z"
+   },
+   {
+    "version": "6.0.45",
+    "at": "2026-09-09T22:19:25.171Z"
+   },
+   {
+    "version": "6.0.46",
+    "at": "2026-09-10T11:22:58.356Z"
+   },
+   {
+    "version": "6.0.47",
+    "at": "2026-09-10T13:13:18.978Z"
+   },
+   {
+    "version": "6.0.48",
+    "at": "2026-09-10T23:23:08.404Z"
+   },
+   {
+    "version": "6.0.49",
+    "at": "2026-09-10T23:52:58.997Z"
+   },
+   {
+    "version": "6.0.50",
+    "at": "2026-09-11T00:43:08.428Z"
+   },
+   {
+    "version": "6.0.51",
+    "at": "2026-09-11T15:28:33.949Z"
+   },
+   {
+    "version": "6.0.52",
+    "at": "2026-09-11T21:55:00.115Z"
+   },
+   {
+    "version": "6.0.53",
+    "at": "2026-09-11T22:54:47.088Z"
+   },
+   {
+    "version": "6.1.0",
+    "at": "2026-09-11T23:13:04.631Z"
+   },
+   {
+    "version": "6.2.0",
+    "at": "2026-09-12T00:15:36.271Z"
+   },
+   {
+    "version": "6.2.1",
+    "at": "2026-09-12T00:33:15.636Z"
+   },
+   {
+    "version": "6.3.0",
+    "at": "2026-09-12T02:44:17.462Z"
+   },
+   {
+    "version": "6.4.0",
+    "at": "2026-09-12T03:17:24.194Z"
+   },
+   {
+    "version": "6.5.0",
+    "at": "2026-09-12T03:39:58.235Z"
+   },
+   {
+    "version": "6.6.0",
+    "at": "2026-09-12T03:50:52.351Z"
+   },
+   {
+    "version": "6.6.1",
+    "at": "2026-09-12T04:11:06.672Z"
+   },
+   {
+    "version": "6.6.2",
+    "at": "2026-09-12T04:24:09.339Z"
+   },
+   {
+    "version": "6.6.3",
+    "at": "2026-09-12T14:29:19.936Z"
+   },
+   {
+    "version": "6.6.4",
+    "at": "2026-09-12T14:39:13.308Z"
+   },
+   {
+    "version": "6.6.5",
+    "at": "2026-09-12T21:38:31.902Z"
+   },
+   {
+    "version": "6.6.6",
+    "at": "2026-09-12T23:39:11.563Z"
+   },
+   {
+    "version": "6.6.7",
+    "at": "2026-09-13T13:38:26.629Z"
+   },
+   {
+    "version": "6.7.0",
+    "at": "2026-09-13T14:41:15.816Z"
+   },
+   {
+    "version": "6.7.1",
+    "at": "2026-09-14T10:42:35.724Z"
+   },
+   {
+    "version": "6.8.0",
+    "at": "2026-09-14T13:54:10.272Z"
+   },
+   {
+    "version": "6.8.1",
+    "at": "2026-09-14T23:04:39.038Z"
+   },
+   {
+    "version": "6.8.2",
+    "at": "2026-09-15T01:16:34.247Z"
+   },
+   {
+    "version": "6.8.3",
+    "at": "2026-09-15T01:46:15.442Z"
+   },
+   {
+    "version": "6.8.4",
+    "at": "2026-09-15T05:45:55.097Z"
+   },
+   {
+    "version": "6.8.5",
+    "at": "2026-09-15T21:47:51.203Z"
+   },
+   {
+    "version": "6.8.6",
+    "at": "2026-09-15T22:47:47.788Z"
+   },
+   {
+    "version": "6.8.7",
+    "at": "2026-09-17T12:24:02.632Z"
+   },
+   {
+    "version": "6.8.8",
+    "at": "2026-09-17T14:30:47.711Z"
+   },
+   {
+    "version": "6.8.9",
+    "at": "2026-09-18T00:10:25.157Z"
+   },
+   {
+    "version": "6.8.10",
+    "at": "2026-09-18T02:03:01.649Z"
+   },
+   {
+    "version": "6.8.11",
+    "at": "2026-09-18T04:47:44.871Z"
+   },
+   {
+    "version": "6.8.12",
+    "at": "2026-09-18T11:06:50.747Z"
+   },
+   {
+    "version": "6.8.13",
+    "at": "2026-09-18T11:23:50.734Z"
+   },
+   {
+    "version": "6.8.14",
+    "at": "2026-09-18T18:17:20.539Z"
+   },
+   {
+    "version": "6.8.15",
+    "at": "2026-09-19T00:32:31.374Z"
+   },
+   {
+    "version": "6.8.16",
+    "at": "2026-09-19T04:01:47.825Z"
+   },
+   {
+    "version": "6.8.17",
+    "at": "2026-09-19T04:23:00.768Z"
+   },
+   {
+    "version": "6.8.18",
+    "at": "2026-09-19T05:10:19.757Z"
+   },
+   {
+    "version": "6.9.0",
+    "at": "2026-09-20T14:41:09.262Z"
+   },
+   {
+    "version": "6.9.1",
+    "at": "2026-09-20T15:48:03.769Z"
+   },
+   {
+    "version": "6.9.2",
+    "at": "2026-09-20T19:17:40.825Z"
+   },
+   {
+    "version": "6.9.3",
+    "at": "2026-09-20T22:40:49.971Z"
+   },
+   {
+    "version": "6.10.0",
+    "at": "2026-09-21T11:29:03.004Z"
+   },
+   {
+    "version": "6.10.1",
+    "at": "2026-09-22T00:11:35.627Z"
+   },
+   {
+    "version": "6.10.2",
+    "at": "2026-09-22T17:08:08.149Z"
+   },
+   {
+    "version": "6.10.3",
+    "at": "2026-09-22T19:28:20.477Z"
+   },
+   {
+    "version": "6.10.4",
+    "at": "2026-09-22T22:34:01.641Z"
+   },
+   {
+    "version": "6.10.5",
+    "at": "2026-09-22T22:54:33.411Z"
+   },
+   {
+    "version": "6.10.6",
+    "at": "2026-09-22T23:54:53.133Z"
+   },
+   {
+    "version": "6.11.0",
+    "at": "2026-09-23T00:27:07.669Z"
+   },
+   {
+    "version": "6.11.1",
+    "at": "2026-09-23T00:42:12.062Z"
+   },
+   {
+    "version": "6.11.2",
+    "at": "2026-09-23T11:01:21.031Z"
+   },
+   {
+    "version": "6.12.0",
+    "at": "2026-09-24T13:41:33.124Z"
+   },
+   {
+    "version": "6.12.1",
+    "at": "2026-09-24T23:17:00.408Z"
+   },
+   {
+    "version": "6.12.2",
+    "at": "2026-09-25T02:59:48.214Z"
+   },
+   {
+    "version": "6.12.3",
+    "at": "2026-09-25T15:37:54.571Z"
+   },
+   {
+    "version": "6.12.4",
+    "at": "2026-09-25T20:23:20.244Z"
+   },
+   {
+    "version": "6.12.5",
+    "at": "2026-09-25T22:44:19.795Z"
+   },
+   {
+    "version": "6.12.6",
+    "at": "2026-09-26T00:24:10.949Z"
+   }
+  ]
+ },
+ "installs": {
+  "days": [
+   {
+    "day": "2026-05-29",
+    "n": 496
+   },
+   {
+    "day": "2026-05-30",
+    "n": 247
+   },
+   {
+    "day": "2026-05-31",
+    "n": 486
+   },
+   {
+    "day": "2026-06-01",
+    "n": 128
+   },
+   {
+    "day": "2026-06-02",
+    "n": 650
+   },
+   {
+    "day": "2026-06-03",
+    "n": 473
+   },
+   {
+    "day": "2026-06-04",
+    "n": 867
+   },
+   {
+    "day": "2026-06-05",
+    "n": 0
+   },
+   {
+    "day": "2026-06-06",
+    "n": 403
+   },
+   {
+    "day": "2026-06-07",
+    "n": 1029
+   },
+   {
+    "day": "2026-06-08",
+    "n": 426
+   },
+   {
+    "day": "2026-06-09",
+    "n": 1805
+   },
+   {
+    "day": "2026-06-10",
+    "n": 1122
+   },
+   {
+    "day": "2026-06-11",
+    "n": 610
+   },
+   {
+    "day": "2026-06-12",
+    "n": 951
+   },
+   {
+    "day": "2026-06-13",
+    "n": 868
+   },
+   {
+    "day": "2026-06-14",
+    "n": 753
+   },
+   {
+    "day": "2026-06-15",
+    "n": 699
+   },
+   {
+    "day": "2026-06-16",
+    "n": 672
+   },
+   {
+    "day": "2026-06-17",
+    "n": 377
+   },
+   {
+    "day": "2026-06-18",
+    "n": 1158
+   },
+   {
+    "day": "2026-06-19",
+    "n": 908
+   },
+   {
+    "day": "2026-06-20",
+    "n": 598
+   },
+   {
+    "day": "2026-06-21",
+    "n": 409
+   },
+   {
+    "day": "2026-06-22",
+    "n": 281
+   },
+   {
+    "day": "2026-06-23",
+    "n": 277
+   },
+   {
+    "day": "2026-06-24",
+    "n": 474
+   },
+   {
+    "day": "2026-06-25",
+    "n": 716
+   },
+   {
+    "day": "2026-06-26",
+    "n": 1094
+   },
+   {
+    "day": "2026-06-27",
+    "n": 375
+   },
+   {
+    "day": "2026-06-28",
+    "n": 473
+   },
+   {
+    "day": "2026-06-29",
+    "n": 706
+   },
+   {
+    "day": "2026-06-30",
+    "n": 1814
+   },
+   {
+    "day": "2026-07-01",
+    "n": 1169
+   },
+   {
+    "day": "2026-07-02",
+    "n": 2430
+   },
+   {
+    "day": "2026-07-03",
+    "n": 1027
+   },
+   {
+    "day": "2026-07-04",
+    "n": 936
+   },
+   {
+    "day": "2026-07-05",
+    "n": 767
+   },
+   {
+    "day": "2026-07-06",
+    "n": 305
+   },
+   {
+    "day": "2026-07-07",
+    "n": 669
+   },
+   {
+    "day": "2026-07-08",
+    "n": 1478
+   },
+   {
+    "day": "2026-07-09",
+    "n": 807
+   },
+   {
+    "day": "2026-07-10",
+    "n": 784
+   },
+   {
+    "day": "2026-07-11",
+    "n": 844
+   },
+   {
+    "day": "2026-07-12",
+    "n": 0
+   },
+   {
+    "day": "2026-07-13",
+    "n": 268
+   },
+   {
+    "day": "2026-07-14",
+    "n": 432
+   },
+   {
+    "day": "2026-07-15",
+    "n": 492
+   },
+   {
+    "day": "2026-07-16",
+    "n": 831
+   },
+   {
+    "day": "2026-07-17",
+    "n": 408
+   },
+   {
+    "day": "2026-07-18",
+    "n": 1053
+   },
+   {
+    "day": "2026-07-19",
+    "n": 396
+   },
+   {
+    "day": "2026-07-20",
+    "n": 140
+   },
+   {
+    "day": "2026-07-21",
+    "n": 499
+   },
+   {
+    "day": "2026-07-22",
+    "n": 260
+   },
+   {
+    "day": "2026-07-23",
+    "n": 458
+   },
+   {
+    "day": "2026-07-24",
+    "n": 245
+   },
+   {
+    "day": "2026-07-25",
+    "n": 1649
+   },
+   {
+    "day": "2026-07-26",
+    "n": 2826
+   },
+   {
+    "day": "2026-07-27",
+    "n": 1476
+   },
+   {
+    "day": "2026-07-28",
+    "n": 796
+   },
+   {
+    "day": "2026-07-29",
+    "n": 362
+   },
+   {
+    "day": "2026-07-30",
+    "n": 350
+   },
+   {
+    "day": "2026-07-31",
+    "n": 296
+   },
+   {
+    "day": "2026-08-01",
+    "n": 358
+   },
+   {
+    "day": "2026-08-02",
+    "n": 477
+   },
+   {
+    "day": "2026-08-03",
+    "n": 687
+   },
+   {
+    "day": "2026-08-04",
+    "n": 710
+   },
+   {
+    "day": "2026-08-05",
+    "n": 385
+   },
+   {
+    "day": "2026-08-06",
+    "n": 50
+   },
+   {
+    "day": "2026-08-07",
+    "n": 821
+   },
+   {
+    "day": "2026-08-08",
+    "n": 1094
+   },
+   {
+    "day": "2026-08-09",
+    "n": 170
+   },
+   {
+    "day": "2026-08-10",
+    "n": 930
+   },
+   {
+    "day": "2026-08-11",
+    "n": 855
+   },
+   {
+    "day": "2026-08-12",
+    "n": 1763
+   },
+   {
+    "day": "2026-08-13",
+    "n": 319
+   },
+   {
+    "day": "2026-08-14",
+    "n": 0
+   },
+   {
+    "day": "2026-08-15",
+    "n": 288
+   },
+   {
+    "day": "2026-08-16",
+    "n": 85
+   },
+   {
+    "day": "2026-08-17",
+    "n": 258
+   },
+   {
+    "day": "2026-08-18",
+    "n": 927
+   },
+   {
+    "day": "2026-08-19",
+    "n": 957
+   },
+   {
+    "day": "2026-08-20",
+    "n": 3084
+   },
+   {
+    "day": "2026-08-21",
+    "n": 651
+   },
+   {
+    "day": "2026-08-22",
+    "n": 1588
+   },
+   {
+    "day": "2026-08-23",
+    "n": 1066
+   },
+   {
+    "day": "2026-08-24",
+    "n": 786
+   },
+   {
+    "day": "2026-08-25",
+    "n": 2005
+   },
+   {
+    "day": "2026-08-26",
+    "n": 777
+   },
+   {
+    "day": "2026-08-27",
+    "n": 811
+   },
+   {
+    "day": "2026-08-28",
+    "n": 1672
+   },
+   {
+    "day": "2026-08-29",
+    "n": 1114
+   },
+   {
+    "day": "2026-08-30",
+    "n": 2045
+   },
+   {
+    "day": "2026-08-31",
+    "n": 601
+   },
+   {
+    "day": "2026-09-01",
+    "n": 690
+   },
+   {
+    "day": "2026-09-02",
+    "n": 0
+   },
+   {
+    "day": "2026-09-03",
+    "n": 0
+   },
+   {
+    "day": "2026-09-04",
+    "n": 820
+   },
+   {
+    "day": "2026-09-05",
+    "n": 662
+   },
+   {
+    "day": "2026-09-06",
+    "n": 1468
+   },
+   {
+    "day": "2026-09-07",
+    "n": 0
+   },
+   {
+    "day": "2026-09-08",
+    "n": 0
+   },
+   {
+    "day": "2026-09-09",
+    "n": 1008
+   },
+   {
+    "day": "2026-09-10",
+    "n": 1120
+   },
+   {
+    "day": "2026-09-11",
+    "n": 1039
+   },
+   {
+    "day": "2026-09-12",
+    "n": 2712
+   },
+   {
+    "day": "2026-09-13",
+    "n": 816
+   },
+   {
+    "day": "2026-09-14",
+    "n": 1082
+   },
+   {
+    "day": "2026-09-15",
+    "n": 0
+   },
+   {
+    "day": "2026-09-16",
+    "n": 374
+   },
+   {
+    "day": "2026-09-17",
+    "n": 0
+   },
+   {
+    "day": "2026-09-18",
+    "n": 1844
+   },
+   {
+    "day": "2026-09-19",
+    "n": 1553
+   },
+   {
+    "day": "2026-09-20",
+    "n": 904
+   },
+   {
+    "day": "2026-09-21",
+    "n": 394
+   },
+   {
+    "day": "2026-09-22",
+    "n": 1036
+   },
+   {
+    "day": "2026-09-23",
+    "n": 699
+   },
+   {
+    "day": "2026-09-24",
+    "n": 599
+   }
+  ],
+  "last30": 25840
+ },
+ "github": {
+  "darioStars": 547,
+  "stars": 571,
+  "publicRepos": 10,
+  "feed": [
+   {
+    "at": "2026-09-26T18:37:49Z",
+    "repo": "askalf/dario",
+    "kind": "push",
+    "text": "pushed to master"
+   },
+   {
+    "at": "2026-09-26T02:44:22Z",
+    "repo": "askalf/dario",
+    "kind": "push",
+    "text": "pushed to master"
+   },
+   {
+    "at": "2026-09-26T02:34:04Z",
+    "repo": "askalf/redstamp",
+    "kind": "push",
+    "text": "pushed to master"
+   },
+   {
+    "at": "2026-09-26T02:01:35Z",
+    "repo": "askalf/amnesia",
+    "kind": "push",
+    "text": "pushed to main"
+   },
+   {
+    "at": "2026-09-26T01:59:39Z",
+    "repo": "askalf/truecopy",
+    "kind": "push",
+    "text": "pushed to master"
+   },
+   {
+    "at": "2026-09-26T01:59:33Z",
+    "repo": "askalf/amnesia",
+    "kind": "push",
+    "text": "pushed to ci/scorecard-comment"
+   },
+   {
+    "at": "2026-09-26T01:59:10Z",
+    "repo": "askalf/plumbline",
+    "kind": "push",
+    "text": "pushed to ci/scorecard-comment"
+   }
+  ],
+  "perDay": [
+   {
+    "day": "2026-09-13",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-14",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-15",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-16",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-17",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-18",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-19",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-20",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-21",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-22",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-23",
+    "n": 0,
+    "covered": false
+   },
+   {
+    "day": "2026-09-24",
+    "n": 11,
+    "covered": false
+   },
+   {
+    "day": "2026-09-25",
+    "n": 323,
+    "covered": false
+   },
+   {
+    "day": "2026-09-26",
+    "n": 43,
+    "covered": true
+   }
+  ],
+  "since": "2026-09-25T02:11:08Z",
+  "lastEventId": "22248268695",
+  "inReview": [
+   {
+    "repo": "ossf/scorecard",
+    "number": 5239,
+    "title": ":bug: Code-Review: don't treat a Prow label as approval for self-merged PRs"
+   },
+   {
+    "repo": "microsoft/RD-Agent",
+    "number": 1502,
+    "title": "fix: return each analyzed error once in analyze_error"
+   },
+   {
+    "repo": "krillinai/OpenCreator",
+    "number": 333,
+    "title": "fix(subtitle): tolerate LLM JSON with conversational text and trailing commas"
+   },
+   {
+    "repo": "cvat-ai/cvat",
+    "number": 11241,
+    "title": "Fix lost track merge in task annotations with overlapping jobs"
+   },
+   {
+    "repo": "stoplightio/elements",
+    "number": 2984,
+    "title": "fix: use --data-binary in cURL sample for application/octet-stream body"
+   },
+   {
+    "repo": "NginxProxyManager/nginx-proxy-manager",
+    "number": 5892,
+    "title": "Stop browsers autofilling Access List authorization fields"
+   },
+   {
+    "repo": "EKKOLearnAI/ekko-studio",
+    "number": 3180,
+    "title": "fix: report bridge approval outcome on approval.resolved"
+   },
+   {
+    "repo": "yilewang/llm-for-zotero",
+    "number": 480,
+    "title": "fix(quotes): a re-anchored quote drops the page and section of the chunk it left"
+   },
+   {
+    "repo": "jbetancur/react-data-table-component",
+    "number": 1394,
+    "title": "fix(a11y): point pinned scrollbar aria-controls at the scroll container's actual id"
+   },
+   {
+    "repo": "facebook/astryx",
+    "number": 6426,
+    "title": "fix(cli): stop citing a Babel example app as the SWC StyleX setup"
+   },
+   {
+    "repo": "goauthentik/authentik",
+    "number": 26402,
+    "title": "blueprints: re-apply when a file referenced by !File changes"
+   },
+   {
+    "repo": "redis/ioredis",
+    "number": 2196,
+    "title": "fix: keep subscriber mode while other channel kinds remain subscribed"
+   },
+   {
+    "repo": "reactjs/react-docgen",
+    "number": 1139,
+    "title": "fix: detect useCallback methods in imperative handles"
+   },
+   {
+    "repo": "reduxjs/redux-devtools",
+    "number": 2122,
+    "title": "fix(extension): accept sanitizers typed with store state and action"
+   },
+   {
+    "repo": "UsefulSoftwareCo/executor",
+    "number": 2041,
+    "title": "fix(selfhost): fetch SSO UserInfo for thin ID tokens"
+   },
+   {
+    "repo": "anthropics/claude-code-action",
+    "number": 1847,
+    "title": "fix(sanitizer): preserve printable Unicode entities"
+   },
+   {
+    "repo": "tursodatabase/turso",
+    "number": 9021,
+    "title": "core/vdbe: do not re-decide trigger constraint errors at the frame boundary"
+   },
+   {
+    "repo": "generalaction/emdash",
+    "number": 3205,
+    "title": "fix(git): report unavailable credential proxy"
+   },
+   {
+    "repo": "puppeteer/puppeteer",
+    "number": 15460,
+    "title": "fix(webdriver): handle continueWithAuth rejections"
+   },
+   {
+    "repo": "fathah/hermes-desktop",
+    "number": 976,
+    "title": "fix(wallet): trim zeros exposed by the 4-significant-digit cut"
+   },
+   {
+    "repo": "blacktop/ipsw",
+    "number": 1328,
+    "title": "fix(utils): keep product type variant suffix when sorting devices"
+   },
+   {
+    "repo": "electric-sql/pglite",
+    "number": 1108,
+    "title": "fix(live): deallocate the total count statement for windowed queries"
+   },
+   {
+    "repo": "obsidianmd/obsidian-clipper",
+    "number": 969,
+    "title": "Fix dropdown closing after save"
+   },
+   {
+    "repo": "northword/zotero-format-metadata",
+    "number": 453,
+    "title": "fix(correct-date-format): don't write an ISO date that drops parsed parts"
+   },
+   {
+    "repo": "actions/toolkit",
+    "number": 2496,
+    "title": "@actions/glob: honor explicit hashFiles roots outside the workspace"
+   },
+   {
+    "repo": "porsager/postgres",
+    "number": 1221,
+    "title": "Fix wrong helper selection when a keyword is followed by ( - fixes #701"
+   },
+   {
+    "repo": "actions/checkout",
+    "number": 2575,
+    "title": "Set the commit output when falling back to the REST API"
+   },
+   {
+    "repo": "github/advisory-database",
+    "number": 9528,
+    "title": "[GHSA-3jxr-9vmj-r5cp] Split the flat 3.0.0-5.0.7 range at the 3.x backport (3.0.3)"
+   },
+   {
+    "repo": "isaacs/node-tar",
+    "number": 464,
+    "title": "don't use an unsafe ino as a hardlink identity"
+   },
+   {
+    "repo": "brianc/node-postgres",
+    "number": 3784,
+    "title": "fix(pg-cloudflare): emit write errors that have no callback"
+   }
+  ]
+ },
+ "upstream": [
+  {
+   "owner": "nodejs",
+   "repo": "undici",
+   "prs": [
+    5827
+   ]
+  },
+  {
+   "owner": "huggingface",
+   "repo": "huggingface_hub",
+   "prs": [
+    4546,
+    4896
+   ]
+  },
+  {
+   "owner": "erigontech",
+   "repo": "erigon",
+   "prs": [
+    24022
+   ]
+  },
+  {
+   "owner": "github",
+   "repo": "advisory-database",
+   "prs": [
+    8824
+   ]
+  },
+  {
+   "owner": "securego",
+   "repo": "gosec",
+   "prs": [
+    1746
+   ]
+  },
+  {
+   "owner": "raycast",
+   "repo": "extensions",
+   "prs": [
+    31314
+   ]
+  },
+  {
+   "owner": "qax-os",
+   "repo": "excelize",
+   "prs": [
+    2402
+   ]
+  },
+  {
+   "owner": "getopenscreen",
+   "repo": "openscreen",
+   "prs": [
+    708
+   ]
+  },
+  {
+   "owner": "silverbulletmd",
+   "repo": "silverbullet",
+   "prs": [
+    2128
+   ]
+  },
+  {
+   "owner": "williamngan",
+   "repo": "pts",
+   "prs": [
+    228
+   ]
+  },
+  {
+   "owner": "NervJS",
+   "repo": "taro",
+   "prs": [
+    19506
+   ]
+  },
+  {
+   "owner": "lingui",
+   "repo": "js-lingui",
+   "prs": [
+    2677
+   ]
+  },
+  {
+   "owner": "oblien",
+   "repo": "openship",
+   "prs": [
+    945
+   ]
+  },
+  {
+   "owner": "nicolargo",
+   "repo": "glances",
+   "prs": [
+    3744
+   ]
+  },
+  {
+   "owner": "punkpeye",
+   "repo": "awesome-mcp-servers",
+   "prs": [
+    10332
+   ]
+  }
+ ]
+}

