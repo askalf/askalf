@@ -10,6 +10,7 @@ import {
   parseEnvFile, safePath, buildDiff, quoteIsGrounded, corpusOf, checkSubmission, finalVerdict,
   renderBody, verdictAtHead, runTool, runReview, buildBrief, REVIEWER_LOGIN, LIMITS, metaPhrase,
 } from './review.mjs';
+import { bumpCaller, REVIEW_WORKFLOW } from './pin.mjs';
 
 let pass = 0;
 let fail = 0;
@@ -342,6 +343,50 @@ console.log('\n  the reusable workflow');
   check('the job token is read-only', /permissions:\s*\n\s+contents: read\s*\n\s+pull-requests: read/.test(wf) && !/write/.test(wf.split('permissions:')[1] ?? ''));
   check('third-party actions are pinned by sha', [...wf.matchAll(/uses: ([^\s]+)/g)].every((m) => /@[0-9a-f]{40}$/.test(m[1])));
   check('nothing from the PR is interpolated into a run step', !/run:[^\n]*\$\{\{\s*github\.event\.pull_request\.(title|body|head\.ref)/.test(wf));
+}
+
+console.log('\n  pin bump');
+{
+  const NEW = 'c0ffee0000000000000000000000000000000001';
+  const OLD = '116935d3803fc5904d96efb56991b93539c1714c';
+  const job = (body) => `name: Redline\n\non:\n  pull_request:\n\njobs:\n  review:\n    if: github.event.pull_request.draft == false\n${body}`;
+  const uses = (sha) => `    uses: ${REVIEW_WORKFLOW}@${sha}  # main 2026-09-25, askalf/askalf#64\n`;
+  const pinnedTo = (y) => new RegExp(`uses: ${REVIEW_WORKFLOW}@${NEW} # main 2026-09-27, askalf/askalf#72\\n`).test(y);
+  const refs = (y) => [...y.matchAll(/redline-ref: (\S+)/g)].map((m) => m[1]);
+
+  const oldShape = job(`${uses(OLD)}    with:\n      runner-label: redline\n`);
+  const a = bumpCaller(oldShape, NEW, 'main 2026-09-27, askalf/askalf#72');
+  check('old shape: the pin moves', pinnedTo(a) && !a.includes(OLD));
+  check('old shape: redline-ref is added under with, at the same sha', a.includes(`    with:\n      redline-ref: ${NEW}\n      runner-label: redline\n`));
+
+  const newShape = job(`${uses(OLD)}    with:\n      runner-label: redline\n      redline-ref: ${OLD}\n`);
+  const b = bumpCaller(newShape, NEW, 'main 2026-09-27, askalf/askalf#72');
+  check('new shape: the pin and redline-ref both move, once each', pinnedTo(b) && refs(b).join() === NEW && !b.includes(OLD));
+  check('new shape: the other input stays', b.includes('      runner-label: redline\n'));
+  check('a second bump changes nothing', bumpCaller(b, NEW, 'main 2026-09-27, askalf/askalf#72') === b);
+
+  const withFirst = job(`    with:\n      runner-label: redline\n${uses(OLD)}`);
+  const c = bumpCaller(withFirst, NEW, 'main 2026-09-27, askalf/askalf#72');
+  check('with above uses: redline-ref still lands in it', c.includes(`    with:\n      redline-ref: ${NEW}\n      runner-label: redline\n`) && pinnedTo(c));
+
+  const noWith = job(uses(OLD));
+  const d = bumpCaller(noWith, NEW, 'main 2026-09-27, askalf/askalf#72');
+  check('no with block: one is added with redline-ref', d.includes(`@${NEW} # main 2026-09-27, askalf/askalf#72\n    with:\n      redline-ref: ${NEW}\n`));
+
+  const nextJob = job(`${uses(OLD)}    with:\n      runner-label: redline\n\n  other:\n    runs-on: x\n    with:\n      redline-ref: keep\n`);
+  const e = bumpCaller(nextJob, NEW, 'n');
+  check('another job\'s inputs are left alone', refs(e).join() === `${NEW},keep`);
+
+  check('a short or branch ref is refused', (() => { try { bumpCaller(oldShape, 'main'); return false; } catch { return true; } })()
+    && (() => { try { bumpCaller(oldShape, NEW.slice(0, 7)); return false; } catch { return true; } })());
+  check('a caller without the call is refused', (() => { try { bumpCaller('name: x\n', NEW); return false; } catch { return true; } })());
+
+  const own = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline.yml', import.meta.url)), 'utf8');
+  const f = bumpCaller(own, NEW, 'n');
+  check('this repo\'s own caller bumps cleanly', refs(f).join() === NEW && f.includes(`@${NEW} # n\n`) && f.split('\n').length === own.split('\n').length + 1);
+
+  const bump = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline-pin-bump.yml', import.meta.url)), 'utf8');
+  check('the bump workflow rewrites callers with pin.mjs', bump.includes('node scripts/redline/pin.mjs "$SHA" "$note"') && !/sed -E/.test(bump));
 }
 
 rmSync(root, { recursive: true, force: true });
