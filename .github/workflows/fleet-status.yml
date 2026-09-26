@@ -19,12 +19,18 @@ permissions: {}
 
 jobs:
   status:
+    # self-test is a required check and this job's verify lane reads it, so it runs after
+    # self-test settles (on PR #64 the two ran side by side and status won by ~10 s, reporting
+    # a check that had no result yet). !cancelled() keeps status running on the events where
+    # self-test is skipped, and when self-test fails: that failure is exactly what it reports.
+    needs: [self-test]
     # Fork PRs are not reviewed by the fleet, and their events carry a read-only token anyway.
     # issue_comment fires for issues too; only PR comments matter. The script re-checks both.
     if: >-
+      !cancelled() && (
       (github.event_name == 'issue_comment' && github.event.issue.pull_request != null) ||
       (github.event_name != 'issue_comment' && github.event_name != 'workflow_run' &&
-       github.event.pull_request.head.repo.full_name == github.repository)
+       github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
