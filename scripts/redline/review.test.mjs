@@ -11,6 +11,7 @@ import {
   renderBody, verdictAtHead, runTool, runReview, buildBrief, REVIEWER_LOGIN, LIMITS, metaPhrase,
   verdictRecord, verdictProblem, saveVerdict, VERDICT_VERSION,
 } from './review.mjs';
+import * as reviewModule from './review.mjs';
 import { bumpCaller, REVIEW_WORKFLOW } from './pin.mjs';
 
 let pass = 0;
@@ -285,6 +286,74 @@ console.log('\n  runReview');
   const { ctx, calls } = world({ turns: [() => undefined] });
   const e = await throws(() => runReview(ctx));
   check('a reply with no content array fails the run at once', e && /no message content/.test(e.message) && calls.model.length === 1);
+}
+
+console.log('\n  models that reject a forced tool_choice');
+{
+  const rejects = reviewModule.rejectsForcedToolChoice;
+  const has = typeof rejects === 'function';
+  check('rejectsForcedToolChoice is exported', has);
+  const yes = ['claude-fable-5-1', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-opus-5-5-20261001', 'claude-fable-5-1[1m]', 'Claude-Fable-5-1', 'claude-fable-5-2', 'claude-fable-6', 'claude-mythos-6-1', 'claude-opus-6'];
+  const no = ['claude-fable-5', 'claude-mythos-5', 'claude-opus-5', 'claude-opus-4-8', 'claude-opus-4-7', 'claude-sonnet-5', 'claude-haiku-4-5', 'claude-fable-5-20260101', 'gpt-5.6-terra', 'm', '', undefined];
+  check('Fable 5.1, Mythos 5.1, Opus 5.5 and later ids of those families reject it', has && yes.every((id) => rejects(id) === true));
+  check('Fable 5, Mythos 5, Opus 5, Opus 4.x, Sonnet, Haiku and unknown ids accept it', has && no.every((id) => rejects(id) === false));
+}
+const SUBMIT_TEXT = reviewModule.SUBMIT_REQUIRED ?? '\u0000no SUBMIT_REQUIRED export';
+const carriesSubmit = (msg) => JSON.stringify(msg?.content ?? '').includes(JSON.stringify(SUBMIT_TEXT).slice(1, -1));
+const forcedChoice = (b) => b.tool_choice?.type === 'tool' || b.tool_choice?.type === 'any';
+{
+  // claude-fable-5-1 at the force point: no forced tool_choice, the instruction in that turn's user content.
+  const { ctx, calls } = world({ turns: [(b) => (carriesSubmit(b.messages.at(-1)) ? submit(APPROVE) : use('redline_list', {}))] });
+  ctx.model = 'claude-fable-5-1';
+  const lines = [];
+  ctx.log = (l) => lines.push(l);
+  const r = await runReview(ctx).catch((e) => ({ error: e.message }));
+  const at = calls.model[LIMITS.forceSubmitAt - 1];
+  check('claude-fable-5-1: no request carries a forced tool_choice', r.verdict === 'APPROVE' && calls.model.every((b) => !forcedChoice(b)));
+  check(`claude-fable-5-1: turn ${LIMITS.forceSubmitAt} sends tool_choice auto, asks for redline_submit in its user content, and the model submits`,
+    calls.model.length === LIMITS.forceSubmitAt && at?.tool_choice?.type === 'auto' && carriesSubmit(at?.messages.at(-1)) && /redline_submit/.test(SUBMIT_TEXT));
+  check('claude-fable-5-1: no earlier turn carries the instruction', calls.model.slice(0, LIMITS.forceSubmitAt - 1).every((b) => !b.messages.some(carriesSubmit)));
+  check('claude-fable-5-1: the turn is logged as submit required, not forced',
+    lines.some((l) => l.startsWith(`turn ${LIMITS.forceSubmitAt} (submit required): redline_submit`)) && !lines.some((l) => l.includes('(forced)')));
+}
+{
+  // Every request is the previous one plus new turns: nothing the model already answered is edited.
+  const { ctx, calls } = world({ turns: [(b) => (b.messages.length > 2 * LIMITS.forceSubmitAt + 3 ? submit(APPROVE) : use('redline_read', { path: 'src/b.js' }))] });
+  ctx.model = 'claude-fable-5-1';
+  const r = await runReview(ctx).catch((e) => ({ error: e.message }));
+  const forcedResult = JSON.stringify(calls.model[LIMITS.forceSubmitAt].messages.at(-1));
+  const appendOnly = calls.model.every((b, i) => i === 0 || JSON.stringify(calls.model[i - 1].messages) === JSON.stringify(b.messages.slice(0, calls.model[i - 1].messages.length)));
+  check('claude-fable-5-1: a read past the force point is refused, the instruction repeats with it, and the history only grows',
+    r.verdict === 'APPROVE' && forcedResult.includes('read budget is spent') && !forcedResult.includes('export const token') && carriesSubmit(calls.model[LIMITS.forceSubmitAt].messages.at(-1)) && appendOnly);
+}
+{
+  // A model that accepts a forced choice keeps it.
+  const { ctx, calls } = world({ turns: [(b) => (b.tool_choice ? submit(APPROVE) : use('redline_list', {}))] });
+  ctx.model = 'claude-opus-5';
+  const r = await runReview(ctx).catch((e) => ({ error: e.message }));
+  check('claude-opus-5 is still forced to submit, with no added instruction',
+    r.verdict === 'APPROVE' && calls.model.length === LIMITS.forceSubmitAt && calls.model.at(-1).tool_choice?.name === 'redline_submit' && !calls.model.some((b) => b.messages.some(carriesSubmit)));
+}
+{
+  // Non-forcing path, a text answer at the force point: nudged, still asked for the submit, then it submits.
+  const { ctx, calls } = world({ turns: [(b) => {
+    if (!carriesSubmit(b.messages.at(-1))) return use('redline_list', {});
+    return b.messages.at(-2)?.role === 'assistant' && b.messages.at(-2).content[0]?.type === 'text' ? submit(APPROVE) : [{ type: 'text', text: 'Here is my review in prose.' }];
+  }] });
+  ctx.model = 'claude-fable-5-1';
+  const r = await runReview(ctx).catch((e) => ({ error: e.message }));
+  const after = calls.model.at(-1).messages.at(-1);
+  check('claude-fable-5-1: a text-only answer at the force point is nudged, asked again, and ends in a submit',
+    r.verdict === 'APPROVE' && calls.model.length === LIMITS.forceSubmitAt + 1 && typeof after.content === 'string'
+      && after.content.startsWith('That text was discarded') && carriesSubmit(after) && calls.model.every((b) => !forcedChoice(b)));
+}
+{
+  // Non-forcing path, text-only from the force point on: a clear failure, never a forced request.
+  const { ctx, calls } = world({ turns: [(b) => (carriesSubmit(b.messages.at(-1)) ? [{ type: 'text', text: 'No.' }] : use('redline_list', {}))] });
+  ctx.model = 'claude-fable-5-1';
+  const e = await throws(() => runReview(ctx));
+  check('claude-fable-5-1: text-only answers after the force point fail the run clearly',
+    e && /text-only answers in a row/.test(e.message) && calls.model.length === LIMITS.forceSubmitAt - 1 + LIMITS.textOnlyTurns && calls.model.every((b) => !forcedChoice(b)));
 }
 {
   const { ctx, calls } = world({ turns: [submit({ verdict: 'MAYBE', summary: 's', findings: [] }), submit(APPROVE)] });

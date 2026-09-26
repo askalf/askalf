@@ -21,7 +21,8 @@
 //     grounded finding fails closed with a note rather than approving.
 //   - Blocking findings force REQUEST_CHANGES whatever verdict the model named.
 //   - Turns, wall time, tool output and diff size are all bounded; near the end the model is
-//     forced to submit.
+//     forced to submit. A model that rejects a forced tool_choice (rejectsForcedToolChoice) is
+//     told in that turn's user content to submit, and every other tool call is refused.
 //   - A reply with no tool call is logged with its text, so the next failure explains itself.
 //     Three in a row end the run. An EMPTY reply (dario at its concurrency ceiling on 2026-09-25
 //     18:27Z answered five runs that way from turn 6 to 30) is not kept in the history, since an
@@ -60,6 +61,26 @@ export function metaPhrase(text) {
   return null;
 }
 export const DEFAULT_MODEL = 'claude-fable-5-1';
+
+// Claude Fable 5.1, Claude Mythos 5.1 and Claude Opus 5.5 answer a forced tool_choice (type "tool"
+// or "any") with 400 `tool_choice: type "tool" and "any" are not supported for this model.`, on
+// the Messages API, count_tokens and Batches alike. It is a restriction of those models, not of
+// thinking: Claude Fable 5, Claude Mythos 5, Claude Opus 5 and earlier accept a forced choice.
+// Later ids of the same families are taken to keep it. The API's migration path is tool_choice
+// auto with the required tool named in the prompt.
+const NO_FORCED_CHOICE_FROM = { fable: [5, 1], mythos: [5, 1], opus: [5, 5] };
+/** Whether the model rejects a forced tool_choice, from its id (`claude-fable-5-1`, `claude-opus-5-5-20261001`, ...). */
+export function rejectsForcedToolChoice(model) {
+  const m = /^claude-(fable|mythos|opus)-(\d+)(?:-(\d{1,2}))?(?![0-9])/.exec(String(model ?? '').trim().toLowerCase());
+  if (!m) return false;
+  const [floorMajor, floorMinor] = NO_FORCED_CHOICE_FROM[m[1]];
+  const major = Number(m[2]);
+  const minor = m[3] === undefined ? 0 : Number(m[3]);
+  return major > floorMajor || (major === floorMajor && minor >= floorMinor);
+}
+// Sent in the user turn at the force point when the model cannot be forced.
+export const SUBMIT_REQUIRED = 'The read budget is spent. Your next response must be a redline_submit tool call '
+  + 'with verdict, summary and findings, based on what you have read. Do not call any other tool and do not answer in text.';
 export const LIMITS = {
   diffChars: 180_000, bodyChars: 8_000, commitChars: 600, commits: 100,
   readLines: 400, readBytes: 64_000, listEntries: 400,
@@ -359,17 +380,34 @@ async function ghAll(ctx, path, max = 30) {
   return out;
 }
 
-async function callModel(ctx, system, messages, force) {
+async function callModel(ctx, system, messages, toolChoice) {
   const res = await withRetry(ctx, 'model', () => ctx.fetch(`${ctx.darioUrl.replace(/\/+$/, '')}/v1/messages`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': ctx.darioKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: ctx.model, max_tokens: LIMITS.maxTokens, system, messages, tools: TOOLS,
-      ...(force ? { tool_choice: { type: 'tool', name: 'redline_submit' } } : {}),
+      ...(toolChoice ? { tool_choice: toolChoice } : {}),
     }),
     signal: AbortSignal.timeout(LIMITS.modelTimeoutMs),
   }));
   return res.json();
+}
+
+/**
+ * Put SUBMIT_REQUIRED in the last user turn, once. That turn is the one about to be sent (the
+ * brief, a nudge or tool results), so no turn the model has already answered is edited: an empty
+ * reply resends the same request, which already carries it.
+ */
+export function askForSubmit(messages) {
+  const last = messages.at(-1);
+  if (!last || last.role !== 'user') return;
+  if (typeof last.content === 'string') {
+    if (!last.content.includes(SUBMIT_REQUIRED)) last.content = `${last.content}\n\n${SUBMIT_REQUIRED}`;
+    return;
+  }
+  if (Array.isArray(last.content) && !last.content.some((b) => b.type === 'text' && b.text === SUBMIT_REQUIRED)) {
+    last.content.push({ type: 'text', text: SUBMIT_REQUIRED });
+  }
 }
 
 export function buildBrief(pr, files, commits, diff) {
@@ -418,15 +456,17 @@ export async function runReview(ctx) {
   // this script and the model drops tool_choice, so the forced turns never forced anything.
   const TEXT_ONLY_NUDGE = 'That text was discarded: a review is accepted only as a redline_submit tool call. '
     + 'Call redline_submit now with verdict, summary and findings; do not answer in text again.';
+  const canForce = !rejectsForcedToolChoice(ctx.model);
   for (let turn = 1; turn <= LIMITS.turns && !review; turn++) {
     const force = turn >= LIMITS.forceSubmitAt || ctx.now() - started > LIMITS.timeMs;
-    const res = await callModel(ctx, ctx.system, messages, force);
+    if (force && !canForce) askForSubmit(messages);
+    const res = await callModel(ctx, ctx.system, messages, !force ? null : canForce ? { type: 'tool', name: 'redline_submit' } : { type: 'auto' });
     if (!Array.isArray(res?.content)) {
       throw new Error(`the model returned no message content: ${JSON.stringify(res ?? null).slice(0, 300)}`);
     }
     const uses = res.content.filter((b) => b.type === 'tool_use');
     const text = res.content.filter((b) => b.type === 'text').map((b) => String(b.text ?? '')).join(' ').replace(/\s+/g, ' ').trim();
-    ctx.log?.(`turn ${turn}${force ? ' (forced)' : ''}: ${uses.map((u) => u.name).join(', ') || 'no tool call'}; stop=${res.stop_reason ?? '-'}`
+    ctx.log?.(`turn ${turn}${force ? (canForce ? ' (forced)' : ' (submit required)') : ''}: ${uses.map((u) => u.name).join(', ') || 'no tool call'}; stop=${res.stop_reason ?? '-'}`
       + (uses.length ? '' : ` text=${JSON.stringify(text.slice(0, 200))}`));
     if (!uses.length) {
       textOnly++;
