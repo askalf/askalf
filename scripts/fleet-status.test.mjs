@@ -261,11 +261,10 @@ console.log('\n  required CI is the verification where the base branch requires 
 }
 
 {
-  // This copy of fleet-status.yml has no workflow_run trigger: the branch rules require no checks,
-  // so no CI run can move a lane, and the workflows beside it are not listed. A copy that does list
-  // workflows names every one that runs on pull_request or pull_request_target (a
-  // pull_request_target run's checks land on the PR head too), so a required check it produces
-  // refreshes the lanes when it finishes.
+  // fleet-status.yml's workflow_run list names every workflow that runs on pull_request or
+  // pull_request_target, so a required check it produces (here self-test, in its own workflow)
+  // refreshes the lanes when it finishes. A pull_request_target run's checks land on the PR head
+  // too (its head_sha is the PR's), so the status job accepts workflow_run events from both.
   const dir = join(fileURLToPath(new URL('..', import.meta.url)), '.github', 'workflows');
   const own = readFileSync(join(dir, 'fleet-status.yml'), 'utf8');
   const workflowRunList = (y) => {
@@ -291,8 +290,17 @@ console.log('\n  required CI is the verification where the base branch requires 
   }).map(([name]) => name);
   const beside = readdirSync(dir).filter((x) => /\.ya?ml$/.test(x) && x !== 'fleet-status.yml')
     .map((f) => { const y = readFileSync(join(dir, f), 'utf8'); return [workflowName(f, y), y]; });
-  check('fleet-status.yml has no workflow_run trigger', !/^\s*workflow_run:/m.test(own) && workflowRunList(own) === null);
+  check('fleet-status.yml lists workflows to refresh on', (workflowRunList(own) ?? []).length > 0);
   check('the workflows beside it agree with it', misfits(workflowRunList(own), beside).length === 0);
+  check('the status job accepts workflow_run events from pull_request and pull_request_target runs',
+    /\["pull_request","pull_request_target"\]/.test(own));
+  const self = beside.find(([name]) => name === 'Fleet status self-test')?.[1] ?? '';
+  check('the self-test workflow is listed', (workflowRunList(own) ?? []).includes('Fleet status self-test'));
+  check('the self-test workflow runs only on pull_request', /^\s+pull_request:/m.test(onBlock(self))
+    && !/\b(pull_request_target|pull_request_review|issue_comment|workflow_run|workflow_dispatch)\b/.test(onBlock(self)));
+  // Each workflow runs one job on each event it fires on, so none shows a skipped check.
+  const jobs = (y) => [...y.slice(y.search(/^jobs:/m)).matchAll(/^  ([\w-]+):/gm)].map((m) => m[1]);
+  check('fleet-status.yml runs only the status job', jobs(own).join() === 'status' && !/\bworkflow_dispatch\b/.test(onBlock(own)));
   const onPr = (name) => `name: ${name}\non:\n  pull_request:\n    types: [opened]\njobs: {}\n`;
   const onTarget = (name) => `name: ${name}\non:\n  pull_request_target:\njobs: {}\n`;
   check('no list: a pull_request workflow beside it is not a misfit', misfits(null, [['review', onPr('review')], ['pulse', onPr('pulse')]]).length === 0);
@@ -303,7 +311,7 @@ console.log('\n  required CI is the verification where the base branch requires 
 
 {
   // backfill pages past one page of open PRs and stops loudly at its cap.
-  const wf = readFileSync(join(fileURLToPath(new URL('..', import.meta.url)), '.github', 'workflows', 'fleet-status.yml'), 'utf8');
+  const wf = readFileSync(join(fileURLToPath(new URL('..', import.meta.url)), '.github', 'workflows', 'fleet-status-backfill.yml'), 'utf8');
   const limit = Number(/gh pr list --repo "\$REPO" --state open --limit (\d+)/.exec(wf)?.[1] ?? 0);
   check('backfill reads more than one page of open PRs', limit > 100);
   check('backfill fails at its cap instead of skipping PRs', new RegExp(`-ge ${limit}\\b`).test(wf) && /::error::/.test(wf));
