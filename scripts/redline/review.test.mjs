@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import {
   parseEnvFile, safePath, buildDiff, quoteIsGrounded, corpusOf, checkSubmission, finalVerdict,
   renderBody, verdictAtHead, runTool, runReview, buildBrief, REVIEWER_LOGIN, LIMITS, metaPhrase,
+  verdictRecord, verdictProblem, saveVerdict, VERDICT_VERSION,
 } from './review.mjs';
 import { bumpCaller, REVIEW_WORKFLOW } from './pin.mjs';
 
@@ -301,11 +302,91 @@ console.log('\n  runReview');
   check('a dry run returns the verdict and body and posts nothing', r.outcome === 'dry-run' && r.verdict === 'REQUEST_CHANGES' && r.body.includes('> +export const token') && calls.posted.length === 0);
 }
 
+console.log('\n  the verdict file');
+{
+  const { ctx, calls } = world({ turns: [submit(APPROVE)] });
+  const r = await runReview(ctx);
+  const v = r.record;
+  check('with a reviewer token: posted, and the record says posted: true', r.outcome === 'posted' && calls.posted.length === 1 && v?.posted === true);
+  check('the record is the posted review exactly', v.event === calls.posted[0].event && v.body === calls.posted[0].body && v.head_sha === calls.posted[0].commit_id);
+  check('the record names the repo, PR and head', v.version === VERDICT_VERSION && v.repo === 'askalf/r' && v.pr === 7 && v.head_sha === HEAD);
+  check('the record passes the schema', verdictProblem(v) === null && Array.isArray(v.comments) && v.comments.length === 0);
+  check('the record has exactly the contract keys', Object.keys(v).sort().join() === 'body,comments,event,head_sha,posted,pr,repo,version');
+}
+{
+  const { ctx, calls } = world({ turns: [submit(APPROVE)] });
+  ctx.reviewToken = '';
+  const r = await runReview(ctx);
+  check('without a reviewer token: nothing is posted', r.outcome === 'unposted' && calls.posted.length === 0);
+  check('without a reviewer token: the record says posted: false', r.record?.posted === false && r.record.event === 'APPROVE' && verdictProblem(r.record) === null);
+  check('without a reviewer token: the verdict still decides the exit', r.verdict === 'APPROVE');
+  check('the unposted body is the same review body', r.record.body.startsWith('**Verdict: approve.**') && r.record.body.includes(`<!-- redline:head=${HEAD} -->`));
+}
+{
+  const { ctx, calls } = world({ turns: [submit({ ...APPROVE, findings: [GOOD] })] });
+  ctx.reviewToken = '';
+  const r = await runReview(ctx);
+  check('without a reviewer token: request changes is recorded, not posted', r.verdict === 'REQUEST_CHANGES' && r.record.event === 'REQUEST_CHANGES'
+    && r.record.posted === false && r.record.body.includes('> +export const token') && calls.posted.length === 0);
+}
+{
+  const { ctx } = world({ heads: [HEAD, OTHER], turns: [submit(APPROVE)] });
+  ctx.reviewToken = '';
+  const r = await runReview(ctx);
+  check('a head that moves during the review leaves no record', r.outcome === 'skipped' && r.record === undefined);
+  const e = world({ reviews: [{ user: { login: REVIEWER_LOGIN }, state: 'APPROVED', commit_id: HEAD, html_url: 'old' }], turns: [submit(APPROVE)] });
+  e.ctx.reviewToken = '';
+  const x = await runReview(e.ctx);
+  check('a verdict already at the head leaves no record', x.outcome === 'existing' && x.record === undefined);
+  const d = world({ turns: [submit(APPROVE)] });
+  d.ctx.dryRun = true;
+  check('a dry run leaves no record', (await runReview(d.ctx)).record === undefined);
+}
+{
+  const good = verdictRecord({ repo: 'askalf/r', pr: 7, headSha: HEAD, event: 'COMMENT', body: 'b', posted: false });
+  check('COMMENT is a valid event', verdictProblem(good) === null);
+  check('posted is coerced to a boolean', verdictRecord({ repo: 'a/b', pr: 1, headSha: HEAD, event: 'APPROVE', body: 'b' }).posted === false);
+  const bad = (patch) => verdictProblem({ ...good, ...patch });
+  check('schema: version must be 1', /version/.test(bad({ version: 2 })) && /version/.test(bad({ version: '1' })));
+  check('schema: repo must be owner/name', /repo/.test(bad({ repo: 'askalf' })) && /repo/.test(bad({ repo: 'a/b/c' })) && /repo/.test(bad({ repo: 7 })));
+  check('schema: pr must be a positive integer', /pr/.test(bad({ pr: '7' })) && /pr/.test(bad({ pr: 0 })) && /pr/.test(bad({ pr: 1.5 })));
+  check('schema: head_sha must be a full lowercase sha', /head_sha/.test(bad({ head_sha: HEAD.slice(0, 7) })) && /head_sha/.test(bad({ head_sha: HEAD.toUpperCase() })));
+  check('schema: event must be a review event', /event/.test(bad({ event: 'APPROVED' })) && /event/.test(bad({ event: 'DISMISS' })));
+  check('schema: body is required', /body/.test(bad({ body: ' ' })) && /body/.test(bad({ body: null })));
+  check('schema: comments must be an array of path, line, side, body', /comments/.test(bad({ comments: {} }))
+    && /comment 1/.test(bad({ comments: [{ path: 'a', line: 1, side: 'UP', body: 'x' }] }))
+    && /comment 1/.test(bad({ comments: [{ path: 'a', side: 'RIGHT', body: 'x' }] }))
+    && bad({ comments: [{ path: 'a', line: 1, side: 'RIGHT', body: 'x' }] }) === null);
+  check('schema: posted must be a boolean', /posted/.test(bad({ posted: 'false' })) && /posted/.test(bad({ posted: undefined })));
+  check('schema: not an object', /object/.test(verdictProblem(null)) && /object/.test(verdictProblem([good])));
+  const dir = mkdtempSync(join(tmpdir(), 'redline-verdict-'));
+  const file = join(dir, 'nested', 'verdict.json');
+  saveVerdict(file, good);
+  const back = JSON.parse(readFileSync(file, 'utf8'));
+  check('saveVerdict creates the directory and the JSON reads back', JSON.stringify(back) === JSON.stringify(good) && readFileSync(file, 'utf8').endsWith('}\n'));
+  rmSync(dir, { recursive: true, force: true });
+}
+
 console.log('\n  CLI');
 {
   const script = fileURLToPath(new URL('./review.mjs', import.meta.url));
   const r = spawnSync(process.execPath, [script], { env: { PATH: process.env.PATH }, encoding: 'utf8' });
   check('missing configuration exits 2 with an annotation', r.status === 2 && r.stderr.includes('::error::REDLINE_ENV_FILE is not set'));
+  const dir = mkdtempSync(join(tmpdir(), 'redline-cli-'));
+  const envFile = join(dir, 'redline.env');
+  const stale = join(dir, 'redline-verdict', 'verdict.json');
+  writeFileSync(envFile, 'DARIO_URL=http://127.0.0.1:9\n');
+  mkdirSync(join(dir, 'redline-verdict'));
+  writeFileSync(stale, '{"stale":true}\n');
+  const s = spawnSync(process.execPath, [script], {
+    env: { PATH: process.env.PATH, REDLINE_ENV_FILE: envFile, REDLINE_VERDICT_FILE: stale, REPO: 'askalf/r', PR: '7', HEAD_SHA: HEAD, CHECKOUT: dir, GH_READ_TOKEN: 'read' },
+    encoding: 'utf8',
+  });
+  check('a reviewer token is optional: the next missing key is the model key', s.status === 2 && s.stderr.includes('::error::DARIO_API_KEY is not set') && !/GITHUB_PAT_REVIEWER|REDLINE_GITHUB_TOKEN/.test(s.stderr));
+  let staleLeft = true;
+  try { readFileSync(stale); } catch { staleLeft = false; }
+  check('a verdict file left by an earlier run is removed before the review starts', !staleLeft);
+  rmSync(dir, { recursive: true, force: true });
 }
 
 console.log('\n  the reusable workflow');
@@ -340,9 +421,21 @@ console.log('\n  the reusable workflow');
   check('it runs on the caller\'s self-hosted runner label', /runs-on: \[self-hosted, "\$\{\{ inputs\.runner-label \}\}"\]/.test(wf));
   check('it refuses fork PRs itself', wf.includes('github.event.pull_request.head.repo.full_name == github.repository'));
   check('the PR checkout keeps no credentials', (wf.match(/persist-credentials: false/g) ?? []).length === 2);
-  check('the job token is read-only', /permissions:\s*\n\s+contents: read\s*\n\s+pull-requests: read/.test(wf) && !/write/.test(wf.split('permissions:')[1] ?? ''));
+  const permBlock = /\npermissions:\n((?: {2}.*\n)+)/.exec(wf)?.[1] ?? '';
+  check('the job token is read-only', permBlock === '  contents: read\n  pull-requests: read\n' && (wf.match(/^\s*permissions:/gm) ?? []).length === 1);
   check('third-party actions are pinned by sha', [...wf.matchAll(/uses: ([^\s]+)/g)].every((m) => /@[0-9a-f]{40}$/.test(m[1])));
-  check('nothing from the PR is interpolated into a run step', !/run:[^\n]*\$\{\{\s*github\.event\.pull_request\.(title|body|head\.ref)/.test(wf));
+  const reviewAt = stepNamed('Review');
+  const uploadAt = stepNamed('Upload the verdict');
+  const cleanAt = stepNamed('Remove the checkouts');
+  const upload = steps[uploadAt] ?? '';
+  check('the review step names the verdict file in the workspace', (steps[reviewAt] ?? '').includes('REDLINE_VERDICT_FILE: ${{ github.workspace }}/redline-verdict/verdict.json'));
+  check('the verdict is uploaded after the review, before the cleanup', reviewAt >= 0 && uploadAt === reviewAt + 1 && cleanAt === uploadAt + 1);
+  check('the upload runs on pass or fail, only when there is a file', upload.includes("if: always() && hashFiles('redline-verdict/verdict.json') != ''"));
+  check('the upload is the pinned upload-artifact, as redline-verdict, short-lived',
+    /uses: actions\/upload-artifact@[0-9a-f]{40} # v4\./.test(upload) && upload.includes('name: redline-verdict\n')
+    && upload.includes('path: redline-verdict/verdict.json\n') && /retention-days: [1-7]\n/.test(upload));
+  check('the cleanup removes the verdict too', /run: rm -rf pr \.redline redline-verdict\s*$/.test(steps[cleanAt] ?? ''));
+  check('nothing from the PR is interpolated into a run step',!/run:[^\n]*\$\{\{\s*github\.event\.pull_request\.(title|body|head\.ref)/.test(wf));
 }
 
 console.log('\n  pin bump');
@@ -383,7 +476,7 @@ console.log('\n  pin bump');
 
   const own = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline.yml', import.meta.url)), 'utf8');
   const f = bumpCaller(own, NEW, 'n');
-  check('this repo\'s own caller bumps cleanly', refs(f).join() === NEW && f.includes(`@${NEW} # n\n`) && f.split('\n').length === own.split('\n').length + 1);
+  check('this repo\'s own caller bumps cleanly', refs(f).join() === NEW && f.includes(`@${NEW} # n\n`) && f.split('\n').length === own.split('\n').length + (refs(own).length ? 0 : 1));
 
   const bump = readFileSync(fileURLToPath(new URL('../../.github/workflows/redline-pin-bump.yml', import.meta.url)), 'utf8');
   check('the bump workflow rewrites callers with pin.mjs', bump.includes('node scripts/redline/pin.mjs "$SHA" "$note"') && !/sed -E/.test(bump));
