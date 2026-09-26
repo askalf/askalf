@@ -1,0 +1,28 @@
+# Runs the fleet-status script's tests on the PR's own code, read-only.
+# self-test is a required check on the default branch, so it runs on every pull request: a path
+# filter would leave it pending forever on a PR that touches none of the paths.
+name: Fleet status self-test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions: {}
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: askalf/checkout-with-retry@115a6407547e9711edbc2e915838d495cad9583f  # v1.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Test the lane rules
+        run: node scripts/fleet-status.test.mjs
