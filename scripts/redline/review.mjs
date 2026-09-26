@@ -33,7 +33,25 @@ import { join, resolve, relative, isAbsolute, sep } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
 export const REVIEWER_LOGIN = 'sprayberry-redline';
-export const HEADER = 'Automated review from the Sprayberry Labs fleet code reviewer.\n\nReviewed by the gating lane (gating review).';
+
+// The review is public text on a public repository. It talks about the change and never about the
+// reviewer's own machinery. Until 2026-09-26 every review opened with a "fleet code reviewer /
+// gating lane" header, and 82 approvals since the CI rollout recited the checks that found nothing
+// ("contains no AI attribution; the PR text reads as a human-written triage"). These phrases are
+// that narration. A submission carrying one is bounced back to the model with the phrase named, so
+// the fix happens before anything is posted. Deliberately narrow: words with legitimate uses in the
+// repositories under review (attribution in truecopy, LLM and fleet in dario) are left to the prompt.
+export const META_PHRASES = [
+  /\bAI[- ]attribution\b/i, /\bhuman[- ]written\b/i, /\breads?[- ]as[- ]generated\b/i,
+  /\bAI[- ]generated\b/i, /\bgenerated (?:by|with) (?:an? )?(?:AI|LLM|model)\b/i,
+  /\bgating (?:lane|review)\b/i, /\bfleet code reviewer\b/i, /\bautomated review from\b/i,
+  /\bthis prompt\b/i, /\bthese rules\b/i, /\bas an AI\b/i,
+];
+/** The first machinery phrase in a piece of review prose, or null. */
+export function metaPhrase(text) {
+  for (const re of META_PHRASES) { const m = re.exec(String(text ?? '')); if (m) return m[0]; }
+  return null;
+}
 export const DEFAULT_MODEL = 'claude-fable-5-1';
 export const LIMITS = {
   diffChars: 180_000, bodyChars: 8_000, commitChars: 600, commits: 100,
@@ -134,6 +152,15 @@ export function checkSubmission(input) {
     if (!f || (f.severity !== 'blocking' && f.severity !== 'minor')) return { error: `finding ${i + 1}: severity must be blocking or minor` };
     for (const k of ['file', 'quote', 'problem']) if (typeof f[k] !== 'string' || !f[k].trim()) return { error: `finding ${i + 1}: ${k} is required` };
   }
+  // Prose only: the quote is copied from the diff and the rule slug is a machine field.
+  const prose = [['summary', input.summary]];
+  findings.forEach((f, i) => { prose.push([`finding ${i + 1} problem`, f.problem]); if (f.suggestion) prose.push([`finding ${i + 1} suggestion`, f.suggestion]); });
+  for (const [where, text] of prose) {
+    const hit = metaPhrase(text);
+    if (hit) {
+      return { error: `${where} says "${hit}". The review is public and describes only the change: quote the text or code, say what is wrong with it (the claim the code does not support, the filler sentence, the narrated history), and never mention attribution, generation, the reviewer, its rules or lanes. Rewrite and call redline_submit again.` };
+    }
+  }
   const rule = typeof input.rule === 'string' && /^[a-z0-9-]{1,40}$/.test(input.rule) ? input.rule : 'none';
   return { review: { verdict: input.verdict, summary: input.summary.trim(), findings, rule } };
 }
@@ -151,7 +178,7 @@ export function finalVerdict(review) {
 const fence = (s) => { const t = String(s); const n = Math.max(3, ...(t.match(/`+/g) ?? []).map((m) => m.length + 1)); return '`'.repeat(n); };
 
 export function renderBody(review, verdict, headSha, notes = []) {
-  const parts = [HEADER, `**Verdict: ${verdict === 'APPROVE' ? 'approve' : 'request changes'}.** ${review.summary}`];
+  const parts = [`**Verdict: ${verdict === 'APPROVE' ? 'approve' : 'request changes'}.** ${review.summary}`];
   const blocking = review.findings.filter((f) => f.severity === 'blocking');
   const minor = review.findings.filter((f) => f.severity === 'minor');
   blocking.forEach((f, i) => {
