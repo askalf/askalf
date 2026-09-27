@@ -1,5 +1,5 @@
-# Runs Redline's tests on any change to the review script, its reusable workflow, this
-# repo's caller, or the pin bump workflow, all of which the tests read.
+# Runs Redline's tests on any change to the review or fix scripts, their reusable workflows, this
+# repo's callers, or the pin bump workflow, all of which the tests read.
 # The model and GitHub are stubbed; no credentials are used.
 name: Redline self-test
 
@@ -8,9 +8,11 @@ on:
     paths:
       - scripts/redline/**
       - .github/workflows/redline-review.yml
+      - .github/workflows/redline-fix-run.yml
       - .github/workflows/redline-self-test.yml
       - .github/workflows/redline-pin-bump.yml
       - .github/workflows/redline.yml
+      - .github/workflows/redline-fix.yml
 
 permissions:
   contents: read
@@ -27,3 +29,4 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/redline/review.test.mjs
+      - run: node scripts/redline/fix.test.mjs
