@@ -347,7 +347,8 @@ export function runTool(root, name, input = {}) {
 
 // ---------- GitHub and the model ----------
 
-async function withRetry(ctx, what, fn) {
+// Shared with fix.mjs: the same retry, GitHub read and model call serve the review and the fix.
+export async function withRetry(ctx, what, fn) {
   const waits = [5_000, 15_000, 45_000];
   for (let attempt = 0; ; attempt++) {
     let res;
@@ -361,7 +362,7 @@ async function withRetry(ctx, what, fn) {
   }
 }
 
-function gh(ctx, path, { token = ctx.readToken, method = 'GET', body } = {}) {
+export function gh(ctx, path, { token = ctx.readToken, method = 'GET', body } = {}) {
   return withRetry(ctx, `GitHub ${method} ${path.split('?')[0]}`, () => ctx.fetch(`https://api.github.com${path}`, {
     method,
     headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', ...(body ? { 'content-type': 'application/json' } : {}) },
@@ -370,7 +371,7 @@ function gh(ctx, path, { token = ctx.readToken, method = 'GET', body } = {}) {
   })).then((r) => r.json());
 }
 
-async function ghAll(ctx, path, max = 30) {
+export async function ghAll(ctx, path, max = 30) {
   const out = [];
   for (let page = 1; page <= max; page++) {
     const rows = await gh(ctx, `${path}${path.includes('?') ? '&' : '?'}per_page=100&page=${page}`);
@@ -380,17 +381,22 @@ async function ghAll(ctx, path, max = 30) {
   return out;
 }
 
-async function callModel(ctx, system, messages, toolChoice) {
+/** One Messages call through dario. The key travels in a header, never in argv or a URL. */
+export async function callModelWith(ctx, { system, messages, tools, toolChoice, maxTokens = LIMITS.maxTokens, timeoutMs = LIMITS.modelTimeoutMs }) {
   const res = await withRetry(ctx, 'model', () => ctx.fetch(`${ctx.darioUrl.replace(/\/+$/, '')}/v1/messages`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': ctx.darioKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: ctx.model, max_tokens: LIMITS.maxTokens, system, messages, tools: TOOLS,
+      model: ctx.model, max_tokens: maxTokens, system, messages, tools,
       ...(toolChoice ? { tool_choice: toolChoice } : {}),
     }),
-    signal: AbortSignal.timeout(LIMITS.modelTimeoutMs),
+    signal: AbortSignal.timeout(timeoutMs),
   }));
   return res.json();
+}
+
+function callModel(ctx, system, messages, toolChoice) {
+  return callModelWith(ctx, { system, messages, tools: TOOLS, toolChoice });
 }
 
 /**

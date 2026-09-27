@@ -1,7 +1,9 @@
-# Opens a PR in each Redline caller that moves its redline-review.yml pin, and the redline-ref
-# input that names the same commit, to the main commit that changed the review. Each caller pins
-# by SHA so a review change reaches it only through a reviewed bump there; this writes those
-# bumps (scripts/redline/pin.mjs), and each repo's own gate reviews and merges them.
+# Opens a PR in each Redline caller that moves its pins, and the redline-ref input that names the
+# same commit, to the main commit that changed the review or the fix. A caller pins two reusable
+# workflows by SHA: redline.yml calls redline-review.yml and redline-fix.yml, where the repository
+# has one, calls redline-fix-run.yml. Each pins by SHA so a change reaches it only through a
+# reviewed bump there; this writes those bumps (scripts/redline/pin.mjs), and each repo's own gate
+# reviews and merges them.
 #
 # Writing to other repos needs a token GITHUB_TOKEN cannot be: REDLINE_PIN_BUMP_TOKEN, a
 # fine-grained token owned by askalf with Contents and Pull requests read/write on the repos in
@@ -15,6 +17,7 @@ on:
     paths:
       - scripts/redline/**
       - .github/workflows/redline-review.yml
+      - .github/workflows/redline-fix-run.yml
       - .github/workflows/redline-pin-bump.yml
   workflow_dispatch:
 
@@ -37,7 +40,10 @@ jobs:
         askalf/truecopy askalf/truecopy-action askalf/cordon askalf/plumbline askalf/checkout-with-retry
       # A bot-shaped branch opened by askalf: the fleet lanes treat it as a bot PR.
       BRANCH: bot/redline-pin
-      CALLER_PATH: .github/workflows/redline.yml
+      # The review caller is in every repo; the fix caller only where the fix lane is wired, so a
+      # missing one is skipped, not an error.
+      CALLER_PATHS: >-
+        .github/workflows/redline.yml .github/workflows/redline-fix.yml
     steps:
       - name: Check for the token
         id: guard
@@ -45,7 +51,7 @@ jobs:
           TOKEN: ${{ secrets.REDLINE_PIN_BUMP_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "::notice::REDLINE_PIN_BUMP_TOKEN is not set; no bump PRs opened. Bump the redline-review.yml pin in each caller by hand."
+            echo "::notice::REDLINE_PIN_BUMP_TOKEN is not set; no bump PRs opened. Bump the redline-review.yml and redline-fix-run.yml pins in each caller by hand."
             echo "ok=false" >> "$GITHUB_OUTPUT"
           else
             echo "ok=true" >> "$GITHUB_OUTPUT"
@@ -78,6 +84,7 @@ jobs:
           pr="$(gh api "repos/${SOURCE}/commits/${SHA}/pulls" --jq '.[0].number // empty' || true)"
           note="main ${day}"
           if [ -n "$pr" ]; then note="${note}, ${SOURCE}#${pr}"; fi
+          pattern="uses: ${SOURCE}/.github/workflows/redline-(review|fix-run).yml@[0-9a-f]{40}"
           failed=0
           for repo in $CALLERS; do
             echo "== ${repo}"
@@ -85,36 +92,48 @@ jobs:
               echo "::error::${repo}: cannot read the repo"; failed=1; continue
             fi
             tip="$(gh api "repos/${repo}/git/ref/heads/${base}" --jq .object.sha)"
-            current="$(gh api "repos/${repo}/contents/${CALLER_PATH}?ref=${tip}" --jq .content | base64 -d)"
-            pattern="uses: ${SOURCE}/.github/workflows/redline-review.yml@[0-9a-f]{40}"
-            if ! printf '%s\n' "$current" | grep -Eq "$pattern"; then
-              echo "::error::${repo}: ${CALLER_PATH} has no pinned redline-review.yml call"; failed=1; continue
-            fi
-            if printf '%s\n' "$current" | grep -q "redline-review.yml@${SHA}" && printf '%s\n' "$current" | grep -q "redline-ref: ${SHA}"; then
-              echo "already at ${short}"; continue
-            fi
-            if ! updated="$(printf '%s\n' "$current" | node scripts/redline/pin.mjs "$SHA" "$note")"; then
-              echo "::error::${repo}: could not rewrite ${CALLER_PATH}"; failed=1; continue
-            fi
+            # Which caller files need the new pin. The review caller must exist; the fix caller may not.
+            todo=""
+            for path in $CALLER_PATHS; do
+              if ! current="$(gh api "repos/${repo}/contents/${path}?ref=${tip}" --jq .content 2>/dev/null | base64 -d)"; then
+                if [ "$path" = ".github/workflows/redline.yml" ]; then echo "::error::${repo}: no ${path}"; failed=1; else echo "no ${path}"; fi
+                continue
+              fi
+              if ! printf '%s\n' "$current" | grep -Eq "$pattern"; then
+                echo "::error::${repo}: ${path} has no pinned askalf/askalf call"; failed=1; continue
+              fi
+              if printf '%s\n' "$current" | grep -Eq "redline-(review|fix-run).yml@${SHA}" && printf '%s\n' "$current" | grep -q "redline-ref: ${SHA}"; then
+                echo "${path} already at ${short}"; continue
+              fi
+              todo="${todo:+$todo }${path}"
+            done
+            [ -n "$todo" ] || continue
             # The bump branch is this job's alone: reset it to the default branch tip each time,
-            # so an open bump PR carries exactly one commit, the newest pin.
+            # so an open bump PR carries exactly the newest pin, one commit per caller file.
             if gh api "repos/${repo}/git/ref/heads/${BRANCH}" >/dev/null 2>&1; then
               gh api -X PATCH "repos/${repo}/git/refs/heads/${BRANCH}" -f sha="$tip" -F force=true >/dev/null
             else
               gh api -X POST "repos/${repo}/git/refs" -f ref="refs/heads/${BRANCH}" -f sha="$tip" >/dev/null
             fi
-            blob="$(gh api "repos/${repo}/contents/${CALLER_PATH}?ref=${BRANCH}" --jq .sha)"
-            printf '%s\n' "$updated" > redline.yml
-            gh api -X PUT "repos/${repo}/contents/${CALLER_PATH}" \
-              -f message="ci: bump Redline to ${SOURCE}@${short}" \
-              -f content="$(base64 -w0 redline.yml)" \
-              -f branch="$BRANCH" -f sha="$blob" >/dev/null
+            for path in $todo; do
+              current="$(gh api "repos/${repo}/contents/${path}?ref=${BRANCH}" --jq .content | base64 -d)"
+              if ! updated="$(printf '%s\n' "$current" | node scripts/redline/pin.mjs "$SHA" "$note")"; then
+                echo "::error::${repo}: could not rewrite ${path}"; failed=1; continue
+              fi
+              blob="$(gh api "repos/${repo}/contents/${path}?ref=${BRANCH}" --jq .sha)"
+              printf '%s\n' "$updated" > caller.yml
+              gh api -X PUT "repos/${repo}/contents/${path}" \
+                -f message="ci: bump Redline to ${SOURCE}@${short} in $(basename "$path")" \
+                -f content="$(base64 -w0 caller.yml)" \
+                -f branch="$BRANCH" -f sha="$blob" >/dev/null
+              echo "${path} bumped"
+            done
             open="$(gh pr list --repo "$repo" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
             if [ -n "$open" ]; then
               gh pr edit "$open" --repo "$repo" --title "ci: bump Redline to ${SOURCE}@${short}" >/dev/null
               echo "updated #${open}"
             else
-              body="Moves the pinned redline-review.yml call and its redline-ref input to ${SOURCE}@${SHA}, the main commit that last changed the review (${note}). The review script is fetched at that same commit. The pin is the only change."
+              body="Moves the pinned askalf/askalf calls and their redline-ref inputs to ${SOURCE}@${SHA}, the main commit that last changed the review or the fix (${note}). The scripts are fetched at that same commit. The pins are the only change."
               gh pr create --repo "$repo" --base "$base" --head "$BRANCH" \
                 --title "ci: bump Redline to ${SOURCE}@${short}" --body "$body"
             fi
