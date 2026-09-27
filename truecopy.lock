@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "skills": {
+    "redline": {
+      "source": "scripts/redline/tools.json",
+      "kind": "mcp",
+      "hash": "0d7009211e37e38c6cc464e27b5ab1291c20545ad0de625031d2b5e2d5aa2563",
+      "scannedAt": "2026-09-27T00:39:41.398Z",
+      "verdict": "clean",
+      "findings": 0,
+      "detection": {
+        "engine": "redstamp",
+        "version": "0.7.5"
+      },
+      "parts": {
+        "redline_list": "8a8997e9490d207b20997e677bbcd0b08f10c9d05701cfe7df588d5d68f3050c",
+        "redline_read": "0383612515e7d857ce140e91b7a607996a7a3cfadb4c4ecb490240ff9c4fe854",
+        "redline_search": "cf7d81fe6046aa7736c04dca05a61027f8e5c68c3ae24cc41d5565456b744611",
+        "redline_submit": "5fbe124d4c3b4b8c5a21d85e86067f85af06b01cf53134dc2aadefe75b1bb96d",
+        "(manifest)": "1b07cce04824c7641dc023f8490abf1069607791019f84a4bb05c8c4ba800fd7"
+      }
+    },
+    "redline-prompt": {
+      "source": "scripts/redline/prompt.md",
+      "kind": "file",
+      "hash": "e29e63fe49c6aafdaf3f9c29fc1985dde876644d7dd366bcc24658b7dc81aad9",
+      "scannedAt": "2026-09-27T00:39:50.574Z",
+      "verdict": "clean",
+      "findings": 0,
+      "detection": {
+        "engine": "redstamp",
+        "version": "0.7.5"
+      },
+      "parts": {
+        "prompt.md": "e29e63fe49c6aafdaf3f9c29fc1985dde876644d7dd366bcc24658b7dc81aad9"
+      }
+    }
+  }
+}

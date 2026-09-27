@@ -1,0 +1,127 @@
+{
+  "name": "redline",
+  "tools": [
+    {
+      "name": "redline_list",
+      "description": "List a directory of the PR checkout (directories end with /).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Directory relative to the repo root; default the root."
+          }
+        }
+      }
+    },
+    {
+      "name": "redline_read",
+      "description": "Read lines of a file in the PR checkout, numbered. At most 400 lines per call.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "start_line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "end_line": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "path"
+        ]
+      }
+    },
+    {
+      "name": "redline_search",
+      "description": "Search the PR checkout with a JavaScript regular expression. At most 80 matches.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "Directory or file to search; default the root."
+          }
+        },
+        "required": [
+          "pattern"
+        ]
+      }
+    },
+    {
+      "name": "redline_submit",
+      "description": "Submit the review. Call exactly once, last.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "verdict",
+          "summary",
+          "findings"
+        ],
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "REQUEST_CHANGES"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "description": "One short paragraph: the verdict in a sentence and what you checked."
+          },
+          "rule": {
+            "type": "string",
+            "description": "For REQUEST_CHANGES: the most severe blocking finding's rule slug, or none."
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "severity",
+                "file",
+                "quote",
+                "problem"
+              ],
+              "properties": {
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "blocking",
+                    "minor"
+                  ]
+                },
+                "file": {
+                  "type": "string"
+                },
+                "line": {
+                  "type": "integer"
+                },
+                "quote": {
+                  "type": "string",
+                  "description": "The exact lines, copied from the diff, PR text or a commit message."
+                },
+                "problem": {
+                  "type": "string",
+                  "description": "What is wrong: the input or state, and the wrong result."
+                },
+                "suggestion": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
