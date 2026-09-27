@@ -602,6 +602,9 @@ export async function runFix(ctx) {
     const installDirty = changedPaths(root, cenv);
 
     const written = new Set();
+    // The fix as it would be staged now: everything changed minus what the contract leaves out.
+    const sizeOf = (p) => { try { return statSync(join(root, p)).size; } catch { return 0; } };
+    const staged = () => stageable(changedPaths(root, cenv), { installDirty, written, sizeOf });
     const runs = [];
     let seq = 0;
     let lastWrite = 0;
@@ -619,7 +622,7 @@ export async function runFix(ctx) {
           const content = String(input.content ?? '');
           if (Buffer.byteLength(content) > LIMITS.writeBytes) return `error: content is larger than ${LIMITS.writeBytes} bytes`;
           const rel = relative(realpathSync(root), abs).split(sep).join('/');
-          const now = changedPaths(root, cenv);
+          const now = staged().keep;
           if (!now.includes(rel) && now.length >= LIMITS.files) return `error: the fix already changes ${now.length} files, the limit; no further file is written`;
           mkdirSync(dirname(abs), { recursive: true });
           writeFileSync(abs, content);
@@ -644,7 +647,7 @@ export async function runFix(ctx) {
       const checked = checkFinish(input);
       if (checked.error) return checked;
       if (checked.sub.outcome === 'refused') return { sub: checked.sub };
-      if (testArgv && changedPaths(root, cenv).length) {
+      if (testArgv && staged().keep.length) {
         // The suite runs after the last edit, by the model or, failing that, here.
         let t = [...runs].reverse().find((r) => r.isTest && r.seq > lastWrite);
         if (!t) { ctx.log?.('  no test run after the last edit: running the test script'); t = record(testArgv, run(root, cenv, testArgv, LIMITS.runMaxS)); }
@@ -668,8 +671,7 @@ export async function runFix(ctx) {
     const sub = loop.sub;
     if (sub.outcome === 'refused') return refuse(sub.reason, { turns, tests: testsRecord });
 
-    // Stage: everything changed, minus what the contract leaves out.
-    const st = stageable(changedPaths(root, cenv), { installDirty, written, sizeOf: (p) => { try { return statSync(join(root, p)).size; } catch { return 0; } } });
+    const st = staged();
     if (!st.keep.length) {
       return { record: fixRecord({ ...base, outcome: 'no_change', turns, tests: testsRecord, notes: renderNotes({ outcome: 'no_change', summary: sub.summary, skipped: st.skipped, tests: testsRecord }) }) };
     }
