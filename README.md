@@ -5,7 +5,7 @@
 ### I build the infrastructure AI agents run on, and I run it in production.
 
 **[dario](https://github.com/askalf/dario)** · 544★ · 27,000+ npm installs a month · 600 releases<br>
-**17 fixes merged upstream** into Node.js, Hugging Face, Erigon, GitHub, Raycast, Taro, Lingui, gosec, openship, OpenCreator and more
+**16 fixes merged upstream** into Hugging Face, Erigon, Node.js, gosec, Taro, glances, excelize and more
 
 [Portfolio](https://thomas.sprayberrylabs.com) · [Engineering log](https://sprayberrylabs.com/blog) · [What I build](#what-i-build) · hello@sprayberrylabs.com
 
@@ -35,22 +35,23 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 
 | Project | The fix |
 |---|---|
-| [nodejs/undici #5827](https://github.com/nodejs/undici/pull/5827) | The WebSocket parser kept a message's compressed flag after it completed, so a stray continuation frame was accepted instead of failing the connection. |
 | [huggingface_hub #4546](https://github.com/huggingface/huggingface_hub/pull/4546) · [#4896](https://github.com/huggingface/huggingface_hub/pull/4896) | Two Windows long-path bugs in the client the Hugging Face stack is built on: a crash downloading into a deep directory, and a tree cache that silently switched itself off. |
 | [erigontech/erigon #24022](https://github.com/erigontech/erigon/pull/24022) | A consensus-layer TTL cache now expires on read instead of running a sweep goroutine, and a peer-refresh loop no longer outlives its owner's context. |
-| [github/advisory-database #8824](https://github.com/github/advisory-database/pull/8824) | A security advisory's patched-version range that missed the 1.x fix. |
 | [securego/gosec #1746](https://github.com/securego/gosec/pull/1746) | An always-out-of-range index that the G602 analyzer waved through under an equality guard. |
-| [raycast/extensions #31314](https://github.com/raycast/extensions/pull/31314) | A scoreboard command sent a date range the ESPN endpoint rejects with a 400; it now asks one day at a time. |
+| [nodejs/undici #5827](https://github.com/nodejs/undici/pull/5827) | The WebSocket parser kept a message's compressed flag after it completed, so a stray continuation frame was accepted instead of failing the connection. |
+| [NervJS/taro #19506](https://github.com/NervJS/taro/pull/19506) | `Events#once` could fire twice when its callback re-triggered the event, and stayed attached when the callback threw; it now fires exactly once and detaches on every path. |
+| [nicolargo/glances #3744](https://github.com/nicolargo/glances/pull/3744) | The quicklook `gpu_mem` and `gpu_proc` stats kept no history, so `--sparkline` crashed the curses UI with a `TypeError` as soon as either was shown. |
 | [qax-os/excelize #2402](https://github.com/qax-os/excelize/pull/2402) | Conditional-formatting and data-validation ranges moved onto the wrong row when their first row was deleted. |
-| [getopenscreen/openscreen #708](https://github.com/getopenscreen/openscreen/pull/708) | Linux capture lost an early first frame; the capture-started state is now latched. |
+| [lingui/js-lingui #2677](https://github.com/lingui/js-lingui/pull/2677) | New catalog messages were written with `translation` first and rewritten with it last on the next extract, a diff that changed nothing. |
+| [github/advisory-database #8824](https://github.com/github/advisory-database/pull/8824) | A security advisory's patched-version range that missed the 1.x fix. |
+| [oblien/openship #945](https://github.com/oblien/openship/pull/945) | Mail delivery health was graded on only the first three deferral reasons, so a fatal auth or TLS failure ranked fourth was graded `warn` instead of `fail`. |
+| [krillinai/OpenCreator #333](https://github.com/krillinai/OpenCreator/pull/333) | An LLM reply with conversational text around its JSON, or a trailing comma, failed the whole subtitle or translation step; a new extractor tolerates both. |
 | [silverbulletmd/silverbullet #2128](https://github.com/silverbulletmd/silverbullet/pull/2128) | Short or link-leading task lines never got the page reference their Linked Mentions toggle needs. |
+| [getopenscreen/openscreen #708](https://github.com/getopenscreen/openscreen/pull/708) | Linux capture lost an early first frame; the capture-started state is now latched. |
 | [williamngan/pts #228](https://github.com/williamngan/pts/pull/228) | A numeric equality threshold excluded a difference exactly at the threshold, unlike the point comparison beside it. |
-| [NervJS/taro #19506](https://github.com/NervJS/taro/pull/19506) | `Events#once` could fire twice when its callback re-triggered the event, and stayed attached when the callback threw; a one-shot listener now fires exactly once and detaches on every path. |
-| [lingui/js-lingui #2677](https://github.com/lingui/js-lingui/pull/2677) | A new catalog message was written with `translation` first and rewritten with it last on the next extract, a diff that changed nothing; new messages now use the merge path's key order. |
-| [oblien/openship #945](https://github.com/oblien/openship/pull/945) | `checkMailDelivery` graded a relayed box's health on only the first three deferral reasons in its queue; a fatal auth or TLS failure ranked fourth or later was graded `warn` instead of `fail`. It now grades on the whole queue and still reports the top three reasons. |
-| [nicolargo/glances #3744](https://github.com/nicolargo/glances/pull/3744) | The quicklook plugin's `gpu_mem` and `gpu_proc` stats were never added to the history list, so `--sparkline` crashed the curses UI with a `TypeError` the moment either stat was requested. They now keep history like the other quicklook stats. |
-| [krillinai/OpenCreator #333](https://github.com/krillinai/OpenCreator/pull/333) | The subtitle and translation services parsed an LLM reply as JSON only after stripping a Markdown code fence, so a reply with conversational text around the object, or a trailing comma, failed the whole step. A new extractor finds the object and tolerates both shapes. |
-| [awesome-mcp-servers #10332](https://github.com/punkpeye/awesome-mcp-servers/pull/10332) | truecopy listed under Security. |
+| [raycast/extensions #31314](https://github.com/raycast/extensions/pull/31314) | A scoreboard command sent a date range the ESPN endpoint rejects with a 400; it now asks one day at a time. |
+
+Also shipped by maintainers from our reports: [GAM-team/GAM #1992](https://github.com/GAM-team/GAM/pull/1992), added by hand in GAM 7.48.14, and [huggingface_hub #4908](https://github.com/huggingface/huggingface_hub/pull/4908), re-landed as #4937 with credit.
 
 ## What I build
 
