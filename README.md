@@ -5,7 +5,7 @@
 ### I build the infrastructure AI agents run on, and I run it in production.
 
 **[dario](https://github.com/askalf/dario)** · 544★ · 27,000+ npm installs a month · 600 releases<br>
-**16 fixes merged upstream** into Hugging Face, Erigon, Node.js, gosec, Taro, glances, excelize and more
+**17 fixes merged upstream** into Hugging Face, Erigon, Node.js, gosec, Taro, glances, excelize and more
 
 [Portfolio](https://thomas.sprayberrylabs.com) · [Engineering log](https://sprayberrylabs.com/blog) · [What I build](#what-i-build) · hello@sprayberrylabs.com
 
@@ -35,6 +35,7 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 
 | Project | The fix |
 |---|---|
+| [zsviczian/obsidian-excalidraw-plugin #2959](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2959) | Fixed dropdown closing after save. |
 | [huggingface_hub #4546](https://github.com/huggingface/huggingface_hub/pull/4546) · [#4896](https://github.com/huggingface/huggingface_hub/pull/4896) | Two Windows long-path bugs in the client the Hugging Face stack is built on: a crash downloading into a deep directory, and a tree cache that silently switched itself off. |
 | [erigontech/erigon #24022](https://github.com/erigontech/erigon/pull/24022) | A consensus-layer TTL cache now expires on read instead of running a sweep goroutine, and a peer-refresh loop no longer outlives its owner's context. |
 | [securego/gosec #1746](https://github.com/securego/gosec/pull/1746) | An always-out-of-range index that the G602 analyzer waved through under an equality guard. |
