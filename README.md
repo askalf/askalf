@@ -5,7 +5,7 @@
 ### I build the infrastructure AI agents run on, and I run it in production.
 
 **[dario](https://github.com/askalf/dario)** · 544★ · 27,000+ npm installs a month · 600 releases<br>
-**16 fixes merged upstream** into Hugging Face, Erigon, Node.js, gosec, Taro, glances, excelize and more
+**17 fixes merged upstream** into Hugging Face, Erigon, Node.js, gosec, Taro, glances, excelize and more
 
 [Portfolio](https://thomas.sprayberrylabs.com) · [Engineering log](https://sprayberrylabs.com/blog) · [What I build](#what-i-build) · hello@sprayberrylabs.com
 
@@ -47,6 +47,7 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 | [oblien/openship #945](https://github.com/oblien/openship/pull/945) | Mail delivery health was graded on only the first three deferral reasons, so a fatal auth or TLS failure ranked fourth was graded `warn` instead of `fail`. |
 | [krillinai/OpenCreator #333](https://github.com/krillinai/OpenCreator/pull/333) | An LLM reply with conversational text around its JSON, or a trailing comma, failed the whole subtitle or translation step; a new extractor tolerates both. |
 | [silverbulletmd/silverbullet #2128](https://github.com/silverbulletmd/silverbullet/pull/2128) | Short or link-leading task lines never got the page reference their Linked Mentions toggle needs. |
+| [zsviczian/obsidian-excalidraw-plugin #2959](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2959) | A back-of-the-note embeddable that mounted before the Canvas node factory was ready rendered the whole drawing instead of its linked section; the mount now waits for the factory to initialize. |
 | [getopenscreen/openscreen #708](https://github.com/getopenscreen/openscreen/pull/708) | Linux capture lost an early first frame; the capture-started state is now latched. |
 | [williamngan/pts #228](https://github.com/williamngan/pts/pull/228) | A numeric equality threshold excluded a difference exactly at the threshold, unlike the point comparison beside it. |
 | [raycast/extensions #31314](https://github.com/raycast/extensions/pull/31314) | A scoreboard command sent a date range the ESPN endpoint rejects with a 400; it now asks one day at a time. |
