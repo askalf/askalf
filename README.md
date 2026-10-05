@@ -35,7 +35,6 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 
 | Project | The fix |
 |---|---|
-| [zsviczian/obsidian-excalidraw-plugin #2959](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2959) | Fixed dropdown closing after save. |
 | [huggingface_hub #4546](https://github.com/huggingface/huggingface_hub/pull/4546) · [#4896](https://github.com/huggingface/huggingface_hub/pull/4896) | Two Windows long-path bugs in the client the Hugging Face stack is built on: a crash downloading into a deep directory, and a tree cache that silently switched itself off. |
 | [erigontech/erigon #24022](https://github.com/erigontech/erigon/pull/24022) | A consensus-layer TTL cache now expires on read instead of running a sweep goroutine, and a peer-refresh loop no longer outlives its owner's context. |
 | [securego/gosec #1746](https://github.com/securego/gosec/pull/1746) | An always-out-of-range index that the G602 analyzer waved through under an equality guard. |
@@ -48,6 +47,7 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 | [oblien/openship #945](https://github.com/oblien/openship/pull/945) | Mail delivery health was graded on only the first three deferral reasons, so a fatal auth or TLS failure ranked fourth was graded `warn` instead of `fail`. |
 | [krillinai/OpenCreator #333](https://github.com/krillinai/OpenCreator/pull/333) | An LLM reply with conversational text around its JSON, or a trailing comma, failed the whole subtitle or translation step; a new extractor tolerates both. |
 | [silverbulletmd/silverbullet #2128](https://github.com/silverbulletmd/silverbullet/pull/2128) | Short or link-leading task lines never got the page reference their Linked Mentions toggle needs. |
+| [zsviczian/obsidian-excalidraw-plugin #2959](https://github.com/zsviczian/obsidian-excalidraw-plugin/pull/2959) | A back-of-the-note embeddable that mounted before the Canvas node factory was ready rendered the whole drawing instead of its linked section; the mount now waits for the factory to initialize. |
 | [getopenscreen/openscreen #708](https://github.com/getopenscreen/openscreen/pull/708) | Linux capture lost an early first frame; the capture-started state is now latched. |
 | [williamngan/pts #228](https://github.com/williamngan/pts/pull/228) | A numeric equality threshold excluded a difference exactly at the threshold, unlike the point comparison beside it. |
 | [raycast/extensions #31314](https://github.com/raycast/extensions/pull/31314) | A scoreboard command sent a date range the ESPN endpoint rejects with a 400; it now asks one day at a time. |
