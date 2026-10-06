@@ -46,7 +46,8 @@ jobs:
     # On askalf-exec for every event, a fork's included: the job runs the default branch's script
     # and never PR code, so GitHub's hosted queue going down does not hold the fleet/verify and
     # fleet/review statuses a merge waits on.
-    runs-on: [self-hosted, askalf-exec]
+    # A fork repository has no askalf-exec runners, so there it runs on GitHub's.
+    runs-on: ${{ github.repository == 'askalf/askalf' && fromJSON('["self-hosted","askalf-exec"]') || 'ubuntu-latest' }}
     timeout-minutes: 5
     permissions:
       contents: read
