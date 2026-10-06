@@ -28,7 +28,9 @@ jobs:
 
   publish:
     needs: render
-    runs-on: ubuntu-latest
+    # Never on a pull request (see the top of this file), so only our own code runs here: on
+    # askalf-exec, the panels keep publishing while GitHub's hosted queue is down.
+    runs-on: [self-hosted, askalf-exec]
     timeout-minutes: 5
     permissions:
       contents: write
