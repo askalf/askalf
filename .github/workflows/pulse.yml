@@ -30,7 +30,8 @@ jobs:
     needs: render
     # Never on a pull request (see the top of this file), so only our own code runs here: on
     # askalf-exec, the panels keep publishing while GitHub's hosted queue is down.
-    runs-on: [self-hosted, askalf-exec]
+    # A fork repository has no askalf-exec runners, so there it runs on GitHub's.
+    runs-on: ${{ github.repository == 'askalf/askalf' && fromJSON('["self-hosted","askalf-exec"]') || 'ubuntu-latest' }}
     timeout-minutes: 5
     permissions:
       contents: write
