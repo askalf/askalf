@@ -1,11 +1,12 @@
 // The header's stat line as a badge: dario's stars, installs and releases,
-// redrawn every hour so the numbers under the headline never go stale.
+// redrawn every hour. A source that fails shows its last good value from
+// state.json, so a long outage leaves that stat at its cached number.
 import { C, MONO, esc, n } from './kit.mjs';
 
 const CW = 9.03, H = 36, PAD = 16, DOT = 18;
 
 export function renderStats(d) {
-  // Each stat is [value, unit]; a source with no data drops its stat.
+  // Each stat is [value, unit]; a source with neither live nor cached data drops its stat.
   const stats = [];
   if (d.github) stats.push([n(d.github.darioStars), 'stars']);
   if (d.installs) stats.push([n(d.installs.last30), 'npm installs in 30 days']);
