@@ -5,6 +5,7 @@ The moving parts of the profile. Zero dependencies, Node 20+.
 | File | What it draws | Data |
 |---|---|---|
 | `hero.svg` | The hero art, alive: ALF blinks, the antennae breathe, signal runs the circuit lines | `hero.jpg`, embedded |
+| `stats.svg` | The stat line under the headline: dario's stars, installs and releases | npm registry + downloads, GitHub API |
 | `console.svg` | `alf status --live` typing itself out | npm registry + downloads, GitHub API |
 | `heartbeat.svg` | dario's ECG: each spike is releases shipped in a four-hour window | npm registry + downloads |
 | `orbit.svg` | Every project that merged a fix, orbiting ALF | the Merged upstream table in `README.md` |

@@ -4,7 +4,7 @@
 
 ### I build the infrastructure AI agents run on, and I run it in production.
 
-**[dario](https://github.com/askalf/dario)** · 550+★ · 26,000+ npm installs a month · 640+ releases<br>
+<a href="https://github.com/askalf/dario"><img src="https://raw.githubusercontent.com/askalf/askalf/pulse/stats.svg" alt="dario, live: stars on GitHub, npm installs in the last 30 days and releases shipped, as of the most recent hourly pulse."></a><br>
 **17 fixes merged upstream** into Hugging Face, Erigon, Node.js, gosec, Taro, glances, excelize and more
 
 [Portfolio](https://thomas.sprayberrylabs.com) · [Engineering log](https://sprayberrylabs.com/blog) · [What I build](#what-i-build) · hello@sprayberrylabs.com
