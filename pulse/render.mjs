@@ -16,6 +16,7 @@ import { renderHeartbeat } from './svg/heartbeat.mjs';
 import { renderOrbit } from './svg/orbit.mjs';
 import { renderGate } from './svg/gate.mjs';
 import { renderSignal } from './svg/signal.mjs';
+import { renderStats } from './svg/stats.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -40,6 +41,7 @@ const d = await gather({ previous, readmePath: join(root, 'README.md') });
 for (const [k, v] of Object.entries(d.sources)) console.log(`${k.padEnd(9)} ${v}`);
 
 const panels = {
+  'stats.svg': renderStats(d),
   'console.svg': renderConsole(d),
   'heartbeat.svg': renderHeartbeat(d),
   'orbit.svg': renderOrbit(d, { alfPath: join(here, 'alf.jpg') }),

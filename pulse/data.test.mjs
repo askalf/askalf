@@ -5,6 +5,7 @@ import { OWN, inReviewFrom, recentEvents, tallyPerDay } from './data.mjs';
 import { renderSignal } from './svg/signal.mjs';
 import { renderGate } from './svg/gate.mjs';
 import { renderHeartbeat } from './svg/heartbeat.mjs';
+import { renderStats } from './svg/stats.mjs';
 
 const DAY = 864e5;
 const now = Date.parse('2026-09-25T02:00:00Z');
@@ -123,4 +124,13 @@ test('heartbeat shows a plain dash where a source has no data', () => {
   const svg = renderHeartbeat({ at: new Date(now).toISOString(), dario: null, installs: null });
   assert.equal((svg.match(/>-<\/text>/g) ?? []).length, 2);
   assert.doesNotMatch(svg, /\u2014/);
+});
+
+test('the header stats show each live number and drop a missing source', () => {
+  const at = new Date(now).toISOString();
+  const full = renderStats({ at, github: { darioStars: 558 }, installs: { last30: 26087 }, dario: { releaseCount: 643 } });
+  assert.match(full, /<title id="t">dario · 558 stars · 26,087 npm installs in 30 days · 643 releases<\/title>/);
+  const partial = renderStats({ at, github: null, installs: { last30: 26087 }, dario: null });
+  assert.match(partial, /<title id="t">dario · 26,087 npm installs in 30 days<\/title>/);
+  assert.ok(+partial.match(/width="(\d+)"/)[1] < +full.match(/width="(\d+)"/)[1]);
 });
