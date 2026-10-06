@@ -4,7 +4,7 @@
 
 ### I build the infrastructure AI agents run on, and I run it in production.
 
-**[dario](https://github.com/askalf/dario)** · 544★ · 27,000+ npm installs a month · 600 releases<br>
+**[dario](https://github.com/askalf/dario)** · 550+★ · 26,000+ npm installs a month · 640+ releases<br>
 **17 fixes merged upstream** into Hugging Face, Erigon, Node.js, gosec, Taro, glances, excelize and more
 
 [Portfolio](https://thomas.sprayberrylabs.com) · [Engineering log](https://sprayberrylabs.com/blog) · [What I build](#what-i-build) · hello@sprayberrylabs.com
@@ -21,7 +21,7 @@
 
 **One local endpoint that puts your Claude and ChatGPT subscriptions behind any coding tool.** Cursor, Cline, Aider, Claude Code, Codex CLI and the Agent SDK all talk to it. Either plan answers either wire shape, with failover between them, session-sticky multi-seat pooling, one key per developer with a daily budget, and eleven unattended watchers that track Claude Code's request shape. Zero runtime dependencies.
 
-Every release is SLSA-attested and published from CI with no long-lived token. 9.4 OpenSSF Scorecard, 100% Best Practices.
+Every release is SLSA-attested and published from CI with no long-lived token. 9.5 OpenSSF Scorecard, 100% Best Practices.
 
 <img src="https://raw.githubusercontent.com/askalf/askalf/pulse/heartbeat.svg" alt="dario's heartbeat: an ECG trace where each spike is releases shipped in a four-hour window over the last two weeks, above the daily install curve, with the 30-day release and install counts." width="100%">
 
