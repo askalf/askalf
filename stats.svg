@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 637 36" width="637" height="36" role="img" aria-labelledby="t">
+<title id="t">dario · 564 stars · 27,049 npm installs in 30 days · 655 releases</title>
+<style>
+  text { font-family: ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace; }
+  .live { animation: live 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes live { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .35; transform: scale(.7) } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+</style>
+<defs><linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".55"/><stop offset=".5" stop-color="#2a1f47"/><stop offset="1" stop-color="#e879f9" stop-opacity=".45"/></linearGradient></defs>
+<rect x=".75" y=".75" width="635.5" height="34.5" rx="17" fill="#0d0918" stroke="url(#edge)" stroke-width="1.5"/>
+<circle class="live" cx="20" cy="18" r="4" fill="#4ade80"/>
+<text x="34" y="23" font-size="15" xml:space="preserve"><tspan fill="#f0abfc">dario</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">564</tspan><tspan fill="#8e84ad"> stars</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">27,049</tspan><tspan fill="#8e84ad"> npm installs in 30 days</tspan><tspan fill="#5b5378"> · </tspan><tspan fill="#ece8ff">655</tspan><tspan fill="#8e84ad"> releases</tspan></text>
+</svg>
