@@ -31,11 +31,10 @@ permissions:
   contents: read
   pull-requests: read
 
-# Queued, not cancelled: forge dispatches one run per review, and a cancelled run leaves no
-# artifact for it to read.
-concurrency:
-  group: fix-${{ github.repository }}-${{ inputs.pr }}
-  cancel-in-progress: false
+# No concurrency group: forge dispatches one run per review and reads each run's artifact, and
+# a group keeps only one pending run, so a third dispatch for a PR would cancel the second.
+# Overlapping runs are safe without one: each is pinned to the head it was given and fails once
+# the PR moves past it, and forge pushes a bundle only as a fast-forward of the PR branch.
 
 jobs:
   fix:
