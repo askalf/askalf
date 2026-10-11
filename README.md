@@ -5,7 +5,7 @@
 ### I build the infrastructure AI agents run on, and I run it in production.
 
 <a href="https://github.com/askalf/dario"><img src="https://raw.githubusercontent.com/askalf/askalf/pulse/stats.svg" alt="dario, live: stars on GitHub, npm installs in the last 30 days and releases shipped, as of the most recent hourly pulse."></a><br>
-**18 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, gosec, Taro, glances, excelize and more
+**19 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, gosec, Taro, glances, excelize, hermes-desktop and more
 
 [Portfolio](https://thomas.sprayberrylabs.com) · [Engineering log](https://sprayberrylabs.com/blog) · [What I build](#what-i-build) · hello@sprayberrylabs.com
 
@@ -35,6 +35,7 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 
 | Project | The fix |
 |---|---|
+| [fathah/hermes-desktop #976](https://github.com/fathah/hermes-desktop/pull/976) | Token balance formatting now trims trailing zeros exposed by its four-digit fractional cut, including balances below one. |
 | [huggingface_hub #4546](https://github.com/huggingface/huggingface_hub/pull/4546) · [#4896](https://github.com/huggingface/huggingface_hub/pull/4896) | Two Windows long-path bugs in the client the Hugging Face stack is built on: a crash downloading into a deep directory, and a tree cache that silently switched itself off. |
 | [redis/ioredis #2196](https://github.com/redis/ioredis/pull/2196) | Unsubscribing from the last shard channel took the client out of subscriber mode while its regular channel and pattern subscriptions were still live (and the reverse), so their messages stopped arriving. |
 | [erigontech/erigon #24022](https://github.com/erigontech/erigon/pull/24022) | A consensus-layer TTL cache now expires on read instead of running a sweep goroutine, and a peer-refresh loop no longer outlives its owner's context. |
