@@ -5,7 +5,7 @@
 ### I build the infrastructure AI agents run on, and I run it in production.
 
 <a href="https://github.com/askalf/dario"><img src="https://raw.githubusercontent.com/askalf/askalf/pulse/stats.svg" alt="dario, live: stars on GitHub, npm installs in the last 30 days and releases shipped, as of the most recent hourly pulse."></a><br>
-**20 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, gosec, Taro, glances, excelize, hermes-desktop, react-data-table-component and more
+**21 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, PGlite, gosec, Taro, glances, excelize, hermes-desktop, react-data-table-component and more
 
 [What I build](#what-i-build) · hello@sprayberrylabs.com
 
@@ -40,6 +40,7 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 | [redis/ioredis #2196](https://github.com/redis/ioredis/pull/2196) | Unsubscribing from the last shard channel took the client out of subscriber mode while its regular channel and pattern subscriptions were still live (and the reverse), so their messages stopped arriving. |
 | [erigontech/erigon #24022](https://github.com/erigontech/erigon/pull/24022) | A consensus-layer TTL cache now expires on read instead of running a sweep goroutine, and a peer-refresh loop no longer outlives its owner's context. |
 | [securego/gosec #1746](https://github.com/securego/gosec/pull/1746) | An always-out-of-range index that the G602 analyzer waved through under an equality guard. |
+| [electric-sql/pglite #1108](https://github.com/electric-sql/pglite/pull/1108) | A paginated live query left its total-count prepared statement behind on every unsubscribe, dangling against a dropped view and piling up for the life of the database. |
 | [nodejs/undici #5827](https://github.com/nodejs/undici/pull/5827) | The WebSocket parser kept a message's compressed flag after it completed, so a stray continuation frame was accepted instead of failing the connection. |
 | [NervJS/taro #19506](https://github.com/NervJS/taro/pull/19506) | `Events#once` could fire twice when its callback re-triggered the event, and stayed attached when the callback threw; it now fires exactly once and detaches on every path. |
 | [nicolargo/glances #3744](https://github.com/nicolargo/glances/pull/3744) | The quicklook `gpu_mem` and `gpu_proc` stats kept no history, so `--sparkline` crashed the curses UI with a `TypeError` as soon as either was shown. |
