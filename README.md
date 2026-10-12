@@ -7,7 +7,7 @@
 <a href="https://github.com/askalf/dario"><img src="https://raw.githubusercontent.com/askalf/askalf/pulse/stats.svg" alt="dario, live: stars on GitHub, npm installs in the last 30 days and releases shipped, as of the most recent hourly pulse."></a><br>
 **20 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, gosec, Taro, glances, excelize, hermes-desktop, react-data-table-component and more
 
-[Portfolio](https://thomas.sprayberrylabs.com) · [Engineering log](https://sprayberrylabs.com/blog) · [What I build](#what-i-build) · hello@sprayberrylabs.com
+[What I build](#what-i-build) · hello@sprayberrylabs.com
 
 </div>
 
@@ -107,22 +107,7 @@ The whole map on one page → **[ownyourstack.sprayberrylabs.com](https://ownyou
 
 <img src="https://raw.githubusercontent.com/askalf/askalf/pulse/signal.svg" alt="The operation lately: public GitHub events per day for two weeks, and the latest pushes, merges, reviews and releases." width="100%">
 
-I'm that human: fifteen-plus years in systems and infrastructure engineering, data centers and virtualization before the agent work. I architect it, review it and sign everything that leaves the shop, and I write down what actually happens.
-
-<details>
-<summary><b>Write-ups</b>: the numbers and the misses</summary>
-
-- **[We scanned the marketplace that started the poisoned-skills panic](https://sprayberrylabs.com/blog/the-marketplace-that-started-the-panic)**: all 66,541 ClawHub skills poison-scanned with truecopy. Zero confirmed malicious, 813 deterministic alarms, every one checked and mapped.
-- **[The leaderboard I refused to build](https://sprayberrylabs.com/blog/the-leaderboard-i-refused-to-build)**: why an agent-firewall leaderboard is a category error, and a threat-model map instead, misses included.
-- **[Auditing the skills supply chain](https://sprayberrylabs.com/blog/auditing-the-skills-supply-chain)**: truecopy across 2,019 published Claude skills.
-- **[Zero raw credentials](https://sprayberrylabs.com/blog/keeper-zero-raw-credentials)**: moving a live agent fleet from 132 inherited environment keys to scoped leases, one seam at a time.
-- **[An injection firewall for the agentic browser](https://sprayberrylabs.com/blog/picket-governed-agentic-browser)**: why the lethal trifecta is structural, and how to gate it.
-- **[A self-healing release pipeline](https://sprayberrylabs.com/blog/dario-self-healing-release-pipeline)**: how dario ships, health-gates and rolls itself back.
-- **redstamp governing third-party frameworks:** [CrewAI](https://sprayberrylabs.com/blog/crewai-flowdef-under-askalf) · [LangGraph](https://sprayberrylabs.com/blog/langgraph-under-askalf) · [OpenAI Agents SDK](https://sprayberrylabs.com/blog/openai-agents-under-askalf) · [AutoGen](https://sprayberrylabs.com/blog/autogen-under-askalf)
-
-Full engineering log → **[sprayberrylabs.com/blog](https://sprayberrylabs.com/blog)**
-
-</details>
+I'm that human: fifteen-plus years in systems and infrastructure engineering, data centers and virtualization before the agent work. I architect it, review it and sign everything that leaves the shop.
 
 <details>
 <summary><b>Supply-chain receipts</b></summary>
@@ -139,6 +124,6 @@ Full engineering log → **[sprayberrylabs.com/blog](https://sprayberrylabs.com/
 
 <sub>This page is alive: ALF blinks, the panels redraw every hour from npm and GitHub, and <a href="pulse">the renderer</a> is in this repo.</sub>
 
-**[Portfolio](https://thomas.sprayberrylabs.com)** · **[Own Your Stack](https://ownyourstack.sprayberrylabs.com)** · **[the operation](https://askalf.org)** · **[sprayberrylabs.com](https://sprayberrylabs.com)** · **[@ask_alf](https://x.com/ask_alf)** · **hello@sprayberrylabs.com**
+**[Own Your Stack](https://ownyourstack.sprayberrylabs.com)** · **[the operation](https://askalf.org)** · **[sprayberrylabs.com](https://sprayberrylabs.com)** · **[@ask_alf](https://x.com/ask_alf)** · **hello@sprayberrylabs.com**
 
 </div>
