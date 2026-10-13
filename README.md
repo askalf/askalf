@@ -5,7 +5,7 @@
 ### I build the infrastructure AI agents run on, and I run it in production.
 
 <a href="https://github.com/askalf/dario"><img src="https://raw.githubusercontent.com/askalf/askalf/pulse/stats.svg" alt="dario, live: stars on GitHub, npm installs in the last 30 days and releases shipped, as of the most recent hourly pulse."></a><br>
-**21 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, PGlite, gosec, Taro, glances, excelize, hermes-desktop, react-data-table-component and more
+**22 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, PGlite, gosec, Taro, glances, excelize, hermes-desktop, react-data-table-component and more
 
 [What I build](#what-i-build) · hello@sprayberrylabs.com
 
@@ -37,7 +37,7 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 |---|---|
 | [fathah/hermes-desktop #976](https://github.com/fathah/hermes-desktop/pull/976) | Token balance formatting now trims trailing zeros exposed by its four-digit fractional cut, including balances below one. |
 | [huggingface_hub #4546](https://github.com/huggingface/huggingface_hub/pull/4546) · [#4896](https://github.com/huggingface/huggingface_hub/pull/4896) | Two Windows long-path bugs in the client the Hugging Face stack is built on: a crash downloading into a deep directory, and a tree cache that silently switched itself off. |
-| [redis/ioredis #2196](https://github.com/redis/ioredis/pull/2196) | Unsubscribing from the last shard channel took the client out of subscriber mode while its regular channel and pattern subscriptions were still live (and the reverse), so their messages stopped arriving. |
+| [redis/ioredis #2196](https://github.com/redis/ioredis/pull/2196) · [#2229](https://github.com/redis/ioredis/pull/2229) | Two client fixes: unsubscribing from the last shard channel took the client out of subscriber mode while its regular channel and pattern subscriptions were still live (and the reverse), so their messages stopped arriving; and a failed database `SELECT` replayed after `reconnectOnError` was an unhandled promise rejection instead of an `error` event. |
 | [erigontech/erigon #24022](https://github.com/erigontech/erigon/pull/24022) | A consensus-layer TTL cache now expires on read instead of running a sweep goroutine, and a peer-refresh loop no longer outlives its owner's context. |
 | [securego/gosec #1746](https://github.com/securego/gosec/pull/1746) | An always-out-of-range index that the G602 analyzer waved through under an equality guard. |
 | [electric-sql/pglite #1108](https://github.com/electric-sql/pglite/pull/1108) | A paginated live query left its total-count prepared statement behind on every unsubscribe, dangling against a dropped view and piling up for the life of the database. |
