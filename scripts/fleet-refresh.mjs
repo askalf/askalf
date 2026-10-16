@@ -1,23 +1,20 @@
 #!/usr/bin/env node
-// Keeps our own bot pull requests mergeable, and their fleet lanes current, after main moves.
+// Keeps our own bot pull requests mergeable, and every open PR's fleet lanes current, after main
+// moves. GitHub runs no pull_request or pull_request_review workflow on a PR with a merge conflict,
+// so a conflicted PR's lanes never hear a verdict and nothing updates its branch; this does both.
 //
-// Why this exists: two receipts PRs opened minutes apart both bump the README's headline count
-// and append a row to the same table. The second conflicts with main as soon as the first merges.
-// GitHub runs no pull_request or pull_request_review workflow on a PR with a merge conflict, so
-// from that moment fleet-status.yml never hears about Redline's verdict, the fleet/review status
-// stays at "Waiting on Redline", and the PR sits until a person merges main into it by hand
-// (askalf/askalf#130 sat five hours).
-//
-// What it does, for every open same-repo PR, on each push to main, on a schedule, and on demand:
+// The invariants it keeps, for every open same-repo PR, on each push to main, on a schedule, and
+// on demand:
 //   - A conflicted PR by one of our identities on a bot branch (isBotPr in fleet-status.mjs,
 //     Dependabot aside: it rebases its own PRs, and a push by us stops it) has the base branch
-//     merged into it. Conflicts of the receipts shape are resolved: rows both sides added to the
-//     same Markdown table are kept, main's first, and the headline count line
-//     "**N fixes merged upstream** into A, B and more" adds the PR's increment to main's count and
-//     the PR's new names to main's list. The headline is reconciled that way even when git merged
+//     merged into it when the conflict is the receipts shape: rows both sides added to the same
+//     Markdown table are kept, main's first and each once, and the headline count line
+//     "**N fixes merged upstream** into A, B and more" becomes main's count, plus the PR's
+//     increment, less the receipts (pull request links in rows) both sides added, with main's
+//     names and then the PR's new ones. The headline is reconciled that way even when git merged
 //     it without a conflict (two PRs adding receipts for projects already named make the same
-//     edit), so the count matches the table. Any other conflict is left alone, and the PR gets
-//     one comment saying so.
+//     edit), and the merge is declined when the count cannot be squared with the table. Any
+//     other conflict is left alone, and the PR gets one comment saying so.
 //   - The merge commit is pushed with the workflow's token. Events from that token start no
 //     workflow runs, so the run then dispatches self-test (a required check) on the branch, and
 //     Redline on a PR that touches code (a docs-only PR is approved by the deterministic sweep),
@@ -50,6 +47,9 @@ export const SELF_TEST_CHECK = 'self-test';
 export const REDLINE_WORKFLOW = 'redline.yml';
 export const BOT_EMAIL = '41898282+github-actions[bot]@users.noreply.github.com';
 const ROW = /^\|/;
+const RECEIPT = /https:\/\/github\.com\/[^\s/)]+\/[^\s/)]+\/(?:pull|issues)\/\d+/g;
+/** The receipt links in a file's table rows. */
+export const receipts = (text) => new Set(text.split('\n').filter((l) => ROW.test(l)).flatMap((l) => l.match(RECEIPT) ?? []));
 
 /** A PR we may push a merge commit to: ours, on a bot branch, and not Dependabot's. */
 export function refreshable(author, headRef) {
@@ -138,10 +138,12 @@ export function reconcileCountLine({ base, ours, theirs, merged }) {
   const [b, o, t, m] = [base, ours, theirs, merged].map(one);
   if (!b || !o || !t || !m) return null;
   const [bm, om, tm] = [b, o, t].map((l) => COUNT_LINE.exec(l));
-  const rows = (text) => text.split('\n').filter((l) => ROW.test(l)).length;
   const increment = Number(om[1]) - Number(bm[1]);
   if (increment < 0 || Number(tm[1]) < Number(bm[1])) return false;
-  const shared = Math.max(0, rows(ours) + rows(theirs) - rows(base) - rows(merged));
+  // A receipt is a pull request or issue link in a table row; a row may hold several. The ones
+  // both sides added, the merged table holds once.
+  const [ro, rt, rb] = [ours, theirs, base].map(receipts);
+  const shared = [...ro].filter((r) => rt.has(r) && !rb.has(r)).length;
   const added = increment - shared;
   if (added < 0) return false;
   const names = (x) => x[2].split(', ');

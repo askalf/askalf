@@ -6,6 +6,7 @@ import {
   resolveHunk,
   resolveConflicts,
   reconcileCountLine,
+  receipts,
   refreshBranch,
   mergeMessage,
   unresolvedComment,
@@ -106,13 +107,21 @@ console.log('\n  reconcileCountLine: the headline whether or not it conflicted')
   check('a PR that did not touch the count: nothing to change', reconcileCountLine({ base, ours: base, theirs, merged: theirs }) === null);
   check('no headline in a version: nothing to change', reconcileCountLine({ base: 'x', ours, theirs, merged }) === null);
   check('two headlines in the merged file: left alone', reconcileCountLine({ base, ours, theirs, merged: merged + merged }) === null);
-  // Both sides added receipt X; the table keeps it once, so the count must not count it twice.
-  const oursX = doc(24, 'A, B', ['| a |', '| x |', '| p |']);
-  const theirsX = doc(24, 'A, B', ['| a |', '| x |', '| g |']);
-  const mergedX = doc(24, 'A, B', ['| a |', '| x |', '| g |', '| p |']);
-  check('a receipt both sides added counts once', reconcileCountLine({ base, ours: oursX, theirs: theirsX, merged: mergedX }) === doc(25, 'A, B', ['| a |', '| x |', '| g |', '| p |']));
+  // Receipts are the pull request links in rows; a row may hold several.
+  const link = (k, n = 1) => `[${k} #${n}](https://github.com/${k}/pull/${n})`;
+  const row = (...links) => `| ${links.join(' · ')} | fix. |`;
+  const A = row(link('a/a'));
+  const X = row(link('x/x'));
+  const X2 = row(link('x/x'), link('x/x', 2));
+  const P = row(link('p/p'));
+  const G = row(link('g/g'));
+  check('receipts are the pull links in rows, several per row', [...receipts(`${A}\n${X2}\nprose https://github.com/n/n/pull/9\n`)].join() === 'https://github.com/a/a/pull/1,https://github.com/x/x/pull/1,https://github.com/x/x/pull/2');
+  const baseR = doc(22, 'A, B', [A]);
+  check('a receipt both sides added counts once', reconcileCountLine({ base: baseR, ours: doc(24, 'A, B', [A, X, P]), theirs: doc(24, 'A, B', [A, X, G]), merged: doc(24, 'A, B', [A, X, G, P]) }) === doc(25, 'A, B', [A, X, G, P]));
+  check('a shared row holding two receipts counts both once', reconcileCountLine({ base: baseR, ours: doc(25, 'A, B', [A, X2, P]), theirs: doc(25, 'A, B', [A, X2, G]), merged: doc(25, 'A, B', [A, X2, G, P]) }) === doc(26, 'A, B', [A, X2, G, P]));
+  check('a receipt in the base is not shared', reconcileCountLine({ base: doc(22, 'A, B', [A, X]), ours: doc(23, 'A, B', [A, X, P]), theirs: doc(23, 'A, B', [A, X, G]), merged: doc(23, 'A, B', [A, X, G, P]) }) === doc(24, 'A, B', [A, X, G, P]));
   check('a PR that added a row without the count, which main counted: declined',
-    reconcileCountLine({ base, ours: doc(22, 'A, B', ['| a |', '| x |']), theirs: doc(23, 'A, B', ['| a |', '| x |']), merged: doc(23, 'A, B', ['| a |', '| x |']) }) === false);
+    reconcileCountLine({ base: baseR, ours: doc(22, 'A, B', [A, X]), theirs: doc(23, 'A, B', [A, X]), merged: doc(23, 'A, B', [A, X]) }) === false);
   check('a PR that lowered the count: declined', reconcileCountLine({ base, ours: doc(21, 'A, B', ['| a |']), theirs, merged: theirs }) === false);
 }
 
@@ -122,7 +131,7 @@ const sh = (cwd, ...args) => {
   if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stdout}${r.stderr}`);
   return r.stdout.trim();
 };
-const README = (count, names, rows) => `# Profile\n\n**${count} fixes merged upstream** into ${names} and more\n\n| PR | Fix |\n| --- | --- |\n${rows.map((r) => `| [${r} #1](https://github.com/${r}/pull/1) | ${r} fix. |`).join('\n')}\n\nAlso shipped.\n`;
+const README = (count, names, rows) => `# Profile\n\n**${count} fixes merged upstream** into ${names} and more\n\n| PR | Fix |\n| --- | --- |\n${rows.map((r) => (r.startsWith('|') ? r : `| [${r} #1](https://github.com/${r}/pull/1) | ${r} fix. |`)).join('\n')}\n\nAlso shipped.\n`;
 const BASE_ROWS = ['a/x', 'b/y'];
 /**
  * Returns { bare, work, headSha, baseSha } with main and `branch` pushed to `bare`. `prFiles` gives
@@ -234,6 +243,19 @@ console.log('\n  refreshBranch against a scratch remote');
   // The PR's puppeteer row follows x in the PR, so it stays after x; main's goauthentik row keeps its place.
   check('a receipt both branches added is kept once and counted once', r.ok === true
     && show(s.bare, r.sha, 'README.md') + '\n' === README(25, 'Hugging Face, ioredis', [...BASE_ROWS, 'x/x', 'puppeteer/puppeteer', 'goauthentik/authentik']));
+  rmSync(s.root, { recursive: true, force: true });
+}
+{
+  // The shared row holds two receipts: 22 + 2 + 1 + 1 is 26, whichever side's headline is read.
+  const TWO = '| [x/x #1](https://github.com/x/x/pull/1) · [#2](https://github.com/x/x/pull/2) | two fixes. |';
+  const s = scratch('receipts-shared-two', (rows, count, names) => ({ 'README.md': README(count + 3, names, [...rows, TWO, 'puppeteer/puppeteer']) }));
+  sh(s.work, 'checkout', '-q', 'main');
+  writeFileSync(join(s.work, 'README.md'), README(25, 'Hugging Face, ioredis', [...BASE_ROWS, TWO, 'goauthentik/authentik']));
+  sh(s.work, 'commit', '-q', '-am', 'receipts: x twice and goauthentik');
+  sh(s.work, 'push', '-q', '-f', s.bare, 'main');
+  const r = refreshBranch({ dir: mkdtempSync(join(s.root, 'clone-')), remote: s.bare, headRef: 'receipts-shared-two', headSha: s.headSha, baseRef: 'main', message: 'm' });
+  check('a shared row with two receipts is kept once and both receipts counted once', r.ok === true
+    && show(s.bare, r.sha, 'README.md') + '\n' === README(26, 'Hugging Face, ioredis', [...BASE_ROWS, TWO, 'puppeteer/puppeteer', 'goauthentik/authentik']));
   rmSync(s.root, { recursive: true, force: true });
 }
 {
