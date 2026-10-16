@@ -5,7 +5,7 @@
 ### I build the infrastructure AI agents run on, and I run it in production.
 
 <a href="https://github.com/askalf/dario"><img src="https://raw.githubusercontent.com/askalf/askalf/pulse/stats.svg" alt="dario, live: stars on GitHub, npm installs in the last 30 days and releases shipped, as of the most recent hourly pulse."></a><br>
-**23 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, PGlite, gosec, Taro, glances, excelize, hermes-desktop, react-data-table-component, goauthentik and more
+**24 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, PGlite, gosec, Taro, glances, excelize, hermes-desktop, react-data-table-component, goauthentik, Puppeteer and more
 
 [What I build](#what-i-build) · hello@sprayberrylabs.com
 
@@ -56,6 +56,7 @@ Fixes found, reproduced and landed in other people's projects, reviewed and merg
 | [raycast/extensions #31314](https://github.com/raycast/extensions/pull/31314) | A scoreboard command sent a date range the ESPN endpoint rejects with a 400; it now asks one day at a time. |
 | [jbetancur/react-data-table-component #1394](https://github.com/jbetancur/react-data-table-component/pull/1394) | A pinned scrollbar aria-controls pointed at a nonexistent id whenever the scroll container already had its own id, instead of the one actually assigned to it. |
 | [goauthentik/authentik #26402](https://github.com/goauthentik/authentik/pull/26402) | Blueprint change detection now includes the contents of referenced `!File` resources, so changing a mounted file triggers re-application. |
+| [puppeteer/puppeteer #15460](https://github.com/puppeteer/puppeteer/pull/15460) | BiDi authentication now catches rejected `continueWithAuth` commands when a request has already gone away, instead of leaving an unhandled promise rejection. |
 
 Also shipped by maintainers from our reports: [GAM-team/GAM #1992](https://github.com/GAM-team/GAM/pull/1992), added by hand in GAM 7.48.14, and [huggingface_hub #4908](https://github.com/huggingface/huggingface_hub/pull/4908), re-landed as #4937 with credit.
 
