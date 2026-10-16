@@ -126,19 +126,30 @@ function mergeTableRows(ours, base, theirs) {
 }
 
 /**
- * The merged file with its headline count reconciled from the base and both sides, or null when
- * there is nothing to change. Two PRs that each add a receipt for a project already named make the
- * same headline edit (22 to 23, same names); git merges that cleanly while the rows conflict, and
- * the count would end one short. So the headline is recomputed whether or not it conflicted: main's
- * count plus the PR's increment, main's names plus the PR's new ones.
+ * The merged file with its headline count reconciled from the base and both sides: null when there
+ * is nothing to change, false when the count cannot be squared with the table. Two PRs that each
+ * add a receipt for a project already named make the same headline edit (22 to 23, same names);
+ * git merges that cleanly while the rows conflict, and the count would end one short. So the
+ * headline is recomputed whether or not it conflicted: main's count, plus the PR's increment, less
+ * the rows both sides added that the table now holds once; main's names plus the PR's new ones.
  */
 export function reconcileCountLine({ base, ours, theirs, merged }) {
   const one = (text) => { const m = text.split('\n').filter((l) => COUNT_LINE.test(l)); return m.length === 1 ? m[0] : null; };
   const [b, o, t, m] = [base, ours, theirs, merged].map(one);
   if (!b || !o || !t || !m) return null;
-  const line = mergeCountLine([o], [b], [t]);
-  if (!line || line[0] === m) return null;
-  return merged.split('\n').map((l) => (l === m ? line[0] : l)).join('\n');
+  const [bm, om, tm] = [b, o, t].map((l) => COUNT_LINE.exec(l));
+  const rows = (text) => text.split('\n').filter((l) => ROW.test(l)).length;
+  const increment = Number(om[1]) - Number(bm[1]);
+  if (increment < 0 || Number(tm[1]) < Number(bm[1])) return false;
+  const shared = Math.max(0, rows(ours) + rows(theirs) - rows(base) - rows(merged));
+  const added = increment - shared;
+  if (added < 0) return false;
+  const names = (x) => x[2].split(', ');
+  const list = names(tm);
+  for (const n of names(om)) if (!names(bm).includes(n) && !list.includes(n)) list.push(n);
+  const line = `**${Number(tm[1]) + added} fixes merged upstream** into ${list.join(', ')} and more`;
+  if (line === m) return null;
+  return merged.split('\n').map((l) => (l === m ? line : l)).join('\n');
 }
 
 /** The lines that replace a hunk, or null when it is not a shape this script resolves. */
@@ -214,6 +225,10 @@ export function refreshBranch({ dir, remote, auth = '', headRef, headSha, baseRe
   for (const f of both) {
     const reconciled = reconcileCountLine({ base: show(mergeBase, f), ours: show(headSha, f), theirs: show(baseSha, f), merged: readFileSync(join(dir, f), 'utf8') });
     if (reconciled === null) continue;
+    if (reconciled === false) {
+      git(dir, extra, ['merge', '--abort'], { check: false });
+      return { ok: false, reason: `the headline count in ${f} cannot be squared with its table`, files: files.includes(f) ? files : [...files, f] };
+    }
     writeFileSync(join(dir, f), reconciled);
     run('add', '--', f);
     if (!files.includes(f)) files.push(f);

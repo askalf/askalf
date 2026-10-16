@@ -102,10 +102,18 @@ console.log('\n  reconcileCountLine: the headline whether or not it conflicted')
   const merged = doc(23, 'A, B', ['| a |', '| a2 |', '| b2 |']);
   check('identical headline edits that git merged cleanly are bumped to the true count', reconcileCountLine({ base, ours, theirs, merged }) === doc(24, 'A, B', ['| a |', '| a2 |', '| b2 |']));
   check('new names on the PR side are added after main\'s', reconcileCountLine({ base, ours: doc(23, 'A, B, P', ['| a |']), theirs: doc(23, 'A, B, G', ['| a |']), merged: doc(23, 'A, B, G', ['| a |']) })?.includes('**24 fixes merged upstream** into A, B, G, P and more'));
-  check('already right: nothing to change', reconcileCountLine({ base, ours, theirs, merged: doc(24, 'A, B', ['| a |']) }) === null);
+  check('already right: nothing to change', reconcileCountLine({ base, ours, theirs, merged: doc(24, 'A, B', ['| a |', '| a2 |', '| b2 |']) }) === null);
   check('a PR that did not touch the count: nothing to change', reconcileCountLine({ base, ours: base, theirs, merged: theirs }) === null);
   check('no headline in a version: nothing to change', reconcileCountLine({ base: 'x', ours, theirs, merged }) === null);
   check('two headlines in the merged file: left alone', reconcileCountLine({ base, ours, theirs, merged: merged + merged }) === null);
+  // Both sides added receipt X; the table keeps it once, so the count must not count it twice.
+  const oursX = doc(24, 'A, B', ['| a |', '| x |', '| p |']);
+  const theirsX = doc(24, 'A, B', ['| a |', '| x |', '| g |']);
+  const mergedX = doc(24, 'A, B', ['| a |', '| x |', '| g |', '| p |']);
+  check('a receipt both sides added counts once', reconcileCountLine({ base, ours: oursX, theirs: theirsX, merged: mergedX }) === doc(25, 'A, B', ['| a |', '| x |', '| g |', '| p |']));
+  check('a PR that added a row without the count, which main counted: declined',
+    reconcileCountLine({ base, ours: doc(22, 'A, B', ['| a |', '| x |']), theirs: doc(23, 'A, B', ['| a |', '| x |']), merged: doc(23, 'A, B', ['| a |', '| x |']) }) === false);
+  check('a PR that lowered the count: declined', reconcileCountLine({ base, ours: doc(21, 'A, B', ['| a |']), theirs, merged: theirs }) === false);
 }
 
 // A scratch repository: a bare remote with main and a bot branch that both edit the README.
@@ -212,6 +220,33 @@ console.log('\n  refreshBranch against a scratch remote');
   const r = refreshBranch({ dir: mkdtempSync(join(s.root, 'clone-')), remote: s.bare, headRef: 'receipts-rm', headSha: s.headSha, baseRef: 'main', message: 'm' });
   check('a shared deletion beside a resolvable conflict is merged and pushed', r.ok === true && r.files.join() === 'README.md'
     && show(s.bare, r.sha, 'README.md') + '\n' === EXPECTED && sh(s.bare, 'ls-tree', '--name-only', r.sha) === 'README.md');
+  rmSync(s.root, { recursive: true, force: true });
+}
+{
+  // Both branches add receipt X (kept once) and one receipt of their own: 22 + 3 rows is 25, not 26.
+  const s = scratch('receipts-shared', (rows, count, names) => ({ 'README.md': README(count + 2, names, [...rows, 'x/x', 'puppeteer/puppeteer']) }));
+  sh(s.work, 'checkout', '-q', 'main');
+  writeFileSync(join(s.work, 'README.md'), README(24, 'Hugging Face, ioredis', [...BASE_ROWS, 'x/x', 'goauthentik/authentik']));
+  sh(s.work, 'commit', '-q', '-am', 'receipts: x and goauthentik');
+  s.baseSha = sh(s.work, 'rev-parse', 'HEAD');
+  sh(s.work, 'push', '-q', '-f', s.bare, 'main');
+  const r = refreshBranch({ dir: mkdtempSync(join(s.root, 'clone-')), remote: s.bare, headRef: 'receipts-shared', headSha: s.headSha, baseRef: 'main', message: 'm' });
+  // The PR's puppeteer row follows x in the PR, so it stays after x; main's goauthentik row keeps its place.
+  check('a receipt both branches added is kept once and counted once', r.ok === true
+    && show(s.bare, r.sha, 'README.md') + '\n' === README(25, 'Hugging Face, ioredis', [...BASE_ROWS, 'x/x', 'puppeteer/puppeteer', 'goauthentik/authentik']));
+  rmSync(s.root, { recursive: true, force: true });
+}
+{
+  // The PR added a row without bumping the count; main added the same row and bumped it. The merge
+  // is clean, the count cannot be squared with the table, and the branch is left alone.
+  const s = scratch('receipts-uncounted', (rows, count, names) => ({ 'README.md': README(count, names, [...rows, 'x/x']) }));
+  sh(s.work, 'checkout', '-q', 'main');
+  writeFileSync(join(s.work, 'README.md'), README(23, 'Hugging Face, ioredis', [...BASE_ROWS, 'x/x']));
+  sh(s.work, 'commit', '-q', '-am', 'receipts: x');
+  sh(s.work, 'push', '-q', '-f', s.bare, 'main');
+  const r = refreshBranch({ dir: mkdtempSync(join(s.root, 'clone-')), remote: s.bare, headRef: 'receipts-uncounted', headSha: s.headSha, baseRef: 'main', message: 'm' });
+  check('a count that cannot be squared with the table declines the merge', r.ok === false && /headline count in README\.md cannot be squared/.test(r.reason)
+    && r.files.join() === 'README.md' && sh(s.bare, 'rev-parse', 'receipts-uncounted') === s.headSha);
   rmSync(s.root, { recursive: true, force: true });
 }
 {
