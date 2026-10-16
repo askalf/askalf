@@ -5,6 +5,7 @@ import {
   parseConflicts,
   resolveHunk,
   resolveConflicts,
+  reconcileCountLine,
   refreshBranch,
   mergeMessage,
   unresolvedComment,
@@ -92,6 +93,21 @@ console.log('\n  resolveConflicts');
   check('a file without conflicts is not "resolved"', resolveConflicts('plain\ntext\n') === null);
 }
 
+console.log('\n  reconcileCountLine: the headline whether or not it conflicted');
+{
+  const doc = (count, names, rows) => `# T\n\n**${count} fixes merged upstream** into ${names} and more\n\n${rows.join('\n')}\n`;
+  const base = doc(22, 'A, B', ['| a |']);
+  const ours = doc(23, 'A, B', ['| a |', '| b2 |']);
+  const theirs = doc(23, 'A, B', ['| a |', '| a2 |']);
+  const merged = doc(23, 'A, B', ['| a |', '| a2 |', '| b2 |']);
+  check('identical headline edits that git merged cleanly are bumped to the true count', reconcileCountLine({ base, ours, theirs, merged }) === doc(24, 'A, B', ['| a |', '| a2 |', '| b2 |']));
+  check('new names on the PR side are added after main\'s', reconcileCountLine({ base, ours: doc(23, 'A, B, P', ['| a |']), theirs: doc(23, 'A, B, G', ['| a |']), merged: doc(23, 'A, B, G', ['| a |']) })?.includes('**24 fixes merged upstream** into A, B, G, P and more'));
+  check('already right: nothing to change', reconcileCountLine({ base, ours, theirs, merged: doc(24, 'A, B', ['| a |']) }) === null);
+  check('a PR that did not touch the count: nothing to change', reconcileCountLine({ base, ours: base, theirs, merged: theirs }) === null);
+  check('no headline in a version: nothing to change', reconcileCountLine({ base: 'x', ours, theirs, merged }) === null);
+  check('two headlines in the merged file: left alone', reconcileCountLine({ base, ours, theirs, merged: merged + merged }) === null);
+}
+
 // A scratch repository: a bare remote with main and a bot branch that both edit the README.
 const sh = (cwd, ...args) => {
   const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@x', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8' });
@@ -164,6 +180,33 @@ console.log('\n  refreshBranch against a scratch remote');
   const s = scratch('receipts-clean', () => ({ 'other.txt': 'changed\n' }));
   const r = refreshBranch({ dir: mkdtempSync(join(s.root, 'clone-')), remote: s.bare, headRef: 'receipts-clean', headSha: s.headSha, baseRef: 'main', message: 'm' });
   check('a clean merge is committed and pushed', r.ok === true && r.files.length === 0 && sh(s.bare, 'rev-parse', `${r.sha}^2`) === s.baseSha);
+  rmSync(s.root, { recursive: true, force: true });
+}
+{
+  // Both sides add a receipt for a project already named: the headline edits are identical and
+  // git merges them without a conflict, so only the rows conflict. The count must still reach 24.
+  const s = scratch('receipts-ioredis-2', (rows, count, names) => ({ 'README.md': README(count + 1, names, [...rows, 'redis/ioredis']) }));
+  sh(s.work, 'checkout', '-q', 'main');
+  writeFileSync(join(s.work, 'README.md'), README(23, 'Hugging Face, ioredis', [...BASE_ROWS, 'huggingface/hub']));
+  sh(s.work, 'commit', '-q', '-am', 'receipts: hub, same names');
+  s.baseSha = sh(s.work, 'rev-parse', 'HEAD');
+  sh(s.work, 'push', '-q', '-f', s.bare, 'main');
+  const r = refreshBranch({ dir: mkdtempSync(join(s.root, 'clone-')), remote: s.bare, headRef: 'receipts-ioredis-2', headSha: s.headSha, baseRef: 'main', message: 'm' });
+  check('identical headline edits still end at the true count', r.ok === true
+    && show(s.bare, r.sha, 'README.md') + '\n' === README(24, 'Hugging Face, ioredis', [...BASE_ROWS, 'huggingface/hub', 'redis/ioredis']));
+  rmSync(s.root, { recursive: true, force: true });
+}
+{
+  // The same with no conflict at all: the PR appended its row somewhere else in the table.
+  const s = scratch('receipts-top', (rows, count, names) => ({ 'README.md': README(count + 1, names, ['redis/ioredis', ...rows]) }));
+  sh(s.work, 'checkout', '-q', 'main');
+  writeFileSync(join(s.work, 'README.md'), README(23, 'Hugging Face, ioredis', [...BASE_ROWS, 'huggingface/hub']));
+  sh(s.work, 'commit', '-q', '-am', 'receipts: hub, same names');
+  s.baseSha = sh(s.work, 'rev-parse', 'HEAD');
+  sh(s.work, 'push', '-q', '-f', s.bare, 'main');
+  const r = refreshBranch({ dir: mkdtempSync(join(s.root, 'clone-')), remote: s.bare, headRef: 'receipts-top', headSha: s.headSha, baseRef: 'main', message: 'm' });
+  check('a clean merge with identical headline edits is still bumped', r.ok === true && r.files.join() === 'README.md'
+    && show(s.bare, r.sha, 'README.md') + '\n' === README(24, 'Hugging Face, ioredis', ['redis/ioredis', ...BASE_ROWS, 'huggingface/hub']));
   rmSync(s.root, { recursive: true, force: true });
 }
 

@@ -14,8 +14,10 @@
 //     merged into it. Conflicts of the receipts shape are resolved: rows both sides added to the
 //     same Markdown table are kept, main's first, and the headline count line
 //     "**N fixes merged upstream** into A, B and more" adds the PR's increment to main's count and
-//     the PR's new names to main's list. Any other conflict is left alone, and the PR gets one
-//     comment saying so.
+//     the PR's new names to main's list. The headline is reconciled that way even when git merged
+//     it without a conflict (two PRs adding receipts for projects already named make the same
+//     edit), so the count matches the table. Any other conflict is left alone, and the PR gets
+//     one comment saying so.
 //   - The merge commit is pushed with the workflow's token. Events from that token start no
 //     workflow runs, so the run then dispatches self-test (a required check) on the branch, and
 //     Redline on a PR that touches code (a docs-only PR is approved by the deterministic sweep),
@@ -123,6 +125,22 @@ function mergeTableRows(ours, base, theirs) {
   return result;
 }
 
+/**
+ * The merged file with its headline count reconciled from the base and both sides, or null when
+ * there is nothing to change. Two PRs that each add a receipt for a project already named make the
+ * same headline edit (22 to 23, same names); git merges that cleanly while the rows conflict, and
+ * the count would end one short. So the headline is recomputed whether or not it conflicted: main's
+ * count plus the PR's increment, main's names plus the PR's new ones.
+ */
+export function reconcileCountLine({ base, ours, theirs, merged }) {
+  const one = (text) => { const m = text.split('\n').filter((l) => COUNT_LINE.test(l)); return m.length === 1 ? m[0] : null; };
+  const [b, o, t, m] = [base, ours, theirs, merged].map(one);
+  if (!b || !o || !t || !m) return null;
+  const line = mergeCountLine([o], [b], [t]);
+  if (!line || line[0] === m) return null;
+  return merged.split('\n').map((l) => (l === m ? line[0] : l)).join('\n');
+}
+
 /** The lines that replace a hunk, or null when it is not a shape this script resolves. */
 export function resolveHunk({ ours, base, theirs }) {
   if (base === null) return null;
@@ -166,7 +184,9 @@ export function refreshBranch({ dir, remote, auth = '', headRef, headSha, baseRe
   run('fetch', '-q', '--no-tags', remote, `+refs/heads/${headRef}:refs/remotes/pr/head`, `+refs/heads/${baseRef}:refs/remotes/pr/base`);
   if (run('rev-parse', 'refs/remotes/pr/head') !== headSha) return { ok: false, reason: 'the branch moved while it was read', files: [] };
   run('checkout', '-q', '--detach', headSha);
-  const merged = git(dir, extra, ['merge', '-q', '--no-commit', '--no-ff', 'refs/remotes/pr/base'], { check: false });
+  const baseSha = run('rev-parse', 'refs/remotes/pr/base');
+  const mergeBase = run('merge-base', headSha, baseSha);
+  const merged = git(dir, extra, ['merge', '-q', '--no-commit', '--no-ff', baseSha], { check: false });
   const files = run('diff', '--name-only', '--diff-filter=U').split('\n').filter(Boolean);
   if (merged.status !== 0) {
     if (!files.length) {
@@ -183,6 +203,17 @@ export function refreshBranch({ dir, remote, auth = '', headRef, headSha, baseRe
       writeFileSync(join(dir, f), resolved);
       run('add', '--', f);
     }
+  }
+  // The headline count, in every file both sides changed, whether or not it conflicted.
+  const show = (rev, f) => git(dir, extra, ['show', `${rev}:${f}`], { check: false }).stdout;
+  const changedBy = (rev) => run('diff', '--name-only', mergeBase, rev).split('\n').filter(Boolean);
+  const both = changedBy(headSha).filter((f) => changedBy(baseSha).includes(f));
+  for (const f of both) {
+    const reconciled = reconcileCountLine({ base: show(mergeBase, f), ours: show(headSha, f), theirs: show(baseSha, f), merged: readFileSync(join(dir, f), 'utf8') });
+    if (reconciled === null) continue;
+    writeFileSync(join(dir, f), reconciled);
+    run('add', '--', f);
+    if (!files.includes(f)) files.push(f);
   }
   run('commit', '-q', '--no-verify', '-m', message);
   const sha = run('rev-parse', 'HEAD');
