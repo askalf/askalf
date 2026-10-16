@@ -298,8 +298,11 @@ console.log('\n  required CI is the verification where the base branch requires 
     /\["pull_request","pull_request_target"\]/.test(own));
   const self = beside.find(([name]) => name === 'Fleet status self-test')?.[1] ?? '';
   check('the self-test workflow is listed', (workflowRunList(own) ?? []).includes('Fleet status self-test'));
-  check('the self-test workflow runs only on pull_request', /^\s+pull_request:/m.test(onBlock(self))
-    && !/\b(pull_request_target|pull_request_review|issue_comment|workflow_run|workflow_dispatch)\b/.test(onBlock(self)));
+  // fleet-refresh.yml dispatches it on a branch it pushed to with the workflow token, which
+  // starts no pull_request run; no other event may run PR code with anything but a read token.
+  check('the self-test workflow runs on pull_request and dispatch alone', /^\s+pull_request:/m.test(onBlock(self))
+    && /^\s+workflow_dispatch:/m.test(onBlock(self))
+    && !/\b(pull_request_target|pull_request_review|issue_comment|workflow_run|push|schedule)\b/.test(onBlock(self)));
   // Each workflow runs one job on each event it fires on, so none shows a skipped check.
   const jobs = (y) => [...y.slice(y.search(/^jobs:/m)).matchAll(/^  ([\w-]+):/gm)].map((m) => m[1]);
   check('fleet-status.yml runs only the status job', jobs(own).join() === 'status' && !/\bworkflow_dispatch\b/.test(onBlock(own)));
@@ -655,7 +658,7 @@ console.log('\n  fleet-status.yml: which events run the job for a fork');
   for (const { f, e } of repoOnly) {
     check(`${f}: every event here runs on ours`, EVENTS.every((ev) => !hosted(e, ev)) && !hosted(e, prFrom('pull_request', FORKED)));
     check(`${f}: in a fork repository it runs on GitHub's runners`, EVENTS.every((ev) => hosted(e, ev, FORK_REPO)));
-    check(`${f}: only a job that never runs PR code uses it`, ['fleet-status.yml', 'fleet-status-backfill.yml', 'pulse.yml'].includes(f));
+    check(`${f}: only a job that never runs PR code uses it`, ['fleet-status.yml', 'fleet-status-backfill.yml', 'fleet-refresh.yml', 'pulse.yml'].includes(f));
   }
   for (const f of literal) {
     const y = readFileSync(join(dir, f), 'utf8');

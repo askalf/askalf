@@ -1,0 +1,66 @@
+# Keeps our own bot pull requests mergeable, and every open PR's fleet lanes current.
+# When a PR merges, another bot PR that touched the same README lines (two receipts PRs opened
+# minutes apart, say) conflicts with main. GitHub runs no pull_request or pull_request_review
+# workflow on a conflicted PR, so fleet-status.yml never hears Redline's verdict there and the PR
+# sits. This workflow runs on the default branch after every push to it, on a schedule, and on
+# demand: scripts/fleet-refresh.mjs merges main into each conflicted bot PR of ours (resolving the
+# receipts table and its count), dispatches the checks a token push does not start, and re-posts
+# the lanes on every open PR. Nothing from a PR head is executed: its tree is fetched into a
+# scratch clone and merged as text. Runs the default branch's scripts only.
+name: Fleet refresh
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: One pull request number; every open one when empty.
+        required: false
+        type: string
+
+permissions: {}
+
+# Runs queue rather than overlap: each pushes merge commits and posts statuses.
+concurrency:
+  group: fleet-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    # Never on a pull request (see on:), so only our own code runs here: on askalf-exec, the
+    # refresh keeps bot PRs moving while GitHub's hosted queue is down.
+    # A fork repository has no askalf-exec runners, so there it runs on GitHub's.
+    runs-on: ${{ github.repository == 'askalf/askalf' && fromJSON('["self-hosted","askalf-exec"]') || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    permissions:
+      contents: write        # push the merge commit to the bot branch
+      pull-requests: write   # one comment on a conflict the script cannot resolve
+      actions: write         # dispatch self-test and Redline on the refreshed head
+      statuses: write        # post the fleet lanes
+      checks: read
+      issues: read
+    steps:
+      - uses: askalf/checkout-with-retry@115a6407547e9711edbc2e915838d495cad9583f  # v1.1.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            scripts/fleet-refresh.mjs
+            scripts/fleet-status.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Refresh conflicted bot PRs and re-post the lanes
+        if: hashFiles('scripts/fleet-refresh.mjs') != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ inputs.pr }}
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/fleet-refresh.mjs
