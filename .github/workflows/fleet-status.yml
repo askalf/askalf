@@ -2,7 +2,9 @@
 # Reads labels, comments, reviews and checks; writes statuses. Runs the default branch's script.
 # Only the status job lives here, so every event this workflow fires on produces one check that
 # runs. The script's tests are fleet-status-self-test.yml; the manual backfill over every open
-# PR is fleet-status-backfill.yml.
+# PR is fleet-status-backfill.yml. GitHub fires none of the pull request events below on a PR
+# with a merge conflict, so fleet-refresh.yml re-posts every open PR's lanes after each push to
+# main and on a schedule, and merges main into a conflicted bot PR of ours.
 # The script re-reads after posting and corrects what differs, so the last run to act leaves current
 # statuses. Runs a workflow_run fires (one per finishing workflow, most of this workflow's runs) are
 # grouped per PR branch and triggering event, and a newer one cancels an older (so a finished push

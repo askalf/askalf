@@ -1,11 +1,14 @@
-# Runs the fleet-status script's tests on the PR's own code, read-only.
+# Runs the fleet scripts' tests on the PR's own code, read-only.
 # self-test is a required check on the default branch, so it runs on every pull request: a path
 # filter would leave it pending forever on a PR that touches none of the paths.
+# fleet-refresh.yml dispatches it on a bot branch it has just pushed a merge commit to: that push
+# is made with the workflow token, which starts no pull_request run, and the check is required.
 name: Fleet status self-test
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -30,3 +33,6 @@ jobs:
 
       - name: Test the lane rules
         run: node scripts/fleet-status.test.mjs
+
+      - name: Test the refresh rules
+        run: node scripts/fleet-refresh.test.mjs
