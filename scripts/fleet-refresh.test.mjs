@@ -8,10 +8,15 @@ import {
   refreshBranch,
   mergeMessage,
   unresolvedComment,
+  isRefreshCommit,
+  checksToDispatch,
   COUNT_LINE,
   SELF_TEST_WORKFLOW,
+  SELF_TEST_CHECK,
   REDLINE_WORKFLOW,
+  BOT_EMAIL,
 } from './fleet-refresh.mjs';
+import { REDLINE_LOGIN } from './fleet-status.mjs';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -175,8 +180,11 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
   // The stub serves both this script and the fleet-status.mjs child it spawns (which inherits
   // --import through execArgv); each process prints what it posted when it exits.
   const stub = `
+    import { spawnSync } from 'node:child_process';
     const fx = JSON.parse(process.env.FLEET_REFRESH_FIXTURE);
     const posted = [];
+    const git = (...a) => spawnSync('git', ['-C', fx.bare, ...a], { encoding: 'utf8' }).stdout.trim();
+    const withHead = (p) => ({ ...p, head: { ...p.head, sha: git('rev-parse', fx.branch) } });
     const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
     globalThis.fetch = async (url, init = {}) => {
       const u = new URL(url);
@@ -184,19 +192,22 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
       if (Number(u.searchParams.get('page') ?? 1) > 1) return p.endsWith('/check-runs') ? json({ check_runs: [] }) : json([]);
       if (init.method === 'POST') {
         const body = JSON.parse(init.body);
+        if (p.endsWith('/dispatches') && fx.failDispatches > 0) { fx.failDispatches--; return json({ message: 'down' }, 500); }
         posted.push({ path: p, ...body });
         if (p.endsWith('/comments')) fx.comments.push({ user: { login: 'github-actions[bot]' }, body: body.body });
         return json({}, 201);
       }
       if (p === '/repos/o/r') return json({ default_branch: 'main' });
-      if (p.endsWith('/pulls')) return json(fx.pulls);
-      if (/[/]pulls[/][0-9]+$/.test(p)) { const m = fx.mergeable.length > 1 ? fx.mergeable.shift() : fx.mergeable[0]; return json({ ...fx.pr, mergeable: m }); }
+      if (p.endsWith('/pulls')) return json(fx.pulls.map(withHead));
+      if (/[/]pulls[/][0-9]+$/.test(p)) { const m = fx.mergeable.length > 1 ? fx.mergeable.shift() : fx.mergeable[0]; return json({ ...withHead(fx.pr), mergeable: m }); }
+      if (/[/]commits[/][0-9a-f]+$/.test(p)) { const sha = p.split('/').pop(); return json({ sha, commit: { message: git('log', '-1', '--format=%B', sha), committer: { email: git('log', '-1', '--format=%ce', sha) } } }); }
       if (p.endsWith('/files')) return json(fx.files);
-      if (p.endsWith('/reviews')) return json([]);
+      if (p.endsWith('/reviews')) return json(fx.reviews ?? []);
       if (p.endsWith('/comments')) return json(fx.comments);
       if (p.includes('/rules/branches/')) return json([]);
       if (p.endsWith('/statuses')) return json(posted.filter((x) => x.path.includes('/statuses/')).reverse());
-      if (p.endsWith('/check-runs')) return json({ check_runs: [] });
+      if (p.endsWith('/check-runs')) return json({ check_runs: fx.checkRuns ?? [] });
+      if (p.endsWith('/runs')) return json({ workflow_runs: fx.redlineRuns ?? [] });
       return json({ message: 'unexpected ' + p }, 404);
     };
     process.on('exit', () => process.stdout.write('POSTED ' + JSON.stringify(posted) + '\\n'));
@@ -213,7 +224,9 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
     state: 'open', number: 7, draft: false, html_url: 'https://x/pull/7', user: { login: 'askalf' }, labels: [],
     head: { sha: s.headSha, ref: 'receipts-puppeteer', repo: { full_name: 'o/r' } }, base: { ref: 'main', sha: s.baseSha }, ...over,
   });
-  const fixture = (s, over = {}) => ({ pr: pr(s), pulls: [pr(s)], mergeable: [null, false], files: [{ filename: 'README.md' }], comments: [], ...over });
+  const fixture = (s, over = {}) => ({ bare: s.bare, branch: 'receipts-puppeteer', pr: pr(s), pulls: [pr(s)], mergeable: [null, false], files: [{ filename: 'README.md' }], comments: [], ...over });
+  const dispatches = (r) => r.posted.filter((p) => p.path.includes('/dispatches'));
+  const CODE = [{ filename: 'README.md' }, { filename: '.github/scripts/x.sh' }];
 
   {
     const s = scratch();
@@ -231,7 +244,7 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
   }
   {
     const s = scratch();
-    const r = run(fixture(s, { files: [{ filename: 'README.md' }, { filename: '.github/scripts/x.sh' }] }), s.bare);
+    const r = run(fixture(s, { files: CODE }), s.bare);
     const sha = sh(s.bare, 'rev-parse', 'receipts-puppeteer');
     const redline = r.posted.find((p) => p.path === `/repos/o/r/actions/workflows/${REDLINE_WORKFLOW}/dispatches`);
     check('a code bot PR also gets Redline dispatched at the new head, on the default branch',
@@ -265,7 +278,7 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
     sh(s.work, 'commit', '-q', '-am', 'prose');
     s.baseSha = sh(s.work, 'rev-parse', 'HEAD');
     sh(s.work, 'push', '-q', s.bare, 'main');
-    const fx = fixture(s, { pr: pr(s, { head: { sha: s.headSha, ref: 'receipts-prose', repo: { full_name: 'o/r' } } }) });
+    const fx = fixture(s, { branch: 'receipts-prose', pr: pr(s, { head: { sha: s.headSha, ref: 'receipts-prose', repo: { full_name: 'o/r' } } }) });
     fx.pulls = [fx.pr];
     const first = run(fx, s.bare);
     const comment = first.posted.find((p) => p.path === '/repos/o/r/issues/7/comments');
@@ -282,6 +295,55 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
     check('no token is a usage error', run(fixture(s), s.bare, { GITHUB_TOKEN: '' }).status === 2);
     rmSync(s.root, { recursive: true, force: true });
   }
+  {
+    // A push that succeeds while the dispatch fails must not leave the head without its required
+    // check: the next run, with the PR mergeable again, dispatches what the head lacks.
+    const s = scratch();
+    const first = run(fixture(s, { failDispatches: 1 }), s.bare);
+    const sha = sh(s.bare, 'rev-parse', 'receipts-puppeteer');
+    check('push ok, dispatch down: the merge is pushed, the run fails and says why',
+      first.status === 1 && sha !== s.headSha && /could not dispatch/.test(first.out) && dispatches(first).length === 0);
+    const second = run(fixture(s, { mergeable: [true] }), s.bare);
+    check('the next run, PR mergeable, dispatches the missing self-test without another merge',
+      second.status === 0 && sh(s.bare, 'rev-parse', 'receipts-puppeteer') === sha
+      && dispatches(second).length === 1 && dispatches(second)[0].path.endsWith(`${SELF_TEST_WORKFLOW}/dispatches`) && dispatches(second)[0].ref === 'receipts-puppeteer');
+    const third = run(fixture(s, { mergeable: [true], checkRuns: [{ name: 'status' }, { name: SELF_TEST_CHECK }] }), s.bare);
+    check('once self-test reports at the head, nothing more is dispatched', third.status === 0 && dispatches(third).length === 0 && /has its checks/.test(third.out));
+    rmSync(s.root, { recursive: true, force: true });
+  }
+  {
+    // Redline is retried the same way on a code PR, until its dispatch run or its verdict exists.
+    const s = scratch();
+    const first = run(fixture(s, { files: CODE, failDispatches: 1 }), s.bare);
+    const sha = sh(s.bare, 'rev-parse', 'receipts-puppeteer');
+    check('code PR, dispatch down: nothing dispatched, run fails', first.status === 1 && dispatches(first).length === 0);
+    const second = run(fixture(s, { files: CODE, mergeable: [true] }), s.bare);
+    const redline = dispatches(second).find((p) => p.path.includes(REDLINE_WORKFLOW));
+    check('the next run dispatches self-test and Redline at the head', second.status === 0 && dispatches(second).length === 2 && redline?.inputs.head === sha);
+    const titled = run(fixture(s, { files: CODE, mergeable: [true], checkRuns: [{ name: SELF_TEST_CHECK }], redlineRuns: [{ display_title: `Redline review o/r#7 @ ${sha}`, name: 'Redline' }] }), s.bare);
+    check('a Redline dispatch run titled with the head stops the retry', titled.status === 0 && dispatches(titled).length === 0);
+    const judged = run(fixture(s, { files: CODE, mergeable: [true], checkRuns: [{ name: SELF_TEST_CHECK }], reviews: [{ user: { login: REDLINE_LOGIN }, state: 'CHANGES_REQUESTED', commit_id: sha }] }), s.bare);
+    check('so does a Redline verdict at the head', judged.status === 0 && dispatches(judged).length === 0);
+    const older = run(fixture(s, { files: CODE, mergeable: [true], checkRuns: [{ name: SELF_TEST_CHECK }], redlineRuns: [{ display_title: `Redline review o/r#7 @ ${s.headSha}` }], reviews: [{ user: { login: REDLINE_LOGIN }, state: 'APPROVED', commit_id: s.headSha }] }), s.bare);
+    check('a run or verdict on the older head does not', older.status === 0 && dispatches(older).length === 1 && dispatches(older)[0].path.includes(REDLINE_WORKFLOW));
+    rmSync(s.root, { recursive: true, force: true });
+  }
+}
+
+console.log('\n  isRefreshCommit / checksToDispatch');
+{
+  const c = (message, email = BOT_EMAIL) => ({ commit: { message, committer: { email } } });
+  check('our merge commit is', isRefreshCommit(c('Merge main into receipts-x\n\n#7 conflicted'), 'main', 'receipts-x'));
+  check('a person\'s merge of main is not', !isRefreshCommit(c('Merge main into receipts-x\n', 't@x'), 'main', 'receipts-x'));
+  check('the bot\'s other commits are not', !isRefreshCommit(c('pulse: 2026-10-16'), 'main', 'receipts-x'));
+  check('another branch pair is not', !isRefreshCommit(c('Merge main into other\n'), 'main', 'receipts-x'));
+  check('a missing commit is not', !isRefreshCommit(undefined, 'main', 'receipts-x'));
+  const want = (o) => checksToDispatch({ checkNames: [], code: false, headSha: 'abc1234', redlineRunTitles: [], redlineVerdictAtHead: false, ...o });
+  check('no checks at a docs head: self-test alone', JSON.stringify(want({})) === '{"selfTest":true,"redline":false}');
+  check('self-test present: nothing', !want({ checkNames: ['status', SELF_TEST_CHECK] }).selfTest);
+  check('code without a verdict or a dispatch: Redline too', want({ code: true }).redline === true);
+  check('a dispatch run titled with the head: not again', !want({ code: true, redlineRunTitles: ['Redline review o/r#7 @ abc1234'] }).redline);
+  check('a verdict at the head: not again', !want({ code: true, redlineVerdictAtHead: true }).redline);
 }
 
 console.log('\n  fleet-refresh.yml and the self-test workflow it dispatches');

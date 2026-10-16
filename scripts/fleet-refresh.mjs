@@ -19,7 +19,10 @@
 //   - The merge commit is pushed with the workflow's token. Events from that token start no
 //     workflow runs, so the run then dispatches self-test (a required check) on the branch, and
 //     Redline on a PR that touches code (a docs-only PR is approved by the deterministic sweep),
-//     and posts the fleet lanes on the new head itself.
+//     and posts the fleet lanes on the new head itself. The dispatches are reconciled, not fired
+//     once: every run looks at each open PR whose head is a merge commit this script pushed and
+//     dispatches whichever of those checks the head still lacks, so a dispatch that failed is
+//     retried on the next run, and the PR is not left without its required check.
 //   - Every open same-repo PR has its lanes re-posted (scripts/fleet-status.mjs), so a status
 //     that went stale for any reason is corrected on the next run.
 //
@@ -35,13 +38,15 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isBotPr, isCodePath, collectPages } from './fleet-status.mjs';
+import { isBotPr, isCodePath, collectPages, REDLINE_LOGIN } from './fleet-status.mjs';
 
 export const MARKER = 'fleet-refresh';
 /** The README's headline: "**23 fixes merged upstream** into Hugging Face, ioredis and more". */
 export const COUNT_LINE = /^\*\*(\d+) fixes merged upstream\*\* into (.+?) and more$/;
 export const SELF_TEST_WORKFLOW = 'fleet-status-self-test.yml';
+export const SELF_TEST_CHECK = 'self-test';
 export const REDLINE_WORKFLOW = 'redline.yml';
+export const BOT_EMAIL = '41898282+github-actions[bot]@users.noreply.github.com';
 const ROW = /^\|/;
 
 /** A PR we may push a merge commit to: ours, on a bot branch, and not Dependabot's. */
@@ -193,6 +198,25 @@ export function mergeMessage({ number, headRef, baseRef, baseSha }) {
     + 'Fleet refresh merged the receipts table and its count, keeping both sides.';
 }
 
+/** A PR head (GitHub's commit object) that this script pushed: our bot's merge of base into head. */
+export function isRefreshCommit(commit, baseRef, headRef) {
+  return (commit?.commit?.committer?.email ?? '') === BOT_EMAIL
+    && (commit?.commit?.message ?? '').startsWith(`Merge ${baseRef} into ${headRef}\n`);
+}
+
+/**
+ * The checks a refreshed head still lacks. `checkNames` are the head's check runs; self-test
+ * reports there once dispatched on the branch. A Redline dispatch runs on the default branch, so
+ * it is known by a workflow_dispatch run titled with the head (`redlineRunTitles`) or by its
+ * verdict review at the head (`redlineVerdictAtHead`); a docs-only diff needs none.
+ */
+export function checksToDispatch({ checkNames, code, headSha, redlineRunTitles, redlineVerdictAtHead }) {
+  return {
+    selfTest: !checkNames.includes(SELF_TEST_CHECK),
+    redline: code && !redlineVerdictAtHead && !redlineRunTitles.some((t) => t.includes(headSha)),
+  };
+}
+
 /** The one comment a PR gets when its conflict is not the receipts shape. */
 export function unresolvedComment({ baseRef, baseSha, headSha, files, reason }) {
   return `Fleet refresh could not update this branch: it conflicts with ${baseRef} at ${baseSha.slice(0, 7)} in ${files.map((f) => `\`${f}\``).join(', ') || 'the merge'}, and ${reason}. `
@@ -275,22 +299,42 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
 
     console.log(`#${n}: ${dryRun ? 'would push' : 'pushed'} ${res.sha.slice(0, 7)} merging ${p.base.ref} into ${headRef}${res.files.length ? ` (resolved ${res.files.join(', ')})` : ''}`);
-    if (dryRun) continue;
-    // A push by this token starts no workflow run: dispatch the required check on the branch, and
-    // Redline where the diff is code. The lanes are posted below, with every other PR's. A failed
-    // dispatch fails the run, so it is seen, but the other PRs are still served.
-    try {
-      await post(`/repos/${repo}/actions/workflows/${SELF_TEST_WORKFLOW}/dispatches`, token, { ref: headRef });
-      const files = (await ghAll(`/repos/${repo}/pulls/${n}/files`, token)).map((f) => f.filename);
-      if (files.some(isCodePath)) {
-        await post(`/repos/${repo}/actions/workflows/${REDLINE_WORKFLOW}/dispatches`, token, { ref: defaultBranch, inputs: { pr: String(n), head: res.sha } });
-        console.log(`#${n}: dispatched self-test and Redline at ${res.sha.slice(0, 7)}`);
-      } else {
-        console.log(`#${n}: dispatched self-test at ${res.sha.slice(0, 7)}; docs only, the sweep approves`);
+  }
+
+  // A push by this token starts no workflow run. Every open PR whose head is a merge commit this
+  // script pushed, now or on an earlier run, gets the checks that head still lacks: self-test (a
+  // required check) on the branch, and Redline where the diff is code. Looking at the head rather
+  // than remembering the push means a dispatch that failed is retried here next run. A failure
+  // fails the run, so it is seen, but the other PRs are still served.
+  if (!dryRun) {
+    for (const listedPr of own) {
+      const n = listedPr.number;
+      try {
+        const p = await (await gh(`/repos/${repo}/pulls/${n}`, token)).json();
+        if (p.state !== 'open') continue;
+        const head = p.head.sha;
+        const commit = await (await gh(`/repos/${repo}/commits/${head}`, token)).json();
+        if (!isRefreshCommit(commit, p.base.ref, p.head.ref)) continue;
+        const runs = await collectPages(async (k) => (await (await gh(`/repos/${repo}/commits/${head}/check-runs?per_page=100&page=${k}`, token)).json()).check_runs ?? []);
+        const files = (await ghAll(`/repos/${repo}/pulls/${n}/files`, token)).map((f) => f.filename);
+        const code = files.some(isCodePath);
+        let redlineRunTitles = [];
+        let redlineVerdictAtHead = false;
+        if (code) {
+          const reviews = await ghAll(`/repos/${repo}/pulls/${n}/reviews`, token);
+          redlineVerdictAtHead = reviews.some((r) => r.user?.login === REDLINE_LOGIN && /^(APPROVED|CHANGES_REQUESTED)$/.test(r.state) && r.commit_id === head);
+          const dispatched = (await (await gh(`/repos/${repo}/actions/workflows/${REDLINE_WORKFLOW}/runs?event=workflow_dispatch&per_page=50`, token)).json()).workflow_runs ?? [];
+          redlineRunTitles = dispatched.map((r) => `${r.display_title ?? ''} ${r.name ?? ''}`);
+        }
+        const want = checksToDispatch({ checkNames: runs.map((r) => r.name), code, headSha: head, redlineRunTitles, redlineVerdictAtHead });
+        if (want.selfTest) await post(`/repos/${repo}/actions/workflows/${SELF_TEST_WORKFLOW}/dispatches`, token, { ref: p.head.ref });
+        if (want.redline) await post(`/repos/${repo}/actions/workflows/${REDLINE_WORKFLOW}/dispatches`, token, { ref: defaultBranch, inputs: { pr: String(n), head } });
+        const did = [want.selfTest && 'self-test', want.redline && 'Redline'].filter(Boolean);
+        console.log(`#${n}: refreshed head ${head.slice(0, 7)} ${did.length ? `dispatched ${did.join(' and ')}` : 'has its checks'}${!code ? '; docs only, the sweep approves' : ''}`);
+      } catch (e) {
+        console.error(`::error::#${n}: could not dispatch the checks its refreshed head lacks: ${e.message}`);
+        process.exitCode = 1;
       }
-    } catch (e) {
-      console.error(`::error::#${n}: pushed ${res.sha.slice(0, 7)} but could not dispatch its checks: ${e.message}`);
-      process.exitCode = 1;
     }
   }
 
