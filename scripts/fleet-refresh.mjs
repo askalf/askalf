@@ -36,7 +36,7 @@
 // With --dry-run nothing is pushed, posted or dispatched; the merge is still attempted locally.
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -204,10 +204,13 @@ export function refreshBranch({ dir, remote, auth = '', headRef, headSha, baseRe
       run('add', '--', f);
     }
   }
-  // The headline count, in every file both sides changed, whether or not it conflicted.
+  // The headline count, in every file both sides changed, whether or not it conflicted. A path
+  // both sides deleted, or that one side deleted and the merge dropped, is not in the merged tree
+  // and has no headline to reconcile.
   const show = (rev, f) => git(dir, extra, ['show', `${rev}:${f}`], { check: false }).stdout;
   const changedBy = (rev) => run('diff', '--name-only', mergeBase, rev).split('\n').filter(Boolean);
-  const both = changedBy(headSha).filter((f) => changedBy(baseSha).includes(f));
+  const inTree = (f) => { try { return statSync(join(dir, f)).isFile(); } catch { return false; } };
+  const both = changedBy(headSha).filter((f) => changedBy(baseSha).includes(f) && inTree(f));
   for (const f of both) {
     const reconciled = reconcileCountLine({ base: show(mergeBase, f), ours: show(headSha, f), theirs: show(baseSha, f), merged: readFileSync(join(dir, f), 'utf8') });
     if (reconciled === null) continue;
@@ -251,7 +254,8 @@ export function checksToDispatch({ checkNames, code, headSha, redlineRunTitles, 
 /** The one comment a PR gets when its conflict is not the receipts shape. */
 export function unresolvedComment({ baseRef, baseSha, headSha, files, reason }) {
   return `Fleet refresh could not update this branch: it conflicts with ${baseRef} at ${baseSha.slice(0, 7)} in ${files.map((f) => `\`${f}\``).join(', ') || 'the merge'}, and ${reason}. `
-    + 'Until the conflict is resolved by hand, GitHub runs no pull_request or review workflow here, so the fleet/* statuses cannot refresh.\n\n'
+    + `The conflict blocks merging until it is resolved by hand; GitHub runs no pull_request or review workflow here while it stands, and Fleet refresh keeps the fleet/* statuses current on its own runs. `
+    + `It will say so again only if the head or ${baseRef} moves.\n\n`
     + `<!-- ${MARKER}:head=${headSha} base=${baseSha} -->`;
 }
 
@@ -306,6 +310,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (p.mergeable !== false) continue;
     if (!refreshable(author, headRef)) { console.log(`#${n}: conflicts with ${p.base.ref}; not a bot PR of ours, so its author resolves it`); continue; }
 
+    // A merge that throws (git itself failing, say) fails the run, so it is seen, and leaves the
+    // branch as it was; the other PRs, the dispatches and the lanes below are still served.
     const dir = mkdtempSync(join(tmpdir(), 'fleet-refresh-'));
     let res;
     try {
@@ -313,6 +319,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         dir, remote, auth, headRef, headSha: p.head.sha, baseRef: p.base.ref, dryRun,
         message: mergeMessage({ number: n, headRef, baseRef: p.base.ref, baseSha: p.base.sha }),
       });
+    } catch (e) {
+      console.error(`::error::#${n}: the merge failed: ${e.message}`);
+      process.exitCode = 1;
+      continue;
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

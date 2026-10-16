@@ -197,6 +197,24 @@ console.log('\n  refreshBranch against a scratch remote');
   rmSync(s.root, { recursive: true, force: true });
 }
 {
+  // Both sides deleted other.txt while adding conflicting receipts: the deletion merges cleanly
+  // and is not in the merged tree, so the headline reconcile must skip it, not throw.
+  const s = scratch('receipts-rm', (rows, count, names) => ({ 'README.md': README(count + 1, `${names}, Puppeteer`, [...rows, 'puppeteer/puppeteer']) }));
+  sh(s.work, 'checkout', '-q', 'receipts-rm');
+  sh(s.work, 'rm', '-q', 'other.txt');
+  sh(s.work, 'commit', '-q', '-m', 'drop other.txt');
+  s.headSha = sh(s.work, 'rev-parse', 'HEAD');
+  sh(s.work, 'checkout', '-q', 'main');
+  sh(s.work, 'rm', '-q', 'other.txt');
+  sh(s.work, 'commit', '-q', '-m', 'drop other.txt too');
+  s.baseSha = sh(s.work, 'rev-parse', 'HEAD');
+  sh(s.work, 'push', '-q', '-f', s.bare, 'main', 'receipts-rm');
+  const r = refreshBranch({ dir: mkdtempSync(join(s.root, 'clone-')), remote: s.bare, headRef: 'receipts-rm', headSha: s.headSha, baseRef: 'main', message: 'm' });
+  check('a shared deletion beside a resolvable conflict is merged and pushed', r.ok === true && r.files.join() === 'README.md'
+    && show(s.bare, r.sha, 'README.md') + '\n' === EXPECTED && sh(s.bare, 'ls-tree', '--name-only', r.sha) === 'README.md');
+  rmSync(s.root, { recursive: true, force: true });
+}
+{
   // The same with no conflict at all: the PR appended its row somewhere else in the table.
   const s = scratch('receipts-top', (rows, count, names) => ({ 'README.md': README(count + 1, names, ['redis/ioredis', ...rows]) }));
   sh(s.work, 'checkout', '-q', 'main');
@@ -215,6 +233,7 @@ console.log('\n  unresolvedComment');
   const c = unresolvedComment({ baseRef: 'main', baseSha: 'b'.repeat(40), headSha: 'a'.repeat(40), files: ['README.md'], reason: 'README.md conflicts beyond the receipts shape this script resolves' });
   check('names the base, the file and the reason', /conflicts with main at bbbbbbb in `README.md`, and README\.md conflicts beyond/.test(c));
   check('carries a marker for the head and base', c.includes(`<!-- fleet-refresh:head=${'a'.repeat(40)} base=${'b'.repeat(40)} -->`));
+  check('says the conflict blocks merging and that the statuses keep refreshing', /blocks merging/.test(c) && /keeps the fleet\/\* statuses current/.test(c) && !/cannot refresh/.test(c));
 }
 
 console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch remote');
@@ -352,6 +371,30 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
       && dispatches(second).length === 1 && dispatches(second)[0].path.endsWith(`${SELF_TEST_WORKFLOW}/dispatches`) && dispatches(second)[0].ref === 'receipts-puppeteer');
     const third = run(fixture(s, { mergeable: [true], checkRuns: [{ name: 'status' }, { name: SELF_TEST_CHECK }] }), s.bare);
     check('once self-test reports at the head, nothing more is dispatched', third.status === 0 && dispatches(third).length === 0 && /has its checks/.test(third.out));
+    rmSync(s.root, { recursive: true, force: true });
+  }
+  {
+    // A shared deletion beside the receipts conflict: the PR is pushed and the lanes still post.
+    const s = scratch();
+    for (const b of ['receipts-puppeteer', 'main']) {
+      sh(s.work, 'checkout', '-q', b);
+      sh(s.work, 'rm', '-q', 'other.txt');
+      sh(s.work, 'commit', '-q', '-m', 'drop other.txt');
+    }
+    s.headSha = sh(s.work, 'rev-parse', 'receipts-puppeteer');
+    s.baseSha = sh(s.work, 'rev-parse', 'main');
+    sh(s.work, 'push', '-q', '-f', s.bare, 'main', 'receipts-puppeteer');
+    const r = run(fixture(s), s.bare);
+    check('CLI: a shared deletion does not stop the refresh, the dispatch or the lanes', r.status === 0
+      && sh(s.bare, 'rev-parse', 'receipts-puppeteer') !== s.headSha && dispatches(r).length === 1 && r.posted.filter((p) => p.path.includes('/statuses/')).length === 2);
+    rmSync(s.root, { recursive: true, force: true });
+  }
+  {
+    // A merge that throws fails the run but the lanes are still posted.
+    const s = scratch();
+    const r = run(fixture(s), join(s.root, 'no-such-remote.git'));
+    check('CLI: a remote that cannot be fetched fails the run, reports it, and still posts the lanes',
+      r.status === 1 && /::error::#7: the merge failed/.test(r.out) && r.posted.filter((p) => p.path.includes('/statuses/')).length === 2);
     rmSync(s.root, { recursive: true, force: true });
   }
   {
