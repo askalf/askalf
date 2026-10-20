@@ -101,7 +101,7 @@ The plan you already pay for, on the machine you already own.
 </tr>
 <tr>
 <td width="50%" valign="top"><a href="https://github.com/askalf/amnesia"><img src="cards/amnesia.jpg" alt="amnesia: ALF beside a search bar whose trail of particles dissolves as it drifts away." width="100%"></a><br><b><a href="https://github.com/askalf/amnesia">amnesia</a></b>: privacy meta-search with no accounts, no ads and no query log, live at <a href="https://amnesia.tax">amnesia.tax</a>.</td>
-<td width="50%" valign="top"><a href="https://github.com/askalf/checkout-with-retry"><img src="cards/checkout-with-retry.jpg" alt="checkout-with-retry: attempts 1 and 2 fail with a 401, and after waits of 8 and 20 seconds attempt 3 checks out." width="100%"></a><br><b><a href="https://github.com/askalf/checkout-with-retry">checkout-with-retry</a></b>: a drop-in for <code>actions/checkout</code> that retries the transient credential failures of ephemeral runners.</td>
+<td width="50%" valign="top"><a href="https://github.com/askalf/ci/tree/main/actions/checkout-with-retry"><img src="cards/checkout-with-retry.jpg" alt="checkout-with-retry: attempts 1 and 2 fail with a 401, and after waits of 8 and 20 seconds attempt 3 checks out." width="100%"></a><br><b><a href="https://github.com/askalf/ci/tree/main/actions/checkout-with-retry">checkout-with-retry</a></b> (in askalf/ci): a drop-in for <code>actions/checkout</code> that retries the transient credential failures of ephemeral runners.</td>
 </tr>
 </table>
 
@@ -120,7 +120,7 @@ Thomas Sprayberry is that human, and signs off on everything I ship. Built in th
 <details>
 <summary><b>Supply-chain receipts</b></summary>
 
-- Live OpenSSF Scorecard on dario, redstamp, truecopy, truecopy-action, plumbline, cordon, browser-bridge, amnesia and checkout-with-retry; 100% OpenSSF Best Practices on [dario](https://www.bestpractices.dev/projects/13638), [truecopy](https://www.bestpractices.dev/projects/14488), [redstamp](https://www.bestpractices.dev/projects/14489) and [amnesia](https://www.bestpractices.dev/projects/14490).
+- Live OpenSSF Scorecard on dario, redstamp, truecopy, truecopy-action, plumbline, cordon, browser-bridge and amnesia; 100% OpenSSF Best Practices on [dario](https://www.bestpractices.dev/projects/13638), [truecopy](https://www.bestpractices.dev/projects/14488), [redstamp](https://www.bestpractices.dev/projects/14489) and [amnesia](https://www.bestpractices.dev/projects/14490).
 - npm packages publish from CI through OIDC trusted publishing, with provenance and no long-lived token.
 - cordon ships as an attested container from GHCR.
 
