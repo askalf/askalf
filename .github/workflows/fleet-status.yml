@@ -25,7 +25,7 @@ on:
   # self-test is a required check and the verify lane reads it. It runs in its own workflow, so
   # its completion re-posts the lanes; a status run that raced it and saw no result is corrected.
   workflow_run:
-    workflows: ['Fleet status self-test', 'Fleet review relay', 'pulse check', Redline]
+    workflows: ['Fleet status self-test', 'Fleet review relay', 'pulse check', Redline, 'Public text']
     types: [completed]
 
 permissions: {}
