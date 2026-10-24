@@ -13,12 +13,12 @@ import {
   isRefreshCommit,
   checksToDispatch,
   COUNT_LINE,
-  SELF_TEST_WORKFLOW,
-  SELF_TEST_CHECK,
+  TEST_WORKFLOW,
+  TEST_CHECK,
   REDLINE_WORKFLOW,
   BOT_EMAIL,
 } from './fleet-refresh.mjs';
-import { REDLINE_LOGIN } from './fleet-status.mjs';
+import { REDLINE_LOGIN } from '../.ci/scripts/fleet-status/fleet-status.mjs';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -354,7 +354,7 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
     check('a conflicted docs bot PR is merged and pushed', r.status === 0 && sha !== s.headSha && show(s.bare, sha, 'README.md') + '\n' === EXPECTED);
     check('it waits for GitHub to compute mergeability', !/has not computed/.test(r.out));
     const dispatched = r.posted.filter((p) => p.path.includes('/dispatches'));
-    check('self-test is dispatched on the branch', dispatched.some((p) => p.path === `/repos/o/r/actions/workflows/${SELF_TEST_WORKFLOW}/dispatches` && p.ref === 'receipts-puppeteer'));
+    check('test is dispatched on the branch', dispatched.some((p) => p.path === `/repos/o/r/actions/workflows/${TEST_WORKFLOW}/dispatches` && p.ref === 'receipts-puppeteer'));
     check('Redline is not dispatched on docs only', !dispatched.some((p) => p.path.includes(REDLINE_WORKFLOW)) && /docs only/.test(r.out));
     const lanes = r.posted.filter((p) => p.path.startsWith('/repos/o/r/statuses/'));
     check('the lanes are posted for the PR', lanes.length === 2 && lanes.map((l) => l.context).sort().join() === 'fleet/review,fleet/verify');
@@ -423,11 +423,11 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
     check('push ok, dispatch down: the merge is pushed, the run fails and says why',
       first.status === 1 && sha !== s.headSha && /could not dispatch/.test(first.out) && dispatches(first).length === 0);
     const second = run(fixture(s, { mergeable: [true] }), s.bare);
-    check('the next run, PR mergeable, dispatches the missing self-test without another merge',
+    check('the next run, PR mergeable, dispatches the missing test without another merge',
       second.status === 0 && sh(s.bare, 'rev-parse', 'receipts-puppeteer') === sha
-      && dispatches(second).length === 1 && dispatches(second)[0].path.endsWith(`${SELF_TEST_WORKFLOW}/dispatches`) && dispatches(second)[0].ref === 'receipts-puppeteer');
-    const third = run(fixture(s, { mergeable: [true], checkRuns: [{ name: 'status' }, { name: SELF_TEST_CHECK }] }), s.bare);
-    check('once self-test reports at the head, nothing more is dispatched', third.status === 0 && dispatches(third).length === 0 && /has its checks/.test(third.out));
+      && dispatches(second).length === 1 && dispatches(second)[0].path.endsWith(`${TEST_WORKFLOW}/dispatches`) && dispatches(second)[0].ref === 'receipts-puppeteer');
+    const third = run(fixture(s, { mergeable: [true], checkRuns: [{ name: 'status' }, { name: TEST_CHECK }] }), s.bare);
+    check('once test reports at the head, nothing more is dispatched', third.status === 0 && dispatches(third).length === 0 && /has its checks/.test(third.out));
     rmSync(s.root, { recursive: true, force: true });
   }
   {
@@ -462,12 +462,12 @@ console.log('\n  the CLI, end to end, against a stubbed GitHub and a scratch rem
     check('code PR, dispatch down: nothing dispatched, run fails', first.status === 1 && dispatches(first).length === 0);
     const second = run(fixture(s, { files: CODE, mergeable: [true] }), s.bare);
     const redline = dispatches(second).find((p) => p.path.includes(REDLINE_WORKFLOW));
-    check('the next run dispatches self-test and Redline at the head', second.status === 0 && dispatches(second).length === 2 && redline?.inputs.head === sha);
-    const titled = run(fixture(s, { files: CODE, mergeable: [true], checkRuns: [{ name: SELF_TEST_CHECK }], redlineRuns: [{ display_title: `Redline review o/r#7 @ ${sha}`, name: 'Redline' }] }), s.bare);
+    check('the next run dispatches test and Redline at the head', second.status === 0 && dispatches(second).length === 2 && redline?.inputs.head === sha);
+    const titled = run(fixture(s, { files: CODE, mergeable: [true], checkRuns: [{ name: TEST_CHECK }], redlineRuns: [{ display_title: `Redline review o/r#7 @ ${sha}`, name: 'Redline' }] }), s.bare);
     check('a Redline dispatch run titled with the head stops the retry', titled.status === 0 && dispatches(titled).length === 0);
-    const judged = run(fixture(s, { files: CODE, mergeable: [true], checkRuns: [{ name: SELF_TEST_CHECK }], reviews: [{ user: { login: REDLINE_LOGIN }, state: 'CHANGES_REQUESTED', commit_id: sha }] }), s.bare);
+    const judged = run(fixture(s, { files: CODE, mergeable: [true], checkRuns: [{ name: TEST_CHECK }], reviews: [{ user: { login: REDLINE_LOGIN }, state: 'CHANGES_REQUESTED', commit_id: sha }] }), s.bare);
     check('so does a Redline verdict at the head', judged.status === 0 && dispatches(judged).length === 0);
-    const older = run(fixture(s, { files: CODE, mergeable: [true], checkRuns: [{ name: SELF_TEST_CHECK }], redlineRuns: [{ display_title: `Redline review o/r#7 @ ${s.headSha}` }], reviews: [{ user: { login: REDLINE_LOGIN }, state: 'APPROVED', commit_id: s.headSha }] }), s.bare);
+    const older = run(fixture(s, { files: CODE, mergeable: [true], checkRuns: [{ name: TEST_CHECK }], redlineRuns: [{ display_title: `Redline review o/r#7 @ ${s.headSha}` }], reviews: [{ user: { login: REDLINE_LOGIN }, state: 'APPROVED', commit_id: s.headSha }] }), s.bare);
     check('a run or verdict on the older head does not', older.status === 0 && dispatches(older).length === 1 && dispatches(older)[0].path.includes(REDLINE_WORKFLOW));
     rmSync(s.root, { recursive: true, force: true });
   }
@@ -482,31 +482,42 @@ console.log('\n  isRefreshCommit / checksToDispatch');
   check('another branch pair is not', !isRefreshCommit(c('Merge main into other\n'), 'main', 'receipts-x'));
   check('a missing commit is not', !isRefreshCommit(undefined, 'main', 'receipts-x'));
   const want = (o) => checksToDispatch({ checkNames: [], code: false, headSha: 'abc1234', redlineRunTitles: [], redlineVerdictAtHead: false, ...o });
-  check('no checks at a docs head: self-test alone', JSON.stringify(want({})) === '{"selfTest":true,"redline":false}');
-  check('self-test present: nothing', !want({ checkNames: ['status', SELF_TEST_CHECK] }).selfTest);
+  check('no checks at a docs head: test alone', JSON.stringify(want({})) === '{"test":true,"redline":false}');
+  check('test present: nothing', !want({ checkNames: ['status', TEST_CHECK] }).test);
   check('code without a verdict or a dispatch: Redline too', want({ code: true }).redline === true);
   check('a dispatch run titled with the head: not again', !want({ code: true, redlineRunTitles: ['Redline review o/r#7 @ abc1234'] }).redline);
   check('a verdict at the head: not again', !want({ code: true, redlineVerdictAtHead: true }).redline);
 }
 
-console.log('\n  fleet-refresh.yml and the self-test workflow it dispatches');
+console.log('\n  fleet-refresh.yml and the test workflow it dispatches');
 {
+  // askalf/ci's fleet-status.mjs alone, at the sha fleet-status.yml pins, under .ci, without credentials.
+  const ciCheckout = (y) => /^ +shas="\$\(grep -oE '\^ \+- uses: askalf\/ci\/actions\/fleet-status@\[0-9a-f\]\{40\}' \.github\/workflows\/fleet-status\.yml /m.test(y)
+    && /^ +repository: askalf\/ci\n +ref: \$\{\{ steps\.ci\.outputs\.sha \}\}\n +path: \.ci\n +sparse-checkout: scripts\/fleet-status\/fleet-status\.mjs\n +sparse-checkout-cone-mode: false\n +persist-credentials: false\n/m.test(y);
   const dir = join(fileURLToPath(new URL('..', import.meta.url)), '.github', 'workflows');
   const y = readFileSync(join(dir, 'fleet-refresh.yml'), 'utf8');
   const onBlock = (/^on:\n((?:[ \t].*\n|\n)*)/m.exec(y)?.[1] ?? '').replace(/#.*$/gm, '');
   check('runs after a push to main, on a schedule and on demand', /^  push:\n    branches: \[main\]/m.test(onBlock) && /^  schedule:/m.test(onBlock) && /^  workflow_dispatch:/m.test(onBlock));
   check('never on a pull request, so no PR code reaches its write token', !/pull_request|issue_comment|workflow_run/.test(onBlock));
-  check('the only checkout is the default branch\'s scripts, without credentials',
-    (y.match(/uses: \S*checkout/g) ?? []).length === 1 && /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/.test(y)
-    && /sparse-checkout: \|\n\s+scripts\/fleet-refresh\.mjs\n\s+scripts\/fleet-status\.mjs/.test(y) && /persist-credentials: false/.test(y));
+  check('the checkouts are the default branch\'s script and askalf/ci\'s fleet-status.mjs alone, without credentials',
+    (y.match(/uses: \S*checkout/g) ?? []).length === 2 && /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/.test(y)
+    && /sparse-checkout: \|\n\s+scripts\/fleet-refresh\.mjs\n\s+\.github\/workflows\/fleet-status\.yml\n/.test(y)
+    && ciCheckout(y) && (y.match(/persist-credentials: false/g) ?? []).length === 2);
   check('the job can push, comment, dispatch and post statuses, and no more',
     /^permissions: \{\}$/m.test(y) && /contents: write/.test(y) && /pull-requests: write/.test(y) && /actions: write/.test(y) && /statuses: write/.test(y)
     && !/issues: write|checks: write|id-token/.test(y));
   check('runs queue instead of overlapping', /group: fleet-refresh\n\s+cancel-in-progress: false/.test(y));
   check('runs the script from the checkout', /run: node scripts\/fleet-refresh\.mjs/.test(y));
-  const self = readFileSync(join(dir, 'fleet-status-self-test.yml'), 'utf8');
-  check('the self-test workflow this script dispatches can be dispatched', /^  workflow_dispatch:/m.test(self) && SELF_TEST_WORKFLOW === 'fleet-status-self-test.yml');
-  check('the self-test workflow runs these tests', /node scripts\/fleet-refresh\.test\.mjs/.test(self));
+  const test = readFileSync(join(dir, TEST_WORKFLOW), 'utf8');
+  check('the test workflow this script dispatches can be dispatched, and its job is the check it waits for',
+    /^  workflow_dispatch:/m.test(test) && /^jobs:\n  test:\n/m.test(test) && TEST_CHECK === 'test');
+  check('the test workflow runs on every PR (it is required), and runs these tests with askalf/ci\'s fleet-status.mjs',
+    /^  pull_request:\n    types: \[opened, synchronize, reopened, ready_for_review\]\n  workflow_dispatch:\n\n/m.test(test)
+    && ciCheckout(test) && /run: node scripts\/fleet-refresh\.test\.mjs/.test(test));
+  // The sha both workflows read is the status action's pin, the line a pin bump moves.
+  const status = readFileSync(join(dir, 'fleet-status.yml'), 'utf8');
+  check('fleet-status.yml pins the status action at one full sha',
+    new Set([...status.matchAll(/^ +- uses: askalf\/ci\/actions\/fleet-status@([0-9a-f]{40})/gm)].map((m) => m[1])).size === 1);
   const redline = readFileSync(join(dir, REDLINE_WORKFLOW), 'utf8');
   check('the Redline workflow takes the pr and head inputs this script sends', /^  workflow_dispatch:\n    inputs:\n      pr:/m.test(redline) && /^      head:/m.test(redline));
 }

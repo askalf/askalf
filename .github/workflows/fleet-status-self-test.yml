@@ -1,14 +1,16 @@
-# Runs the fleet scripts' tests on the PR's own code, read-only.
-# self-test is a required check on the default branch, so it runs on every pull request: a path
-# filter would leave it pending forever on a PR that touches none of the paths.
-# fleet-refresh.yml dispatches it on a bot branch it has just pushed a merge commit to: that push
-# is made with the workflow token, which starts no pull_request run, and the check is required.
+# Checks this repository's fleet-status workflows with askalf/ci's fleet-status-check action: the
+# refresh list in fleet-status.yml against every workflow that runs on pull requests, the status
+# job's if: against fork and same-repo events, every runs-on that names our runner label, and the
+# review relay. The workflows are read as text from the PR's checkout with a read-only token;
+# nothing in them runs. The paths are every file the check reads.
+# self-test is not a required check here, so a PR that touches none of them runs nothing.
 name: Fleet status self-test
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  workflow_dispatch:
+    paths:
+      - .github/workflows/**
 
 permissions: {}
 
@@ -27,12 +29,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: askalf/ci/actions/fleet-status-check@6290c052b725054b09d45ecbeb6664194a778c79 # main 2026-10-24, askalf/ci#129
         with:
-          node-version: 22
-
-      - name: Test the lane rules
-        run: node scripts/fleet-status.test.mjs
-
-      - name: Test the refresh rules
-        run: node scripts/fleet-refresh.test.mjs
+          min-own-exprs: '2'
+          repo-only: fleet-status.yml fleet-status-backfill.yml fleet-refresh.yml pulse.yml
