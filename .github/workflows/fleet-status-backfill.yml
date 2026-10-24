@@ -21,33 +21,6 @@ jobs:
       checks: read
       statuses: write
     steps:
-      - uses: askalf/ci/actions/checkout-with-retry@6290c052b725054b09d45ecbeb6664194a778c79 # main 2026-10-24, askalf/ci#129
+      - uses: askalf/ci/actions/fleet-status@6290c052b725054b09d45ecbeb6664194a778c79 # main 2026-10-24, askalf/ci#129
         with:
-          ref: ${{ github.event.repository.default_branch }}
-          sparse-checkout: scripts/fleet-status.mjs
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22
-
-      - name: Post the lane statuses on every open PR
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -euo pipefail
-          # gh pages past 100 on its own; at the cap, fail rather than skip PRs silently.
-          all="$(gh pr list --repo "$REPO" --state open --limit 1000 --json number,isCrossRepository)"
-          if [ "$(printf '%s' "$all" | jq 'length')" -ge 1000 ]; then
-            echo "::error::1000 or more open PRs; raise the backfill limit"
-            exit 1
-          fi
-          prs="$(printf '%s' "$all" | jq -r '.[] | select(.isCrossRepository | not) | .number')"
-          for pr in $prs; do
-            echo "== #$pr"
-            PR="$pr" node scripts/fleet-status.mjs
-          done
+          all-open: 'true'

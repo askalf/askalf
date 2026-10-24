@@ -16,20 +16,25 @@
 //     edit), and the merge is declined when the count cannot be squared with the table. Any
 //     other conflict is left alone, and the PR gets one comment saying so.
 //   - The merge commit is pushed with the workflow's token. Events from that token start no
-//     workflow runs, so the run then dispatches self-test (a required check) on the branch, and
+//     workflow runs, so the run then dispatches test (a required check) on the branch, and
 //     Redline on a PR that touches code (a docs-only PR is approved by the deterministic sweep),
 //     and posts the fleet lanes on the new head itself. The dispatches are reconciled, not fired
 //     once: every run looks at each open PR whose head is a merge commit this script pushed and
 //     dispatches whichever of those checks the head still lacks, so a dispatch that failed is
 //     retried on the next run, and the PR is not left without its required check.
-//   - Every open same-repo PR has its lanes re-posted (scripts/fleet-status.mjs), so a status
+//   - Every open same-repo PR has its lanes re-posted (askalf/ci's fleet-status.mjs), so a status
 //     that went stale for any reason is corrected on the next run.
 //
 // The checked-out code is the default branch's; a PR head is only fetched into a scratch clone
 // and merged as text. Nothing from it is executed.
 //
+// The lane rules (which PR is a bot's, which path is code) and the status poster are askalf/ci's
+// scripts/fleet-status/fleet-status.mjs, at the commit fleet-status.yml pins. The workflows check
+// that file out under .ci/, so this script and the lanes cannot disagree on a rule.
+//
 // CLI:
 //   GITHUB_TOKEN=... REPO=owner/name [PR=<number>] node scripts/fleet-refresh.mjs [--dry-run]
+// with askalf/ci's scripts/fleet-status/fleet-status.mjs at .ci/scripts/fleet-status/.
 // With --dry-run nothing is pushed, posted or dispatched; the merge is still attempted locally.
 
 import { spawnSync } from 'node:child_process';
@@ -37,13 +42,13 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isBotPr, isCodePath, collectPages, REDLINE_LOGIN } from './fleet-status.mjs';
+import { isBotPr, isCodePath, collectPages, REDLINE_LOGIN } from '../.ci/scripts/fleet-status/fleet-status.mjs';
 
 export const MARKER = 'fleet-refresh';
 /** The README's headline: "**23 fixes merged upstream** into Hugging Face, ioredis and more". */
 export const COUNT_LINE = /^\*\*(\d+) fixes merged upstream\*\* into (.+?) and more$/;
-export const SELF_TEST_WORKFLOW = 'fleet-status-self-test.yml';
-export const SELF_TEST_CHECK = 'self-test';
+export const TEST_WORKFLOW = 'scripts-test.yml';
+export const TEST_CHECK = 'test';
 export const REDLINE_WORKFLOW = 'redline.yml';
 export const BOT_EMAIL = '41898282+github-actions[bot]@users.noreply.github.com';
 const ROW = /^\|/;
@@ -256,14 +261,14 @@ export function isRefreshCommit(commit, baseRef, headRef) {
 }
 
 /**
- * The checks a refreshed head still lacks. `checkNames` are the head's check runs; self-test
+ * The checks a refreshed head still lacks. `checkNames` are the head's check runs; test
  * reports there once dispatched on the branch. A Redline dispatch runs on the default branch, so
  * it is known by a workflow_dispatch run titled with the head (`redlineRunTitles`) or by its
  * verdict review at the head (`redlineVerdictAtHead`); a docs-only diff needs none.
  */
 export function checksToDispatch({ checkNames, code, headSha, redlineRunTitles, redlineVerdictAtHead }) {
   return {
-    selfTest: !checkNames.includes(SELF_TEST_CHECK),
+    test: !checkNames.includes(TEST_CHECK),
     redline: code && !redlineVerdictAtHead && !redlineRunTitles.some((t) => t.includes(headSha)),
   };
 }
@@ -360,7 +365,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
 
   // A push by this token starts no workflow run. Every open PR whose head is a merge commit this
-  // script pushed, now or on an earlier run, gets the checks that head still lacks: self-test (a
+  // script pushed, now or on an earlier run, gets the checks that head still lacks: test (a
   // required check) on the branch, and Redline where the diff is code. Looking at the head rather
   // than remembering the push means a dispatch that failed is retried here next run. A failure
   // fails the run, so it is seen, but the other PRs are still served.
@@ -385,9 +390,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
           redlineRunTitles = dispatched.map((r) => `${r.display_title ?? ''} ${r.name ?? ''}`);
         }
         const want = checksToDispatch({ checkNames: runs.map((r) => r.name), code, headSha: head, redlineRunTitles, redlineVerdictAtHead });
-        if (want.selfTest) await post(`/repos/${repo}/actions/workflows/${SELF_TEST_WORKFLOW}/dispatches`, token, { ref: p.head.ref });
+        if (want.test) await post(`/repos/${repo}/actions/workflows/${TEST_WORKFLOW}/dispatches`, token, { ref: p.head.ref });
         if (want.redline) await post(`/repos/${repo}/actions/workflows/${REDLINE_WORKFLOW}/dispatches`, token, { ref: defaultBranch, inputs: { pr: String(n), head } });
-        const did = [want.selfTest && 'self-test', want.redline && 'Redline'].filter(Boolean);
+        const did = [want.test && 'test', want.redline && 'Redline'].filter(Boolean);
         console.log(`#${n}: refreshed head ${head.slice(0, 7)} ${did.length ? `dispatched ${did.join(' and ')}` : 'has its checks'}${!code ? '; docs only, the sweep approves' : ''}`);
       } catch (e) {
         console.error(`::error::#${n}: could not dispatch the checks its refreshed head lacks: ${e.message}`);
@@ -397,7 +402,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
 
   // Every open PR's lanes, so a status that went stale while a PR was conflicted is corrected.
-  const statusScript = fileURLToPath(new URL('./fleet-status.mjs', import.meta.url));
+  const statusScript = fileURLToPath(new URL('../.ci/scripts/fleet-status/fleet-status.mjs', import.meta.url));
   for (const p of own) {
     console.log(`== lanes #${p.number}`);
     const r = spawnSync(process.execPath, [...process.execArgv, statusScript, ...(dryRun ? ['--dry-run'] : [])], {

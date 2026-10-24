@@ -1,0 +1,57 @@
+# Runs the scripts' tests on the PR's own code, read-only.
+# test is a required check on the default branch, so it runs on every pull request: a path filter
+# would leave it pending forever on a PR that touches none of the paths.
+# fleet-refresh.yml dispatches it on a bot branch it has just pushed a merge commit to: that push
+# is made with the workflow token, which starts no pull_request run, and the check is required.
+# The refresh script imports askalf/ci's fleet-status.mjs, so the tests run against that file at
+# the commit fleet-status.yml pins: a pin bump PR tests the refresh against the commit it moves to.
+name: Scripts test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  test:
+    # Our own code (pushes, same-repo PRs, schedules, dispatches) runs on askalf-exec, our non-root
+    # one-job runners, so GitHub's hosted queue going down does not hold our PRs. A fork's PR
+    # and a Dependabot PR run code nobody here wrote, and a fork repository has no askalf-exec
+    # runners, so those stay on GitHub's runners.
+    runs-on: ${{ (github.repository != 'askalf/askalf' || github.event.pull_request && (github.event.pull_request.head.repo.full_name != github.repository || github.event.pull_request.user.login == 'dependabot[bot]')) && 'ubuntu-latest' || fromJSON('["self-hosted","askalf-exec"]') }}
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: askalf/ci/actions/checkout-with-retry@6290c052b725054b09d45ecbeb6664194a778c79 # main 2026-10-24, askalf/ci#129
+        with:
+          persist-credentials: false
+
+      - name: Read the askalf/ci commit fleet-status.yml pins
+        id: ci
+        run: |
+          set -euo pipefail
+          shas="$(grep -oE '^ +- uses: askalf/ci/actions/fleet-status@[0-9a-f]{40}' .github/workflows/fleet-status.yml | sed 's/.*@//' | sort -u)"
+          if [ "$(printf '%s\n' "$shas" | grep -c .)" != 1 ]; then
+            echo "::error::fleet-status.yml must pin askalf/ci/actions/fleet-status at exactly one full sha"
+            exit 1
+          fi
+          echo "sha=$shas" >> "$GITHUB_OUTPUT"
+
+      - uses: askalf/ci/actions/checkout-with-retry@6290c052b725054b09d45ecbeb6664194a778c79 # main 2026-10-24, askalf/ci#129
+        with:
+          repository: askalf/ci
+          ref: ${{ steps.ci.outputs.sha }}
+          path: .ci
+          sparse-checkout: scripts/fleet-status/fleet-status.mjs
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Test the refresh rules
+        run: node scripts/fleet-refresh.test.mjs
