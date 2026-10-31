@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 356" width="1000" height="356" role="img" aria-labelledby="t">
+<title id="t">alf status: dario v6.19.2 · shipped 11h ago · 692 releases, 64 in the last 30 days; installs 15,539 in the last 30 days; stars 581 on dario · 610 across 11 public repos; upstream 25 fixes merged into 23 projects · 9 open for review; in review blacktop/ipsw#1328 · github/advisory-database#9528 · ossf/scorecard#5239 · rohitg00…; last move pushed to bot/redline-pin in askalf/redstamp · 2d ago; pulse rendered 2026-10-31 13:16 UTC · redrawn hourly by a GitHub Action</title>
+<style>
+  text { font-family: ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace; }
+  .live { animation: live 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes live { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .35; transform: scale(.7) } }
+  .ring { animation: ring 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes ring { 0% { opacity: .8; transform: scale(1) } 100% { opacity: 0; transform: scale(3.2) } }
+  
+  @keyframes type { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+  clipPath rect { transform-box: fill-box; transform-origin: left; }
+  .row { animation: show .01s linear both; }
+  @keyframes show { from { opacity: 0 } to { opacity: 1 } }
+  .bar { transform-box: fill-box; transform-origin: bottom; animation: grow .5s cubic-bezier(.2,.9,.3,1.2) both; }
+  @keyframes grow { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+  .cursor { animation: blink 1.05s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0 } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+</style>
+<defs>
+  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".55"/><stop offset=".5" stop-color="#2a1f47"/><stop offset="1" stop-color="#e879f9" stop-opacity=".45"/></linearGradient>
+  <radialGradient id="wash" cx=".15" cy="0" r="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".16"/><stop offset=".6" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <clipPath id="c0"><rect class="type" x="175.45" y="52" width="155.51" height="26" style="animation:type 0.9s steps(17) 0.5s both"/></clipPath><clipPath id="c1"><rect x="175" y="89" width="586.9499999999999" height="26" style="animation:type .45s steps(21) 1.65s both"/></clipPath><clipPath id="c2"><rect x="175" y="120" width="243.80999999999997" height="26" style="animation:type .45s steps(9) 1.87s both"/></clipPath><linearGradient id="barfill" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#f0abfc"/></linearGradient><clipPath id="c3"><rect x="175" y="151" width="379.26" height="26" style="animation:type .45s steps(14) 2.09s both"/></clipPath><clipPath id="c4"><rect x="175" y="182" width="478.59" height="26" style="animation:type .45s steps(17) 2.31s both"/></clipPath><clipPath id="c5"><rect x="175" y="213" width="767.55" height="26" style="animation:type .45s steps(28) 2.53s both"/></clipPath><clipPath id="c6"><rect x="175" y="244" width="487.61999999999995" height="26" style="animation:type .45s steps(18) 2.75s both"/></clipPath><clipPath id="c7"><rect x="175" y="275" width="595.9799999999999" height="26" style="animation:type .45s steps(22) 2.97s both"/></clipPath>
+</defs>
+<rect x="1" y="1" width="998" height="354" rx="14" fill="#0d0918" stroke="url(#edge)" stroke-width="1.5"/>
+<rect x="1" y="1" width="998" height="354" rx="14" fill="url(#wash)"/>
+<g transform="translate(26 30)">
+  <circle class="ring" cx="5" cy="-4" r="5" fill="none" stroke="#4ade80" stroke-width="1.5"/>
+  <circle class="live" cx="5" cy="-4" r="4.5" fill="#4ade80"/>
+  <text x="20" y="0" font-size="13" fill="#c4b5fd" letter-spacing="2.5">LIVE · THE OPERATION RIGHT NOW</text>
+</g>
+<text x="974" y="30" font-size="12" fill="#5b5378" text-anchor="end">askalf/askalf · pulse</text>
+<text x="40" y="70" font-size="15"><tspan fill="#e879f9">alf@askalf</tspan><tspan fill="#5b5378"> ~ $</tspan></text><text x="175.45" y="70" font-size="15" fill="#ece8ff" clip-path="url(#c0)">alf status --live</text><g class="row" style="animation-delay:1.65s">
+      <text x="40" y="107" font-size="15" fill="#f0abfc">dario</text>
+      <text x="145" y="107" font-size="15" fill="#5b5378">›</text>
+    </g>
+    <text x="175" y="107" font-size="15" fill="#ece8ff" clip-path="url(#c1)">v6.19.2 · shipped 11h ago · 692 releases, 64 in the last 30 days</text><g class="row" style="animation-delay:1.87s">
+      <text x="40" y="138" font-size="15" fill="#f0abfc">installs</text>
+      <text x="145" y="138" font-size="15" fill="#5b5378">›</text>
+    </g>
+    <text x="175" y="138" font-size="15" fill="#ece8ff" clip-path="url(#c2)">15,539 in the last 30 days</text><rect class="bar" x="442.80999999999995" y="134.71150729335494" width="10" height="6.3" rx="2" fill="url(#barfill)" style="animation-delay:2.17s"><title>2026-09-30: 485</title></rect><rect class="bar" x="455.80999999999995" y="117" width="10" height="24.0" rx="2" fill="url(#barfill)" style="animation-delay:2.20s"><title>2026-10-01: 1,851</title></rect><rect class="bar" x="468.80999999999995" y="129.87520259319288" width="10" height="11.1" rx="2" fill="url(#barfill)" style="animation-delay:2.23s"><title>2026-10-02: 858</title></rect><rect class="bar" x="481.80999999999995" y="132.2998379254457" width="10" height="8.7" rx="2" fill="url(#barfill)" style="animation-delay:2.26s"><title>2026-10-03: 671</title></rect><rect class="bar" x="494.80999999999995" y="133.27228525121555" width="10" height="7.7" rx="2" fill="url(#barfill)" style="animation-delay:2.29s"><title>2026-10-04: 596</title></rect><rect class="bar" x="507.80999999999995" y="128.87682333873582" width="10" height="12.1" rx="2" fill="url(#barfill)" style="animation-delay:2.32s"><title>2026-10-05: 935</title></rect><rect class="bar" x="520.81" y="139" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:2.35s"><title>2026-10-06: 0</title></rect><rect class="bar" x="533.81" y="128.83792544570503" width="10" height="12.2" rx="2" fill="url(#barfill)" style="animation-delay:2.38s"><title>2026-10-07: 938</title></rect><rect class="bar" x="546.81" y="125.19448946515396" width="10" height="15.8" rx="2" fill="url(#barfill)" style="animation-delay:2.41s"><title>2026-10-08: 1,219</title></rect><rect class="bar" x="559.81" y="129.7066450567261" width="10" height="11.3" rx="2" fill="url(#barfill)" style="animation-delay:2.44s"><title>2026-10-09: 871</title></rect><rect class="bar" x="572.81" y="138.22528363047002" width="10" height="2.8" rx="2" fill="url(#barfill)" style="animation-delay:2.47s"><title>2026-10-10: 214</title></rect><rect class="bar" x="585.81" y="135.72285251215558" width="10" height="5.3" rx="2" fill="url(#barfill)" style="animation-delay:2.50s"><title>2026-10-11: 407</title></rect><rect class="bar" x="598.81" y="139" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:2.53s"><title>2026-10-12: 104</title></rect><rect class="bar" x="611.81" y="139" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:2.56s"><title>2026-10-13: 0</title></rect><rect class="bar" x="624.81" y="139" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:2.59s"><title>2026-10-14: 0</title></rect><rect class="bar" x="637.81" y="139" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:2.62s"><title>2026-10-15: 0</title></rect><rect class="bar" x="650.81" y="136.87682333873582" width="10" height="4.1" rx="2" fill="url(#barfill)" style="animation-delay:2.65s"><title>2026-10-16: 318</title></rect><rect class="bar" x="663.81" y="127.77471636952998" width="10" height="13.2" rx="2" fill="url(#barfill)" style="animation-delay:2.68s"><title>2026-10-17: 1,020</title></rect><rect class="bar" x="676.81" y="139" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:2.71s"><title>2026-10-18: 151</title></rect><rect class="bar" x="689.81" y="139" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:2.74s"><title>2026-10-19: 0</title></rect><rect class="bar" x="702.81" y="139" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:2.77s"><title>2026-10-20: 0</title></rect><rect class="bar" x="715.81" y="139" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:2.80s"><title>2026-10-21: 0</title></rect><rect class="bar" x="728.81" y="133.07779578606159" width="10" height="7.9" rx="2" fill="url(#barfill)" style="animation-delay:2.83s"><title>2026-10-22: 611</title></rect><rect class="bar" x="741.81" y="128.902755267423" width="10" height="12.1" rx="2" fill="url(#barfill)" style="animation-delay:2.86s"><title>2026-10-23: 933</title></rect><rect class="bar" x="754.81" y="130.09562398703403" width="10" height="10.9" rx="2" fill="url(#barfill)" style="animation-delay:2.89s"><title>2026-10-24: 841</title></rect><rect class="bar" x="767.81" y="136.88978930307943" width="10" height="4.1" rx="2" fill="url(#barfill)" style="animation-delay:2.92s"><title>2026-10-25: 317</title></rect><rect class="bar" x="780.81" y="132.2479740680713" width="10" height="8.8" rx="2" fill="url(#barfill)" style="animation-delay:2.95s"><title>2026-10-26: 675</title></rect><rect class="bar" x="793.81" y="129.25283630470017" width="10" height="11.7" rx="2" fill="url(#barfill)" style="animation-delay:2.98s"><title>2026-10-27: 906</title></rect><rect class="bar" x="806.81" y="138.97730956239872" width="10" height="2.0" rx="2" fill="url(#barfill)" style="animation-delay:3.01s"><title>2026-10-28: 156</title></rect><rect class="bar" x="819.81" y="135.0097244732577" width="10" height="6.0" rx="2" fill="url(#barfill)" style="animation-delay:3.04s"><title>2026-10-29: 462</title></rect><g class="row" style="animation-delay:2.09s">
+      <text x="40" y="169" font-size="15" fill="#f0abfc">stars</text>
+      <text x="145" y="169" font-size="15" fill="#5b5378">›</text>
+    </g>
+    <text x="175" y="169" font-size="15" fill="#ece8ff" clip-path="url(#c3)">581 on dario · 610 across 11 public repos</text><g class="row" style="animation-delay:2.31s">
+      <text x="40" y="200" font-size="15" fill="#f0abfc">upstream</text>
+      <text x="145" y="200" font-size="15" fill="#5b5378">›</text>
+    </g>
+    <text x="175" y="200" font-size="15" fill="#ece8ff" clip-path="url(#c4)">25 fixes merged into 23 projects · 9 open for review</text><g class="row" style="animation-delay:2.53s">
+      <text x="40" y="231" font-size="15" fill="#f0abfc">in review</text>
+      <text x="145" y="231" font-size="15" fill="#5b5378">›</text>
+    </g>
+    <text x="175" y="231" font-size="15" fill="#ece8ff" clip-path="url(#c5)">blacktop/ipsw#1328 · github/advisory-database#9528 · ossf/scorecard#5239 · rohitg00…</text><g class="row" style="animation-delay:2.75s">
+      <text x="40" y="262" font-size="15" fill="#f0abfc">last move</text>
+      <text x="145" y="262" font-size="15" fill="#5b5378">›</text>
+    </g>
+    <text x="175" y="262" font-size="15" fill="#ece8ff" clip-path="url(#c6)">pushed to bot/redline-pin in askalf/redstamp · 2d ago</text><g class="row" style="animation-delay:2.97s">
+      <text x="40" y="293" font-size="15" fill="#f0abfc">pulse</text>
+      <text x="145" y="293" font-size="15" fill="#5b5378">›</text>
+    </g>
+    <text x="175" y="293" font-size="15" fill="#8e84ad" clip-path="url(#c7)">rendered 2026-10-31 13:16 UTC · redrawn hourly by a GitHub Action</text><g class="row" style="animation-delay:3.59s"><text x="40" y="330" font-size="15"><tspan fill="#e879f9">alf@askalf</tspan><tspan fill="#5b5378"> ~ $</tspan></text>
+    <rect class="cursor" x="175.45" y="316" width="9" height="18" fill="#c4b5fd"/></g>
+</svg>
