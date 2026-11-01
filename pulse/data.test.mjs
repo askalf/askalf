@@ -1,11 +1,12 @@
 // node --test pulse/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { OWN, inReviewFrom, recentEvents, tallyPerDay } from './data.mjs';
+import { OWN, inReviewFrom, recentEvents, tallyPerDay, pitlaneFrom } from './data.mjs';
 import { renderSignal } from './svg/signal.mjs';
 import { renderGate } from './svg/gate.mjs';
 import { renderHeartbeat } from './svg/heartbeat.mjs';
 import { renderStats } from './svg/stats.mjs';
+import { renderPitlane, fmtWait } from './svg/pitlane.mjs';
 
 const DAY = 864e5;
 const now = Date.parse('2026-09-25T02:00:00Z');
@@ -133,4 +134,38 @@ test('the header stats show each live number and drop a missing source', () => {
   const partial = renderStats({ at, github: null, installs: { last30: 26087 }, dario: null });
   assert.match(partial, /<title id="t">dario · 26,087 npm installs in 30 days<\/title>/);
   assert.ok(+partial.match(/width="(\d+)"/)[1] < +full.match(/width="(\d+)"/)[1]);
+});
+
+test('pitlane keeps the published fields and reads a missing number as null, never 0', () => {
+  const page = { at: '2026-09-25T01:59:00.039Z', window: '24h', jobs: 1474, queueWaitMs: { p50: 2000, p90: 18000 }, targets: { p50Ms: 5000, p90Ms: 30000 }, finished: 1582, runnerSuspect: 2, stale: false };
+  assert.deepEqual(pitlaneFrom(page), { at: '2026-09-25T01:59:00.039Z', window: '24h', jobs: 1474, p50Ms: 2000, p90Ms: 18000, p50TargetMs: 5000, p90TargetMs: 30000, stale: false });
+  const bare = pitlaneFrom({ at: '2026-09-25T01:59:00.039Z', queueWaitMs: { p50: 2000 } });
+  assert.deepEqual([bare.jobs, bare.p90Ms, bare.p50TargetMs, bare.stale], [null, null, null, false]);
+});
+
+test('pitlane waits read like a timing screen', () => {
+  assert.deepEqual([2000, 9960, 18000, 59_600, 125_000, null].map(fmtWait), ['2.0 s', '10.0 s', '18 s', '1m 00s', '2m 05s', '-']);
+});
+
+test('pitlane board draws each wait against twice its target and gives the verdict the page gives', () => {
+  const at = new Date(now).toISOString();
+  const base = { at, window: '24h', jobs: 1474, p50Ms: 2000, p90Ms: 18000, p50TargetMs: 5000, p90TargetMs: 30000, stale: false };
+  const svg = renderPitlane({ at, pitlane: base });
+  assert.match(svg, /<title id="t">pitlane: 1,474 jobs in the last 24 hours, median queue wait 2\.0 s against a 5\.0 s target, p90 18 s against 30 s\. Both targets met\.<\/title>/);
+  assert.match(svg, /class="bar bar0"[^>]*width="136"/);
+  assert.match(svg, /class="bar bar1"[^>]*width="204"/);
+  assert.match(svg, />BOTH TARGETS MET</);
+  const behind = renderPitlane({ at, pitlane: { ...base, p50Ms: 9000, p90Ms: 70_000 } });
+  assert.match(behind, />BEHIND TARGET</);
+  assert.match(behind, /class="bar bar1"[^>]*width="680"/);
+  assert.match(renderPitlane({ at, pitlane: { ...base, stale: true } }), />NUMBERS STALE</);
+  assert.match(renderPitlane({ at, pitlane: { ...base, jobs: 0, p50Ms: null, p90Ms: null } }), />NO JOBS IN 24 H</);
+});
+
+test('pitlane board shows plain dashes with no data', () => {
+  const svg = renderPitlane({ at: new Date(now).toISOString(), pitlane: null });
+  assert.equal((svg.match(/>-<\/text>/g) ?? []).length, 3);
+  assert.match(svg, />NO DATA</);
+  assert.doesNotMatch(svg, /class="bar/);
+  assert.ok(!svg.includes(String.fromCharCode(0x2014)));
 });

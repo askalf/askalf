@@ -17,6 +17,7 @@ import { renderOrbit } from './svg/orbit.mjs';
 import { renderGate } from './svg/gate.mjs';
 import { renderSignal } from './svg/signal.mjs';
 import { renderStats } from './svg/stats.mjs';
+import { renderPitlane } from './svg/pitlane.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -47,6 +48,7 @@ const panels = {
   'orbit.svg': renderOrbit(d, { alfPath: join(here, 'alf.jpg') }),
   'gate.svg': renderGate(d),
   'signal.svg': renderSignal(d),
+  'pitlane.svg': renderPitlane(d),
 };
 for (const [name, svg] of Object.entries(panels)) writeFileSync(join(out, name), svg);
 writeFileSync(statePath, JSON.stringify(d, null, 1) + '\n');
