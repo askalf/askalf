@@ -19,11 +19,11 @@
 
 <a href="https://pitlane.askalf.org/"><img src="https://raw.githubusercontent.com/askalf/askalf/pulse/pitlane.svg" alt="pitlane's timing board, live: how long a job waits before one of our runners starts it, median and 90th percentile against their targets, the jobs run in the last 24 hours, and the verdict, as of the most recent hourly pulse." width="100%"></a>
 
-**Every pull request on my public repositories lands through three gates, all of them in the open.** The runners are ours, and the wait before a job starts on them is published live with the targets it is held to. The review is Redline: a code review by a different model family than the one that wrote the change, run as a reusable workflow at one pinned commit, whose own check is the verdict. The lock is truecopy, which pins the tool definitions the reviewer and the fixer read and fails the build when a byte changes.
+**Every pull request on my public repositories lands through three gates, all of them in the open.** The runners are ours, [their code is public](https://github.com/askalf/pitlane), and the wait before a job starts on them is published live with the targets it is held to. The review is Redline: a code review by a different model family than the one that wrote the change, run as a reusable workflow at one pinned commit, whose own check is the verdict. The lock is truecopy, which pins the tool definitions the reviewer and the fixer read and fails the build when a byte changes.
 
 | Gate | What it does | Where |
 |---|---|---|
-| Runners | Self-hosted runners we run ourselves, held to published targets for the median wait and the slow tail. The last 24 hours are live: the board above, [a page](https://pitlane.askalf.org/) and [JSON](https://pitlane.askalf.org/stats.json). | [pitlane.askalf.org](https://pitlane.askalf.org/) |
+| Runners | Self-hosted runners we run ourselves, held to published targets for the median wait and the slow tail. The last 24 hours are live: the board above, [a page](https://pitlane.askalf.org/) and [JSON](https://pitlane.askalf.org/stats.json). | [pitlane.askalf.org](https://pitlane.askalf.org/) and [askalf/pitlane](https://github.com/askalf/pitlane) |
 | Review | Redline reads the whole diff. A blocking finding fails the job, and the pull request does not merge. | [askalf/ci](https://github.com/askalf/ci) |
 | Lock | A skill or MCP server definition that drifted or turned poisonous fails the pull request, from one YAML block in the caller. | [truecopy-action](https://github.com/askalf/truecopy-action) |
 
