@@ -1,6 +1,6 @@
 # OpenSSF Scorecard: supply-chain checks (branch protection, token permissions, pinned dependencies,
-# CI tests and more). Results are published so the README badge and the scorecard.dev API show the
-# current score; the SARIF also lands in code scanning.
+# CI tests and more). Results are published so the scorecard.dev API shows the current score; the
+# SARIF also lands in code scanning.
 name: Scorecard
 
 on:
@@ -23,7 +23,9 @@ jobs:
       id-token: write # publish_results signs its upload with the job's OIDC token
     steps:
       - name: Checkout code
-        uses: askalf/ci/actions/checkout-with-retry@5305beec29bdd65ff79d5b431d8c3a25fe945bb1 # main, askalf/ci#141
+        # Scorecard publishes only from a workflow whose steps it recognises, so the checkout is
+        # actions/checkout itself; this job runs on a hosted runner, which needs no retry.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
