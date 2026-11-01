@@ -7,6 +7,7 @@ import { renderGate } from './svg/gate.mjs';
 import { renderHeartbeat } from './svg/heartbeat.mjs';
 import { renderStats } from './svg/stats.mjs';
 import { renderPitlane, fmtWait } from './svg/pitlane.mjs';
+import { renderConsole } from './svg/console.mjs';
 
 const DAY = 864e5;
 const now = Date.parse('2026-09-25T02:00:00Z');
@@ -168,4 +169,18 @@ test('pitlane board shows plain dashes with no data', () => {
   assert.match(svg, />NO DATA</);
   assert.doesNotMatch(svg, /class="bar/);
   assert.ok(!svg.includes(String.fromCharCode(0x2014)));
+});
+
+test('console leads with the runners row only when every number it prints is present', () => {
+  const at = new Date(now).toISOString();
+  const pitlane = { at, window: '24h', jobs: 3629, p50Ms: 3000, p90Ms: 123_000, p50TargetMs: 5000, p90TargetMs: 30000, stale: false };
+  const full = renderConsole({ at, upstream: [], pitlane });
+  assert.match(full, /job starts in 3 s \(p50\) · 123 s \(p90\) · 3,629 jobs in 24 h · targets 5 s \/ 30 s/);
+  for (const missing of ['p90Ms', 'jobs', 'p50TargetMs', 'p90TargetMs']) {
+    const svg = renderConsole({ at, upstream: [], pitlane: { ...pitlane, [missing]: null } });
+    assert.doesNotMatch(svg, /runners/, `row drawn without ${missing}`);
+  }
+  const partial = renderConsole({ at, upstream: [], pitlane: pitlaneFrom({ at, queueWaitMs: { p50: 2000 } }) });
+  assert.doesNotMatch(partial, /runners|n\/a/);
+  assert.doesNotMatch(renderConsole({ at, upstream: [], pitlane: { ...pitlane, stale: true } }), /runners/);
 });
