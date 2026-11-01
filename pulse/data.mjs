@@ -52,6 +52,27 @@ async function installs(now) {
   return { days, last30 };
 }
 
+// The runners' queue as the proof page publishes it: how long a job waits
+// before a self-hosted runner starts it, over the last 24 hours. A number the
+// page does not carry reads null, never 0.
+export function pitlaneFrom(j) {
+  const num = (x) => (Number.isFinite(x) ? x : null);
+  return {
+    at: j.at,
+    window: j.window,
+    jobs: num(j.jobs),
+    p50Ms: num(j.queueWaitMs?.p50),
+    p90Ms: num(j.queueWaitMs?.p90),
+    p50TargetMs: num(j.targets?.p50Ms),
+    p90TargetMs: num(j.targets?.p90Ms),
+    stale: j.stale === true,
+  };
+}
+
+async function pitlane() {
+  return pitlaneFrom(await getJSON('https://pitlane.askalf.org/stats.json'));
+}
+
 // "In review" means other people's projects, same rule as the table.
 export function inReviewFrom(items, mine) {
   return items
@@ -160,7 +181,7 @@ export function upstreamFromReadme(readmePath) {
 export async function gather({ previous = {}, readmePath }) {
   const now = Date.now();
   const out = { at: new Date(now).toISOString(), sources: {} };
-  const tasks = { dario: dario(now), installs: installs(now), github: github(now, previous.github ?? undefined) };
+  const tasks = { dario: dario(now), installs: installs(now), github: github(now, previous.github ?? undefined), pitlane: pitlane() };
   const settled = await Promise.allSettled(Object.values(tasks));
   Object.keys(tasks).forEach((key, i) => {
     const r = settled[i];

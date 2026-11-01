@@ -11,9 +11,10 @@ The moving parts of the profile. Zero dependencies, Node 20+.
 | `orbit.svg` | Every project that merged a fix, orbiting ALF | the Merged upstream table in `README.md` |
 | `gate.svg` | redstamp's three verdicts and its hash-chained audit trail | illustrative |
 | `signal.svg` | Public GitHub activity per day, and the latest moves | GitHub API |
+| `pitlane.svg` | The runners' timing board: the queue wait before a job starts, median and p90 against their targets, the jobs run in the last 24 hours, and the start lights | [pitlane.askalf.org](https://pitlane.askalf.org/) `stats.json` |
 
 `hero.svg` is static art and lives here on `main`; redraw it with `node pulse/render.mjs --hero` after changing `hero.jpg`.
 
-The rest are data. [`.github/workflows/pulse.yml`](../.github/workflows/pulse.yml) runs `node pulse/render.mjs --out out` every hour and force-pushes the result as a single commit to the orphan `pulse` branch, which the README links to. A source that fails keeps its last good value from `state.json` on that branch, so a flaky API never blanks a panel.
+The rest are data. [`.github/workflows/pulse.yml`](../.github/workflows/pulse.yml) runs `node pulse/render.mjs --out out` every hour and force-pushes the result as a single commit to the orphan `pulse` branch, which the README links to. A source that fails keeps its last good value from `state.json` on that branch, so a flaky API never blanks a panel. Every source is public: npm, the GitHub API and the pitlane stats page.
 
 Everything moves with CSS animation only, which GitHub's `<img>` sandbox allows, and it all holds still under `prefers-reduced-motion`.
