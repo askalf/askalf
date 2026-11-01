@@ -28,7 +28,7 @@ on:
   # workflow, so its completion re-posts the lanes; a status run that raced it and saw no result is
   # corrected.
   workflow_run:
-    workflows: ['Scripts test', 'Fleet status self-test', 'Fleet review relay', 'pulse check', Redline, 'Public text']
+    workflows: ['Scripts test', 'Fleet status self-test', 'Fleet review relay', 'pulse check', CodeQL, Redline, 'Public text']
     types: [completed]
 
 permissions: {}
