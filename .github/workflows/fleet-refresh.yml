@@ -44,7 +44,7 @@ jobs:
       checks: read
       issues: read
     steps:
-      - uses: askalf/ci/actions/checkout-with-retry@a5e734dd765bbc5a6d5515b781b09e1a762be23d # main 2026-11-01, askalf/ci#148
+      - uses: askalf/ci/actions/checkout-with-retry@4365d12f956b60e795b5b55451e2035549a3600c # main 2026-11-01, askalf/ci#153
         with:
           ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: |
@@ -64,7 +64,7 @@ jobs:
           fi
           echo "sha=$shas" >> "$GITHUB_OUTPUT"
 
-      - uses: askalf/ci/actions/checkout-with-retry@a5e734dd765bbc5a6d5515b781b09e1a762be23d # main 2026-11-01, askalf/ci#148
+      - uses: askalf/ci/actions/checkout-with-retry@4365d12f956b60e795b5b55451e2035549a3600c # main 2026-11-01, askalf/ci#153
         with:
           repository: askalf/ci
           ref: ${{ steps.ci.outputs.sha }}
