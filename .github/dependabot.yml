@@ -1,0 +1,15 @@
+# The action pins in this repository's workflows: minor and patch moves land as one grouped
+# PR a week, a major move as its own PR.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      non-major:
+        update-types:
+          - minor
+          - patch

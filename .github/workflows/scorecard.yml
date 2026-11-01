@@ -1,0 +1,54 @@
+# OpenSSF Scorecard — automated supply-chain security posture checks
+# (branch protection, token permissions, pinned dependencies, CI tests, …).
+# Results are published so the README badge and the public scorecard.dev API
+# always reflect the current score; the SARIF also lands in code scanning.
+name: Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: '45 2 * * 1' # weekly, Monday 02:45 UTC
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      security-events: write # upload the SARIF to code scanning
+      id-token: write # required by publish_results (OIDC attestation)
+    steps:
+      - name: Checkout code
+        uses: askalf/ci/actions/checkout-with-retry@5305beec29bdd65ff79d5b431d8c3a25fe945bb1 # main 2026-11-01, askalf/ci#141
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Branch-Protection scores from what the job token can read: the public
+          # rules of a public repo (5-8 of 10 here, not the -1 an earlier comment
+          # claimed). A fine-grained PAT with `administration: read` + `metadata:
+          # read` in the SCORECARD_TOKEN secret would also read the admin-only
+          # settings; no repo sets one, so the fallback is the path every run takes.
+          repo_token: ${{ secrets.SCORECARD_TOKEN || github.token }}
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: results.sarif
