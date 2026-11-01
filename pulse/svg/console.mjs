@@ -2,12 +2,15 @@
 // from the latest pulse.
 import { C, esc, n, ago, stamp, frame } from './kit.mjs';
 
+// Seconds as the proof page prints them: whole seconds, or n/a for a number the page did not carry.
+const sec = (ms) => (Number.isFinite(ms) ? `${Math.round(ms / 1000)} s` : 'n/a');
 const clip = (s, max) => (s.length > max ? s.slice(0, max - 1) + '…' : s);
 
 export function renderConsole(d) {
   const now = Date.parse(d.at);
   const rows = [];
   if (d.dario) rows.push(['dario', `v${d.dario.latest} · shipped ${ago(d.dario.latestAt, now)} · ${n(d.dario.releaseCount)} releases, ${d.dario.releases30} in the last 30 days`]);
+  if (d.pitlane && !d.pitlane.stale && Number.isFinite(d.pitlane.p50Ms)) rows.unshift(['runners', `job starts in ${sec(d.pitlane.p50Ms)} (p50) · ${sec(d.pitlane.p90Ms)} (p90) · ${n(d.pitlane.jobs)} jobs in 24 h · targets ${sec(d.pitlane.p50TargetMs)} / ${sec(d.pitlane.p90TargetMs)}`]);
   if (d.installs) rows.push(['installs', `${n(d.installs.last30)} in the last 30 days`, 'spark']);
   if (d.github) rows.push(['stars', `${n(d.github.darioStars)} on dario · ${n(d.github.stars)} across ${d.github.publicRepos} public repos`]);
   const fixes = d.upstream.reduce((s, r) => s + r.prs.length, 0);
