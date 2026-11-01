@@ -1,0 +1,15 @@
+# The action pins in this repository's workflows. One grouped pull request per week, so a pair that
+# must move together (codeql-action init and analyze) never lands split. The askalf/ci pins
+# (askalf/ci/...@<sha>) have no releases for Dependabot to move to; the pin bump lane moves them.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns:
+          - "*"
