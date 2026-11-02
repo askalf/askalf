@@ -6,10 +6,11 @@
 //
 // Zero dependencies. The scheduled workflow runs the first form and publishes
 // <dir> to the `pulse` branch, which the README links to.
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gather } from './data.mjs';
+import { readState } from './state.mjs';
 import { renderHero } from './svg/hero.mjs';
 import { renderConsole } from './svg/console.mjs';
 import { renderHeartbeat } from './svg/heartbeat.mjs';
@@ -36,15 +37,6 @@ if (!args.includes('--out') || !out) {
 }
 mkdirSync(out, { recursive: true });
 const statePath = join(out, 'state.json');
-// The last run's state, read in one call: a missing file (the first run) is an empty state.
-function readState(path) {
-  try {
-    return JSON.parse(readFileSync(path, 'utf8'));
-  } catch (e) {
-    if (e.code === 'ENOENT') return {};
-    throw e;
-  }
-}
 const previous = readState(statePath);
 
 const d = await gather({ previous, readmePath: join(root, 'README.md') });
