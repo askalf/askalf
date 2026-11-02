@@ -6,10 +6,11 @@
 //
 // Zero dependencies. The scheduled workflow runs the first form and publishes
 // <dir> to the `pulse` branch, which the README links to.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gather } from './data.mjs';
+import { readState } from './state.mjs';
 import { renderHero } from './svg/hero.mjs';
 import { renderConsole } from './svg/console.mjs';
 import { renderHeartbeat } from './svg/heartbeat.mjs';
@@ -36,7 +37,7 @@ if (!args.includes('--out') || !out) {
 }
 mkdirSync(out, { recursive: true });
 const statePath = join(out, 'state.json');
-const previous = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : {};
+const previous = readState(statePath);
 
 const d = await gather({ previous, readmePath: join(root, 'README.md') });
 for (const [k, v] of Object.entries(d.sources)) console.log(`${k.padEnd(9)} ${v}`);
@@ -46,7 +47,7 @@ const panels = {
   'console.svg': renderConsole(d),
   'heartbeat.svg': renderHeartbeat(d),
   'orbit.svg': renderOrbit(d, { alfPath: join(here, 'alf.jpg') }),
-  'gate.svg': renderGate(d),
+  'gate.svg': renderGate(),
   'signal.svg': renderSignal(d),
   'pitlane.svg': renderPitlane(d),
 };
