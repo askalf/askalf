@@ -2,7 +2,7 @@
 
 <div align="center">
 
-### I build the CI that AI-written code ships through: self-hosted GitHub Actions runners with their start times published live, and a code review that gates every pull request.
+### I build the CI that AI-written code ships through: self-hosted GitHub Actions runners with their start times published live, and a code review that gates every ready pull request opened from a repository's own branches.
 
 </div>
 
