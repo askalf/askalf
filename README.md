@@ -2,7 +2,7 @@
 
 <div align="center">
 
-### I build the CI that AI-written code ships through: self-hosted GitHub Actions runners with their start times published live, and a code review that gates every ready pull request opened from a repository's own branches.
+### I find where CI time goes, fix what wastes it, and publish the before and after.
 
 </div>
 
@@ -10,7 +10,7 @@
 
 <div align="center">
 
-[pitlane](#pitlane) · [Redline](#redline) · [dario](#dario) · [Merged upstream](#merged-upstream) · [@ask_alf](https://x.com/ask_alf)
+[ci-wizard](#ci-wizard) · [pitlane](#pitlane) · [Redline](#redline) · [dario](#dario) · [Merged upstream](#merged-upstream) · [@ask_alf](https://x.com/ask_alf)
 
 </div>
 
@@ -18,9 +18,22 @@
 
 ---
 
+## ci-wizard
+
+**[ci-wizard](https://github.com/askalf/ci-wizard) reads a repository's GitHub Actions runs, jobs and workflow files, and reports where the time goes and what to fix first.** It is read-only and needs nothing installed: `uses: askalf/ci-wizard@v0.1.0` puts the report in a job summary, and `npx github:askalf/ci-wizard owner/repo` prints it.
+
+| Step | What it does |
+|---|---|
+| Measure | Times every sampled job's steps from the Actions API: queue wait, run time, and the time before the first step and after the last. |
+| Diagnose | Splits that time into setup, checkout, toolchain, dependencies, cache and work, by the command each step runs, not only its name. |
+| Confirm | Reads the workflow file for the cause before a finding names one: triggers, caches, concurrency, how dependencies install. |
+| Prove | Measures a fix the same way before and after. The report is the before. |
+
+Its first audit was of our own CI. On [dario](https://github.com/askalf/dario), the fleet status workflow ran about 1,900 times a week and spent 79% of its time on fixed cost: setup, checkout and wrap-up ([the sample](https://github.com/askalf/ci-wizard#sample)). Every finding carries its evidence and a confidence, savings are labelled as estimates, and fixes are written as options with their trade-offs.
+
 ## pitlane
 
-**The goal for [pitlane](https://github.com/askalf/pitlane) is the fastest, most stable and most secure GitHub Actions runners there are.** A goal is not a result, so each word is tied to a target that is published beside its live number, and a miss shows as a miss.
+**[pitlane](https://github.com/askalf/pitlane) is the lab where ci-wizard's method is proven: self-hosted GitHub Actions runners that publish their start and run times live.** Its goal is the fastest, most stable and most secure runners there are. A goal is not a result, so each word is tied to a target that is published beside its live number, and a miss shows as a miss.
 
 | Goal | Target | Receipt |
 |---|---|---|
@@ -30,11 +43,11 @@
 
 pitlane is the runner stack behind the askalf projects' CI. The write-up of what the slow tail was and what it took: [What a 2-second queue on one box takes](https://ownyourstack.sprayberrylabs.com/ci).
 
-[![CI on pitlane](https://img.shields.io/endpoint?url=https%3A%2F%2Fpitlane.askalf.org%2Fbadge.json)](https://pitlane.askalf.org/) [![pitlane Scorecard](https://api.scorecard.dev/projects/github.com/askalf/pitlane/badge)](https://scorecard.dev/viewer/?uri=github.com/askalf/pitlane) [![pitlane Best Practices](https://www.bestpractices.dev/projects/16169/badge)](https://www.bestpractices.dev/projects/16169) [![pitlane release](https://img.shields.io/github/v/release/askalf/pitlane?color=8b5cf6&label=pitlane&style=flat-square)](https://github.com/askalf/pitlane/releases)
+[![CI measured](https://img.shields.io/endpoint?url=https%3A%2F%2Fpitlane.askalf.org%2Fbadge.json)](https://pitlane.askalf.org/) [![pitlane Scorecard](https://api.scorecard.dev/projects/github.com/askalf/pitlane/badge)](https://scorecard.dev/viewer/?uri=github.com/askalf/pitlane) [![pitlane Best Practices](https://www.bestpractices.dev/projects/16169/badge)](https://www.bestpractices.dev/projects/16169) [![pitlane release](https://img.shields.io/github/v/release/askalf/pitlane?color=8b5cf6&label=pitlane&style=flat-square)](https://github.com/askalf/pitlane/releases)
 
 ## Redline
 
-**[askalf/ci](https://github.com/askalf/ci) holds Redline: a gating code review, run as reusable workflows that every public askalf repository calls.** It reviews every ready pull request opened from a repository's own branches. A blocking finding fails its check, and each repository's ruleset requires an approving review before anything merges.
+**[askalf/ci](https://github.com/askalf/ci) is the gate every fix lands through: Redline, a gating code review run as reusable workflows that every public askalf repository calls.** It reviews every ready pull request opened from a repository's own branches. A blocking finding fails its check, and each repository's ruleset requires an approving review before anything merges.
 
 - **Fix lane.** When Redline requests changes, the fix lane answers with a commit, computed on that repository's own runner, and Redline reviews the new head again.
 - **Pinned.** Each caller pins Redline to one commit of askalf/ci. A pin bump moves every caller to a newer commit through a pull request in each.
