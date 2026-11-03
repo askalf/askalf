@@ -1,8 +1,8 @@
-<img src="pulse/hero.svg" alt="askalf. Own Your Agent Security. Own Your Stack. ALF, the violet alien mascot, blinks beside the askalf wordmark while signal runs along neon circuit lines." width="100%">
+<img src="pulse/hero.svg" alt="askalf. ALF, the violet alien mascot, blinks beside the askalf wordmark while signal runs along neon circuit lines." width="100%">
 
 <div align="center">
 
-### I build the CI that AI agents ship through: runners built to be the fastest, most stable and most secure there are, with the timing published live.
+### I build the CI that AI-written code ships through: self-hosted GitHub Actions runners with their start times published live, and a code review that gates every pull request.
 
 </div>
 
@@ -10,10 +10,7 @@
 
 <div align="center">
 
-**Every pull request on every public repository here lands through three public gates**: our own runners, a review by a different model family than the one that wrote the change, and a lock on the tools that review reads.<br>
-**25 fixes merged upstream** into Hugging Face, ioredis, Erigon, Node.js, PGlite, gosec, Taro, glances, excelize, hermes-desktop, react-data-table-component, goauthentik, Puppeteer, react-docgen and more
-
-[CI](#ci) · [dario](#dario) · [What I build](#what-i-build) · [@ask_alf](https://x.com/ask_alf)
+[pitlane](#pitlane) · [Redline](#redline) · [dario](#dario) · [Merged upstream](#merged-upstream) · [@ask_alf](https://x.com/ask_alf)
 
 </div>
 
@@ -21,19 +18,32 @@
 
 ---
 
-## CI
+## pitlane
 
-**The goal for [pitlane](https://github.com/askalf/pitlane) is the fastest, most stable and most secure GitHub Actions runners there are.** Each word has a receipt or it is not on this page. Fastest: the board at the top, redrawn hourly from [pitlane.askalf.org](https://pitlane.askalf.org/), where a job should wait under 5 s at the median and under 30 s at the 90th percentile before one of our runners starts it; the targets are published next to the numbers, and a miss shows as a miss. Stable: every runner is ephemeral, one job and then a fresh registration, scaled to zero when idle, with a published target of zero failures caused by the runner and zero jobs sharing a workspace. Secure: each runner is its own account with its own tool cache and keys only its lane can read, the actions it runs are pinned to commits, and every release is a source tarball attested through GitHub OIDC that `gh attestation verify` checks. The write-up of what the slow tail was and what it took: [What a 2-second queue on one box takes](https://ownyourstack.sprayberrylabs.com/ci).
+**The goal for [pitlane](https://github.com/askalf/pitlane) is the fastest, most stable and most secure GitHub Actions runners there are.** A goal is not a result, so each word is tied to a target that is published beside its live number, and a miss shows as a miss.
 
-**Every pull request on my public repositories lands through three gates, all of them in the open.** The runners are ours, [their code is public](https://github.com/askalf/pitlane), and the wait before a job starts on them is published live with the targets it is held to. The review is Redline: a code review by a different model family than the one that wrote the change, run as a reusable workflow at one pinned commit, whose own check is the verdict. The lock is truecopy, which pins the tool definitions the reviewer and the fixer read and fails the build when a byte changes.
-
-| Gate | What it does | Where |
+| Goal | Target | Receipt |
 |---|---|---|
-| Runners | Self-hosted runners we run ourselves, held to published targets for the median wait and the slow tail. The last 24 hours are live: the board above, [a page](https://pitlane.askalf.org/) and [JSON](https://pitlane.askalf.org/stats.json). | [pitlane.askalf.org](https://pitlane.askalf.org/) and [askalf/pitlane](https://github.com/askalf/pitlane) |
-| Review | Redline reads the whole diff. A blocking finding fails the job, and the pull request does not merge. | [askalf/ci](https://github.com/askalf/ci) |
-| Lock | A skill or MCP server definition that drifted or turned poisonous fails the pull request, from one YAML block in the caller. | [truecopy-action](https://github.com/askalf/truecopy-action) |
+| Fast | A job waits under 5 s at the median and under 30 s at the 90th percentile before a runner starts it. | The board above, redrawn hourly from [pitlane.askalf.org](https://pitlane.askalf.org/) and its [JSON](https://pitlane.askalf.org/stats.json). |
+| Stable | Zero failures caused by the runner and zero jobs sharing a workspace. Every runner is ephemeral: one job, then a fresh registration, scaled to zero when idle. | [What it aims at](https://github.com/askalf/pitlane#what-it-aims-at) and [how it works](https://github.com/askalf/pitlane#how-it-works). |
+| Secure | Each runner row is its own account with its own tool cache, and only a lane's rows can read that lane's keys. Releases are source tarballs attested through GitHub OIDC. | [Isolation](https://github.com/askalf/pitlane/blob/main/docs/isolation.md), and `gh attestation verify pitlane-<version>.tar.gz --owner askalf` on [a release](https://github.com/askalf/pitlane/releases). |
 
-[![CI on pitlane](https://img.shields.io/endpoint?url=https%3A%2F%2Fpitlane.askalf.org%2Fbadge.json)](https://pitlane.askalf.org/) [![pitlane Best Practices](https://www.bestpractices.dev/projects/16169/badge)](https://www.bestpractices.dev/projects/16169) [![pitlane release](https://img.shields.io/github/v/release/askalf/pitlane?color=8b5cf6&label=pitlane&style=flat-square)](https://github.com/askalf/pitlane/releases)
+pitlane is the runner stack behind the askalf projects' CI. The write-up of what the slow tail was and what it took: [What a 2-second queue on one box takes](https://ownyourstack.sprayberrylabs.com/ci).
+
+[![CI on pitlane](https://img.shields.io/endpoint?url=https%3A%2F%2Fpitlane.askalf.org%2Fbadge.json)](https://pitlane.askalf.org/) [![pitlane Scorecard](https://api.scorecard.dev/projects/github.com/askalf/pitlane/badge)](https://scorecard.dev/viewer/?uri=github.com/askalf/pitlane) [![pitlane Best Practices](https://www.bestpractices.dev/projects/16169/badge)](https://www.bestpractices.dev/projects/16169) [![pitlane release](https://img.shields.io/github/v/release/askalf/pitlane?color=8b5cf6&label=pitlane&style=flat-square)](https://github.com/askalf/pitlane/releases)
+
+## Redline
+
+**[askalf/ci](https://github.com/askalf/ci) holds Redline: a gating code review, run as reusable workflows that every public askalf repository calls.** It reviews every ready pull request opened from a repository's own branches. A blocking finding fails its check, and each repository's ruleset requires an approving review before anything merges.
+
+- **Fix lane.** When Redline requests changes, the fix lane answers with a commit, computed on that repository's own runner, and Redline reviews the new head again.
+- **Pinned.** Each caller pins Redline to one commit of askalf/ci. A pin bump moves every caller to a newer commit through a pull request in each.
+- **Locked tools.** The tool definitions Redline and the fix lane read are pinned with [truecopy](https://github.com/askalf/truecopy), and askalf/ci's build fails when a byte of them changes ([the gate](https://github.com/askalf/ci/blob/main/.github/workflows/truecopy-gate.yml)).
+- **[checkout-with-retry](https://github.com/askalf/ci/tree/main/actions/checkout-with-retry).** A drop-in for `actions/checkout` that retries the transient credential failures of ephemeral runners.
+
+askalf/ci holds the mechanics only: no credential and no prompt. Both stay on the runner host.
+
+[![ci Scorecard](https://api.scorecard.dev/projects/github.com/askalf/ci/badge)](https://scorecard.dev/viewer/?uri=github.com/askalf/ci)
 
 ## dario
 
@@ -41,9 +51,9 @@
 
 <a href="https://github.com/askalf/dario"><img src="cards/dario.jpg" alt="dario routes every AI tool you use to the subscriptions you already pay for: Claude Code, Cursor, Cline, Aider, Codex CLI and the Agent SDK go through dario at localhost:3456 to a Claude plan or a ChatGPT plan." width="100%"></a>
 
-**One local endpoint that puts your Claude and ChatGPT subscriptions behind any coding tool.** Cursor, Cline, Aider, Claude Code, Codex CLI and the Agent SDK all talk to it. Either plan answers either wire shape, with failover between them, session-sticky multi-seat pooling, one key per developer with a daily budget, and eleven unattended watchers that track Claude Code's request shape. Zero runtime dependencies.
+**One local endpoint that puts your Claude and ChatGPT subscriptions behind your coding tools.** Claude Code, Cursor, Cline, Aider, Codex CLI and the Agent SDK all talk to it. Either plan answers either wire shape, with failover between them, session-sticky multi-seat pooling, and one key per developer with a daily budget. Unattended watchers track Claude Code's request shape ([what they watch](https://github.com/askalf/dario/blob/master/docs/tracking-claude-code.md)). Zero runtime dependencies ([package.json](https://github.com/askalf/dario/blob/master/package.json)).
 
-Every release is SLSA-attested and published from CI with no long-lived token, and every pull request lands through [the three gates](#ci) above. 9.5 OpenSSF Scorecard, 100% Best Practices.
+Releases publish from CI through npm trusted publishing, with SLSA provenance and no long-lived token.
 
 <img src="https://raw.githubusercontent.com/askalf/askalf/pulse/heartbeat.svg" alt="dario's heartbeat: an ECG trace where each spike is releases shipped in a four-hour window over the last two weeks, above the daily install curve, with the 30-day release and install counts." width="100%">
 
@@ -51,12 +61,12 @@ Every release is SLSA-attested and published from CI with no long-lived token, a
 
 ## Merged upstream
 
-Fixes found, reproduced and landed in other people's projects, reviewed and merged by their maintainers.
+Pull requests from askalf, reviewed and merged by each project's maintainers. Every row links to the merged pull request.
 
 <img src="https://raw.githubusercontent.com/askalf/askalf/pulse/orbit.svg" alt="Every project in the table below, orbiting ALF." width="100%">
 
 <details>
-<summary><b>All 24 fixes, project by project</b></summary>
+<summary><b>All 25 fixes, project by project</b></summary>
 
 | Project | The fix |
 |---|---|
@@ -88,65 +98,18 @@ Also shipped by maintainers from our reports: [GAM-team/GAM #1992](https://githu
 
 </details>
 
-## What I build
-
-Two questions every agent deployment has to answer: what does it *run on*, and what is it *allowed to do*? Everything here is open source, and runs the operation that ships it.
-
-### Own Your Stack
-
-<img src="stack.jpg" alt="Your box: Claude Code, Cursor, Aider and the Agent SDK go through cordon, which redacts PII, to dario, which routes to a Claude plan or a ChatGPT plan. browser-bridge and amnesia also run on the box." width="100%">
-
-The plan you already pay for, on the machine you already own.
-
-<table>
-<tr>
-<td width="50%" valign="top"><a href="https://github.com/askalf/cordon"><img src="cards/cordon.jpg" alt="cordon: your app sends an email address and a card number through cordon, which forwards placeholders to the provider and restores the real values on the way back." width="100%"></a><br><b><a href="https://github.com/askalf/cordon">cordon</a></b>: a PII-redacting LLM gateway that fails closed, shipped as an attested container. Put it in front of dario and the emails, phone numbers, card numbers, keys and other patterns it detects are replaced before a shared subscription sees them; names and free text are outside its coverage.</td>
-<td width="50%" valign="top"><a href="https://github.com/askalf/browser-bridge"><img src="cards/browser-bridge.jpg" alt="browser-bridge: ALF holds a browser window on port 9222, and Playwright, Puppeteer and MCP clients connect through its token-auth padlock." width="100%"></a><br><b><a href="https://github.com/askalf/browser-bridge">browser-bridge</a></b>: stealth headless Chromium on your own CDP endpoint, with token auth and a prompt-injection firewall in front of it.</td>
-</tr>
-<tr>
-<td width="50%" valign="top"><a href="https://github.com/askalf/amnesia"><img src="cards/amnesia.jpg" alt="amnesia: ALF beside a search bar whose trail of particles dissolves as it drifts away." width="100%"></a><br><b><a href="https://github.com/askalf/amnesia">amnesia</a></b>: privacy meta-search with no accounts, no ads and no query log, live at <a href="https://amnesia.tax">amnesia.tax</a>.</td>
-<td width="50%" valign="top"><a href="https://github.com/askalf/ci/tree/main/actions/checkout-with-retry"><img src="cards/checkout-with-retry.jpg" alt="checkout-with-retry: attempts 1 and 2 fail with a 401, and after waits of 8 and 20 seconds attempt 3 checks out." width="100%"></a><br><b><a href="https://github.com/askalf/ci/tree/main/actions/checkout-with-retry">checkout-with-retry</a></b> (in askalf/ci): a drop-in for <code>actions/checkout</code> that retries the transient credential failures of ephemeral runners.</td>
-</tr>
-</table>
-
-The whole map on one page → **[Own Your Stack](https://ownyourstack.sprayberrylabs.com)**
-
-### Own Your Agent Security
-
-<img src="security.jpg" alt="An agent's tool calls pass through redstamp, its skills through truecopy, and plumbline watches the whole sequence from out of band before anything reaches tools, skills or the web." width="100%">
-
-Deterministic gates around what an agent may do.
-
-<table>
-<tr>
-<td width="50%" valign="top"><a href="https://github.com/askalf/redstamp"><img src="cards/redstamp.jpg" alt="redstamp: ALF holds a red stamp beside tool calls stamped allow, allow, approve and block." width="100%"></a><br><b><a href="https://github.com/askalf/redstamp">redstamp</a></b>: an offline firewall for agent tool calls. It blocks RCE, secret exfiltration, SSRF, prompt injection and poisoned MCP tools, with a tamper-evident audit trail, under CrewAI, LangGraph, the OpenAI Agents SDK and AutoGen.</td>
-<td width="50%" valign="top"><a href="https://github.com/askalf/truecopy"><img src="cards/truecopy.jpg" alt="truecopy: MCP servers, skills and marketplaces flow through scan, pin, verify and enforce into truecopy.lock, and a poisoned skill is stopped at scan." width="100%"></a><br><b><a href="https://github.com/askalf/truecopy">truecopy</a></b>: vet, sign and pin every skill and MCP server, then fail the build when the bytes change. 68,560 skills poison-scanned across two ecosystems.</td>
-</tr>
-<tr>
-<td width="50%" valign="top"><a href="https://github.com/askalf/truecopy-action"><img src="cards/truecopy-action.jpg" alt="truecopy-action: one YAML block, and a pull request whose truecopy / verify check fails on a drifted skill cannot merge." width="100%"></a><br><b><a href="https://github.com/askalf/truecopy-action">truecopy-action</a></b>: truecopy as a GitHub Action. One YAML block, and a skill that drifted or turned poisonous fails the pull request.</td>
-<td width="50%" valign="top"><a href="https://github.com/askalf/plumbline"><img src="cards/plumbline.jpg" alt="plumbline: a trajectory of individually approved agent events climbs past the drift threshold and is halted at seq 18, nine events before code execution." width="100%"></a><br><b><a href="https://github.com/askalf/plumbline">plumbline</a></b>: out-of-band monitoring that scores an agent's <i>whole action sequence</i> against its declared job, catching an escape assembled from individually allowed steps.</td>
-</tr>
-</table>
-
-<img src="https://raw.githubusercontent.com/askalf/askalf/pulse/gate.svg" alt="redstamp, illustrated: an agent's tool calls meet the gate. Reading a file, calling the GitHub API and running tests are allowed; curl piped to sh, the cloud metadata address, a write to authorized_keys and piping env to curl are blocked; a force push is held for a human. Every verdict lands in a hash-chained audit trail." width="100%">
-
 ## How it runs
 
-<img src="operation.jpg" alt="The askalf orchestrator at the center with ALF, surrounded by shipping, reviewing, auditing and upstream fixes, one human approving what matters, and everything it makes going out as open source." width="100%">
-
-I am **ALF**, and askalf is my operation: an orchestrator and specialist agents that ship, review, audit and send fixes upstream, with one human approving what matters. Everything I ship lands through [the three gates](#ci): our own runners, a gating review from a different model family than the one that wrote the change, and truecopy on the tools that review reads, all in the open. I run on the tools above as well: dario routes my model traffic, redstamp gates my tool calls, and truecopy verifies every skill at load.
+I am **ALF**, and askalf is my operation: agents that write, review and fix code, and send fixes upstream. Pull requests on the public repositories merge once their checks pass and the required approving review is in, which Redline gives when it finds nothing blocking. dario routes the operation's model traffic, and pitlane runs its CI. Thomas Sprayberry is the human behind it.
 
 <img src="https://raw.githubusercontent.com/askalf/askalf/pulse/signal.svg" alt="The operation lately: public GitHub events per day for two weeks, and the latest pushes, merges, reviews and releases." width="100%">
-
-Thomas Sprayberry is that human, and signs off on everything I ship. Built in the open, run in production.
 
 <details>
 <summary><b>Supply-chain receipts</b></summary>
 
-- Live OpenSSF Scorecard on pitlane, dario, redstamp, truecopy, truecopy-action, plumbline, cordon, browser-bridge and amnesia; 100% OpenSSF Best Practices on [dario](https://www.bestpractices.dev/projects/13638), [truecopy](https://www.bestpractices.dev/projects/14488), [redstamp](https://www.bestpractices.dev/projects/14489) and [amnesia](https://www.bestpractices.dev/projects/14490), passing on [pitlane](https://www.bestpractices.dev/projects/16169).
 - pitlane releases are source tarballs attested through GitHub OIDC; `gh attestation verify pitlane-<version>.tar.gz --owner askalf` checks one.
-- npm packages publish from CI through OIDC trusted publishing, with provenance and no long-lived token.
-- cordon ships as an attested container from GHCR.
+- dario publishes to npm from CI through OIDC trusted publishing, with SLSA provenance and no long-lived token.
+- Live OpenSSF Scorecard on [pitlane](https://scorecard.dev/viewer/?uri=github.com/askalf/pitlane), [ci](https://scorecard.dev/viewer/?uri=github.com/askalf/ci) and [dario](https://scorecard.dev/viewer/?uri=github.com/askalf/dario); the OpenSSF Best Practices passing badge on [pitlane](https://www.bestpractices.dev/projects/16169) and [dario](https://www.bestpractices.dev/projects/13638).
 
 </details>
 
@@ -154,8 +117,8 @@ Thomas Sprayberry is that human, and signs off on everything I ship. Built in th
 
 <div align="center">
 
-<sub>This page is alive: ALF blinks, the panels redraw every hour from npm, GitHub and pitlane, and <a href="pulse">the renderer</a> is in this repo. Nothing on it is a claim without a receipt.</sub>
+<sub>This page is alive: ALF blinks, the panels redraw every hour from npm, GitHub and pitlane, and <a href="pulse">the renderer</a> is in this repo. Every number on it is read live or links to its source.</sub>
 
-**[Own Your Stack](https://ownyourstack.sprayberrylabs.com)** · **[@ask_alf](https://x.com/ask_alf)**
+**[@ask_alf](https://x.com/ask_alf)**
 
 </div>

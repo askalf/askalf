@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1774 887" width="1774" height="887" role="img" aria-labelledby="t">
-<title id="t">askalf. Own Your Agent Security. Own Your Stack. ALF, the violet alien mascot, blinks beside the askalf wordmark while signal runs along neon circuit lines.</title>
+<title id="t">askalf. ALF, the violet alien mascot, blinks beside the askalf wordmark while signal runs along neon circuit lines.</title>
 <style>
   .streak { fill: none; stroke-linecap: round; stroke-dasharray: 70 2000; stroke-dashoffset: 70; opacity: 0; animation-name: run; animation-timing-function: cubic-bezier(.45,.05,.55,.95); animation-iteration-count: infinite; filter: url(#glow); }
   .streak.in { stroke: #f5d0fe; stroke-width: 5; }
