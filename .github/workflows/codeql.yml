@@ -32,7 +32,7 @@ jobs:
         # The pulse and refresh scripts, and the workflows that run them.
         language: [javascript-typescript, actions]
     steps:
-      - uses: askalf/ci/actions/checkout-with-retry@561d1f78600ad51d894fb987ef240b77b52e5720 # main 2026-11-03, askalf/ci#173
+      - uses: askalf/ci/actions/checkout-with-retry@2d75fe07525bd460f158ef70090cfe812e1768b5 # main 2026-11-04, askalf/ci#177
         with:
           persist-credentials: false
       - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
