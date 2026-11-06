@@ -11,12 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { gather } from './data.mjs';
 import { readState } from './state.mjs';
 import { renderHero } from './svg/hero.mjs';
-import { renderConsole } from './svg/console.mjs';
-import { renderHeartbeat } from './svg/heartbeat.mjs';
 import { renderOrbit } from './svg/orbit.mjs';
-import { renderGate } from './svg/gate.mjs';
-import { renderSignal } from './svg/signal.mjs';
-import { renderStats } from './svg/stats.mjs';
 import { renderPitlane } from './svg/pitlane.mjs';
 import { renderScore } from './svg/score.mjs';
 import { renderCards } from './svg/cards.mjs';
@@ -38,13 +33,8 @@ const d = await gather({ previous, readmePath: join(root, 'README.md') });
 for (const [k, v] of Object.entries(d.sources)) console.log(`${k.padEnd(9)} ${v}`);
 
 const panels = {
-  'stats.svg': renderStats(d),
-  'console.svg': renderConsole(d),
-  'heartbeat.svg': renderHeartbeat(d),
   'orbit.svg': renderOrbit(d, { alfPath: join(here, 'alf.jpg') }),
   'orbit-phone.svg': renderOrbit(d, { alfPath: join(here, 'alf.jpg'), phone: true }),
-  'gate.svg': renderGate(),
-  'signal.svg': renderSignal(d),
   'pitlane.svg': renderPitlane(d),
   'pitlane-phone.svg': renderPitlane(d, { phone: true }),
   'score.svg': renderScore(d),

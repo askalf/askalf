@@ -7,12 +7,7 @@ The moving parts of the profile. Zero dependencies, Node 20+.
 | `hero.svg` | The hero art, alive: ALF blinks, the antennae breathe, signal runs the circuit lines, and a line says what the runners did in the last hour | `hero.jpg`, embedded; [pitlane.askalf.org](https://pitlane.askalf.org/) `stats.json` |
 | `score.svg` | The last 24 hours played back: pitlane's jobs for each hour, and every public push, Redline verdict, merge and release as a mark at the moment it happened | GitHub API (public events), `stats.json` |
 | `card-*.svg` | One card per product: the art in `cards/`, moving, with that product's live numbers on its glass panel. On Redline one packet reaches the gate per verdict of the last 24 hours; on pitlane one light runs per job of the last hour, up to 300 | npm, GitHub API, OpenSSF Scorecard, `stats.json` |
-| `stats.svg` | The stat line under the headline: dario's stars, installs and releases | npm registry + downloads, GitHub API |
-| `console.svg` | `alf status --live` typing itself out | npm registry + downloads, GitHub API |
-| `heartbeat.svg` | dario's ECG: each spike is releases shipped in a four-hour window | npm registry + downloads |
 | `orbit.svg` | Every project that merged a fix, orbiting ALF | the Merged upstream table in `README.md` |
-| `gate.svg` | redstamp's three verdicts and its hash-chained audit trail | illustrative |
-| `signal.svg` | Public GitHub activity per day, and the latest moves | GitHub API |
 | `pitlane.svg` | The runners' timing board: the queue wait before a job starts, median and p90 against their targets, the jobs run in the last 24 hours, and the start lights | [pitlane.askalf.org](https://pitlane.askalf.org/) `stats.json` |
 
 `hero`, `pitlane`, `score`, `orbit` and each card also come as a `-phone.svg`, which the README's `<picture>` swaps in under 700 px: a phone shows a panel at a fifth to a third of its size, so these are redrawn with larger type rather than scaled down.
