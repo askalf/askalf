@@ -22,11 +22,11 @@ const ANTENNAE = [[1262.5, 101], [1624, 137.5]];
 // Eye openings: [cx, cy, rx, ry, tilt°]
 const EYES = [[1280, 390, 57, 57, 0], [1514, 416, 63, 58, -8]];
 
-// The line under the wordmark: what the runners did in the last hour, from pitlane's own numbers.
+// The line under the wordmark: what the runners did in the last hour, both numbers from that hour.
 export function heroLine(d) {
   const p = d?.pitlane;
-  if (!p || p.stale || !isLive(d, 'pitlane') || !Number.isFinite(p.lastHourJobs) || !Number.isFinite(p.p50Ms)) return null;
-  return `${n(p.lastHourJobs)} jobs in the last hour · ${fmtWait(p.p50Ms)} median wait`;
+  if (!p || p.stale || !isLive(d, 'pitlane') || !Number.isFinite(p.lastHourJobs) || !Number.isFinite(p.lastHourP50Ms)) return null;
+  return `${n(p.lastHourJobs)} jobs in the last hour · ${fmtWait(p.lastHourP50Ms)} median wait`;
 }
 
 // The two lines of type. Over the art they sit under the wordmark; a phone shows the hero at a fifth

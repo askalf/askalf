@@ -67,6 +67,7 @@ export function pitlaneFrom(j) {
     p90TargetMs: num(j.targets?.p90Ms),
     stale: j.stale === true,
     lastHourJobs: num(j.lastHour?.jobs),
+    lastHourP50Ms: num(j.lastHour?.p50),
     hours: Array.isArray(j.hours) ? j.hours.map((h) => ({ from: h.from, jobs: num(h.jobs) })) : [],
   };
 }
@@ -216,15 +217,20 @@ async function activity(now, last) {
 }
 
 // One product's OpenSSF Scorecard and latest release. A 404 means it has none, which reads as null
-// and the card leaves it out; any other failure is transient and keeps that field's last good value.
+// and the card leaves it out; any other failure is transient and keeps that field's last good
+// value, named in held so the card can say so.
 export function productFrom([score, release], last = {}) {
+  const held = [];
   const field = (r, name, pick) => {
     if (r.status === 'fulfilled') return pick(r.value);
-    return r.reason?.status === 404 ? null : last[name] ?? null;
+    if (r.reason?.status === 404 || last[name] === null || last[name] === undefined) return null;
+    held.push(name);
+    return last[name];
   };
   return {
     score: field(score, 'score', (v) => (Number.isFinite(v.score) ? v.score : null)),
     release: field(release, 'release', (v) => v.tag_name ?? null),
+    held,
   };
 }
 

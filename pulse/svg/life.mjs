@@ -8,7 +8,7 @@ import { LOOP } from './score.mjs';
 
 const HOUR_LOOP = 60; // pitlane's loop: a minute on the page for an hour of jobs
 const TRAVEL = 3.6; // seconds a packet takes along its line
-const MAX_LIGHTS = 150; // past this the lights read as one solid line, and each is an element
+const MAX_LIGHTS = 300; // past this the lights read as one solid line, and each is an element
 
 const streak = (d, { color = '#fff', width = 7, dur = 3.4, delay = 0 } = {}) =>
   `<path class="streak" d="${d}" pathLength="1000" stroke="${color}" stroke-width="${width}" style="animation-duration:${dur}s;animation-delay:${delay.toFixed(2)}s"/>`;

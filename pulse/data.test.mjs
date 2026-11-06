@@ -145,7 +145,7 @@ test('the header stats show each live number and drop a missing source', () => {
 
 test('pitlane keeps the published fields and reads a missing number as null, never 0', () => {
   const page = { at: '2026-09-25T01:59:00.039Z', window: '24h', jobs: 1474, queueWaitMs: { p50: 2000, p90: 18000 }, targets: { p50Ms: 5000, p90Ms: 30000 }, finished: 1582, runnerSuspect: 2, stale: false };
-  assert.deepEqual(pitlaneFrom(page), { at: '2026-09-25T01:59:00.039Z', window: '24h', jobs: 1474, p50Ms: 2000, p90Ms: 18000, p50TargetMs: 5000, p90TargetMs: 30000, stale: false, lastHourJobs: null, hours: [] });
+  assert.deepEqual(pitlaneFrom(page), { at: '2026-09-25T01:59:00.039Z', window: '24h', jobs: 1474, p50Ms: 2000, p90Ms: 18000, p50TargetMs: 5000, p90TargetMs: 30000, stale: false, lastHourJobs: null, lastHourP50Ms: null, hours: [] });
   const bare = pitlaneFrom({ at: '2026-09-25T01:59:00.039Z', queueWaitMs: { p50: 2000 } });
   assert.deepEqual([bare.jobs, bare.p90Ms, bare.p50TargetMs, bare.stale], [null, null, null, false]);
   assert.deepEqual(pitlaneFrom({ hours: [{ from: 'x', jobs: 9, p50: 1 }], lastHour: { jobs: 3 } }).hours, [{ from: 'x', jobs: 9 }]);
@@ -242,7 +242,7 @@ const liveDay = () => {
   return {
     at,
     activity: { to: at, notes: [{ t: 0.1, lane: 'approve' }, { t: 0.5, lane: 'approve' }, { t: 0.6, lane: 'changes' }, { t: 0.2, lane: 'push' }] },
-    pitlane: { at, jobs: 1500, p50Ms: 2000, p90Ms: 9000, p50TargetMs: 5000, p90TargetMs: 30000, lastHourJobs: 12, stale: false },
+    pitlane: { at, jobs: 1500, p50Ms: 2000, p90Ms: 9000, p50TargetMs: 5000, p90TargetMs: 30000, lastHourJobs: 12, lastHourP50Ms: 2000, stale: false },
     products: { 'ci-wizard': { score: 8.2, release: 'v0.1.2' }, pitlane: { score: 8.4, release: 'v1.0.0' }, ci: { score: 8.6, release: null }, dario: { score: 9.5, release: 'v6.21.0' } },
     installs: { last30: 13254 },
     github: { darioStars: 583 },
@@ -273,7 +273,7 @@ test('Redline runs one packet per verdict of the day, at its place in the loop',
 test('pitlane runs one light per job of the last hour, and none on stale numbers', () => {
   const d = liveDay();
   assert.equal(renderCards(d, cardsDir)['card-pitlane.svg'].match(/class="car"/g).length, 12);
-  assert.equal(renderCards({ ...d, pitlane: { ...d.pitlane, lastHourJobs: 9000 } }, cardsDir)['card-pitlane.svg'].match(/class="car"/g).length, 150, 'capped');
+  assert.equal(renderCards({ ...d, pitlane: { ...d.pitlane, lastHourJobs: 9000 } }, cardsDir)['card-pitlane.svg'].match(/class="car"/g).length, 300, 'capped');
   assert.ok(!renderCards({ ...d, pitlane: { ...d.pitlane, stale: true } }, cardsDir)['card-pitlane.svg'].includes('class="car"'));
 });
 
@@ -340,12 +340,12 @@ test('a product keeps its last good field through a transient failure, and loses
   const ok = (value) => ({ status: 'fulfilled', value });
   const fail = (status) => ({ status: 'rejected', reason: Object.assign(new Error('x'), { status }) });
   const last = { score: 8.4, release: 'v1.0.0' };
-  assert.deepEqual(productFrom([ok({ score: 9 }), ok({ tag_name: 'v2' })], last), { score: 9, release: 'v2' });
-  assert.deepEqual(productFrom([fail(503), ok({ tag_name: 'v2' })], last), { score: 8.4, release: 'v2' });
-  assert.deepEqual(productFrom([ok({ score: 9 }), fail(502)], last), { score: 9, release: 'v1.0.0' });
-  assert.deepEqual(productFrom([{ status: 'rejected', reason: new Error('timeout') }, fail(500)], last), last);
-  assert.deepEqual(productFrom([ok({ score: 9 }), fail(404)], last), { score: 9, release: null }, 'no release at all reads as none');
-  assert.deepEqual(productFrom([fail(503), fail(503)], undefined), { score: null, release: null });
+  assert.deepEqual(productFrom([ok({ score: 9 }), ok({ tag_name: 'v2' })], last), { score: 9, release: 'v2', held: [] });
+  assert.deepEqual(productFrom([fail(503), ok({ tag_name: 'v2' })], last), { score: 8.4, release: 'v2', held: ['score'] });
+  assert.deepEqual(productFrom([ok({ score: 9 }), fail(502)], last), { score: 9, release: 'v1.0.0', held: ['release'] });
+  assert.deepEqual(productFrom([{ status: 'rejected', reason: new Error('timeout') }, fail(500)], last), { ...last, held: ['score', 'release'] });
+  assert.deepEqual(productFrom([ok({ score: 9 }), fail(404)], last), { score: 9, release: null, held: [] }, 'no release at all reads as none');
+  assert.deepEqual(productFrom([fail(503), fail(503)], undefined), { score: null, release: null, held: [] }, 'nothing to hold');
 });
 
 test('a value held over from an earlier run is never called current', () => {
@@ -381,6 +381,50 @@ test('part of a day is labelled as part of a day', () => {
   assert.equal(cardSpecs(partial).redline.heading, `SINCE ${since.slice(11, 16)}`);
   assert.ok(!renderScore({ ...d, activity: { ...d.activity, from: new Date(now - 864e5).toISOString(), since: new Date(now - 864e5).toISOString() } }).includes('no feed before'));
   assert.equal(cardSpecs({ at: d.at }).redline.heading, 'NO FEED');
+});
+
+test('a card says when a product field is held over, even under live figures', () => {
+  const d = liveDay();
+  const failing = { ...d, sources: { installs: 'live', github: 'live', products: 'live' }, products: { ...d.products, dario: { score: 9.5, release: 'v6.21.0', held: ['score'] } } };
+  const specs = cardSpecs(failing);
+  assert.equal(specs.dario.heading, 'LIVE');
+  assert.equal(specs.dario.foot, 'Scorecard 9.5 (last good)');
+  assert.ok(renderCards(failing, cardsDir)['card-dario.svg'].includes('Scorecard 9.5 (last good)'));
+  assert.equal(cardSpecs({ ...d, products: { ...d.products, dario: { score: 9.5, release: 'v6.21.0', held: ['release'] } } }).dario.foot, 'v6.21.0 (last good)');
+  assert.equal(cardSpecs({ ...d, products: { ...d.products, pitlane: { score: 8.4, release: 'v1.0.0', held: ['release'] } } }).pitlane.foot, '12 jobs/h · Scorecard 8.4', 'a release the card does not show needs no mark');
+  assert.equal(cardSpecs({ ...d, products: { ...d.products, ci: { score: 8.6, release: null, held: [] } } }).redline.foot, 'Scorecard 8.6');
+  assert.equal(cardSpecs(d)['ci-wizard'].live, false, 'a published result wears no live pip');
+});
+
+test('the hero pairs the hour with the hour', () => {
+  const d = liveDay();
+  const busy = { ...d, pitlane: { ...d.pitlane, p50Ms: 2000, lastHourP50Ms: 20_000 } };
+  assert.equal(heroLine(busy), '12 jobs in the last hour · 20 s median wait', 'never the 24 hour median');
+  assert.equal(heroLine({ ...d, pitlane: { ...d.pitlane, lastHourP50Ms: null } }), null);
+  assert.equal(pitlaneFrom({ queueWaitMs: { p50: 2000 }, lastHour: { jobs: 66, p50: 7000 } }).lastHourP50Ms, 7000);
+});
+
+test('the jobs lane answers to the axis when its source and the feed fail apart', () => {
+  const hour = 36e5;
+  const hours = Array.from({ length: 24 }, (_, i) => ({ from: new Date(now - (24 - i) * hour).toISOString(), jobs: 10 }));
+  const at = new Date(now).toISOString();
+  const pit = { at, hours };
+  const day = (to) => ({ from: new Date(to - 864e5).toISOString(), to: new Date(to).toISOString(), since: new Date(to - 864e5).toISOString(), notes: [] });
+
+  // The feed held over from five hours ago, pitlane current: only the hours under the axis count.
+  const feedDown = renderScore({ at, activity: day(now - 5 * hour), pitlane: pit, sources: { activity: 'cached (x)', pitlane: 'live' } });
+  assert.equal(feedDown.match(/class="bar"/g).length, 19);
+  assert.ok(feedDown.includes('>190<'), 'the total is of the plotted hours');
+  assert.ok(feedDown.includes('>jobs run<'));
+
+  // The feed current, pitlane held over from five hours ago: the lane says where it stops.
+  const old = new Date(now - 5 * hour).toISOString();
+  const pitDown = renderScore({ at, activity: day(now), pitlane: { at: old, hours: hours.slice(0, 19) }, sources: { activity: 'live', pitlane: 'cached (x)' } });
+  assert.equal(pitDown.match(/class="bar"/g).length, 19);
+  assert.ok(pitDown.includes(`>to ${old.slice(11, 16)}<`));
+  assert.ok(pitDown.includes('now, UTC'), 'the feed itself is current');
+  assert.ok(!pitDown.includes('>jobs run<'));
+  assert.ok(renderScore({ at, activity: day(now), pitlane: { at, hours, stale: true } }).includes(`>to ${at.slice(11, 16)}<`));
 });
 
 test('every moving layer holds still under prefers-reduced-motion', () => {

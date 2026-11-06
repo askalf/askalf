@@ -10,10 +10,14 @@ import { fmtWait } from './pitlane.mjs';
 const num = (v) => (Number.isFinite(v) ? n(v) : null);
 
 // One line under the figures, short enough for the panel: a lead if the card has one, else the
-// latest release, then the OpenSSF Scorecard.
+// latest release, then the OpenSSF Scorecard. A field held over from an earlier run takes the whole
+// line and says so, since the card's heading speaks only for its figures.
 function foot(p, lead) {
-  const parts = [lead ?? p?.release, Number.isFinite(p?.score) ? `Scorecard ${p.score.toFixed(1)}` : null].filter(Boolean);
-  return parts.join(' · ');
+  const score = Number.isFinite(p?.score) ? `Scorecard ${p.score.toFixed(1)}` : null;
+  const held = p?.held ?? [];
+  if (score && held.includes('score')) return `${score} (last good)`;
+  if (!lead && p?.release && held.includes('release')) return `${p.release} (last good)`;
+  return [lead ?? p?.release, score].filter(Boolean).join(' · ');
 }
 
 // What the Redline card's numbers cover: the day, the part of it the feed reached, or the day held
@@ -40,6 +44,7 @@ export function cardSpecs(d) {
       panel: { x: 1220, y: 70, w: 520, h: 745 },
       title: 'ci-wizard reads a repository\'s GitHub Actions runs and reports where the time goes. Its first audit found a 9 second job, 79% of it fixed cost, running 1,746 times a week.',
       heading: 'FIRST AUDIT',
+      live: false, // a published result, so it wears no live pip
       figures: [
         { value: '79%', label: 'fixed, on a 9 s job', color: C.pink },
         { value: '1,746', label: 'times a week' },
