@@ -427,6 +427,20 @@ test('the jobs lane answers to the axis when its source and the feed fail apart'
   assert.ok(renderScore({ at, activity: day(now), pitlane: { at, hours, stale: true } }).includes(`>to ${at.slice(11, 16)}<`));
 });
 
+test('an event the feed serves twice counts once', () => {
+  const at = new Date(now - 36e5).toISOString();
+  const review = { id: 'r1', type: 'PullRequestReviewEvent', created_at: at, repo: { name: 'a/b' }, payload: { review: { state: 'approved' } } };
+  // A new event between two page reads pushes the last of page one to the top of page two.
+  const fresh = notesFrom([], [review, review], now);
+  assert.equal(fresh.length, 2, 'the feed really did hand it over twice');
+  const notes = mergeNotes(fresh, [{ ...fresh[0] }], now);
+  assert.deepEqual(notes.map((x) => x.id), ['r1']);
+  const d = { ...liveDay(), activity: { ...liveDay().activity, notes } };
+  assert.equal(cardSpecs(d).redline.figures[0].value, '1');
+  assert.equal(renderCards(d, cardsDir)['card-redline.svg'].match(/class="pk"/g).length, 1);
+  assert.equal(renderScore(d).match(/class="n"/g).length, 1);
+});
+
 test('past an unfilled gap nothing older is counted, so a SINCE card counts what it says', () => {
   const at = (h) => new Date(now - h * 36e5).toISOString();
   const note = (id, h, lane = 'approve') => ({ id, at: at(h), t: 0, lane, repo: 'a/b' });

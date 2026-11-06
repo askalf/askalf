@@ -170,14 +170,15 @@ export function notesFrom(own, redline, now) {
 }
 
 // This run's notes plus what earlier runs saw and this one did not: the feed serves 300 events at
-// most, so on a busy day it no longer reaches the morning. Each event counts once, by id, and leaves
-// when it passes out of the day. Nothing older than since is kept: past a gap the day is not whole,
+// most, so on a busy day it no longer reaches the morning. Each event counts once, by id, even when
+// a new event shifts the feed between two page reads and one comes back twice, and leaves when it
+// passes out of the day. Nothing older than since is kept: past a gap the day is not whole,
 // and every count and mark on the page is of the stretch it says it covers.
 export function mergeNotes(fresh, earlier, now, since = new Date(now - DAY).toISOString()) {
   const from = now - DAY;
   const start = Date.parse(since);
-  const seen = new Set(fresh.map((x) => x.id));
-  return [...fresh, ...(earlier ?? []).filter((x) => !seen.has(x.id))]
+  const once = new Map([...(earlier ?? []), ...fresh].map((x) => [x.id, x]));
+  return [...once.values()]
     .map((x) => ({ ...x, t: Number(((Date.parse(x.at) - from) / DAY).toFixed(5)) }))
     .filter((x) => x.t >= 0 && x.t <= 1 && Date.parse(x.at) >= start)
     .sort((a, b) => a.t - b.t);
