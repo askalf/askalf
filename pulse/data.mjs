@@ -171,13 +171,15 @@ export function notesFrom(own, redline, now) {
 
 // This run's notes plus what earlier runs saw and this one did not: the feed serves 300 events at
 // most, so on a busy day it no longer reaches the morning. Each event counts once, by id, and leaves
-// when it passes out of the day.
-export function mergeNotes(fresh, earlier, now) {
+// when it passes out of the day. Nothing older than since is kept: past a gap the day is not whole,
+// and every count and mark on the page is of the stretch it says it covers.
+export function mergeNotes(fresh, earlier, now, since = new Date(now - DAY).toISOString()) {
   const from = now - DAY;
+  const start = Date.parse(since);
   const seen = new Set(fresh.map((x) => x.id));
   return [...fresh, ...(earlier ?? []).filter((x) => !seen.has(x.id))]
     .map((x) => ({ ...x, t: Number(((Date.parse(x.at) - from) / DAY).toFixed(5)) }))
-    .filter((x) => x.t >= 0 && x.t <= 1)
+    .filter((x) => x.t >= 0 && x.t <= 1 && Date.parse(x.at) >= start)
     .sort((a, b) => a.t - b.t);
 }
 
@@ -208,11 +210,12 @@ async function activity(now, last) {
     return events;
   };
   const [own, redline] = await Promise.all([read('askalf'), read('sprayberry-redline')]);
+  const since = coveredSince([own, redline], last, now);
   return {
     from: new Date(now - DAY).toISOString(),
     to: new Date(now).toISOString(),
-    since: coveredSince([own, redline], last, now),
-    notes: mergeNotes(notesFrom(own, redline, now), last?.notes, now),
+    since,
+    notes: mergeNotes(notesFrom(own, redline, now), last?.notes, now, since),
   };
 }
 

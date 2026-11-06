@@ -427,6 +427,42 @@ test('the jobs lane answers to the axis when its source and the feed fail apart'
   assert.ok(renderScore({ at, activity: day(now), pitlane: { at, hours, stale: true } }).includes(`>to ${at.slice(11, 16)}<`));
 });
 
+test('past an unfilled gap nothing older is counted, so a SINCE card counts what it says', () => {
+  const at = (h) => new Date(now - h * 36e5).toISOString();
+  const note = (id, h, lane = 'approve') => ({ id, at: at(h), t: 0, lane, repo: 'a/b' });
+  // The last run ended twelve hours ago and this capped feed reaches back ten, so two hours are lost.
+  const feed = Array.from({ length: 300 }, (_, i) => ({ created_at: at(10 * ((i + 1) / 300)) }));
+  const last = { to: at(12), since: at(24), notes: [note('morning', 20)] };
+  const since = coveredSince([feed, []], last, now);
+  assert.equal(since, at(10));
+  const notes = mergeNotes([note('recent', 3), note('edge', 10)], last.notes, now, since);
+  assert.deepEqual(notes.map((x) => x.id), ['edge', 'recent'], 'the approval from before the gap is gone');
+  const d = { ...liveDay(), activity: { from: at(24), to: at(0), since, notes } };
+  const spec = cardSpecs(d).redline;
+  assert.equal(spec.heading, `SINCE ${since.slice(11, 16)}`);
+  assert.equal(spec.figures[0].value, '2');
+  assert.equal(renderCards(d, cardsDir)['card-redline.svg'].match(/class="pk"/g).length, 2);
+  assert.ok(renderScore(d).includes('>2<'));
+});
+
+test('an hour belongs to the axis when its middle does', () => {
+  const hour = 36e5;
+  const at = new Date(now).toISOString();
+  const day = { from: new Date(now - 864e5).toISOString(), to: at, since: new Date(now - 864e5).toISOString(), notes: [] };
+  const bucket = (startsAgoH, jobs) => ({ from: new Date(now - startsAgoH * hour).toISOString(), jobs });
+  const draw = (hours) => renderScore({ at, activity: day, pitlane: { at, hours } });
+  const bars = (svg) => (svg.match(/class="bar"/g) ?? []).length;
+
+  const before = draw([bucket(25, 700), bucket(3, 5)]);
+  assert.equal(bars(before), 1, 'an hour ending exactly at the axis start is outside it');
+  assert.ok(before.includes('>5<') && !before.includes('>705<'));
+  assert.equal(bars(draw([bucket(25.6, 700)])), 0);
+  assert.equal(bars(draw([bucket(24.4, 7)])), 1, 'one that overlaps by most of itself stays');
+  assert.equal(bars(draw([bucket(24.6, 7)])), 0, 'one that overlaps by less than half goes');
+  assert.equal(bars(draw([bucket(0, 7), bucket(0.4, 7)])), 0, 'hours that begin at or just before the right edge are past it');
+  assert.equal(bars(draw([bucket(1, 7)])), 1, 'the last whole hour stays');
+});
+
 test('every moving layer holds still under prefers-reduced-motion', () => {
   const d = liveDay();
   for (const svg of [...Object.values(renderCards(d, cardsDir)), renderHero({ heroPath, d }), renderScore(d), renderPitlane(d, { phone: true })]) {

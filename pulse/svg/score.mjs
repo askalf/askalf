@@ -5,6 +5,7 @@
 import { C, esc, n, frame, hhmm, isLive } from './kit.mjs';
 
 const DAY = 864e5;
+const HALF_HOUR = 1 / 48; // of a day
 export const LOOP = 48;
 
 // The same score at two widths: a phone shows it at about a third of the desktop size, so its
@@ -26,9 +27,11 @@ const heightOf = (L) => axisY(L) + 44;
 
 const delay = (t) => (t * LOOP).toFixed(2);
 
-// pitlane and the events feed fail apart, so the lane answers to the axis: only the hours inside its
-// window are drawn, and the total is of those hours. Numbers held over from an earlier run say when
-// they stop, in place of the plain label.
+// pitlane and the events feed fail apart, so the lane answers to the axis: the total is of the hours
+// drawn. pitlane's hours roll with its own clock, so one can straddle an edge of the axis; an hour
+// belongs to the axis when its middle does, which keeps the one that overlaps by minutes and drops
+// one wholly outside. Numbers held over from an earlier run say when they stop, in place of the
+// plain label.
 function jobsLabel(d) {
   const p = d.pitlane;
   if (!p || (!p.stale && isLive(d, 'pitlane'))) return 'jobs run';
@@ -38,7 +41,7 @@ function jobsLabel(d) {
 function jobsLane(L, d, fromMs) {
   const rows = (d.pitlane?.hours ?? [])
     .map((h) => ({ ...h, t: (Date.parse(h.from) - fromMs) / DAY }))
-    .filter((h) => Number.isFinite(h.jobs) && h.t >= -0.05 && h.t < 1);
+    .filter((h) => Number.isFinite(h.jobs) && h.t + HALF_HOUR >= 0 && h.t + HALF_HOUR < 1);
   const top = Math.max(1, ...rows.map((h) => h.jobs));
   const bw = L.TW / 24;
   const total = rows.reduce((s, h) => s + h.jobs, 0);
