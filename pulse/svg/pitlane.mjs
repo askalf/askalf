@@ -3,7 +3,11 @@
 // the last 24 hours, and five start lights that go out before each run.
 import { C, esc, n, ago, frame } from './kit.mjs';
 
-const X0 = 40, TRACK = 680, RX = 790;
+// The board at two widths. A phone shows it at about a third of the desktop size, so the lanes run
+// the full width in larger type and the jobs count moves underneath them.
+const WIDE = { W: 1000, H: 316, X0: 40, TRACK: 680, lanes: [70, 178], label: 11, value: 40, target: 12, tick: 10, valueDy: 40, trackDy: 54, tickDy: 28, bar: 10 };
+const PHONE = { W: 640, H: 556, X0: 32, TRACK: 576, lanes: [76, 226], label: 17, value: 62, target: 18, tick: 15, valueDy: 64, trackDy: 84, tickDy: 38, bar: 14 };
+const RX = 790;
 // A lane spans twice its target, so the target tick sits mid-track.
 const SPAN = 2;
 const LOOP = 8;
@@ -41,11 +45,12 @@ function laneTone(ms, targetMs) {
 
 // One lane of the board: label, the time, its target, and a track the wait
 // fills along once the lights go out, with a job dot at the leading edge.
-function lane(i, y, label, ms, targetMs, css) {
+function lane(L, i, y, label, ms, targetMs, css) {
+  const { X0, TRACK } = L;
   const tone = TONE[laneTone(ms, targetMs)];
   const has = Number.isFinite(ms) && Number.isFinite(targetMs) && targetMs > 0;
   const w = has ? Math.round(Math.max(4, Math.min(TRACK, (ms / (SPAN * targetMs)) * TRACK))) : 0;
-  const ty = y + 54, mid = X0 + TRACK / 2;
+  const ty = y + L.trackDy, mid = X0 + TRACK / 2, r = L.bar / 2;
   // Lights out at 40% of the loop. Every lane fills at the same speed, the
   // full track in 30% of the loop, so a longer wait takes longer to draw.
   const end = 40 + (w / TRACK) * 30;
@@ -55,16 +60,16 @@ function lane(i, y, label, ms, targetMs, css) {
   .job${i} { animation: job${i} ${LOOP}s linear infinite; }
   @keyframes job${i} { 0%,39.9% { transform: translateX(0); opacity: 0 } 40% { opacity: 1 } ${end.toFixed(1)}% { transform: translateX(${w}px); opacity: 1 } ${(end + 4).toFixed(1)}%,100% { transform: translateX(${w}px); opacity: 0 } }`);
   return `
-  <text x="${X0}" y="${y}" font-size="11" fill="${C.dim}" letter-spacing="1.5">${esc(label)}</text>
-  <text x="${X0}" y="${y + 40}" font-size="40" font-weight="700" fill="${tone}" filter="url(#glow)">${esc(fmtWait(ms))}</text>
-  <text x="${X0 + TRACK}" y="${y + 40}" font-size="12" fill="${C.dim}" text-anchor="end">${Number.isFinite(targetMs) ? `target under ${esc(fmtWait(targetMs))}` : 'no target set'}</text>
-  <rect x="${X0}" y="${ty}" width="${TRACK}" height="10" rx="5" fill="${C.grid}" stroke="${C.edge}" stroke-width=".6"/>
-  ${w ? `<rect class="bar bar${i}" x="${X0}" y="${ty}" width="${w}" height="10" rx="5" fill="${tone}" opacity=".85"/>
-  <circle class="job job${i}" cx="${X0 + 1}" cy="${ty + 5}" r="5" fill="#fff" opacity="0" filter="url(#glow)"/>` : ''}
-  <line x1="${mid}" x2="${mid}" y1="${ty - 5}" y2="${ty + 15}" stroke="${C.lilac}" stroke-width="1.5"/>
-  <text x="${mid}" y="${ty + 28}" font-size="10" fill="${C.faint}" text-anchor="middle" letter-spacing="1">TARGET</text>
-  <text x="${X0}" y="${ty + 28}" font-size="10" fill="${C.faint}">0</text>
-  <text x="${X0 + TRACK}" y="${ty + 28}" font-size="10" fill="${C.faint}" text-anchor="end">${SPAN}× TARGET</text>`;
+  <text x="${X0}" y="${y}" font-size="${L.label}" fill="${C.dim}" letter-spacing="1.5">${esc(label)}</text>
+  <text x="${X0}" y="${y + L.valueDy}" font-size="${L.value}" font-weight="700" fill="${tone}" filter="url(#glow)">${esc(fmtWait(ms))}</text>
+  <text x="${X0 + TRACK}" y="${y + L.valueDy}" font-size="${L.target}" fill="${C.dim}" text-anchor="end">${Number.isFinite(targetMs) ? `target under ${esc(fmtWait(targetMs))}` : 'no target set'}</text>
+  <rect x="${X0}" y="${ty}" width="${TRACK}" height="${L.bar}" rx="${r}" fill="${C.grid}" stroke="${C.edge}" stroke-width=".6"/>
+  ${w ? `<rect class="bar bar${i}" x="${X0}" y="${ty}" width="${w}" height="${L.bar}" rx="${r}" fill="${tone}" opacity=".85"/>
+  <circle class="job job${i}" cx="${X0 + 1}" cy="${ty + r}" r="${r}" fill="#fff" opacity="0" filter="url(#glow)"/>` : ''}
+  <line x1="${mid}" x2="${mid}" y1="${ty - 5}" y2="${ty + L.bar + 5}" stroke="${C.lilac}" stroke-width="1.5"/>
+  <text x="${mid}" y="${ty + L.tickDy}" font-size="${L.tick}" fill="${C.faint}" text-anchor="middle" letter-spacing="1">TARGET</text>
+  <text x="${X0}" y="${ty + L.tickDy}" font-size="${L.tick}" fill="${C.faint}">0</text>
+  <text x="${X0 + TRACK}" y="${ty + L.tickDy}" font-size="${L.tick}" fill="${C.faint}" text-anchor="end">${SPAN}× TARGET</text>`;
 }
 
 // The right-hand board: start lights, the job count, the verdict pill and
@@ -86,15 +91,34 @@ function board(p, v, now) {
   </g>`;
 }
 
-export function renderPitlane(d) {
+// The same board for a phone: the count on the left, and the lights, the verdict and the age on the right.
+function phoneBoard(p, v, now) {
+  const tone = TONE[v.tone];
+  const lamps = Array.from({ length: 5 }, (_, i) => `<circle class="lamp lamp${i}" cx="${i * 38}" cy="0" r="13" fill="${C.grid}" stroke="${C.edge}"/>`).join('\n    ');
+  const pillW = Math.round(v.text.length * 12 + 34);
+  return `
+  <line x1="32" x2="608" y1="384" y2="384" stroke="${C.edge}"/>
+  <text x="32" y="420" font-size="17" fill="${C.dim}" letter-spacing="1.5">JOBS · 24 H</text>
+  <text x="32" y="490" font-size="72" font-weight="700" fill="${C.pink}" filter="url(#glow)">${p && Number.isFinite(p.jobs) ? n(p.jobs) : '-'}</text>
+  <g transform="translate(608 0)">
+    <g transform="translate(-165 420)">${lamps}</g>
+    <rect x="${-pillW}" y="450" width="${pillW}" height="38" rx="19" fill="${tone}" fill-opacity=".14" stroke="${tone}"/>
+    <text x="${-pillW / 2}" y="475" font-size="16" fill="${tone}" letter-spacing="1.5" text-anchor="middle">${esc(v.text)}</text>
+    <text x="0" y="526" font-size="17" fill="${C.dim}" text-anchor="end">${p ? `written ${ago(p.at, now)}` : 'no live numbers'}</text>
+  </g>`;
+}
+
+export function renderPitlane(d, { phone = false } = {}) {
+  const L = phone ? PHONE : WIDE;
   const now = Date.parse(d.at);
   const p = d.pitlane ?? null;
   const v = verdict(p);
   const css = [];
-  const body = lane(0, 70, 'QUEUE WAIT · MEDIAN', p?.p50Ms, p?.p50TargetMs, css)
-    + lane(1, 178, 'QUEUE WAIT · P90, THE SLOW TAIL', p?.p90Ms, p?.p90TargetMs, css)
-    + board(p, v, now)
-    + `\n  <text x="${X0}" y="294" font-size="11.5" fill="${C.faint}">queue wait: from GitHub creating the job to our runner starting it, the whole wait before the logs begin</text>`;
+  const lanes = lane(L, 0, L.lanes[0], 'QUEUE WAIT · MEDIAN', p?.p50Ms, p?.p50TargetMs, css)
+    + lane(L, 1, L.lanes[1], 'QUEUE WAIT · P90, THE SLOW TAIL', p?.p90Ms, p?.p90TargetMs, css);
+  const body = phone
+    ? lanes + phoneBoard(p, v, now)
+    : lanes + board(p, v, now) + `\n  <text x="${L.X0}" y="294" font-size="11.5" fill="${C.faint}">queue wait: from GitHub creating the job to our runner starting it, the whole wait before the logs begin</text>`;
   // Five lights come on one by one and all go out together, then the lanes run.
   const lamps = Array.from({ length: 5 }, (_, i) => `.lamp${i} { animation: lamp${i} ${LOOP}s linear infinite; }
   @keyframes lamp${i} { 0%,${(7.9 + i * 5).toFixed(1)}% { fill: ${C.grid} } ${8 + i * 5}%,39.9% { fill: ${C.block} } 40%,100% { fill: ${C.grid} } }`).join('\n  ');
@@ -102,10 +126,12 @@ export function renderPitlane(d) {
     ? `pitlane: ${n(p.jobs)} jobs in the last 24 hours, median queue wait ${fmtWait(p.p50Ms)} against a ${fmtWait(p.p50TargetMs)} target, p90 ${fmtWait(p.p90Ms)} against ${fmtWait(p.p90TargetMs)}. ${sentence(v.text)}.`
     : 'pitlane: no live numbers.';
   return frame({
-    h: 316,
+    w: L.W,
+    h: L.H,
     title,
     label: 'pitlane · queue wait',
-    footer: 'pitlane.askalf.org · last 24 hours',
+    labelSize: phone ? 18 : 13,
+    footer: phone ? '' : 'pitlane.askalf.org · last 24 hours',
     body,
     css: `${css.join('\n')}\n  ${lamps}`,
   });

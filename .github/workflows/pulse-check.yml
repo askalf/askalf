@@ -4,7 +4,7 @@ name: pulse check
 
 on:
   pull_request:
-    paths: ['README.md', 'pulse/**', '.github/workflows/pulse.yml', '.github/workflows/pulse-render.yml', '.github/workflows/pulse-check.yml']
+    paths: ['README.md', 'hero.jpg', 'cards/**', 'pulse/**', '.github/workflows/pulse.yml', '.github/workflows/pulse-render.yml', '.github/workflows/pulse-check.yml']
 
 permissions: {}
 

@@ -7,6 +7,9 @@ export const C = {
   violet: '#8b5cf6', lilac: '#c4b5fd', pink: '#f0abfc', magenta: '#e879f9', blue: '#818cf8',
   allow: '#4ade80', approve: '#fbbf24', block: '#fb4f6d',
 };
+// The art's own black, for anything drawn past its edge: a phone band under a hero or card has to
+// paint it, since GitHub's light theme would otherwise show white through the panel.
+export const ART_BG = '#05040b';
 export const MONO = `ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace`;
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -23,7 +26,7 @@ export function ago(iso, now) {
 export const stamp = (iso) => `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 
 // A dark glass panel with a header chip and a live dot. `h` is the height.
-export function frame({ w = 1000, h, title, label, body, css = '', defs = '', footer = '' }) {
+export function frame({ w = 1000, h, title, label, labelSize = 13, body, css = '', defs = '', footer = '' }) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-labelledby="t">
 <title id="t">${esc(title)}</title>
 <style>
@@ -46,7 +49,7 @@ export function frame({ w = 1000, h, title, label, body, css = '', defs = '', fo
 <g transform="translate(26 30)">
   <circle class="ring" cx="5" cy="-4" r="5" fill="none" stroke="${C.allow}" stroke-width="1.5"/>
   <circle class="live" cx="5" cy="-4" r="4.5" fill="${C.allow}"/>
-  <text x="20" y="0" font-size="13" fill="${C.lilac}" letter-spacing="2.5">${esc(label.toUpperCase())}</text>
+  <text x="20" y="0" font-size="${labelSize}" fill="${C.lilac}" letter-spacing="2.5">${esc(label.toUpperCase())}</text>
 </g>
 ${footer ? `<text x="${w - 26}" y="30" font-size="12" fill="${C.faint}" text-anchor="end">${esc(footer)}</text>` : ''}
 ${body}

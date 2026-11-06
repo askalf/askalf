@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['README.md', 'pulse/**', '.github/workflows/pulse.yml', '.github/workflows/pulse-render.yml']
+    paths: ['README.md', 'hero.jpg', 'cards/**', 'pulse/**', '.github/workflows/pulse.yml', '.github/workflows/pulse-render.yml']
 
 permissions: {}
 

@@ -3,6 +3,8 @@
 // shimmer across the letters, and a blink. Pure CSS animation, so it runs
 // inside GitHub's <img> sandbox and stops for prefers-reduced-motion.
 import { readFileSync } from 'node:fs';
+import { C, ART_BG, MONO, esc, n } from './kit.mjs';
+import { fmtWait } from './pitlane.mjs';
 
 // Circuit lines traced off hero.jpg (1774×887 pixel space).
 const INBOUND = [ // left edge to wordmark
@@ -20,7 +22,28 @@ const ANTENNAE = [[1262.5, 101], [1624, 137.5]];
 // Eye openings: [cx, cy, rx, ry, tilt°]
 const EYES = [[1280, 390, 57, 57, 0], [1514, 416, 63, 58, -8]];
 
-export function renderHero({ heroPath }) {
+// The line under the wordmark: what the runners did in the last hour, from pitlane's own numbers.
+export function heroLine(d) {
+  const p = d?.pitlane;
+  if (!p || p.stale || !Number.isFinite(p.lastHourJobs) || !Number.isFinite(p.p50Ms)) return null;
+  return `${n(p.lastHourJobs)} jobs in the last hour · ${fmtWait(p.p50Ms)} median wait`;
+}
+
+// The two lines of type. Over the art they sit under the wordmark; a phone shows the hero at a fifth
+// of its size, where that type is unreadable, so there they move to a band of their own below it.
+function heroType(line, phone) {
+  const font = MONO.replace(/"/g, '&quot;');
+  if (!phone) {
+    return `<text x="268" y="548" font-family="${font}" font-size="46" font-weight="600" fill="${C.text}">I find where CI time goes.</text>
+${line ? `<g transform="translate(278 606)"><circle class="pip" r="9" fill="${C.allow}"/><text x="26" y="11" font-family="${font}" font-size="32" fill="${C.lilac}">${esc(line)}</text></g>` : ''}`;
+  }
+  return `<rect y="797" width="1774" height="90" fill="url(#fade)"/><rect y="886" width="1774" height="241" fill="${ART_BG}"/>
+<text x="887" y="${887 + 92}" text-anchor="middle" font-family="${font}" font-size="96" font-weight="600" fill="${C.text}">I find where CI time goes.</text>
+${line ? `<text x="887" y="${887 + 196}" text-anchor="middle" font-family="${font}" font-size="58" fill="${C.lilac}">${esc(line)}</text>` : ''}`;
+}
+
+export function renderHero({ heroPath, d, phone = false }) {
+  const line = heroLine(d);
   const jpg = readFileSync(heroPath).toString('base64');
   const streak = (d, i, dir, n) => {
     const dur = dir === 'in' ? 3.6 : 3.0;
@@ -49,7 +72,8 @@ export function renderHero({ heroPath }) {
     return `<circle class="dust" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${(0.8 + rnd() * 1.6).toFixed(1)}" style="animation-delay:-${(rnd() * 6).toFixed(2)}s;animation-duration:${(3 + rnd() * 4).toFixed(2)}s"/>`;
   }).join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1774 887" width="1774" height="887" role="img" aria-labelledby="t">
+  const h = phone ? 887 + 240 : 887;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1774 ${h}" width="1774" height="${h}" role="img" aria-labelledby="t">
 <title id="t">askalf. ALF, the violet alien mascot, blinks beside the askalf wordmark while signal runs along neon circuit lines.</title>
 <style>
   .streak { fill: none; stroke-linecap: round; stroke-dasharray: 70 2000; stroke-dashoffset: 70; opacity: 0; animation-name: run; animation-timing-function: cubic-bezier(.45,.05,.55,.95); animation-iteration-count: infinite; filter: url(#glow); }
@@ -64,6 +88,8 @@ export function renderHero({ heroPath }) {
   @keyframes aura { 0%,100% { opacity: .1 } 50% { opacity: .75 } }
   .dust { fill: #e9d5ff; opacity: 0; animation-name: twinkle; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
   @keyframes twinkle { 0%,100% { opacity: 0 } 50% { opacity: .75 } }
+  .pip { animation: pip 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes pip { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
 </style>
 <defs>
@@ -71,6 +97,7 @@ export function renderHero({ heroPath }) {
   <radialGradient id="halo"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".35" stop-color="#f0abfc" stop-opacity=".7"/><stop offset="1" stop-color="#c026d3" stop-opacity="0"/></radialGradient>
   <radialGradient id="skin" cx=".5" cy=".62" r=".62"><stop offset="0" stop-color="#8440dc"/><stop offset=".6" stop-color="#6c2ec6"/><stop offset="1" stop-color="#3f168e"/></radialGradient>
   <filter id="soft" x="-10%" y="-20%" width="120%" height="140%"><feGaussianBlur stdDeviation="14"/></filter>
+  <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${ART_BG}" stop-opacity="0"/><stop offset="1" stop-color="${ART_BG}"/></linearGradient>
   <filter id="lidsoft"><feGaussianBlur stdDeviation="1.2"/></filter>
   <filter id="bright" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  .3 .5 .2 0 -.55"/><feComponentTransfer><feFuncA type="linear" slope="3"/></feComponentTransfer></filter>
   <mask id="letters" maskUnits="userSpaceOnUse" x="250" y="280" width="740" height="330"><use href="#img" filter="url(#bright)"/></mask>
@@ -82,6 +109,7 @@ export function renderHero({ heroPath }) {
 <g>${INBOUND.map((d, i) => streak(d, i, 'in')).join('')}${OUTBOUND.map((d, i) => streak(d, i, 'out')).join('')}</g>
 <g>${bulbs}</g>
 <g>${lidShapes}</g>
+${heroType(line, phone)}
 </svg>
 `;
 }
