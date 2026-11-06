@@ -28,7 +28,6 @@ export function ago(iso, now) {
   return `${Math.round(s / 86400)}d ago`;
 }
 
-export const stamp = (iso) => `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 
 // A dark glass panel with a header chip and a live dot. `h` is the height.
 export function frame({ w = 1000, h, title, label, labelSize = 13, body, css = '', defs = '', footer = '' }) {
