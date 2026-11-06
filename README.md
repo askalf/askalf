@@ -41,7 +41,7 @@ Its first audit was of our own CI. On [dario](https://github.com/askalf/dario), 
 | Stable | Zero failures caused by the runner and zero jobs sharing a workspace. Every runner is ephemeral: one job, then a fresh registration, scaled to zero when idle. | [What it aims at](https://github.com/askalf/pitlane#what-it-aims-at) and [how it works](https://github.com/askalf/pitlane#how-it-works). |
 | Secure | Each runner row is its own account with its own tool cache, and only a lane's rows can read that lane's keys. Releases are source tarballs attested through GitHub OIDC. | [Isolation](https://github.com/askalf/pitlane/blob/main/docs/isolation.md), and `gh attestation verify pitlane-<version>.tar.gz --owner askalf` on [a release](https://github.com/askalf/pitlane/releases). |
 
-pitlane is the runner stack behind the askalf projects' CI. The write-up of what the slow tail was and what it took: [What a 2-second queue on one box takes](https://ownyourstack.sprayberrylabs.com/ci).
+pitlane is the runner stack behind the askalf projects' CI. The write-up of what the slow tail was and what it took: [What a 2-second queue on one box takes](https://sprayberrylabs.com/ci).
 
 [![CI measured](https://img.shields.io/endpoint?url=https%3A%2F%2Fpitlane.askalf.org%2Fbadge.json)](https://pitlane.askalf.org/) [![pitlane Scorecard](https://api.scorecard.dev/projects/github.com/askalf/pitlane/badge)](https://scorecard.dev/viewer/?uri=github.com/askalf/pitlane) [![pitlane Best Practices](https://www.bestpractices.dev/projects/16169/badge)](https://www.bestpractices.dev/projects/16169) [![pitlane release](https://img.shields.io/github/v/release/askalf/pitlane?color=8b5cf6&label=pitlane&style=flat-square)](https://github.com/askalf/pitlane/releases)
 
