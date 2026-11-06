@@ -1,7 +1,13 @@
 // node --test pulse/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { OWN, inReviewFrom, recentEvents, tallyPerDay, pitlaneFrom } from './data.mjs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { OWN, inReviewFrom, recentEvents, tallyPerDay, pitlaneFrom, notesFrom, feedFrom, mergeNotes, coveredSince, productFrom, settle } from './data.mjs';
+import { renderScore, LANES, LOOP } from './svg/score.mjs';
+import { renderCards, cardSpecs } from './svg/cards.mjs';
+import { renderHero, heroLine } from './svg/hero.mjs';
+import { renderOrbit } from './svg/orbit.mjs';
 import { renderSignal } from './svg/signal.mjs';
 import { renderGate } from './svg/gate.mjs';
 import { renderHeartbeat } from './svg/heartbeat.mjs';
@@ -139,9 +145,10 @@ test('the header stats show each live number and drop a missing source', () => {
 
 test('pitlane keeps the published fields and reads a missing number as null, never 0', () => {
   const page = { at: '2026-09-25T01:59:00.039Z', window: '24h', jobs: 1474, queueWaitMs: { p50: 2000, p90: 18000 }, targets: { p50Ms: 5000, p90Ms: 30000 }, finished: 1582, runnerSuspect: 2, stale: false };
-  assert.deepEqual(pitlaneFrom(page), { at: '2026-09-25T01:59:00.039Z', window: '24h', jobs: 1474, p50Ms: 2000, p90Ms: 18000, p50TargetMs: 5000, p90TargetMs: 30000, stale: false });
+  assert.deepEqual(pitlaneFrom(page), { at: '2026-09-25T01:59:00.039Z', window: '24h', jobs: 1474, p50Ms: 2000, p90Ms: 18000, p50TargetMs: 5000, p90TargetMs: 30000, stale: false, lastHourJobs: null, lastHourP50Ms: null, hours: [] });
   const bare = pitlaneFrom({ at: '2026-09-25T01:59:00.039Z', queueWaitMs: { p50: 2000 } });
   assert.deepEqual([bare.jobs, bare.p90Ms, bare.p50TargetMs, bare.stale], [null, null, null, false]);
+  assert.deepEqual(pitlaneFrom({ hours: [{ from: 'x', jobs: 9, p50: 1 }], lastHour: { jobs: 3 } }).hours, [{ from: 'x', jobs: 9 }]);
 });
 
 test('pitlane waits read like a timing screen', () => {
@@ -183,4 +190,296 @@ test('console leads with the runners row only when every number it prints is pre
   const partial = renderConsole({ at, upstream: [], pitlane: pitlaneFrom({ at, queueWaitMs: { p50: 2000 } }) });
   assert.doesNotMatch(partial, /runners|n\/a/);
   assert.doesNotMatch(renderConsole({ at, upstream: [], pitlane: { ...pitlane, stale: true } }), /runners/);
+});
+
+test('the score sets each public event in its lane at the moment it happened', () => {
+  const at = (h) => new Date(now - h * 36e5).toISOString();
+  const e = (type, payload, h) => ({ id: '1', created_at: at(h), type, payload, repo: { name: 'askalf/dario' } });
+  const notes = notesFrom([
+    e('PushEvent', {}, 12),
+    e('PullRequestEvent', { action: 'merged' }, 6),
+    e('PullRequestEvent', { action: 'closed', pull_request: { merged: true } }, 5),
+    e('PullRequestEvent', { action: 'closed', pull_request: { merged: false } }, 5),
+    e('ReleaseEvent', { action: 'published' }, 3),
+    e('PushEvent', {}, 30),
+  ], [
+    e('PullRequestReviewEvent', { review: { state: 'approved' } }, 2),
+    e('PullRequestReviewEvent', { review: { state: 'changes_requested' } }, 1),
+    e('PullRequestReviewEvent', { review: { state: 'commented' } }, 1),
+  ], now);
+  assert.deepEqual(notes.map((x) => x.lane), ['push', 'merge', 'merge', 'release', 'approve', 'changes'], 'older than a day, unmerged and comments stay out');
+  assert.equal(notes[0].t, 0.5, 'twelve hours ago is halfway across');
+});
+
+test('the feed counts a merge in both forms GitHub has reported it', () => {
+  const e = (payload) => ({ created_at: 'x', type: 'PullRequestEvent', repo: { name: 'a/b' }, payload: { number: 7, ...payload } });
+  assert.equal(feedFrom([e({ action: 'merged' })])[0].kind, feedFrom([e({ action: 'closed', pull_request: { merged: true } })])[0].kind);
+});
+
+test('the score draws one mark per event, timed to its place in the loop', () => {
+  const notes = [{ t: 0.25, lane: 'push', repo: 'a/b' }, { t: 0.5, lane: 'merge', repo: 'a/b' }, { t: 0.75, lane: 'approve', repo: 'a/b' }];
+  const hours = Array.from({ length: 24 }, (_, i) => ({ from: new Date(now - (24 - i) * 36e5).toISOString(), jobs: i + 1 }));
+  const svg = renderScore({ at: new Date(now).toISOString(), activity: { to: new Date(now).toISOString(), notes }, pitlane: { hours } });
+  assert.equal(svg.match(/class="n"/g).length, 3);
+  assert.equal(svg.match(/class="bar"/g).length, 24);
+  assert.ok(svg.includes(`animation-delay:${(0.5 * LOOP).toFixed(2)}s`), 'halfway through the day is halfway through the loop');
+  assert.ok(svg.includes('>300<'), 'the jobs total is the sum of the hours');
+  assert.ok(!/NaN|undefined/.test(svg));
+  for (const l of LANES) assert.ok(svg.includes(`>${l.label}<`), l.label);
+});
+
+test('the score says so when the feed did not answer, and invents nothing', () => {
+  const svg = renderScore({ at: new Date(now).toISOString(), activity: null, pitlane: null });
+  assert.match(svg, /did not answer/);
+  assert.ok(!svg.includes('class="n"'));
+});
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+const cardsDir = join(repoRoot, 'cards');
+const heroPath = join(repoRoot, 'hero.jpg');
+const liveDay = () => {
+  const at = new Date(now).toISOString();
+  return {
+    at,
+    activity: { to: at, notes: [{ t: 0.1, lane: 'approve' }, { t: 0.5, lane: 'approve' }, { t: 0.6, lane: 'changes' }, { t: 0.2, lane: 'push' }] },
+    pitlane: { at, jobs: 1500, p50Ms: 2000, p90Ms: 9000, p50TargetMs: 5000, p90TargetMs: 30000, lastHourJobs: 12, lastHourP50Ms: 2000, stale: false },
+    products: { 'ci-wizard': { score: 8.2, release: 'v0.1.2' }, pitlane: { score: 8.4, release: 'v1.0.0' }, ci: { score: 8.6, release: null }, dario: { score: 9.5, release: 'v6.21.0' } },
+    installs: { last30: 13254 },
+    github: { darioStars: 583 },
+  };
+};
+
+test('every card comes wide and for a phone, and neither prints a missing value', () => {
+  for (const d of [liveDay(), { at: new Date(now).toISOString() }]) {
+    const cards = renderCards(d, cardsDir);
+    assert.deepEqual(Object.keys(cards).sort(), ['ci-wizard', 'dario', 'pitlane', 'redline'].flatMap((c) => [`card-${c}-phone.svg`, `card-${c}.svg`]).sort());
+    for (const [name, svg] of Object.entries(cards)) assert.ok(!/NaN|undefined|null/.test(svg.replace(/base64,[^"]*/, '')), name);
+  }
+});
+
+test('a card with no source this hour reads as a dash, not an old number', () => {
+  const svg = renderCards({ at: new Date(now).toISOString() }, cardsDir)['card-dario.svg'];
+  assert.equal((svg.match(/>-<\/text>/g) ?? []).length, 2);
+});
+
+test('Redline runs one packet per verdict of the day, at its place in the loop', () => {
+  const svg = renderCards(liveDay(), cardsDir)['card-redline.svg'];
+  assert.equal(svg.match(/class="pk"/g).length, 3, 'two approvals and a change request; a push is not a verdict');
+  assert.equal(svg.match(/class="hit"/g).length, 3);
+  assert.ok(svg.includes(`animation-delay:${(0.6 * LOOP).toFixed(2)}s`));
+  assert.ok(!renderCards({ at: new Date(now).toISOString() }, cardsDir)['card-redline.svg'].includes('class="pk"'), 'no feed, no packets');
+});
+
+test('pitlane runs one light per job of the last hour, and none on stale numbers', () => {
+  const d = liveDay();
+  assert.equal(renderCards(d, cardsDir)['card-pitlane.svg'].match(/class="car"/g).length, 12);
+  assert.equal(renderCards({ ...d, pitlane: { ...d.pitlane, lastHourJobs: 9000 } }, cardsDir)['card-pitlane.svg'].match(/class="car"/g).length, 300, 'capped');
+  assert.ok(!renderCards({ ...d, pitlane: { ...d.pitlane, stale: true } }, cardsDir)['card-pitlane.svg'].includes('class="car"'));
+});
+
+test('the longest line a panel can carry stays inside its glass', () => {
+  const specs = cardSpecs({ ...liveDay(), pitlane: { ...liveDay().pitlane, lastHourJobs: 999 } });
+  const glyph = 0.61; // the widest monospace stack in kit.mjs
+  for (const [name, s] of Object.entries(specs)) {
+    const room = s.panel.w - 92;
+    assert.ok(s.foot.length * 27 * glyph <= room, `${name} foot: ${s.foot}`);
+    for (const f of s.figures) assert.ok(f.label.length * 32 * glyph <= room, `${name} label: ${f.label}`);
+  }
+});
+
+test('the hero states the last hour only when the runners answered', () => {
+  const d = liveDay();
+  assert.equal(heroLine(d), '12 jobs in the last hour · 2.0 s median wait');
+  assert.equal(heroLine({ ...d, pitlane: { ...d.pitlane, stale: true } }), null);
+  assert.equal(heroLine({}), null);
+  const wide = renderHero({ heroPath, d });
+  const phone = renderHero({ heroPath, d, phone: true });
+  for (const svg of [wide, phone]) assert.ok(svg.includes('12 jobs in the last hour'));
+  assert.ok(phone.includes('viewBox="0 0 1774 1127"'), 'the type gets a band of its own on a phone');
+  assert.doesNotMatch(renderHero({ heroPath, d: {} }), /jobs in the last hour/);
+});
+
+test('every phone panel is drawn for a phone, with the same numbers', () => {
+  const d = liveDay();
+  assert.ok(renderScore({ ...d, pitlane: { hours: [] } }, { phone: true }).includes('viewBox="0 0 640 '));
+  const board = renderPitlane(d, { phone: true });
+  assert.ok(board.includes('viewBox="0 0 640 556"'));
+  assert.match(board, />BOTH TARGETS MET</);
+  assert.match(board, />1,500</);
+  assert.equal((renderPitlane({ at: d.at, pitlane: null }, { phone: true }).match(/>-<\/text>/g) ?? []).length, 3);
+  const upstream = [{ owner: 'a', repo: 'a-name-much-longer-than-a-phone-allows', prs: [1, 2] }];
+  const orbit = renderOrbit({ upstream }, { alfPath: join(repoRoot, 'pulse', 'alf.jpg'), phone: true });
+  assert.ok(orbit.includes('viewBox="0 0 640 780"'));
+  assert.ok(orbit.includes('a-name-much-longe… ×2'));
+  assert.ok(renderOrbit({ upstream }, { alfPath: join(repoRoot, 'pulse', 'alf.jpg') }).includes('a-name-much-longer-than-a-phone-allows ×2'), 'the wide one keeps the whole name');
+});
+
+test('a busy day stays whole: earlier runs fill in what the feed no longer reaches, each event once', () => {
+  const at = (h) => new Date(now - h * 36e5).toISOString();
+  const note = (id, h) => ({ id, at: at(h), t: 0, lane: 'approve', repo: 'a/b' });
+  const merged = mergeNotes([note('new', 1), note('both', 2)], [note('both', 2), note('morning', 20), note('expired', 25)], now);
+  assert.deepEqual(merged.map((x) => x.id), ['morning', 'both', 'new']);
+  assert.equal(merged[0].t, Number((4 / 24).toFixed(5)), 'its place in the day is worked out again each run');
+  assert.deepEqual(mergeNotes([note('new', 1)], undefined, now).map((x) => x.id), ['new']);
+});
+
+test('coverage says how far back the day is whole, past the 300 events the feed will serve', () => {
+  const at = (h) => new Date(now - h * 36e5).toISOString();
+  const feed = (oldestH, count) => Array.from({ length: count }, (_, i) => ({ created_at: at(oldestH * ((i + 1) / count)) }));
+  const dayStart = at(24);
+  assert.equal(coveredSince([feed(30, 300), feed(30, 120)], undefined, now), dayStart, 'it reached past the start of the day');
+  assert.equal(coveredSince([feed(10, 120), feed(5, 40)], undefined, now), dayStart, 'a short feed is the whole feed');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], undefined, now), at(10), 'stopped at ten hours, with nothing to fill in');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], { to: at(1), since: at(24) }, now), dayStart, 'the last run reaches past the stop and was whole');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], { to: at(1), since: at(15) }, now), at(15), 'the last run was whole only that far');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], { to: at(12), since: at(24) }, now), at(10), 'a gap between the runs cannot be filled');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], { to: at(1) }, now), at(10), 'a last run with no coverage recorded fills nothing');
+});
+
+test('a product keeps its last good field through a transient failure, and loses it on a 404', () => {
+  const ok = (value) => ({ status: 'fulfilled', value });
+  const fail = (status) => ({ status: 'rejected', reason: Object.assign(new Error('x'), { status }) });
+  const last = { score: 8.4, release: 'v1.0.0' };
+  assert.deepEqual(productFrom([ok({ score: 9 }), ok({ tag_name: 'v2' })], last), { score: 9, release: 'v2', held: [] });
+  assert.deepEqual(productFrom([fail(503), ok({ tag_name: 'v2' })], last), { score: 8.4, release: 'v2', held: ['score'] });
+  assert.deepEqual(productFrom([ok({ score: 9 }), fail(502)], last), { score: 9, release: 'v1.0.0', held: ['release'] });
+  assert.deepEqual(productFrom([{ status: 'rejected', reason: new Error('timeout') }, fail(500)], last), { ...last, held: ['score', 'release'] });
+  assert.deepEqual(productFrom([ok({ score: 9 }), fail(404)], last), { score: 9, release: null, held: [] }, 'no release at all reads as none');
+  assert.deepEqual(productFrom([fail(503), fail(503)], undefined), { score: null, release: null, held: [] }, 'nothing to hold');
+});
+
+test('a value held over from an earlier run is never called current', () => {
+  const live = liveDay();
+  const earlier = new Date(now - 5 * 36e5).toISOString();
+  const previous = { ...live, activity: { ...live.activity, from: new Date(now - 29 * 36e5).toISOString(), to: earlier, since: new Date(now - 29 * 36e5).toISOString() } };
+  const keys = ['activity', 'pitlane', 'installs', 'github'];
+  const down = { status: 'rejected', reason: new Error('503 feed') };
+  const d = settle(keys, keys.map(() => down), previous, { at: live.at, sources: {} });
+  assert.deepEqual(keys.map((k) => d.sources[k]), keys.map(() => 'cached (503 feed)'));
+  const held = `${earlier.slice(11, 16)} UTC`;
+
+  const score = renderScore(d);
+  assert.ok(!score.includes('now, UTC') && !score.includes('LAST 24 HOURS'));
+  assert.ok(score.includes(`THE 24 HOURS TO ${held}`) && score.includes(`>${held}<`));
+  assert.equal(heroLine(d), null);
+  assert.doesNotMatch(renderHero({ heroPath, d }), /jobs in the last hour/);
+
+  const cards = renderCards(d, cardsDir);
+  assert.ok(!cards['card-pitlane.svg'].includes('class="car"'), 'no lights from an old hour');
+  assert.ok(!cards['card-pitlane.svg'].includes('jobs/h'));
+  const specs = cardSpecs(d);
+  assert.deepEqual([specs.pitlane.heading, specs.dario.heading, specs.redline.heading], ['LAST GOOD', 'LAST GOOD', `TO ${held}`]);
+  assert.deepEqual([specs.pitlane.live, specs.dario.live, specs.redline.live], [false, false, false]);
+  for (const c of ['pitlane', 'dario', 'redline']) assert.ok(!cards[`card-${c}.svg`].includes('class="live"'), `${c} keeps no live pip`);
+});
+
+test('part of a day is labelled as part of a day', () => {
+  const d = liveDay();
+  const since = new Date(now - 9 * 36e5).toISOString();
+  const partial = { ...d, activity: { ...d.activity, from: new Date(now - 864e5).toISOString(), since } };
+  assert.ok(renderScore(partial).includes(`no feed before ${since.slice(11, 16)}`));
+  assert.equal(cardSpecs(partial).redline.heading, `SINCE ${since.slice(11, 16)}`);
+  assert.ok(!renderScore({ ...d, activity: { ...d.activity, from: new Date(now - 864e5).toISOString(), since: new Date(now - 864e5).toISOString() } }).includes('no feed before'));
+  assert.equal(cardSpecs({ at: d.at }).redline.heading, 'NO FEED');
+});
+
+test('a card says when a product field is held over, even under live figures', () => {
+  const d = liveDay();
+  const failing = { ...d, sources: { installs: 'live', github: 'live', products: 'live' }, products: { ...d.products, dario: { score: 9.5, release: 'v6.21.0', held: ['score'] } } };
+  const specs = cardSpecs(failing);
+  assert.equal(specs.dario.heading, 'LIVE');
+  assert.equal(specs.dario.foot, 'Scorecard 9.5 (last good)');
+  assert.ok(renderCards(failing, cardsDir)['card-dario.svg'].includes('Scorecard 9.5 (last good)'));
+  assert.equal(cardSpecs({ ...d, products: { ...d.products, dario: { score: 9.5, release: 'v6.21.0', held: ['release'] } } }).dario.foot, 'v6.21.0 (last good)');
+  assert.equal(cardSpecs({ ...d, products: { ...d.products, pitlane: { score: 8.4, release: 'v1.0.0', held: ['release'] } } }).pitlane.foot, '12 jobs/h · Scorecard 8.4', 'a release the card does not show needs no mark');
+  assert.equal(cardSpecs({ ...d, products: { ...d.products, ci: { score: 8.6, release: null, held: [] } } }).redline.foot, 'Scorecard 8.6');
+  assert.equal(cardSpecs(d)['ci-wizard'].live, false, 'a published result wears no live pip');
+});
+
+test('the hero pairs the hour with the hour', () => {
+  const d = liveDay();
+  const busy = { ...d, pitlane: { ...d.pitlane, p50Ms: 2000, lastHourP50Ms: 20_000 } };
+  assert.equal(heroLine(busy), '12 jobs in the last hour · 20 s median wait', 'never the 24 hour median');
+  assert.equal(heroLine({ ...d, pitlane: { ...d.pitlane, lastHourP50Ms: null } }), null);
+  assert.equal(pitlaneFrom({ queueWaitMs: { p50: 2000 }, lastHour: { jobs: 66, p50: 7000 } }).lastHourP50Ms, 7000);
+});
+
+test('the jobs lane answers to the axis when its source and the feed fail apart', () => {
+  const hour = 36e5;
+  const hours = Array.from({ length: 24 }, (_, i) => ({ from: new Date(now - (24 - i) * hour).toISOString(), jobs: 10 }));
+  const at = new Date(now).toISOString();
+  const pit = { at, hours };
+  const day = (to) => ({ from: new Date(to - 864e5).toISOString(), to: new Date(to).toISOString(), since: new Date(to - 864e5).toISOString(), notes: [] });
+
+  // The feed held over from five hours ago, pitlane current: only the hours under the axis count.
+  const feedDown = renderScore({ at, activity: day(now - 5 * hour), pitlane: pit, sources: { activity: 'cached (x)', pitlane: 'live' } });
+  assert.equal(feedDown.match(/class="bar"/g).length, 19);
+  assert.ok(feedDown.includes('>190<'), 'the total is of the plotted hours');
+  assert.ok(feedDown.includes('>jobs run<'));
+
+  // The feed current, pitlane held over from five hours ago: the lane says where it stops.
+  const old = new Date(now - 5 * hour).toISOString();
+  const pitDown = renderScore({ at, activity: day(now), pitlane: { at: old, hours: hours.slice(0, 19) }, sources: { activity: 'live', pitlane: 'cached (x)' } });
+  assert.equal(pitDown.match(/class="bar"/g).length, 19);
+  assert.ok(pitDown.includes(`>to ${old.slice(11, 16)}<`));
+  assert.ok(pitDown.includes('now, UTC'), 'the feed itself is current');
+  assert.ok(!pitDown.includes('>jobs run<'));
+  assert.ok(renderScore({ at, activity: day(now), pitlane: { at, hours, stale: true } }).includes(`>to ${at.slice(11, 16)}<`));
+});
+
+test('an event the feed serves twice counts once', () => {
+  const at = new Date(now - 36e5).toISOString();
+  const review = { id: 'r1', type: 'PullRequestReviewEvent', created_at: at, repo: { name: 'a/b' }, payload: { review: { state: 'approved' } } };
+  // A new event between two page reads pushes the last of page one to the top of page two.
+  const fresh = notesFrom([], [review, review], now);
+  assert.equal(fresh.length, 2, 'the feed really did hand it over twice');
+  const notes = mergeNotes(fresh, [{ ...fresh[0] }], now);
+  assert.deepEqual(notes.map((x) => x.id), ['r1']);
+  const d = { ...liveDay(), activity: { ...liveDay().activity, notes } };
+  assert.equal(cardSpecs(d).redline.figures[0].value, '1');
+  assert.equal(renderCards(d, cardsDir)['card-redline.svg'].match(/class="pk"/g).length, 1);
+  assert.equal(renderScore(d).match(/class="n"/g).length, 1);
+});
+
+test('past an unfilled gap nothing older is counted, so a SINCE card counts what it says', () => {
+  const at = (h) => new Date(now - h * 36e5).toISOString();
+  const note = (id, h, lane = 'approve') => ({ id, at: at(h), t: 0, lane, repo: 'a/b' });
+  // The last run ended twelve hours ago and this capped feed reaches back ten, so two hours are lost.
+  const feed = Array.from({ length: 300 }, (_, i) => ({ created_at: at(10 * ((i + 1) / 300)) }));
+  const last = { to: at(12), since: at(24), notes: [note('morning', 20)] };
+  const since = coveredSince([feed, []], last, now);
+  assert.equal(since, at(10));
+  const notes = mergeNotes([note('recent', 3), note('edge', 10)], last.notes, now, since);
+  assert.deepEqual(notes.map((x) => x.id), ['edge', 'recent'], 'the approval from before the gap is gone');
+  const d = { ...liveDay(), activity: { from: at(24), to: at(0), since, notes } };
+  const spec = cardSpecs(d).redline;
+  assert.equal(spec.heading, `SINCE ${since.slice(11, 16)}`);
+  assert.equal(spec.figures[0].value, '2');
+  assert.equal(renderCards(d, cardsDir)['card-redline.svg'].match(/class="pk"/g).length, 2);
+  assert.ok(renderScore(d).includes('>2<'));
+});
+
+test('an hour belongs to the axis when its middle does', () => {
+  const hour = 36e5;
+  const at = new Date(now).toISOString();
+  const day = { from: new Date(now - 864e5).toISOString(), to: at, since: new Date(now - 864e5).toISOString(), notes: [] };
+  const bucket = (startsAgoH, jobs) => ({ from: new Date(now - startsAgoH * hour).toISOString(), jobs });
+  const draw = (hours) => renderScore({ at, activity: day, pitlane: { at, hours } });
+  const bars = (svg) => (svg.match(/class="bar"/g) ?? []).length;
+
+  const before = draw([bucket(25, 700), bucket(3, 5)]);
+  assert.equal(bars(before), 1, 'an hour ending exactly at the axis start is outside it');
+  assert.ok(before.includes('>5<') && !before.includes('>705<'));
+  assert.equal(bars(draw([bucket(25.6, 700)])), 0);
+  assert.equal(bars(draw([bucket(24.4, 7)])), 1, 'one that overlaps by most of itself stays');
+  assert.equal(bars(draw([bucket(24.6, 7)])), 0, 'one that overlaps by less than half goes');
+  assert.equal(bars(draw([bucket(0, 7), bucket(0.4, 7)])), 0, 'hours that begin at or just before the right edge are past it');
+  assert.equal(bars(draw([bucket(1, 7)])), 1, 'the last whole hour stays');
+});
+
+test('every moving layer holds still under prefers-reduced-motion', () => {
+  const d = liveDay();
+  for (const svg of [...Object.values(renderCards(d, cardsDir)), renderHero({ heroPath, d }), renderScore(d), renderPitlane(d, { phone: true })]) {
+    assert.match(svg, /prefers-reduced-motion: reduce/);
+  }
 });

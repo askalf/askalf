@@ -5,15 +5,21 @@ import { C, esc, frame } from './kit.mjs';
 
 const GENERIC = new Set(['extensions', 'advisory-database']);
 const nameOf = (r) => (GENERIC.has(r.repo) ? `${r.owner}/${r.repo}` : r.repo);
+const clipped = (s, max) => (max && s.length > max ? `${s.slice(0, max - 1)}…` : s);
 
-export function renderOrbit(d, { alfPath }) {
-  const W = 1000, H = 500, cx = 500, cy = 262;
+// A phone gets a tall system with larger labels: on the wide one they would read at under 5 px.
+const WIDE = { W: 1000, H: 500, cx: 500, cy: 262, rx: [175, 285, 395], squash: 0.34, label: 12.5, note: 12 };
+const PHONE = { W: 640, H: 780, cx: 320, cy: 396, rx: [118, 178, 236], squash: 1.3, label: 17, note: 16, longest: 18 };
+
+export function renderOrbit(d, { alfPath, phone = false }) {
+  const G = phone ? PHONE : WIDE;
+  const { W, H, cx, cy } = G;
   const alf = readFileSync(alfPath).toString('base64');
   const rings = [
-    { rx: 175, dur: 80, color: C.pink },
-    { rx: 285, dur: 125, color: C.lilac },
-    { rx: 395, dur: 175, color: C.blue },
-  ].map((r) => ({ ...r, ry: Math.round(r.rx * 0.34), nodes: [] }));
+    { rx: G.rx[0], dur: 80, color: C.pink },
+    { rx: G.rx[1], dur: 125, color: C.lilac },
+    { rx: G.rx[2], dur: 175, color: C.blue },
+  ].map((r) => ({ ...r, ry: Math.round(r.rx * G.squash), nodes: [] }));
   // Inner rings take fewer bodies so labels have room.
   const caps = [3, 5, Infinity];
   let ri = 0;
@@ -30,10 +36,10 @@ export function renderOrbit(d, { alfPath }) {
       const f = ((i + k * 0.37) / r.nodes.length) % 1;
       const delay = -f * r.dur;
       const rad = 5 + u.prs.length * 2.5;
-      const label = `${esc(nameOf(u))}${u.prs.length > 1 ? ` ×${u.prs.length}` : ''}`;
+      const label = `${esc(clipped(nameOf(u), G.longest))}${u.prs.length > 1 ? ` ×${u.prs.length}` : ''}`;
       const body = `<circle r="${rad * 2.6}" fill="url(#halo${k})"/>
         <circle r="${rad}" fill="${r.color}"/><circle r="${rad * 0.45}" cx="${-rad * 0.3}" cy="${-rad * 0.3}" fill="#fff" opacity=".7"/>
-        <text y="${rad + 16}" font-size="12.5" fill="${C.text}" text-anchor="middle">${label}</text>`;
+        <text y="${rad + G.label + 3.5}" font-size="${G.label}" fill="${C.text}" text-anchor="middle">${label}</text>`;
       // Inline offset-distance is where each body rests when motion is reduced.
       const style = `offset-path:path('${ell(r)}');offset-distance:${(f * 100).toFixed(1)}%;animation-duration:${r.dur}s,${r.dur}s,${r.dur}s;animation-delay:${delay.toFixed(1)}s,${delay.toFixed(1)}s,${delay.toFixed(1)}s`;
       back += `<g class="body back" style="${style}"><title>${esc(u.owner)}/${esc(u.repo)} #${u.prs.join(', #')}</title>${body}</g>`;
@@ -59,7 +65,7 @@ export function renderOrbit(d, { alfPath }) {
     <image href="data:image/jpeg;base64,${alf}" x="-64" y="-64" width="128" height="128" clip-path="url(#face)"/>
   </g>
   <g>${front}</g>
-  <text x="${W / 2}" y="${H - 18}" font-size="12" fill="${C.faint}" text-anchor="middle">every body in orbit is a project that merged a fix from askalf · drawn from the table below</text>`;
+  <text x="${W / 2}" y="${H - 18}" font-size="${G.note}" fill="${C.faint}" text-anchor="middle">${phone ? 'each body merged a fix from askalf' : 'every body in orbit is a project that merged a fix from askalf · drawn from the table below'}</text>`;
 
   const css = `
   .star { fill: ${C.lilac}; opacity: .3; animation-name: tw; animation-iteration-count: infinite; animation-timing-function: ease-in-out; }
@@ -81,10 +87,12 @@ export function renderOrbit(d, { alfPath }) {
   ${rings.map((r, k) => `<radialGradient id="halo${k}"><stop offset="0" stop-color="${r.color}" stop-opacity=".55"/><stop offset="1" stop-color="${r.color}" stop-opacity="0"/></radialGradient>`).join('')}`;
 
   return frame({
+    w: W,
     h: H,
     title: `Merged upstream: ${fixes} fixes in ${d.upstream.length} projects, shown orbiting ALF: ${d.upstream.map((u) => `${u.owner}/${u.repo}`).join(', ')}.`,
     label: `merged upstream · ${fixes} fixes · ${d.upstream.length} projects`,
-    footer: 'other people’s code, their maintainers’ review',
+    labelSize: phone ? 18 : 13,
+    footer: phone ? '' : 'other people’s code, their maintainers’ review',
     body, css, defs,
   });
 }

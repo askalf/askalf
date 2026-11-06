@@ -14,7 +14,7 @@ const PAGE = 100;
 
 async function getJSON(url, headers = {}) {
   const res = await fetch(url, { headers: { ...UA, ...headers }, signal: AbortSignal.timeout(30_000) });
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
+  if (!res.ok) throw Object.assign(new Error(`${res.status} ${url}`), { status: res.status });
   return res.json();
 }
 
@@ -66,12 +66,18 @@ export function pitlaneFrom(j) {
     p50TargetMs: num(j.targets?.p50Ms),
     p90TargetMs: num(j.targets?.p90Ms),
     stale: j.stale === true,
+    lastHourJobs: num(j.lastHour?.jobs),
+    lastHourP50Ms: num(j.lastHour?.p50),
+    hours: Array.isArray(j.hours) ? j.hours.map((h) => ({ from: h.from, jobs: num(h.jobs) })) : [],
   };
 }
 
 async function pitlane() {
   return pitlaneFrom(await getJSON('https://pitlane.askalf.org/stats.json'));
 }
+
+// GitHub reports a merge as the action "merged" now, and used to report it as closed and merged.
+const isMerge = (e) => e.type === 'PullRequestEvent' && (e.payload?.action === 'merged' || (e.payload?.action === 'closed' && Boolean(e.payload?.pull_request?.merged || e.payload?.pull_request?.merged_at)));
 
 // "In review" means other people's projects, same rule as the table.
 export function inReviewFrom(items, mine) {
@@ -88,7 +94,7 @@ export function feedFrom(events) {
     const p = e.payload || {};
     // Push payloads no longer carry commit counts, so name the branch instead.
     if (e.type === 'PushEvent') feed.push({ at, repo, kind: 'push', text: `pushed to ${String(p.ref ?? '').replace('refs/heads/', '') || 'a branch'}` });
-    else if (e.type === 'PullRequestEvent' && p.action === 'closed' && (p.pull_request?.merged || p.pull_request?.merged_at)) feed.push({ at, repo, kind: 'merge', text: `merged #${p.number ?? p.pull_request.number}` });
+    else if (isMerge(e)) feed.push({ at, repo, kind: 'merge', text: `merged #${p.number ?? p.pull_request.number}` });
     else if (e.type === 'PullRequestEvent' && p.action === 'opened') feed.push({ at, repo, kind: 'pr', text: `opened #${p.number ?? p.pull_request?.number}` });
     else if (e.type === 'PullRequestReviewEvent') feed.push({ at, repo, kind: 'review', text: `reviewed #${p.pull_request?.number}` });
     else if (e.type === 'ReleaseEvent') feed.push({ at, repo, kind: 'release', text: `released ${p.release?.tag_name ?? ''}`.trim() });
@@ -141,6 +147,109 @@ export function tallyPerDay(previous, { events, complete }, now) {
   return { perDay, since, lastEventId: events[0]?.id ?? previous?.lastEventId };
 }
 
+// What the operation did in the last 24 hours, for the score: a lane and an exact place in the day
+// for each public event. own is the operation's account, redline the reviewer's.
+export function notesFrom(own, redline, now) {
+  const from = now - DAY;
+  const notes = [];
+  const add = (e, lane) => {
+    const t = (Date.parse(e.created_at) - from) / DAY;
+    if (t >= 0 && t <= 1) notes.push({ id: e.id, at: e.created_at, t: Number(t.toFixed(5)), lane, repo: e.repo.name });
+  };
+  for (const e of own) {
+    if (e.type === 'PushEvent') add(e, 'push');
+    else if (isMerge(e)) add(e, 'merge');
+    else if (e.type === 'ReleaseEvent' && e.payload?.action === 'published') add(e, 'release');
+  }
+  for (const e of redline) {
+    if (e.type !== 'PullRequestReviewEvent') continue;
+    if (e.payload?.review?.state === 'approved') add(e, 'approve');
+    else if (e.payload?.review?.state === 'changes_requested') add(e, 'changes');
+  }
+  return notes.sort((a, b) => a.t - b.t);
+}
+
+// This run's notes plus what earlier runs saw and this one did not: the feed serves 300 events at
+// most, so on a busy day it no longer reaches the morning. Each event counts once, by id, even when
+// a new event shifts the feed between two page reads and one comes back twice, and leaves when it
+// passes out of the day. Nothing older than since is kept: past a gap the day is not whole,
+// and every count and mark on the page is of the stretch it says it covers.
+export function mergeNotes(fresh, earlier, now, since = new Date(now - DAY).toISOString()) {
+  const from = now - DAY;
+  const start = Date.parse(since);
+  const once = new Map([...(earlier ?? []), ...fresh].map((x) => [x.id, x]));
+  return [...once.values()]
+    .map((x) => ({ ...x, t: Number(((Date.parse(x.at) - from) / DAY).toFixed(5)) }))
+    .filter((x) => x.t >= 0 && x.t <= 1 && Date.parse(x.at) >= start)
+    .sort((a, b) => a.t - b.t);
+}
+
+// How far back the day is whole. A feed that ran out of pages before the day began leaves a gap,
+// unless the last run's whole stretch reaches back past where this one stops. The panels say so
+// rather than show part of a day as all of it.
+export function coveredSince(feeds, last, now) {
+  const from = now - DAY;
+  const reach = (events) => {
+    const oldest = Date.parse(events.at(-1)?.created_at);
+    return events.length >= EVENT_PAGES * PAGE && oldest >= from ? oldest : from;
+  };
+  const stops = Math.max(...feeds.map(reach));
+  if (stops === from) return new Date(from).toISOString();
+  const lastTo = Date.parse(last?.to), lastSince = Date.parse(last?.since);
+  const joined = lastTo >= stops && Number.isFinite(lastSince);
+  return new Date(joined ? Math.max(from, Math.min(stops, lastSince)) : stops).toISOString();
+}
+
+async function activity(now, last) {
+  const read = async (who) => {
+    const events = [];
+    for (let page = 1; page <= EVENT_PAGES; page++) {
+      const batch = await gh(`/users/${who}/events/public?per_page=${PAGE}&page=${page}`);
+      events.push(...batch);
+      if (batch.length < PAGE || Date.parse(batch.at(-1).created_at) < now - DAY) break;
+    }
+    return events;
+  };
+  const [own, redline] = await Promise.all([read('askalf'), read('sprayberry-redline')]);
+  const since = coveredSince([own, redline], last, now);
+  return {
+    from: new Date(now - DAY).toISOString(),
+    to: new Date(now).toISOString(),
+    since,
+    notes: mergeNotes(notesFrom(own, redline, now), last?.notes, now, since),
+  };
+}
+
+// One product's OpenSSF Scorecard and latest release. A 404 means it has none, which reads as null
+// and the card leaves it out; any other failure is transient and keeps that field's last good
+// value, named in held so the card can say so.
+export function productFrom([score, release], last = {}) {
+  const held = [];
+  const field = (r, name, pick) => {
+    if (r.status === 'fulfilled') return pick(r.value);
+    if (r.reason?.status === 404 || last[name] === null || last[name] === undefined) return null;
+    held.push(name);
+    return last[name];
+  };
+  return {
+    score: field(score, 'score', (v) => (Number.isFinite(v.score) ? v.score : null)),
+    release: field(release, 'release', (v) => v.tag_name ?? null),
+    held,
+  };
+}
+
+export const PRODUCTS = ['ci-wizard', 'pitlane', 'ci', 'dario'];
+async function products(last = {}) {
+  const rows = await Promise.all(PRODUCTS.map(async (name) => {
+    const settled = await Promise.allSettled([
+      getJSON(`https://api.securityscorecards.dev/projects/github.com/askalf/${name}`),
+      gh(`/repos/askalf/${name}/releases/latest`),
+    ]);
+    return [name, productFrom(settled, last[name])];
+  }));
+  return Object.fromEntries(rows);
+}
+
 async function github(now, previous) {
   const [repo, repos, orgs, inReview, fetched] = await Promise.all([
     gh('/repos/askalf/dario'),
@@ -178,17 +287,23 @@ export function upstreamFromReadme(readmePath) {
   return rows;
 }
 
-export async function gather({ previous = {}, readmePath }) {
-  const now = Date.now();
-  const out = { at: new Date(now).toISOString(), sources: {} };
-  const tasks = { dario: dario(now), installs: installs(now), github: github(now, previous.github ?? undefined), pitlane: pitlane() };
-  const settled = await Promise.allSettled(Object.values(tasks));
-  Object.keys(tasks).forEach((key, i) => {
+// Each source's result for this hour: a failed one keeps its last good value, and sources says which
+// is which, so a panel can tell a number read now from one held over.
+export function settle(keys, settled, previous, out) {
+  keys.forEach((key, i) => {
     const r = settled[i];
     if (r.status === 'fulfilled') { out[key] = r.value; out.sources[key] = 'live'; return; }
     out[key] = previous[key] ?? null;
     out.sources[key] = `${previous[key] ? 'cached' : 'missing'} (${r.reason.message})`;
   });
+  return out;
+}
+
+export async function gather({ previous = {}, readmePath }) {
+  const now = Date.now();
+  const out = { at: new Date(now).toISOString(), sources: {} };
+  const tasks = { dario: dario(now), installs: installs(now), github: github(now, previous.github ?? undefined), activity: activity(now, previous.activity), products: products(previous.products ?? undefined), pitlane: pitlane() };
+  settle(Object.keys(tasks), await Promise.allSettled(Object.values(tasks)), previous, out);
   out.upstream = upstreamFromReadme(readmePath);
   return out;
 }
