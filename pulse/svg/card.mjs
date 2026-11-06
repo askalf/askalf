@@ -1,6 +1,7 @@
 // A product card: the art as it was made, moving, with that product's live numbers. The art never
-// holds a number, so a card cannot go stale: every figure here is drawn on top each hour from the
-// same sources as the rest of the page, and a figure with no source reads as a dash.
+// holds a number: every figure is drawn on top each hour from the same sources as the rest of the
+// page. One that has never had a source reads as a dash, and one whose source failed this hour
+// keeps its last good value under a heading and a dim pip that say it is not live.
 //
 // A phone shows a card at about a fifth of its size, where the glass panel's type is unreadable.
 // So the phone card keeps the scene, drops the empty panel, and sets the figures in a strip below.
@@ -19,15 +20,15 @@ function panelFigure(f, y, big, PANEL) {
 <text x="${x}" y="${y + (big ? 50 : 42)}" font-size="${big ? 32 : 28}" fill="${C.lilac}">${esc(f.label)}</text>`;
 }
 
-function livePip(x, y, heading, size) {
+function livePip(x, y, heading, size, live) {
   return `<g transform="translate(${x} ${y})">
-  <circle class="ring" r="${size * 0.36}" fill="none" stroke="${C.allow}" stroke-width="3"/>
-  <circle class="live" r="${size * 0.33}" fill="${C.allow}"/>
+  ${live ? `<circle class="ring" r="${size * 0.36}" fill="none" stroke="${C.allow}" stroke-width="3"/>
+  <circle class="live" r="${size * 0.33}" fill="${C.allow}"/>` : `<circle r="${size * 0.33}" fill="${C.faint}"/>`}
   <text x="${size * 0.93}" y="${size * 0.36}" font-size="${size}" letter-spacing="4" fill="${C.lilac}">${esc(heading)}</text>
 </g>`;
 }
 
-function panel(PANEL, { heading, figures, foot }) {
+function panel(PANEL, { heading, figures, foot, live }) {
   const gap = 196;
   let y = PANEL.y + 214;
   const rows = figures.map((f, i) => {
@@ -36,24 +37,24 @@ function panel(PANEL, { heading, figures, foot }) {
     return out;
   }).join('\n');
   return `<g clip-path="url(#glass)"><rect class="glint" x="${PANEL.x}" y="${PANEL.y}" width="${PANEL.w}" height="${PANEL.h}" fill="url(#sheen)"/></g>
-${livePip(PANEL.x + 54, PANEL.y + 70, heading, 30)}
+${livePip(PANEL.x + 54, PANEL.y + 70, heading, 30, live)}
 ${rows}
 ${foot ? `<text x="${PANEL.x + 46}" y="${PANEL.y + PANEL.h - 42}" font-size="27" fill="${C.dim}">${esc(foot)}</text>` : ''}`;
 }
 
-function strip({ heading, figures, foot }) {
+function strip({ heading, figures, foot, live }) {
   const y = STRIP_Y, cols = [74, 640];
   const rows = figures.map((f, i) => `<text x="${cols[i]}" y="${y + 228}" font-size="136" font-weight="700" fill="${f.color ?? C.text}" filter="url(#soft)">${esc(dash(f.value))}</text>
 <text x="${cols[i]}" y="${y + 288}" font-size="42" fill="${C.lilac}">${esc(f.label)}</text>`).join('\n');
   return `<rect y="${H - 90}" width="${PHONE_W}" height="90" fill="url(#fade)"/>
 <rect y="${H - 1}" width="${PHONE_W}" height="${STRIP_H}" fill="${ART_BG}"/>
 <rect x="26" y="${y}" width="${PHONE_W - 52}" height="${STRIP_H - 26}" rx="34" fill="${C.panel}" stroke="url(#stripEdge)" stroke-width="4"/>
-${livePip(92, y + 72, heading, 40)}
+${livePip(92, y + 72, heading, 40, live)}
 ${rows}
 ${foot ? `<text x="74" y="${y + 350}" font-size="36" fill="${C.dim}">${esc(foot)}</text>` : ''}`;
 }
 
-export function renderCard({ artPath, panel: PANEL, title, heading, figures, foot, life }, { phone = false } = {}) {
+export function renderCard({ artPath, panel: PANEL, title, heading, figures, foot, live = true, life }, { phone = false } = {}) {
   const jpg = readFileSync(artPath).toString('base64');
   const w = phone ? PHONE_W : W, h = phone ? H + STRIP_H - 3 : H;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-labelledby="t">
@@ -79,7 +80,7 @@ export function renderCard({ artPath, panel: PANEL, title, heading, figures, foo
 </defs>
 <image href="data:image/jpeg;base64,${jpg}" width="${W}" height="${H}"/>
 ${life.over}
-${phone ? strip({ heading, figures, foot }) : panel(PANEL, { heading, figures, foot })}
+${phone ? strip({ heading, figures, foot, live }) : panel(PANEL, { heading, figures, foot, live })}
 </svg>
 `;
 }

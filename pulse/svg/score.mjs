@@ -2,7 +2,7 @@
 // each note is one real public event, set at the moment it happened; the jobs lane is pitlane's
 // count for each hour. A playhead sweeps the day in LOOP seconds, and every note flares as it is
 // passed, so the panel plays back what actually happened and nothing here is decoration.
-import { C, esc, n, frame } from './kit.mjs';
+import { C, esc, n, frame, hhmm, isLive } from './kit.mjs';
 
 const DAY = 864e5;
 export const LOOP = 48;
@@ -25,7 +25,6 @@ const axisY = (L) => L.LANE_Y + LANES.length * L.LANE_H;
 const heightOf = (L) => axisY(L) + 44;
 
 const delay = (t) => (t * LOOP).toFixed(2);
-const hhmm = (ms) => new Date(ms).toISOString().slice(11, 16);
 
 function jobsLane(L, hours, fromMs) {
   const rows = (hours ?? []).filter((h) => Number.isFinite(h.jobs) && Number.isFinite(Date.parse(h.from)));
@@ -52,13 +51,22 @@ function lane(L, l, i, notes) {
 <text x="${L.X0 - 18}" y="${y + L.LANE_H * 0.82}" text-anchor="end" font-size="${L.count}" font-weight="700" fill="${l.color}">${n(mine.length)}</text>${marks}`;
 }
 
-function axis(L, fromMs) {
+function axis(L, fromMs, edge) {
   const ticks = L.ticks.map((h) => {
     const x = L.X0 + (h / 24) * L.TW;
     return `<line x1="${x}" y1="${L.JOBS_Y - 6}" x2="${x}" y2="${axisY(L)}" stroke="${C.grid}" stroke-width="1"/>
 <text x="${x}" y="${axisY(L) + 24}" font-size="${L.axis}" fill="${C.faint}">${hhmm(fromMs + h * 36e5)}</text>`;
   }).join('');
-  return `${ticks}<text x="${L.X0 + L.TW}" y="${axisY(L) + 24}" text-anchor="end" font-size="${L.axis}" fill="${C.lilac}">now, UTC</text>`;
+  return `${ticks}<text x="${L.X0 + L.TW}" y="${axisY(L) + 24}" text-anchor="end" font-size="${L.axis}" fill="${C.lilac}">${esc(edge)}</text>`;
+}
+
+// The part of the day the feed could not reach, shaded and named, so a gap never reads as a quiet morning.
+function gap(L, fromMs, sinceMs) {
+  const w = ((sinceMs - fromMs) / DAY) * L.TW;
+  if (!(w > 0)) return '';
+  const y = L.LANE_Y, h = axisY(L) - L.LANE_Y;
+  return `<rect x="${L.X0}" y="${y}" width="${w.toFixed(1)}" height="${h}" fill="${C.bg}" fill-opacity=".72"/>
+<text x="${L.X0 + 10}" y="${y + h / 2}" font-size="${L.axis}" fill="${C.dim}">no feed before ${hhmm(sinceMs)}</text>`;
 }
 
 export function renderScore(d, { phone = false } = {}) {
@@ -68,17 +76,20 @@ export function renderScore(d, { phone = false } = {}) {
   const toMs = Date.parse(a?.to ?? d.at);
   const fromMs = toMs - DAY;
   const notes = a?.notes ?? [];
+  // A day held over from an earlier run is still a real day, so it plays, but under its own date.
+  const live = isLive(d, 'activity');
+  const edge = live ? 'now, UTC' : `${hhmm(toMs)} UTC`;
   const top = L.JOBS_Y - 6, tall = axisY(L) - L.JOBS_Y + 6;
   const body = a
-    ? `${axis(L, fromMs)}${jobsLane(L, d.pitlane?.hours, fromMs)}${LANES.map((l, i) => lane(L, l, i, notes)).join('')}
+    ? `${axis(L, fromMs, edge)}${jobsLane(L, d.pitlane?.hours, fromMs)}${LANES.map((l, i) => lane(L, l, i, notes)).join('')}${gap(L, fromMs, Date.parse(a.since))}
 <g class="head"><rect x="${L.X0 - 70}" y="${top}" width="70" height="${tall}" fill="url(#trail)"/><rect x="${L.X0 - 1}" y="${top}" width="2" height="${tall}" fill="${C.pink}" filter="url(#glow)"/></g>`
     : `<text x="${L.W / 2}" y="${H / 2}" text-anchor="middle" font-size="16" fill="${C.dim}">The activity feed did not answer this hour.</text>`;
   const counts = LANES.map((l) => `${notes.filter((x) => x.lane === l.id).length} ${l.label}`).join(', ');
   return frame({
     w: L.W,
     h: H,
-    title: `The last 24 hours of the operation, played back: ${counts}, and pitlane's jobs for each hour. Each mark is one public event at the time it happened.`,
-    label: phone ? 'the last 24 hours' : 'the last 24 hours, played back',
+    title: `${live ? 'The last 24 hours' : `The 24 hours to ${hhmm(toMs)} UTC`} of the operation, played back: ${counts}, and pitlane's jobs for each hour. Each mark is one public event at the time it happened.`,
+    label: live ? (phone ? 'the last 24 hours' : 'the last 24 hours, played back') : `the 24 hours to ${hhmm(toMs)} UTC`,
     labelSize: phone ? 18 : 13,
     footer: L.footer,
     css: `

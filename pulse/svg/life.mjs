@@ -1,9 +1,9 @@
 // What makes a card breathe. On every card ALF blinks and the antennae glow, and the art then moves
 // the way that product works. Where the art can carry a real count it does: on Redline one packet
-// reaches the gate per verdict of the last 24 hours, at the hour it was given, and on pitlane one
-// light runs per job of the last hour. CSS only, which is all GitHub's <img> sandbox allows, and
+// reaches the gate per verdict of the day, at the hour it was given, and on pitlane one light runs
+// per job of the last hour, up to MAX_LIGHTS. CSS only, which is all GitHub's <img> sandbox allows, and
 // every coordinate below is traced off the art in cards/, in its 1774 x 887 pixel space.
-import { C } from './kit.mjs';
+import { C, isLive } from './kit.mjs';
 import { LOOP } from './score.mjs';
 
 const HOUR_LOOP = 60; // pitlane's loop: a minute on the page for an hour of jobs
@@ -74,9 +74,9 @@ function ciWizard() {
 }
 
 function pitlane(d) {
-  // One light per job of the last hour, evenly through a one-minute loop, so the lane runs as busy
+  // One light per job of the last hour, up to MAX_LIGHTS, evenly through a one-minute loop, so the lane runs as busy
   // as the runners did. They split across the two painted lines, on into the open bay.
-  const jobs = d.pitlane?.stale ? 0 : d.pitlane?.lastHourJobs;
+  const jobs = d.pitlane?.stale || !isLive(d, 'pitlane') ? 0 : d.pitlane?.lastHourJobs;
   const lights = Math.min(Number.isFinite(jobs) ? jobs : 0, MAX_LIGHTS);
   const LANES = ['M430 662C640 672 900 690 1200 712', 'M418 690C640 716 900 744 1200 778'];
   const marks = Array.from({ length: lights }, (_, i) => `<path class="car" d="${LANES[i % 2]}" pathLength="1000" stroke="${i % 2 ? C.pink : C.lilac}" style="animation-delay:${((i * HOUR_LOOP) / lights).toFixed(2)}s"/>`).join('');

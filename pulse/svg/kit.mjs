@@ -12,6 +12,11 @@ export const C = {
 export const ART_BG = '#05040b';
 export const MONO = `ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace`;
 
+// Whether a source answered this hour. gather() records it in d.sources; a held over value is real
+// but old, so nothing may call it current.
+export const isLive = (d, key) => !d.sources || d.sources[key] === 'live';
+export const hhmm = (at) => new Date(at).toISOString().slice(11, 16);
+
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const n = (x) => Number(x).toLocaleString('en-US');
 

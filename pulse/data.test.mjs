@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { OWN, inReviewFrom, recentEvents, tallyPerDay, pitlaneFrom, notesFrom, feedFrom } from './data.mjs';
+import { OWN, inReviewFrom, recentEvents, tallyPerDay, pitlaneFrom, notesFrom, feedFrom, mergeNotes, coveredSince, productFrom, settle } from './data.mjs';
 import { renderScore, LANES, LOOP } from './svg/score.mjs';
 import { renderCards, cardSpecs } from './svg/cards.mjs';
 import { renderHero, heroLine } from './svg/hero.mjs';
@@ -312,6 +312,75 @@ test('every phone panel is drawn for a phone, with the same numbers', () => {
   assert.ok(orbit.includes('viewBox="0 0 640 780"'));
   assert.ok(orbit.includes('a-name-much-longe… ×2'));
   assert.ok(renderOrbit({ upstream }, { alfPath: join(repoRoot, 'pulse', 'alf.jpg') }).includes('a-name-much-longer-than-a-phone-allows ×2'), 'the wide one keeps the whole name');
+});
+
+test('a busy day stays whole: earlier runs fill in what the feed no longer reaches, each event once', () => {
+  const at = (h) => new Date(now - h * 36e5).toISOString();
+  const note = (id, h) => ({ id, at: at(h), t: 0, lane: 'approve', repo: 'a/b' });
+  const merged = mergeNotes([note('new', 1), note('both', 2)], [note('both', 2), note('morning', 20), note('expired', 25)], now);
+  assert.deepEqual(merged.map((x) => x.id), ['morning', 'both', 'new']);
+  assert.equal(merged[0].t, Number((4 / 24).toFixed(5)), 'its place in the day is worked out again each run');
+  assert.deepEqual(mergeNotes([note('new', 1)], undefined, now).map((x) => x.id), ['new']);
+});
+
+test('coverage says how far back the day is whole, past the 300 events the feed will serve', () => {
+  const at = (h) => new Date(now - h * 36e5).toISOString();
+  const feed = (oldestH, count) => Array.from({ length: count }, (_, i) => ({ created_at: at(oldestH * ((i + 1) / count)) }));
+  const dayStart = at(24);
+  assert.equal(coveredSince([feed(30, 300), feed(30, 120)], undefined, now), dayStart, 'it reached past the start of the day');
+  assert.equal(coveredSince([feed(10, 120), feed(5, 40)], undefined, now), dayStart, 'a short feed is the whole feed');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], undefined, now), at(10), 'stopped at ten hours, with nothing to fill in');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], { to: at(1), since: at(24) }, now), dayStart, 'the last run reaches past the stop and was whole');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], { to: at(1), since: at(15) }, now), at(15), 'the last run was whole only that far');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], { to: at(12), since: at(24) }, now), at(10), 'a gap between the runs cannot be filled');
+  assert.equal(coveredSince([feed(10, 300), feed(20, 40)], { to: at(1) }, now), at(10), 'a last run with no coverage recorded fills nothing');
+});
+
+test('a product keeps its last good field through a transient failure, and loses it on a 404', () => {
+  const ok = (value) => ({ status: 'fulfilled', value });
+  const fail = (status) => ({ status: 'rejected', reason: Object.assign(new Error('x'), { status }) });
+  const last = { score: 8.4, release: 'v1.0.0' };
+  assert.deepEqual(productFrom([ok({ score: 9 }), ok({ tag_name: 'v2' })], last), { score: 9, release: 'v2' });
+  assert.deepEqual(productFrom([fail(503), ok({ tag_name: 'v2' })], last), { score: 8.4, release: 'v2' });
+  assert.deepEqual(productFrom([ok({ score: 9 }), fail(502)], last), { score: 9, release: 'v1.0.0' });
+  assert.deepEqual(productFrom([{ status: 'rejected', reason: new Error('timeout') }, fail(500)], last), last);
+  assert.deepEqual(productFrom([ok({ score: 9 }), fail(404)], last), { score: 9, release: null }, 'no release at all reads as none');
+  assert.deepEqual(productFrom([fail(503), fail(503)], undefined), { score: null, release: null });
+});
+
+test('a value held over from an earlier run is never called current', () => {
+  const live = liveDay();
+  const earlier = new Date(now - 5 * 36e5).toISOString();
+  const previous = { ...live, activity: { ...live.activity, from: new Date(now - 29 * 36e5).toISOString(), to: earlier, since: new Date(now - 29 * 36e5).toISOString() } };
+  const keys = ['activity', 'pitlane', 'installs', 'github'];
+  const down = { status: 'rejected', reason: new Error('503 feed') };
+  const d = settle(keys, keys.map(() => down), previous, { at: live.at, sources: {} });
+  assert.deepEqual(keys.map((k) => d.sources[k]), keys.map(() => 'cached (503 feed)'));
+  const held = `${earlier.slice(11, 16)} UTC`;
+
+  const score = renderScore(d);
+  assert.ok(!score.includes('now, UTC') && !score.includes('LAST 24 HOURS'));
+  assert.ok(score.includes(`THE 24 HOURS TO ${held}`) && score.includes(`>${held}<`));
+  assert.equal(heroLine(d), null);
+  assert.doesNotMatch(renderHero({ heroPath, d }), /jobs in the last hour/);
+
+  const cards = renderCards(d, cardsDir);
+  assert.ok(!cards['card-pitlane.svg'].includes('class="car"'), 'no lights from an old hour');
+  assert.ok(!cards['card-pitlane.svg'].includes('jobs/h'));
+  const specs = cardSpecs(d);
+  assert.deepEqual([specs.pitlane.heading, specs.dario.heading, specs.redline.heading], ['LAST GOOD', 'LAST GOOD', `TO ${held}`]);
+  assert.deepEqual([specs.pitlane.live, specs.dario.live, specs.redline.live], [false, false, false]);
+  for (const c of ['pitlane', 'dario', 'redline']) assert.ok(!cards[`card-${c}.svg`].includes('class="live"'), `${c} keeps no live pip`);
+});
+
+test('part of a day is labelled as part of a day', () => {
+  const d = liveDay();
+  const since = new Date(now - 9 * 36e5).toISOString();
+  const partial = { ...d, activity: { ...d.activity, from: new Date(now - 864e5).toISOString(), since } };
+  assert.ok(renderScore(partial).includes(`no feed before ${since.slice(11, 16)}`));
+  assert.equal(cardSpecs(partial).redline.heading, `SINCE ${since.slice(11, 16)}`);
+  assert.ok(!renderScore({ ...d, activity: { ...d.activity, from: new Date(now - 864e5).toISOString(), since: new Date(now - 864e5).toISOString() } }).includes('no feed before'));
+  assert.equal(cardSpecs({ at: d.at }).redline.heading, 'NO FEED');
 });
 
 test('every moving layer holds still under prefers-reduced-motion', () => {

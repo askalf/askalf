@@ -3,7 +3,7 @@
 // shimmer across the letters, and a blink. Pure CSS animation, so it runs
 // inside GitHub's <img> sandbox and stops for prefers-reduced-motion.
 import { readFileSync } from 'node:fs';
-import { C, ART_BG, MONO, esc, n } from './kit.mjs';
+import { C, ART_BG, MONO, esc, n, isLive } from './kit.mjs';
 import { fmtWait } from './pitlane.mjs';
 
 // Circuit lines traced off hero.jpg (1774×887 pixel space).
@@ -25,7 +25,7 @@ const EYES = [[1280, 390, 57, 57, 0], [1514, 416, 63, 58, -8]];
 // The line under the wordmark: what the runners did in the last hour, from pitlane's own numbers.
 export function heroLine(d) {
   const p = d?.pitlane;
-  if (!p || p.stale || !Number.isFinite(p.lastHourJobs) || !Number.isFinite(p.p50Ms)) return null;
+  if (!p || p.stale || !isLive(d, 'pitlane') || !Number.isFinite(p.lastHourJobs) || !Number.isFinite(p.p50Ms)) return null;
   return `${n(p.lastHourJobs)} jobs in the last hour · ${fmtWait(p.p50Ms)} median wait`;
 }
 

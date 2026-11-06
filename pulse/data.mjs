@@ -14,7 +14,7 @@ const PAGE = 100;
 
 async function getJSON(url, headers = {}) {
   const res = await fetch(url, { headers: { ...UA, ...headers }, signal: AbortSignal.timeout(30_000) });
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
+  if (!res.ok) throw Object.assign(new Error(`${res.status} ${url}`), { status: res.status });
   return res.json();
 }
 
@@ -153,7 +153,7 @@ export function notesFrom(own, redline, now) {
   const notes = [];
   const add = (e, lane) => {
     const t = (Date.parse(e.created_at) - from) / DAY;
-    if (t >= 0 && t <= 1) notes.push({ t: Number(t.toFixed(5)), lane, repo: e.repo.name });
+    if (t >= 0 && t <= 1) notes.push({ id: e.id, at: e.created_at, t: Number(t.toFixed(5)), lane, repo: e.repo.name });
   };
   for (const e of own) {
     if (e.type === 'PushEvent') add(e, 'push');
@@ -168,7 +168,35 @@ export function notesFrom(own, redline, now) {
   return notes.sort((a, b) => a.t - b.t);
 }
 
-async function activity(now) {
+// This run's notes plus what earlier runs saw and this one did not: the feed serves 300 events at
+// most, so on a busy day it no longer reaches the morning. Each event counts once, by id, and leaves
+// when it passes out of the day.
+export function mergeNotes(fresh, earlier, now) {
+  const from = now - DAY;
+  const seen = new Set(fresh.map((x) => x.id));
+  return [...fresh, ...(earlier ?? []).filter((x) => !seen.has(x.id))]
+    .map((x) => ({ ...x, t: Number(((Date.parse(x.at) - from) / DAY).toFixed(5)) }))
+    .filter((x) => x.t >= 0 && x.t <= 1)
+    .sort((a, b) => a.t - b.t);
+}
+
+// How far back the day is whole. A feed that ran out of pages before the day began leaves a gap,
+// unless the last run's whole stretch reaches back past where this one stops. The panels say so
+// rather than show part of a day as all of it.
+export function coveredSince(feeds, last, now) {
+  const from = now - DAY;
+  const reach = (events) => {
+    const oldest = Date.parse(events.at(-1)?.created_at);
+    return events.length >= EVENT_PAGES * PAGE && oldest >= from ? oldest : from;
+  };
+  const stops = Math.max(...feeds.map(reach));
+  if (stops === from) return new Date(from).toISOString();
+  const lastTo = Date.parse(last?.to), lastSince = Date.parse(last?.since);
+  const joined = lastTo >= stops && Number.isFinite(lastSince);
+  return new Date(joined ? Math.max(from, Math.min(stops, lastSince)) : stops).toISOString();
+}
+
+async function activity(now, last) {
   const read = async (who) => {
     const events = [];
     for (let page = 1; page <= EVENT_PAGES; page++) {
@@ -179,22 +207,35 @@ async function activity(now) {
     return events;
   };
   const [own, redline] = await Promise.all([read('askalf'), read('sprayberry-redline')]);
-  return { from: new Date(now - DAY).toISOString(), to: new Date(now).toISOString(), notes: notesFrom(own, redline, now) };
+  return {
+    from: new Date(now - DAY).toISOString(),
+    to: new Date(now).toISOString(),
+    since: coveredSince([own, redline], last, now),
+    notes: mergeNotes(notesFrom(own, redline, now), last?.notes, now),
+  };
 }
 
-// Each product's OpenSSF Scorecard and latest release. A repository with no release, or a score
-// not published yet, reads as null, and the card leaves it out.
+// One product's OpenSSF Scorecard and latest release. A 404 means it has none, which reads as null
+// and the card leaves it out; any other failure is transient and keeps that field's last good value.
+export function productFrom([score, release], last = {}) {
+  const field = (r, name, pick) => {
+    if (r.status === 'fulfilled') return pick(r.value);
+    return r.reason?.status === 404 ? null : last[name] ?? null;
+  };
+  return {
+    score: field(score, 'score', (v) => (Number.isFinite(v.score) ? v.score : null)),
+    release: field(release, 'release', (v) => v.tag_name ?? null),
+  };
+}
+
 export const PRODUCTS = ['ci-wizard', 'pitlane', 'ci', 'dario'];
-async function products() {
+async function products(last = {}) {
   const rows = await Promise.all(PRODUCTS.map(async (name) => {
-    const [score, release] = await Promise.allSettled([
+    const settled = await Promise.allSettled([
       getJSON(`https://api.securityscorecards.dev/projects/github.com/askalf/${name}`),
       gh(`/repos/askalf/${name}/releases/latest`),
     ]);
-    return [name, {
-      score: score.status === 'fulfilled' && Number.isFinite(score.value.score) ? score.value.score : null,
-      release: release.status === 'fulfilled' ? release.value.tag_name : null,
-    }];
+    return [name, productFrom(settled, last[name])];
   }));
   return Object.fromEntries(rows);
 }
@@ -236,17 +277,23 @@ export function upstreamFromReadme(readmePath) {
   return rows;
 }
 
-export async function gather({ previous = {}, readmePath }) {
-  const now = Date.now();
-  const out = { at: new Date(now).toISOString(), sources: {} };
-  const tasks = { dario: dario(now), installs: installs(now), github: github(now, previous.github ?? undefined), activity: activity(now), products: products(), pitlane: pitlane() };
-  const settled = await Promise.allSettled(Object.values(tasks));
-  Object.keys(tasks).forEach((key, i) => {
+// Each source's result for this hour: a failed one keeps its last good value, and sources says which
+// is which, so a panel can tell a number read now from one held over.
+export function settle(keys, settled, previous, out) {
+  keys.forEach((key, i) => {
     const r = settled[i];
     if (r.status === 'fulfilled') { out[key] = r.value; out.sources[key] = 'live'; return; }
     out[key] = previous[key] ?? null;
     out.sources[key] = `${previous[key] ? 'cached' : 'missing'} (${r.reason.message})`;
   });
+  return out;
+}
+
+export async function gather({ previous = {}, readmePath }) {
+  const now = Date.now();
+  const out = { at: new Date(now).toISOString(), sources: {} };
+  const tasks = { dario: dario(now), installs: installs(now), github: github(now, previous.github ?? undefined), activity: activity(now, previous.activity), products: products(previous.products ?? undefined), pitlane: pitlane() };
+  settle(Object.keys(tasks), await Promise.allSettled(Object.values(tasks)), previous, out);
   out.upstream = upstreamFromReadme(readmePath);
   return out;
 }
