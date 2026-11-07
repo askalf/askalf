@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 556" width="640" height="556" role="img" aria-labelledby="t">
+<title id="t">pitlane: 2,791 jobs in the last 24 hours, median queue wait 2.0 s against a 5.0 s target, p90 12 s against 30 s. Both targets met.</title>
+<style>
+  text { font-family: ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace; }
+  .live { animation: live 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes live { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .35; transform: scale(.7) } }
+  .ring { animation: ring 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes ring { 0% { opacity: .8; transform: scale(1) } 100% { opacity: 0; transform: scale(3.2) } }
+  
+  .bar0 { transform-box: fill-box; transform-origin: left; animation: bar0 8s linear infinite; }
+  @keyframes bar0 { 0%,40% { transform: scaleX(0) } 46.0%,100% { transform: scaleX(1) } }
+  .job0 { animation: job0 8s linear infinite; }
+  @keyframes job0 { 0%,39.9% { transform: translateX(0); opacity: 0 } 40% { opacity: 1 } 46.0% { transform: translateX(115px); opacity: 1 } 50.0%,100% { transform: translateX(115px); opacity: 0 } }
+
+  .bar1 { transform-box: fill-box; transform-origin: left; animation: bar1 8s linear infinite; }
+  @keyframes bar1 { 0%,40% { transform: scaleX(0) } 46.0%,100% { transform: scaleX(1) } }
+  .job1 { animation: job1 8s linear infinite; }
+  @keyframes job1 { 0%,39.9% { transform: translateX(0); opacity: 0 } 40% { opacity: 1 } 46.0% { transform: translateX(115px); opacity: 1 } 50.0%,100% { transform: translateX(115px); opacity: 0 } }
+  .lamp0 { animation: lamp0 8s linear infinite; }
+  @keyframes lamp0 { 0%,7.9% { fill: #1a1330 } 8%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  .lamp1 { animation: lamp1 8s linear infinite; }
+  @keyframes lamp1 { 0%,12.9% { fill: #1a1330 } 13%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  .lamp2 { animation: lamp2 8s linear infinite; }
+  @keyframes lamp2 { 0%,17.9% { fill: #1a1330 } 18%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  .lamp3 { animation: lamp3 8s linear infinite; }
+  @keyframes lamp3 { 0%,22.9% { fill: #1a1330 } 23%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  .lamp4 { animation: lamp4 8s linear infinite; }
+  @keyframes lamp4 { 0%,27.9% { fill: #1a1330 } 28%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+</style>
+<defs>
+  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".55"/><stop offset=".5" stop-color="#2a1f47"/><stop offset="1" stop-color="#e879f9" stop-opacity=".45"/></linearGradient>
+  <radialGradient id="wash" cx=".15" cy="0" r="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".16"/><stop offset=".6" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  
+</defs>
+<rect x="1" y="1" width="638" height="554" rx="14" fill="#0d0918" stroke="url(#edge)" stroke-width="1.5"/>
+<rect x="1" y="1" width="638" height="554" rx="14" fill="url(#wash)"/>
+<g transform="translate(26 30)">
+  <circle class="ring" cx="5" cy="-4" r="5" fill="none" stroke="#4ade80" stroke-width="1.5"/>
+  <circle class="live" cx="5" cy="-4" r="4.5" fill="#4ade80"/>
+  <text x="20" y="0" font-size="18" fill="#c4b5fd" letter-spacing="2.5">PITLANE · QUEUE WAIT</text>
+</g>
+
+
+  <text x="32" y="76" font-size="17" fill="#8e84ad" letter-spacing="1.5">QUEUE WAIT · MEDIAN</text>
+  <text x="32" y="140" font-size="62" font-weight="700" fill="#4ade80" filter="url(#glow)">2.0 s</text>
+  <text x="608" y="140" font-size="18" fill="#8e84ad" text-anchor="end">target under 5.0 s</text>
+  <rect x="32" y="160" width="576" height="14" rx="7" fill="#1a1330" stroke="#2a1f47" stroke-width=".6"/>
+  <rect class="bar bar0" x="32" y="160" width="115" height="14" rx="7" fill="#4ade80" opacity=".85"/>
+  <circle class="job job0" cx="33" cy="167" r="7" fill="#fff" opacity="0" filter="url(#glow)"/>
+  <line x1="320" x2="320" y1="155" y2="179" stroke="#c4b5fd" stroke-width="1.5"/>
+  <text x="320" y="198" font-size="15" fill="#5b5378" text-anchor="middle" letter-spacing="1">TARGET</text>
+  <text x="32" y="198" font-size="15" fill="#5b5378">0</text>
+  <text x="608" y="198" font-size="15" fill="#5b5378" text-anchor="end">2× TARGET</text>
+  <text x="32" y="226" font-size="17" fill="#8e84ad" letter-spacing="1.5">QUEUE WAIT · P90, THE SLOW TAIL</text>
+  <text x="32" y="290" font-size="62" font-weight="700" fill="#4ade80" filter="url(#glow)">12 s</text>
+  <text x="608" y="290" font-size="18" fill="#8e84ad" text-anchor="end">target under 30 s</text>
+  <rect x="32" y="310" width="576" height="14" rx="7" fill="#1a1330" stroke="#2a1f47" stroke-width=".6"/>
+  <rect class="bar bar1" x="32" y="310" width="115" height="14" rx="7" fill="#4ade80" opacity=".85"/>
+  <circle class="job job1" cx="33" cy="317" r="7" fill="#fff" opacity="0" filter="url(#glow)"/>
+  <line x1="320" x2="320" y1="305" y2="329" stroke="#c4b5fd" stroke-width="1.5"/>
+  <text x="320" y="348" font-size="15" fill="#5b5378" text-anchor="middle" letter-spacing="1">TARGET</text>
+  <text x="32" y="348" font-size="15" fill="#5b5378">0</text>
+  <text x="608" y="348" font-size="15" fill="#5b5378" text-anchor="end">2× TARGET</text>
+  <line x1="32" x2="608" y1="384" y2="384" stroke="#2a1f47"/>
+  <text x="32" y="420" font-size="17" fill="#8e84ad" letter-spacing="1.5">JOBS · 24 H</text>
+  <text x="32" y="490" font-size="72" font-weight="700" fill="#f0abfc" filter="url(#glow)">2,791</text>
+  <g transform="translate(608 0)">
+    <g transform="translate(-165 420)"><circle class="lamp lamp0" cx="0" cy="0" r="13" fill="#1a1330" stroke="#2a1f47"/>
+    <circle class="lamp lamp1" cx="38" cy="0" r="13" fill="#1a1330" stroke="#2a1f47"/>
+    <circle class="lamp lamp2" cx="76" cy="0" r="13" fill="#1a1330" stroke="#2a1f47"/>
+    <circle class="lamp lamp3" cx="114" cy="0" r="13" fill="#1a1330" stroke="#2a1f47"/>
+    <circle class="lamp lamp4" cx="152" cy="0" r="13" fill="#1a1330" stroke="#2a1f47"/></g>
+    <rect x="-226" y="450" width="226" height="38" rx="19" fill="#4ade80" fill-opacity=".14" stroke="#4ade80"/>
+    <text x="-113" y="475" font-size="16" fill="#4ade80" letter-spacing="1.5" text-anchor="middle">BOTH TARGETS MET</text>
+    <text x="0" y="526" font-size="17" fill="#8e84ad" text-anchor="end">written just now</text>
+  </g>
+</svg>

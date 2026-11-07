@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 316" width="1000" height="316" role="img" aria-labelledby="t">
+<title id="t">pitlane: 2,791 jobs in the last 24 hours, median queue wait 2.0 s against a 5.0 s target, p90 12 s against 30 s. Both targets met.</title>
+<style>
+  text { font-family: ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace; }
+  .live { animation: live 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes live { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .35; transform: scale(.7) } }
+  .ring { animation: ring 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes ring { 0% { opacity: .8; transform: scale(1) } 100% { opacity: 0; transform: scale(3.2) } }
+  
+  .bar0 { transform-box: fill-box; transform-origin: left; animation: bar0 8s linear infinite; }
+  @keyframes bar0 { 0%,40% { transform: scaleX(0) } 46.0%,100% { transform: scaleX(1) } }
+  .job0 { animation: job0 8s linear infinite; }
+  @keyframes job0 { 0%,39.9% { transform: translateX(0); opacity: 0 } 40% { opacity: 1 } 46.0% { transform: translateX(136px); opacity: 1 } 50.0%,100% { transform: translateX(136px); opacity: 0 } }
+
+  .bar1 { transform-box: fill-box; transform-origin: left; animation: bar1 8s linear infinite; }
+  @keyframes bar1 { 0%,40% { transform: scaleX(0) } 46.0%,100% { transform: scaleX(1) } }
+  .job1 { animation: job1 8s linear infinite; }
+  @keyframes job1 { 0%,39.9% { transform: translateX(0); opacity: 0 } 40% { opacity: 1 } 46.0% { transform: translateX(136px); opacity: 1 } 50.0%,100% { transform: translateX(136px); opacity: 0 } }
+  .lamp0 { animation: lamp0 8s linear infinite; }
+  @keyframes lamp0 { 0%,7.9% { fill: #1a1330 } 8%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  .lamp1 { animation: lamp1 8s linear infinite; }
+  @keyframes lamp1 { 0%,12.9% { fill: #1a1330 } 13%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  .lamp2 { animation: lamp2 8s linear infinite; }
+  @keyframes lamp2 { 0%,17.9% { fill: #1a1330 } 18%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  .lamp3 { animation: lamp3 8s linear infinite; }
+  @keyframes lamp3 { 0%,22.9% { fill: #1a1330 } 23%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  .lamp4 { animation: lamp4 8s linear infinite; }
+  @keyframes lamp4 { 0%,27.9% { fill: #1a1330 } 28%,39.9% { fill: #fb4f6d } 40%,100% { fill: #1a1330 } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important } }
+</style>
+<defs>
+  <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".55"/><stop offset=".5" stop-color="#2a1f47"/><stop offset="1" stop-color="#e879f9" stop-opacity=".45"/></linearGradient>
+  <radialGradient id="wash" cx=".15" cy="0" r="1"><stop offset="0" stop-color="#8b5cf6" stop-opacity=".16"/><stop offset=".6" stop-color="#8b5cf6" stop-opacity="0"/></radialGradient>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  
+</defs>
+<rect x="1" y="1" width="998" height="314" rx="14" fill="#0d0918" stroke="url(#edge)" stroke-width="1.5"/>
+<rect x="1" y="1" width="998" height="314" rx="14" fill="url(#wash)"/>
+<g transform="translate(26 30)">
+  <circle class="ring" cx="5" cy="-4" r="5" fill="none" stroke="#4ade80" stroke-width="1.5"/>
+  <circle class="live" cx="5" cy="-4" r="4.5" fill="#4ade80"/>
+  <text x="20" y="0" font-size="13" fill="#c4b5fd" letter-spacing="2.5">PITLANE · QUEUE WAIT</text>
+</g>
+<text x="974" y="30" font-size="12" fill="#5b5378" text-anchor="end">pitlane.askalf.org · last 24 hours</text>
+
+  <text x="40" y="70" font-size="11" fill="#8e84ad" letter-spacing="1.5">QUEUE WAIT · MEDIAN</text>
+  <text x="40" y="110" font-size="40" font-weight="700" fill="#4ade80" filter="url(#glow)">2.0 s</text>
+  <text x="720" y="110" font-size="12" fill="#8e84ad" text-anchor="end">target under 5.0 s</text>
+  <rect x="40" y="124" width="680" height="10" rx="5" fill="#1a1330" stroke="#2a1f47" stroke-width=".6"/>
+  <rect class="bar bar0" x="40" y="124" width="136" height="10" rx="5" fill="#4ade80" opacity=".85"/>
+  <circle class="job job0" cx="41" cy="129" r="5" fill="#fff" opacity="0" filter="url(#glow)"/>
+  <line x1="380" x2="380" y1="119" y2="139" stroke="#c4b5fd" stroke-width="1.5"/>
+  <text x="380" y="152" font-size="10" fill="#5b5378" text-anchor="middle" letter-spacing="1">TARGET</text>
+  <text x="40" y="152" font-size="10" fill="#5b5378">0</text>
+  <text x="720" y="152" font-size="10" fill="#5b5378" text-anchor="end">2× TARGET</text>
+  <text x="40" y="178" font-size="11" fill="#8e84ad" letter-spacing="1.5">QUEUE WAIT · P90, THE SLOW TAIL</text>
+  <text x="40" y="218" font-size="40" font-weight="700" fill="#4ade80" filter="url(#glow)">12 s</text>
+  <text x="720" y="218" font-size="12" fill="#8e84ad" text-anchor="end">target under 30 s</text>
+  <rect x="40" y="232" width="680" height="10" rx="5" fill="#1a1330" stroke="#2a1f47" stroke-width=".6"/>
+  <rect class="bar bar1" x="40" y="232" width="136" height="10" rx="5" fill="#4ade80" opacity=".85"/>
+  <circle class="job job1" cx="41" cy="237" r="5" fill="#fff" opacity="0" filter="url(#glow)"/>
+  <line x1="380" x2="380" y1="227" y2="247" stroke="#c4b5fd" stroke-width="1.5"/>
+  <text x="380" y="260" font-size="10" fill="#5b5378" text-anchor="middle" letter-spacing="1">TARGET</text>
+  <text x="40" y="260" font-size="10" fill="#5b5378">0</text>
+  <text x="720" y="260" font-size="10" fill="#5b5378" text-anchor="end">2× TARGET</text>
+  <line x1="768" x2="768" y1="56" y2="276" stroke="#2a1f47"/>
+  <g transform="translate(790 0)">
+    <rect x="-14" y="56" width="132" height="32" rx="8" fill="#0a0612" stroke="#2a1f47"/>
+    <circle class="lamp lamp0" cx="0" cy="72" r="9" fill="#1a1330" stroke="#2a1f47"/>
+    <circle class="lamp lamp1" cx="26" cy="72" r="9" fill="#1a1330" stroke="#2a1f47"/>
+    <circle class="lamp lamp2" cx="52" cy="72" r="9" fill="#1a1330" stroke="#2a1f47"/>
+    <circle class="lamp lamp3" cx="78" cy="72" r="9" fill="#1a1330" stroke="#2a1f47"/>
+    <circle class="lamp lamp4" cx="104" cy="72" r="9" fill="#1a1330" stroke="#2a1f47"/>
+    <text x="0" y="122" font-size="11" fill="#8e84ad" letter-spacing="1.5">JOBS · 24 H</text>
+    <text x="0" y="176" font-size="58" font-weight="700" fill="#f0abfc" filter="url(#glow)">2,791</text>
+    <rect x="0" y="200" width="156" height="26" rx="13" fill="#4ade80" fill-opacity=".14" stroke="#4ade80"/>
+    <text x="13" y="218" font-size="11" fill="#4ade80" letter-spacing="1.5">BOTH TARGETS MET</text>
+    <text x="0" y="256" font-size="12" fill="#8e84ad">written just now</text>
+  </g>
+  <text x="40" y="294" font-size="11.5" fill="#5b5378">queue wait: from GitHub creating the job to our runner starting it, the whole wait before the logs begin</text>
+</svg>
