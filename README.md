@@ -13,7 +13,7 @@
 
 <a href="https://github.com/askalf/ci-wizard"><picture><source media="(max-width: 700px)" srcset="https://raw.githubusercontent.com/askalf/askalf/pulse/card-ci-wizard-phone.svg"><img src="https://raw.githubusercontent.com/askalf/askalf/pulse/card-ci-wizard.svg" alt="ci-wizard: ALF looks through a magnifying lens at a job's timeline of setup, checkout, deps, cache and work. Its panel shows the first audit: a 9 second job, 79 percent of it fixed cost, running 1,746 times a week." width="100%"></picture></a>
 
-**[ci-wizard](https://github.com/askalf/ci-wizard)** reads a repository's GitHub Actions runs and reports where the time goes and what to fix first. Read-only, nothing to install. [The first audit](https://github.com/askalf/ci-wizard#sample) was of our own CI.
+**[ci-wizard](https://github.com/askalf/ci-wizard)** reads a repository's GitHub Actions runs and reports where the time goes and what to fix first. Read-only, nothing to install. [What a report looks like](https://github.com/askalf/ci-wizard#what-a-report-looks-like), from a run on our own CI.
 
 <details>
 <summary><b>How it works, and the first audit</b></summary>
@@ -27,7 +27,7 @@ It is read-only and needs nothing installed: `uses: askalf/ci-wizard@v0.1.2` put
 | Confirm | Reads the workflow file for the cause before a finding names one: triggers, caches, concurrency, how dependencies install. |
 | Prove | Measures a fix the same way before and after. The report is the before. |
 
-Its first audit was of our own CI. On [dario](https://github.com/askalf/dario), the fleet status workflow, a 9 second job, ran about 1,750 times a week and spent 79% of its time on fixed cost: setup, checkout and wrap-up ([the sample](https://github.com/askalf/ci-wizard#sample)). Every finding carries its evidence and a confidence, savings are labelled as estimates, and fixes are written as options with their trade-offs.
+Its first audit was of our own CI. On [dario](https://github.com/askalf/dario), the fleet status workflow, a 9 second job, ran about 1,750 times a week and spent 79% of its time on fixed cost: setup, checkout and wrap-up ([the full result](https://github.com/askalf/ci-wizard/blob/main/docs/samples/askalf-dario.json)). Every finding carries its evidence and a confidence, savings are labelled as estimates, and fixes are written as options with their trade-offs.
 
 </details>
 
