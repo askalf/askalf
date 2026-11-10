@@ -1,0 +1,24 @@
+# After each Scorecard run: checks that its result reached scorecard.dev, and dispatches Scorecard
+# once more when it did not (askalf/ci, actions/scorecard-publish-check). scorecard-action reports
+# a failed publish as a warning on a green run, and the README badge then goes stale, or reads
+# "invalid repo path", with nothing red. It is a workflow of its own because scorecard.dev accepts
+# results only from a job whose steps it recognises, so the check cannot be a step of scorecard.yml.
+name: Scorecard publish check
+
+on:
+  workflow_run:
+    workflows: [Scorecard]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  check:
+    # A failed run is already red, and a private repository does not publish.
+    if: github.event.workflow_run.conclusion == 'success' && !github.event.repository.private
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write # the one dispatch of the Scorecard workflow
+    steps:
+      - uses: askalf/ci/actions/scorecard-publish-check@50ee9df5838810bc23cd202c7da9da64a39e69f2 # main 2026-11-10, askalf/ci#199
