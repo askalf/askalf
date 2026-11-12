@@ -22,11 +22,14 @@ function foot(p, lead) {
 
 // What the Redline card's numbers cover: the day, the part of it the feed reached, or the day held
 // over from the last run that could read it.
-function verdictWindow(d) {
+// The second reviewer's card reads its own window, secondSince, kept apart so neither feed cuts
+// the other's day; a state written before it existed has only since.
+function verdictWindow(d, key = 'since') {
   const a = d.activity;
   if (!a) return 'NO FEED';
   if (!isLive(d, 'activity')) return `TO ${hhmm(a.to)} UTC`;
-  return Date.parse(a.since) > Date.parse(a.from) ? `SINCE ${hhmm(a.since)}` : 'LAST 24 H';
+  const since = a[key] ?? a.since;
+  return Date.parse(since) > Date.parse(a.from) ? `SINCE ${hhmm(since)}` : 'LAST 24 H';
 }
 
 const lastGood = (has) => (has ? 'LAST GOOD' : 'NO DATA');
@@ -72,6 +75,20 @@ export function cardSpecs(d) {
       figures: [
         { value: num(count(d, 'approve')), label: 'approved', color: C.allow },
         { value: num(count(d, 'changes')), label: 'changes requested', color: C.approve },
+      ],
+      foot: foot(p.ci),
+    },
+    // Not a product of its own: the second reviewer runs inside Redline's job, so its card shares
+    // Redline's foot, and shows its own verdicts of the day over its own window.
+    'second-read': {
+      art: 'second-read.jpg',
+      panel: { x: 1202, y: 88, w: 536, h: 692 },
+      title: 'Second Read, the second reviewer that reads each head Redline approves for security and supply chain, and its verdicts of the day.',
+      heading: verdictWindow(d, 'secondSince'),
+      live: Boolean(d.activity) && isLive(d, 'activity'),
+      figures: [
+        { value: num(count(d, 'second-approve')), label: 'approved', color: C.allow },
+        { value: num(count(d, 'second-changes')), label: 'changes requested', color: C.approve },
       ],
       foot: foot(p.ci),
     },

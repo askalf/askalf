@@ -122,6 +122,46 @@ function redline(d) {
   };
 }
 
+function secondRead(d) {
+  // The second reviewer's verdicts of the day, on the same two lines as Redline's card. Redline's
+  // gate is behind it now, small on the left, and the lens stands where the gate stood: an approval
+  // passes through the lens and on, a change request stops at its rim. A scan sweeps the lens and
+  // a shine crosses the glass in ALF's hand, since reading closely is what this reviewer does.
+  const notes = d.activity?.notes ?? [];
+  const PASS = 'M430 466L452 465L470 451L486 434L502 418L520 404L543 401H1121L1143 399L1161 386L1179 372L1200 369';
+  const HOLD = 'M440 570L447 570L469 575L487 590L502 604H806';
+  const LENS_AT = TRAVEL * 0.525; // how far along PASS the lens rim falls
+  const at = (x) => x.t * LOOP;
+  const pack = (x, line, color) => `<path class="pk" d="${line}" pathLength="1000" stroke="${color}" style="animation-delay:${at(x).toFixed(2)}s"/>`;
+  const hit = (x, cx, cy, lag, color) => `<circle class="hit" cx="${cx}" cy="${cy}" r="22" fill="none" stroke="${color}" stroke-width="5" style="animation-delay:${(at(x) + lag).toFixed(2)}s"/>`;
+  const passed = notes.filter((x) => x.lane === 'second-approve');
+  const held = notes.filter((x) => x.lane === 'second-changes');
+  return {
+    bulbs: [[158, 281], [352, 299]],
+    eyes: [[228, 491, 42, 36, 5], [346, 497, 24, 35, 10]],
+    defs: `<clipPath id="ring"><ellipse cx="716" cy="511" rx="98" ry="238"/></clipPath>
+  <clipPath id="loupe"><circle cx="360" cy="500" r="52"/></clipPath>
+  <linearGradient id="scan" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c4b5fd" stop-opacity="0"/><stop offset=".5" stop-color="#e9d5ff" stop-opacity=".55"/><stop offset="1" stop-color="#c4b5fd" stop-opacity="0"/></linearGradient>
+  <linearGradient id="shine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <radialGradient id="redgate" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fb4f6d" stop-opacity=".7"/><stop offset="1" stop-color="#fb4f6d" stop-opacity="0"/></radialGradient>`,
+    css: `
+  .pk { fill: none; stroke-width: 7; stroke-linecap: round; stroke-dasharray: 44 2000; stroke-dashoffset: 44; opacity: 0; animation: pk ${LOOP}s linear infinite; }
+  @keyframes pk { 0% { stroke-dashoffset: 44; opacity: 0 } .5% { opacity: 1 } ${((TRAVEL / LOOP) * 100 - 0.4).toFixed(2)}% { opacity: 1 } ${((TRAVEL / LOOP) * 100).toFixed(2)}% { stroke-dashoffset: -1000; opacity: 0 } 100% { stroke-dashoffset: -1000; opacity: 0 } }
+  .hit { opacity: 0; transform-box: fill-box; transform-origin: center; animation: hit ${LOOP}s linear infinite; }
+  @keyframes hit { 0% { opacity: 1; transform: scale(.7) } 2.4% { opacity: 0; transform: scale(2.6) } 100% { opacity: 0 } }
+  .scan { mix-blend-mode: screen; animation: scan 4.8s ease-in-out infinite; }
+  @keyframes scan { 0% { transform: translateY(-300px); opacity: 0 } 15% { opacity: 1 } 85% { opacity: 1 } 100% { transform: translateY(300px); opacity: 0 } }
+  .shine { mix-blend-mode: screen; animation: shine 6.2s ease-in-out infinite; }
+  @keyframes shine { 0%,60% { transform: translateX(-130px) } 100% { transform: translateX(130px) } }
+  .behind { mix-blend-mode: screen; opacity: .15; animation: swell 5.2s ease-in-out infinite; }`,
+    over: `<ellipse class="behind" cx="79" cy="401" rx="22" ry="52" fill="url(#redgate)"/>
+<g clip-path="url(#ring)"><rect class="scan" x="610" y="430" width="220" height="140" fill="url(#scan)"/></g>
+<g clip-path="url(#loupe)"><rect class="shine" x="330" y="440" width="60" height="120" fill="url(#shine)" transform="rotate(24 360 500)"/></g>
+<g>${passed.map((x) => pack(x, PASS, C.allow)).join('')}${held.map((x) => pack(x, HOLD, C.approve)).join('')}</g>
+<g>${passed.map((x) => hit(x, 828, 401, LENS_AT, C.allow)).join('')}${held.map((x) => hit(x, 818, 603, TRAVEL - 0.1, C.approve)).join('')}</g>`,
+  };
+}
+
 function dario() {
   // Requests leave each tool for the one local endpoint, and leave it again for a plan.
   const IN = [
@@ -146,7 +186,7 @@ ${IN.map((d, i) => streak(d, { dur: 3, delay: i * 0.5 })).join('')}${OUT.map((d,
   };
 }
 
-const CARDS = { 'ci-wizard': ciWizard, pitlane, redline, dario };
+const CARDS = { 'ci-wizard': ciWizard, pitlane, redline, 'second-read': secondRead, dario };
 
 // One card's moving layers: { css, defs, over } to lay over the art and under the figures.
 export function lifeOf(name, d) {

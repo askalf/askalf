@@ -148,8 +148,10 @@ export function tallyPerDay(previous, { events, complete }, now) {
 }
 
 // What the operation did in the last 24 hours, for the score: a lane and an exact place in the day
-// for each public event. own is the operation's account, redline the reviewer's.
-export function notesFrom(own, redline, now) {
+// for each public event. own is the operation's account, redline the reviewer's, and second the
+// second reviewer's, whose verdicts take lanes of their own so the score's two review lanes stay
+// Redline's alone.
+export function notesFrom(own, redline, now, second = []) {
   const from = now - DAY;
   const notes = [];
   const add = (e, lane) => {
@@ -165,6 +167,11 @@ export function notesFrom(own, redline, now) {
     if (e.type !== 'PullRequestReviewEvent') continue;
     if (e.payload?.review?.state === 'approved') add(e, 'approve');
     else if (e.payload?.review?.state === 'changes_requested') add(e, 'changes');
+  }
+  for (const e of second) {
+    if (e.type !== 'PullRequestReviewEvent') continue;
+    if (e.payload?.review?.state === 'approved') add(e, 'second-approve');
+    else if (e.payload?.review?.state === 'changes_requested') add(e, 'second-changes');
   }
   return notes.sort((a, b) => a.t - b.t);
 }
@@ -200,6 +207,28 @@ export function coveredSince(feeds, last, now) {
   return new Date(joined ? Math.max(from, Math.min(stops, lastSince)) : stops).toISOString();
 }
 
+const isSecond = (x) => String(x?.lane ?? '').startsWith('second-');
+
+// The day's activity from the three feeds. The second reviewer's feed has a window of its own,
+// secondSince, so a capped second feed never shortens the day of the score and Redline's card, and
+// a capped first feed never shortens the second's: each set of notes is kept and cut by its own.
+export function activityFrom({ own, redline, second = [] }, last, now) {
+  const since = coveredSince([own, redline], last, now);
+  const secondSince = coveredSince([second], { to: last?.to, since: last?.secondSince }, now);
+  const fresh = notesFrom(own, redline, now, second);
+  const earlier = last?.notes ?? [];
+  return {
+    from: new Date(now - DAY).toISOString(),
+    to: new Date(now).toISOString(),
+    since,
+    secondSince,
+    notes: [
+      ...mergeNotes(fresh.filter((x) => !isSecond(x)), earlier.filter((x) => !isSecond(x)), now, since),
+      ...mergeNotes(fresh.filter(isSecond), earlier.filter(isSecond), now, secondSince),
+    ].sort((a, b) => a.t - b.t),
+  };
+}
+
 async function activity(now, last) {
   const read = async (who) => {
     const events = [];
@@ -210,14 +239,8 @@ async function activity(now, last) {
     }
     return events;
   };
-  const [own, redline] = await Promise.all([read('askalf'), read('sprayberry-redline')]);
-  const since = coveredSince([own, redline], last, now);
-  return {
-    from: new Date(now - DAY).toISOString(),
-    to: new Date(now).toISOString(),
-    since,
-    notes: mergeNotes(notesFrom(own, redline, now), last?.notes, now, since),
-  };
+  const [own, redline, second] = await Promise.all([read('askalf'), read('sprayberry-redline'), read('sprayberry-secondread')]);
+  return activityFrom({ own, redline, second }, last, now);
 }
 
 // One product's OpenSSF Scorecard and latest release. A 404 means it has none, which reads as null
