@@ -207,6 +207,28 @@ export function coveredSince(feeds, last, now) {
   return new Date(joined ? Math.max(from, Math.min(stops, lastSince)) : stops).toISOString();
 }
 
+const isSecond = (x) => String(x?.lane ?? '').startsWith('second-');
+
+// The day's activity from the three feeds. The second reviewer's feed has a window of its own,
+// secondSince, so a capped second feed never shortens the day of the score and Redline's card, and
+// a capped first feed never shortens the second's: each set of notes is kept and cut by its own.
+export function activityFrom({ own, redline, second = [] }, last, now) {
+  const since = coveredSince([own, redline], last, now);
+  const secondSince = coveredSince([second], { to: last?.to, since: last?.secondSince }, now);
+  const fresh = notesFrom(own, redline, now, second);
+  const earlier = last?.notes ?? [];
+  return {
+    from: new Date(now - DAY).toISOString(),
+    to: new Date(now).toISOString(),
+    since,
+    secondSince,
+    notes: [
+      ...mergeNotes(fresh.filter((x) => !isSecond(x)), earlier.filter((x) => !isSecond(x)), now, since),
+      ...mergeNotes(fresh.filter(isSecond), earlier.filter(isSecond), now, secondSince),
+    ].sort((a, b) => a.t - b.t),
+  };
+}
+
 async function activity(now, last) {
   const read = async (who) => {
     const events = [];
@@ -218,13 +240,7 @@ async function activity(now, last) {
     return events;
   };
   const [own, redline, second] = await Promise.all([read('askalf'), read('sprayberry-redline'), read('sprayberry-secondread')]);
-  const since = coveredSince([own, redline, second], last, now);
-  return {
-    from: new Date(now - DAY).toISOString(),
-    to: new Date(now).toISOString(),
-    since,
-    notes: mergeNotes(notesFrom(own, redline, now, second), last?.notes, now, since),
-  };
+  return activityFrom({ own, redline, second }, last, now);
 }
 
 // One product's OpenSSF Scorecard and latest release. A 404 means it has none, which reads as null

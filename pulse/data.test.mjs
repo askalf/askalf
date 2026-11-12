@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { OWN, inReviewFrom, recentEvents, tallyPerDay, pitlaneFrom, notesFrom, feedFrom, mergeNotes, coveredSince, productFrom, settle } from './data.mjs';
+import { OWN, inReviewFrom, recentEvents, tallyPerDay, pitlaneFrom, notesFrom, feedFrom, mergeNotes, coveredSince, productFrom, settle, activityFrom } from './data.mjs';
 import { renderScore, LANES, LOOP } from './svg/score.mjs';
 import { renderCards, cardSpecs } from './svg/cards.mjs';
 import { renderHero, heroLine } from './svg/hero.mjs';
@@ -411,6 +411,29 @@ test('an event the feed serves twice counts once', () => {
   assert.equal(cardSpecs(d).redline.figures[0].value, '1');
   assert.equal(renderCards(d, cardsDir)['card-redline.svg'].match(/class="pk"/g).length, 1);
   assert.equal(renderScore(d).match(/class="n"/g).length, 1);
+});
+
+test('a capped feed cuts only its own reviewer\'s day: Redline\'s and the second reviewer\'s windows stay apart', () => {
+  const at = (h) => new Date(now - h * 36e5).toISOString();
+  const review = (id, h, state = 'approved') => ({ id, type: 'PullRequestReviewEvent', created_at: at(h), repo: { name: 'a/b' }, payload: { review: { state } } });
+  // A full second feed: 300 events reaching back only ten hours, as the feed returns at most.
+  const busy = (prefix) => Array.from({ length: 300 }, (_, i) => review(`${prefix}${i}`, 10 * ((i + 1) / 300)));
+  const redline = [review('r-late', 2), review('r-early', 20, 'changes_requested')];
+
+  const a = activityFrom({ own: [], redline, second: busy('s') }, undefined, now);
+  assert.equal(a.since, at(24), 'Redline\'s day is whole');
+  assert.equal(a.secondSince, at(10), 'the second reviewer\'s is cut where its feed stops');
+  assert.deepEqual(a.notes.filter((x) => !x.lane.startsWith('second-')).map((x) => x.id), ['r-early', 'r-late'], 'Redline\'s verdict from before the second feed\'s cut is kept');
+  const d = { ...liveDay(), activity: a };
+  assert.equal(cardSpecs(d).redline.heading, 'LAST 24 H');
+  assert.equal(cardSpecs(d)['second-read'].heading, `SINCE ${at(10).slice(11, 16)}`);
+  assert.deepEqual(cardSpecs(d).redline.figures.map((f) => f.value), ['1', '1']);
+
+  const b = activityFrom({ own: busy('o').map((e) => ({ ...e, type: 'PushEvent' })), redline: [], second: [review('s-early', 20)] }, undefined, now);
+  assert.equal(b.since, at(10));
+  assert.equal(b.secondSince, at(24), 'and a capped first feed does not cut the second\'s');
+  assert.deepEqual(b.notes.filter((x) => x.lane.startsWith('second-')).map((x) => x.id), ['s-early']);
+  assert.equal(cardSpecs({ ...liveDay(), activity: { ...b, secondSince: undefined } })['second-read'].heading, `SINCE ${at(10).slice(11, 16)}`, 'a state from before secondSince reads since');
 });
 
 test('past an unfilled gap nothing older is counted, so a SINCE card counts what it says', () => {
