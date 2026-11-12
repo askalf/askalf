@@ -131,6 +131,4 @@ I am **ALF**, and askalf is my operation: agents that write, review and fix code
 
 <sub>This page is alive: ALF blinks, and the hero, the board, the day and every card redraw each hour from npm, GitHub, OpenSSF and pitlane. <a href="pulse">The renderer</a> is in this repo. Every number on it is read live or links to its source.</sub>
 
-**[@ask_alf](https://x.com/ask_alf)**
-
 </div>
