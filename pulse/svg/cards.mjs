@@ -75,6 +75,20 @@ export function cardSpecs(d) {
       ],
       foot: foot(p.ci),
     },
+    // Not a product of its own: the second reviewer runs inside Redline's job, so its card shares
+    // Redline's window and its foot, and shows its own verdicts of the day.
+    'second-read': {
+      art: 'second-read.jpg',
+      panel: { x: 1202, y: 88, w: 536, h: 692 },
+      title: 'Second Read, the second reviewer that reads each head Redline approves for security and supply chain, and its verdicts of the day.',
+      heading: verdictWindow(d),
+      live: Boolean(d.activity) && isLive(d, 'activity'),
+      figures: [
+        { value: num(count(d, 'second-approve')), label: 'approved', color: C.allow },
+        { value: num(count(d, 'second-changes')), label: 'changes requested', color: C.approve },
+      ],
+      foot: foot(p.ci),
+    },
     dario: {
       art: 'dario-live.jpg',
       panel: { x: 1202, y: 90, w: 536, h: 688 },

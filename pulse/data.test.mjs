@@ -154,6 +154,24 @@ test('the score sets each public event in its lane at the moment it happened', (
   assert.equal(notes[0].t, 0.5, 'twelve hours ago is halfway across');
 });
 
+test('the second reviewer\'s verdicts take lanes of their own, so Redline\'s lanes stay Redline\'s', () => {
+  const at = (h) => new Date(now - h * 36e5).toISOString();
+  const e = (type, payload, h) => ({ id: String(h), created_at: at(h), type, payload, repo: { name: 'askalf/redline-rubric' } });
+  const notes = notesFrom([], [e('PullRequestReviewEvent', { review: { state: 'approved' } }, 4)], now, [
+    e('PullRequestReviewEvent', { review: { state: 'approved' } }, 3),
+    e('PullRequestReviewEvent', { review: { state: 'changes_requested' } }, 2),
+    e('PullRequestReviewEvent', { review: { state: 'commented' } }, 1),
+    e('PushEvent', {}, 1),
+    e('PullRequestReviewEvent', { review: { state: 'approved' } }, 30),
+  ]);
+  assert.deepEqual(notes.map((x) => x.lane), ['approve', 'second-approve', 'second-changes'], 'a comment, a push and a review older than a day stay out');
+  assert.deepEqual(notesFrom([], [], now).map((x) => x.lane), [], 'no second feed is no second notes');
+  const d = { ...liveDay(), activity: { ...liveDay().activity, notes } };
+  assert.equal(renderScore(d).match(/class="n"/g).length, 1, 'the score draws Redline\'s verdict only');
+  assert.deepEqual(cardSpecs(d).redline.figures.map((f) => f.value), ['1', '0']);
+  assert.deepEqual(cardSpecs(d)['second-read'].figures.map((f) => f.value), ['1', '1']);
+});
+
 test('the feed counts a merge in both forms GitHub has reported it', () => {
   const e = (payload) => ({ created_at: 'x', type: 'PullRequestEvent', repo: { name: 'a/b' }, payload: { number: 7, ...payload } });
   assert.equal(feedFrom([e({ action: 'merged' })])[0].kind, feedFrom([e({ action: 'closed', pull_request: { merged: true } })])[0].kind);
@@ -195,7 +213,7 @@ const liveDay = () => {
 test('every card comes wide and for a phone, and neither prints a missing value', () => {
   for (const d of [liveDay(), { at: new Date(now).toISOString() }]) {
     const cards = renderCards(d, cardsDir);
-    assert.deepEqual(Object.keys(cards).sort(), ['ci-wizard', 'dario', 'pitlane', 'redline'].flatMap((c) => [`card-${c}-phone.svg`, `card-${c}.svg`]).sort());
+    assert.deepEqual(Object.keys(cards).sort(), ['ci-wizard', 'dario', 'pitlane', 'redline', 'second-read'].flatMap((c) => [`card-${c}-phone.svg`, `card-${c}.svg`]).sort());
     for (const [name, svg] of Object.entries(cards)) assert.ok(!/NaN|undefined|null/.test(svg.replace(/base64,[^"]*/, '')), name);
   }
 });
@@ -211,6 +229,17 @@ test('Redline runs one packet per verdict of the day, at its place in the loop',
   assert.equal(svg.match(/class="hit"/g).length, 3);
   assert.ok(svg.includes(`animation-delay:${(0.6 * LOOP).toFixed(2)}s`));
   assert.ok(!renderCards({ at: new Date(now).toISOString() }, cardsDir)['card-redline.svg'].includes('class="pk"'), 'no feed, no packets');
+});
+
+test('Second Read runs one packet per verdict of its own, and none of Redline\'s', () => {
+  const d = liveDay();
+  const notes = [...d.activity.notes, { t: 0.3, lane: 'second-approve' }, { t: 0.7, lane: 'second-changes' }];
+  const svg = renderCards({ ...d, activity: { ...d.activity, notes } }, cardsDir)['card-second-read.svg'];
+  assert.equal(svg.match(/class="pk"/g).length, 2, 'Redline\'s three verdicts are not this card\'s');
+  assert.equal(svg.match(/class="hit"/g).length, 2);
+  assert.ok(svg.includes(`animation-delay:${(0.7 * LOOP).toFixed(2)}s`));
+  assert.ok(!renderCards(d, cardsDir)['card-second-read.svg'].includes('class="pk"'), 'a day with no second verdict draws no packet');
+  assert.equal(renderCards({ ...d, activity: { ...d.activity, notes } }, cardsDir)['card-redline.svg'].match(/class="pk"/g).length, 3, 'and Redline\'s card draws none of its');
 });
 
 test('pitlane runs one light per job of the last hour, and none on stale numbers', () => {

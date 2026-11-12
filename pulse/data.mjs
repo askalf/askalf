@@ -148,8 +148,10 @@ export function tallyPerDay(previous, { events, complete }, now) {
 }
 
 // What the operation did in the last 24 hours, for the score: a lane and an exact place in the day
-// for each public event. own is the operation's account, redline the reviewer's.
-export function notesFrom(own, redline, now) {
+// for each public event. own is the operation's account, redline the reviewer's, and second the
+// second reviewer's, whose verdicts take lanes of their own so the score's two review lanes stay
+// Redline's alone.
+export function notesFrom(own, redline, now, second = []) {
   const from = now - DAY;
   const notes = [];
   const add = (e, lane) => {
@@ -165,6 +167,11 @@ export function notesFrom(own, redline, now) {
     if (e.type !== 'PullRequestReviewEvent') continue;
     if (e.payload?.review?.state === 'approved') add(e, 'approve');
     else if (e.payload?.review?.state === 'changes_requested') add(e, 'changes');
+  }
+  for (const e of second) {
+    if (e.type !== 'PullRequestReviewEvent') continue;
+    if (e.payload?.review?.state === 'approved') add(e, 'second-approve');
+    else if (e.payload?.review?.state === 'changes_requested') add(e, 'second-changes');
   }
   return notes.sort((a, b) => a.t - b.t);
 }
@@ -210,13 +217,13 @@ async function activity(now, last) {
     }
     return events;
   };
-  const [own, redline] = await Promise.all([read('askalf'), read('sprayberry-redline')]);
-  const since = coveredSince([own, redline], last, now);
+  const [own, redline, second] = await Promise.all([read('askalf'), read('sprayberry-redline'), read('sprayberry-secondread')]);
+  const since = coveredSince([own, redline, second], last, now);
   return {
     from: new Date(now - DAY).toISOString(),
     to: new Date(now).toISOString(),
     since,
-    notes: mergeNotes(notesFrom(own, redline, now), last?.notes, now, since),
+    notes: mergeNotes(notesFrom(own, redline, now, second), last?.notes, now, since),
   };
 }
 
