@@ -18,7 +18,7 @@
 <details>
 <summary><b>How it works, and the first audit</b></summary>
 
-It is read-only and needs nothing installed: `uses: askalf/ci-wizard@v0.1.2` puts the report in a job summary, and `npx github:askalf/ci-wizard owner/repo` prints it.
+It is read-only and needs nothing installed: `npx ci-wizard@0.5.0 owner/repo` prints the report, `--fix fix.patch` also writes the patch it offers for `git apply`, and [the action](https://github.com/askalf/ci-wizard#as-a-github-action), pinned to a release commit, puts the report in a job summary.
 
 | Step | What it does |
 |---|---|
