@@ -21,4 +21,4 @@ jobs:
     permissions:
       actions: write # the one dispatch of the Scorecard workflow
     steps:
-      - uses: askalf/ci/actions/scorecard-publish-check@efae3b1fb0449c7d0800f0668d05f3c4e6ec7fbc # main 2026-11-21, askalf/ci#224
+      - uses: askalf/ci/actions/scorecard-publish-check@9793f4fd0a348154f17310dc3cae44b17c9cb56d # main 2026-11-21, askalf/ci#226
