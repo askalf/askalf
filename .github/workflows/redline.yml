@@ -51,6 +51,10 @@ jobs:
     with:
       redline-ref: f08085b8844366f9482d6d385ee048c2273c01c6
       runner-label: redline
+      # A second lens: every head the review approves is read once more in the same job, as this
+      # account, with a narrower rubric the runner host keeps for it. It never changes this job's
+      # result; redline-post.yml posts its verdict.
+      second-reviewer-login: sprayberry-secondread
       pr: ${{ inputs.pr }}
       head: ${{ inputs.head }}
       reread: ${{ inputs.reread == true }}
